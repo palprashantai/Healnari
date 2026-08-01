@@ -1,0 +1,23 @@
+export declare const ERROR_MESSAGES: {
+    USER_NOT_FOUND: string;
+    INVALID_CREDENTIALS: string;
+    EMAIL_ALREADY_EXISTS: string;
+    UNAUTHORIZED: string;
+    FORBIDDEN: string;
+    PATIENT_NOT_FOUND: string;
+    ONBOARDING_INCOMPLETE: string;
+    DOCTOR_NOT_FOUND: string;
+    KYC_ALREADY_SUBMITTED: string;
+    APPOINTMENT_NOT_FOUND: string;
+    APPOINTMENT_CONFLICT: string;
+    APPOINTMENT_PAST_DATE: string;
+    APPOINTMENT_ALREADY_CANCELLED: string;
+    PRESCRIPTION_NOT_FOUND: string;
+    LAB_RESULT_NOT_FOUND: string;
+    REFILL_NOT_FOUND: string;
+    VERIFICATION_NOT_FOUND: string;
+    REFUND_NOT_FOUND: string;
+    TICKET_NOT_FOUND: string;
+    BAD_REQUEST: string;
+    INTERNAL_SERVER_ERROR: string;
+};

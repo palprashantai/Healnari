@@ -1,0 +1,405 @@
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const OpenAI = require('openai');
+
+// Helper to construct the system prompt with DB schema and instructions
+function getSystemPrompt() {
+  const currentDate = new Date().toISOString().split('T')[0];
+  const currentDateTime = new Date().toISOString();
+
+  return `You are an AI Business Database Assistant. Your job is to translate a user's natural language business query into a structured JSON database query that can be mapped directly to Sequelize ORM queries.
+
+Current Date: ${currentDate}
+Current DateTime: ${currentDateTime}
+Treat the current month as the month of ${currentDate.split('-')[1]}, Year ${currentDate.split('-')[0]}.
+
+DATABASE SCHEMA & MODELS:
+1. Product (Model name: "Product", table name: "products")
+   - Columns: id (int), name (string), category (string), price (decimal), stock (int)
+   - Associations: Product.hasMany(OrderItem)
+
+2. Customer (Model name: "Customer", table name: "customers")
+   - Columns: id (int), name (string), email (string), phone (string), city (string)
+   - Associations: Customer.hasMany(Order)
+
+3. Order (Model name: "Order", table name: "orders")
+   - Columns: id (int), customer_id (int), total_amount (decimal), status (string: 'pending'|'completed'|'cancelled'), created_at (datetime)
+   - Associations: Order.belongsTo(Customer), Order.hasMany(OrderItem), Order.hasOne(Sale)
+
+4. OrderItem (Model name: "OrderItem", table name: "order_items")
+   - Columns: id (int), order_id (int), product_id (int), quantity (int), price (decimal)
+   - Associations: OrderItem.belongsTo(Order), OrderItem.belongsTo(Product)
+
+5. Sale (Model name: "Sale", table name: "sales")
+   - Columns: id (int), order_id (int), total (decimal), created_at (datetime)
+   - Associations: Sale.belongsTo(Order)
+
+OPERATORS SUPPORTED IN queryOptions.where:
+- eq: equals
+- ne: not equals
+- gt: greater than
+- gte: greater than or equal to
+- lt: less than
+- lte: less than or equal to
+- like: LIKE search (e.g. "%Mumbai%")
+- between: Between array [val1, val2] (useful for dates: e.g. ["2026-05-01 00:00:00", "2026-05-31 23:59:59"])
+- in: IN array [val1, val2, ...]
+
+ATTRIBUTES AND AGGREGATIONS:
+- Single attributes: "column_name"
+- Aggregations: ["column_name", "FUNCTION", "alias"] where FUNCTION is "SUM", "AVG", "COUNT", "MAX", or "MIN".
+  Example: ["total_amount", "SUM", "revenue"]
+  If using aggregate function in attributes, remember to add "group" option if necessary.
+
+RULES FOR INTERPRETING REPORT vs QUERY:
+- If user requests report download/export (e.g., "Download report", "Export sales report", "Generate Excel", "Download monthly sales report", "Export to CSV", "Download sales in CSV"), set intent to "report".
+- Otherwise, set intent to "query".
+
+PAGINATION AND SORTING:
+- If the user query implies pagination (e.g., "page 2", "next 10", "offset 5") or sorting (e.g., "sort by price ascending", "highest stock first"), map these to limit, offset, and order parameters inside queryOptions.
+- Default limit is NOT set unless specified or implied, but if pagination is mentioned (e.g., "next 5" or "show page 3 with limit 10"), compute:
+  - "limit": specified limit (default to 10 if only page is mentioned).
+  - "offset": (page - 1) * limit. E.g., "page 2" with limit 10 means offset is 10.
+- "order" must be an array of arrays: [["field_name", "ASC"|"DESC"]] or [["associatedModel", "field_name", "ASC"|"DESC"]].
+
+JSON OUTPUT FORMAT:
+You MUST respond with a JSON object ONLY, conforming to the schema below. No conversational text, no markdown codeblock wrapper unless requested.
+
+Schema:
+{
+  "intent": "query" | "report",
+  "targetModel": "Product" | "Customer" | "Order" | "OrderItem" | "Sale",
+  "queryType": "findAll" | "findOne" | "count" | "sum" | "avg" | "min" | "max",
+  "queryOptions": {
+    "where": {
+      "field": { "operator": "eq"|"ne"|"gt"|"gte"|"lt"|"lte"|"like"|"between"|"in", "val": any }
+    },
+    "include": [
+      {
+        "model": "Product" | "Customer" | "Order" | "OrderItem" | "Sale",
+        "attributes": ["field1", "field2"],
+        "required": boolean,
+        "include": [ ... ]
+      }
+    ],
+    "attributes": [
+      "field",
+      ["column", "FUNCTION", "alias"]
+    ],
+    "order": [
+      ["field_or_alias", "ASC" | "DESC"]
+    ],
+    "group": ["field"],
+    "limit": number,
+    "offset": number
+  },
+  "aggregateField": "fieldName", // required for sum, avg, min, max (e.g. "total" or "price")
+  "reportTitle": "string", // User-friendly title for the report (if intent is report)
+  "responseTemplate": "string template explaining how to describe the results, using placeholders like {value} or {list}"
+}
+
+CONVERSATIONAL MEMORY & FOLLOW-UP QUERIES:
+You may be provided with a RECENT CONVERSATION HISTORY context block.
+If the current user query is a follow-up (e.g., "Which is the cheapest?", "Show the next page", "Who bought that?"), use the conversation history to infer:
+- The target model (e.g. if the previous query was about "Products", then "cheapest" refers to "Product" and price column).
+- The filters (where conditions) from the previous turns.
+E.g., if User previously asked "Show products in Accessories" and now asks "Which is the cheapest?", the targetModel remains "Product", the filter category="Accessories" is preserved, and you add sorting order: [["price", "ASC"]] and limit: 1.
+
+EXAMPLES:
+1. "Show total sales this month"
+{
+  "intent": "query",
+  "targetModel": "Sale",
+  "queryType": "sum",
+  "aggregateField": "total",
+  "queryOptions": {
+    "where": {
+      "created_at": { "operator": "between", "val": ["2026-05-01 00:00:00", "2026-05-31 23:59:59"] }
+    }
+  },
+  "responseTemplate": "Total sales for this month is {value}."
+}
+
+2. "Top 5 customers by revenue"
+{
+  "intent": "query",
+  "targetModel": "Order",
+  "queryType": "findAll",
+  "queryOptions": {
+    "attributes": [
+      "customer_id",
+      ["total_amount", "SUM", "revenue"]
+    ],
+    "include": [
+      { "model": "Customer", "attributes": ["name", "email"] }
+    ],
+    "group": ["customer_id", "Customer.id"],
+    "order": [["revenue", "DESC"]],
+    "limit": 5
+  },
+  "responseTemplate": "Here are the top 5 customers by revenue: {list}"
+}
+
+3. "Low stock products"
+{
+  "intent": "query",
+  "targetModel": "Product",
+  "queryType": "findAll",
+  "queryOptions": {
+    "where": {
+      "stock": { "operator": "lt", "val": 10 }
+    }
+  },
+  "responseTemplate": "Here are the products currently low on stock: {list}"
+}
+
+4. "Download sales report in Excel"
+{
+  "intent": "report",
+  "targetModel": "Sale",
+  "queryType": "findAll",
+  "reportTitle": "Sales Report",
+  "queryOptions": {
+    "include": [
+      { "model": "Order", "include": [{ "model": "Customer", "attributes": ["name", "city"] }] }
+    ],
+    "order": [["created_at", "DESC"]]
+  },
+  "responseTemplate": "Generating your Sales Report Excel file."
+}
+
+Ensure your response is valid JSON. Double check your query options match the exact schema column names.`;
+}
+
+// Clean model response of markdown wrapper if present
+function cleanResponse(text) {
+  let cleaned = text.trim();
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.substring(7);
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.substring(3);
+  }
+  if (cleaned.endsWith('```')) {
+    cleaned = cleaned.substring(0, cleaned.length - 3);
+  }
+  return cleaned.trim();
+}
+
+class AIService {
+  constructor() {
+    this.geminiKey = process.env.GEMINI_API_KEY;
+    this.openaiKey = process.env.OPENAI_API_KEY;
+
+    if (this.geminiKey) {
+      this.genAI = new GoogleGenerativeAI(this.geminiKey);
+    }
+
+    if (this.openaiKey) {
+      this.openaiClient = new OpenAI({ apiKey: this.openaiKey });
+    }
+  }
+
+  /**
+   * Helper to execute Gemini generation with automatic model fallback
+   */
+  async callGeminiGenerate(prompt) {
+    const modelsToTry = [
+      process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+      'gemini-pro',
+      'gemini-1.5-flash-latest'
+    ];
+
+    let lastError;
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`Attempting Google Gemini with model: "${modelName}"...`);
+        const model = this.genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(prompt);
+        return result;
+      } catch (err) {
+        lastError = err;
+        console.warn(`Gemini model "${modelName}" request failed:`, err.message);
+        // If the model is not found, not supported, or 404, fallback to next
+        if (
+          err.message.includes('not found') || 
+          err.message.includes('404') || 
+          err.message.includes('supported') || 
+          err.message.includes('API version')
+        ) {
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastError;
+  }
+
+  async parseQuery(userQuery, history = []) {
+    if (!userQuery || userQuery.trim() === '') {
+      throw new Error('Empty query provided');
+    }
+
+    const systemPrompt = getSystemPrompt();
+    
+    // Format history for context-aware prompt parsing
+    let conversationContext = '';
+    if (history && history.length > 0) {
+      conversationContext = "\n\nRECENT CONVERSATION HISTORY:\n" + 
+        history.map(h => `${h.sender === 'user' ? 'User' : 'Assistant'}: ${h.message}`).join('\n') + '\n';
+    }
+
+    const prompt = `${systemPrompt}${conversationContext}\nUser's Current Query: "${userQuery}"\n\nJSON Output:`;
+
+    // Attempt Gemini first
+    if (this.geminiKey) {
+      try {
+        const result = await this.callGeminiGenerate(prompt);
+        const text = result.response.text();
+        const cleanedText = cleanResponse(text);
+        return JSON.parse(cleanedText);
+      } catch (err) {
+        console.error('Gemini API call failed, falling back to OpenAI if available:', err);
+        if (!this.openaiKey) {
+          throw new Error(`AI parsing failed: ${err.message}`);
+        }
+      }
+    }
+
+    // Fallback to OpenAI
+    if (this.openaiKey) {
+      try {
+        console.log('Sending query parsing request to OpenAI (Context-Aware)...');
+        const model = process.env.OPENAI_MODEL || 'gpt-4o';
+        
+        const messages = [
+          { role: 'system', content: systemPrompt }
+        ];
+
+        // Push history turns
+        if (history && history.length > 0) {
+          history.forEach(h => {
+            messages.push({
+              role: h.sender === 'user' ? 'user' : 'assistant',
+              content: h.message
+            });
+          });
+        }
+
+        // Push current query
+        messages.push({ role: 'user', content: userQuery });
+
+        const response = await this.openaiClient.chat.completions.create({
+          model: model,
+          messages: messages,
+          temperature: 0,
+          response_format: { type: 'json_object' }
+        });
+        
+        const text = response.choices[0].message.content;
+        const cleanedText = cleanResponse(text);
+        return JSON.parse(cleanedText);
+      } catch (err) {
+        console.error('OpenAI API call failed:', err);
+        throw new Error(`AI parsing failed: ${err.message}`);
+      }
+    }
+
+    throw new Error('AI API credentials missing. Please configure GEMINI_API_KEY or OPENAI_API_KEY in the environment.');
+  }
+
+  async generateNaturalResponse(userQuery, dbResult, aiParsedQuery, history = []) {
+    const { queryType, targetModel, responseTemplate } = aiParsedQuery;
+    
+    // Format history context for synthesis stage
+    let conversationContext = '';
+    if (history && history.length > 0) {
+      conversationContext = "\n- Recent Conversation History:\n" + 
+        history.map(h => `  * ${h.sender === 'user' ? 'User' : 'Assistant'}: ${h.message}`).join('\n') + '\n';
+    }
+
+    const systemPrompt = `You are a helpful business chatbot assistant. An admin user asked a question, we queried the database, and got raw data.
+Your task is to write a concise, professional, and friendly response to the user summarizing the result of the database query.
+- Use the original query, model table context, and query type to construct a natural and accurate response.
+- Use the recent conversation history to maintain conversational flow and answer follow-ups correctly.
+- Do NOT make up any data. Only summarize the provided database results.
+- If the results are empty or null, state clearly and politely that no records or matching data was found.
+- For currency amounts, format them with currency symbol (e.g. ₹ or $ depending on context, let's use ₹ since we are showing Indian rupees for Mumbai/Delhi customers, or just simple formatted amounts).
+- Keep the response short, clear, and easy to read. Use bullet points if listing multiple items.
+- Maintain a professional tone.
+
+Context Details:
+- User's Original Query: "${userQuery}"${conversationContext}
+- Query Target Table: "${targetModel}"
+- Query Type: "${queryType}"
+- Suggested Response Template: "${responseTemplate || ''}"
+- Database Raw JSON Result: ${JSON.stringify(dbResult)}`;
+
+    const prompt = `${systemPrompt}\n\nChatbot Response:`;
+
+    // Attempt Gemini
+    if (this.geminiKey) {
+      try {
+        const result = await this.callGeminiGenerate(prompt);
+        return result.response.text().trim();
+      } catch (err) {
+        console.error('Gemini NL generation failed, falling back to OpenAI if available:', err);
+        if (!this.openaiKey) {
+          return this.fallbackNlFormat(dbResult, aiParsedQuery);
+        }
+      }
+    }
+
+    // Fallback to OpenAI
+    if (this.openaiKey) {
+      try {
+        console.log('Generating natural language response with OpenAI...');
+        const model = process.env.OPENAI_MODEL || 'gpt-4o';
+        const response = await this.openaiClient.chat.completions.create({
+          model: model,
+          messages: [
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.3
+        });
+        return response.choices[0].message.content.trim();
+      } catch (err) {
+        console.error('OpenAI NL generation failed:', err);
+        return this.fallbackNlFormat(dbResult, aiParsedQuery);
+      }
+    }
+
+    // Static fallback formatter in case APIs fail
+    return this.fallbackNlFormat(dbResult, aiParsedQuery);
+  }
+
+  fallbackNlFormat(dbResult, aiParsedQuery) {
+    const { queryType, responseTemplate } = aiParsedQuery;
+    console.log('Using static fallback formatter...');
+    
+    if (queryType === 'sum' || queryType === 'count' || queryType === 'avg' || queryType === 'min' || queryType === 'max') {
+      const val = dbResult.value !== undefined ? dbResult.value : '0';
+      if (responseTemplate) {
+        return responseTemplate.replace('{value}', val);
+      }
+      return `The result is ${val}.`;
+    }
+
+    const data = dbResult.data;
+    if (!data || (Array.isArray(data) && data.length === 0)) {
+      return 'No matching records were found in the database.';
+    }
+
+    if (Array.isArray(data)) {
+      const listStr = data.map(item => {
+        return Object.entries(item)
+          .filter(([k]) => k !== 'id' && !k.endsWith('_id') && k !== 'password')
+          .map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
+          .join(', ');
+      }).join('\n- ');
+      return `Here are the results:\n- ${listStr}`;
+    }
+
+    return `Result: ${JSON.stringify(data)}`;
+  }
+}
+
+module.exports = new AIService();

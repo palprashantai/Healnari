@@ -1,0 +1,26 @@
+export declare const SUCCESS_MESSAGES: {
+    USER_REGISTERED: string;
+    LOGIN_SUCCESS: string;
+    ONBOARDING_COMPLETE: string;
+    PROFILE_UPDATED: string;
+    APPOINTMENT_BOOKED: string;
+    APPOINTMENT_UPDATED: string;
+    APPOINTMENT_CANCELLED: string;
+    APPOINTMENT_RESCHEDULED: string;
+    PRESCRIPTION_ADDED: string;
+    PRESCRIPTION_REFILL_APPROVED: string;
+    PRESCRIPTION_REFILL_DENIED: string;
+    LAB_RESULT_ADDED: string;
+    SYMPTOM_REPORT_SUBMITTED: string;
+    KYC_SUBMITTED: string;
+    PATIENT_CONTACTED: string;
+    QUEUE_TOKEN_UPDATED: string;
+    VERIFICATION_APPROVED: string;
+    VERIFICATION_REJECTED: string;
+    REFUND_INITIATED: string;
+    TICKET_RESOLVED: string;
+    TICKET_UPDATED: string;
+    DATA_RETRIEVED: string;
+    HEALTH_METRICS_UPDATED: string;
+    GOAL_LOGGED: string;
+};
