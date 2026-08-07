@@ -10,7 +10,7 @@ function Testimonials() {
       age: 32,
       stars: 5,
       role: "PCOS & Hair Fall Patient",
-      image: "https://randomuser.me/api/portraits/women/22.jpg"
+      image: "/images/testimonials/sneha.png"
     },
     {
       quote: "The holistic plan combining safe medical supplements with specialized diet and stress management brought my PCOD symptoms under control within 4 months. I am so grateful for the judgment-free, expert clinical guidance.",
@@ -18,7 +18,7 @@ function Testimonials() {
       age: 27,
       stars: 5,
       role: "Metabolic & Acne Patient",
-      image: "https://randomuser.me/api/portraits/women/55.jpg"
+      image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=500&fit=crop"
     },
     {
       quote: "After seeing my own transformation under their care, I believed in their clinical model so much that I joined as an angel investor! This is the future of compassionate, high-fidelity women’s healthcare.",
@@ -26,7 +26,7 @@ function Testimonials() {
       age: 35,
       stars: 5,
       role: "Patient turned Angel Investor",
-      image: "https://randomuser.me/api/portraits/women/62.jpg"
+      image: "https://images.unsplash.com/photo-1616683693504-3ea7e9ad6fec?w=500&h=500&fit=crop"
     }
   ];
 

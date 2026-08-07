@@ -80,8 +80,8 @@ function Hero({ onStartConsult, onOpenChecker }) {
             {/* Beautiful Profile Image */}
             <div className="w-full h-full rounded-full overflow-hidden border-8 border-white shadow-2xl relative">
               <img
-                src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=500&h=500&fit=crop"
-                alt="Portrait of a smiling woman, representing a HealNari patient"
+                src="/images/hero/patient.png"
+                alt="Portrait of a smiling Indian woman, representing a HealNari patient"
                 width="500"
                 height="500"
                 fetchpriority="high"
