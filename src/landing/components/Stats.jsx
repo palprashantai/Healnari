@@ -10,7 +10,7 @@ function Stats() {
 
   return (
     <section className="max-w-6xl mx-auto px-5 md:px-8 py-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 rounded-3xl p-8 shadow-sm border border-sand-200" style={{ backgroundColor: 'var(--color-surface-card)' }}>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 rounded-3xl p-5 md:p-8 shadow-sm border border-sand-200" style={{ backgroundColor: 'var(--color-surface-card)' }}>
         {stats.map((stat, idx) => (
           <div
             key={idx}
@@ -22,7 +22,7 @@ function Stats() {
               <i className={`fas ${stat.icon}`}></i>
             </div>
 
-            <div className="text-3xl md:text-4.5xl font-black text-aubergine-800 tracking-tight font-display bg-gradient-to-r from-aubergine-800 to-aubergine-600 bg-clip-text text-transparent">
+            <div className="text-3xl md:text-4.5xl font-black text-aubergine-800 tracking-tight bg-gradient-to-r from-aubergine-800 to-aubergine-600 bg-clip-text text-transparent">
               {stat.value}
             </div>
 

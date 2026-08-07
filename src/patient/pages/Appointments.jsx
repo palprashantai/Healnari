@@ -192,6 +192,20 @@ function PatientAppointments() {
   const [cancelTarget, setCancelTarget] = useState(null);
   const [videoTarget, setVideoTarget] = useState(null);
   const [successApt, setSuccessApt] = useState(null);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('All Types');
+  const [statusFilter, setStatusFilter] = useState('All Status');
+
+  const getFilteredData = () => {
+    let data = tab === 'upcoming' ? upcoming : past;
+    return data.filter(item => {
+      const matchesSearch = !search || item.doctor.toLowerCase().includes(search.toLowerCase()) || item.specialty.toLowerCase().includes(search.toLowerCase()) || item.id.toLowerCase().includes(search.toLowerCase());
+      const matchesType = typeFilter === 'All Types' || item.type === typeFilter;
+      const matchesStatus = statusFilter === 'All Status' || item.status === statusFilter;
+      return matchesSearch && matchesType && matchesStatus;
+    });
+  };
+  const filteredData = getFilteredData();
 
   const handleBook = (form) => {
     const newApt = {
@@ -269,6 +283,26 @@ function PatientAppointments() {
           ))}
         </div>
 
+        {/* Filters */}
+        <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-3 bg-white">
+          <div className="relative flex-1">
+            <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search doctor, specialty, or ID..."
+              className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white" />
+          </div>
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="border border-slate-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300 outline-none">
+            <option value="All Types">All Types</option>
+            <option value="Video Consult">Video Consult</option>
+            <option value="Clinic Visit">Clinic Visit</option>
+          </select>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-slate-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300 outline-none">
+            <option value="All Status">All Status</option>
+            <option value="Confirmed">Confirmed</option>
+            <option value="Pending">Pending</option>
+            <option value="Completed">Completed</option>
+          </select>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -281,7 +315,7 @@ function PatientAppointments() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {(tab === 'upcoming' ? upcoming : past).map(apt => (
+              {filteredData.map(apt => (
                 <tr key={apt.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="font-bold text-slate-800">{apt.doctor}</div>
@@ -339,19 +373,17 @@ function PatientAppointments() {
                 </tr>
               ))}
 
-              {(tab === 'upcoming' ? upcoming : past).length === 0 && (
+              {filteredData.length === 0 && (
                 <tr>
                   <td colSpan={5} className="text-center py-16">
                     <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100 shadow-sm">
                       <i className={`fas ${tab === 'upcoming' ? 'fa-calendar-plus text-aubergine-300' : 'fa-clock-rotate-left text-slate-300'} text-4xl`}></i>
                     </div>
                     <h3 className="text-lg font-black text-slate-800 mb-1">
-                      {tab === 'upcoming' ? 'No Upcoming Appointments' : 'No Past Appointments'}
+                      No Appointments Found
                     </h3>
                     <p className="text-sm text-slate-500 max-w-sm mx-auto mb-6">
-                      {tab === 'upcoming' 
-                        ? 'It looks like you don’t have any scheduled visits. Book a consultation to speak with a specialist.' 
-                        : 'Your consultation history will appear here once you complete a visit.'}
+                      Try adjusting your filters or booking a new consultation.
                     </p>
                     {tab === 'upcoming' && (
                       <button onClick={() => { setBookPrefill({}); setShowBook(true); }} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold px-6 py-2.5 rounded-xl shadow-sm transition-all btn-interactive">

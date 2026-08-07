@@ -44,11 +44,11 @@ function PcosDiagram() {
 
         {/* Diagram Area */}
         <div className="p-8 md:p-12 bg-gradient-to-b from-white to-slate-50/50 relative">
-          <div className={`grid gap-12 lg:gap-8 items-center transition-all duration-500 ${activeTab === 'compare' ? 'md:grid-cols-2' : 'max-w-2xl mx-auto'}`}>
+          <div className={`flex flex-row md:grid gap-12 lg:gap-8 items-center transition-all duration-500 ${activeTab === 'compare' ? 'md:grid-cols-2 overflow-x-auto snap-x snap-mandatory pb-8 -mx-8 px-8 md:mx-0 md:px-0 md:pb-0 md:overflow-visible hide-scrollbar' : 'max-w-2xl mx-auto'}`}>
             
             {/* Normal Ovary Panel */}
             {(activeTab === 'normal' || activeTab === 'compare') && (
-              <div className="flex flex-col items-center animate-fade-in group relative">
+              <div className={`flex flex-col items-center animate-fade-in group relative ${activeTab === 'compare' ? 'w-[85vw] md:w-auto flex-shrink-0 snap-center' : 'w-full'}`}>
                 <div className="absolute inset-0 bg-emerald-50 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
                 <h3 className="text-xl font-bold text-emerald-800 mb-6 flex items-center gap-2">
                   <i className="fas fa-check-circle text-emerald-500"></i> Normal Ovary
@@ -110,7 +110,7 @@ function PcosDiagram() {
 
             {/* PCOS Ovary Panel */}
             {(activeTab === 'pcos' || activeTab === 'compare') && (
-              <div className="flex flex-col items-center animate-fade-in group relative">
+              <div className={`flex flex-col items-center animate-fade-in group relative ${activeTab === 'compare' ? 'w-[85vw] md:w-auto flex-shrink-0 snap-center' : 'w-full'}`}>
                 <div className="absolute inset-0 bg-rose-50 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
                 <h3 className="text-xl font-bold text-rose-800 mb-6 flex items-center gap-2">
                   <i className="fas fa-triangle-exclamation text-rose-500"></i> Polycystic Ovary

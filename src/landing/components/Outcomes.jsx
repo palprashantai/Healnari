@@ -70,12 +70,13 @@ function Outcomes() {
             {/* Before vs After Static Comparison Widgets */}
             <div className="grid gap-3.5 pt-2">
               {/* Before Card */}
-              <div 
+              <button 
+                type="button"
                 onClick={() => setHealthIndex(2.1)}
-                className={`p-4 rounded-2xl border cursor-pointer transition-all duration-200 ${
+                className={`w-full text-left p-4 rounded-2xl border cursor-pointer transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md btn-interactive ${
                   healthIndex <= 4.0 
-                    ? 'border-red-400 bg-red-50/10 shadow-sm font-semibold' 
-                    : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50 text-slate-550'
+                    ? 'border-red-400 bg-red-50/10 shadow-md font-semibold ring-2 ring-red-400/20' 
+                    : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 text-slate-550'
                 }`}
               >
                 <div className="flex justify-between items-center">
@@ -85,15 +86,16 @@ function Outcomes() {
                 <p className="text-sm mt-1.5 leading-relaxed font-medium text-slate-700">
                   Irregular cycles (once in 3-4 months), significant hair shedding, facial acne, weight gain.
                 </p>
-              </div>
+              </button>
 
               {/* After Card */}
-              <div 
+              <button 
+                type="button"
                 onClick={() => setHealthIndex(8.7)}
-                className={`p-4 rounded-2xl border cursor-pointer transition-all duration-200 ${
+                className={`w-full text-left p-4 rounded-2xl border cursor-pointer transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-md btn-interactive ${
                   healthIndex > 7.0 
-                    ? 'border-emerald-400 bg-emerald-50/10 shadow-sm font-semibold' 
-                    : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50 text-slate-550'
+                    ? 'border-emerald-400 bg-emerald-50/10 shadow-md font-semibold ring-2 ring-emerald-400/20' 
+                    : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300 text-slate-550'
                 }`}
               >
                 <div className="flex justify-between items-center">
@@ -103,12 +105,12 @@ function Outcomes() {
                 <p className="text-sm mt-1.5 leading-relaxed font-medium text-slate-700">
                   Regular cycles (30-32 days), 60% reduction in hair shedding, clear skin, 5 kg weight loss.
                 </p>
-              </div>
+              </button>
             </div>
           </div>
 
           {/* Right Block: Dynamic Interactive Sandbox & Slider */}
-          <div className="md:col-span-5 bg-slate-50/70 border border-slate-150/40 rounded-3xl p-6 space-y-6">
+          <div className="md:col-span-5 bg-slate-50/70 border border-slate-150/40 rounded-3xl p-6 space-y-6 transition-shadow duration-500 hover:shadow-card-hover">
             <div className="flex justify-between items-center">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Hormonal Severity Index</span>
               <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">0 = Severe | 10 = Optimal</span>
@@ -116,7 +118,7 @@ function Outcomes() {
 
             {/* Numeric display */}
             <div className="text-center space-y-1">
-              <div className="text-5xl font-black text-slate-800 font-display tracking-tighter">
+              <div className="text-5xl font-black text-slate-800 tracking-tighter">
                 {healthIndex.toFixed(1)}
               </div>
               <div className={`inline-flex items-center gap-1 border text-[10px] font-bold px-2.5 py-0.5 rounded-full ${status.color}`}>
@@ -151,6 +153,7 @@ function Outcomes() {
                 value={healthIndex} 
                 onChange={(e) => setHealthIndex(parseFloat(e.target.value))}
                 className="w-full accent-brand-600 bg-slate-200 cursor-pointer rounded-lg appearance-none h-1.5"
+                aria-label="Hormonal Severity Index Simulator Slider"
               />
             </div>
 

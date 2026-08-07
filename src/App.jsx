@@ -22,6 +22,7 @@ const PatientProfile = lazy(() => import('./patient/pages/Profile.jsx'));
 
 // Doctor Pages
 const DoctorDashboard = lazy(() => import('./doctor/pages/Dashboard.jsx'));
+const DoctorAnalytics = lazy(() => import('./doctor/pages/Analytics.jsx'));
 const DoctorAppointments = lazy(() => import('./doctor/pages/Appointments.jsx'));
 const DoctorPatients = lazy(() => import('./doctor/pages/Patients.jsx'));
 const DoctorPrescriptions = lazy(() => import('./doctor/pages/Prescriptions.jsx'));
@@ -30,16 +31,23 @@ const DoctorReports = lazy(() => import('./doctor/pages/Reports.jsx'));
 const DoctorBilling = lazy(() => import('./doctor/pages/Billing.jsx'));
 const DoctorStaff = lazy(() => import('./doctor/pages/Staff.jsx'));
 const DoctorProfile = lazy(() => import('./doctor/pages/Profile.jsx'));
+const DoctorCommunications = lazy(() => import('./doctor/pages/Communications.jsx'));
 const NotFound = lazy(() => import('./NotFound.jsx'));
 
 // Admin Pages
 const AdminDashboard = lazy(() => import('./admin/pages/Dashboard.jsx'));
+const AdminAnalytics = lazy(() => import('./admin/pages/Analytics.jsx'));
 const AdminUsers = lazy(() => import('./admin/pages/Users.jsx'));
 const AdminVerification = lazy(() => import('./admin/pages/Verification.jsx'));
-const AdminClinics = lazy(() => import('./admin/pages/Clinics.jsx'));
 const AdminRevenue = lazy(() => import('./admin/pages/Revenue.jsx'));
 const AdminCMS = lazy(() => import('./admin/pages/CMS.jsx'));
 const AdminReports = lazy(() => import('./admin/pages/Reports.jsx'));
+const AdminCommunications = lazy(() => import('./admin/pages/Communications.jsx'));
+const AdminLandingManager = lazy(() => import('./admin/pages/LandingManager.jsx'));
+const AdminDoctorManager = lazy(() => import('./admin/pages/DoctorManager.jsx'));
+const AdminDoctorDetails = lazy(() => import('./admin/pages/DoctorDetails.jsx'));
+const AdminPatientDetails = lazy(() => import('./admin/pages/PatientDetails.jsx'));
+const AdminTemplates = lazy(() => import('./admin/pages/TemplatesManager.jsx'));
 
 // Protected Route Wrapper — demo mode: always allow access
 function ProtectedRoute({ children, allowedRole }) {
@@ -54,8 +62,12 @@ function ProtectedRoute({ children, allowedRole }) {
     </div>
   );
 
-  // Demo mode: allow access even without strict auth match
   if (!user) return <Navigate to="/" replace />;
+  
+  // Enforce role-based access control
+  if (allowedRole && user.role !== allowedRole) {
+    return <Navigate to="/" replace />;
+  }
 
   return children;
 }
@@ -142,6 +154,7 @@ function App() {
                 }
               >
                 <Route index element={<DoctorDashboard />} />
+                <Route path="analytics" element={<DoctorAnalytics />} />
                 <Route path="appointments" element={<DoctorAppointments />} />
                 <Route path="patients" element={<DoctorPatients />} />
                 <Route path="prescriptions" element={<DoctorPrescriptions />} />
@@ -150,6 +163,7 @@ function App() {
                 <Route path="billing" element={<DoctorBilling />} />
                 <Route path="staff" element={<DoctorStaff />} />
                 <Route path="profile" element={<DoctorProfile />} />
+                <Route path="communications" element={<DoctorCommunications />} />
               </Route>
 
               <Route
@@ -161,12 +175,18 @@ function App() {
                 }
               >
                 <Route index element={<AdminDashboard />} />
+                <Route path="analytics" element={<AdminAnalytics />} />
+                <Route path="landing" element={<AdminLandingManager />} />
+                <Route path="doctors" element={<AdminDoctorManager />} />
+                <Route path="doctors/:id" element={<AdminDoctorDetails />} />
                 <Route path="users" element={<AdminUsers />} />
+                <Route path="users/:id" element={<AdminPatientDetails />} />
                 <Route path="verification" element={<AdminVerification />} />
-                <Route path="clinics" element={<AdminClinics />} />
                 <Route path="revenue" element={<AdminRevenue />} />
                 <Route path="cms" element={<AdminCMS />} />
                 <Route path="reports" element={<AdminReports />} />
+                <Route path="communications" element={<AdminCommunications />} />
+                <Route path="templates" element={<AdminTemplates />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

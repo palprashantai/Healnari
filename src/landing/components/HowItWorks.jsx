@@ -12,7 +12,7 @@ const steps = [
       'Conducted 1-on-1 over secure encrypted video call',
       'Doctor-designed root-cause diagnostic process',
     ],
-    image: '/images/journey/step1.png',
+    image: '/generated/step1.png',
     imageAlt: 'Indian woman having a video consultation with a doctor',
     accent: '#5A7A5A',
     tagBg: 'bg-sage-50 text-sage-800 border-sage-100',
@@ -27,7 +27,7 @@ const steps = [
       'Clean, clinically validated supplements if needed',
       'Diet, sleep & exercise plan tailored to your cycle',
     ],
-    image: '/images/journey/step2.png',
+    image: '/generated/step2.png',
     imageAlt: 'Indian female doctor creating a personalised care plan',
     accent: '#8B7355',
     tagBg: 'bg-sand-50 text-sand-600 border-sand-100',
@@ -42,7 +42,7 @@ const steps = [
       'Unlimited chat access with your dedicated care team',
       'Protocol refined as your body responds and improves',
     ],
-    image: '/images/journey/step3.png',
+    image: '/generated/step3.png',
     imageAlt: 'Happy healthy Indian woman after recovery',
     accent: '#7a3e65',
     tagBg: 'bg-brand-50 text-brand-700 border-brand-100',
@@ -139,16 +139,18 @@ function HowItWorks() {
             const isActive = activeStep === idx;
             
             return (
-              <div
+              <button
+                type="button"
                 key={idx}
                 ref={(el) => (stepRefs.current[idx] = el)}
                 onClick={() => setActiveStep(idx)}
                 onMouseEnter={() => setActiveStep(idx)}
-                className={`relative overflow-hidden flex flex-col p-6 sm:p-8 rounded-3xl transition-all duration-500 cursor-pointer border-2 ${
+                className={`w-full text-left relative overflow-hidden flex flex-col p-6 sm:p-8 rounded-3xl transition-all duration-500 ease-out cursor-pointer border-2 hover:-translate-y-1 ${
                   isActive
-                    ? 'bg-white shadow-xl border-slate-200'
-                    : 'bg-slate-50/50 hover:bg-white border-transparent hover:border-slate-200/60 opacity-70 hover:opacity-100'
+                    ? 'bg-white shadow-card-hover border-brand-200'
+                    : 'bg-slate-50/50 hover:bg-white border-transparent hover:border-brand-200/60 opacity-70 hover:opacity-100 hover:shadow-soft'
                 }`}
+                aria-expanded={isActive}
               >
                 {/* Header (Always Visible) */}
                 <div className="flex items-center gap-4 sm:gap-6">
@@ -212,7 +214,7 @@ function HowItWorks() {
                     style={{ background: step.accent }}
                   />
                 )}
-              </div>
+              </button>
             );
           })}
         </div>

@@ -90,7 +90,7 @@ function LandingPage() {
         {/* Customized Premium Inline CTA Section */}
         <section className="max-w-6xl mx-auto px-5 md:px-8 py-10">
         <Reveal>
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-900 to-indigo-950 px-8 py-12 md:p-16 text-center text-white shadow-xl glow-purple">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-600 to-brand-700 px-8 py-12 md:p-16 text-center text-white shadow-xl glow-purple">
             {/* Background design accents */}
             <div className="absolute top-0 right-0 -mt-12 -mr-12 w-48 h-48 rounded-full bg-violet-600/10 blur-2xl"></div>
             <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-48 h-48 rounded-full bg-indigo-500/15 blur-2xl"></div>
@@ -100,9 +100,9 @@ function LandingPage() {
                 <i className="fas fa-percent text-emerald-400"></i> Introductory Offer
               </span>
               <h2 className="text-3xl md:text-4xl font-black leading-tight text-white font-display">
-                Discuss your concerns with an expert for just <span className="underline decoration-indigo-400 decoration-wavy">₹299</span>
+                Discuss your concerns with an expert for just <span className="underline decoration-white/40 decoration-wavy">₹299</span>
               </h2>
-              <p className="text-indigo-200 text-base max-w-xl mx-auto leading-relaxed">
+              <p className="text-white/90 text-base max-w-xl mx-auto leading-relaxed font-medium">
                 Receive a provisional clinical assessment, personalized lab-testing roadmap, and initial lifestyle protocols. No judgment, 100% private.
               </p>
               
@@ -121,10 +121,10 @@ function LandingPage() {
                 </button>
               </div>
 
-              <div className="flex flex-wrap justify-center gap-6 pt-4 text-xs font-medium text-indigo-200">
-                <span className="flex items-center gap-1.5"><i className="fas fa-microscope text-brand-400"></i> Root-Cause Analysis</span>
-                <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-brand-400"></i> 100% Secure & Confidential</span>
-                <span className="flex items-center gap-1.5"><i className="fas fa-clock-rotate-left text-brand-400"></i> Inclusive & Patient-First Care</span>
+              <div className="flex flex-wrap justify-center gap-6 pt-4 text-xs font-semibold text-white/90">
+                <span className="flex items-center gap-1.5"><i className="fas fa-microscope text-brand-100"></i> Root-Cause Analysis</span>
+                <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-brand-100"></i> 100% Secure & Confidential</span>
+                <span className="flex items-center gap-1.5"><i className="fas fa-clock-rotate-left text-brand-100"></i> Inclusive & Patient-First Care</span>
               </div>
             </div>
           </div>

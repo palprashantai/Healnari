@@ -6,7 +6,7 @@ import { Tilt3D } from '../../components/Tilt3D.jsx';
 /* ─── Dummy Data ──────────────────────────────── */
 const STATS = [
   { label: 'Total Users',       value: '24,592', trend: '+12% this month', up: true,  icon: 'fa-users',         color: 'text-sky-600',       bg: 'bg-sky-50' },
-  { label: 'Active Doctors',    value: '342',    trend: '+8 this week',    up: true,  icon: 'fa-user-doctor',   color: 'text-emerald-600',   bg: 'bg-emerald-50' },
+  { label: 'Active Doctors',    value: '342',    trend: '15 onboarded this week',    up: true,  icon: 'fa-user-doctor',   color: 'text-emerald-600',   bg: 'bg-emerald-50' },
   { label: 'Platform Revenue',  value: '₹12.4L', trend: '+18% this month', up: true,  icon: 'fa-indian-rupee-sign', color: 'text-aubergine-600', bg: 'bg-aubergine-50' },
   { label: 'Pending Verifications',value:'14',   trend: 'Requires action', up: null,  icon: 'fa-user-check',    color: 'text-amber-600',     bg: 'bg-amber-50' },
 ];

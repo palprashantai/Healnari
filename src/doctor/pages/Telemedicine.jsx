@@ -1,6 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
+
+/* ─── Bulk Message Modal ──────────────────────── */
+function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
+  const [templateId, setTemplateId] = useState('');
+  const [messageText, setMessageText] = useState('');
+  const MSG_TEMPLATES = [
+    { id: 'T1', name: 'Join Link Ready', text: 'Hi [Name], your video consultation link is now ready. Please join through the app or click the link sent to your email.' },
+    { id: 'T2', name: 'Session Delayed', text: 'Dear [Name], your teleconsultation has been delayed by approximately 15 minutes. We apologize for the inconvenience.' },
+    { id: 'T3', name: 'Session Rescheduled', text: 'Dear [Name], your video consultation has been rescheduled. Please check the app for your updated appointment time.' },
+    { id: 'T4', name: 'Post-Consult Follow-up', text: 'Hello [Name], thank you for your teleconsultation today. Your prescription and notes have been uploaded to your profile.' },
+  ];
+  const handleTemplateChange = (e) => {
+    const val = e.target.value;
+    setTemplateId(val);
+    if (val) { const tmpl = MSG_TEMPLATES.find(t => t.id === val); if (tmpl) setMessageText(tmpl.text); }
+  };
+  if (!isOpen) return null;
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Send ${channel}`} size="sm">
+      <div className="space-y-4">
+        <div className="bg-sky-50 border border-sky-200 text-sky-800 rounded-xl p-3 text-sm font-bold flex gap-2">
+          <i className="fas fa-users mt-1 text-sky-500"></i>
+          <p>Sending {channel} to {selectedCount} selected session(s).</p>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Select a Message Template (Optional)</label>
+          <select value={templateId} onChange={handleTemplateChange} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
+            <option value="">-- Start from scratch --</option>
+            {MSG_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Message Content</label>
+          <textarea rows={4} value={messageText} onChange={e => setMessageText(e.target.value)} placeholder="Type your custom message here..."
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-y"></textarea>
+        </div>
+        <div className="pt-2">
+          <button onClick={() => { onSend(messageText); onClose(); }} disabled={!messageText.trim()}
+            className="w-full bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-sm flex items-center justify-center gap-2">
+            <i className="fas fa-paper-plane"></i> Send {channel}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 /* ─── Dummy Data ──────────────────────────────── */
 const SESSIONS = [
@@ -167,6 +213,28 @@ function DoctorTelemedicine() {
   const [noteTarget, setNoteTarget] = useState(null);
   const [sessions, setSessions] = useState(SESSIONS.map(s => ({ ...s, accepted: s.waiting })));
 
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [bulkModalParams, setBulkModalParams] = useState({ isOpen: false, channel: '' });
+  const actionsMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target)) setShowActionsMenu(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleBulkAction = (action) => {
+    setShowActionsMenu(false);
+    if (selectedIds.length === 0) { toast('Please select at least one session first.', 'error'); return; }
+    setBulkModalParams({ isOpen: true, channel: action });
+  };
+  const toggleSelectAll = () => {
+    if (selectedIds.length === sessions.length && sessions.length > 0) setSelectedIds([]);
+    else setSelectedIds(sessions.map(s => s.id));
+  };
+  const toggleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
   const handleAccept = (id) => {
     setSessions(prev => prev.map(s => s.id === id ? { ...s, accepted: true } : s));
     toast('Appointment accepted', 'success');
@@ -194,8 +262,30 @@ function DoctorTelemedicine() {
           <h1 className="text-2xl font-black text-slate-800">Telemedicine</h1>
           <p className="text-sm text-slate-500">Private, doctor-only video consultations.</p>
         </div>
-        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl text-emerald-700 text-xs font-bold">
-          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> System Online
+        <div className="flex items-center gap-3">
+          <div className="relative" ref={actionsMenuRef}>
+            <button onClick={() => setShowActionsMenu(!showActionsMenu)}
+              className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm">
+              Actions <i className={`fas fa-chevron-down text-[10px] transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}></i>
+            </button>
+            {showActionsMenu && (
+              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
+                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Messaging</p></div>
+                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
+                  <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
+                </button>
+                <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
+                  <i className="fas fa-bell text-amber-500 w-4"></i> Push Notification
+                </button>
+                <button onClick={() => handleBulkAction('WhatsApp Message')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
+                  <i className="fab fa-whatsapp text-emerald-500 w-4 text-lg"></i> WhatsApp Message
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl text-emerald-700 text-xs font-bold">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> System Online
+          </div>
         </div>
       </div>
 
@@ -216,12 +306,28 @@ function DoctorTelemedicine() {
         <>
           {/* Sessions Queue */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <h2 className="font-bold text-slate-800">Video Consultation Queue</h2>
+              <div className="flex items-center gap-3">
+                {selectedIds.length > 0 && <span className="text-xs text-slate-500 font-bold">{selectedIds.length} selected</span>}
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-500 hover:text-aubergine-600 transition-colors">
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedIds.length > 0 && selectedIds.length === sessions.length ? 'bg-aubergine-600 border-aubergine-600 text-white' : selectedIds.length > 0 ? 'bg-aubergine-100 border-aubergine-300 text-aubergine-600' : 'bg-white border-slate-300'}`}>
+                    {(selectedIds.length > 0 && selectedIds.length === sessions.length) ? <i className="fas fa-check text-[8px]"></i> : selectedIds.length > 0 ? <div className="w-2 h-0.5 bg-aubergine-600 rounded"></div> : null}
+                  </div>
+                  <input type="checkbox" className="hidden" checked={selectedIds.length === sessions.length && sessions.length > 0} onChange={toggleSelectAll} />
+                  Select All
+                </label>
+              </div>
             </div>
             <div className="divide-y divide-slate-50">
               {sessions.map(s => (
-                <div key={s.id} className={`p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 hover:bg-slate-50 transition-colors ${s.waiting ? 'bg-emerald-50/40' : ''}`}>
+                <div key={s.id} className={`p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 hover:bg-slate-50 transition-colors ${s.waiting ? 'bg-emerald-50/40' : ''} ${selectedIds.includes(s.id) ? 'ring-1 ring-inset ring-aubergine-200 bg-aubergine-50/20' : ''}`}>
+                  <label className="cursor-pointer group flex-shrink-0" onClick={e => e.stopPropagation()}>
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedIds.includes(s.id) ? 'bg-aubergine-600 border-aubergine-600 text-white' : 'bg-white border-slate-300 group-hover:border-aubergine-400'}`}>
+                      {selectedIds.includes(s.id) && <i className="fas fa-check text-[10px]"></i>}
+                    </div>
+                    <input type="checkbox" className="hidden" checked={selectedIds.includes(s.id)} onChange={() => toggleSelect(s.id)} />
+                  </label>
                   <div className="flex items-center gap-3 flex-1">
                     <div className="relative">
                       <div className="w-11 h-11 rounded-xl bg-aubergine-100 text-aubergine-700 font-black flex items-center justify-center">
@@ -319,6 +425,17 @@ function DoctorTelemedicine() {
           </button>
         </div>
       </Modal>
+
+      <BulkMessageModal
+        isOpen={bulkModalParams.isOpen}
+        onClose={() => setBulkModalParams({ isOpen: false, channel: '' })}
+        channel={bulkModalParams.channel}
+        selectedCount={selectedIds.length}
+        onSend={(msg) => {
+          toast(`Successfully sent ${bulkModalParams.channel} to ${selectedIds.length} patients!`, 'success');
+          setSelectedIds([]);
+        }}
+      />
     </div>
   );
 }

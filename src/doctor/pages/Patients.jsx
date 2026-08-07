@@ -1,8 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { DoseSchedule } from '../../components/DoseSchedule.jsx';
 import { RxStatusBadge } from '../../components/RxStatus.jsx';
+
+/* ─── Bulk Message Modal ──────────────────────── */
+function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
+  const [templateId, setTemplateId] = useState('');
+  const [messageText, setMessageText] = useState('');
+
+  const TEMPLATES = [
+    { id: 'T1', name: 'Appointment Reminder', text: 'Dear [Name], this is a friendly reminder for your upcoming appointment.' },
+    { id: 'T2', name: 'Follow-up Check-in', text: 'Hi [Name], checking in on your recovery. Please reply if you need any assistance.' },
+    { id: 'T3', name: 'Clinic Closed Tomorrow', text: 'Dear [Name], please note that the clinic will be closed tomorrow due to an emergency. We will reschedule your appointment.' },
+    { id: 'T4', name: 'General Health Advisory', text: 'Hello [Name], a quick reminder to stay hydrated and take your prescribed supplements.' },
+  ];
+
+  const handleTemplateChange = (e) => {
+    const val = e.target.value;
+    setTemplateId(val);
+    if (val) {
+      const tmpl = TEMPLATES.find(t => t.id === val);
+      if (tmpl) setMessageText(tmpl.text);
+    }
+  };
+
+  if (!isOpen) return null;
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Send ${channel}`} size="sm">
+      <div className="space-y-4">
+        <div className="bg-sky-50 border border-sky-200 text-sky-800 rounded-xl p-3 text-sm font-bold flex gap-2">
+          <i className="fas fa-users mt-1 text-sky-500"></i>
+          <p>You are about to send a {channel} to {selectedCount} selected patient(s).</p>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Select a Message Template (Optional)</label>
+          <select value={templateId} onChange={handleTemplateChange} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
+            <option value="">-- Start from scratch --</option>
+            {TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+        <div>
+           <label className="text-xs font-bold text-slate-500 mb-1.5 block">Message Content</label>
+           <textarea 
+             rows={4} 
+             value={messageText}
+             onChange={e => setMessageText(e.target.value)}
+             placeholder="Type your custom message here..." 
+             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-y"
+           ></textarea>
+        </div>
+        <div className="pt-2">
+          <button 
+            onClick={() => { onSend(messageText); onClose(); }} 
+            disabled={!messageText.trim()}
+            className="w-full bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-sm flex items-center justify-center gap-2"
+          >
+            <i className="fas fa-paper-plane"></i> Send {channel}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 /* ─── Rich Dummy Data ──────────────────────────────── */
 const INITIAL_PATIENTS = [
@@ -1811,6 +1871,46 @@ function DoctorPatients() {
     return matchSearch && matchStatus;
   });
 
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [bulkModalParams, setBulkModalParams] = useState({ isOpen: false, channel: '' });
+  const actionsMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target)) {
+        setShowActionsMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleBulkAction = (action) => {
+    setShowActionsMenu(false);
+    if (selectedIds.length === 0) {
+      toast('Please select at least one patient first.', 'error');
+      return;
+    }
+    if (action === 'Export CSV') {
+      toast(`Exporting ${selectedIds.length} patients...`, 'info');
+    } else {
+      setBulkModalParams({ isOpen: true, channel: action });
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filtered.length && filtered.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filtered.map(p => p.id));
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Page Header */}
@@ -1819,12 +1919,42 @@ function DoctorPatients() {
           <h1 className="text-2xl font-black text-slate-800">Patients &amp; EMR</h1>
           <p className="text-sm text-slate-500">Comprehensive patient electronic medical records, prescriptions &amp; lab histories</p>
         </div>
-        <button
-          onClick={() => toast('New patient registration form opened.', 'info')}
-          className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm"
-        >
-          <i className="fas fa-user-plus"></i> Add Patient
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="relative" ref={actionsMenuRef}>
+            <button 
+              onClick={() => setShowActionsMenu(!showActionsMenu)}
+              className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm"
+            >
+              Actions <i className={`fas fa-chevron-down text-[10px] transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}></i>
+            </button>
+            {showActionsMenu && (
+              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
+                <div className="px-3 py-1.5 mb-1">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Messaging</p>
+                </div>
+                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
+                  <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
+                </button>
+                <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
+                  <i className="fas fa-bell text-amber-500 w-4"></i> Push Notification
+                </button>
+                <button onClick={() => handleBulkAction('WhatsApp Message')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
+                  <i className="fab fa-whatsapp text-emerald-500 w-4 text-lg"></i> WhatsApp Message
+                </button>
+                <div className="h-px bg-slate-100 my-1"></div>
+                <button onClick={() => handleBulkAction('Export CSV')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-3 transition-colors">
+                  <i className="fas fa-file-export text-slate-400 w-4"></i> Export Selected
+                </button>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => toast('New patient registration form opened.', 'info')}
+            className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm"
+          >
+            <i className="fas fa-user-plus"></i> Add Patient
+          </button>
+        </div>
       </div>
 
       {/* Filter & Search Bar */}
@@ -1859,14 +1989,42 @@ function DoctorPatients() {
         </div>
         <p className="text-xs text-slate-400 font-medium">{filtered.length} results</p>
       </div>
+      
+      {/* Select All Bar */}
+      {filtered.length > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedIds.length > 0 && selectedIds.length === filtered.length ? 'bg-aubergine-600 border-aubergine-600 text-white' : selectedIds.length > 0 ? 'bg-aubergine-100 border-aubergine-300 text-aubergine-600' : 'bg-white border-slate-300 group-hover:border-aubergine-400'}`}>
+              {(selectedIds.length > 0 && selectedIds.length === filtered.length) ? <i className="fas fa-check text-[10px]"></i> : selectedIds.length > 0 ? <div className="w-2.5 h-0.5 bg-aubergine-600 rounded"></div> : null}
+            </div>
+            <input type="checkbox" className="hidden" checked={selectedIds.length === filtered.length} onChange={toggleSelectAll} />
+            <span className="text-sm font-bold text-slate-700">Select All {filtered.length} Patients</span>
+          </label>
+          {selectedIds.length > 0 && (
+            <span className="text-xs text-slate-500 font-bold ml-auto">{selectedIds.length} selected</span>
+          )}
+        </div>
+      )}
 
       {/* Patient Cards List */}
       <div className="space-y-3">
         {filtered.map((p) => (
           <div
             key={p.id}
-            className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-aubergine-300 transition-all overflow-hidden group p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4"
+            className={`rounded-2xl border shadow-sm hover:shadow-md transition-all overflow-hidden p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 ${
+              selectedIds.includes(p.id) ? 'bg-slate-50 border-aubergine-300' : 'bg-white border-slate-200 hover:border-aubergine-300'
+            }`}
           >
+            {/* Selection Checkbox */}
+            <div className="flex-shrink-0">
+              <label className="flex items-center justify-center cursor-pointer group">
+                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedIds.includes(p.id) ? 'bg-aubergine-600 border-aubergine-600 text-white' : 'bg-white border-slate-300 group-hover:border-aubergine-400'}`}>
+                  {selectedIds.includes(p.id) && <i className="fas fa-check text-[10px]"></i>}
+                </div>
+                <input type="checkbox" className="hidden" checked={selectedIds.includes(p.id)} onChange={() => toggleSelect(p.id)} />
+              </label>
+            </div>
+
             {/* Avatar */}
             <div className="relative flex-shrink-0">
               <div className="w-14 h-14 rounded-2xl bg-aubergine-100 text-aubergine-700 font-black text-xl flex items-center justify-center shadow-inner">
@@ -1939,6 +2097,17 @@ function DoctorPatients() {
           </div>
         )}
       </div>
+
+      <BulkMessageModal
+        isOpen={bulkModalParams.isOpen}
+        onClose={() => setBulkModalParams({ isOpen: false, channel: '' })}
+        channel={bulkModalParams.channel}
+        selectedCount={selectedIds.length}
+        onSend={(template) => {
+          toast(`Successfully sent ${bulkModalParams.channel} to ${selectedIds.length} patients!`, 'success');
+          setSelectedIds([]);
+        }}
+      />
     </div>
   );
 }

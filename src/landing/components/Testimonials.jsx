@@ -10,7 +10,7 @@ function Testimonials() {
       age: 32,
       stars: 5,
       role: "PCOS & Hair Fall Patient",
-      image: "/images/testimonials/sneha.png"
+      image: "/generated/patient1.png"
     },
     {
       quote: "The holistic plan combining safe medical supplements with specialized diet and stress management brought my PCOD symptoms under control within 4 months. I am so grateful for the judgment-free, expert clinical guidance.",
@@ -18,7 +18,7 @@ function Testimonials() {
       age: 27,
       stars: 5,
       role: "Metabolic & Acne Patient",
-      image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=500&fit=crop"
+      image: "/generated/patient2.png"
     },
     {
       quote: "After seeing my own transformation under their care, I believed in their clinical model so much that I joined as an angel investor! This is the future of compassionate, high-fidelity women’s healthcare.",
@@ -26,7 +26,7 @@ function Testimonials() {
       age: 35,
       stars: 5,
       role: "Patient turned Angel Investor",
-      image: "https://images.unsplash.com/photo-1616683693504-3ea7e9ad6fec?w=500&h=500&fit=crop"
+      image: "/generated/patient3.png"
     }
   ];
 
@@ -126,7 +126,7 @@ function Testimonials() {
         </div>
 
         {/* Carousel Control Buttons */}
-        <div className="absolute inset-y-1/2 -left-4 md:-left-16 right-auto flex items-center z-20">
+        <div className="absolute inset-y-1/2 -left-4 md:-left-16 right-auto hidden md:flex items-center z-20">
           <button
             onClick={handlePrev}
             className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-sand-200 shadow-md flex items-center justify-center text-slate-500 hover:text-aubergine-600 hover:border-aubergine-200 transition-colors btn-interactive" style={{ backgroundColor: 'var(--color-surface-card)' }}
@@ -135,7 +135,7 @@ function Testimonials() {
             <i className="fas fa-arrow-left text-sm"></i>
           </button>
         </div>
-        <div className="absolute inset-y-1/2 -right-4 md:-right-16 left-auto flex items-center z-20">
+        <div className="absolute inset-y-1/2 -right-4 md:-right-16 left-auto hidden md:flex items-center z-20">
           <button
             onClick={handleNext}
             className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-sand-200 shadow-md flex items-center justify-center text-slate-500 hover:text-aubergine-600 hover:border-aubergine-200 transition-colors btn-interactive" style={{ backgroundColor: 'var(--color-surface-card)' }}

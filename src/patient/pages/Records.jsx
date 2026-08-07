@@ -172,6 +172,9 @@ function PatientRecords() {
   const [docs, setDocs] = useState(INITIAL_DOCS);
   const [previewFile, setPreviewFile] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [docSearch, setDocSearch] = useState('');
+
+  const filteredDocs = docs.filter(doc => !docSearch || doc.name.toLowerCase().includes(docSearch.toLowerCase()) || doc.lab.toLowerCase().includes(docSearch.toLowerCase()));
 
   // Profile
   const [allergies, setAllergies] = useState(INITIAL_ALLERGIES);
@@ -285,9 +288,20 @@ function PatientRecords() {
               </div>
               <input ref={fileInputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={handleFileUpload} />
 
+              <div className="relative">
+                <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                <input value={docSearch} onChange={e => setDocSearch(e.target.value)} placeholder="Search documents or lab name..."
+                  className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white shadow-sm" />
+              </div>
+
               {/* Documents Grid */}
               <div className="grid md:grid-cols-2 gap-3">
-                {docs.map(doc => (
+                {filteredDocs.length === 0 && (
+                  <div className="col-span-full text-center py-10 text-slate-400 text-sm border border-slate-200 rounded-xl bg-slate-50">
+                    No documents found matching "{docSearch}".
+                  </div>
+                )}
+                {filteredDocs.map(doc => (
                   <div key={doc.id} className="border border-slate-200 rounded-xl p-4 flex gap-4 hover:shadow-md hover:border-aubergine-200 transition-all group">
                     <div className={`w-12 h-12 ${doc.color} rounded-xl flex items-center justify-center text-2xl shrink-0 border border-slate-100`}>
                       <i className={`fas ${doc.icon}`}></i>

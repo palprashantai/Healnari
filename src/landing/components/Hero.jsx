@@ -9,9 +9,9 @@ function Hero({ onStartConsult, onOpenChecker }) {
 
       <div className="grid lg:grid-cols-12 gap-12 items-center">
         {/* Left Column: Copy & Actions */}
-        <div className="lg:col-span-7 space-y-8 text-left animate-slide-up">
+        <div className="lg:col-span-7 space-y-8 text-center lg:text-left animate-slide-up order-2 lg:order-1">
           {/* Trust Badges */}
-          <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap justify-center lg:justify-start gap-2.5">
             <span className="inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
               <i className="fas fa-lock text-aubergine-500"></i> 100% private & confidential
             </span>
@@ -25,13 +25,13 @@ function Hero({ onStartConsult, onOpenChecker }) {
 
           {/* Main Titles */}
           <div className="space-y-4">
-            <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] lg:leading-[4rem] font-extrabold tracking-tight text-slate-900 font-display">
-              Finally, Healthcare That <br />
-              Treats the <span className="bg-gradient-to-r from-aubergine-600 to-aubergine-400 bg-clip-text text-transparent underline decoration-aubergine-200 decoration-4">Root Cause</span>
+            <h1 className="text-4xl sm:text-5xl lg:text-5xl lg:leading-[1.15] font-extrabold tracking-tight text-slate-900 font-display">
+              Finally, Healthcare That <br className="hidden lg:block" />
+              Treats the <span className="text-aubergine-600">Root Cause</span>
             </h1>
-            <div className="space-y-3 max-w-xl">
+            <div className="space-y-3 max-w-xl mx-auto lg:mx-0">
               <p className="text-slate-600 text-lg md:text-xl font-normal leading-relaxed">
-                Stop being told to <strong className="font-bold text-slate-900">"just lose weight."</strong> Whether you're dealing with <strong className="font-semibold text-slate-800">PCOS, PCOD, thyroid disorders, hair fall, irregular periods, acne, hormonal imbalances, or weight-related concerns</strong>, get a personalized treatment plan designed to address the <strong className="font-semibold text-slate-900">underlying cause</strong> of your symptoms.
+                Stop being told to <span className="text-slate-800 font-medium">"just lose weight."</span> Whether you're dealing with <span className="text-aubergine-600 font-medium">PCOS, PCOD, thyroid disorders, hair fall, irregular periods, acne, hormonal imbalances, or weight-related concerns</span>, get a personalized treatment plan designed to address the <span className="text-slate-800 font-medium">underlying cause</span> of your symptoms.
               </p>
               <p className="text-slate-700 text-base md:text-lg font-medium leading-relaxed pt-1">
                 Consult India's leading endocrinologists and gynecologists online for evidence-based, personalized care—tailored to your unique hormonal health needs.
@@ -61,7 +61,7 @@ function Hero({ onStartConsult, onOpenChecker }) {
           </div>
 
           {/* Consultation trust statement */}
-          <div className="flex items-center gap-2 text-sm text-slate-500">
+          <div className="flex items-center justify-center lg:justify-start gap-2 text-sm text-slate-500">
             <div className="flex -space-x-1">
               <span className="w-5 h-5 rounded-full bg-aubergine-500 flex items-center justify-center text-[10px] text-white font-bold border border-white">✓</span>
             </div>
@@ -72,7 +72,7 @@ function Hero({ onStartConsult, onOpenChecker }) {
         </div>
 
         {/* Right Column: Visual Component */}
-        <div className="lg:col-span-5 relative flex justify-center lg:justify-end">
+        <div className="lg:col-span-5 relative flex justify-center lg:justify-end order-1 lg:order-2">
           {/* Main Visual Frame */}
           <div className="relative w-72 h-72 sm:w-80 sm:h-80 lg:w-96 lg:h-96">
             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-aubergine-600 to-aubergine-200 opacity-20 blur-xl animate-pulse-subtle"></div>
@@ -80,7 +80,7 @@ function Hero({ onStartConsult, onOpenChecker }) {
             {/* Beautiful Profile Image */}
             <div className="w-full h-full rounded-full overflow-hidden border-8 border-white shadow-2xl relative">
               <img
-                src="/images/hero/patient.png"
+                src="/generated/hero.png"
                 alt="Portrait of a smiling Indian woman, representing a HealNari patient"
                 width="500"
                 height="500"

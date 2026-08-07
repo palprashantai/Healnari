@@ -12,10 +12,12 @@ const DEFAULT_ACCENT = '#6B46C1';
 
 const NAV_ITEMS = [
   { name: 'Dashboard',        icon: 'fa-chart-pie',           path: '/doctor-dashboard',              end: true,  color: '#6B46C1' },
+  { name: 'Analytics & Growth',icon: 'fa-chart-line',         path: '/doctor-dashboard/analytics',    end: false, color: '#f59e0b' },
   { name: 'Appointments',     icon: 'fa-calendar-check',      path: '/doctor-dashboard/appointments', end: false, color: '#10b981' },
   { name: 'Patients & EMR',   icon: 'fa-users',               path: '/doctor-dashboard/patients',     end: false, color: '#0ea5e9' },
   { name: 'Prescriptions',    icon: 'fa-file-prescription',   path: '/doctor-dashboard/prescriptions',end: false, color: '#f43f5e' },
   { name: 'Telemedicine',     icon: 'fa-video',               path: '/doctor-dashboard/telemedicine', end: false, color: '#6366f1' },
+  { name: 'Communication Center',icon: 'fa-bullhorn',         path: '/doctor-dashboard/communications',end:false, color: '#ec4899' },
   { name: 'Lab & Reports',    icon: 'fa-flask',               path: '/doctor-dashboard/reports',      end: false, color: '#f59e0b' },
   { name: 'Billing',          icon: 'fa-file-invoice-dollar', path: '/doctor-dashboard/billing',      end: false, color: '#14b8a6' },
   { name: 'Staff Management', icon: 'fa-user-nurse',          path: '/doctor-dashboard/staff',        end: false, color: '#d946ef' },
@@ -302,7 +304,7 @@ function DoctorLayout() {
               <i className="fas fa-lock text-[9px]"></i> Active Patient Context
             </span>
             <div className="flex items-center gap-2 font-bold">
-              <span className="text-white text-sm tracking-wide font-display">{activePatient.name}</span>
+              <span className="text-white text-sm tracking-wide font-medium">{activePatient.name}</span>
               <span className="text-aubergine-300 font-mono text-[11px]">[{activePatient.mrn}]</span>
               <span className="text-slate-400">• DOB: {activePatient.dob} ({activePatient.age})</span>
               <span className="text-slate-400">• Blood: {activePatient.bloodGroup}</span>
@@ -385,7 +387,7 @@ function DoctorLayout() {
         )}
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+        <main className="flex-1 overflow-y-auto p-3 md:p-5">
           <PageTransition />
         </main>
       </div>

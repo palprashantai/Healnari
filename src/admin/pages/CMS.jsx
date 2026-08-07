@@ -5,9 +5,9 @@ import { Tilt3D } from '../../components/Tilt3D.jsx';
 
 /* ─── Dummy Data ──────────────────────────────── */
 const INITIAL_ARTICLES = [
-  { id: 'A-101', title: 'Understanding PCOS Symptoms', author: 'Dr. Sarah Mitchell', category: 'Health Guide', status: 'Published', views: '12K', date: '10 Jun 2026' },
-  { id: 'A-102', title: '5 Myths About Endometriosis', author: 'Dr. Riya Sen', category: 'Awareness', status: 'Draft', views: '-', date: '18 Jun 2026' },
-  { id: 'A-103', title: 'Healthy Diet for Hair Fall',  author: 'Nutrition Team', category: 'Lifestyle', status: 'Published', views: '8.4K', date: '05 May 2026' },
+  { id: 'C-101', title: 'PCOS Diagnostic Algorithm v2', author: 'Medical Board', category: 'Symptom Checker', status: 'Published', views: '12K', date: '10 Jun 2026' },
+  { id: 'C-102', title: 'Endometriosis Patient Guide', author: 'Dr. Sarah Mitchell', category: 'Health Guide', status: 'Draft', views: '-', date: '18 Jun 2026' },
+  { id: 'C-103', title: 'Platform Maintenance Notice',  author: 'System Admin', category: 'Announcement', status: 'Published', views: '8.4K', date: '05 May 2026' },
 ];
 
 /* ─── Main Component ─────────────────────────── */
@@ -38,18 +38,18 @@ function AdminCMS() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800">Content Management</h1>
-          <p className="text-sm text-slate-500">Manage patient education blogs, guides, and articles.</p>
+          <p className="text-sm text-slate-500">Manage symptom checker logic, health guides, and platform announcements.</p>
         </div>
-        <button onClick={() => toast('Opening rich text editor...', 'info')}
+        <button onClick={() => toast('Opening content editor...', 'info')}
           className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm">
-          <i className="fas fa-pen-nib"></i> Write Article
+          <i className="fas fa-plus"></i> Create Content
         </button>
       </div>
 
       <div className="grid sm:grid-cols-3 gap-4">
         {[
-          { label: 'Published Articles', value: articles.filter(a => a.status === 'Published').length },
-          { label: 'Drafts in Progress', value: articles.filter(a => a.status === 'Draft').length },
+          { label: 'Active Health Guides', value: articles.filter(a => a.category === 'Health Guide' && a.status === 'Published').length },
+          { label: 'Symptom Checkers', value: articles.filter(a => a.category === 'Symptom Checker').length },
           { label: 'Total Page Views', value: '20.4K' },
         ].map(s => (
           <Tilt3D key={s.label} max={5}>
@@ -70,10 +70,13 @@ function AdminCMS() {
             <div key={a.id} className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 hover:bg-slate-50 transition-colors group">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
+                  <span className={`w-6 h-6 rounded flex items-center justify-center text-[10px] ${a.category === 'Symptom Checker' ? 'bg-sky-100 text-sky-600' : a.category === 'Announcement' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                    <i className={`fas ${a.category === 'Symptom Checker' ? 'fa-stethoscope' : a.category === 'Announcement' ? 'fa-bullhorn' : 'fa-book-medical'}`}></i>
+                  </span>
                   <h3 className="font-bold text-slate-800 text-base">{a.title}</h3>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${a.status === 'Published' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>{a.status}</span>
                 </div>
-                <p className="text-xs text-slate-500">By {a.author} • {a.category} • {a.date}</p>
+                <p className="text-xs text-slate-500 ml-8">By {a.author} • <span className="font-bold text-slate-600">{a.category}</span> • {a.date}</p>
               </div>
               <div className="flex items-center gap-3">
                 <div className="text-right mr-2 hidden sm:block">

@@ -5,10 +5,10 @@ import { Tilt3D } from '../../components/Tilt3D.jsx';
 
 /* ─── Dummy Data ──────────────────────────────── */
 const PAYOUTS = [
-  { id: 'PO-1042', doctor: 'Dr. Sarah Mitchell', amount: 34200, date: '28 Jun 2026', method: 'Bank Transfer', status: 'Pending' },
-  { id: 'PO-1041', doctor: 'Dr. Anil Kumar',     amount: 12500, date: '25 Jun 2026', method: 'UPI', status: 'Processed' },
-  { id: 'PO-1040', doctor: 'Dr. Riya Sen',       amount: 8400,  date: '20 Jun 2026', method: 'Bank Transfer', status: 'Processed' },
-  { id: 'PO-1039', doctor: 'Dr. Sarah Mitchell', amount: 28900, date: '15 Jun 2026', method: 'Bank Transfer', status: 'Processed' },
+  { id: 'PO-1042', doctor: 'Dr. Sarah Mitchell', amount: 34200, feeCut: '10%', date: '28 Jun 2026', method: 'Bank Transfer', status: 'Pending' },
+  { id: 'PO-1041', doctor: 'Dr. Anil Kumar',     amount: 12500, feeCut: '15%', date: '25 Jun 2026', method: 'UPI', status: 'Processed' },
+  { id: 'PO-1040', doctor: 'Dr. Riya Sen',       amount: 8400,  feeCut: '15%', date: '20 Jun 2026', method: 'Bank Transfer', status: 'Processed' },
+  { id: 'PO-1039', doctor: 'Dr. Sarah Mitchell', amount: 28900, feeCut: '10%', date: '15 Jun 2026', method: 'Bank Transfer', status: 'Processed' },
 ];
 
 /* ─── Process Modal ──────────────────────────── */
@@ -103,7 +103,8 @@ function AdminRevenue() {
                 <th className="px-5 py-3 font-semibold">Doctor</th>
                 <th className="px-5 py-3 font-semibold">Date</th>
                 <th className="px-5 py-3 font-semibold">Method</th>
-                <th className="px-5 py-3 font-semibold">Amount</th>
+                <th className="px-5 py-3 font-semibold">Platform Cut</th>
+                <th className="px-5 py-3 font-semibold">Net Payout</th>
                 <th className="px-5 py-3 font-semibold">Status</th>
                 <th className="px-5 py-3 font-semibold text-right">Action</th>
               </tr>
@@ -115,7 +116,10 @@ function AdminRevenue() {
                   <td className="px-5 py-4 font-bold text-slate-800">{p.doctor}</td>
                   <td className="px-5 py-4 text-slate-500 text-xs">{p.date}</td>
                   <td className="px-5 py-4 text-slate-500 text-xs">{p.method}</td>
-                  <td className="px-5 py-4 font-black text-slate-800">₹{p.amount.toLocaleString()}</td>
+                  <td className="px-5 py-4">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200 bg-slate-100 text-slate-600">{p.feeCut} margin</span>
+                  </td>
+                  <td className="px-5 py-4 font-black text-emerald-700">₹{p.amount.toLocaleString()}</td>
                   <td className="px-5 py-4">
                     <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${p.status === 'Processed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{p.status}</span>
                   </td>

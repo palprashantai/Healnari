@@ -1,9 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { DoseSchedule } from '../../components/DoseSchedule.jsx';
 import { RxStatusBadge, resolveRxStatus } from '../../components/RxStatus.jsx';
 import { StepIndicator } from '../../components/StepIndicator.jsx';
+
+/* ─── Bulk Message Modal ──────────────────────── */
+function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
+  const [templateId, setTemplateId] = useState('');
+  const [messageText, setMessageText] = useState('');
+  const MSG_TEMPLATES = [
+    { id: 'T1', name: 'Medication Reminder', text: 'Dear [Name], this is a reminder to take your prescribed medications on time. Consistency is key for effective treatment.' },
+    { id: 'T2', name: 'Refill Available', text: 'Hi [Name], your prescription refill is now available. Please visit the clinic or request a refill through the app.' },
+    { id: 'T3', name: 'Dosage Adjustment Notice', text: 'Dear [Name], your medication dosage has been adjusted as per your latest consultation. Please check your updated prescription.' },
+    { id: 'T4', name: 'Follow-up Lab Reminder', text: 'Hello [Name], your follow-up lab tests are due. Please schedule them at your earliest convenience.' },
+  ];
+  const handleTemplateChange = (e) => {
+    const val = e.target.value;
+    setTemplateId(val);
+    if (val) { const tmpl = MSG_TEMPLATES.find(t => t.id === val); if (tmpl) setMessageText(tmpl.text); }
+  };
+  if (!isOpen) return null;
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Send ${channel}`} size="sm">
+      <div className="space-y-4">
+        <div className="bg-sky-50 border border-sky-200 text-sky-800 rounded-xl p-3 text-sm font-bold flex gap-2">
+          <i className="fas fa-users mt-1 text-sky-500"></i>
+          <p>Sending {channel} to {selectedCount} selected prescription(s).</p>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Select a Message Template (Optional)</label>
+          <select value={templateId} onChange={handleTemplateChange} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
+            <option value="">-- Start from scratch --</option>
+            {MSG_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Message Content</label>
+          <textarea rows={4} value={messageText} onChange={e => setMessageText(e.target.value)} placeholder="Type your custom message here..."
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-y"></textarea>
+        </div>
+        <div className="pt-2">
+          <button onClick={() => { onSend(messageText); onClose(); }} disabled={!messageText.trim()}
+            className="w-full bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-sm flex items-center justify-center gap-2">
+            <i className="fas fa-paper-plane"></i> Send {channel}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 /* ─── Dummy Data ──────────────────────────────── */
 const PATIENTS = ['Priya Sharma', 'Anita Desai', 'Kavita Patel', 'Aisha Khan', 'Sunita Desai'];
@@ -244,6 +290,29 @@ function DoctorPrescriptions() {
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('All');
 
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [bulkModalParams, setBulkModalParams] = useState({ isOpen: false, channel: '' });
+  const actionsMenuRef = useRef(null);
+
+  useEffect(() => { setSelectedIds([]); }, [tab]);
+  useEffect(() => {
+    const handler = (e) => { if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target)) setShowActionsMenu(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleBulkAction = (action) => {
+    setShowActionsMenu(false);
+    if (selectedIds.length === 0) { toast('Please select at least one prescription first.', 'error'); return; }
+    setBulkModalParams({ isOpen: true, channel: action });
+  };
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filtered.length && filtered.length > 0) setSelectedIds([]);
+    else setSelectedIds(filtered.map(rx => rx.id));
+  };
+  const toggleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
   const matchesTab = (rx, t) => {
     if (t === 'All') return true;
     if (t === 'Refill Requested') return rx.refillRequested;
@@ -283,10 +352,32 @@ function DoctorPrescriptions() {
           <h1 className="text-2xl font-black text-slate-800">Prescriptions</h1>
           <p className="text-sm text-slate-500">Issue, manage, and approve patient prescriptions.</p>
         </div>
-        <button onClick={() => setShowWrite(true)}
-          className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-sm transition-colors">
-          <i className="fas fa-file-prescription"></i> Write Prescription
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="relative" ref={actionsMenuRef}>
+            <button onClick={() => setShowActionsMenu(!showActionsMenu)}
+              className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm">
+              Actions <i className={`fas fa-chevron-down text-[10px] transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}></i>
+            </button>
+            {showActionsMenu && (
+              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
+                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Messaging</p></div>
+                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
+                  <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
+                </button>
+                <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
+                  <i className="fas fa-bell text-amber-500 w-4"></i> Push Notification
+                </button>
+                <button onClick={() => handleBulkAction('WhatsApp Message')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
+                  <i className="fab fa-whatsapp text-emerald-500 w-4 text-lg"></i> WhatsApp Message
+                </button>
+              </div>
+            )}
+          </div>
+          <button onClick={() => setShowWrite(true)}
+            className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-sm transition-colors">
+            <i className="fas fa-file-prescription"></i> Write Prescription
+          </button>
+        </div>
       </div>
 
       {/* Refill alerts */}
@@ -313,14 +404,26 @@ function DoctorPrescriptions() {
           className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white shadow-sm" />
       </div>
 
-      {/* Status filter tabs */}
-      <div className="flex flex-wrap gap-2">
-        {STATUS_TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors ${tab === t ? 'bg-aubergine-700 text-white border-aubergine-700' : 'bg-white text-slate-500 border-slate-200 hover:border-aubergine-300 hover:text-aubergine-600'}`}>
-            {t} <span className={tab === t ? 'text-aubergine-200' : 'text-slate-400'}>({tabCount(t)})</span>
-          </button>
-        ))}
+      {/* Select All + Status filter tabs */}
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="flex flex-wrap gap-2">
+          {STATUS_TABS.map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors ${tab === t ? 'bg-aubergine-700 text-white border-aubergine-700' : 'bg-white text-slate-500 border-slate-200 hover:border-aubergine-300 hover:text-aubergine-600'}`}>
+              {t} <span className={tab === t ? 'text-aubergine-200' : 'text-slate-400'}>({tabCount(t)})</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-3">
+          {selectedIds.length > 0 && <span className="text-xs text-slate-500 font-bold">{selectedIds.length} selected</span>}
+          <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-500 hover:text-aubergine-600 transition-colors">
+            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedIds.length > 0 && selectedIds.length === filtered.length ? 'bg-aubergine-600 border-aubergine-600 text-white' : selectedIds.length > 0 ? 'bg-aubergine-100 border-aubergine-300 text-aubergine-600' : 'bg-white border-slate-300'}`}>
+              {(selectedIds.length > 0 && selectedIds.length === filtered.length) ? <i className="fas fa-check text-[8px]"></i> : selectedIds.length > 0 ? <div className="w-2 h-0.5 bg-aubergine-600 rounded"></div> : null}
+            </div>
+            <input type="checkbox" className="hidden" checked={selectedIds.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
+            Select All
+          </label>
+        </div>
       </div>
 
       {/* Rx Cards */}
@@ -331,9 +434,15 @@ function DoctorPrescriptions() {
           </div>
         )}
         {filtered.map(rx => (
-          <div key={rx.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+          <div key={rx.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow ${selectedIds.includes(rx.id) ? 'border-aubergine-300 ring-1 ring-aubergine-200' : 'border-slate-200'}`}>
             <div className="p-5 border-b border-slate-100 flex justify-between items-center">
               <div className="flex items-center gap-3">
+                <label className="cursor-pointer group flex-shrink-0" onClick={e => e.stopPropagation()}>
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedIds.includes(rx.id) ? 'bg-aubergine-600 border-aubergine-600 text-white' : 'bg-white border-slate-300 group-hover:border-aubergine-400'}`}>
+                    {selectedIds.includes(rx.id) && <i className="fas fa-check text-[10px]"></i>}
+                  </div>
+                  <input type="checkbox" className="hidden" checked={selectedIds.includes(rx.id)} onChange={() => toggleSelect(rx.id)} />
+                </label>
                 <div className="w-11 h-11 bg-aubergine-50 text-aubergine-600 rounded-xl flex items-center justify-center text-lg">
                   <i className="fas fa-file-prescription"></i>
                 </div>
@@ -400,6 +509,16 @@ function DoctorPrescriptions() {
         message={`Approve the refill request for "${refillTarget?.meds?.[0]?.name}" and issue a new prescription to ${refillTarget?.patient}?`}
         confirmLabel="Approve & Issue"
         confirmStyle="primary"
+      />
+      <BulkMessageModal
+        isOpen={bulkModalParams.isOpen}
+        onClose={() => setBulkModalParams({ isOpen: false, channel: '' })}
+        channel={bulkModalParams.channel}
+        selectedCount={selectedIds.length}
+        onSend={(msg) => {
+          toast(`Successfully sent ${bulkModalParams.channel} to ${selectedIds.length} patients!`, 'success');
+          setSelectedIds([]);
+        }}
       />
     </div>
   );

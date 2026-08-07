@@ -9,11 +9,15 @@ import { ModuleAccentBar } from '../../components/ModuleAccentBar.jsx';
 const DEFAULT_ACCENT = '#6B46C1';
 
 const NAV_ITEMS = [
-  { name: 'Dashboard',          icon: 'fa-chart-line',        path: '/admin-dashboard',              end: true,  color: '#6B46C1' },
-  { name: 'User Management',    icon: 'fa-users-gear',        path: '/admin-dashboard/users',        end: false, color: '#0ea5e9' },
+  { name: 'Dashboard',          icon: 'fa-chart-pie',         path: '/admin-dashboard',              end: true,  color: '#6B46C1' },
+  { name: 'Analytics & Growth', icon: 'fa-chart-line',        path: '/admin-dashboard/analytics',    end: false, color: '#f59e0b' },
+  { name: 'Landing Page',       icon: 'fa-globe',             path: '/admin-dashboard/landing',      end: false, color: '#06b6d4' },
+  { name: 'Doctor Management',  icon: 'fa-user-doctor',       path: '/admin-dashboard/doctors',      end: false, color: '#8b5cf6' },
+  { name: 'Patient Management', icon: 'fa-users-gear',        path: '/admin-dashboard/users',        end: false, color: '#0ea5e9' },
+  { name: 'Communication Center',icon: 'fa-bullhorn',         path: '/admin-dashboard/communications',end:false, color: '#f43f5e' },
+  { name: 'Message Templates',  icon: 'fa-pager',             path: '/admin-dashboard/templates',    end: false, color: '#fb923c' },
   { name: 'Doctor Verification',icon: 'fa-user-check',        path: '/admin-dashboard/verification', end: false, color: '#10b981' },
-  { name: 'Clinic Management',  icon: 'fa-hospital',          path: '/admin-dashboard/clinics',      end: false, color: '#f59e0b' },
-  { name: 'Revenue & Payouts',  icon: 'fa-indian-rupee-sign', path: '/admin-dashboard/revenue',      end: false, color: '#14b8a6' },
+  { name: 'Revenue & Payouts',  icon: 'fa-money-bill-transfer',path:'/admin-dashboard/revenue',      end: false, color: '#ef4444' },
   { name: 'CMS & Content',      icon: 'fa-pen-to-square',     path: '/admin-dashboard/cms',          end: false, color: '#d946ef' },
   { name: 'Reports',            icon: 'fa-file-contract',     path: '/admin-dashboard/reports',      end: false, color: '#6366f1' },
 ];

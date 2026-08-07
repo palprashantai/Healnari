@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Tilt3D } from '../../components/Tilt3D.jsx';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 /* ─── Dummy Data ──────────────────────────────── */
+const REPORT_METRICS = [
+  { name: 'Week 1', automated: 120, manual: 40 },
+  { name: 'Week 2', automated: 150, manual: 60 },
+  { name: 'Week 3', automated: 180, manual: 70 },
+  { name: 'Week 4', automated: 210, manual: 90 },
+  { name: 'Week 5', automated: 240, manual: 85 },
+  { name: 'Week 6', automated: 280, manual: 110 },
+];
 const REPORTS = [
   { id: 'REP-001', name: 'Monthly Revenue Summary', desc: 'Detailed breakdown of platform earnings, payouts, and taxes.', type: 'Financial', freq: 'Monthly' },
   { id: 'REP-002', name: 'Patient Demographics',    desc: 'Analysis of patient age, location, and condition prevalence.', type: 'Clinical', freq: 'Quarterly' },
@@ -65,6 +74,39 @@ function AdminReports() {
           </div>
         </div>
         </Tilt3D>
+      </div>
+
+      {/* Report Generation Trends */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="mb-4">
+          <h2 className="font-bold text-slate-800">Report Generation Volumes</h2>
+          <p className="text-xs text-slate-500">Automated vs Manual report generation over the last 6 weeks.</p>
+        </div>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={REPORT_METRICS} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorAuto" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="colorManual" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dx={-10} />
+              <Tooltip 
+                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+              />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+              <Area type="monotone" dataKey="automated" name="Automated Reports" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorAuto)" />
+              <Area type="monotone" dataKey="manual" name="Manual Exports" stroke="#f59e0b" strokeWidth={3} fillOpacity={1} fill="url(#colorManual)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* Reports Catalog */}

@@ -13,7 +13,7 @@ function Doctors({ onSelectDoctor }) {
       location: 'Mumbai | English, Hindi, Marathi',
       experience: '15+ years',
       patients: '12k+ patients',
-      image: '/images/doctors/doc1.png',
+      image: '/generated/doc1.png',
       tags: ['Gynaecologist', 'Endocrinologist'],
       availability: 'online',
       nextSlot: 'Today, 4:30 PM',
@@ -27,7 +27,7 @@ function Doctors({ onSelectDoctor }) {
       location: 'Delhi | English, Hindi, Punjabi',
       experience: '12+ years',
       patients: '8k+ patients',
-      image: '/images/doctors/doc2.png',
+      image: '/generated/doc2.png',
       tags: ['Endocrinologist'],
       availability: 'busy',
       nextSlot: 'Today, 6:00 PM',
@@ -41,7 +41,7 @@ function Doctors({ onSelectDoctor }) {
       location: 'Bengaluru | English, Hindi, Tamil',
       experience: '10+ years',
       patients: '6k+ patients',
-      image: '/images/doctors/doc3.png',
+      image: '/generated/doc3.png',
       tags: ['Trichologist'],
       availability: 'online',
       nextSlot: 'Today, 2:00 PM',
@@ -55,7 +55,7 @@ function Doctors({ onSelectDoctor }) {
       location: 'Chennai | English, Malayalam, Tamil',
       experience: '18+ years',
       patients: '15k+ patients',
-      image: '/images/doctors/doc4.png',
+      image: '/generated/doc4.png',
       tags: ['Gynaecologist'],
       availability: 'offline',
       nextSlot: 'Tomorrow, 10:00 AM',
@@ -112,10 +112,10 @@ function Doctors({ onSelectDoctor }) {
         ))}
       </div>
 
-      {/* Doctors Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+      {/* Doctors Grid / Horizontal Scroll */}
+      <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 overflow-x-auto snap-x snap-mandatory pb-8 -mx-5 px-5 sm:mx-0 sm:px-0 sm:pb-0 hide-scrollbar sm:overflow-visible">
         {filteredDoctors.map((doc, idx) => (
-          <Reveal key={idx} delay={(idx % 4) * 80} className="h-full">
+          <Reveal key={idx} delay={(idx % 4) * 80} className="w-[18rem] sm:w-auto flex-shrink-0 snap-center sm:flex-shrink-1 h-full">
           <Tilt3D max={6} className="h-full">
           <div
             className="rounded-3xl overflow-hidden border border-sand-200 shadow-sm p-6 text-center card-premium flex flex-col justify-between h-full" style={{ backgroundColor: 'var(--color-surface-card)' }}

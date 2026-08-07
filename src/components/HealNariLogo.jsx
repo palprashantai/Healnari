@@ -47,7 +47,7 @@ export function HealNariLogo({ showTagline = false, size = "md", variant = "ligh
         <HealNariLogoMark className={sizeClasses.icon} />
         <div className="flex flex-col">
           <span className={`font-black tracking-tight font-serif ${sizeClasses.text} ${isDark ? 'text-white' : 'text-slate-800'}`}>
-            Heal<span className="text-aubergine-600">Nari</span>
+            Heal<span className={isDark ? 'text-brand-300' : 'text-brand-600'}>Nari</span>
           </span>
         </div>
       </div>

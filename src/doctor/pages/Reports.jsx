@@ -1,8 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+
+/* ─── Bulk Message Modal ──────────────────────── */
+function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
+  const [templateId, setTemplateId] = useState('');
+  const [messageText, setMessageText] = useState('');
+  const MSG_TEMPLATES = [
+    { id: 'T1', name: 'Report Ready - Collect', text: 'Dear [Name], your lab report is now ready. Please collect it from the clinic or check the app for results.' },
+    { id: 'T2', name: 'Abnormal Results - Follow-up', text: 'Dear [Name], your recent lab results require a follow-up consultation. Please book an appointment at your earliest convenience.' },
+    { id: 'T3', name: 'Repeat Test Reminder', text: 'Hi [Name], your doctor has recommended a repeat test. Please schedule it within the next 2 weeks.' },
+    { id: 'T4', name: 'Fasting Instructions', text: 'Hello [Name], please remember to fast for 10-12 hours before your upcoming blood test. Water is allowed.' },
+  ];
+  const handleTemplateChange = (e) => {
+    const val = e.target.value;
+    setTemplateId(val);
+    if (val) { const tmpl = MSG_TEMPLATES.find(t => t.id === val); if (tmpl) setMessageText(tmpl.text); }
+  };
+  if (!isOpen) return null;
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Send ${channel}`} size="sm">
+      <div className="space-y-4">
+        <div className="bg-sky-50 border border-sky-200 text-sky-800 rounded-xl p-3 text-sm font-bold flex gap-2">
+          <i className="fas fa-users mt-1 text-sky-500"></i>
+          <p>Sending {channel} to {selectedCount} selected report(s).</p>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Select a Message Template (Optional)</label>
+          <select value={templateId} onChange={handleTemplateChange} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
+            <option value="">-- Start from scratch --</option>
+            {MSG_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Message Content</label>
+          <textarea rows={4} value={messageText} onChange={e => setMessageText(e.target.value)} placeholder="Type your custom message here..."
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-y"></textarea>
+        </div>
+        <div className="pt-2">
+          <button onClick={() => { onSend(messageText); onClose(); }} disabled={!messageText.trim()}
+            className="w-full bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-sm flex items-center justify-center gap-2">
+            <i className="fas fa-paper-plane"></i> Send {channel}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 /* ─── Dummy Data ──────────────────────────────── */
+const LAB_TRENDS = [
+  { name: 'Jan', normal: 45, abnormal: 12 },
+  { name: 'Feb', normal: 52, abnormal: 15 },
+  { name: 'Mar', normal: 48, abnormal: 10 },
+  { name: 'Apr', normal: 61, abnormal: 18 },
+  { name: 'May', normal: 59, abnormal: 14 },
+  { name: 'Jun', normal: 75, abnormal: 22 },
+];
 const PENDING_LABS = [
   { id: 1, patient: 'Priya Sharma', tests: ['TSH', 'Free T4', 'Anti-TPO Ab'], lab: 'Dr. Lal PathLabs', received: '10 mins ago', urgent: true,
     results: { TSH: '5.2 mIU/L ↑ (ref: 0.4–4.0)', 'Free T4': '1.1 ng/dL (Normal)', 'Anti-TPO Ab': '98 IU/mL ↑ (ref: <35)' },
@@ -88,6 +143,30 @@ function DoctorReports() {
   const [tab, setTab] = useState('pending');
   const [selectedLab, setSelectedLab] = useState(null);
 
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [bulkModalParams, setBulkModalParams] = useState({ isOpen: false, channel: '' });
+  const actionsMenuRef = useRef(null);
+
+  useEffect(() => { setSelectedIds([]); }, [tab]);
+  useEffect(() => {
+    const handler = (e) => { if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target)) setShowActionsMenu(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const currentList = tab === 'pending' ? pending : reviewed;
+  const handleBulkAction = (action) => {
+    setShowActionsMenu(false);
+    if (selectedIds.length === 0) { toast('Please select at least one report first.', 'error'); return; }
+    setBulkModalParams({ isOpen: true, channel: action });
+  };
+  const toggleSelectAll = () => {
+    if (selectedIds.length === currentList.length && currentList.length > 0) setSelectedIds([]);
+    else setSelectedIds(currentList.map(l => l.id));
+  };
+  const toggleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
   const handleAction = (lab, action, orderMore) => {
     const reviewedEntry = {
       id: `R${Date.now()}`,
@@ -111,6 +190,26 @@ function DoctorReports() {
           <p className="text-sm text-slate-500">Review diagnostic reports and record clinical actions.</p>
         </div>
         <div className="flex gap-2">
+          <div className="relative" ref={actionsMenuRef}>
+            <button onClick={() => setShowActionsMenu(!showActionsMenu)}
+              className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm">
+              Actions <i className={`fas fa-chevron-down text-[10px] transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}></i>
+            </button>
+            {showActionsMenu && (
+              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
+                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Messaging</p></div>
+                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
+                  <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
+                </button>
+                <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
+                  <i className="fas fa-bell text-amber-500 w-4"></i> Push Notification
+                </button>
+                <button onClick={() => handleBulkAction('WhatsApp Message')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
+                  <i className="fab fa-whatsapp text-emerald-500 w-4 text-lg"></i> WhatsApp Message
+                </button>
+              </div>
+            )}
+          </div>
           {pending.some(l => l.urgent) && (
             <span className="bg-rose-500 text-white text-xs font-black px-3 py-1.5 rounded-xl flex items-center gap-1.5 animate-pulse">
               <i className="fas fa-circle-exclamation"></i> {pending.filter(l => l.urgent).length} Urgent
@@ -123,21 +222,63 @@ function DoctorReports() {
         </div>
       </div>
 
+      {/* Lab Trends Chart */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
+        <div className="mb-4">
+          <h2 className="font-bold text-slate-800">Lab Results Overview (YTD)</h2>
+          <p className="text-xs text-slate-500">Track the volume of normal vs abnormal diagnostic results.</p>
+        </div>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={LAB_TRENDS} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dx={-10} />
+              <Tooltip 
+                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                cursor={{ fill: '#f8fafc' }}
+              />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+              <Bar dataKey="normal" name="Normal Results" stackId="a" fill="#10b981" radius={[0, 0, 4, 4]} />
+              <Bar dataKey="abnormal" name="Abnormal (Flagged)" stackId="a" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex border-b border-slate-200 bg-slate-50">
-          {[['pending', 'Pending Review', pending.length], ['reviewed', 'Reviewed', reviewed.length]].map(([key, label, count]) => (
-            <button key={key} onClick={() => setTab(key)}
-              className={`px-6 py-4 text-sm font-bold transition-all flex items-center gap-2 ${tab === key ? 'bg-white text-aubergine-700 border-t-2 border-t-aubergine-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
-              {label}
-              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === key ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-200 text-slate-500'}`}>{count}</span>
-            </button>
-          ))}
+        <div className="flex border-b border-slate-200 bg-slate-50 items-center justify-between pr-5">
+          <div className="flex">
+            {[['pending', 'Pending Review', pending.length], ['reviewed', 'Reviewed', reviewed.length]].map(([key, label, count]) => (
+              <button key={key} onClick={() => setTab(key)}
+                className={`px-6 py-4 text-sm font-bold transition-all flex items-center gap-2 ${tab === key ? 'bg-white text-aubergine-700 border-t-2 border-t-aubergine-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+                {label}
+                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === key ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-200 text-slate-500'}`}>{count}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-3">
+            {selectedIds.length > 0 && <span className="text-xs text-slate-500 font-bold">{selectedIds.length} selected</span>}
+            <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-500 hover:text-aubergine-600 transition-colors">
+              <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedIds.length > 0 && selectedIds.length === currentList.length ? 'bg-aubergine-600 border-aubergine-600 text-white' : selectedIds.length > 0 ? 'bg-aubergine-100 border-aubergine-300 text-aubergine-600' : 'bg-white border-slate-300'}`}>
+                {(selectedIds.length > 0 && selectedIds.length === currentList.length) ? <i className="fas fa-check text-[8px]"></i> : selectedIds.length > 0 ? <div className="w-2 h-0.5 bg-aubergine-600 rounded"></div> : null}
+              </div>
+              <input type="checkbox" className="hidden" checked={selectedIds.length === currentList.length && currentList.length > 0} onChange={toggleSelectAll} />
+              Select All
+            </label>
+          </div>
         </div>
 
         <div className="divide-y divide-slate-50">
           {tab === 'pending' && pending.map(lab => (
-            <div key={lab.id} className={`p-5 flex flex-col sm:flex-row gap-4 hover:bg-slate-50 transition-colors ${lab.urgent ? 'bg-amber-50/30' : ''}`}>
+            <div key={lab.id} className={`p-5 flex flex-col sm:flex-row gap-4 hover:bg-slate-50 transition-colors ${lab.urgent ? 'bg-amber-50/30' : ''} ${selectedIds.includes(lab.id) ? 'ring-1 ring-inset ring-aubergine-200 bg-aubergine-50/20' : ''}`}>
+              <label className="cursor-pointer group flex-shrink-0 mt-1" onClick={e => e.stopPropagation()}>
+                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedIds.includes(lab.id) ? 'bg-aubergine-600 border-aubergine-600 text-white' : 'bg-white border-slate-300 group-hover:border-aubergine-400'}`}>
+                  {selectedIds.includes(lab.id) && <i className="fas fa-check text-[10px]"></i>}
+                </div>
+                <input type="checkbox" className="hidden" checked={selectedIds.includes(lab.id)} onChange={() => toggleSelect(lab.id)} />
+              </label>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1.5">
                   <h3 className="font-black text-slate-800">{lab.patient}</h3>
@@ -163,7 +304,13 @@ function DoctorReports() {
           )}
 
           {tab === 'reviewed' && reviewed.map(r => (
-            <div key={r.id} className="p-5 flex flex-col sm:flex-row gap-4 hover:bg-slate-50 transition-colors">
+            <div key={r.id} className={`p-5 flex flex-col sm:flex-row gap-4 hover:bg-slate-50 transition-colors ${selectedIds.includes(r.id) ? 'ring-1 ring-inset ring-aubergine-200 bg-aubergine-50/20' : ''}`}>
+              <label className="cursor-pointer group flex-shrink-0 mt-1" onClick={e => e.stopPropagation()}>
+                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedIds.includes(r.id) ? 'bg-aubergine-600 border-aubergine-600 text-white' : 'bg-white border-slate-300 group-hover:border-aubergine-400'}`}>
+                  {selectedIds.includes(r.id) && <i className="fas fa-check text-[10px]"></i>}
+                </div>
+                <input type="checkbox" className="hidden" checked={selectedIds.includes(r.id)} onChange={() => toggleSelect(r.id)} />
+              </label>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1.5">
                   <h3 className="font-black text-slate-800">{r.patient}</h3>
@@ -189,6 +336,17 @@ function DoctorReports() {
       </div>
 
       <LabReviewModal lab={selectedLab} isOpen={!!selectedLab} onClose={() => setSelectedLab(null)} onAction={handleAction} />
+
+      <BulkMessageModal
+        isOpen={bulkModalParams.isOpen}
+        onClose={() => setBulkModalParams({ isOpen: false, channel: '' })}
+        channel={bulkModalParams.channel}
+        selectedCount={selectedIds.length}
+        onSend={(msg) => {
+          toast(`Successfully sent ${bulkModalParams.channel} to ${selectedIds.length} patients!`, 'success');
+          setSelectedIds([]);
+        }}
+      />
     </div>
   );
 }
