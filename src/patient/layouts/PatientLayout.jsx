@@ -1,18 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
+import { HealNariLogo } from '../../components/HealNariLogo.jsx';
+import { PageTransition } from '../../components/PageTransition.jsx';
+import { NavHoverRail } from '../../components/NavHoverRail.jsx';
+import { ModuleAccentBar } from '../../components/ModuleAccentBar.jsx';
+
+const DEFAULT_ACCENT = '#6B46C1';
 
 const MENU_ITEMS = [
-  { name: 'Dashboard',          icon: 'fa-house',          path: '/patient-dashboard' },
-  { name: 'Find a Doctor',      icon: 'fa-user-doctor',    path: '/patient-dashboard/find-doctor' },
-  { name: 'My Appointments',    icon: 'fa-calendar-check', path: '/patient-dashboard/appointments' },
-  { name: 'Medical Records',    icon: 'fa-file-medical',   path: '/patient-dashboard/records' },
-  { name: 'Prescriptions',      icon: 'fa-pills',          path: '/patient-dashboard/prescriptions' },
-  { name: 'Health Tracking',    icon: 'fa-heart-pulse',    path: '/patient-dashboard/tracking' },
-  { name: 'Partner & Support',  icon: 'fa-users',          path: '/patient-dashboard/family' },
-  { name: 'Billing & Payments', icon: 'fa-credit-card',    path: '/patient-dashboard/billing' },
-  { name: 'My Profile',         icon: 'fa-circle-user',    path: '/patient-dashboard/profile' },
+  { name: 'Dashboard',          icon: 'fa-house',          path: '/patient-dashboard',              color: '#6B46C1' },
+  { name: 'Find a Doctor',      icon: 'fa-user-doctor',    path: '/patient-dashboard/find-doctor',   color: '#0ea5e9' },
+  { name: 'My Appointments',    icon: 'fa-calendar-check', path: '/patient-dashboard/appointments',  color: '#10b981' },
+  { name: 'Medical Records',    icon: 'fa-file-medical',   path: '/patient-dashboard/records',       color: '#f59e0b' },
+  { name: 'Prescriptions',      icon: 'fa-pills',          path: '/patient-dashboard/prescriptions', color: '#f43f5e' },
+  { name: 'Health Tracking',    icon: 'fa-heart-pulse',    path: '/patient-dashboard/tracking',      color: '#6366f1' },
+  { name: 'Partner & Support',  icon: 'fa-users',          path: '/patient-dashboard/family',        color: '#d946ef' },
+  { name: 'Billing & Payments', icon: 'fa-credit-card',    path: '/patient-dashboard/billing',       color: '#14b8a6' },
+  { name: 'My Profile',         icon: 'fa-circle-user',    path: '/patient-dashboard/profile',       color: '#64748b' },
 ];
 
 const NOTIFICATIONS = [
@@ -22,7 +28,7 @@ const NOTIFICATIONS = [
   { id: 4, icon: 'fa-heart-pulse',    color: 'text-rose-600 bg-rose-50',           title: 'Log Your Vitals',     msg: 'You haven\'t logged BP today.', time: '5 hours ago', read: true },
 ];
 
-function Sidebar({ onClose }) {
+function Sidebar({ onClose, onItemHover }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
@@ -48,17 +54,12 @@ function Sidebar({ onClose }) {
   };
 
   return (
-    <div className="w-64 h-full flex flex-col" style={{ backgroundColor: '#3b1c32' }}>
+    <div className="w-64 h-full flex flex-col bg-aubergine-900">
       {/* Logo */}
-      <div className="h-16 flex items-center px-6 border-b border-aubergine-700/40 shrink-0 justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-aubergine-400 to-aubergine-200 flex items-center justify-center shadow-md">
-            <i className="fas fa-leaf text-aubergine-800 text-sm"></i>
-          </div>
-          <span className="text-xl font-bold tracking-tight text-white font-display">
-            Fem<span className="text-aubergine-200">Care</span>
-          </span>
-        </div>
+      <div className="h-16 flex items-center px-5 border-b border-white/10 shrink-0 justify-between">
+        <NavLink to="/patient-dashboard" className="flex items-center">
+          <HealNariLogo showTagline={false} size="sm" variant="dark" />
+        </NavLink>
         {onClose && (
           <button onClick={onClose} className="text-aubergine-300 hover:text-white md:hidden ml-2">
             <i className="fas fa-xmark text-lg"></i>
@@ -67,22 +68,27 @@ function Sidebar({ onClose }) {
       </div>
 
       {/* Navigation */}
-      <div className="p-4 flex-1 overflow-y-auto space-y-0.5">
+      <div className="p-4 flex-1 overflow-y-auto">
         <div className="text-[10px] font-bold text-aubergine-200/50 uppercase tracking-widest mb-3 px-2">Patient Portal</div>
-        {MENU_ITEMS.map(item => (
-          <NavLink key={item.name} to={item.path} end={item.path === '/patient-dashboard'}
-            onClick={onClose}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all ${
-                isActive
-                  ? 'bg-aubergine-600 text-white shadow-sm'
-                  : 'text-aubergine-100/80 hover:bg-aubergine-700/60 hover:text-white'
-              }`
-            }>
-            <div className="w-5 text-center"><i className={`fas ${item.icon}`}></i></div>
-            {item.name}
-          </NavLink>
-        ))}
+        <NavHoverRail indicatorClassName="bg-aubergine-700/60">
+          {MENU_ITEMS.map(item => (
+            <NavLink key={item.name} to={item.path} end={item.path === '/patient-dashboard'}
+              onClick={onClose}
+              onMouseEnter={() => onItemHover?.(item.color)}
+              onMouseLeave={() => onItemHover?.(null)}
+              data-nav-item
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                  isActive
+                    ? 'bg-aubergine-600 text-white shadow-sm'
+                    : 'text-aubergine-100/80 hover:text-white'
+                }`
+              }>
+              <div className="w-5 text-center transition-transform duration-200"><i className={`fas ${item.icon}`}></i></div>
+              {item.name}
+            </NavLink>
+          ))}
+        </NavHoverRail>
       </div>
 
       {/* Footer */}
@@ -97,10 +103,10 @@ function Sidebar({ onClose }) {
         {/* Privacy badges */}
         <div className="bg-aubergine-900/40 p-2.5 rounded-xl border border-aubergine-700/30">
           <div className="flex items-center gap-2 text-[10px] font-semibold text-aubergine-200/70 uppercase tracking-wide">
-            <i className="fas fa-shield-halved text-sage-400"></i> HIPAA Compliant
+            <i className="fas fa-shield-halved text-sage-400"></i> DPDP Act, 2023 Compliant
           </div>
           <div className="flex items-center gap-2 text-[10px] font-semibold text-aubergine-200/70 uppercase tracking-wide mt-1">
-            <i className="fas fa-lock text-sage-400"></i> End-to-End Encrypted
+            <i className="fas fa-lock text-sage-400"></i> Private, Doctor-Only Access
           </div>
         </div>
 
@@ -162,6 +168,7 @@ function PatientLayout() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
+  const [hoveredColor, setHoveredColor] = useState(null);
   const notifRef = useRef(null);
   const notifBtnRef = useRef(null);
 
@@ -203,7 +210,7 @@ function PatientLayout() {
 
       {/* Desktop Sidebar */}
       <aside className="w-64 hidden md:flex flex-col flex-shrink-0">
-        <Sidebar />
+        <Sidebar onItemHover={setHoveredColor} />
       </aside>
 
       {/* Mobile Sidebar Drawer */}
@@ -213,6 +220,7 @@ function PatientLayout() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        <ModuleAccentBar color={hoveredColor || DEFAULT_ACCENT} className="rounded-none" />
         {/* Topbar */}
         <header className="h-16 border-b border-sand-200 flex items-center justify-between px-4 md:px-6 shrink-0" style={{ backgroundColor: 'var(--color-surface-page)' }}>
           {/* Mobile hamburger */}
@@ -286,11 +294,8 @@ function PatientLayout() {
         </header>
 
         {/* Dynamic Content */}
-        <main className={`flex-1 overflow-y-auto p-4 md:p-8 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}
-          key={location.pathname}>
-          <div className="animate-fade-in">
-            <Outlet />
-          </div>
+        <main className={`flex-1 overflow-y-auto p-4 md:p-8 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}>
+          <PageTransition />
         </main>
       </div>
     </div>

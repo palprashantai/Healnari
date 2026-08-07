@@ -24,12 +24,12 @@ async function bootstrap() {
 
   // Setup Swagger API Documentation
   const config = new DocumentBuilder()
-    .setTitle('FemCare API')
-    .setDescription('The modular backend REST API for the FemCare platform.')
+    .setTitle('HealNari API')
+    .setDescription('The modular backend REST API for the HealNari platform.')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
-    
+
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 

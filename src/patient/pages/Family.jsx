@@ -47,7 +47,16 @@ function PatientFamily() {
   const [inviteRelation, setInviteRelation] = useState('Partner / Spouse');
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [disconnectTarget, setDisconnectTarget] = useState(null);
+  const [sensitiveToggle, setSensitiveToggle] = useState(null);
   const [shareLink, setShareLink] = useState('');
+
+  const applyPermissionToggle = (idx, perm, next) => {
+    setConnections(prev => prev.map((c, i) => {
+      if (i !== idx) return c;
+      return { ...c, permissions: { ...c.permissions, [perm]: next } };
+    }));
+    toast(next ? `"${PERMISSION_CONFIG.find(p => p.key === perm)?.label}" enabled.` : 'Permission revoked.', next ? 'success' : 'info');
+  };
 
   const togglePermission = (idx, perm) => {
     const conn = connections[idx];
@@ -55,14 +64,17 @@ function PatientFamily() {
 
     if (perm === 'detailedRx' && next) {
       // Warn before enabling sensitive permission
-      if (!window.confirm('⚠️ Enabling this will share your full medical records including prescriptions. Continue?')) return;
+      setSensitiveToggle({ idx, perm });
+      return;
     }
 
-    setConnections(prev => prev.map((c, i) => {
-      if (i !== idx) return c;
-      return { ...c, permissions: { ...c.permissions, [perm]: next } };
-    }));
-    toast(next ? `"${PERMISSION_CONFIG.find(p => p.key === perm)?.label}" enabled.` : 'Permission revoked.', next ? 'success' : 'info');
+    applyPermissionToggle(idx, perm, next);
+  };
+
+  const confirmSensitiveToggle = () => {
+    if (!sensitiveToggle) return;
+    applyPermissionToggle(sensitiveToggle.idx, sensitiveToggle.perm, true);
+    setSensitiveToggle(null);
   };
 
   const handleInvite = (e) => {
@@ -78,7 +90,7 @@ function PatientFamily() {
       permissions: { cycleWindow: true, appointments: false, detailedRx: false },
     };
     setConnections(prev => [...prev, newConn]);
-    setShareLink(`https://femcare.app/invite/${Math.random().toString(36).slice(2, 10)}`);
+    setShareLink(`https://healnari.app/invite/${Math.random().toString(36).slice(2, 10)}`);
     toast(`Invitation sent to ${inviteEmail}!`, 'success');
     setInviteEmail('');
     setShowInviteForm(false);
@@ -106,7 +118,7 @@ function PatientFamily() {
       </div>
 
       {/* Educational Card */}
-      <div className="bg-gradient-to-r from-violet-900 to-indigo-950 text-white rounded-3xl p-6 shadow-md relative overflow-hidden">
+      <div className="bg-gradient-to-r from-aubergine-900 to-indigo-950 text-white rounded-3xl p-6 shadow-md relative overflow-hidden">
         <div className="absolute right-0 top-0 opacity-10 text-9xl transform translate-x-12 translate-y-2">
           <i className="fas fa-heart"></i>
         </div>
@@ -255,6 +267,17 @@ function PatientFamily() {
         title={`Disconnect ${disconnectTarget?.name}?`}
         message="They will lose access to all shared information. This can be undone by inviting them again."
         confirmLabel="Disconnect"
+        confirmStyle="danger"
+      />
+
+      {/* Sensitive Permission Confirm */}
+      <ConfirmModal
+        isOpen={!!sensitiveToggle}
+        onClose={() => setSensitiveToggle(null)}
+        onConfirm={confirmSensitiveToggle}
+        title="Share Medical EMR & Prescriptions?"
+        message="Enabling this will share your full medical records including prescriptions. Continue?"
+        confirmLabel="Enable Sharing"
         confirmStyle="danger"
       />
     </div>

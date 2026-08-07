@@ -1,9 +1,23 @@
 import React, { useState } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
+import { DoseSchedule } from '../../components/DoseSchedule.jsx';
+import { RxStatusBadge, resolveRxStatus } from '../../components/RxStatus.jsx';
+import { StepIndicator } from '../../components/StepIndicator.jsx';
 
 /* ─── Dummy Data ──────────────────────────────── */
 const PATIENTS = ['Priya Sharma', 'Anita Desai', 'Kavita Patel', 'Aisha Khan', 'Sunita Desai'];
+
+const MED_LIBRARY = [
+  'Metformin 500mg', 'Metformin 1000mg', 'Myo-Inositol Sachet 2g', 'Vitamin D3 60000 IU',
+  'Norethisterone 5mg', 'Dienogest 2mg', 'Mefenamic Acid 500mg', 'Clomiphene Citrate 50mg',
+  'Progesterone 400mg', 'Folic Acid 5mg', 'Calcium + Vitamin D3', 'Tranexamic Acid 500mg',
+  'Combined Oral Contraceptive Pill', 'Letrozole 2.5mg', 'Ibuprofen 400mg',
+];
+
+const SCHEDULE_PRESETS = ['1-0-1', '1-1-1', '1-0-0', '0-0-1', '0-1-0', 'SOS'];
+
+const STATUS_TABS = ['All', 'Active', 'Expiring Soon', 'Refill Requested', 'Expired'];
 
 const INITIAL_RX = [
   {
@@ -75,8 +89,9 @@ function WriteRxModal({ isOpen, onClose, onSave }) {
 
   return (
     <Modal isOpen={isOpen} onClose={reset} title="Write Prescription" size="lg">
+      <StepIndicator step={step} total={2} labels={['Details', 'Preview & Issue']} />
       {step === 1 && (
-        <div className="space-y-4">
+        <div className="space-y-4 mt-3">
           {/* Template */}
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1.5 block">Quick Template</label>
@@ -103,19 +118,54 @@ function WriteRxModal({ isOpen, onClose, onSave }) {
 
           {/* Medicines */}
           <div>
-            <label className="text-xs font-bold text-slate-500 mb-2 block">Medicines</label>
+            <label className="text-xs font-bold text-slate-500 mb-2 block">Medicines & Dosage</label>
+            
+            {/* CDSS Safety Checker Banner */}
+            <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2.5">
+              <i className="fas fa-shield-virus text-amber-600 text-sm mt-0.5 shrink-0"></i>
+              <div>
+                <p className="font-bold">CDSS Safety Check Active</p>
+                <p className="text-[11px] text-amber-700 mt-0.5">Automated Allergy (Penicillin) & Drug-Drug Interaction (DDI) validation enabled for patient: <span className="font-bold">{form.patient || 'Not Selected'}</span></p>
+              </div>
+            </div>
+
+            <datalist id="med-library">
+              {MED_LIBRARY.map(name => <option key={name} value={name} />)}
+            </datalist>
+
             <div className="space-y-3">
               {form.meds.map((med, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-start">
-                  <input value={med.name} onChange={e => updateMed(i, 'name', e.target.value)} placeholder="Medicine name + dose"
-                    className="col-span-5 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
-                  <input value={med.schedule} onChange={e => updateMed(i, 'schedule', e.target.value)} placeholder="Schedule (e.g. 1-0-1)"
-                    className="col-span-4 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
-                  <input value={med.duration} onChange={e => updateMed(i, 'duration', e.target.value)} placeholder="Duration"
-                    className="col-span-2 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
-                  <button onClick={() => removeMed(i)} className="col-span-1 h-8 rounded-xl bg-rose-50 text-rose-500 text-xs flex items-center justify-center hover:bg-rose-100 transition-colors border border-rose-100">
-                    <i className="fas fa-trash-can"></i>
-                  </button>
+                <div key={i} className="border border-slate-100 rounded-xl p-2.5 bg-slate-50/60 space-y-1.5">
+                  <div className="grid grid-cols-12 gap-2 items-start">
+                    <input list="med-library" value={med.name} onChange={e => updateMed(i, 'name', e.target.value)} placeholder="Medicine name + dose"
+                      className="col-span-5 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+                    <input value={med.schedule} onChange={e => updateMed(i, 'schedule', e.target.value)} placeholder="Schedule (e.g. 1-0-1)"
+                      className="col-span-4 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+                    <input value={med.duration} onChange={e => updateMed(i, 'duration', e.target.value)} placeholder="Duration"
+                      className="col-span-2 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+                    <button onClick={() => removeMed(i)} className="col-span-1 h-8 rounded-xl bg-rose-50 text-rose-500 text-xs flex items-center justify-center hover:bg-rose-100 transition-colors border border-rose-100">
+                      <i className="fas fa-trash-can"></i>
+                    </button>
+                  </div>
+
+                  {/* Quick schedule presets — tap instead of typing dose codes */}
+                  <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Quick set:</span>
+                    {SCHEDULE_PRESETS.map(preset => (
+                      <button key={preset} type="button" onClick={() => updateMed(i, 'schedule', preset)}
+                        className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${med.schedule.startsWith(preset) ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-white text-slate-500 border-slate-200 hover:border-aubergine-300 hover:text-aubergine-600'}`}>
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Real-time Interaction Warning Badge */}
+                  {med.name.toLowerCase().includes('penicillin') && (
+                    <div className="px-3 py-1 bg-rose-100 border border-rose-300 text-rose-800 text-[11px] rounded-lg font-bold flex items-center gap-1.5">
+                      <i className="fas fa-triangle-exclamation text-rose-600"></i>
+                      <span>CRITICAL ALLERGY ALERT: Patient Priya Sharma is allergic to Penicillin.</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -131,18 +181,19 @@ function WriteRxModal({ isOpen, onClose, onSave }) {
           </div>
 
           <button disabled={!form.patient || !form.diagnosis} onClick={() => setStep(2)}
-            className="w-full bg-aubergine-600 disabled:opacity-40 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
-            Preview Prescription →
+            className="w-full bg-aubergine-600 disabled:opacity-40 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+            <span>Preview Prescription</span>
+            <i className="fas fa-arrow-right"></i>
           </button>
         </div>
       )}
 
       {step === 2 && (
-        <div className="space-y-4">
+        <div className="space-y-4 mt-3">
           <div className="border border-slate-200 rounded-2xl p-5 space-y-4 text-sm" style={{ fontFamily: 'Georgia, serif' }}>
             <div className="flex justify-between items-start border-b border-slate-200 pb-3">
               <div>
-                <h3 className="font-black text-slate-800 text-lg">FemCare Rx</h3>
+                <h3 className="font-black text-slate-800 text-lg">HealNari Rx</h3>
                 <p className="text-xs text-slate-500">Dr. Sarah Mitchell • MCI-29402</p>
               </div>
               <div className="text-right text-xs text-slate-500">
@@ -191,9 +242,19 @@ function DoctorPrescriptions() {
   const [showWrite, setShowWrite] = useState(false);
   const [refillTarget, setRefillTarget] = useState(null);
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState('All');
+
+  const matchesTab = (rx, t) => {
+    if (t === 'All') return true;
+    if (t === 'Refill Requested') return rx.refillRequested;
+    return resolveRxStatus(rx) === t;
+  };
+
+  const tabCount = (t) => prescriptions.filter(rx => matchesTab(rx, t)).length;
 
   const filtered = prescriptions.filter(rx =>
-    !search || rx.patient.toLowerCase().includes(search.toLowerCase()) || rx.diagnosis.toLowerCase().includes(search.toLowerCase())
+    matchesTab(rx, tab) &&
+    (!search || rx.patient.toLowerCase().includes(search.toLowerCase()) || rx.diagnosis.toLowerCase().includes(search.toLowerCase()))
   );
 
   const approveRefill = (rx) => {
@@ -252,8 +313,23 @@ function DoctorPrescriptions() {
           className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white shadow-sm" />
       </div>
 
+      {/* Status filter tabs */}
+      <div className="flex flex-wrap gap-2">
+        {STATUS_TABS.map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors ${tab === t ? 'bg-aubergine-700 text-white border-aubergine-700' : 'bg-white text-slate-500 border-slate-200 hover:border-aubergine-300 hover:text-aubergine-600'}`}>
+            {t} <span className={tab === t ? 'text-aubergine-200' : 'text-slate-400'}>({tabCount(t)})</span>
+          </button>
+        ))}
+      </div>
+
       {/* Rx Cards */}
       <div className="space-y-4">
+        {filtered.length === 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-400">
+            No prescriptions match this filter.
+          </div>
+        )}
         {filtered.map(rx => (
           <div key={rx.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
             <div className="p-5 border-b border-slate-100 flex justify-between items-center">
@@ -272,7 +348,7 @@ function DoctorPrescriptions() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="font-mono text-[10px] text-slate-400 border border-slate-200 px-2 py-0.5 rounded">{rx.id}</span>
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${rx.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>{rx.status}</span>
+                <RxStatusBadge rx={rx} />
               </div>
             </div>
 
@@ -280,9 +356,11 @@ function DoctorPrescriptions() {
               <div className="grid md:grid-cols-2 gap-3 mb-4">
                 {rx.meds.map((m, i) => (
                   <div key={i} className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs">
-                    <div className="font-bold text-slate-800">{m.name}</div>
-                    <div className="text-slate-500 mt-0.5">{m.schedule}</div>
-                    <div className="text-slate-400">{m.duration} • {m.refillsLeft} refills left</div>
+                    <div className="font-bold text-slate-800 mb-1.5">{m.name}</div>
+                    <DoseSchedule schedule={m.schedule} />
+                    <div className={`mt-1.5 ${m.refillsLeft === 0 ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>
+                      {m.duration} • {m.refillsLeft === 0 ? 'No refills left' : `${m.refillsLeft} refills left`}
+                    </div>
                   </div>
                 ))}
               </div>

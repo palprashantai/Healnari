@@ -3,16 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import { Tilt3D } from '../../components/Tilt3D.jsx';
 
 /* ─── Dummy Data ──────────────────────────────── */
-const TODAY_QUEUE = [
-  { id: 1, token: 'T-01', name: 'Priya Sharma',  age: '28F', type: 'PCOS Follow-up',    time: '09:30 AM', status: 'In Progress', vital: 'BP 118/78', concern: 'Elevated TSH 5.2 mIU/L — review before consult' },
-  { id: 2, token: 'T-02', name: 'Anita Desai',   age: '34F', type: 'Fertility Consult', time: '10:00 AM', status: 'Waiting',    vital: null, concern: null },
-  { id: 3, token: 'T-03', name: 'Kavita Patel',  age: '22F', type: 'Irregular Cycles',  time: '10:30 AM', status: 'Upcoming',   vital: null, concern: null },
-  { id: 4, token: 'T-04', name: 'Aisha Khan',    age: '29F', type: 'Endometriosis',      time: '11:00 AM', status: 'Upcoming',   vital: null, concern: null },
-  { id: 5, token: 'T-05', name: 'Riya Mehta',    age: '25F', type: 'Thyroid Review',     time: '02:00 PM', status: 'Upcoming',   vital: null, concern: null },
-];
-
 const PENDING_LABS = [
   { id: 1, patient: 'Priya Sharma',  test: 'Full Thyroid Panel + CBC',  received: '10 mins ago', urgent: true },
   { id: 2, patient: 'Meera Nair',    test: 'AMH + LH + FSH Profile',   received: '2 hrs ago',   urgent: false },
@@ -355,7 +348,8 @@ function DoctorDashboard() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
         {todayStats.map(stat => (
-          <div key={stat.label} onClick={stat.onClick}
+          <Tilt3D key={stat.label} max={5}>
+          <div onClick={stat.onClick}
             className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-aubergine-200 cursor-pointer transition-all group card-premium">
             <div className="flex justify-between items-start mb-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-base ${stat.color}`}>
@@ -367,6 +361,7 @@ function DoctorDashboard() {
             <div className="text-xs text-slate-500 font-medium">{stat.label}</div>
             <div className="text-[10px] text-slate-400 mt-1">{stat.sub}</div>
           </div>
+          </Tilt3D>
         ))}
       </div>
 

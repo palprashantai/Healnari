@@ -1,167 +1,93 @@
-# Business Backend API
+# HealNari API (`vision`)
 
-A robust backend API built with **NestJS**, **MySQL**, and **Sequelize ORM**. 
+The backend for the **HealNari** women's health platform — built with **NestJS**, **TypeORM**, and **MySQL**. It models patients, doctors, appointments, prescriptions, lab results, and platform admin operations, and exposes a natural-language query assistant over the schema.
 
-It dynamically generates beautifully styled Excel and CSV files when users ask to download reports, and provides complete REST APIs for data management.
-
----
-
-## 🛠️ Features
-
-- **NestJS Architecture**: Highly organized module-controller-service pattern.
-- **Dynamic Excel & CSV Exporter**: Generates flat, formatted files from complex nested database tables automatically:
-  - zebra-striped, auto-fit Excel sheets (using `exceljs`).
-  - RFC 4180 quote-escaped, tab-flattened CSV files.
-- **Aggregated Business Charts APIs**: Specialized aggregates optimized for frontend dashboard charting libraries (revenue monthly trend, category sales share, category stock levels, customer cities, order statuses). Includes a high-performance combined `dashboard-summary` endpoint.
-- **REST APIs**: Full implementation of endpoints (`/api/products`, `/api/orders`, `/api/reports/sales`) with robust pagination, sorting, filter, and export parameter support.
-- **Robust Error Handling & Security**: Passwords hashed with `bcrypt`, endpoints protected by JWT validation, parameterized database queries.
+> **Status: prototype backend, not wired to the React frontend yet.** The `healnari-react` app in the repo root currently runs entirely on mock/local data. This service is a separate, standalone API — see [Known gaps](#known-gaps--before-production) before relying on it for anything real.
 
 ---
 
-## 📂 Project Structure
-```text
-├── config/
-│   ├── db.config.js       # Sequelize DB connection details
-│   └── swagger.js         # Extended Swagger Open API 3.0 specs
-├── controllers/
-│   ├── auth.controller.js # Admin Authentication
-│   ├── chart.controller.js # Business charts analytics data aggregations
-│   ├── product.controller.js # Products retrieval REST API
-│   ├── order.controller.js   # Orders retrieval REST API
-│   └── report.controller.js  # Sales Reports REST API (Paginated, Sorted & Exportable)
-├── middleware/
-│   ├── auth.middleware.js # Bearer JWT validation & role check
-│   └── error.middleware.js # Central error & Sequelize exception formatting
-├── models/
-│   ├── index.js           # Sequelize initialization & association setup
-│   ├── user.model.js      # User model definition
-│   ├── product.model.js   # Product model definition
-│   ├── customer.model.js  # Customer model definition
-│   ├── order.model.js     # Order model definition
-│   ├── orderItem.model.js # OrderItem model definition
-│   └── sale.model.js      # Sale model definition
-├── routes/
-│   ├── auth.routes.js     # Authentication routes
-│   ├── chart.routes.js    # Dashboard aggregation analytics routes
-│   ├── product.routes.js  # Product REST API (secured)
-│   ├── order.routes.js    # Order REST API (secured)
-│   └── report.routes.js   # Reports REST API (secured)
-├── seeders/
-│   └── seed.js            # Table sync & database test-data seeder script
-├── services/
-│   ├── db.service.js      # Dynamic Sequelize ORM query mapper
-│   ├── csv.service.js     # Zero-dependency RFC 4180 CSV builder
-│   └── excel.service.js   # Flat Excel generator using ExcelJS
-├── .env.example           # Environment template configurations
-├── app.js                 # Application startup
-├── package.json           # Dependencies and scripts configuration
-└── Business.postman_collection.json # Extended Postman Collection
-```
+## Modules
+
+| Module | Path | Responsibility |
+|---|---|---|
+| Auth | `src/auth` | Email-based login/register (see gaps below) |
+| Patients | `src/patients` | Onboarding, health metrics, cycle tracking, symptom reports, goals, appointments, prescriptions, lab reports, billing, family — all scoped to `me` |
+| Doctors | `src/doctors` | Doctor-facing patient management, refill requests |
+| Appointments | `src/appointments` | Booking, scheduling, status transitions |
+| Records | `src/records` | Prescriptions and lab results |
+| Admin | `src/admin` | Platform stats, system health, support tickets, refunds, user/clinic management, doctor KYC verification, CMS content |
+| AI | `src/ai` | Natural-language → structured query assistant (`POST /api/chat`), backed by Gemini or OpenAI |
+| Common | `src/common` | Shared response envelope, centralized error/success message constants, global exception filter |
+
+Entities live next to their owning module (e.g. `patients/patient.entity.ts`, `records/prescription.entity.ts`) and are registered centrally in `app.module.ts`.
 
 ---
 
-## ⚡ Setup & Installation
+## Setup & Installation
 
 ### 1. Prerequisites
-- **Node.js** (v18 or higher recommended)
-- **MySQL Server** (running locally or remotely)
+- Node.js v18+
+- MySQL Server (local or remote)
 
-### 2. Install Dependencies
-Clone the repository and run:
+### 2. Install dependencies
 ```bash
 npm install
 ```
 
-### 3. Environment Setup
-Copy the `.env.example` file to `.env`:
-```bash
-cp .env.example .env
-```
-Open `.env` and configure your credentials:
-```ini
-# Port and Mode
-PORT=5000
-NODE_ENV=development
+### 3. Environment configuration
+Create a `.env` file in `vision/` (there is no `.env.example` checked in yet — add one if you set this up):
 
-# MySQL DB Settings
+```ini
+# Server
+PORT=5000
+
+# MySQL (consumed directly in app.module.ts)
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
 DB_PASSWORD=your_mysql_password
-DB_NAME=business_db
+DB_NAME=healnari_db
 
-# JWT Secrets
-JWT_SECRET=your_super_secret_jwt_key
-JWT_EXPIRES_IN=24h
+# AI assistant — at least one is required for /api/chat to work
+GEMINI_API_KEY=your_gemini_key
+OPENAI_API_KEY=your_openai_key
 ```
 
-### 4. Database Setup & Seeding
-This project comes with an automated seeder that:
-1. Connects to your MySQL server.
-2. Creates the schema database if it doesn't exist.
-3. Synchronizes and creates all required tables.
-4. Populates realistic test data.
+`app.module.ts` currently runs TypeORM with `synchronize: true`, so tables are created/altered automatically from the entities on boot. That's convenient for local development but is not safe for a real database with production data — turn it off and use migrations before this touches anything but a throwaway dev DB.
 
-To initialize the database and seed the tables, run:
+### 4. Run the server
 ```bash
-npm run db:init
+npm run start:dev   # watch mode
+npm run start        # single run
+npm run start:prod   # from compiled dist/
 ```
 
----
+The API listens on `http://localhost:5000` (or `PORT`).
 
-## 🚀 Running the App
-Start the development server with live reload:
-```bash
-npm run dev
-```
-For production:
-```bash
-npm start
-```
-The server will boot and verify database connectivity, listening on port `5000` (or your configured port).
+### 5. API docs
+Swagger UI is served at:
+👉 **http://localhost:5000/api/docs**
+
+All endpoints are prefixed `/api/...` (e.g. `/api/patients/me/dashboard`, `/api/admin/dashboard`, `/api/chat`).
 
 ---
 
-## 📖 Swagger API Documentation
-Once the server is running, you can access the interactive Swagger OpenAPI 3.0 documentation page directly at:
-👉 **[http://localhost:5000/api-docs](http://localhost:5000/api-docs)**
+## The AI assistant (`/api/chat`)
 
-This interactive UI has been fully extended to document the aggregation analytics paths, pagination/sorting fields, and Excel/CSV download parameters!
+`POST /api/chat` takes a natural-language question (e.g. *"How many appointments are scheduled today?"*), asks Gemini/OpenAI to translate it into a structured TypeORM query against the schema described in `ai.service.ts`, executes it, and returns a plain-language answer alongside the raw result.
 
----
-
-## 🧪 Testing the APIs (Postman)
-1. Open Postman.
-2. Click **Import** and select the collection file inside the project root folder.
-3. First execute the **Admin Login** request. The test script in the collection will automatically extract the JWT token and save it to your Postman global variables (`admin_token`).
-4. You can now execute any of the pre-loaded **Dashboard charts**, or **REST APIs** without needing to manually copy-paste the token!
-
-### Credentials for Admin Login:
-- **Email**: `admin@example.com`
-- **Password**: `password123`
+This endpoint requires an `Authorization` header (admin-style, matching the convention used by `AdminController`) and only allows querying a fixed allow-list of entities/fields/relations defined in `ai.service.ts` — it does **not** hand the LLM's output straight to the database. See the comments in `ai/ai.service.ts` and `ai/chat.controller.ts` for the exact allow-list before extending it to new entities.
 
 ---
 
-## 📑 API Endpoints Documentation
+## Known gaps / before production
 
-### 1. Authentication
-* **POST `/api/auth/login`**
-  * Body: `{"email": "admin@example.com", "password": "password123"}`
-  * Response: Standard JWT Token + Admin profile detail.
+This is prototype-grade code. Do not treat any of the following as already solved:
 
-### 2. Business Analytics Charts (Protected)
-* **GET `/api/reports/charts/dashboard-summary`**
-  * Returns core KPI summaries and aggregated revenue trends, category sales, stock distributions, customer geographic share, and order shares in a single payload.
-* **GET `/api/reports/charts/revenue-trend`**
-* **GET `/api/reports/charts/category-sales`**
-* **GET `/api/reports/charts/stock-levels`**
-* **GET `/api/reports/charts/customer-cities`**
-* **GET `/api/reports/charts/order-distribution`**
+- **Auth is not real auth.** `AuthService.login()` looks up a user by email and returns a token shaped like `dummy-jwt-token-for-<id>` — it never checks a password. `register()` stores a literal string in `password_hash` rather than hashing anything. There is no JWT signing/verification, no session expiry, and no password reset flow.
+- **Authorization is a header substring check.** `AdminController.checkAdmin()` and similar guards only check that the `Authorization` header contains the word `admin` / a numeric user id — this is not a real bearer-token/JWT guard and must not be trusted as an access-control boundary.
+- **No rate limiting, no input sanitization beyond NestJS's `ValidationPipe`,** and no audit logging on access to patient health data.
+- **`synchronize: true`** will silently alter your schema on every boot — fine for a scratch dev DB, dangerous anywhere else.
+- The React frontend (`healnari-react`) does not call this API at all yet — connecting it is a separate, larger effort (auth flow, data fetching, error states, loading states) not covered by this README.
 
-### 3. REST APIs (Protected)
-* **GET `/api/products`**
-  * Query parameters: `category`, `minPrice`, `maxPrice`, `page`, `limit`, `sortBy`, `sortOrder`
-* **GET `/api/orders`**
-  * Query parameters: `status`, `page`, `limit`, `sortBy`, `sortOrder`
-* **GET `/api/reports/sales`**
-  * Query parameters: `startDate`, `endDate`, `page`, `limit`, `sortBy`, `sortOrder`, `format` (`excel` | `csv`)
+Treat this service as a schema + endpoint sketch to build real auth, authorization, and frontend integration on top of — not as something to point real patient data at as-is.

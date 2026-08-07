@@ -19,7 +19,7 @@ const STATUS_STYLE = {
 
 const METHOD_ICON = { UPI: 'fa-mobile-screen-button', Card: 'fa-credit-card', 'Net Banking': 'fa-building-columns', Wallet: 'fa-wallet' };
 
-const UPCOMING_PAYMENT = { doctor: 'Dr. Sarah Mitchell', date: 'Thu, 5 Jul 2026', amount: 799, id: 'APT-101' };
+const UPCOMING_PAYMENT = { doctor: 'Dr. Sarah Mitchell', date: 'Mon, 10 Aug 2026', amount: 799, id: 'APT-101' };
 
 /* ─── Payment Modal ──────────────────────────── */
 function PaymentModal({ isOpen, onClose, amount, description, onSuccess }) {
@@ -29,10 +29,10 @@ function PaymentModal({ isOpen, onClose, amount, description, onSuccess }) {
   const [processing, setProcessing] = useState(false);
 
   const METHODS = [
-    { id: 'UPI', label: 'UPI / GPay', icon: 'fa-mobile-screen-button', color: 'text-violet-600' },
+    { id: 'UPI', label: 'UPI / GPay', icon: 'fa-mobile-screen-button', color: 'text-aubergine-600' },
     { id: 'Card', label: 'Credit / Debit Card', icon: 'fa-credit-card', color: 'text-sky-600' },
     { id: 'Net Banking', label: 'Net Banking', icon: 'fa-building-columns', color: 'text-indigo-600' },
-    { id: 'Wallet', label: 'FemCare Wallet (₹450 balance)', icon: 'fa-wallet', color: 'text-emerald-600' },
+    { id: 'Wallet', label: 'HealNari Wallet (₹450 balance)', icon: 'fa-wallet', color: 'text-emerald-600' },
   ];
 
   const pay = () => {
@@ -142,13 +142,13 @@ function PatientBilling() {
   const totalPaid = transactions.filter(t => t.status === 'paid').reduce((s, t) => s + t.amount, 0);
 
   const applyCoupon = () => {
-    if (coupon.toUpperCase() === 'FEMCARE10') {
+    if (coupon.toUpperCase() === 'HEALNARI10') {
       setCouponApplied(true);
       setCouponMsg('10% off applied on your next booking!');
-      toast('Coupon FEMCARE10 applied — 10% off!', 'success');
+      toast('Coupon HEALNARI10 applied — 10% off!', 'success');
     } else {
       setCouponApplied(false);
-      setCouponMsg('Invalid coupon code. Try FEMCARE10!');
+      setCouponMsg('Invalid coupon code. Try HEALNARI10!');
       toast('Invalid coupon code.', 'error');
     }
   };
@@ -205,7 +205,7 @@ function PatientBilling() {
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="text-sm text-slate-500 font-medium mb-1">Next Consultation</div>
           <div className="text-2xl font-black text-slate-800">₹{couponApplied ? Math.round(UPCOMING_PAYMENT.amount * 0.9) : UPCOMING_PAYMENT.amount}</div>
-          {couponApplied && <div className="text-xs text-emerald-600 font-bold line-through text-slate-400">₹799 <span className="no-underline text-emerald-600">(10% off applied!)</span></div>}
+          {couponApplied && <div className="text-xs text-slate-400 font-bold line-through">₹799 <span className="no-underline text-emerald-600">(10% off applied!)</span></div>}
           <div className="text-xs text-slate-400 mt-1">Due: {UPCOMING_PAYMENT.date}</div>
           <button onClick={() => openPay(UPCOMING_PAYMENT.amount, `Consultation — ${UPCOMING_PAYMENT.doctor}`)}
             className="mt-3 w-full text-center bg-aubergine-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer hover:bg-aubergine-700 transition-colors">
@@ -220,7 +220,7 @@ function PatientBilling() {
             <div className="mt-2 space-y-2">
               <div className="flex items-center gap-2">
                 <i className="fas fa-tag text-emerald-500"></i>
-                <span className="text-sm font-bold text-emerald-700">FEMCARE10 Applied!</span>
+                <span className="text-sm font-bold text-emerald-700">HEALNARI10 Applied!</span>
               </div>
               <button onClick={() => { setCouponApplied(false); setCoupon(''); setCouponMsg(''); toast('Coupon removed.', 'info'); }}
                 className="text-xs text-rose-500 hover:underline font-semibold">Remove coupon</button>
@@ -236,7 +236,7 @@ function PatientBilling() {
           {couponMsg && !couponApplied && (
             <p className="text-xs mt-2 font-medium text-rose-500">{couponMsg}</p>
           )}
-          <p className="text-[10px] text-slate-400 mt-3 italic">Hint: Try FEMCARE10</p>
+          <p className="text-[10px] text-slate-400 mt-3 italic">Hint: Try HEALNARI10</p>
         </div>
       </div>
 

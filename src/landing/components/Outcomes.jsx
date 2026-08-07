@@ -36,7 +36,7 @@ function Outcomes() {
   const status = getStatusText(healthIndex);
 
   return (
-    <section id="results" className="max-w-6xl mx-auto px-5 md:px-8 py-12 scroll-mt-20">
+    <section id="results" className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20 scroll-mt-20">
       <div className="bg-white rounded-3xl p-6 md:p-12 shadow-sm border border-slate-100/90">
         
         {/* Title Block */}
@@ -44,7 +44,7 @@ function Outcomes() {
           <span className="text-xs font-bold text-brand-600 uppercase tracking-widest bg-brand-50 px-3 py-1 rounded-full">
             Clinical Outcomes
           </span>
-          <h2 className="text-3xl md:text-4.5xl font-black text-slate-900 leading-tight font-display">
+          <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight font-display">
             Concerns into Measurable Improvement
           </h2>
           <p className="text-slate-500 text-sm md:text-base">
@@ -62,8 +62,8 @@ function Outcomes() {
                 <i className="fas fa-clipboard-user text-sm"></i>
               </div>
               <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Patient Case Record</p>
-                <p className="text-xs font-bold text-slate-700">Patient ID: #142583 | Age: 29 | Concern: PCOS + Hair fall</p>
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Illustrative case example</p>
+                <p className="text-xs font-bold text-slate-700">Composite profile, not an actual patient record | Age: 29 | Concern: PCOS + Hair fall</p>
               </div>
             </div>
 
@@ -165,7 +165,7 @@ function Outcomes() {
             </div>
 
             <p className="text-[10px] text-center text-slate-400 font-semibold italic">
-              * +72% improvement observed on average across clinical audits.
+              * Based on self-reported symptom tracking from patients completing a 12-week protocol. Not a clinical guarantee — individual results vary.
             </p>
           </div>
 

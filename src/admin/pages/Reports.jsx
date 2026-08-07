@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useToast } from '../../components/Toast.jsx';
+import { Tilt3D } from '../../components/Tilt3D.jsx';
 
 /* ─── Dummy Data ──────────────────────────────── */
 const REPORTS = [
@@ -34,6 +35,7 @@ function AdminReports() {
 
       {/* Quick Insights Cards */}
       <div className="grid sm:grid-cols-3 gap-6">
+        <Tilt3D max={6}>
         <div className="bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
           <i className="fas fa-chart-line absolute -right-4 -bottom-4 text-white/10 text-8xl"></i>
           <h3 className="font-bold mb-4 relative z-10">Consultation Growth</h3>
@@ -42,6 +44,8 @@ function AdminReports() {
             <span className="text-sm text-indigo-100 mb-1">MoM</span>
           </div>
         </div>
+        </Tilt3D>
+        <Tilt3D max={6}>
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-700 text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
           <i className="fas fa-face-smile absolute -right-4 -bottom-4 text-white/10 text-8xl"></i>
           <h3 className="font-bold mb-4 relative z-10">Patient Satisfaction</h3>
@@ -50,6 +54,8 @@ function AdminReports() {
             <span className="text-sm text-emerald-100 mb-1">/ 5.0 avg rating</span>
           </div>
         </div>
+        </Tilt3D>
+        <Tilt3D max={6}>
         <div className="bg-gradient-to-br from-rose-500 to-rose-700 text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
           <i className="fas fa-user-slash absolute -right-4 -bottom-4 text-white/10 text-8xl"></i>
           <h3 className="font-bold mb-4 relative z-10">No-Show Rate</h3>
@@ -58,6 +64,7 @@ function AdminReports() {
             <span className="text-sm text-rose-100 mb-1">Down 1.1%</span>
           </div>
         </div>
+        </Tilt3D>
       </div>
 
       {/* Reports Catalog */}

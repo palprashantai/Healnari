@@ -1,20 +1,26 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400;1,600;1,700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --color-primary:        #7a3e65;
-  --color-primary-light:  #F5F0F3;
-  --color-primary-dark:   #3b1c32;
-  --color-primary-hover:  #9E6485;
-  --color-primary-border: #E8D9E2;
-  --color-surface-page:   #FDFBF7;
-  --color-surface-card:   #F5F0E8;
-  --color-surface-border: #E8DDD0;
-  --color-clinical:       #5A7A5A;
-  --color-period:         #D85A30;
+  /* Official HealNari Brand Tokens */
+  --color-primary:        #6B46C1; /* Royal Purple */
+  --color-magenta:        #E23E8C; /* Fuchsia Pink */
+  --color-lilac:          #A78BFA; /* Soft Lilac */
+  --color-rose:           #F98BD2; /* Rose Tint */
+  --color-surface-tint:   #EDE7FF; /* Pale Background Tint */
+  --color-navy:           #334155; /* Slate Text */
+  --color-dark:           #2A1647; /* Dark Mode Theme */
+  
+  --color-primary-light:  #EDE7FF;
+  --color-primary-dark:   #2A1647;
+  --color-primary-hover:  #522F9E;
+  --color-primary-border: #A78BFA;
+  --color-surface-page:   #F8F6FF;
+  --color-surface-card:   #FFFFFF;
+  --color-surface-border: #EDE7FF;
 }
 
 @layer base {
@@ -28,16 +34,18 @@
   }
 
   body {
-    font-family: 'Inter', 'Outfit', sans-serif;
+    font-family: 'Inter', sans-serif;
     background-color: var(--color-surface-page);
-    @apply text-slate-800 antialiased overflow-x-hidden;
+    color: var(--color-navy);
+    @apply antialiased overflow-x-hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
 
-  h1, h2, h3, h4 {
-    font-family: 'Outfit', sans-serif;
+  /* HealNari Serif Headings */
+  h1, h2, h3, h4, .font-serif-brand {
+    font-family: 'Playfair Display', serif;
     @apply tracking-tight;
   }
 
@@ -45,20 +53,20 @@
     color: var(--color-primary);
   }
 
-  /* Global smooth transitions on all interactive elements */
+  /* Global smooth transitions */
   a, button, [role="button"] {
     transition-property: color, background-color, border-color, box-shadow, opacity, transform, filter;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 150ms;
   }
 
-  /* Premium Custom Scrollbar — Aubergine tones */
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #C9A8BC; border-radius: 9999px; }
-  ::-webkit-scrollbar-thumb:hover { background: #9E6485; }
+  /* Custom Scrollbar — Royal Purple & Magenta */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #F8F6FF; }
+  ::-webkit-scrollbar-thumb { background: #A78BFA; border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: #E23E8C; }
 
-  /* Smooth focus rings */
+  /* Focus Rings */
   *:focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
@@ -68,15 +76,15 @@
 
 @layer components {
   .glass-panel {
-    @apply bg-white/70 backdrop-blur-md border border-white/40 shadow-sm;
+    @apply bg-white/80 backdrop-blur-md border border-[#EDE7FF] shadow-sm;
   }
   .glass-panel-dark {
-    @apply bg-aubergine-900/80 backdrop-blur-md border border-aubergine-800/40 shadow-xl;
+    @apply bg-[#2A1647]/90 backdrop-blur-md border border-[#6B46C1]/30 shadow-xl;
   }
 
   /* Premium card hover lift */
   .card-premium {
-    @apply transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-xl hover:shadow-aubergine-200/30 hover:border-aubergine-200;
+    @apply transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-xl hover:shadow-[#6B46C1]/15 hover:border-[#A78BFA];
   }
 
   /* Button press effect */
@@ -85,14 +93,14 @@
   }
 
   .glow-purple {
-    @apply shadow-[0_0_20px_rgba(122,62,101,0.15)];
+    @apply shadow-[0_0_25px_rgba(107,70,193,0.2)];
   }
-  .glow-brand {
-    box-shadow: 0 0 0 3px rgba(122, 62, 101, 0.15);
+  .glow-magenta {
+    @apply shadow-[0_0_25px_rgba(226,62,140,0.2)];
   }
 }
 
-/* ── Page & component entrance ─────────────────────────── */
+/* Page entrance keyframes */
 @keyframes pageFadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0);    }
@@ -102,119 +110,35 @@
   animation: pageFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.page-enter {
-  animation: pageFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
-}
-.animate-slide-up {
-  animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-/* Staggered children entrance */
-.stagger-children > * {
+/* Scroll-reveal (used by <Reveal> on the landing page) */
+.reveal {
   opacity: 0;
-  animation: pageFadeIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform: translateY(28px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
 }
-.stagger-children > *:nth-child(1) { animation-delay: 0ms;   }
-.stagger-children > *:nth-child(2) { animation-delay: 70ms;  }
-.stagger-children > *:nth-child(3) { animation-delay: 140ms; }
-.stagger-children > *:nth-child(4) { animation-delay: 210ms; }
-.stagger-children > *:nth-child(5) { animation-delay: 280ms; }
-.stagger-children > *:nth-child(6) { animation-delay: 350ms; }
-
-/* ── Skeleton shimmer ───────────────────────────────────── */
-@keyframes shimmer {
-  0%   { background-position: -400px 0; }
-  100% { background-position:  400px 0; }
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
-.skeleton {
-  background: linear-gradient(90deg, #F5F0E8 25%, #E8D9E2 50%, #F5F0E8 75%);
-  background-size: 800px 100%;
-  animation: shimmer 1.4s ease-in-out infinite;
-  border-radius: 8px;
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }
 
-/* ── Gradient Text Shimmer ──────────────────────────────── */
+/* Shimmer animation */
 @keyframes shimmerText {
   0% { background-position: 0% 50%; }
   100% { background-position: 200% 50%; }
 }
 .animate-shimmer-text {
-  background: linear-gradient(90deg, var(--color-primary-dark) 0%, var(--color-primary) 25%, #C9A8BC 50%, var(--color-primary) 75%, var(--color-primary-dark) 100%);
+  background: linear-gradient(90deg, #6B46C1 0%, #E23E8C 35%, #A78BFA 65%, #6B46C1 100%);
   background-size: 200% auto;
   color: transparent;
   -webkit-background-clip: text;
   background-clip: text;
   animation: shimmerText 4s linear infinite;
-}
-
-/* ── Modal smooth entry ─────────────────────────────────── */
-@keyframes modalIn {
-  from { opacity: 0; transform: scale(0.96) translateY(8px); }
-  to   { opacity: 1; transform: scale(1)    translateY(0);   }
-}
-.modal-enter { animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
-
-@keyframes overlayIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-.overlay-enter { animation: overlayIn 0.25s ease both; }
-
-/* ── Smooth input focus ─────────────────────────────────── */
-input, select, textarea {
-  transition: border-color 200ms ease, box-shadow 200ms ease, background-color 200ms ease;
-}
-
-/* ── Table row hover ────────────────────────────────────── */
-table tbody tr {
-  transition: background-color 150ms ease;
-}
-
-/* ── Workflow animations ────────────────────────────────── */
-.dot-grid-bg {
-  background-image: radial-gradient(circle, #C9A8BC33 1px, transparent 1px);
-  background-size: 22px 22px;
-}
-
-.flow-dash {
-  animation: flowDash 0.75s linear infinite;
-}
-@keyframes flowDash {
-  to { stroke-dashoffset: -26; }
-}
-
-@keyframes packetGlow {
-  0%, 100% { opacity: 1; filter: drop-shadow(0 0 4px #7a3e65); }
-  50%       { opacity: 0.7; filter: drop-shadow(0 0 2px #7a3e65); }
-}
-.packet-glow { animation: packetGlow 1.2s ease-in-out infinite; }
-
-@keyframes nodeIn {
-  from { opacity: 0; transform: translateY(18px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.node-in { animation: nodeIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; }
-
-/* ── Height transition ──────────────────────────────────── */
-.transition-height {
-  transition: height 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* ── Stat numbers (tabular) ─────────────────────────────── */
-.stat-number {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-
-/* Discreet Mode Blur */
-.discreet-blur {
-  filter: blur(12px) grayscale(50%) opacity(0.8);
-  user-select: none;
-  pointer-events: none;
-  transition: filter 0.1s ease-out;
 }

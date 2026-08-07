@@ -1,12 +1,12 @@
-# FEMCARE Application
+# HEALNARI Application
 
-FEMCARE is a comprehensive women's healthcare web application built with React and Tailwind CSS. It provides a platform for symptom checking, booking consultations, tracking cycles, and accessing personalized health resources.
+HEALNARI is a comprehensive women's healthcare web application built with React and Tailwind CSS. It provides a platform for symptom checking, booking consultations, tracking cycles, and accessing personalized health resources.
 
 ## Implementation Diagrams
 
 ### 1. Component Architecture
 
-The following diagram illustrates the component hierarchy and structure of the FEMCARE application.
+The following diagram illustrates the component hierarchy and structure of the HEALNARI application.
 
 ```mermaid
 graph TD

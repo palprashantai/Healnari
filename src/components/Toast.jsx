@@ -8,20 +8,23 @@ export function useToast() {
 
 let toastId = 0;
 
+const LEAVE_ANIM_MS = 220;
+
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
-  const addToast = useCallback((message, type = 'success', duration = 3000) => {
-    const id = ++toastId;
-    setToasts(prev => [...prev, { id, message, type }]);
+  const removeToast = useCallback((id) => {
+    setToasts(prev => prev.map(t => t.id === id ? { ...t, leaving: true } : t));
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
-    }, duration);
+    }, LEAVE_ANIM_MS);
   }, []);
 
-  const removeToast = useCallback((id) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  }, []);
+  const addToast = useCallback((message, type = 'success', duration = 3000) => {
+    const id = ++toastId;
+    setToasts(prev => [...prev, { id, message, type, leaving: false }]);
+    setTimeout(() => removeToast(id), duration);
+  }, [removeToast]);
 
   const TYPE_CONFIG = {
     success: { bg: 'bg-emerald-600', icon: 'fa-circle-check', border: 'border-emerald-500' },
@@ -40,8 +43,8 @@ export function ToastProvider({ children }) {
           return (
             <div
               key={toast.id}
-              className={`pointer-events-auto flex items-center gap-3 px-5 py-3.5 rounded-2xl text-white text-sm font-semibold shadow-2xl border ${cfg.bg} ${cfg.border} animate-slide-in-right max-w-xs`}
-              style={{ animation: 'slideInRight 0.3s ease-out' }}
+              className={`toast-item pointer-events-auto flex items-center gap-3 px-5 py-3.5 rounded-2xl text-white text-sm font-semibold shadow-2xl border ${cfg.bg} ${cfg.border} max-w-xs`}
+              style={{ animation: toast.leaving ? `slideOutRight ${LEAVE_ANIM_MS}ms ease-in both` : 'slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) both' }}
             >
               <i className={`fas ${cfg.icon} text-base flex-shrink-0`}></i>
               <span className="flex-1 leading-snug">{toast.message}</span>
@@ -57,8 +60,15 @@ export function ToastProvider({ children }) {
       </div>
       <style>{`
         @keyframes slideInRight {
-          from { opacity: 0; transform: translateX(100px); }
-          to   { opacity: 1; transform: translateX(0); }
+          from { opacity: 0; transform: translateX(40px) scale(0.95); }
+          to   { opacity: 1; transform: translateX(0) scale(1); }
+        }
+        @keyframes slideOutRight {
+          from { opacity: 1; transform: translateX(0) scale(1); }
+          to   { opacity: 0; transform: translateX(40px) scale(0.95); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .toast-item { animation: none !important; }
         }
       `}</style>
     </ToastContext.Provider>

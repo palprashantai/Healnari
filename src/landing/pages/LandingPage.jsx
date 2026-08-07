@@ -20,6 +20,8 @@ import HealthTips from '../../tools/HealthTips.jsx';
 import CycleTracker from '../../tools/CycleTracker.jsx';
 import NewsletterSignup from '../components/NewsletterSignup.jsx';
 import LabTests from '../components/LabTests.jsx';
+import Reveal from '../../components/Reveal.jsx';
+import ScrollProgressBar from '../../components/ScrollProgressBar.jsx';
 
 function LandingPage() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -52,8 +54,9 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-brand-100 selection:text-brand-900 overflow-x-hidden w-full max-w-[100vw]">
-      
-      <Header 
+      <ScrollProgressBar />
+
+      <Header
         onStartConsult={() => openBooking('')} 
         onOpenAuth={() => setIsAuthOpen(true)}
       />
@@ -64,29 +67,30 @@ function LandingPage() {
           onOpenChecker={() => setIsSymptomOpen(true)} 
         />
         
-        <Stats />
-        
+        <Reveal><Stats /></Reveal>
+
         <Conditions />
-        
-        <PcosDiagram />
+
+        <Reveal><PcosDiagram /></Reveal>
+
+        <Reveal><HowItWorks /></Reveal>
 
         <Doctors onSelectDoctor={openBooking} />
 
-        <HowItWorks />
-        
-        <Outcomes />
+        <Reveal><Outcomes /></Reveal>
 
-        <Testimonials />
+        <Reveal><Testimonials /></Reveal>
 
-        <CycleTracker />
+        <Reveal><CycleTracker /></Reveal>
 
-        <LabTests onBook={openBooking} />
-        
-        <HealthTips />
-        
+        <Reveal><LabTests onBook={openBooking} /></Reveal>
+
+        <Reveal><HealthTips onStartConsult={() => openBooking('')} /></Reveal>
+
         {/* Customized Premium Inline CTA Section */}
         <section className="max-w-6xl mx-auto px-5 md:px-8 py-10">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-900 to-indigo-950 px-8 py-12 md:p-16 text-center text-white shadow-xl glow-purple animate-fade-in">
+        <Reveal>
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-900 to-indigo-950 px-8 py-12 md:p-16 text-center text-white shadow-xl glow-purple">
             {/* Background design accents */}
             <div className="absolute top-0 right-0 -mt-12 -mr-12 w-48 h-48 rounded-full bg-violet-600/10 blur-2xl"></div>
             <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-48 h-48 rounded-full bg-indigo-500/15 blur-2xl"></div>
@@ -95,7 +99,7 @@ function LandingPage() {
               <span className="inline-flex items-center gap-1.5 bg-brand-800/60 backdrop-blur border border-brand-700 text-brand-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                 <i className="fas fa-percent text-emerald-400"></i> Introductory Offer
               </span>
-              <h2 className="text-3xl md:text-4.5xl font-extrabold leading-tight text-white">
+              <h2 className="text-3xl md:text-4xl font-black leading-tight text-white font-display">
                 Discuss your concerns with an expert for just <span className="underline decoration-indigo-400 decoration-wavy">₹299</span>
               </h2>
               <p className="text-indigo-200 text-base max-w-xl mx-auto leading-relaxed">
@@ -107,13 +111,13 @@ function LandingPage() {
                   onClick={() => openBooking('')}
                   className="w-full sm:w-auto bg-white text-brand-900 hover:bg-indigo-50 font-bold px-8 py-3.5 rounded-xl shadow-lg transition-all btn-interactive flex items-center justify-center gap-2 text-base md:text-lg"
                 >
-                  <i className="fas fa-calendar-check"></i> Book Consultation
+                  <i className="fas fa-calendar-check"></i> Reserve My Slot
                 </button>
-                <button 
+                <button
                   onClick={() => setIsSymptomOpen(true)}
                   className="w-full sm:w-auto bg-brand-800/40 hover:bg-brand-800/60 border border-brand-700 text-white font-semibold px-8 py-3.5 rounded-xl transition-all btn-interactive flex items-center justify-center gap-2 text-base md:text-lg"
                 >
-                  <i className="fas fa-heart-pulse"></i> Check Your Symptoms
+                  <i className="fas fa-heart-pulse"></i> Not sure yet? Check symptoms first
                 </button>
               </div>
 
@@ -124,11 +128,12 @@ function LandingPage() {
               </div>
             </div>
           </div>
+        </Reveal>
         </section>
 
-        <Faq />
+        <Reveal><Faq /></Reveal>
 
-        <NewsletterSignup />
+        <Reveal><NewsletterSignup /></Reveal>
       </main>
 
       <Footer />

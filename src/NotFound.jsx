@@ -37,7 +37,7 @@ function NotFound() {
 
         <p className="text-xs text-slate-400 mt-8">
           If you think this is an error, please{' '}
-          <a href="mailto:support@femcare.in" className="text-brand-500 hover:underline font-medium">contact support</a>.
+          <a href="mailto:support@healnari.in" className="text-brand-500 hover:underline font-medium">contact support</a>.
         </p>
       </div>
     </div>

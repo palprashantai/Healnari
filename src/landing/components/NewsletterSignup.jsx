@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { markLeadCaptured } from '../../tools/leadCapture.js';
 
 function NewsletterSignup() {
   const [email, setEmail] = useState('');
@@ -13,6 +14,7 @@ function NewsletterSignup() {
     }
     setError('');
     setSubmitted(true);
+    markLeadCaptured();
   };
 
   const benefits = [
@@ -86,7 +88,7 @@ function NewsletterSignup() {
                 </div>
                 <h3 className="font-extrabold text-white text-lg font-display">You're subscribed!</h3>
                 <p className="text-aubergine-100 text-sm font-semibold">
-                  Welcome to the FemCare community. Check your inbox for a welcome note from our doctors.
+                  Welcome to the HealNari community. Check your inbox for a welcome note from our doctors.
                 </p>
               </div>
             )}

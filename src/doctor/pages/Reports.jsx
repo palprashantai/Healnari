@@ -178,6 +178,13 @@ function DoctorReports() {
               </button>
             </div>
           ))}
+
+          {tab === 'reviewed' && reviewed.length === 0 && (
+            <div className="text-center py-16 text-slate-400">
+              <i className="fas fa-file-circle-check text-4xl mb-3 block text-slate-300"></i>
+              <p className="font-bold">No reviewed reports yet.</p>
+            </div>
+          )}
         </div>
       </div>
 

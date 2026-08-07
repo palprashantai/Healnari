@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { HealNariLogo } from '../../components/HealNariLogo.jsx';
 
 function Header({ onStartConsult, onOpenAuth }) {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -18,8 +19,8 @@ function Header({ onStartConsult, onOpenAuth }) {
 
   const navLinks = [
     { label: 'Conditions', href: '#conditions' },
-    { label: 'Our doctors', href: '#doctors' },
     { label: 'How it works', href: '#how-it-works' },
+    { label: 'Our doctors', href: '#doctors' },
     { label: 'Cycle Tracker', href: '#cycle-tracker' },
     { label: 'Lab Tests', href: '#lab-tests' },
     { label: 'FAQ', href: '#faq' },
@@ -40,13 +41,8 @@ function Header({ onStartConsult, onOpenAuth }) {
         {/* Left Section: Logo + Nav */}
         <div className="flex items-center gap-6 xl:gap-12">
           {/* Brand Logo */}
-          <a href="#" className="flex items-center gap-2.5 group shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-aubergine-600 to-aubergine-400 flex items-center justify-center shadow-md shadow-aubergine-100 group-hover:scale-105 transition-transform duration-200">
-              <i className="fas fa-leaf text-white text-lg"></i>
-            </div>
-            <span className="text-2xl font-extrabold tracking-tight text-slate-900 font-display">
-              Fem<span className="text-aubergine-600">Care</span>
-            </span>
+          <a href="#" className="shrink-0">
+            <HealNariLogo size="md" />
           </a>
 
           {/* Desktop Navigation */}

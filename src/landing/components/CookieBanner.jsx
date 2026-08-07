@@ -4,7 +4,7 @@ function CookieBanner() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const hasConsented = localStorage.getItem('femcare_cookie_consent');
+    const hasConsented = localStorage.getItem('healnari_cookie_consent');
     if (!hasConsented) {
       // Small delay so it doesn't jarringly appear instantly on load
       const timer = setTimeout(() => setIsVisible(true), 1500);
@@ -13,7 +13,7 @@ function CookieBanner() {
   }, []);
 
   const handleAccept = () => {
-    localStorage.setItem('femcare_cookie_consent', 'true');
+    localStorage.setItem('healnari_cookie_consent', 'true');
     // Mock initializing GTM or other trackers after consent
     if (window.dataLayer) {
       window.dataLayer.push({ event: 'cookie_consent_granted' });
@@ -22,7 +22,7 @@ function CookieBanner() {
   };
 
   const handleDecline = () => {
-    localStorage.setItem('femcare_cookie_consent', 'false');
+    localStorage.setItem('healnari_cookie_consent', 'false');
     setIsVisible(false);
   };
 
@@ -41,7 +41,7 @@ function CookieBanner() {
             </h3>
             <p className="text-sm text-slate-500 leading-relaxed pr-4">
               We use strictly necessary cookies to ensure the core functionality of our clinical platform. 
-              With your consent, we also use performance cookies to understand usage and securely improve your telemedicine experience in compliance with GDPR. 
+              With your consent, we also use performance cookies to understand usage and securely improve your telemedicine experience in compliance with India's DPDP Act, 2023.
               <a href="#" className="text-aubergine-600 hover:underline font-semibold ml-1">Read our Privacy Policy</a>.
             </p>
           </div>

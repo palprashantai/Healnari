@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { markLeadCaptured, hasLeadCaptured } from '../../tools/leadCapture.js';
 
 function ExitIntentModal() {
   const [isVisible, setIsVisible] = useState(false);
@@ -8,16 +9,16 @@ function ExitIntentModal() {
   const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
-    // Only trigger once per session
+    // Only trigger once per session, and never for a visitor who already gave their email/details
     const previouslyTriggered = sessionStorage.getItem('exit_intent_shown');
-    if (previouslyTriggered) {
+    if (previouslyTriggered || hasLeadCaptured()) {
       setHasTriggered(true);
       return;
     }
 
     const handleMouseLeave = (e) => {
       // Trigger if mouse leaves top of window (towards tabs/address bar)
-      if (e.clientY <= 0 && !hasTriggered) {
+      if (e.clientY <= 0 && !hasTriggered && !hasLeadCaptured()) {
         setIsVisible(true);
         setHasTriggered(true);
         sessionStorage.setItem('exit_intent_shown', 'true');
@@ -42,6 +43,7 @@ function ExitIntentModal() {
     setTimeout(() => {
       setIsSubmitting(false);
       setIsSuccess(true);
+      markLeadCaptured();
       if (window.dataLayer) {
         window.dataLayer.push({ event: 'lead_captured_exit_intent' });
       }
@@ -52,8 +54,13 @@ function ExitIntentModal() {
   if (!isVisible) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      <div 
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="exit-intent-title"
+    >
+      <div
         className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm overlay-enter"
         onClick={() => setIsVisible(false)}
       ></div>
@@ -70,8 +77,9 @@ function ExitIntentModal() {
 
         {/* Right Side - Content */}
         <div className="w-full md:w-3/5 p-6 md:p-8 relative">
-          <button 
+          <button
             onClick={() => setIsVisible(false)}
+            aria-label="Close"
             className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
           >
             <i className="fas fa-times"></i>
@@ -79,7 +87,7 @@ function ExitIntentModal() {
 
           {!isSuccess ? (
             <>
-              <h2 className="text-2xl font-black text-slate-900 mb-2 font-display">Wait! Don't leave empty handed.</h2>
+              <h2 id="exit-intent-title" className="text-2xl font-black text-slate-900 mb-2 font-display">Wait! Don't leave empty handed.</h2>
               <p className="text-sm text-slate-500 mb-6 leading-relaxed">
                 Before you go, get our doctor-approved 14-day anti-inflammatory protocol tailored for hormonal balance.
               </p>

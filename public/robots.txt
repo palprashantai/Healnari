@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://femhealth.care/sitemap.xml
+Sitemap: https://healnari.care/sitemap.xml

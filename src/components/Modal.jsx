@@ -1,5 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+
+const CLOSE_ANIM_MS = 180;
 
 /**
  * Reusable Modal component
@@ -13,9 +15,22 @@ import { createPortal } from 'react-dom';
  */
 export function Modal({ isOpen, onClose, title, children, size = 'md', noPadding = false }) {
   const overlayRef = useRef(null);
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  const [closing, setClosing] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (isOpen) {
+      setShouldRender(true);
+      setClosing(false);
+    } else if (shouldRender) {
+      setClosing(true);
+      const t = setTimeout(() => setShouldRender(false), CLOSE_ANIM_MS);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!shouldRender) return;
     const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handleKey);
     document.body.style.overflow = 'hidden';
@@ -23,9 +38,9 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', noPadding
       document.removeEventListener('keydown', handleKey);
       document.body.style.overflow = '';
     };
-  }, [isOpen, onClose]);
+  }, [shouldRender, onClose]);
 
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
 
   const SIZE_CLASS = {
     sm: 'max-w-sm',
@@ -43,12 +58,12 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', noPadding
     <div
       ref={overlayRef}
       onClick={handleOverlayClick}
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9000] flex items-center justify-center p-4"
-      style={{ animation: 'fadeIn 0.15s ease-out' }}
+      className="modal-overlay fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9000] flex items-center justify-center p-4"
+      style={{ animation: closing ? `overlayFadeOut ${CLOSE_ANIM_MS}ms ease-in both` : 'fadeIn 0.15s ease-out' }}
     >
       <div
-        className={`bg-white rounded-3xl w-full ${SIZE_CLASS[size]} shadow-2xl overflow-hidden border border-slate-100`}
-        style={{ animation: 'slideUp 0.2s ease-out' }}
+        className={`modal-box bg-white rounded-3xl w-full ${SIZE_CLASS[size]} shadow-2xl overflow-hidden border border-slate-100`}
+        style={{ animation: closing ? `modalSlideDown ${CLOSE_ANIM_MS}ms ease-in both` : 'slideUp 0.2s ease-out' }}
       >
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-aubergine-900 to-aubergine-700">
@@ -76,6 +91,11 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', noPadding
       <style>{`
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes overlayFadeOut { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes modalSlideDown { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(12px) scale(0.98); } }
+        @media (prefers-reduced-motion: reduce) {
+          .modal-overlay, .modal-box { animation: none !important; }
+        }
       `}</style>
     </div>,
     document.body

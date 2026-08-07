@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { ConfirmModal } from '../../components/Modal.jsx';
+import { Tilt3D } from '../../components/Tilt3D.jsx';
 
 /* ─── Dummy Data ──────────────────────────────── */
 const INITIAL_ARTICLES = [
@@ -51,10 +52,12 @@ function AdminCMS() {
           { label: 'Drafts in Progress', value: articles.filter(a => a.status === 'Draft').length },
           { label: 'Total Page Views', value: '20.4K' },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+          <Tilt3D key={s.label} max={5}>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="text-3xl font-black text-slate-800">{s.value}</div>
             <div className="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wider">{s.label}</div>
           </div>
+          </Tilt3D>
         ))}
       </div>
 
@@ -83,12 +86,18 @@ function AdminCMS() {
                 <button onClick={() => toast('Opening editor...', 'info')} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center transition-colors" title="Edit">
                   <i className="fas fa-pen text-xs"></i>
                 </button>
-                <button onClick={() => setDeleteTarget(a)} className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100" title="Delete">
+                <button onClick={() => setDeleteTarget(a)} aria-label="Delete article" className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 flex items-center justify-center transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100" title="Delete">
                   <i className="fas fa-trash text-xs"></i>
                 </button>
               </div>
             </div>
           ))}
+          {articles.length === 0 && (
+            <div className="text-center py-14 text-slate-400">
+              <i className="fas fa-newspaper text-3xl mb-2 block text-slate-300"></i>
+              <p className="font-bold text-sm">No articles yet. Create your first one to get started.</p>
+            </div>
+          )}
         </div>
       </div>
 

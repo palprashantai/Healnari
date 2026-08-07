@@ -15,7 +15,7 @@ export class AuthService {
     private readonly patientRepository: Repository<Patient>,
     @InjectRepository(Doctor)
     private readonly doctorRepository: Repository<Doctor>,
-  ) {}
+  ) { }
 
   async login(email: string) {
     try {
@@ -35,7 +35,7 @@ export class AuthService {
   async register(data: any) {
     try {
       const existing = await this.userRepository.findOne({ where: { email: data.email } });
-      if (existing) throw new BadRequestException(ERROR_MESSAGES.USER_ALREADY_EXISTS);
+      if (existing) throw new BadRequestException(ERROR_MESSAGES.EMAIL_ALREADY_EXISTS);
 
       const user: User = this.userRepository.create({
         name: data.name,

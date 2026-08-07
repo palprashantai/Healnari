@@ -10,16 +10,14 @@ const SESSIONS = [
   { id: 4, patient: 'Riya Patel',    age: '25F', type: 'General Checkup',   time: '09:00 AM', date: 'Tomorrow',      status: 'Upcoming', phone: '+91 91234 56789', waiting: false },
 ];
 
-/* ─── Active Call UI ─────────────────────────── */
+/* ─── Active Call UI (Dual-Pane Split Screen Layout) ─────────────────────────── */
 function ActiveCallUI({ session, onEnd }) {
+  const toast = useToast();
   const [muted, setMuted] = useState(false);
   const [vidOff, setVidOff] = useState(false);
   const [screen, setScreen] = useState(false);
-  const [chat, setChat] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [messages, setMessages] = useState([
-    { from: 'patient', text: 'Hello Doctor, can you hear me?' },
-  ]);
+  const [clinicalNotes, setClinicalNotes] = useState('Patient reports 3-day cycle delay, mild lower abdominal cramps. Recommended LH/FSH repeat.');
+  const [activeTab, setActiveTab] = useState('notes'); // notes | rx | lab
   const [elapsed, setElapsed] = useState(0);
 
   React.useEffect(() => {
@@ -29,101 +27,137 @@ function ActiveCallUI({ session, onEnd }) {
 
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
-  const sendMsg = () => {
-    if (!msg.trim()) return;
-    setMessages(prev => [...prev, { from: 'doctor', text: msg }]);
-    setMsg('');
-    setTimeout(() => setMessages(prev => [...prev, { from: 'patient', text: 'Got it, thank you Doctor.' }]), 1000);
-  };
-
   return (
-    <div className="bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-700">
-      {/* Video Area */}
-      <div className="relative aspect-video bg-slate-900 flex items-center justify-center">
-        {/* Patient Video (main) */}
-        <div className="text-center text-white">
-          <div className="w-20 h-20 rounded-full bg-aubergine-700 mx-auto mb-3 flex items-center justify-center text-2xl font-black">
-            {session.patient.split(' ').map(n => n[0]).join('')}
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-slate-950 rounded-3xl p-4 shadow-2xl border border-slate-800">
+      
+      {/* Left 50% / 7 Cols: Video Call & Stream */}
+      <div className="lg:col-span-7 flex flex-col space-y-3">
+        <div className="relative aspect-video bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
+          {/* Patient Video (main) */}
+          <div className="text-center text-white">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-aubergine-600 to-aubergine-800 mx-auto mb-3 flex items-center justify-center text-3xl font-black shadow-lg">
+              {session.patient.split(' ').map(n => n[0]).join('')}
+            </div>
+            <p className="font-bold text-lg">{session.patient}</p>
+            <p className="text-emerald-400 text-xs mt-1 font-semibold flex items-center justify-center gap-1">
+              <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span> Encrypted Audio/Video
+            </p>
           </div>
-          <p className="font-bold">{session.patient}</p>
-          <p className="text-slate-400 text-xs mt-1">● Live</p>
-        </div>
 
-        {/* Timer */}
-        <div className="absolute top-4 left-4 bg-black/50 text-white text-xs font-mono font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5">
-          <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse"></span> {fmt(elapsed)}
-        </div>
-
-        {/* Patient info overlay */}
-        <div className="absolute top-4 right-4 bg-black/50 text-white text-xs px-3 py-1.5 rounded-xl border border-white/10">
-          {session.type}
-        </div>
-
-        {/* Doctor PiP */}
-        <div className="absolute bottom-4 right-4 w-28 h-20 bg-slate-700 rounded-xl border border-white/10 flex items-center justify-center text-white text-xs font-bold shadow-lg">
-          {vidOff ? <i className="fas fa-video-slash text-slate-400 text-xl"></i> : 'You'}
-        </div>
-
-        {/* Screen share indicator */}
-        {screen && (
-          <div className="absolute bottom-4 left-4 bg-emerald-600/80 text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-emerald-500/30 flex items-center gap-1.5">
-            <i className="fas fa-desktop"></i> Screen Sharing
+          {/* Timer */}
+          <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-xs text-white text-xs font-mono font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5">
+            <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse"></span> {fmt(elapsed)}
           </div>
-        )}
-      </div>
 
-      {/* Controls */}
-      <div className="bg-slate-800 px-6 py-4 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <button onClick={() => setMuted(!muted)} title={muted ? 'Unmute' : 'Mute'}
-            className={`w-11 h-11 rounded-full flex items-center justify-center text-lg transition-all ${muted ? 'bg-rose-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-            <i className={`fas ${muted ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
-          </button>
-          <button onClick={() => setVidOff(!vidOff)} title={vidOff ? 'Turn on camera' : 'Turn off camera'}
-            className={`w-11 h-11 rounded-full flex items-center justify-center text-lg transition-all ${vidOff ? 'bg-rose-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-            <i className={`fas ${vidOff ? 'fa-video-slash' : 'fa-video'}`}></i>
-          </button>
-          <button onClick={() => setScreen(!screen)} title="Share screen"
-            className={`w-11 h-11 rounded-full flex items-center justify-center text-lg transition-all ${screen ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-            <i className="fas fa-desktop"></i>
-          </button>
-          <button onClick={() => setChat(!chat)} title="Chat"
-            className={`w-11 h-11 rounded-full flex items-center justify-center text-lg transition-all ${chat ? 'bg-aubergine-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
-            <i className="fas fa-message"></i>
-          </button>
-          <button onClick={() => alert('Quick EMR panel would slide out here in production.')} title="Quick EMR"
-            className="w-11 h-11 rounded-full flex items-center justify-center text-lg transition-all bg-slate-700 text-slate-300 hover:bg-slate-600">
-            <i className="fas fa-file-medical"></i>
-          </button>
+          {/* Patient info overlay */}
+          <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-xs text-white text-xs px-3 py-1.5 rounded-xl border border-white/10 font-medium">
+            {session.type} ({session.age})
+          </div>
+
+          {/* Doctor PiP */}
+          <div className="absolute bottom-4 right-4 w-32 h-24 bg-slate-800 rounded-xl border border-white/20 flex items-center justify-center text-white text-xs font-bold shadow-xl overflow-hidden">
+            {vidOff ? <i className="fas fa-video-slash text-slate-400 text-xl"></i> : <span className="bg-aubergine-900/80 px-2 py-1 rounded text-[10px]">Dr. Sarah Mitchell</span>}
+          </div>
         </div>
 
-        <button onClick={onEnd} className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-lg">
-          <i className="fas fa-phone-slash"></i> End Call
-        </button>
-      </div>
-
-      {/* Chat Panel */}
-      {chat && (
-        <div className="bg-slate-900 border-t border-slate-700 p-4 animate-fade-in">
-          <div className="h-32 overflow-y-auto space-y-2 mb-3">
-            {messages.map((m, i) => (
-              <div key={i} className={`flex gap-2 ${m.from === 'doctor' ? 'flex-row-reverse' : ''}`}>
-                <div className={`max-w-[70%] px-3 py-2 rounded-xl text-xs ${m.from === 'doctor' ? 'bg-aubergine-600 text-white' : 'bg-slate-700 text-slate-200'}`}>{m.text}</div>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMsg()} placeholder="Type a message..."
-              className="flex-1 bg-slate-800 border border-slate-600 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-aubergine-500" />
-            <button onClick={sendMsg} className="bg-aubergine-600 text-white px-3 py-2 rounded-xl text-xs hover:bg-aubergine-700 transition-colors">
-              <i className="fas fa-paper-plane"></i>
+        {/* Call Controls Toolbar */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button onClick={() => setMuted(!muted)} title={muted ? 'Unmute' : 'Mute'}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center text-base transition-all ${muted ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
+              <i className={`fas ${muted ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
+            </button>
+            <button onClick={() => setVidOff(!vidOff)} title={vidOff ? 'Turn on camera' : 'Turn off camera'}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center text-base transition-all ${vidOff ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
+              <i className={`fas ${vidOff ? 'fa-video-slash' : 'fa-video'}`}></i>
+            </button>
+            <button onClick={() => setScreen(!screen)} title="Share screen"
+              className={`w-10 h-10 rounded-xl flex items-center justify-center text-base transition-all ${screen ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
+              <i className="fas fa-desktop"></i>
             </button>
           </div>
+
+          <button onClick={onEnd} className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-lg">
+            <i className="fas fa-phone-slash"></i> End Consultation
+          </button>
         </div>
-      )}
+      </div>
+
+      {/* Right 50% / 5 Cols: Integrated Real-Time EHR Charting Canvas */}
+      <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col text-slate-200">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
+          <div className="flex items-center gap-2">
+            <i className="fas fa-file-medical text-aubergine-400"></i>
+            <h3 className="font-bold text-sm text-white">Live EHR Consultation Canvas</h3>
+          </div>
+          <span className="text-[10px] bg-emerald-500/20 text-emerald-400 font-mono px-2 py-0.5 rounded border border-emerald-500/30">Auto-Saving</span>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="flex border-b border-slate-800 mb-3 gap-2">
+          <button onClick={() => setActiveTab('notes')} className={`pb-2 text-xs font-bold border-b-2 transition-all ${activeTab === 'notes' ? 'border-aubergine-400 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
+            Clinical Notes
+          </button>
+          <button onClick={() => setActiveTab('rx')} className={`pb-2 text-xs font-bold border-b-2 transition-all ${activeTab === 'rx' ? 'border-aubergine-400 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
+            Instant E-Rx
+          </button>
+          <button onClick={() => setActiveTab('lab')} className={`pb-2 text-xs font-bold border-b-2 transition-all ${activeTab === 'lab' ? 'border-aubergine-400 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
+            Order Labs
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'notes' && (
+          <div className="flex-1 flex flex-col space-y-3">
+            <div>
+              <label className="text-[11px] font-bold text-slate-400 mb-1 block">Subjective / Objective Findings</label>
+              <textarea rows={6} value={clinicalNotes} onChange={e => setClinicalNotes(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-aubergine-500 resize-none font-mono" />
+            </div>
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] space-y-1">
+              <p className="text-slate-400 font-bold">Vitals & Patient Summary:</p>
+              <p className="text-slate-300">BP: 118/78 mmHg • BMI: 24.2 • Known Allergy: Penicillin</p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'rx' && (
+          <div className="flex-1 space-y-3 text-xs">
+            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+              <p className="font-bold text-aubergine-300">Prescription Draft</p>
+              <p className="text-slate-300">• Metformin 500mg (1-0-1 After Meals)</p>
+              <p className="text-slate-300">• Myo-Inositol 2g (1-0-0 Empty Stomach)</p>
+            </div>
+            <button onClick={() => toast('Rx attached to consult session.', 'success')} className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors">
+              Attach & Sign E-Prescription
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'lab' && (
+          <div className="flex-1 space-y-3 text-xs">
+            <p className="text-slate-400">Order Diagnostic Tests:</p>
+            <div className="space-y-1.5">
+              {['Hormonal Panel (LH, FSH, AMH)', 'Full Thyroid Profile (TSH, FT3, FT4)', 'Fasting Glucose & HbA1c'].map(lab => (
+                <label key={lab} className="flex items-center gap-2 p-2 bg-slate-950 rounded-lg border border-slate-800 cursor-pointer text-slate-300">
+                  <input type="checkbox" defaultChecked className="accent-aubergine-600" />
+                  <span>{lab}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-3 pt-3 border-t border-slate-800 flex justify-between items-center text-[10px] text-slate-500">
+          <span>Patient: {session.patient}</span>
+          <span>HIPAA Compliant Session</span>
+        </div>
+      </div>
+
     </div>
   );
 }
+
 
 /* ─── Main Component ─────────────────────────── */
 function DoctorTelemedicine() {
@@ -158,7 +192,7 @@ function DoctorTelemedicine() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800">Telemedicine</h1>
-          <p className="text-sm text-slate-500">HD-encrypted, HIPAA-compliant video consultations.</p>
+          <p className="text-sm text-slate-500">Private, doctor-only video consultations.</p>
         </div>
         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl text-emerald-700 text-xs font-bold">
           <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> System Online
@@ -252,7 +286,7 @@ function DoctorTelemedicine() {
           {/* Tech Tips */}
           <div className="grid sm:grid-cols-3 gap-4">
             {[
-              { icon: 'fa-shield-halved', title: 'End-to-End Encrypted', sub: 'All sessions secured with AES-256.' },
+              { icon: 'fa-shield-halved', title: 'Private Sessions', sub: 'Doctor-only access, no session recording.' },
               { icon: 'fa-file-lines', title: 'Auto-SOAP Notes', sub: 'AI transcription & note generation.' },
               { icon: 'fa-hospital', title: 'NMC Compliant', sub: 'Telemedicine practice guidelines met.' },
             ].map(tip => (

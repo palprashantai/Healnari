@@ -11,19 +11,19 @@ const HIRSUTISM_GRADES = [
 ];
 
 const INITIAL_VITALS = {
-  weight:  { value: '64.5', unit: 'kg',    label: 'Body Weight',    icon: 'fa-weight-scale', color: 'bg-sky-50 text-sky-500',     trend: '↓ 0.5 kg from last week', trendColor: 'text-emerald-600' },
-  bp:      { value: '118/78', unit: 'mmHg', label: 'Blood Pressure', icon: 'fa-heart-pulse',  color: 'bg-rose-50 text-rose-500',    trend: '✓ Normal range', trendColor: 'text-slate-500' },
-  sugar:   { value: '92',    unit: 'mg/dL', label: 'Fasting Sugar',  icon: 'fa-droplet',      color: 'bg-amber-50 text-amber-500',  trend: '✓ Optimal level', trendColor: 'text-emerald-600' },
-  sleep:   { value: '7.2',   unit: 'hrs',   label: 'Sleep Duration', icon: 'fa-moon',         color: 'bg-indigo-50 text-indigo-500',trend: '↓ Below 8h goal', trendColor: 'text-amber-600' },
+  weight: { value: '64.5', unit: 'kg', label: 'Body Weight', icon: 'fa-weight-scale', color: 'bg-sky-50 text-sky-500', trend: '↓ 0.5 kg from last week', trendColor: 'text-emerald-600' },
+  bp: { value: '118/78', unit: 'mmHg', label: 'Blood Pressure', icon: 'fa-heart-pulse', color: 'bg-rose-50 text-rose-500', trend: '✓ Normal range', trendColor: 'text-slate-500' },
+  sugar: { value: '92', unit: 'mg/dL', label: 'Fasting Sugar', icon: 'fa-droplet', color: 'bg-amber-50 text-amber-500', trend: '✓ Optimal level', trendColor: 'text-emerald-600' },
+  sleep: { value: '7.2', unit: 'hrs', label: 'Sleep Duration', icon: 'fa-moon', color: 'bg-indigo-50 text-indigo-500', trend: '↓ Below 8h goal', trendColor: 'text-amber-600' },
 };
 
 const LIFESTYLE_ITEMS = [
-  { key: 'sleep',     label: '8 Hours Restful Sleep',                           icon: 'fa-moon',     color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
-  { key: 'lowGI',     label: 'Low-GI, Anti-Inflammatory Nutrition',              icon: 'fa-wheat-awn', color: 'text-amber-600 bg-amber-50 border-amber-100' },
-  { key: 'exercise',  label: '30 Mins Resistance Exercise',                      icon: 'fa-dumbbell',  color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
-  { key: 'meds',      label: 'Myo-Inositol / Prescribed Meds Taken',             icon: 'fa-pills',     color: 'text-rose-600 bg-rose-50 border-rose-100' },
-  { key: 'water',     label: 'Drink 2.5L Water',                                 icon: 'fa-bottle-water', color: 'text-sky-600 bg-sky-50 border-sky-100' },
-  { key: 'stress',    label: 'Mindfulness / Stress Management (10 mins)',         icon: 'fa-brain',     color: 'text-violet-600 bg-violet-50 border-violet-100' },
+  { key: 'sleep', label: '8 Hours Restful Sleep', icon: 'fa-moon', color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
+  { key: 'lowGI', label: 'Low-GI, Anti-Inflammatory Nutrition', icon: 'fa-wheat-awn', color: 'text-amber-600 bg-amber-50 border-amber-100' },
+  { key: 'exercise', label: '30 Mins Resistance Exercise', icon: 'fa-dumbbell', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+  { key: 'meds', label: 'Myo-Inositol / Prescribed Meds Taken', icon: 'fa-pills', color: 'text-rose-600 bg-rose-50 border-rose-100' },
+  { key: 'water', label: 'Drink 2.5L Water', icon: 'fa-bottle-water', color: 'text-sky-600 bg-sky-50 border-sky-100' },
+  { key: 'stress', label: 'Mindfulness / Stress Management (10 mins)', icon: 'fa-brain', color: 'text-aubergine-600 bg-aubergine-50 border-aubergine-100' },
 ];
 
 /* ─── Log Vital Modal ────────────────────────── */
@@ -93,7 +93,7 @@ function CycleLogModal({ isOpen, onClose, onSave }) {
           <div className="flex flex-wrap gap-2">
             {['Happy', 'Calm', 'Irritable', 'Anxious', 'Sad', 'Energised'].map(m => (
               <button key={m} onClick={() => setForm(p => ({ ...p, mood: m }))}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${form.mood === m ? 'bg-violet-600 text-white border-violet-600' : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-violet-300'}`}>
+                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${form.mood === m ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-aubergine-300'}`}>
                 {m}
               </button>
             ))}
@@ -209,7 +209,8 @@ function PatientTracking() {
                 <i className={`fas ${vital.icon}`}></i>
               </div>
               <button onClick={() => setLogModal({ key, vital })}
-                className="opacity-0 group-hover:opacity-100 transition-opacity bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-600 w-8 h-8 rounded-lg flex items-center justify-center text-xs border border-aubergine-100"
+                className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-600 w-8 h-8 rounded-lg flex items-center justify-center text-xs border border-aubergine-100"
+                aria-label="Update reading"
                 title="Update Reading">
                 <i className="fas fa-pen"></i>
               </button>

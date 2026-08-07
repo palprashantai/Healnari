@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import { StepIndicator } from '../../components/StepIndicator.jsx';
+import { Tilt3D } from '../../components/Tilt3D.jsx';
 
 /* ─── Dummy Data ─────────────────────────────── */
 const CYCLE_PHASES = [
-  { id: 'menstrual',  label: 'Menstrual',  day: 'Day 1–5',   color: 'bg-rose-500',   text: 'text-rose-600',   tip: 'Rest & iron-rich foods. Gentle yoga is helpful.' },
-  { id: 'follicular', label: 'Follicular', day: 'Day 6–13',  color: 'bg-sky-500',    text: 'text-sky-600',    tip: 'Energy rising! Great time for cardio & learning new skills.' },
-  { id: 'ovulation',  label: 'Ovulation',  day: 'Day 14',    color: 'bg-amber-500',  text: 'text-amber-600',  tip: 'Peak fertility. You may feel more social & energised.' },
-  { id: 'luteal',     label: 'Luteal',     day: 'Day 15–28', color: 'bg-violet-500', text: 'text-violet-600', tip: 'Progesterone rises. Prioritise sleep & limit caffeine.' },
+  { id: 'menstrual', label: 'Menstrual', day: 'Day 1–5', color: 'bg-rose-500', text: 'text-rose-600', tip: 'Rest & iron-rich foods. Gentle yoga is helpful.' },
+  { id: 'follicular', label: 'Follicular', day: 'Day 6–13', color: 'bg-sky-500', text: 'text-sky-600', tip: 'Energy rising! Great time for cardio & learning new skills.' },
+  { id: 'ovulation', label: 'Ovulation', day: 'Day 14', color: 'bg-amber-500', text: 'text-amber-600', tip: 'Peak fertility. You may feel more social & energised.' },
+  { id: 'luteal', label: 'Luteal', day: 'Day 15–28', color: 'bg-aubergine-500', text: 'text-aubergine-600', tip: 'Progesterone rises. Prioritise sleep & limit caffeine.' },
 ];
 
 const SYMPTOMS = ['Cramps', 'Bloating', 'Headache', 'Fatigue', 'Mood Swings', 'Spotting', 'Nausea', 'Back Pain', 'Breast Tenderness', 'Acne'];
@@ -44,8 +46,8 @@ function VideoCallModal({ isOpen, onClose, toast }) {
             <p className="text-xs text-slate-500 mt-1">Scheduled: Today 4:30 PM • 30 min consult</p>
           </div>
           <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs text-slate-600 space-y-2 text-left">
-            <div className="flex items-center gap-2"><i className="fas fa-shield-halved text-emerald-500"></i> End-to-end encrypted</div>
-            <div className="flex items-center gap-2"><i className="fas fa-lock text-emerald-500"></i> HIPAA compliant session</div>
+            <div className="flex items-center gap-2"><i className="fas fa-shield-halved text-emerald-500"></i> Private, doctor-only session</div>
+            <div className="flex items-center gap-2"><i className="fas fa-lock text-emerald-500"></i> DPDP Act, 2023 compliant</div>
             <div className="flex items-center gap-2"><i className="fas fa-clock text-emerald-500"></i> Session recording disabled for privacy</div>
           </div>
           <button onClick={handleJoin} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl text-base transition-all shadow-lg flex items-center justify-center gap-3">
@@ -105,8 +107,9 @@ function SymptomCheckerModal({ isOpen, onClose, toast }) {
 
   return (
     <Modal isOpen={isOpen} onClose={reset} title="Symptom Checker" size="md">
+      {step < 3 && <StepIndicator step={step} total={2} labels={['Symptoms', 'Severity']} />}
       {step === 1 && (
-        <div className="space-y-4">
+        <div className="space-y-4 mt-3">
           <p className="text-sm text-slate-600">Select all symptoms you're experiencing today:</p>
           <div className="flex flex-wrap gap-2">
             {SYMPTOMS.map(s => (
@@ -123,7 +126,7 @@ function SymptomCheckerModal({ isOpen, onClose, toast }) {
         </div>
       )}
       {step === 2 && (
-        <div className="space-y-5">
+        <div className="space-y-5 mt-3">
           <div>
             <p className="text-sm font-bold text-slate-700 mb-1">Overall Pain / Discomfort Level</p>
             <input type="range" min={1} max={10} value={severity} onChange={e => setSeverity(+e.target.value)}
@@ -167,26 +170,36 @@ function LabReportsModal({ isOpen, onClose }) {
   ];
 
   const STATUS = { normal: 'text-emerald-600 bg-emerald-50', high: 'text-rose-600 bg-rose-50', low: 'text-amber-600 bg-amber-50' };
+  const PLAIN_LANGUAGE = {
+    normal: 'Within the healthy range — no action needed.',
+    high: 'Above the healthy range. Your doctor will review this with you.',
+    low: 'Below the healthy range. Your doctor will review this with you.',
+  };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Hormonal Panel — Aug 2023" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title="Hormonal Panel — Aug 2026" size="lg">
       <div className="space-y-3">
-        <p className="text-xs text-slate-500 mb-4">Ordered by Dr. Ritu Khanna • Lal PathLabs • 15 Aug 2023</p>
+        <p className="text-xs text-slate-500 mb-4">Ordered by Dr. Ritu Khanna • Lal PathLabs • 3 Aug 2026</p>
         {LABS.map(lab => (
-          <div key={lab.name} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-            <div>
-              <p className="font-bold text-slate-800 text-sm">{lab.name}</p>
-              <p className="text-xs text-slate-400">Ref: {lab.ref}</p>
+          <div key={lab.name} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-bold text-slate-800 text-sm">{lab.name}</p>
+                <p className="text-xs text-slate-400">Ref: {lab.ref}</p>
+              </div>
+              <div className="text-right">
+                <p className="font-black text-slate-800">{lab.value}</p>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS[lab.status]}`}>
+                  {lab.status.toUpperCase()}
+                </span>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="font-black text-slate-800">{lab.value}</p>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS[lab.status]}`}>
-                {lab.status.toUpperCase()}
-              </span>
-            </div>
+            <p className="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200/70">
+              <i className="fas fa-circle-info text-slate-400 mr-1"></i>{PLAIN_LANGUAGE[lab.status]}
+            </p>
           </div>
         ))}
-        <p className="text-[10px] text-slate-400 pt-2 border-t border-slate-100">Reviewed by Dr. Sarah Mitchell on 18 Aug 2023. Repeat panel recommended in 3 months.</p>
+        <p className="text-[10px] text-slate-400 pt-2 border-t border-slate-100">Reviewed by Dr. Sarah Mitchell on 5 Aug 2026. Repeat panel recommended in 3 months.</p>
       </div>
     </Modal>
   );
@@ -206,8 +219,9 @@ function QuickBookModal({ isOpen, onClose, toast }) {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Book Appointment" size="md">
+      <StepIndicator step={step} total={2} labels={['Details', 'Confirm']} />
       {step === 1 && (
-        <div className="space-y-4">
+        <div className="space-y-4 mt-3">
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1.5 block">Select Doctor</label>
             <select value={form.doctor} onChange={e => setForm(p => ({ ...p, doctor: e.target.value }))}
@@ -240,7 +254,7 @@ function QuickBookModal({ isOpen, onClose, toast }) {
         </div>
       )}
       {step === 2 && (
-        <div className="space-y-4">
+        <div className="space-y-4 mt-3">
           <p className="text-sm font-bold text-slate-700">Available slots for {form.date}:</p>
           <div className="grid grid-cols-3 gap-2">
             {SLOTS.map(slot => (
@@ -302,7 +316,7 @@ function CycleDashboardView({ toast }) {
       {/* Progress bar */}
       <div className="relative pt-1 pb-4 mb-4">
         <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-          <div className="h-2 rounded-full bg-gradient-to-r from-rose-400 via-amber-400 to-violet-500 transition-all duration-500"
+          <div className="h-2 rounded-full bg-gradient-to-r from-rose-400 via-amber-400 to-aubergine-500 transition-all duration-500"
             style={{ width: currentPhase === 'menstrual' ? '12%' : currentPhase === 'follicular' ? '45%' : currentPhase === 'ovulation' ? '50%' : '90%' }}></div>
         </div>
       </div>
@@ -327,14 +341,15 @@ function OnboardingModal({ isOpen, onClose, toast }) {
   }));
 
   const handleComplete = () => {
-    toast('Profile setup complete! Welcome to FemCare.', 'success');
+    toast('Profile setup complete! Welcome to HealNari.', 'success');
     onClose();
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={() => {}} title="Complete Your Health Profile" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title="Complete Your Health Profile" size="md">
+      <StepIndicator step={step} total={2} labels={['Basic Info', 'Medical History']} />
       {step === 1 && (
-        <div className="space-y-4">
+        <div className="space-y-4 mt-3">
           <p className="text-sm text-slate-600 mb-2">Let's personalize your care experience. This helps our doctors provide better care.</p>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -367,10 +382,13 @@ function OnboardingModal({ isOpen, onClose, toast }) {
             className="w-full mt-4 bg-aubergine-600 disabled:opacity-40 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
             Next → Medical History
           </button>
+          <button onClick={onClose} className="w-full text-center text-xs text-slate-400 hover:text-slate-600 font-semibold">
+            Skip for now
+          </button>
         </div>
       )}
       {step === 2 && (
-        <div className="space-y-4">
+        <div className="space-y-4 mt-3">
           <p className="text-sm text-slate-600 mb-2">Do you have any existing medical conditions?</p>
           <div className="flex flex-wrap gap-2">
             {CONDITIONS.map(c => (
@@ -383,6 +401,9 @@ function OnboardingModal({ isOpen, onClose, toast }) {
           <button onClick={handleComplete}
             className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
             <i className="fas fa-check"></i> Complete Profile
+          </button>
+          <button onClick={onClose} className="w-full text-center text-xs text-slate-400 hover:text-slate-600 font-semibold">
+            Skip for now
           </button>
         </div>
       )}
@@ -400,12 +421,18 @@ function PatientDashboard() {
   const [showSymptomChecker, setShowSymptomChecker] = useState(false);
   const [showLabReports, setShowLabReports] = useState(false);
   const [showQuickBook, setShowQuickBook] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(true); // Mock onboarding triggers once
+  const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('healnari_onboarding_done') !== 'true');
+  const [alertDismissed, setAlertDismissed] = useState(false);
   const [discreet, setDiscreet] = useState(localStorage.getItem('discreet_mode') === 'true');
+
+  const dismissOnboarding = () => {
+    localStorage.setItem('healnari_onboarding_done', 'true');
+    setShowOnboarding(false);
+  };
   const [goals, setGoals] = useState([
     { id: 1, label: 'PCOS Diet Plan', pct: 80, color: 'bg-emerald-500' },
     { id: 2, label: 'Daily Step Goal', pct: 65, color: 'bg-sky-500' },
-    { id: 3, label: 'Sleep 8h / night', pct: 72, color: 'bg-violet-500' },
+    { id: 3, label: 'Sleep 8h / night', pct: 72, color: 'bg-aubergine-500' },
   ]);
 
   useEffect(() => {
@@ -416,6 +443,32 @@ function PatientDashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in">
+
+      {/* Sticky Actionable Health Alert Bar (WCAG AAA Contrast) */}
+      {!alertDismissed && (
+        <div className="sticky top-0 z-30 bg-gradient-to-r from-amber-600 via-rose-600 to-amber-700 text-white rounded-2xl p-4 shadow-lg border border-amber-400/40 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white text-lg shrink-0">
+              <i className="fas fa-bell-exclamation animate-bounce"></i>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="bg-white/30 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded tracking-wider">Action Required</span>
+                <p className="font-black text-sm">Fasting Lab Test Scheduled</p>
+              </div>
+              <p className="text-xs text-amber-100 mt-0.5">Maintain 10-hour fasting prior to your 8:00 AM Hormonal Panel at City Scans tomorrow.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowLabReports(true)} className="bg-white text-rose-900 hover:bg-slate-100 font-bold px-4 py-2 rounded-xl text-xs transition-colors shadow-xs">
+              View Instructions
+            </button>
+            <button onClick={() => { setAlertDismissed(true); toast('Alert dismissed for this session.', 'info'); }} className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-xs transition-colors">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-aubergine-900 to-aubergine-700 rounded-3xl p-8 md:p-10 text-white relative overflow-hidden shadow-xl">
@@ -455,14 +508,16 @@ function PatientDashboard() {
           { label: 'Health Score', value: '82/100', icon: 'fa-heart-pulse', color: 'text-rose-600 bg-rose-50', onClick: () => navigate('/patient-dashboard/tracking') },
           { label: 'Unread Reports', value: '1 New', icon: 'fa-file-medical', color: 'text-sky-600 bg-sky-50', onClick: () => setShowLabReports(true) },
         ].map(stat => (
-          <button key={stat.label} onClick={stat.onClick}
-            className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-aubergine-200 transition-all group text-left">
-            <div className={`w-10 h-10 rounded-xl ${stat.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
-              <i className={`fas ${stat.icon}`}></i>
-            </div>
-            <div className="font-black text-slate-800 text-lg">{stat.value}</div>
-            <div className="text-xs text-slate-500 font-medium">{stat.label}</div>
-          </button>
+          <Tilt3D key={stat.label} max={5}>
+            <button onClick={stat.onClick}
+              className="w-full bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-aubergine-200 transition-all group text-left">
+              <div className={`w-10 h-10 rounded-xl ${stat.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                <i className={`fas ${stat.icon}`}></i>
+              </div>
+              <div className="font-black text-slate-800 text-lg">{stat.value}</div>
+              <div className="text-xs text-slate-500 font-medium">{stat.label}</div>
+            </button>
+          </Tilt3D>
         ))}
       </div>
 
@@ -511,8 +566,8 @@ function PatientDashboard() {
             </h3>
             <div className="space-y-3">
               {[
-                { name: 'Dr. Sarah Mitchell', spec: 'Gynaecology', date: 'Thu, 5 Jul', time: '10:30 AM', type: 'video' },
-                { name: 'Dr. Ritu Khanna', spec: 'Endocrinology', date: 'Fri, 18 Jul', time: '11:15 AM', type: 'clinic' },
+                { name: 'Dr. Sarah Mitchell', spec: 'Gynaecology', date: 'Mon, 10 Aug', time: '10:30 AM', type: 'video' },
+                { name: 'Dr. Ritu Khanna', spec: 'Endocrinology', date: 'Tue, 25 Aug', time: '11:15 AM', type: 'clinic' },
               ].map(apt => (
                 <div key={apt.name} className="p-3.5 rounded-xl border border-aubergine-100 bg-aubergine-50/40 hover:bg-aubergine-50 transition-colors cursor-pointer"
                   onClick={() => navigate('/patient-dashboard/appointments')}>
@@ -583,7 +638,7 @@ function PatientDashboard() {
       </div>
 
       {/* Modals */}
-      {showOnboarding && <OnboardingModal isOpen={showOnboarding} onClose={() => setShowOnboarding(false)} toast={toast} />}
+      {showOnboarding && <OnboardingModal isOpen={showOnboarding} onClose={dismissOnboarding} toast={toast} />}
       <VideoCallModal isOpen={showVideoCall} onClose={() => setShowVideoCall(false)} toast={toast} />
       <SymptomCheckerModal isOpen={showSymptomChecker} onClose={() => setShowSymptomChecker(false)} toast={toast} />
       <LabReportsModal isOpen={showLabReports} onClose={() => setShowLabReports(false)} />

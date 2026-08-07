@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
+import { PageTransition } from '../../components/PageTransition.jsx';
+import { NavHoverRail } from '../../components/NavHoverRail.jsx';
+import { ModuleAccentBar } from '../../components/ModuleAccentBar.jsx';
+
+const DEFAULT_ACCENT = '#6B46C1';
 
 const NAV_ITEMS = [
-  { name: 'Dashboard',          icon: 'fa-chart-line',        path: '/admin-dashboard',              end: true },
-  { name: 'User Management',    icon: 'fa-users-gear',        path: '/admin-dashboard/users',        end: false },
-  { name: 'Doctor Verification',icon: 'fa-user-check',        path: '/admin-dashboard/verification', end: false },
-  { name: 'Clinic Management',  icon: 'fa-hospital',          path: '/admin-dashboard/clinics',      end: false },
-  { name: 'Revenue & Payouts',  icon: 'fa-indian-rupee-sign', path: '/admin-dashboard/revenue',      end: false },
-  { name: 'CMS & Content',      icon: 'fa-pen-to-square',     path: '/admin-dashboard/cms',          end: false },
-  { name: 'Reports',            icon: 'fa-file-contract',     path: '/admin-dashboard/reports',      end: false },
+  { name: 'Dashboard',          icon: 'fa-chart-line',        path: '/admin-dashboard',              end: true,  color: '#6B46C1' },
+  { name: 'User Management',    icon: 'fa-users-gear',        path: '/admin-dashboard/users',        end: false, color: '#0ea5e9' },
+  { name: 'Doctor Verification',icon: 'fa-user-check',        path: '/admin-dashboard/verification', end: false, color: '#10b981' },
+  { name: 'Clinic Management',  icon: 'fa-hospital',          path: '/admin-dashboard/clinics',      end: false, color: '#f59e0b' },
+  { name: 'Revenue & Payouts',  icon: 'fa-indian-rupee-sign', path: '/admin-dashboard/revenue',      end: false, color: '#14b8a6' },
+  { name: 'CMS & Content',      icon: 'fa-pen-to-square',     path: '/admin-dashboard/cms',          end: false, color: '#d946ef' },
+  { name: 'Reports',            icon: 'fa-file-contract',     path: '/admin-dashboard/reports',      end: false, color: '#6366f1' },
 ];
 
 const NOTIFICATIONS = [
@@ -60,7 +65,7 @@ function NotificationPanel({ isOpen, onClose, notifications, setNotifications })
 }
 
 /* ─── Sidebar Content ────────────────────────── */
-function SidebarContent({ user, onClose }) {
+function SidebarContent({ user, onClose, onItemHover }) {
   const { logout } = useAuth();
   const navigate  = useNavigate();
   const toast     = useToast();
@@ -76,11 +81,11 @@ function SidebarContent({ user, onClose }) {
     <div className="flex flex-col h-full text-white">
       {/* Logo */}
       <div className="h-16 flex items-center px-6 border-b border-white/10 shrink-0">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center shadow-md border border-white/10">
-          <i className="fas fa-shield-halved text-white text-sm"></i>
+        <div className="w-8 h-8 rounded-lg overflow-hidden bg-white shadow-md border border-white/10">
+          <img src="/brand/logo-icon.jpg" alt="HealNari" className="w-full h-full object-cover" />
         </div>
         <span className="text-xl font-bold tracking-tight text-white font-display ml-2">
-          Fem<span className="text-slate-400">Care</span>
+          Heal<span className="text-slate-400">Nari</span>
         </span>
         <span className="ml-auto text-[9px] bg-rose-500 text-white px-2 py-0.5 rounded-full font-black uppercase shadow-sm">Admin</span>
       </div>
@@ -97,20 +102,25 @@ function SidebarContent({ user, onClose }) {
       </div>
 
       {/* Nav */}
-      <nav className="px-4 pt-3 flex-1 overflow-y-auto space-y-0.5">
+      <nav className="px-4 pt-3 flex-1 overflow-y-auto">
         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 px-2">Control Panel</p>
-        {NAV_ITEMS.map(item => (
-          <NavLink key={item.name} to={item.path} end={item.end} onClick={onClose}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all ${isActive
-                ? 'bg-slate-700 text-white shadow-sm border border-slate-600'
-                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-              }`
-            }>
-            <div className="w-5 text-center"><i className={`fas ${item.icon}`}></i></div>
-            {item.name}
-          </NavLink>
-        ))}
+        <NavHoverRail indicatorClassName="bg-slate-800">
+          {NAV_ITEMS.map(item => (
+            <NavLink key={item.name} to={item.path} end={item.end} onClick={onClose}
+              onMouseEnter={() => onItemHover?.(item.color)}
+              onMouseLeave={() => onItemHover?.(null)}
+              data-nav-item
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 ${isActive
+                  ? 'bg-slate-700 text-white shadow-sm border border-slate-600'
+                  : 'text-slate-400 hover:text-white'
+                }`
+              }>
+              <div className="w-5 text-center transition-transform duration-200"><i className={`fas ${item.icon}`}></i></div>
+              {item.name}
+            </NavLink>
+          ))}
+        </NavHoverRail>
       </nav>
 
       {/* Logout */}
@@ -135,8 +145,20 @@ function AdminLayout() {
   const [drawerOpen, setDrawerOpen]       = useState(false);
   const [notifOpen, setNotifOpen]         = useState(false);
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
+  const [hoveredColor, setHoveredColor]   = useState(null);
 
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  const [selectedFacility, setSelectedFacility] = useState('All Enterprise Facilities (Global)');
+  const [facilityMenuOpen, setFacilityMenuOpen]   = useState(false);
+
+  const FACILITIES = [
+    'All Enterprise Facilities (Global)',
+    'HealNari Central Hospital — Main Campus',
+    'HealNari Women & Child Care — West Wing',
+    'HealNari Reproductive Health — North Center',
+    'HealNari Diagnostics & Imaging — East Facility'
+  ];
 
   // Breadcrumb
   const crumbs = ['Admin', ...location.pathname.split('/').filter(Boolean).slice(1)];
@@ -145,7 +167,7 @@ function AdminLayout() {
     <div className="flex h-screen overflow-hidden font-sans bg-slate-50">
       {/* Desktop Sidebar */}
       <aside className="w-64 hidden md:flex flex-col flex-shrink-0 bg-slate-900">
-        <SidebarContent user={user} />
+        <SidebarContent user={user} onItemHover={setHoveredColor} />
       </aside>
 
       {/* Mobile Drawer Overlay */}
@@ -165,6 +187,7 @@ function AdminLayout() {
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        <ModuleAccentBar color={hoveredColor || DEFAULT_ACCENT} className="rounded-none" />
         {/* Topbar */}
         <header className="h-16 border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0 bg-white">
           <div className="flex items-center gap-3">
@@ -183,6 +206,33 @@ function AdminLayout() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Multi-Facility Tenant Scope Switcher */}
+            <div className="relative">
+              <button onClick={() => setFacilityMenuOpen(!facilityMenuOpen)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 border border-slate-200 transition-colors">
+                <i className="fas fa-building-circle-check text-slate-500"></i>
+                <span className="max-w-[200px] truncate">{selectedFacility}</span>
+                <i className="fas fa-chevron-down text-[10px] text-slate-400"></i>
+              </button>
+              {facilityMenuOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-72 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-fade-in">
+                  <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Select Facility Domain Scope
+                  </div>
+                  {FACILITIES.map(fac => (
+                    <button key={fac} onClick={() => {
+                      setSelectedFacility(fac);
+                      setFacilityMenuOpen(false);
+                      toast(`Tenant Scope changed to: ${fac}`, 'info');
+                    }}
+                    className={`w-full px-3 py-2.5 text-left text-xs flex items-center justify-between transition-colors ${selectedFacility === fac ? 'bg-slate-100 font-bold text-slate-900' : 'hover:bg-slate-50 text-slate-600'}`}>
+                      <span className="truncate">{fac}</span>
+                      {selectedFacility === fac && <i className="fas fa-check text-emerald-600 text-xs"></i>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Notifications */}
             <div className="relative">
               <button onClick={() => setNotifOpen(!notifOpen)}
@@ -211,10 +261,8 @@ function AdminLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8" key={location.pathname}>
-          <div className="animate-fade-in">
-            <Outlet />
-          </div>
+        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+          <PageTransition />
         </main>
       </div>
     </div>

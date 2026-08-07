@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 
 const LandingPage = lazy(() => import('./landing/pages/LandingPage.jsx'));
+const GuidePage = lazy(() => import('./landing/pages/GuidePage.jsx'));
 const PatientLayout = lazy(() => import('./patient/layouts/PatientLayout.jsx'));
 const DoctorLayout = lazy(() => import('./doctor/layouts/DoctorLayout.jsx'));
 const AdminLayout = lazy(() => import('./admin/layouts/AdminLayout.jsx'));
@@ -48,7 +49,7 @@ function ProtectedRoute({ children, allowedRole }) {
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="text-center">
         <div className="w-10 h-10 border-4 border-aubergine-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-        <p className="text-sm text-slate-500 font-medium">Loading FemCare...</p>
+        <p className="text-sm text-slate-500 font-medium">Loading HealNari...</p>
       </div>
     </div>
   );
@@ -65,7 +66,7 @@ function App() {
   // Subtle aubergine cursor — elegant 10px circle that follows the mouse
   useEffect(() => {
     const cursor = document.createElement('div');
-    cursor.id = 'femcare-cursor';
+    cursor.id = 'healnari-cursor';
     Object.assign(cursor.style, {
       position: 'fixed',
       width: '10px',
@@ -100,77 +101,78 @@ function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-      <Router>
-        <Suspense fallback={
-          <div className="min-h-screen flex items-center justify-center bg-slate-50">
-            <div className="text-center">
-              <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-sm text-slate-500 font-bold tracking-wider uppercase animate-pulse">Loading Platform...</p>
+        <Router>
+          <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+              <div className="text-center">
+                <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-sm text-slate-500 font-bold tracking-wider uppercase animate-pulse">Loading Platform...</p>
+              </div>
             </div>
-          </div>
-        }>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            
-            <Route 
-              path="/patient-dashboard" 
-              element={
-                <ProtectedRoute allowedRole="patient">
-                  <PatientLayout />
-                </ProtectedRoute>
-              } 
-            >
-              <Route index element={<PatientDashboard />} />
-              <Route path="find-doctor" element={<PatientDiscovery />} />
-              <Route path="tracking" element={<PatientTracking />} />
-              <Route path="appointments" element={<PatientAppointments />} />
-              <Route path="prescriptions" element={<PatientPrescriptions />} />
-              <Route path="records" element={<PatientRecords />} />
-              <Route path="family" element={<PatientFamily />} />
-              <Route path="billing" element={<PatientBilling />} />
-              <Route path="profile" element={<PatientProfile />} />
-            </Route>
-            
-            <Route 
-              path="/doctor-dashboard" 
-              element={
-                <ProtectedRoute allowedRole="doctor">
-                  <DoctorLayout />
-                </ProtectedRoute>
-              } 
-            >
-              <Route index element={<DoctorDashboard />} />
-              <Route path="appointments" element={<DoctorAppointments />} />
-              <Route path="patients" element={<DoctorPatients />} />
-              <Route path="prescriptions" element={<DoctorPrescriptions />} />
-              <Route path="telemedicine" element={<DoctorTelemedicine />} />
-              <Route path="reports" element={<DoctorReports />} />
-              <Route path="billing" element={<DoctorBilling />} />
-              <Route path="staff" element={<DoctorStaff />} />
-              <Route path="profile" element={<DoctorProfile />} />
-            </Route>
+          }>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/guide/:guideId" element={<GuidePage />} />
 
-            <Route 
-              path="/admin-dashboard" 
-              element={
-                <ProtectedRoute allowedRole="admin">
-                  <AdminLayout />
-                </ProtectedRoute>
-              } 
-            >
-              <Route index element={<AdminDashboard />} />
-              <Route path="users" element={<AdminUsers />} />
-              <Route path="verification" element={<AdminVerification />} />
-              <Route path="clinics" element={<AdminClinics />} />
-              <Route path="revenue" element={<AdminRevenue />} />
-              <Route path="cms" element={<AdminCMS />} />
-              <Route path="reports" element={<AdminReports />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <CookieBanner />
-        </Suspense>
-      </Router>
+              <Route
+                path="/patient-dashboard"
+                element={
+                  <ProtectedRoute allowedRole="patient">
+                    <PatientLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<PatientDashboard />} />
+                <Route path="find-doctor" element={<PatientDiscovery />} />
+                <Route path="tracking" element={<PatientTracking />} />
+                <Route path="appointments" element={<PatientAppointments />} />
+                <Route path="prescriptions" element={<PatientPrescriptions />} />
+                <Route path="records" element={<PatientRecords />} />
+                <Route path="family" element={<PatientFamily />} />
+                <Route path="billing" element={<PatientBilling />} />
+                <Route path="profile" element={<PatientProfile />} />
+              </Route>
+
+              <Route
+                path="/doctor-dashboard"
+                element={
+                  <ProtectedRoute allowedRole="doctor">
+                    <DoctorLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<DoctorDashboard />} />
+                <Route path="appointments" element={<DoctorAppointments />} />
+                <Route path="patients" element={<DoctorPatients />} />
+                <Route path="prescriptions" element={<DoctorPrescriptions />} />
+                <Route path="telemedicine" element={<DoctorTelemedicine />} />
+                <Route path="reports" element={<DoctorReports />} />
+                <Route path="billing" element={<DoctorBilling />} />
+                <Route path="staff" element={<DoctorStaff />} />
+                <Route path="profile" element={<DoctorProfile />} />
+              </Route>
+
+              <Route
+                path="/admin-dashboard"
+                element={
+                  <ProtectedRoute allowedRole="admin">
+                    <AdminLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<AdminDashboard />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="verification" element={<AdminVerification />} />
+                <Route path="clinics" element={<AdminClinics />} />
+                <Route path="revenue" element={<AdminRevenue />} />
+                <Route path="cms" element={<AdminCMS />} />
+                <Route path="reports" element={<AdminReports />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <CookieBanner />
+          </Suspense>
+        </Router>
       </ToastProvider>
     </AuthProvider>
   );

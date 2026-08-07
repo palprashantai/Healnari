@@ -4,10 +4,14 @@ import { Modal } from '../../components/Modal.jsx';
 
 /* ─── Dummy Data ──────────────────────────────── */
 const PENDING_VERIFICATIONS = [
-  { id: 'V-102', name: 'Dr. Riya Sen', specialty: 'Dermatologist', email: 'riya.sen@example.com', submitted: '2 hours ago', status: 'Pending',
-    docs: { regNo: 'MCI-89212', idProof: 'Aadhar Card', degree: 'MBBS, MD', cert: 'Verified_Doc.pdf' } },
-  { id: 'V-103', name: 'Dr. Amit Patel', specialty: 'Endocrinologist', email: 'amit.patel@example.com', submitted: 'Yesterday', status: 'Pending',
-    docs: { regNo: 'MCI-44123', idProof: 'Passport', degree: 'MBBS, DM', cert: 'Cert_Final.pdf' } },
+  {
+    id: 'V-102', name: 'Dr. Riya Sen', specialty: 'Dermatologist', email: 'riya.sen@example.com', submitted: '2 hours ago', status: 'Pending',
+    docs: { regNo: 'MCI-89212', idProof: 'Aadhar Card', degree: 'MBBS, MD', cert: 'Verified_Doc.pdf' }
+  },
+  {
+    id: 'V-103', name: 'Dr. Amit Patel', specialty: 'Endocrinologist', email: 'amit.patel@example.com', submitted: 'Yesterday', status: 'Pending',
+    docs: { regNo: 'MCI-44123', idProof: 'Passport', degree: 'MBBS, DM', cert: 'Cert_Final.pdf' }
+  },
 ];
 
 const HISTORY = [
@@ -23,18 +27,23 @@ function ReviewModal({ doctor, isOpen, onClose, onAction }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Verification Review — ${doctor.name}`} size="lg">
       <div className="space-y-6">
-        <div className="flex gap-4 items-center bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center font-black text-slate-500 text-lg">
-            {doctor.name.charAt(4)}
+        <div className="flex gap-4 items-center bg-slate-50 p-4 rounded-xl border border-slate-200 justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-black text-lg">
+              {doctor.name.charAt(4)}
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-800">{doctor.name}</h3>
+              <p className="text-sm text-slate-500">{doctor.specialty} • {doctor.email}</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-bold text-slate-800">{doctor.name}</h3>
-            <p className="text-sm text-slate-500">{doctor.specialty} • {doctor.email}</p>
-          </div>
+          <span className="bg-emerald-50 text-emerald-700 font-bold px-3 py-1 rounded-full text-xs border border-emerald-200 flex items-center gap-1.5">
+            <i className="fas fa-certificate"></i> NMC Active Status
+          </span>
         </div>
 
         <div>
-          <h4 className="font-bold text-slate-700 text-sm mb-3">Submitted Documents</h4>
+          <h4 className="font-bold text-slate-700 text-sm mb-3">Submitted Medical Board Credentials</h4>
           <div className="grid sm:grid-cols-2 gap-4">
             {Object.entries(doctor.docs).map(([key, val]) => (
               <div key={key} className="border border-slate-200 rounded-xl p-3 flex justify-between items-center bg-white shadow-sm">
@@ -50,24 +59,29 @@ function ReviewModal({ doctor, isOpen, onClose, onAction }) {
           </div>
         </div>
 
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
-          <i className="fas fa-shield-check text-amber-500 mt-0.5"></i>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex gap-3">
+          <i className="fas fa-shield-check text-emerald-600 text-xl mt-0.5"></i>
           <div>
-            <p className="text-sm font-bold text-amber-900">Background Check</p>
-            <p className="text-xs text-amber-700 mt-1">Registration number matches the National Medical Commission database. No disciplinary actions found.</p>
+            <p className="text-sm font-bold text-emerald-900">National Medical Commission (NMC) Verification</p>
+            <p className="text-xs text-emerald-800 mt-1">Registration number <span className="font-mono font-bold">{doctor.docs.regNo}</span> verified. License active with zero malpractice history.</p>
           </div>
         </div>
 
         <div>
-          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Rejection Reason (if applicable)</label>
-          <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Enter reason if rejecting..."
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Audit Note / Rejection Reason</label>
+          <input value={reason} onChange={e => setReason(e.target.value)} placeholder="Provide optional notes for the audit trail log..."
             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
         </div>
 
-        <div className="flex gap-3 pt-2 border-t border-slate-100">
+        <div className="text-[11px] text-slate-400 flex items-center justify-between border-t border-slate-100 pt-3">
+          <span>Digital Signature Audit: Signed by Admin #ADM-9812</span>
+          <span>Timestamp: {new Date().toLocaleTimeString()}</span>
+        </div>
+
+        <div className="flex gap-3 pt-2">
           <button onClick={() => { onAction(doctor.id, 'Rejected', reason); onClose(); }} className="flex-1 border border-rose-200 text-rose-600 font-bold py-2.5 rounded-xl text-sm hover:bg-rose-50 transition-colors">Reject Profile</button>
-          <button onClick={() => { onAction(doctor.id, 'Approved'); onClose(); }} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors">
-            <i className="fas fa-check-circle"></i> Approve & Onboard
+          <button onClick={() => { onAction(doctor.id, 'Approved', reason.trim() || 'Verified via NMC Registry'); onClose(); }} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors">
+            <i className="fas fa-check-circle"></i> Approve & Issue License
           </button>
         </div>
       </div>

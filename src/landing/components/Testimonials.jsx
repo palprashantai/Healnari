@@ -13,7 +13,7 @@ function Testimonials() {
       image: "https://randomuser.me/api/portraits/women/22.jpg"
     },
     {
-      quote: "The holistic plan combining safe medical supplements with specialized diet and stress management reversed my PCOD symptoms within 4 months. I am so grateful for the judgment-free, expert clinical guidance.",
+      quote: "The holistic plan combining safe medical supplements with specialized diet and stress management brought my PCOD symptoms under control within 4 months. I am so grateful for the judgment-free, expert clinical guidance.",
       author: "Ritika P.",
       age: 27,
       stars: 5,
@@ -39,20 +39,20 @@ function Testimonials() {
   };
 
   return (
-    <section className="max-w-6xl mx-auto px-5 md:px-8 py-12">
+    <section className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20">
       {/* Title */}
       <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
         <span className="text-xs font-bold text-aubergine-600 uppercase tracking-widest bg-aubergine-50 px-3 py-1 rounded-full">
           Success Stories
         </span>
-        <h2 className="text-3xl md:text-4.5xl font-black text-slate-900 leading-tight font-display">
-          Hear real experiences from women who chose FemCare
+        <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight font-display">
+          Hear real experiences from women who chose HealNari
         </h2>
       </div>
 
       {/* Interactive Carousel Panel */}
       <div className="relative max-w-3xl mx-auto">
-        
+
         {/* Carousel Card Container */}
         <div className="rounded-3xl p-8 md:p-12 border border-sand-200 shadow-lg relative overflow-hidden transition-all duration-300" style={{ backgroundColor: 'var(--color-surface-card)' }}>
           {/* Quote Mark Accent */}
@@ -61,19 +61,23 @@ function Testimonials() {
           </div>
 
           <div className="relative z-10 space-y-6 flex flex-col md:flex-row gap-6 items-center">
-            
+
             {/* User Profile Image */}
             <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-4 border-aubergine-50/50 shadow-md flex-shrink-0">
-              <img 
-                src={reviews[activeIndex].image} 
-                alt={reviews[activeIndex].author} 
+              <img
+                src={reviews[activeIndex].image}
+                alt={reviews[activeIndex].author}
+                loading="lazy"
+                decoding="async"
+                width="96"
+                height="96"
                 className="w-full h-full object-cover"
               />
             </div>
 
             {/* Testimonial Quote */}
             <div className="space-y-3.5 text-center md:text-left flex-grow">
-              
+
               {/* Stars */}
               <div className="flex justify-center md:justify-start gap-1 text-amber-400 text-sm">
                 {[...Array(reviews[activeIndex].stars)].map((_, i) => (
@@ -106,14 +110,13 @@ function Testimonials() {
               <button
                 key={idx}
                 onClick={() => setActiveIndex(idx)}
-                className={`w-2.5 h-2.5 rounded-full transition-all duration-200 ${
-                  activeIndex === idx ? 'bg-aubergine-600 w-6' : 'bg-slate-200'
-                }`}
+                className={`w-2.5 h-2.5 rounded-full transition-all duration-200 ${activeIndex === idx ? 'bg-aubergine-600 w-6' : 'bg-slate-200'
+                  }`}
                 aria-label={`Go to slide ${idx + 1}`}
               ></button>
             ))}
           </div>
-          
+
           {/* Testimonial Legal Disclaimer */}
           <div className="text-center mt-6 pt-4 border-t border-slate-50">
             <p className="text-[9px] md:text-[10px] text-slate-400 font-semibold italic">
@@ -124,7 +127,7 @@ function Testimonials() {
 
         {/* Carousel Control Buttons */}
         <div className="absolute inset-y-1/2 -left-4 md:-left-16 right-auto flex items-center z-20">
-          <button 
+          <button
             onClick={handlePrev}
             className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-sand-200 shadow-md flex items-center justify-center text-slate-500 hover:text-aubergine-600 hover:border-aubergine-200 transition-colors btn-interactive" style={{ backgroundColor: 'var(--color-surface-card)' }}
             aria-label="Previous review"
@@ -133,7 +136,7 @@ function Testimonials() {
           </button>
         </div>
         <div className="absolute inset-y-1/2 -right-4 md:-right-16 left-auto flex items-center z-20">
-          <button 
+          <button
             onClick={handleNext}
             className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-sand-200 shadow-md flex items-center justify-center text-slate-500 hover:text-aubergine-600 hover:border-aubergine-200 transition-colors btn-interactive" style={{ backgroundColor: 'var(--color-surface-card)' }}
             aria-label="Next review"

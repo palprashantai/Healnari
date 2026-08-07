@@ -4,7 +4,7 @@ function PcosDiagram() {
   const [activeTab, setActiveTab] = useState('compare'); // 'normal', 'pcos', 'compare'
 
   return (
-    <section className="max-w-6xl mx-auto px-5 md:px-8 py-16 scroll-mt-20">
+    <section className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20 scroll-mt-20">
       <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
         <span className="text-xs font-bold text-rose-600 uppercase tracking-widest bg-rose-50 px-3 py-1 rounded-full border border-rose-100">
           Medical Education

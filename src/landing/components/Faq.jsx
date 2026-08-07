@@ -5,12 +5,12 @@ function Faq() {
 
   const faqs = [
     {
-      q: "How is FemHealth different from a regular gynaecologist visit?",
+      q: "How is HealNari different from a regular gynaecologist visit?",
       a: "We take an integrated, root-cause clinical approach combining gynaecology, endocrinology, dermatology, and clinical nutrition. Instead of quick 5-minute visits, we offer comprehensive 45-minute video consults, customized lifestyle-medical treatment plans, and continuous daily chat support with a dedicated care team."
     },
     {
-      q: "Can hair fall due to PCOS really be reversed?",
-      a: "Yes. With precise hormonal correction, nutritional rebuilding, and targeted clean supplements or medical topical therapies, follicular shrinkage can be halted and managed. Most patients observe significant improvements and visible new hair growth within 4 to 6 months of steady clinical care."
+      q: "Can hair fall due to PCOS be improved?",
+      a: "For many patients, yes. Correcting the underlying hormonal driver, alongside nutritional support and — when appropriate — topical or medical therapy, often reduces shedding and supports regrowth. Timelines vary, but most patients who respond see visible change within 4 to 6 months of consistent clinical care."
     },
     {
       q: "Is the video consultation completely secure & confidential?",
@@ -27,11 +27,11 @@ function Faq() {
   };
 
   return (
-    <section id="faq" className="max-w-4xl mx-auto px-5 md:px-8 py-12 scroll-mt-20">
+    <section id="faq" className="max-w-4xl mx-auto px-5 md:px-8 py-16 md:py-20 scroll-mt-20">
       <div className="rounded-3xl p-6 md:p-10 border border-sand-200 shadow-sm" style={{ backgroundColor: 'var(--color-surface-card)' }}>
-        
+
         {/* Title */}
-        <h2 className="text-2.5xl md:text-3.5xl font-black text-center text-slate-900 mb-8 font-display">
+        <h2 className="text-3xl md:text-4xl font-black text-center text-slate-900 mb-8 font-display">
           Frequently asked questions
         </h2>
 
@@ -59,15 +59,17 @@ function Faq() {
                   </div>
                 </button>
 
-                {/* Animated Body Content */}
-                <div 
-                  className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                    isOpen ? 'max-h-60 opacity-100 mt-3' : 'max-h-0 opacity-0'
+                {/* Animated Body Content — grid-rows trick so any answer length can expand, not just <240px */}
+                <div
+                  className={`grid transition-all duration-300 ease-in-out ${
+                    isOpen ? 'grid-rows-[1fr] opacity-100 mt-3' : 'grid-rows-[0fr] opacity-0'
                   }`}
                 >
-                  <p className="text-slate-500 text-xs md:text-sm leading-relaxed font-semibold">
-                    {faq.a}
-                  </p>
+                  <div className="overflow-hidden">
+                    <p className="text-slate-500 text-xs md:text-sm leading-relaxed font-semibold">
+                      {faq.a}
+                    </p>
+                  </div>
                 </div>
               </div>
             );

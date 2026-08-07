@@ -81,7 +81,7 @@ function InvoiceModal({ txn, isOpen, onClose }) {
       <div className="border border-slate-200 rounded-2xl p-5 space-y-4" style={{ fontFamily: 'Georgia, serif' }}>
         <div className="flex justify-between items-start border-b border-slate-200 pb-3">
           <div>
-            <h3 className="font-black text-slate-800 text-lg">FemCare</h3>
+            <h3 className="font-black text-slate-800 text-lg">HealNari</h3>
             <p className="text-xs text-slate-500">Dr. Sarah Mitchell</p>
           </div>
           <div className="text-right text-xs text-slate-500 font-mono">
@@ -207,6 +207,9 @@ function DoctorBilling() {
                   </td>
                 </tr>
               ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-sm text-slate-400">No transactions match this filter.</td></tr>
+              )}
             </tbody>
           </table>
         </div>

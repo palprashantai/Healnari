@@ -12,13 +12,13 @@ function DoctorProfile() {
   const [tab, setTab] = useState('profile');
   const [form, setForm] = useState({
     name:         doc.name         || 'Dr. Sarah Mitchell',
-    email:        doc.email        || 'sarah@femcare.app',
+    email:        doc.email        || 'sarah@healnari.app',
     phone:        doc.phone        || '+91 98765 00001',
     specialty:    doc.specialty    || 'Gynaecology & Obstetrics',
     qualification:doc.qualification|| 'MBBS, MD (OBG)',
     regNo:        doc.regNo        || 'MCI-29402',
     experience:   doc.experience   || '12 Years',
-    clinicName:   doc.clinicName   || 'FemCare Women\'s Clinic — Bandra',
+    clinicName:   doc.clinicName   || 'HealNari Women\'s Clinic — Bandra',
     clinicAddress:doc.clinicAddress|| 'Shop 4, Mehta Plaza, Bandra West, Mumbai',
     bio:          doc.bio          || '',
     consultFee:   String(doc.consultFee || 799),
@@ -59,7 +59,7 @@ function DoctorProfile() {
       <h1 className="text-2xl font-black text-slate-800">Doctor Profile</h1>
 
       {/* Profile Header */}
-      <div className="bg-gradient-to-r from-[#251121] to-[#3b1c32] rounded-3xl p-8 text-white flex flex-col sm:flex-row items-center sm:items-start gap-6 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-aubergine-900 to-aubergine-800 rounded-3xl p-8 text-white flex flex-col sm:flex-row items-center sm:items-start gap-6 relative overflow-hidden">
         <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
         <div className="relative flex-shrink-0">
           <div className="w-24 h-24 rounded-3xl bg-white/20 border-4 border-white/30 flex items-center justify-center text-3xl font-black shadow-xl">

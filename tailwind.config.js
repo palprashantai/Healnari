@@ -7,18 +7,61 @@ export default {
   theme: {
     extend: {
       colors: {
-        // ── Primary: Aubergine (replaces all pink) ────────────────────────────
-        aubergine: {
-          50:  '#F5F0F3',
-          100: '#E8D9E2',
-          200: '#C9A8BC',
-          400: '#9E6485',
-          600: '#7a3e65',
-          700: '#622f52',
-          800: '#3b1c32',
-          900: '#251121',
+        // ── Official HealNari Brand Identity Palette ────────────────────────
+        healnari: {
+          purple:   '#6B46C1', // Primary Royal Purple
+          magenta:  '#E23E8C', // Primary Magenta Pink
+          lilac:    '#A78BFA', // Soft Lilac Accent
+          rose:     '#F98BD2', // Soft Pink Tint
+          softbg:   '#EDE7FF', // Light Background Tint
+          navy:     '#334155', // Slate Text / Navy
+          dark:     '#2A1647', // Dark Theme Purple
         },
-        // ── Secondary: Sage Green (replaces teal) ─────────────────────────────
+        // ── Aubergine & Brand aliases (Updated to Official HealNari Colors) ──
+        aubergine: {
+          50:  '#F6F3FF',
+          100: '#EDE7FF', // Soft Tint
+          200: '#D6C7FF',
+          300: '#A78BFA', // Soft Lilac
+          400: '#8B5CF6',
+          500: '#6B46C1', // Official Primary Purple
+          600: '#6B46C1', // Official Primary Purple
+          700: '#522F9E',
+          800: '#3A1C78',
+          900: '#2A1647', // Deep Dark Purple
+        },
+        brand: {
+          DEFAULT: '#6B46C1',
+          magenta: '#E23E8C',
+          light:   '#EDE7FF',
+          dark:    '#2A1647',
+          hover:   '#522F9E',
+          border:  '#A78BFA',
+          50:  '#F6F3FF',
+          100: '#EDE7FF',
+          200: '#D6C7FF',
+          300: '#A78BFA',
+          500: '#6B46C1',
+          600: '#6B46C1',
+          700: '#E23E8C', // Accent Pink
+          800: '#3A1C78',
+          900: '#2A1647',
+        },
+        magenta: {
+          50:  '#FFF0F7',
+          100: '#FFE0F0',
+          200: '#F98BD2', // Soft Rose
+          400: '#F45BB7',
+          500: '#E23E8C', // Official Magenta Pink
+          600: '#C22572',
+          700: '#9E1759',
+        },
+        surface: {
+          page:   '#F8F6FF',
+          card:   '#FFFFFF',
+          border: '#EDE7FF',
+        },
+        // ── Secondary: Sage Green (used for wellness/positive accents) ────────
         sage: {
           50:  '#F0F5F0',
           100: '#D4E6D4',
@@ -28,7 +71,7 @@ export default {
           800: '#2E4A2E',
           900: '#1A2E1A',
         },
-        // ── Accent: Warm Sand (replaces stark white/gray) ─────────────────────
+        // ── Accent: Warm Sand (used for warm neutral surfaces/borders) ────────
         sand: {
           50:  '#FDFBF7',
           100: '#F5F0E8',
@@ -36,32 +79,11 @@ export default {
           400: '#C4A882',
           600: '#8B7355',
         },
-        // ── Semantic brand aliases ─────────────────────────────────────────────
-        brand: {
-          DEFAULT: '#7a3e65',
-          light:   '#F5F0F3',
-          dark:    '#3b1c32',
-          hover:   '#9E6485',
-          border:  '#E8D9E2',
-          50:  '#F5F0F3',
-          100: '#E8D9E2',
-          200: '#C9A8BC',
-          400: '#9E6485',
-          600: '#7a3e65',
-          700: '#622f52',
-          800: '#3b1c32',
-          900: '#251121',
-        },
-        surface: {
-          page:   '#FDFBF7',
-          card:   '#F5F0E8',
-          border: '#E8DDD0',
-        },
         clinical: {
           success: '#5A7A5A',
           period:  '#D85A30',
         },
-        // ── Keep existing functional colors ───────────────────────────────────
+        // ── Extra slate shades used across the app between the stock steps ────
         slate: {
           150: '#eef2f6',
           450: '#8091a7',
@@ -69,16 +91,11 @@ export default {
           650: '#3f516a',
           850: '#172237',
         },
-        accent: {
-          emerald: '#10b981',
-          rose: '#f43f5e',
-          amber: '#f59e0b',
-        },
       },
       fontFamily: {
-        sans:    ['Inter', 'Outfit', 'sans-serif'],
-        display: ['Outfit', 'sans-serif'],
-        serif:   ['Lora', 'serif'],
+        serif:   ['Playfair Display', 'serif'],
+        display: ['Playfair Display', 'serif'],
+        sans:    ['Inter', 'sans-serif'],
         mono:    ['JetBrains Mono', 'monospace'],
       },
       fontSize: {
@@ -92,33 +109,17 @@ export default {
         '4xl': '2rem',
       },
       boxShadow: {
-        'soft':       '0 2px 15px -3px rgba(0,0,0,0.07), 0 10px 20px -2px rgba(0,0,0,0.04)',
-        'card':       '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06)',
-        'card-hover': '0 8px 30px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04)',
-        'brand-glow': '0 0 20px rgba(122, 62, 101, 0.2)',
-        'inset-subtle':'inset 0 1px 2px rgba(0,0,0,0.05)',
-      },
-      transitionTimingFunction: {
-        'spring': 'cubic-bezier(0.16, 1, 0.3, 1)',
-        'snappy': 'cubic-bezier(0.4, 0, 0.2, 1)',
-        'smooth': 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-      },
-      transitionDuration: {
-        '250': '250ms',
-        '350': '350ms',
-        '400': '400ms',
-        '450': '450ms',
+        'soft':       '0 2px 15px -3px rgba(107, 70, 193, 0.08), 0 10px 20px -2px rgba(107, 70, 193, 0.04)',
+        'card':       '0 1px 3px rgba(107, 70, 193, 0.04), 0 4px 12px rgba(107, 70, 193, 0.06)',
+        'card-hover': '0 8px 30px rgba(107, 70, 193, 0.12), 0 2px 8px rgba(226, 62, 140, 0.08)',
+        'brand-glow': '0 0 25px rgba(107, 70, 193, 0.25)',
+        'magenta-glow': '0 0 25px rgba(226, 62, 140, 0.25)',
       },
       animation: {
         'fade-in':      'pageFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both',
         'slide-up':     'slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both',
         'pulse-subtle': 'pulseSubtle 2.5s infinite ease-in-out',
         'float':        'float 4s ease-in-out infinite',
-        'bounce-subtle':'bounceSubtle 3s ease-in-out infinite',
-        'shimmer':      'shimmer 1.4s ease-in-out infinite',
-        'modal-in':     'modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both',
-        'overlay-in':   'overlayIn 0.25s ease both',
-        'spin-slow':    'spin 3s linear infinite',
       },
       keyframes: {
         pageFadeIn: {
@@ -136,22 +137,6 @@ export default {
         float: {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%':      { transform: 'translateY(-10px)' },
-        },
-        bounceSubtle: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%':      { transform: 'translateY(-4px)' },
-        },
-        shimmer: {
-          '0%':   { backgroundPosition: '-400px 0' },
-          '100%': { backgroundPosition: '400px 0' },
-        },
-        modalIn: {
-          '0%':   { opacity: '0', transform: 'scale(0.96) translateY(8px)' },
-          '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
-        },
-        overlayIn: {
-          '0%':   { opacity: '0' },
-          '100%': { opacity: '1' },
         },
       },
     },

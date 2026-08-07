@@ -11,7 +11,7 @@ function LabTests({ onBook }) {
       color: 'indigo',
       urgency: 'Recommended',
       tests: [
-        { name: 'LH & FSH Ratio', desc: 'Detects ovarian dysfunction. LH:FSH > 2:1 indicates PCOS.', importance: 'Critical' },
+        { name: 'LH & FSH Ratio', desc: 'An elevated LH relative to FSH is a common pattern in PCOS, though it is supportive — not diagnostic — evidence and is interpreted alongside your other results.', importance: 'Critical' },
         { name: 'Fasting Insulin + HOMA-IR', desc: 'Assesses insulin resistance, a core driver of PCOS symptoms.', importance: 'Critical' },
         { name: 'Testosterone (Free & Total)', desc: 'Elevated levels explain acne, hair loss, and hirsutism.', importance: 'Critical' },
         { name: 'AMH (Anti-Müllerian Hormone)', desc: 'Measures ovarian reserve and follicle count.', importance: 'Important' },
@@ -51,9 +51,9 @@ function LabTests({ onBook }) {
       color: 'violet',
       urgency: 'Recommended',
       tests: [
-        { name: 'Cortisol (Morning Serum)', desc: 'Chronic stress-driven cortisol imbalance disrupts all downstream hormones.', importance: 'Critical' },
+        { name: 'Cortisol (Morning Serum)', desc: 'Chronic stress-driven cortisol imbalance can disrupt many downstream hormones.', importance: 'Critical' },
         { name: 'DHEA-S', desc: 'Adrenal stress marker linked to fatigue, mood, and weight gain.', importance: 'Critical' },
-        { name: 'Estrogen & Progesterone', desc: 'Key sex hormones; imbalance explains PMS, anxiety, and weight gain.', importance: 'Critical' },
+        { name: 'Estrogen & Progesterone', desc: 'Key sex hormones; imbalance can contribute to PMS, anxiety, and weight changes.', importance: 'Critical' },
         { name: 'Full Thyroid Panel (TSH, T3, T4)', desc: 'Thyroid hormones regulate mood, metabolism, and energy.', importance: 'Important' },
         { name: 'Fasting Insulin', desc: 'Insulin dysregulation underlies many hormonal cascades.', importance: 'Important' },
         { name: 'Vitamin D3', desc: 'Acts as a steroid hormone; deficiency worsens fatigue and immunity.', importance: 'Recommended' },
@@ -64,7 +64,7 @@ function LabTests({ onBook }) {
       color: 'sky',
       urgency: 'Urgent',
       tests: [
-        { name: 'TSH (Thyroid-Stimulating Hormone)', desc: 'Primary screening marker. Ideal range: 0.5–2.5 mIU/L for women.', importance: 'Critical' },
+        { name: 'TSH (Thyroid-Stimulating Hormone)', desc: 'Primary screening marker. Standard reference range is roughly 0.4–4.0 mIU/L (labs vary) — your doctor may target a tighter range if you\'re trying to conceive.', importance: 'Critical' },
         { name: 'Free T3 (Triiodothyronine)', desc: 'Active form of thyroid hormone controlling metabolism and energy.', importance: 'Critical' },
         { name: 'Free T4 (Thyroxine)', desc: 'Precursor converted to T3; reflects thyroid production capacity.', importance: 'Critical' },
         { name: 'Anti-TPO Antibodies', desc: 'Detects Hashimoto\'s thyroiditis, the most common autoimmune thyroid condition.', importance: 'Important' },
@@ -92,7 +92,7 @@ function LabTests({ onBook }) {
   const c = colorMap[current.color];
 
   return (
-    <section id="lab-tests" className="max-w-6xl mx-auto px-5 md:px-8 py-16 scroll-mt-20">
+    <section id="lab-tests" className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20 scroll-mt-20">
       {/* Title */}
       <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
         <span className="text-xs font-bold text-sky-600 uppercase tracking-widest bg-sky-50 px-3 py-1 rounded-full">

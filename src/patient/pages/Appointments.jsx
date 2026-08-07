@@ -16,8 +16,8 @@ const SLOTS = ['9:00 AM', '10:30 AM', '12:00 PM', '2:00 PM', '4:00 PM', '5:30 PM
 let nextId = 200;
 
 const INITIAL_UPCOMING = [
-  { id: 'APT-101', doctor: 'Dr. Sarah Mitchell', specialty: 'Gynaecologist', date: '2026-07-05', dateLabel: '5 Jul 2026', time: '10:30 AM', status: 'Confirmed', type: 'Video Consult', fee: 799 },
-  { id: 'APT-102', doctor: 'Dr. Anita Sharma', specialty: 'Endocrinologist', date: '2026-07-22', dateLabel: '22 Jul 2026', time: '11:15 AM', status: 'Pending', type: 'Clinic Visit', fee: 899 },
+  { id: 'APT-101', doctor: 'Dr. Sarah Mitchell', specialty: 'Gynaecologist', date: '2026-08-10', dateLabel: '10 Aug 2026', time: '10:30 AM', status: 'Confirmed', type: 'Video Consult', fee: 799 },
+  { id: 'APT-102', doctor: 'Dr. Anita Sharma', specialty: 'Endocrinologist', date: '2026-08-25', dateLabel: '25 Aug 2026', time: '11:15 AM', status: 'Pending', type: 'Clinic Visit', fee: 899 },
 ];
 
 const INITIAL_PAST = [
@@ -139,8 +139,8 @@ function VideoCallModal({ isOpen, onClose, doctor, toast }) {
             </p>
           </div>
           <div className="bg-slate-50 rounded-xl p-4 text-xs space-y-1.5 text-left">
-            <div className="flex items-center gap-2 text-slate-600"><i className="fas fa-shield-halved text-emerald-500"></i> End-to-end encrypted</div>
-            <div className="flex items-center gap-2 text-slate-600"><i className="fas fa-lock text-emerald-500"></i> HIPAA compliant</div>
+            <div className="flex items-center gap-2 text-slate-600"><i className="fas fa-shield-halved text-emerald-500"></i> Private, doctor-only session</div>
+            <div className="flex items-center gap-2 text-slate-600"><i className="fas fa-lock text-emerald-500"></i> DPDP Act, 2023 compliant</div>
           </div>
           <button onClick={join} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl text-base transition-all flex items-center justify-center gap-3 shadow-lg">
             <i className="fas fa-video"></i> Join Now

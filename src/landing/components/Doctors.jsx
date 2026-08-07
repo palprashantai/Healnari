@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import Tilt3D from '../../components/Tilt3D.jsx';
+import Reveal from '../../components/Reveal.jsx';
 
 function Doctors({ onSelectDoctor }) {
   const [activeFilter, setActiveFilter] = useState('All');
@@ -79,19 +81,19 @@ function Doctors({ onSelectDoctor }) {
   });
 
   return (
-    <section id="doctors" className="max-w-6xl mx-auto px-5 md:px-8 py-16 scroll-mt-20">
+    <section id="doctors" className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20 scroll-mt-20">
       {/* Head block */}
-      <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
+      <Reveal className="text-center max-w-2xl mx-auto mb-10 space-y-3">
         <span className="text-xs font-bold text-aubergine-600 uppercase tracking-widest bg-aubergine-50 px-3 py-1 rounded-full">
           Our Team
         </span>
-        <h2 className="text-3xl md:text-4.5xl font-black text-slate-900 leading-tight font-display">
+        <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight font-display">
           Care Led by Experienced Doctors
         </h2>
         <p className="text-slate-500 text-sm md:text-base">
           Gynaecologists, endocrinologists & trichologists — collaborating under one digital roof to trace your concerns back to their root cause.
         </p>
-      </div>
+      </Reveal>
 
       {/* Filter Tabs */}
       <div className="flex flex-wrap justify-center gap-2 mb-10">
@@ -113,9 +115,10 @@ function Doctors({ onSelectDoctor }) {
       {/* Doctors Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
         {filteredDoctors.map((doc, idx) => (
-          <div 
-            key={idx} 
-            className="rounded-3xl overflow-hidden border border-sand-200 shadow-sm p-6 text-center card-premium flex flex-col justify-between" style={{ backgroundColor: 'var(--color-surface-card)' }}
+          <Reveal key={idx} delay={(idx % 4) * 80} className="h-full">
+          <Tilt3D max={6} className="h-full">
+          <div
+            className="rounded-3xl overflow-hidden border border-sand-200 shadow-sm p-6 text-center card-premium flex flex-col justify-between h-full" style={{ backgroundColor: 'var(--color-surface-card)' }}
           >
             <div>
               {/* Availability Badge */}
@@ -132,9 +135,13 @@ function Doctors({ onSelectDoctor }) {
               {/* Doctor Avatar */}
               <div className="relative w-24 h-24 mx-auto mb-4">
                 <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-aubergine-500 to-aubergine-200 opacity-20 blur-sm"></div>
-                <img 
-                  src={doc.image} 
-                  alt={doc.name} 
+                <img
+                  src={doc.image}
+                  alt={doc.name}
+                  loading="lazy"
+                  decoding="async"
+                  width="96"
+                  height="96"
                   className="w-full h-full rounded-full object-cover border-4 border-aubergine-50/50 shadow-md relative"
                 />
                 {/* Online indicator dot */}
@@ -182,6 +189,8 @@ function Doctors({ onSelectDoctor }) {
               Consult <i className="fas fa-chevron-right text-[10px] ml-0.5"></i>
             </button>
           </div>
+          </Tilt3D>
+          </Reveal>
         ))}
       </div>
     </section>

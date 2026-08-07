@@ -272,6 +272,9 @@ function DoctorAppointments() {
                   </td>
                 </tr>
               ))}
+              {tab === 'queue' && queue.length === 0 && (
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-400">No patients in today's queue.</td></tr>
+              )}
 
               {tab === 'requests' && requests.map(r => (
                 <tr key={r.id} className="hover:bg-slate-50 transition-colors">
@@ -294,6 +297,9 @@ function DoctorAppointments() {
                   </td>
                 </tr>
               ))}
+              {tab === 'requests' && requests.length === 0 && (
+                <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-400">No new appointment requests.</td></tr>
+              )}
 
               {tab === 'past' && past.map(p => (
                 <tr key={p.id} className="hover:bg-slate-50 transition-colors">
@@ -315,6 +321,9 @@ function DoctorAppointments() {
                   </td>
                 </tr>
               ))}
+              {tab === 'past' && past.length === 0 && (
+                <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-400">No past consultations yet.</td></tr>
+              )}
             </tbody>
           </table>
         </div>

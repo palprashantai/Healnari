@@ -4,11 +4,11 @@ import { ConfirmModal } from '../../components/Modal.jsx';
 
 /* ─── Dummy Data ──────────────────────────────── */
 const INITIAL_USERS = [
-  { id: 'U-9182', name: 'Priya Sharma',  role: 'Patient', email: 'priya@example.com', phone: '+91 98765 43210', status: 'Active', joined: '12 Jan 2026' },
-  { id: 'U-8271', name: 'Dr. Sarah M.',  role: 'Doctor',  email: 'sarah@femcare.app', phone: '+91 98765 00001', status: 'Active', joined: '05 Jan 2026' },
-  { id: 'U-7362', name: 'Anita Desai',   role: 'Patient', email: 'anita@example.com', phone: '+91 96543 21098', status: 'Active', joined: '20 Feb 2026' },
-  { id: 'U-6453', name: 'Rahul Varma',   role: 'Staff',   email: 'rahul@clinic.com',  phone: '+91 93210 98765', status: 'Suspended', joined: '15 Mar 2026' },
-  { id: 'U-5544', name: 'Dr. Anil K.',   role: 'Doctor',  email: 'anil@femcare.app',  phone: '+91 91234 56789', status: 'Active', joined: '10 Apr 2026' },
+  { id: 'U-9182', name: 'Priya Sharma', role: 'Patient', email: 'priya@example.com', phone: '+91 98765 43210', status: 'Active', joined: '12 Jan 2026' },
+  { id: 'U-8271', name: 'Dr. Sarah M.', role: 'Doctor', email: 'sarah@healnari.app', phone: '+91 98765 00001', status: 'Active', joined: '05 Jan 2026' },
+  { id: 'U-7362', name: 'Anita Desai', role: 'Patient', email: 'anita@example.com', phone: '+91 96543 21098', status: 'Active', joined: '20 Feb 2026' },
+  { id: 'U-6453', name: 'Rahul Varma', role: 'Staff', email: 'rahul@clinic.com', phone: '+91 93210 98765', status: 'Suspended', joined: '15 Mar 2026' },
+  { id: 'U-5544', name: 'Dr. Anil K.', role: 'Doctor', email: 'anil@healnari.app', phone: '+91 91234 56789', status: 'Active', joined: '10 Apr 2026' },
 ];
 
 /* ─── Main Component ─────────────────────────── */

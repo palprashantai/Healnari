@@ -108,13 +108,13 @@ function SymptomChecker({ onClose, onBook }) {
   const getAssessmentResult = () => {
     const symptomCount = answers.symptoms.length + answers.insulinResistance.length;
     let severity = 'Mild';
-    
+
     // Urgent Guardrail
     const urgentSymptoms = [
       'Heavy blood clots during flow',
       'Extreme pelvic pain requiring bed rest'
     ];
-    
+
     const hasUrgent = answers.symptoms.some(sym => urgentSymptoms.includes(sym));
 
     if (hasUrgent) {
@@ -192,7 +192,7 @@ function SymptomChecker({ onClose, onBook }) {
   }, [onClose]);
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[9000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
@@ -209,8 +209,8 @@ function SymptomChecker({ onClose, onBook }) {
               Instant Rotterdam Criteria & Metabolic Triage
             </p>
           </div>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="w-8 h-8 rounded-full hover:bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition btn-interactive"
           >
             <i className="fas fa-times"></i>
@@ -219,7 +219,7 @@ function SymptomChecker({ onClose, onBook }) {
 
         {/* Progress Bar */}
         <div className="w-full bg-slate-100 h-1">
-          <div 
+          <div
             className="bg-brand-600 h-1 transition-all duration-300"
             style={{ width: `${(step / totalSteps) * 100}%` }}
           ></div>
@@ -227,7 +227,7 @@ function SymptomChecker({ onClose, onBook }) {
 
         {/* Content Body */}
         <div className="p-6 overflow-y-auto flex-grow space-y-6">
-          
+
           {/* STEP 1: CONCERN SELECT */}
           {step === 1 && (
             <div className="space-y-4">
@@ -266,10 +266,10 @@ function SymptomChecker({ onClose, onBook }) {
               <div className="space-y-4">
                 <div>
                   <label className="text-xs font-bold text-slate-500 mb-1.5 block">Last Menstrual Period (LMP) Date *</label>
-                  <input 
-                    type="date" 
-                    required 
-                    value={answers.lmp} 
+                  <input
+                    type="date"
+                    required
+                    value={answers.lmp}
                     onChange={e => setAnswers(prev => ({ ...prev, lmp: e.target.value }))}
                     className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
                   />
@@ -277,11 +277,11 @@ function SymptomChecker({ onClose, onBook }) {
 
                 <div>
                   <label className="text-xs font-bold text-slate-500 mb-1.5 block">Average Cycle Length (Days)</label>
-                  <input 
-                    type="number" 
-                    min="15" 
-                    max="90" 
-                    value={answers.cycleLength} 
+                  <input
+                    type="number"
+                    min="15"
+                    max="90"
+                    value={answers.cycleLength}
                     onChange={e => setAnswers(prev => ({ ...prev, cycleLength: e.target.value }))}
                     className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
                   />
@@ -326,31 +326,29 @@ function SymptomChecker({ onClose, onBook }) {
                 <h4 className="font-extrabold text-lg text-slate-800">Metabolic & Insulin Markers</h4>
                 <p className="text-slate-500 text-xs font-semibold mt-1">Screening for insulin resistance (IR), a primary trigger for androgen excess.</p>
               </div>
-              
+
               <div className="space-y-2.5">
                 {metabolicOptions.map((opt) => {
                   const isChecked = answers.insulinResistance.includes(opt.value);
                   return (
-                    <div 
+                    <div
                       key={opt.value}
                       onClick={() => toggleMetabolic(opt.value)}
-                      className={`p-3.5 border rounded-2xl cursor-pointer flex items-center justify-between transition-all select-none ${
-                        isChecked 
-                          ? 'border-brand-500 bg-brand-50/20 font-bold text-brand-900 shadow-sm' 
-                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
+                      className={`p-3.5 border rounded-2xl cursor-pointer flex items-center justify-between transition-all select-none ${isChecked
+                        ? 'border-brand-500 bg-brand-50/20 font-bold text-brand-900 shadow-sm'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
                     >
                       <span className="text-sm font-semibold">{opt.label}</span>
-                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
-                        isChecked ? 'border-brand-600 bg-brand-650 text-white' : 'border-slate-300'
-                      }`}>
+                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${isChecked ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300'
+                        }`}>
                         {isChecked && <i className="fas fa-check text-[9px]"></i>}
                       </div>
                     </div>
                   );
                 })}
               </div>
-              
+
               <div className="flex gap-4 items-center justify-between pt-2">
                 <button onClick={() => setStep(2)} className="text-slate-500 font-bold text-sm hover:text-slate-700 btn-interactive">
                   ← Back
@@ -377,19 +375,17 @@ function SymptomChecker({ onClose, onBook }) {
                 {(symptomList[answers.concern] || []).map((sym) => {
                   const isChecked = answers.symptoms.includes(sym);
                   return (
-                    <div 
+                    <div
                       key={sym}
                       onClick={() => toggleSymptom(sym)}
-                      className={`p-3.5 border rounded-2xl cursor-pointer flex items-center justify-between transition-all select-none ${
-                        isChecked 
-                          ? 'border-brand-500 bg-brand-50/20 font-bold text-brand-900 shadow-sm' 
-                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                      }`}
+                      className={`p-3.5 border rounded-2xl cursor-pointer flex items-center justify-between transition-all select-none ${isChecked
+                        ? 'border-brand-500 bg-brand-50/20 font-bold text-brand-900 shadow-sm'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
                     >
                       <span className="text-sm font-semibold">{sym}</span>
-                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${
-                        isChecked ? 'border-brand-600 bg-brand-650 text-white' : 'border-slate-300'
-                      }`}>
+                      <div className={`w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${isChecked ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300'
+                        }`}>
                         {isChecked && <i className="fas fa-check text-[9px]"></i>}
                       </div>
                     </div>
@@ -399,8 +395,8 @@ function SymptomChecker({ onClose, onBook }) {
 
               <div>
                 <label className="text-xs font-bold text-slate-500 mb-1.5 block">How long have you noticed these issues?</label>
-                <select 
-                  value={answers.duration} 
+                <select
+                  value={answers.duration}
                   onChange={e => setAnswers(prev => ({ ...prev, duration: e.target.value }))}
                   className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-300"
                 >
@@ -408,7 +404,7 @@ function SymptomChecker({ onClose, onBook }) {
                   {durationOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
               </div>
-              
+
               <div className="flex gap-4 items-center justify-between pt-2">
                 <button onClick={() => setStep(3)} className="text-slate-500 font-bold text-sm hover:text-slate-700 btn-interactive">
                   ← Back
@@ -428,20 +424,17 @@ function SymptomChecker({ onClose, onBook }) {
           {step === 5 && results && (
             <div className="space-y-6">
               {/* Score Header */}
-              <div className={`border rounded-3xl p-6 text-center space-y-3 relative overflow-hidden ${
-                results.isUrgent ? 'bg-red-50 border-red-200' : 'bg-gradient-to-tr from-brand-50 to-indigo-50 border-brand-100'
-              }`}>
-                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl mx-auto shadow ${
-                  results.isUrgent ? 'bg-red-600 text-white shadow-red-200' : 'bg-brand-600 text-white shadow-brand-100'
+              <div className={`border rounded-3xl p-6 text-center space-y-3 relative overflow-hidden ${results.isUrgent ? 'bg-red-50 border-red-200' : 'bg-gradient-to-tr from-brand-50 to-indigo-50 border-brand-100'
                 }`}>
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl mx-auto shadow ${results.isUrgent ? 'bg-red-600 text-white shadow-red-200' : 'bg-brand-600 text-white shadow-brand-100'
+                  }`}>
                   <i className={`fas ${results.isUrgent ? 'fa-triangle-exclamation' : 'fa-receipt'}`}></i>
                 </div>
                 <h4 className="font-extrabold text-xl text-slate-800">
                   {results.isUrgent ? 'Medical Alert' : 'Assessment Complete'}
                 </h4>
-                <div className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider ${
-                  results.isUrgent ? 'bg-red-100 text-red-800' : 'bg-brand-100 text-brand-800'
-                }`}>
+                <div className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider ${results.isUrgent ? 'bg-red-100 text-red-800' : 'bg-brand-100 text-brand-800'
+                  }`}>
                   Severity: {results.severity}
                 </div>
               </div>
@@ -481,9 +474,8 @@ function SymptomChecker({ onClose, onBook }) {
                 )}
                 <button
                   onClick={onClose}
-                  className={`w-full border font-semibold py-3.5 rounded-xl transition-all btn-interactive text-sm ${
-                    results.isUrgent ? 'bg-red-50 hover:bg-red-100 border-red-200 text-red-700' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600'
-                  }`}
+                  className={`w-full border font-semibold py-3.5 rounded-xl transition-all btn-interactive text-sm ${results.isUrgent ? 'bg-red-50 hover:bg-red-100 border-red-200 text-red-700' : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600'
+                    }`}
                 >
                   {results.isUrgent ? 'I understand, Close Assessment' : 'Close & Back to Home'}
                 </button>

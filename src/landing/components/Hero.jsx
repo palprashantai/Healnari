@@ -26,12 +26,17 @@ function Hero({ onStartConsult, onOpenChecker }) {
           {/* Main Titles */}
           <div className="space-y-4">
             <h1 className="text-4xl sm:text-5xl lg:text-[3.5rem] lg:leading-[4rem] font-extrabold tracking-tight text-slate-900 font-display">
-              Finally, a real medical <br />
-              answer for your <span className="bg-gradient-to-r from-aubergine-600 to-aubergine-400 bg-clip-text text-transparent underline decoration-aubergine-200 decoration-4">PCOS</span>
+              Finally, Healthcare That <br />
+              Treats the <span className="bg-gradient-to-r from-aubergine-600 to-aubergine-400 bg-clip-text text-transparent underline decoration-aubergine-200 decoration-4">Root Cause</span>
             </h1>
-            <p className="text-slate-600 text-lg md:text-xl font-normal leading-relaxed max-w-xl">
-              Stop being told to "just lose weight". Get a personalized, root-cause treatment protocol from India's leading endocrinologists and gynecologists. Real medicine, online.
-            </p>
+            <div className="space-y-3 max-w-xl">
+              <p className="text-slate-600 text-lg md:text-xl font-normal leading-relaxed">
+                Stop being told to <strong className="font-bold text-slate-900">"just lose weight."</strong> Whether you're dealing with <strong className="font-semibold text-slate-800">PCOS, PCOD, thyroid disorders, hair fall, irregular periods, acne, hormonal imbalances, or weight-related concerns</strong>, get a personalized treatment plan designed to address the <strong className="font-semibold text-slate-900">underlying cause</strong> of your symptoms.
+              </p>
+              <p className="text-slate-700 text-base md:text-lg font-medium leading-relaxed pt-1">
+                Consult India's leading endocrinologists and gynecologists online for evidence-based, personalized care—tailored to your unique hormonal health needs.
+              </p>
+            </div>
           </div>
 
           {/* Pricing Banner */}
@@ -41,17 +46,17 @@ function Hero({ onStartConsult, onOpenChecker }) {
 
           {/* Dual Action Buttons */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-            <button 
+            <button
               onClick={onStartConsult}
               className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg shadow-aubergine-100 transition-all btn-interactive flex items-center justify-center gap-2.5 text-lg"
             >
-              <i className="fas fa-stethoscope text-base"></i> Start Consultation
+              <i className="fas fa-stethoscope text-base"></i> Book My ₹299 Consult
             </button>
-            <button 
+            <button
               onClick={onOpenChecker}
               className="bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-4 px-8 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2.5 text-lg"
             >
-              <i className="fas fa-heart-pulse text-rose-500"></i> Check Symptoms
+              <i className="fas fa-heart-pulse text-rose-500"></i> 2-Min Symptom Check
             </button>
           </div>
 
@@ -74,9 +79,13 @@ function Hero({ onStartConsult, onOpenChecker }) {
             
             {/* Beautiful Profile Image */}
             <div className="w-full h-full rounded-full overflow-hidden border-8 border-white shadow-2xl relative">
-              <img 
-                src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=500&h=500&fit=crop" 
-                alt="Happy female patient during doctor consultation" 
+              <img
+                src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=500&h=500&fit=crop"
+                alt="Portrait of a smiling woman, representing a HealNari patient"
+                width="500"
+                height="500"
+                fetchpriority="high"
+                decoding="async"
                 className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/10 to-transparent"></div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import { Tilt3D } from '../../components/Tilt3D.jsx';
 
 /* ─── Dummy Data ──────────────────────────────── */
 const PAYOUTS = [
@@ -12,6 +13,7 @@ const PAYOUTS = [
 
 /* ─── Process Modal ──────────────────────────── */
 function ProcessModal({ payout, isOpen, onClose, onProcess }) {
+  const toast = useToast();
   const [refId, setRefId] = useState('');
 
   if (!payout) return null;
@@ -28,7 +30,7 @@ function ProcessModal({ payout, isOpen, onClose, onProcess }) {
           <input value={refId} onChange={e => setRefId(e.target.value)} placeholder="Enter txn reference ID"
             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-slate-300" />
         </div>
-        <button onClick={() => { if(refId) { onProcess(payout.id); onClose(); } else { alert('Enter reference ID'); } }}
+        <button onClick={() => { if(refId) { onProcess(payout.id); onClose(); } else { toast('Enter reference ID', 'error'); } }}
           className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
           <i className="fas fa-check-double"></i> Mark as Processed
         </button>
@@ -65,22 +67,28 @@ function AdminRevenue() {
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
+        <Tilt3D max={5}>
         <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-lg relative overflow-hidden">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Pending Payouts</p>
           <p className="text-3xl font-black mb-1">₹{pendingAmount.toLocaleString()}</p>
           <p className="text-sm text-slate-300">{pendingCount} requests waiting</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        </Tilt3D>
+        <Tilt3D max={5}>
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Platform Revenue (MTD)</p>
           <p className="text-3xl font-black text-slate-800 mb-1">₹1,24,500</p>
           <p className="text-sm font-bold text-emerald-600"><i className="fas fa-arrow-up text-[10px]"></i> 18% vs last month</p>
         </div>
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        </Tilt3D>
+        <Tilt3D max={5}>
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Gross Consultations (MTD)</p>
           <p className="text-3xl font-black text-slate-800 mb-1">₹14,56,800</p>
           <p className="text-sm text-slate-400">Total volume processed</p>
         </div>
+        </Tilt3D>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

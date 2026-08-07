@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import { Tilt3D } from '../../components/Tilt3D.jsx';
 
 /* ─── Dummy Data ──────────────────────────────── */
 const STATS = [
@@ -32,7 +33,7 @@ const SUPPORT_TICKETS = [
 ];
 
 /* ─── Modals ─────────────────────────────────── */
-function DocumentViewerModal({ isOpen, onClose, doctor, toast, onApprove }) {
+function DocumentViewerModal({ isOpen, onClose, doctor, toast, onResolve }) {
   if (!doctor) return null;
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Verify Documents — ${doctor.name}`} size="lg">
@@ -54,8 +55,8 @@ function DocumentViewerModal({ isOpen, onClose, doctor, toast, onApprove }) {
           </div>
         </div>
         <div className="flex gap-3 pt-4 border-t border-slate-100">
-          <button onClick={() => { toast('Verification Rejected', 'info'); onClose(); onApprove(doctor.id); }} className="flex-1 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold py-2.5 rounded-xl text-sm border border-rose-200 transition-colors">Reject</button>
-          <button onClick={() => { toast('Doctor Verified successfully', 'success'); onClose(); onApprove(doctor.id); }} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+          <button onClick={() => { toast('Verification Rejected', 'info'); onClose(); onResolve(doctor.id, 'Rejected'); }} className="flex-1 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold py-2.5 rounded-xl text-sm border border-rose-200 transition-colors">Reject</button>
+          <button onClick={() => { toast('Doctor Verified successfully', 'success'); onClose(); onResolve(doctor.id, 'Approved'); }} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
             <i className="fas fa-check-circle"></i> Approve KYC
           </button>
         </div>
@@ -148,7 +149,8 @@ function AdminDashboard() {
       {/* Stats Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
         {STATS.map(s => (
-          <div key={s.label} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between card-premium">
+          <Tilt3D key={s.label} max={5}>
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between card-premium">
             <div className="flex justify-between items-start mb-2">
               <div className={`w-10 h-10 rounded-xl ${s.bg} ${s.color} flex items-center justify-center text-lg`}>
                 <i className={`fas ${s.icon}`}></i>
@@ -164,6 +166,7 @@ function AdminDashboard() {
               <p className="text-xs font-semibold text-slate-500 mt-1">{s.label}</p>
             </div>
           </div>
+          </Tilt3D>
         ))}
       </div>
 
@@ -297,7 +300,7 @@ function AdminDashboard() {
       </div>
 
       {/* Modals */}
-      <DocumentViewerModal isOpen={!!selectedDoc} onClose={() => setSelectedDoc(null)} doctor={selectedDoc} toast={toast} onApprove={(id) => setVerifications(prev => prev.filter(v => v.id !== id))} />
+      <DocumentViewerModal isOpen={!!selectedDoc} onClose={() => setSelectedDoc(null)} doctor={selectedDoc} toast={toast} onResolve={(id, status) => setVerifications(prev => prev.filter(v => v.id !== id))} />
       <RefundModal isOpen={!!selectedRefund} onClose={() => setSelectedRefund(null)} refund={selectedRefund} toast={toast} onProcess={(id) => setRefunds(prev => prev.filter(r => r.id !== id))} />
       <TicketModal isOpen={!!selectedTicket} onClose={() => setSelectedTicket(null)} ticket={selectedTicket} toast={toast} onResolve={(id) => setTickets(prev => prev.filter(t => t.id !== id))} />
     </div>

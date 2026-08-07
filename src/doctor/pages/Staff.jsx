@@ -140,7 +140,12 @@ function DoctorStaff() {
 
         {tab === 'staff' && (
           <div className="divide-y divide-slate-50">
-            {staff.map(s => (
+            {staff.length === 0 ? (
+              <div className="text-center py-12 text-slate-400">
+                <i className="fas fa-user-group text-3xl mb-2 block text-slate-300"></i>
+                <p className="font-bold text-sm">No team members added yet</p>
+              </div>
+            ) : staff.map(s => (
               <div key={s.id} className="p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 hover:bg-slate-50 transition-colors group">
                 <div className="relative flex-shrink-0">
                   <div className="w-12 h-12 rounded-2xl bg-aubergine-100 text-aubergine-700 font-black text-base flex items-center justify-center">
@@ -169,7 +174,7 @@ function DoctorStaff() {
                   <button onClick={() => setEditTarget(s)} className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 hover:bg-aubergine-50 hover:text-aubergine-600 flex items-center justify-center transition-colors border border-slate-200" title="Edit">
                     <i className="fas fa-pen text-xs"></i>
                   </button>
-                  <button onClick={() => setRemoveTarget(s)} className="opacity-0 group-hover:opacity-100 w-9 h-9 rounded-full bg-rose-50 text-rose-500 hover:bg-rose-100 flex items-center justify-center transition-all border border-rose-100" title="Remove">
+                  <button onClick={() => setRemoveTarget(s)} aria-label="Remove team member" className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 w-9 h-9 rounded-full bg-rose-50 text-rose-500 hover:bg-rose-100 flex items-center justify-center transition-all border border-rose-100" title="Remove">
                     <i className="fas fa-trash text-xs"></i>
                   </button>
                 </div>

@@ -27,26 +27,45 @@ function FilePreviewModal({ file, onClose, onDownload }) {
   return (
     <Modal isOpen={!!file} onClose={onClose} title={file.name} size="lg">
       <div className="space-y-4">
-        <div className="bg-slate-100 rounded-2xl aspect-video flex flex-col items-center justify-center gap-3 border border-slate-200">
-          <i className={`fas ${file.icon} text-6xl ${file.color.split(' ')[1]}`}></i>
-          <p className="text-sm text-slate-500 font-medium">{file.name}</p>
-          <p className="text-xs text-slate-400">{file.size} • {file.date}</p>
+        {/* Document Header Metadata Bar */}
+        <div className="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs font-mono">
+          <span className="flex items-center gap-2 text-emerald-400 font-bold">
+            <i className="fas fa-shield-check"></i> Verified Clinical Document
+          </span>
+          <span className="text-slate-400">LOINC: 2986-8 (Endocrine Panel)</span>
         </div>
-        <div className="grid grid-cols-2 gap-3 text-xs">
+
+        <div className="bg-slate-100 rounded-2xl aspect-video flex flex-col items-center justify-center gap-3 border border-slate-200 relative overflow-hidden group">
+          <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-xs px-3 py-1 rounded-lg text-xs font-bold text-slate-700 shadow-xs border border-slate-200">
+            <i className="fas fa-microscope text-aubergine-600 mr-1.5"></i> Pathology & Clinical Diagnostics
+          </div>
+          <i className={`fas ${file.icon} text-6xl ${file.color.split(' ')[1]}`}></i>
+          <p className="text-sm text-slate-700 font-bold">{file.name}</p>
+          <p className="text-xs text-slate-400">{file.size} • Uploaded {file.date}</p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 text-xs">
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <p className="text-slate-400 font-bold mb-0.5">Laboratory</p>
+            <p className="text-slate-400 font-bold mb-0.5">Laboratory Provider</p>
             <p className="font-bold text-slate-800">{file.lab}</p>
           </div>
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <p className="text-slate-400 font-bold mb-0.5">Upload Date</p>
+            <p className="text-slate-400 font-bold mb-0.5">Upload & Verification</p>
             <p className="font-bold text-slate-800">{file.date}</p>
           </div>
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+            <p className="text-slate-400 font-bold mb-0.5">Security & Compliance</p>
+            <p className="font-bold text-emerald-700 flex items-center gap-1">
+              <i className="fas fa-lock text-[10px]"></i> AES-256 Encrypted
+            </p>
+          </div>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex gap-2 pt-2">
           <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-sm hover:bg-slate-50 transition-colors">Close</button>
           <button onClick={() => { onDownload(file.name); onClose(); }}
             className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-            <i className="fas fa-download"></i> Download
+            <i className="fas fa-download"></i> Download Original File
           </button>
         </div>
       </div>
@@ -114,7 +133,7 @@ function AddVaccineModal({ isOpen, onClose, onAdd }) {
 
 /* ─── Insurance Modal ────────────────────────── */
 function InsuranceModal({ isOpen, onClose, onSave }) {
-  const [form, setForm] = useState({ provider: 'Star Health Comprehensive', policy: 'SH-9823-1102', validity: '2025-12' });
+  const [form, setForm] = useState({ provider: 'Star Health Comprehensive', policy: 'SH-9823-1102', validity: '2026-12' });
   const handle = (k, v) => setForm(p => ({ ...p, [k]: v }));
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Update Insurance Policy" size="sm">
@@ -159,6 +178,8 @@ function PatientRecords() {
   const [conditions, setConditions] = useState(INITIAL_CONDITIONS);
   const [newAllergy, setNewAllergy] = useState('');
   const [showAllergyInput, setShowAllergyInput] = useState(false);
+  const [newCondition, setNewCondition] = useState('');
+  const [showConditionInput, setShowConditionInput] = useState(false);
   const [vaccines, setVaccines] = useState(INITIAL_VACCINES);
   const [showVaccineModal, setShowVaccineModal] = useState(false);
 
@@ -166,7 +187,7 @@ function PatientRecords() {
   const [contacts, setContacts] = useState(INITIAL_CONTACTS);
   const [showContactModal, setShowContactModal] = useState(false);
   const [showInsuranceModal, setShowInsuranceModal] = useState(false);
-  const [insurance, setInsurance] = useState({ provider: 'Star Health Comprehensive', policy: 'SH-9823-1102', validity: 'Dec 2025' });
+  const [insurance, setInsurance] = useState({ provider: 'Star Health Comprehensive', policy: 'SH-9823-1102', validity: 'Dec 2026' });
   const [deleteContactTarget, setDeleteContactTarget] = useState(null);
 
   const handleFileUpload = (e) => {
@@ -199,6 +220,15 @@ function PatientRecords() {
       toast(`Allergy "${newAllergy.trim()}" added to your profile.`, 'success');
       setNewAllergy('');
       setShowAllergyInput(false);
+    }
+  };
+
+  const addCondition = () => {
+    if (newCondition.trim()) {
+      setConditions(prev => [...prev, newCondition.trim()]);
+      toast(`Added "${newCondition.trim()}" to conditions.`, 'success');
+      setNewCondition('');
+      setShowConditionInput(false);
     }
   };
 
@@ -267,7 +297,7 @@ function PatientRecords() {
                       <p className="text-xs text-slate-500 mt-0.5">{doc.date} • {doc.lab}</p>
                       <p className="text-xs text-slate-400">{doc.size}</p>
                     </div>
-                    <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex flex-col gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity">
                       <button onClick={() => setPreviewFile(doc)} className="w-8 h-8 rounded-lg bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-600 flex items-center justify-center text-xs transition-colors" title="Preview">
                         <i className="fas fa-eye"></i>
                       </button>
@@ -328,9 +358,19 @@ function PatientRecords() {
                           <button onClick={() => { setConditions(prev => prev.filter(x => x !== c)); toast(`Removed "${c}" from conditions.`, 'info'); }} className="text-slate-400 hover:text-slate-600"><i className="fas fa-xmark text-[10px]"></i></button>
                         </span>
                       ))}
-                      <button onClick={() => { const c = prompt('Add condition:'); if (c) { setConditions(prev => [...prev, c]); toast(`Added "${c}"`, 'success'); } }}
-                        className="text-xs text-aubergine-600 font-bold flex items-center gap-1"><i className="fas fa-plus"></i> Add</button>
                     </div>
+                    {showConditionInput ? (
+                      <div className="flex gap-2 mt-2">
+                        <input value={newCondition} onChange={e => setNewCondition(e.target.value)} placeholder="Type condition..." onKeyDown={e => e.key === 'Enter' && addCondition()}
+                          className="flex-1 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-aubergine-300" autoFocus />
+                        <button onClick={addCondition} className="bg-aubergine-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Add</button>
+                        <button onClick={() => setShowConditionInput(false)} className="text-slate-400 hover:text-slate-600 px-2"><i className="fas fa-xmark"></i></button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setShowConditionInput(true)} className="mt-2 text-xs text-aubergine-600 hover:text-aubergine-700 font-bold flex items-center gap-1">
+                        <i className="fas fa-plus"></i> Add
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -415,8 +455,8 @@ function PatientRecords() {
                           className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 w-9 h-9 rounded-full flex items-center justify-center transition-colors border border-emerald-100">
                           <i className="fas fa-phone text-sm"></i>
                         </a>
-                        <button onClick={() => setDeleteContactTarget(i)}
-                          className="opacity-0 group-hover:opacity-100 bg-rose-50 text-rose-500 hover:bg-rose-100 w-9 h-9 rounded-full flex items-center justify-center transition-all border border-rose-100">
+                        <button onClick={() => setDeleteContactTarget(i)} aria-label="Remove contact"
+                          className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 bg-rose-50 text-rose-500 hover:bg-rose-100 w-9 h-9 rounded-full flex items-center justify-center transition-all border border-rose-100">
                           <i className="fas fa-trash text-xs"></i>
                         </button>
                       </div>

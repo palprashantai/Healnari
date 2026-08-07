@@ -8,14 +8,14 @@ function PatientProfile() {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('personal');
   const [form, setForm] = useState({
-    name:       user?.name       || 'Priya Sharma',
-    email:      user?.email      || 'priya@example.com',
-    phone:      user?.phone      || '+91 98765 43210',
-    dob:        user?.dob        || '1996-04-12',
+    name: user?.name || 'Priya Sharma',
+    email: user?.email || 'priya@example.com',
+    phone: user?.phone || '+91 98765 43210',
+    dob: user?.dob || '1996-04-12',
     bloodGroup: user?.bloodGroup || 'B+',
-    height:     user?.height     || '163',
-    weight:     user?.weight     || '64.5',
-    city:       user?.city       || 'Mumbai',
+    height: user?.height || '163',
+    weight: user?.weight || '64.5',
+    city: user?.city || 'Mumbai',
   });
   const [saved, setSaved] = useState(false);
   const [pwdForm, setPwdForm] = useState({ current: '', newPwd: '', confirm: '' });
@@ -252,7 +252,7 @@ function PatientProfile() {
                 <h4 className="font-bold text-slate-700 mb-3">Active Sessions</h4>
                 {[
                   { device: 'Chrome on Windows 11', location: 'Mumbai, IN', current: true },
-                  { device: 'FemCare iOS App', location: 'Mumbai, IN', current: false },
+                  { device: 'HealNari iOS App', location: 'Mumbai, IN', current: false },
                 ].map((s, i) => (
                   <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 mb-2">
                     <div>

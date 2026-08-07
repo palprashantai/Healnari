@@ -4,11 +4,11 @@ import { Modal } from '../../components/Modal.jsx';
 
 /* ─── Data ───────────────────────────────────── */
 const TEAM_MEMBERS = [
-  { id: 1, name: 'Dr. Ananya Mehta',   role: 'Reproductive Endocrinologist', specialty: 'Endocrinology', regNo: 'MCI-15201', exp: '15 Years', rating: 4.9, reviews: 184, fee: 799, lang: ['English', 'Hindi'], image: 'https://randomuser.me/api/portraits/women/68.jpg', about: 'Specializes in PCOS/PCOD reversal, insulin resistance protocols, and metabolic restoration.', ethos: ['Unmarried-Friendly', 'Weight-Neutral Care', 'Queer-Allied'], collab: 'Works alongside Dr. Sarah Mitchell to coordinate hormonal therapy and cycle restoration.', slots: ['Today 4:30 PM', 'Tomorrow 10:00 AM', 'Tomorrow 2:00 PM'], online: true },
+  { id: 1, name: 'Dr. Ananya Mehta', role: 'Reproductive Endocrinologist', specialty: 'Endocrinology', regNo: 'MCI-15201', exp: '15 Years', rating: 4.9, reviews: 184, fee: 799, lang: ['English', 'Hindi'], image: 'https://randomuser.me/api/portraits/women/68.jpg', about: 'Specializes in PCOS/PCOD reversal, insulin resistance protocols, and metabolic restoration.', ethos: ['Unmarried-Friendly', 'Weight-Neutral Care', 'Queer-Allied'], collab: 'Works alongside Dr. Sarah Mitchell to coordinate hormonal therapy and cycle restoration.', slots: ['Today 4:30 PM', 'Tomorrow 10:00 AM', 'Tomorrow 2:00 PM'], online: true },
   { id: 2, name: 'Dr. Sarah Mitchell', role: 'Lead Obstetrician & Gynaecologist', specialty: 'Gynaecology', regNo: 'MCI-29402', exp: '12 Years', rating: 4.9, reviews: 215, fee: 799, lang: ['English'], image: 'https://ui-avatars.com/api/?name=Sarah+Mitchell&background=e0e7ff&color=4338ca', about: 'Expert in menstrual irregularities, endometriosis management, and adolescent gynaecology.', ethos: ['Non-Judgmental Care', 'Trauma-Informed', 'Confidential Care'], collab: 'Coordinates metabolic lab panels with Dr. Ritu Khanna for holistic PCOS diagnosis.', slots: ['Today 5:00 PM', 'Thu 10:30 AM', 'Fri 11:00 AM'], online: true },
-  { id: 3, name: 'Dr. Ritu Khanna',    role: 'Consultant Endocrinologist', specialty: 'Endocrinology', regNo: 'MCI-92810', exp: '12 Years', rating: 4.8, reviews: 142, fee: 899, lang: ['English', 'Hindi', 'Punjabi'], image: 'https://randomuser.me/api/portraits/women/45.jpg', about: 'Specialist in Thyroid disorders, insulin sensitizing therapy, and hormonal profile management.', ethos: ['Evidence-Based', 'Root-Cause Focus', 'Body-Positive'], collab: 'Works with Dr. Shreya Verma to address hormone-induced alopecia and severe acne.', slots: ['Tomorrow 9:00 AM', 'Fri 3:00 PM'], online: false },
-  { id: 4, name: 'Dr. Shreya Verma',   role: 'Dermatologist & Trichologist', specialty: 'Dermatology', regNo: 'MCI-33821', exp: '10 Years', rating: 4.7, reviews: 98,  fee: 699, lang: ['English', 'Hindi'], image: 'https://randomuser.me/api/portraits/women/32.jpg', about: 'Expert in androgenetic alopecia (hair thinning) and hormonal cystic acne management.', ethos: ['Trauma-Informed', 'Clinical Skin Health', 'Confidential Care'], collab: 'Coordinates thyroid-related hair fall treatments alongside Dr. Ritu Khanna.', slots: ['Thu 1:00 PM', 'Fri 4:00 PM', 'Sat 10:00 AM'], online: true },
-  { id: 5, name: 'Dr. Priya Nair',     role: 'Reproductive & Sexual Health Expert', specialty: 'Sexual Health', regNo: 'MCI-77290', exp: '18 Years', rating: 4.9, reviews: 310, fee: 799, lang: ['English', 'Malayalam'], image: 'https://randomuser.me/api/portraits/women/89.jpg', about: 'Specializes in sexual health, pre-conception counselling, and fertility management.', ethos: ['LGBTQ+ Allied', 'Sex-Positive Care', 'Non-Judgmental Care'], collab: 'Works with Dr. Ananya Mehta to align ovulation tracking with fertility windows.', slots: ['Today 6:00 PM', 'Tomorrow 11:00 AM'], online: true },
+  { id: 3, name: 'Dr. Ritu Khanna', role: 'Consultant Endocrinologist', specialty: 'Endocrinology', regNo: 'MCI-92810', exp: '12 Years', rating: 4.8, reviews: 142, fee: 899, lang: ['English', 'Hindi', 'Punjabi'], image: 'https://randomuser.me/api/portraits/women/45.jpg', about: 'Specialist in Thyroid disorders, insulin sensitizing therapy, and hormonal profile management.', ethos: ['Evidence-Based', 'Root-Cause Focus', 'Body-Positive'], collab: 'Works with Dr. Shreya Verma to address hormone-induced alopecia and severe acne.', slots: ['Tomorrow 9:00 AM', 'Fri 3:00 PM'], online: false },
+  { id: 4, name: 'Dr. Shreya Verma', role: 'Dermatologist & Trichologist', specialty: 'Dermatology', regNo: 'MCI-33821', exp: '10 Years', rating: 4.7, reviews: 98, fee: 699, lang: ['English', 'Hindi'], image: 'https://randomuser.me/api/portraits/women/32.jpg', about: 'Expert in androgenetic alopecia (hair thinning) and hormonal cystic acne management.', ethos: ['Trauma-Informed', 'Clinical Skin Health', 'Confidential Care'], collab: 'Coordinates thyroid-related hair fall treatments alongside Dr. Ritu Khanna.', slots: ['Thu 1:00 PM', 'Fri 4:00 PM', 'Sat 10:00 AM'], online: true },
+  { id: 5, name: 'Dr. Priya Nair', role: 'Reproductive & Sexual Health Expert', specialty: 'Sexual Health', regNo: 'MCI-77290', exp: '18 Years', rating: 4.9, reviews: 310, fee: 799, lang: ['English', 'Malayalam'], image: 'https://randomuser.me/api/portraits/women/89.jpg', about: 'Specializes in sexual health, pre-conception counselling, and fertility management.', ethos: ['LGBTQ+ Allied', 'Sex-Positive Care', 'Non-Judgmental Care'], collab: 'Works with Dr. Ananya Mehta to align ovulation tracking with fertility windows.', slots: ['Today 6:00 PM', 'Tomorrow 11:00 AM'], online: true },
 ];
 
 const SPECIALTIES = ['All', 'Gynaecology', 'Endocrinology', 'Dermatology', 'Sexual Health'];
@@ -17,7 +17,7 @@ const SPECIALTIES = ['All', 'Gynaecology', 'Endocrinology', 'Dermatology', 'Sexu
 function Stars({ rating }) {
   return (
     <span className="flex items-center gap-0.5">
-      {[1,2,3,4,5].map(i => (
+      {[1, 2, 3, 4, 5].map(i => (
         <i key={i} className={`fas fa-star text-[10px] ${i <= Math.round(rating) ? 'text-amber-400' : 'text-slate-200'}`}></i>
       ))}
     </span>
@@ -110,7 +110,7 @@ function BookingModal({ doc, isOpen, onClose, toast }) {
             <div className="flex justify-between"><span className="text-slate-500">Slot</span><span className="font-bold text-slate-800">{slot}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Fee</span><span className="font-black text-aubergine-800">₹{doc.fee}</span></div>
             <p className="text-[10px] text-slate-400 pt-2 border-t border-slate-200">
-              🔒 HIPAA-compliant. Governed under NMC Telemedicine Guidelines, India.
+              🔒 Private & confidential. Governed under NMC Telemedicine Guidelines, India.
             </p>
           </div>
           <div className="flex gap-3">
@@ -265,7 +265,7 @@ function PatientDiscovery() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800">Collaborative Care Team</h1>
-          <p className="text-sm text-slate-500">FemCare's multidisciplinary team co-treats your PCOS and hormonal concerns.</p>
+          <p className="text-sm text-slate-500">HealNari's multidisciplinary team co-treats your PCOS and hormonal concerns.</p>
         </div>
         <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-sm">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>

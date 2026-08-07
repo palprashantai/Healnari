@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import { Tilt3D } from '../../components/Tilt3D.jsx';
 
 /* ─── Dummy Data ──────────────────────────────── */
 const INITIAL_CLINICS = [
-  { id: 'C-01', name: 'FemCare Bandra', city: 'Mumbai', doctors: 4, staff: 6, status: 'Active', revenue: '₹4.2L', rating: '4.8' },
-  { id: 'C-02', name: 'FemCare Andheri', city: 'Mumbai', doctors: 3, staff: 4, status: 'Active', revenue: '₹2.8L', rating: '4.5' },
-  { id: 'C-03', name: 'FemCare Indiranagar', city: 'Bengaluru', doctors: 5, staff: 8, status: 'Active', revenue: '₹5.1L', rating: '4.9' },
-  { id: 'C-04', name: 'FemCare HSR', city: 'Bengaluru', doctors: 0, staff: 2, status: 'Setup', revenue: '₹0', rating: '-' },
+  { id: 'C-01', name: 'HealNari Bandra', city: 'Mumbai', doctors: 4, staff: 6, status: 'Active', revenue: '₹4.2L', rating: '4.8' },
+  { id: 'C-02', name: 'HealNari Andheri', city: 'Mumbai', doctors: 3, staff: 4, status: 'Active', revenue: '₹2.8L', rating: '4.5' },
+  { id: 'C-03', name: 'HealNari Indiranagar', city: 'Bengaluru', doctors: 5, staff: 8, status: 'Active', revenue: '₹5.1L', rating: '4.9' },
+  { id: 'C-04', name: 'HealNari HSR', city: 'Bengaluru', doctors: 0, staff: 2, status: 'Setup', revenue: '₹0', rating: '-' },
 ];
 
 /* ─── Add Clinic Modal ───────────────────────── */
@@ -19,7 +20,7 @@ function ClinicModal({ isOpen, onClose, onSave }) {
       <div className="space-y-4">
         <div>
           <label className="text-xs font-bold text-slate-500 mb-1.5 block">Clinic Name</label>
-          <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. FemCare Whitefield"
+          <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. HealNari Whitefield"
             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-300" />
         </div>
         <div>
@@ -48,7 +49,7 @@ function AdminClinics() {
   const [showAdd, setShowAdd] = useState(false);
 
   const handleAdd = (form) => {
-    setClinics(prev => [...prev, { id: `C-0${prev.length + 1}`, name: form.name, city: form.city, doctors: 0, staff: 0, status: 'Setup', revenue: '₹0', rating: '-' }]);
+    setClinics(prev => [...prev, { id: `C-${String(prev.length + 1).padStart(2, '0')}`, name: form.name, city: form.city, doctors: 0, staff: 0, status: 'Setup', revenue: '₹0', rating: '-' }]);
     toast(`${form.name} created and marked as Setup phase.`, 'success');
   };
 
@@ -67,7 +68,8 @@ function AdminClinics() {
 
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
         {clinics.map(c => (
-          <div key={c.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-all flex flex-col h-full">
+          <Tilt3D key={c.id} max={5} className="h-full">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-all flex flex-col h-full">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="font-black text-slate-800 text-lg">{c.name}</h3>
@@ -98,6 +100,7 @@ function AdminClinics() {
               </button>
             </div>
           </div>
+          </Tilt3D>
         ))}
       </div>
 

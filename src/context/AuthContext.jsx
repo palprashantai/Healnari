@@ -21,13 +21,13 @@ const DEMO_PATIENT = {
 export const DEMO_DOCTOR = {
   role: 'doctor',
   name: 'Dr. Sarah Mitchell',
-  email: 'sarah.mitchell@femcare.app',
+  email: 'sarah.mitchell@healnari.app',
   phone: '+91 98765 00001',
   specialty: 'Gynaecology & Obstetrics',
   qualification: 'MBBS, MD (OBG)',
   regNo: 'MCI-29402',
   experience: '12 Years',
-  clinicName: 'FemCare Women\'s Clinic — Bandra',
+  clinicName: 'HealNari Women\'s Clinic — Bandra',
   clinicAddress: 'Shop 4, Mehta Plaza, Bandra West, Mumbai — 400050',
   consultFee: 799,
   bio: 'Expert in menstrual irregularities, endometriosis, adolescent gynaecology, and PCOS reversal protocols.',
@@ -36,7 +36,7 @@ export const DEMO_DOCTOR = {
 export const DEMO_ADMIN = {
   role: 'admin',
   name: 'System Administrator',
-  email: 'admin@femcare.app',
+  email: 'admin@healnari.app',
   accessLevel: 'Super Admin',
   region: 'India Operations',
 };
@@ -51,55 +51,55 @@ export function AuthProvider({ children }) {
     const isDoctor  = window.location.pathname.startsWith('/doctor-dashboard');
     const isPatient = window.location.pathname.startsWith('/patient-dashboard');
 
-    const storedUser = localStorage.getItem('femcare_user');
+    const storedUser = localStorage.getItem('healnari_user');
     if (storedUser) {
       try {
         const parsed = JSON.parse(storedUser);
         // If role doesn't match the URL, swap to the correct demo user
         if (isAdmin && parsed.role !== 'admin') {
           setUser(DEMO_ADMIN);
-          localStorage.setItem('femcare_user', JSON.stringify(DEMO_ADMIN));
+          localStorage.setItem('healnari_user', JSON.stringify(DEMO_ADMIN));
         } else if (isDoctor && parsed.role !== 'doctor') {
           setUser(DEMO_DOCTOR);
-          localStorage.setItem('femcare_user', JSON.stringify(DEMO_DOCTOR));
+          localStorage.setItem('healnari_user', JSON.stringify(DEMO_DOCTOR));
         } else if (isPatient && parsed.role !== 'patient') {
           setUser(DEMO_PATIENT);
-          localStorage.setItem('femcare_user', JSON.stringify(DEMO_PATIENT));
+          localStorage.setItem('healnari_user', JSON.stringify(DEMO_PATIENT));
         } else {
           setUser(parsed);
         }
       } catch (e) {
         const demo = isAdmin ? DEMO_ADMIN : isDoctor ? DEMO_DOCTOR : DEMO_PATIENT;
         setUser(demo);
-        localStorage.setItem('femcare_user', JSON.stringify(demo));
+        localStorage.setItem('healnari_user', JSON.stringify(demo));
       }
     } else {
       const demo = isAdmin ? DEMO_ADMIN : isDoctor ? DEMO_DOCTOR : DEMO_PATIENT;
       setUser(demo);
-      localStorage.setItem('femcare_user', JSON.stringify(demo));
+      localStorage.setItem('healnari_user', JSON.stringify(demo));
     }
     setLoading(false);
   }, []);
 
   const login = (userData) => {
     setUser(userData);
-    localStorage.setItem('femcare_user', JSON.stringify(userData));
+    localStorage.setItem('healnari_user', JSON.stringify(userData));
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('femcare_user');
+    localStorage.removeItem('healnari_user');
     // Re-set demo user after brief delay to allow redirect then re-login
     setTimeout(() => {
       setUser(DEMO_PATIENT);
-      localStorage.setItem('femcare_user', JSON.stringify(DEMO_PATIENT));
+      localStorage.setItem('healnari_user', JSON.stringify(DEMO_PATIENT));
     }, 1500);
   };
 
   const updateUser = (updates) => {
     const updated = { ...user, ...updates };
     setUser(updated);
-    localStorage.setItem('femcare_user', JSON.stringify(updated));
+    localStorage.setItem('healnari_user', JSON.stringify(updated));
   };
 
   const value = { user, login, logout, updateUser, loading };

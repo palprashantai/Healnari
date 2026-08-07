@@ -2,6 +2,7 @@ import React from 'react';
 
 function SuccessModal({ details, onClose }) {
   React.useEffect(() => {
+    if (!details) return;
     const handleKey = (e) => {
       if (e.key === 'Escape') onClose();
     };
@@ -11,17 +12,22 @@ function SuccessModal({ details, onClose }) {
       document.removeEventListener('keydown', handleKey);
       document.body.style.overflow = '';
     };
-  }, [onClose]);
+  }, [onClose, details]);
+
+  if (!details) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[9000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="success-modal-title"
     >
       <div className="bg-white rounded-3xl w-full max-w-md p-8 text-center space-y-6 shadow-2xl border border-slate-100 animate-slide-up">
-        
+
+        {/* Brand mark */}
+        <img src="/brand/logo-full.jpg" alt="HealNari" className="w-36 mx-auto rounded-2xl object-cover shadow-sm border border-slate-100" />
+
         {/* Animated Checkmark Circle */}
         <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full mx-auto flex items-center justify-center text-3xl shadow-sm shadow-emerald-50">
           <i className="fas fa-circle-check"></i>
@@ -57,16 +63,16 @@ function SuccessModal({ details, onClose }) {
 
         {/* Actions */}
         <div className="space-y-3 pt-2">
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="w-full bg-brand-700 hover:bg-brand-800 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-100 transition-all btn-interactive"
           >
             Back to Home
           </button>
-          
+
           <div className="flex justify-center gap-4 text-[10px] font-bold text-slate-400">
             <span><i className="fas fa-video text-brand-500 mr-1"></i> Zoom/Meet Video</span>
-            <span><i className="fas fa-lock text-brand-500 mr-1"></i> HIPAA Encrypted</span>
+            <span><i className="fas fa-lock text-brand-500 mr-1"></i> Private & Confidential</span>
           </div>
         </div>
 
