@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { ClinicDataProvider } from './context/ClinicDataContext.jsx';
 import { ToastProvider } from './components/Toast.jsx';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 const LandingPage = lazy(() => import('./landing/pages/LandingPage.jsx'));
 const GuidePage = lazy(() => import('./landing/pages/GuidePage.jsx'));
@@ -195,6 +196,7 @@ function App() {
             <CookieBanner />
           </Suspense>
         </Router>
+        <SpeedInsights />
       </ToastProvider>
       </ClinicDataProvider>
     </AuthProvider>
