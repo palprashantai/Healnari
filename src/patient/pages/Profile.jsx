@@ -138,7 +138,7 @@ function PatientProfile() {
                     <div key={n.label} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
                       <div>
                         <p className="text-sm font-bold text-slate-700">{n.label}</p>
-                        <p className="text-xs text-slate-400">{n.sub}</p>
+                        <p className="text-xs text-slate-500">{n.sub}</p>
                       </div>
                       <button onClick={() => { n.set(!n.state); toast(`${n.label} ${!n.state ? 'enabled' : 'disabled'}.`, 'info'); }}
                         className={`w-12 h-6 rounded-full relative transition-all border ${n.state ? 'bg-aubergine-600 border-aubergine-600' : 'bg-slate-200 border-slate-300'}`}>
@@ -194,7 +194,7 @@ function PatientProfile() {
                       <div className="text-3xl font-black text-slate-800">{bmi}</div>
                       <div>
                         <p className={`text-sm font-bold ${catColor}`}>{category}</p>
-                        <p className="text-xs text-slate-400">BMI Index</p>
+                        <p className="text-xs text-slate-500">BMI Index</p>
                       </div>
                     </div>
                   );
@@ -260,7 +260,7 @@ function PatientProfile() {
                         {s.device}
                         {s.current && <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded">Current</span>}
                       </p>
-                      <p className="text-xs text-slate-400">{s.location}</p>
+                      <p className="text-xs text-slate-500">{s.location}</p>
                     </div>
                     {!s.current && (
                       <button onClick={() => toast('Session terminated.', 'success')} className="text-rose-500 hover:text-rose-700 text-xs font-bold">Revoke</button>

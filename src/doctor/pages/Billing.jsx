@@ -138,7 +138,7 @@ function DoctorBilling() {
           <div key={e.label} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="text-xs font-semibold text-slate-500 mb-1">{e.label}</div>
             <div className="text-2xl font-black text-slate-800 mb-1">{e.value}</div>
-            <div className="text-xs text-slate-400">{e.sub}</div>
+            <div className="text-xs text-slate-500">{e.sub}</div>
             {e.up !== null && (
               <div className={`text-xs font-bold mt-2 flex items-center gap-1 ${e.up ? 'text-emerald-600' : 'text-rose-500'}`}>
                 <i className={`fas fa-arrow-${e.up ? 'up' : 'down'} text-[10px]`}></i> {e.trend}
@@ -153,7 +153,7 @@ function DoctorBilling() {
         <div className="p-5 border-b border-slate-100 flex flex-wrap gap-3 items-center justify-between">
           <div className="flex gap-2 flex-wrap items-center">
             <div className="relative">
-              <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+              <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient or ID..."
                 className="pl-8 pr-4 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-aubergine-300 w-44" />
             </div>
@@ -177,7 +177,7 @@ function DoctorBilling() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="bg-slate-50 text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100">
+              <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wider border-b border-slate-100">
                 <th className="px-5 py-3 font-semibold">ID</th>
                 <th className="px-5 py-3 font-semibold">Patient</th>
                 <th className="px-5 py-3 font-semibold">Date</th>
@@ -191,7 +191,7 @@ function DoctorBilling() {
             <tbody className="divide-y divide-slate-50">
               {filtered.map(t => (
                 <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-4 font-mono text-xs text-slate-400">{t.id}</td>
+                  <td className="px-5 py-4 font-mono text-xs text-slate-500">{t.id}</td>
                   <td className="px-5 py-4 font-bold text-slate-800">{t.patient}</td>
                   <td className="px-5 py-4 text-slate-500 text-xs whitespace-nowrap">{t.date}</td>
                   <td className="px-5 py-4 text-xs"><span className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-full font-bold">{t.type}</span></td>
@@ -208,7 +208,7 @@ function DoctorBilling() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={8} className="px-5 py-10 text-center text-sm text-slate-400">No transactions match this filter.</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-sm text-slate-500">No transactions match this filter.</td></tr>
               )}
             </tbody>
           </table>

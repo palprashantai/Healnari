@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { HealNariLogo } from '../../components/HealNariLogo.jsx';
 import { PageTransition } from '../../components/PageTransition.jsx';
 import { NavHoverRail } from '../../components/NavHoverRail.jsx';
 import { ModuleAccentBar } from '../../components/ModuleAccentBar.jsx';
+import AiChatWidget from '../../tools/AiChatWidget.jsx';
 
 const DEFAULT_ACCENT = '#6B46C1';
 
@@ -24,8 +26,10 @@ const NAV_ITEMS = [
   { name: 'My Profile',       icon: 'fa-circle-user',         path: '/doctor-dashboard/profile',      end: false, color: '#64748b' },
 ];
 
+// System / informational feed only — urgent clinical items (labs needing a decision)
+// live exclusively in the Clinical Alerts drawer so the same event isn't triaged twice.
 const NOTIFICATIONS = [
-  { id: 1, icon: 'fa-flask',            color: 'text-amber-500', title: 'Lab Result Ready',        body: 'Priya Sharma — Thyroid Panel received.',          time: '10 min ago',  read: false },
+  { id: 1, icon: 'fa-user-plus',        color: 'text-sky-500',   title: 'New Patient Registered',  body: 'Divya Menon completed onboarding and profile setup.', time: '10 min ago',  read: false },
   { id: 2, icon: 'fa-calendar-check',   color: 'text-sky-500',   title: 'New Booking Request',     body: 'Riya Patel has requested a video consult.',        time: '32 min ago',  read: false },
   { id: 3, icon: 'fa-pills',            color: 'text-rose-500',  title: 'Refill Request',          body: 'Kavita Patel needs Norethisterone 5mg refill.',    time: '1 hr ago',    read: false },
   { id: 4, icon: 'fa-video',            color: 'text-emerald-500',title: 'Call Starting Soon',     body: 'Video call with Anita Desai at 10:00 AM.',        time: '2 hr ago',    read: true  },
@@ -59,14 +63,14 @@ function NotificationPanel({ isOpen, onClose, notifications, setNotifications })
                   {!n.read && <div className="w-2 h-2 bg-aubergine-600 rounded-full flex-shrink-0 mt-0.5"></div>}
                 </div>
                 <p className="text-xs text-slate-500 leading-relaxed mt-0.5">{n.body}</p>
-                <p className="text-[10px] text-slate-400 mt-1">{n.time}</p>
+                <p className="text-[10px] text-slate-500 mt-1">{n.time}</p>
               </div>
             </div>
           </div>
         ))}
       </div>
       <div className="px-5 py-3 border-t border-slate-100">
-        <button onClick={onClose} className="w-full text-xs text-center text-slate-400 hover:text-aubergine-600 font-medium transition-colors">Close</button>
+        <button onClick={onClose} className="w-full text-xs text-center text-slate-500 hover:text-aubergine-600 font-medium transition-colors">Close</button>
       </div>
     </div>
   );
@@ -147,6 +151,7 @@ function DoctorLayout() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const toast     = useToast();
+  const { patients } = useClinicData();
 
   const [drawerOpen, setDrawerOpen]       = useState(false);
   const [notifOpen, setNotifOpen]         = useState(false);
@@ -157,40 +162,85 @@ function DoctorLayout() {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const ALL_PATIENTS = ['Priya Sharma', 'Anita Desai', 'Kavita Patel', 'Aisha Khan', 'Sunita Desai', 'Divya Menon'];
+  // Patients actually opened this session, most-recent first — feeds the "Switch Patient"
+  // shortcut so it's a real recency list rather than a second copy of the full directory
+  // the search box already covers.
+  const [recentPatients, setRecentPatients] = useState(['Priya Sharma']);
+  const trackRecent = (name) => setRecentPatients(prev => [name, ...prev.filter(p => p !== name)].slice(0, 5));
 
-  // Deterministic per-patient MRN so the same patient always shows the same chart number
-  const mrnFor = (name) => {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-    return `HN-${100000 + (hash % 900000)}`;
+  const formatDob = (iso) => iso ? new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+
+  // Builds the 2-identifier banner shape from a real roster record, so the name,
+  // MRN, DOB, and allergy list shown here always match the patient's own EMR.
+  const toActivePatient = (patient) => {
+    if (!patient) return {
+      name: 'No Patient Selected', dob: '—', mrn: '—', age: '—', bloodGroup: '—',
+      allergies: [], alerts: []
+    };
+    return {
+      name: patient.name,
+      dob: formatDob(patient.dob),
+      mrn: patient.mrn,
+      age: `${patient.age}F`,
+      bloodGroup: patient.blood,
+      allergies: patient.allergies && patient.allergies.length ? patient.allergies : ['None recorded'],
+      alerts: [patient.alert || 'No active clinical flags'],
+    };
   };
+
+  // Measures the combined height of the topbar + patient-context bar so the Clinical
+  // Alert drawer can anchor below it precisely, even if the bar wraps to two lines on
+  // a narrower viewport, instead of assuming a fixed pixel offset.
+  const chromeRef = useRef(null);
+  const [chromeHeight, setChromeHeight] = useState(112);
+  useLayoutEffect(() => {
+    const el = chromeRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const update = () => setChromeHeight(el.offsetHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // The full patient-context bar (allergy/risk chips, DOB, blood group) only earns its
+  // space on screens actually scoped to one patient; elsewhere it collapses to one line.
+  const PATIENT_SCOPED_PREFIXES = ['/doctor-dashboard/patients', '/doctor-dashboard/prescriptions', '/doctor-dashboard/telemedicine', '/doctor-dashboard/reports'];
+  const isPatientScoped = PATIENT_SCOPED_PREFIXES.some(p => location.pathname.startsWith(p));
 
   const handleSearch = (val) => {
     setSearch(val);
     if (!val.trim()) { setSearchResults([]); return; }
-    setSearchResults(ALL_PATIENTS.filter(p => p.toLowerCase().includes(val.toLowerCase())));
+    const q = val.toLowerCase();
+    setSearchResults(patients.filter(p => p.name.toLowerCase().includes(q) || p.mrn.toLowerCase().includes(q)));
   };
 
-  // Active Patient context for 2-Identifier Banner
-  const [activePatient, setActivePatient] = useState({
-    name: 'Priya Sharma',
-    dob: '14 May 1996',
-    mrn: 'HN-882910',
-    age: '28F',
-    bloodGroup: 'O+',
-    allergies: ['Penicillin'],
-    alerts: ['Elevated TSH 5.2 mIU/L', 'Fasting Insulin 18 mIU/L']
-  });
+  // Active Patient context for 2-Identifier Banner — seeded from the real roster.
+  const [activePatient, setActivePatient] = useState(() => toActivePatient(patients.find(p => p.name === 'Priya Sharma') || patients[0]));
+
+  useEffect(() => {
+    if (activePatient.name === 'No Patient Selected' && patients.length > 0) {
+      setActivePatient(toActivePatient(patients[0]));
+    }
+  }, [patients, activePatient.name]);
 
   const [activePatientMenu, setActivePatientMenu] = useState(false);
   const [alertDrawerOpen, setAlertDrawerOpen]     = useState(false);
 
-  const URGENT_CLINICAL_ALERTS = [
-    { id: 1, patient: 'Priya Sharma',  test: 'Full Thyroid Panel + CBC', received: '10 mins ago', urgent: true,  values: 'Hb: 7.2 g/dL (Low), Ferritin: 8 ng/mL (Low)' },
-    { id: 2, patient: 'Meera Nair',    test: 'AMH + LH + FSH Profile',  received: '2 hrs ago',   urgent: false, values: 'LH/FSH ratio 2.8 (PCOS pattern)' },
-    { id: 3, patient: 'Sunita Desai',  test: 'Fasting Insulin + HbA1c', received: 'Yesterday',   urgent: false, values: 'HbA1c: 6.1% (Prediabetes range)' },
-  ];
+  // Clinical Alerts is reserved for values that need an immediate decision. Routine
+  // pending labs (urgent: false) surface instead in the Pending Lab Reports card on the
+  // dashboard, so a result isn't triaged in two unrelated places at once. Drawn from
+  // each patient's own urgent lab reports and refill requests, so it can't reference
+  // anyone outside the real roster.
+  const urgentAlerts = patients.flatMap(p =>
+    p.reports.filter(r => r.urgent).map(r => ({
+      id: r.id,
+      patient: p.name,
+      test: r.testName,
+      received: r.date,
+      values: Object.entries(r.results).filter(([, v]) => v.status !== 'normal').map(([k, v]) => `${k}: ${v.value}`).join(', ') || 'See full report',
+    }))
+  );
 
   // Breadcrumb
   const crumbs = ['Doctor', ...location.pathname.split('/').filter(Boolean).slice(1)];
@@ -220,6 +270,7 @@ function DoctorLayout() {
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
         <ModuleAccentBar color={hoveredColor || DEFAULT_ACCENT} className="rounded-none" />
+        <div ref={chromeRef}>
         {/* Topbar */}
         <header className="h-16 border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0 bg-white shadow-xs z-20">
           <div className="flex items-center gap-3">
@@ -227,7 +278,7 @@ function DoctorLayout() {
               <i className="fas fa-bars text-xl"></i>
             </button>
             {/* Breadcrumb */}
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 font-medium">
               {crumbs.map((c, i) => (
                 <React.Fragment key={i}>
                   {i > 0 && <i className="fas fa-chevron-right text-[9px]"></i>}
@@ -240,22 +291,23 @@ function DoctorLayout() {
           <div className="flex items-center gap-3">
             {/* Patient Search */}
             <div className="relative hidden sm:block">
-              <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+              <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
               <input type="text" value={search} onChange={e => handleSearch(e.target.value)}
                 placeholder="Search patients by Name or MRN..."
                 className="pl-9 pr-4 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-aubergine-300 focus:ring-2 focus:ring-aubergine-100 transition-all outline-none w-64" />
               {searchResults.length > 0 && (
                 <div className="absolute top-full left-0 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
                   {searchResults.map(p => (
-                    <button key={p} onClick={() => {
-                      setActivePatient({ name: p, dob: '10 Feb 1994', mrn: mrnFor(p), age: '30F', bloodGroup: 'B+', allergies: ['Penicillin'], alerts: ['Review Lab Results'] });
+                    <button key={p.id} onClick={() => {
+                      setActivePatient(toActivePatient(p));
+                      trackRecent(p.name);
                       setSearch('');
                       setSearchResults([]);
-                      toast(`Active chart switched to ${p}`, 'info');
+                      toast(`Active chart switched to ${p.name}`, 'info');
                     }}
                     className="w-full px-4 py-2.5 text-left text-sm hover:bg-aubergine-50 flex items-center justify-between transition-colors">
-                      <span className="font-bold text-slate-800"><i className="fas fa-user text-slate-400 text-xs mr-2"></i>{p}</span>
-                      <span className="text-xs text-slate-400 font-mono">{mrnFor(p)}</span>
+                      <span className="font-bold text-slate-800"><i className="fas fa-user text-slate-500 text-xs mr-2"></i>{p.name}</span>
+                      <span className="text-xs text-slate-500 font-mono">{p.mrn}</span>
                     </button>
                   ))}
                 </div>
@@ -267,7 +319,9 @@ function DoctorLayout() {
               className={`relative px-3 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 border ${alertDrawerOpen ? 'bg-rose-600 text-white border-rose-600' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'}`}>
               <i className="fas fa-triangle-exclamation"></i>
               <span>Clinical Alerts</span>
-              <span className="bg-rose-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-black">{URGENT_CLINICAL_ALERTS.length}</span>
+              {urgentAlerts.length > 0 && (
+                <span className="bg-rose-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-black">{urgentAlerts.length}</span>
+              )}
             </button>
 
             {/* Notifications */}
@@ -297,63 +351,83 @@ function DoctorLayout() {
           </div>
         </header>
 
-        {/* Persistent 2-Identifier Patient Header Bar (Clinical Safety) */}
-        <div className="bg-gradient-to-r from-aubergine-900 via-slate-900 to-aubergine-900 text-white px-4 md:px-6 py-2 flex flex-wrap items-center justify-between gap-3 text-xs z-10 border-b border-aubergine-800/40 shadow-xs">
+        {/* Persistent 2-Identifier Patient Header Bar (Clinical Safety).
+            Full detail (allergy/risk chips) only on patient-scoped screens — elsewhere
+            it collapses to one line so it stops outweighing the page's own content. */}
+        <div className={`bg-gradient-to-r from-aubergine-900 via-slate-900 to-aubergine-900 text-white px-4 md:px-6 flex flex-wrap items-center justify-between gap-3 text-xs z-10 border-b border-aubergine-800/40 shadow-xs transition-all ${isPatientScoped ? 'py-2' : 'py-1.5'}`}>
           <div className="flex items-center gap-3">
             <span className="bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-500/30 flex items-center gap-1">
-              <i className="fas fa-lock text-[9px]"></i> Active Patient Context
+              <i className="fas fa-lock text-[9px]"></i> Active Patient
             </span>
             <div className="flex items-center gap-2 font-bold">
               <span className="text-white text-sm tracking-wide font-medium">{activePatient.name}</span>
               <span className="text-aubergine-300 font-mono text-[11px]">[{activePatient.mrn}]</span>
-              <span className="text-slate-400">• DOB: {activePatient.dob} ({activePatient.age})</span>
-              <span className="text-slate-400">• Blood: {activePatient.bloodGroup}</span>
+              {isPatientScoped && (
+                <>
+                  <span className="text-slate-400">• DOB: {activePatient.dob} ({activePatient.age})</span>
+                  <span className="text-slate-400">• Blood: {activePatient.bloodGroup}</span>
+                </>
+              )}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Allergy Flag */}
-            <div className="flex items-center gap-1.5 bg-rose-950/80 border border-rose-600/40 px-2.5 py-1 rounded-lg text-rose-300 font-medium">
-              <i className="fas fa-hand-dots text-rose-400"></i>
-              <span className="font-bold text-[11px]">Allergies:</span> {activePatient.allergies.join(', ')}
-            </div>
+            {isPatientScoped && (
+              <>
+                {/* Allergy Flag */}
+                <div className="flex items-center gap-1.5 bg-rose-950/80 border border-rose-600/40 px-2.5 py-1 rounded-lg text-rose-300 font-medium">
+                  <i className="fas fa-hand-dots text-rose-400"></i>
+                  <span className="font-bold text-[11px]">Allergies:</span> {activePatient.allergies.join(', ')}
+                </div>
 
-            {/* Risk Flag */}
-            <div className="flex items-center gap-1.5 bg-amber-950/80 border border-amber-600/40 px-2.5 py-1 rounded-lg text-amber-300 font-medium hidden lg:flex">
-              <i className="fas fa-triangle-exclamation text-amber-400"></i>
-              <span className="font-bold text-[11px]">Clinical Flag:</span> {activePatient.alerts[0]}
-            </div>
+                {/* Risk Flag */}
+                <div className="flex items-center gap-1.5 bg-amber-950/80 border border-amber-600/40 px-2.5 py-1 rounded-lg text-amber-300 font-medium hidden lg:flex">
+                  <i className="fas fa-triangle-exclamation text-amber-400"></i>
+                  <span className="font-bold text-[11px]">Clinical Flag:</span> {activePatient.alerts[0]}
+                </div>
+              </>
+            )}
 
-            {/* Quick Switch */}
+            {/* Quick Switch — recently opened charts; use the topbar search for anyone else */}
             <div className="relative">
               <button onClick={() => setActivePatientMenu(!activePatientMenu)} className="bg-white/10 hover:bg-white/20 text-white font-bold px-2.5 py-1 rounded-lg text-[11px] transition-colors flex items-center gap-1.5 border border-white/20">
-                <i className="fas fa-arrows-rotate text-[10px]"></i> Switch Patient
+                <i className="fas fa-clock-rotate-left text-[10px]"></i> Recent
               </button>
               {activePatientMenu && (
                 <div className="absolute right-0 top-full mt-1 w-64 bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
                   <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    Recent Patient Charts
+                    Recently Opened Charts
                   </div>
-                  {ALL_PATIENTS.map(p => (
-                    <button key={p} onClick={() => {
-                      setActivePatient({ name: p, dob: '22 Aug 1998', mrn: mrnFor(p), age: '26F', bloodGroup: 'A+', allergies: ['Sulfa Drugs'], alerts: ['Routine PCOS Review'] });
-                      setActivePatientMenu(false);
-                      toast(`Switched active context to ${p}`, 'info');
-                    }}
-                    className="w-full px-3 py-2 text-left text-xs hover:bg-aubergine-50 flex justify-between items-center transition-colors">
-                      <span className="font-bold text-slate-700">{p}</span>
-                      <span className="text-[10px] text-slate-400">Select</span>
-                    </button>
-                  ))}
+                  {recentPatients.map(name => {
+                    const p = patients.find(x => x.name === name);
+                    if (!p) return null;
+                    return (
+                      <button key={name} onClick={() => {
+                        setActivePatient(toActivePatient(p));
+                        trackRecent(p.name);
+                        setActivePatientMenu(false);
+                        toast(`Switched active context to ${p.name}`, 'info');
+                      }}
+                      className="w-full px-3 py-2 text-left text-xs hover:bg-aubergine-50 flex justify-between items-center transition-colors">
+                        <span className="font-bold text-slate-700">{p.name}</span>
+                        <span className="text-[10px] text-slate-500">Select</span>
+                      </button>
+                    );
+                  })}
+                  <div className="px-3 py-2 bg-slate-50 border-t border-slate-200 text-[11px] text-slate-500">
+                    Looking for someone else? Use <span className="font-bold text-aubergine-700">Search</span> above.
+                  </div>
                 </div>
               )}
             </div>
           </div>
         </div>
+        </div>
 
-        {/* Expandable Clinical Alert Drawer (Non-Modal for Zero Interruptive Context Switching) */}
+        {/* Expandable Clinical Alert Drawer (Non-Modal for Zero Interruptive Context Switching) —
+            urgent items only; routine pending labs live in the dashboard's own card. */}
         {alertDrawerOpen && (
-          <div className="absolute right-0 top-28 bottom-0 w-96 bg-white border-l border-slate-200 shadow-2xl z-40 flex flex-col animate-fade-in">
+          <div style={{ top: chromeHeight }} className="absolute right-0 bottom-0 w-96 bg-white border-l border-slate-200 shadow-2xl z-40 flex flex-col animate-fade-in">
             <div className="p-4 bg-rose-900 text-white flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <i className="fas fa-triangle-exclamation text-rose-300"></i>
@@ -364,11 +438,11 @@ function DoctorLayout() {
               </button>
             </div>
             <div className="p-4 flex-1 overflow-y-auto space-y-3">
-              {URGENT_CLINICAL_ALERTS.map(lab => (
-                <div key={lab.id} className={`p-4 rounded-xl border transition-all ${lab.urgent ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-200'}`}>
+              {urgentAlerts.map(lab => (
+                <div key={lab.id} className="p-4 rounded-xl border transition-all bg-rose-50 border-rose-200">
                   <div className="flex justify-between items-start mb-1">
                     <span className="font-bold text-slate-800 text-sm">{lab.patient}</span>
-                    <span className="text-[10px] text-slate-400 font-medium">{lab.received}</span>
+                    <span className="text-[10px] text-slate-500 font-medium">{lab.received}</span>
                   </div>
                   <p className="text-xs font-bold text-rose-700">{lab.test}</p>
                   <p className="text-xs text-slate-600 mt-1 bg-white/70 p-2 rounded-lg border border-slate-200/60 font-mono">{lab.values}</p>
@@ -382,6 +456,13 @@ function DoctorLayout() {
                   </div>
                 </div>
               ))}
+              {urgentAlerts.length === 0 && (
+                <div className="text-center py-10 text-slate-500">
+                  <i className="fas fa-circle-check text-2xl mb-2 block text-emerald-400"></i>
+                  <p className="text-xs font-medium">No urgent values right now.</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Routine pending labs are in the dashboard's Lab Reports card.</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -391,6 +472,8 @@ function DoctorLayout() {
           <PageTransition />
         </main>
       </div>
+
+      <AiChatWidget context="doctor" />
     </div>
   );
 }

@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 const CLOSE_ANIM_MS = 180;
+const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * Reusable Modal component
@@ -13,13 +14,17 @@ const CLOSE_ANIM_MS = 180;
  *   size       - 'sm' | 'md' | 'lg' | 'xl'  (default: 'md')
  *   noPadding  - skip inner padding (for custom layouts)
  */
-export function Modal({ isOpen, onClose, title, children, size = 'md', noPadding = false }) {
+export function Modal({ isOpen, onClose, title, ariaLabel, children, size = 'md', noPadding = false }) {
   const overlayRef = useRef(null);
+  const boxRef = useRef(null);
+  const lastFocusedRef = useRef(null);
+  const titleId = useId();
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [closing, setClosing] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      lastFocusedRef.current = document.activeElement;
       setShouldRender(true);
       setClosing(false);
     } else if (shouldRender) {
@@ -29,9 +34,39 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', noPadding
     }
   }, [isOpen]);
 
+  // Move focus into the dialog on open, and back to the trigger on close.
+  useEffect(() => {
+    if (!shouldRender) {
+      lastFocusedRef.current?.focus?.();
+      return;
+    }
+    const box = boxRef.current;
+    const target = box?.querySelector(FOCUSABLE_SELECTOR) || box;
+    target?.focus?.();
+  }, [shouldRender]);
+
   useEffect(() => {
     if (!shouldRender) return;
-    const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const handleKey = (e) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      if (e.key !== 'Tab') return;
+
+      const focusable = Array.from(boxRef.current?.querySelectorAll(FOCUSABLE_SELECTOR) || []);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      } else if (!boxRef.current?.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
     document.addEventListener('keydown', handleKey);
     document.body.style.overflow = 'hidden';
     return () => {
@@ -62,14 +97,21 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', noPadding
       style={{ animation: closing ? `overlayFadeOut ${CLOSE_ANIM_MS}ms ease-in both` : 'fadeIn 0.15s ease-out' }}
     >
       <div
-        className={`modal-box bg-white rounded-3xl w-full ${SIZE_CLASS[size]} shadow-2xl overflow-hidden border border-slate-100`}
+        ref={boxRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        aria-label={!title ? ariaLabel : undefined}
+        tabIndex={-1}
+        className={`modal-box bg-white rounded-3xl w-full ${SIZE_CLASS[size]} shadow-2xl overflow-hidden border border-slate-100 outline-none`}
         style={{ animation: closing ? `modalSlideDown ${CLOSE_ANIM_MS}ms ease-in both` : 'slideUp 0.2s ease-out' }}
       >
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-aubergine-900 to-aubergine-700">
-            <h3 className="font-black text-lg text-white">{title}</h3>
+            <h3 id={titleId} className="font-black text-lg text-white">{title}</h3>
             <button
               onClick={onClose}
+              aria-label="Close dialog"
               className="w-8 h-8 rounded-full text-white/70 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all"
             >
               <i className="fas fa-xmark"></i>
@@ -79,6 +121,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', noPadding
         {!title && (
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all"
           >
             <i className="fas fa-xmark text-sm"></i>
@@ -111,7 +154,7 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confi
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} size="sm" ariaLabel={title}>
       <div className="text-center space-y-4">
         <div className={`w-14 h-14 rounded-full mx-auto flex items-center justify-center text-2xl ${confirmStyle === 'danger' ? 'bg-rose-50 text-rose-500' : 'bg-aubergine-50 text-aubergine-600'}`}>
           <i className={`fas ${confirmStyle === 'danger' ? 'fa-triangle-exclamation' : 'fa-circle-question'}`}></i>

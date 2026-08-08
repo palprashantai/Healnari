@@ -143,7 +143,7 @@ function DoctorCallModal({ isOpen, onClose, patient, toast }) {
             <p className="text-sm text-emerald-600 font-semibold mt-1 flex items-center justify-center gap-1.5">
               <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Patient is waiting
             </p>
-            <p className="text-xs text-slate-400 mt-1">{patient?.type} • {patient?.time}</p>
+            <p className="text-xs text-slate-500 mt-1">{patient?.type} • {patient?.time}</p>
           </div>
           <button onClick={() => { setActive(true); toast('Connected to patient!', 'success'); }}
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl text-base transition-all flex items-center justify-center gap-3 shadow-lg">
@@ -158,13 +158,13 @@ function DoctorCallModal({ isOpen, onClose, patient, toast }) {
                 {patient?.name?.split(' ').map(n => n[0]).join('')}
               </div>
               <p className="font-bold">{patient?.name}</p>
-              <p className="text-slate-400 text-xs mt-1">● Live</p>
+              <p className="text-slate-500 text-xs mt-1">● Live</p>
             </div>
             <div className="absolute top-3 right-3 bg-white/10 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/20">
               <i className="fas fa-clock mr-1"></i> <span>00:00</span>
             </div>
             <div className="absolute bottom-3 right-3 w-24 h-16 bg-slate-700 rounded-xl border border-white/10 flex items-center justify-center text-white text-xs font-bold">
-              {vidOff ? <i className="fas fa-video-slash text-slate-400 text-xl"></i> : 'You'}
+              {vidOff ? <i className="fas fa-video-slash text-slate-500 text-xl"></i> : 'You'}
             </div>
           </div>
           <div className="flex items-center justify-center gap-4">
@@ -344,7 +344,7 @@ function DoctorAppointments() {
         <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-3 bg-white justify-between items-center">
           <div className="flex gap-3 flex-1 w-full max-w-md">
             <div className="relative flex-1">
-              <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+              <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient or token..."
                 className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white" />
             </div>
@@ -365,7 +365,7 @@ function DoctorAppointments() {
             {showActionsMenu && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
                 <div className="px-3 py-1.5 mb-1">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Messaging</p>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p>
                 </div>
                 <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
@@ -392,7 +392,7 @@ function DoctorAppointments() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm border-collapse">
             <thead>
-              <tr className="bg-slate-50 text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100">
+              <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wider border-b border-slate-100">
                 <th className="px-5 py-3 w-10">
                   <label className="flex items-center justify-center cursor-pointer">
                     <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedIds.length > 0 && selectedIds.length === filteredData.length ? 'bg-aubergine-600 border-aubergine-600 text-white' : selectedIds.length > 0 ? 'bg-aubergine-100 border-aubergine-300 text-aubergine-600' : 'bg-white border-slate-300'}`}>
@@ -426,7 +426,7 @@ function DoctorAppointments() {
                   </td>
                   <td className="px-5 py-4">
                     <div className="font-bold text-slate-800">{p.name}</div>
-                    <div className="text-xs text-slate-400">{p.age}</div>
+                    <div className="text-xs text-slate-500">{p.age}</div>
                   </td>
                   <td className="px-5 py-4 text-xs"><span className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-full font-bold">{p.type}</span></td>
                   <td className="px-5 py-4 font-bold text-aubergine-700 text-xs whitespace-nowrap">{p.time}</td>
@@ -436,7 +436,7 @@ function DoctorAppointments() {
                     </span>
                   </td>
                   <td className="px-5 py-4">
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[p.status] || 'bg-slate-100 text-slate-400 border-slate-200'}`}>{p.status}</span>
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[p.status] || 'bg-slate-100 text-slate-500 border-slate-200'}`}>{p.status}</span>
                   </td>
                   <td className="px-5 py-4 text-right">
                     <div className="flex justify-end gap-2">
@@ -456,7 +456,7 @@ function DoctorAppointments() {
                 </tr>
               ))}
               {tab === 'queue' && filteredData.length === 0 && (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-400">No patients match your filters.</td></tr>
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-500">No patients match your filters.</td></tr>
               )}
 
               {tab === 'requests' && filteredData.map(r => (
@@ -471,7 +471,7 @@ function DoctorAppointments() {
                   </td>
                   <td className="px-5 py-4">
                     <div className="font-bold text-slate-800">{r.name}</div>
-                    <div className="text-xs text-slate-400">{r.age}</div>
+                    <div className="text-xs text-slate-500">{r.age}</div>
                   </td>
                   <td className="px-5 py-4 text-xs"><span className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-full font-bold">{r.type}</span></td>
                   <td className="px-5 py-4 font-bold text-aubergine-700 text-xs whitespace-nowrap">{r.date} • {r.time}</td>
@@ -489,7 +489,7 @@ function DoctorAppointments() {
                 </tr>
               ))}
               {tab === 'requests' && filteredData.length === 0 && (
-                <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-400">No new appointment requests match your filters.</td></tr>
+                <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-500">No new appointment requests match your filters.</td></tr>
               )}
 
               {tab === 'past' && filteredData.map(p => (
@@ -504,7 +504,7 @@ function DoctorAppointments() {
                   </td>
                   <td className="px-5 py-4">
                     <div className="font-bold text-slate-800">{p.name}</div>
-                    <div className="text-xs text-slate-400">{p.age}</div>
+                    <div className="text-xs text-slate-500">{p.age}</div>
                   </td>
                   <td className="px-5 py-4 text-xs"><span className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-full font-bold">{p.type}</span></td>
                   <td className="px-5 py-4 font-bold text-aubergine-700 text-xs whitespace-nowrap">{p.date}</td>
@@ -521,7 +521,7 @@ function DoctorAppointments() {
                 </tr>
               ))}
               {tab === 'past' && filteredData.length === 0 && (
-                <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-400">No past consultations match your filters.</td></tr>
+                <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-500">No past consultations match your filters.</td></tr>
               )}
             </tbody>
           </table>

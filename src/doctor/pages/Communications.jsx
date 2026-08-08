@@ -191,7 +191,7 @@ function DoctorCommunications() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full min-h-[500px]">
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl flex items-center justify-between">
               <h2 className="font-bold text-slate-800">Message Editor</h2>
-              <span className="text-xs text-slate-400 font-mono">Use [Name] for dynamic tagging</span>
+              <span className="text-xs text-slate-500 font-mono">Use [Name] for dynamic tagging</span>
             </div>
             
             <div className="p-6 flex-1 flex flex-col space-y-4">
@@ -259,7 +259,7 @@ function DoctorCommunications() {
             <tbody className="divide-y divide-slate-100">
               {broadcastHistory.map(b => (
                 <tr key={b.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 font-mono text-xs text-slate-400">{b.id}</td>
+                  <td className="px-6 py-4 font-mono text-xs text-slate-500">{b.id}</td>
                   <td className="px-6 py-4 text-sm font-bold text-slate-700">{b.date}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{b.audience}</td>
                   <td className="px-6 py-4">

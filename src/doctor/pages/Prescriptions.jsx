@@ -196,7 +196,7 @@ function WriteRxModal({ isOpen, onClose, onSave }) {
 
                   {/* Quick schedule presets — tap instead of typing dose codes */}
                   <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Quick set:</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Quick set:</span>
                     {SCHEDULE_PRESETS.map(preset => (
                       <button key={preset} type="button" onClick={() => updateMed(i, 'schedule', preset)}
                         className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${med.schedule.startsWith(preset) ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-white text-slate-500 border-slate-200 hover:border-aubergine-300 hover:text-aubergine-600'}`}>
@@ -244,7 +244,7 @@ function WriteRxModal({ isOpen, onClose, onSave }) {
               </div>
               <div className="text-right text-xs text-slate-500">
                 <p>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
-                <p className="font-mono text-slate-400">RX-{Math.floor(Math.random() * 9000) + 1000}</p>
+                <p className="font-mono text-slate-500">RX-{Math.floor(Math.random() * 9000) + 1000}</p>
               </div>
             </div>
             <div className="text-xs space-y-1">
@@ -360,7 +360,7 @@ function DoctorPrescriptions() {
             </button>
             {showActionsMenu && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
-                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Messaging</p></div>
+                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p></div>
                 <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
                 </button>
@@ -399,7 +399,7 @@ function DoctorPrescriptions() {
 
       {/* Search */}
       <div className="relative">
-        <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+        <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient or diagnosis..."
           className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white shadow-sm" />
       </div>
@@ -410,7 +410,7 @@ function DoctorPrescriptions() {
           {STATUS_TABS.map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors ${tab === t ? 'bg-aubergine-700 text-white border-aubergine-700' : 'bg-white text-slate-500 border-slate-200 hover:border-aubergine-300 hover:text-aubergine-600'}`}>
-              {t} <span className={tab === t ? 'text-aubergine-200' : 'text-slate-400'}>({tabCount(t)})</span>
+              {t} <span className={tab === t ? 'text-aubergine-200' : 'text-slate-500'}>({tabCount(t)})</span>
             </button>
           ))}
         </div>
@@ -429,7 +429,7 @@ function DoctorPrescriptions() {
       {/* Rx Cards */}
       <div className="space-y-4">
         {filtered.length === 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-400">
+          <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-500">
             No prescriptions match this filter.
           </div>
         )}
@@ -452,11 +452,11 @@ function DoctorPrescriptions() {
                     {rx.refillRequested && <span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 font-bold px-2 py-0.5 rounded-full">Refill Requested</span>}
                   </div>
                   <p className="text-xs text-aubergine-700 font-bold">{rx.diagnosis}</p>
-                  <p className="text-[10px] text-slate-400">{rx.date} → Valid till {rx.validTill}</p>
+                  <p className="text-[10px] text-slate-500">{rx.date} → Valid till {rx.validTill}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="font-mono text-[10px] text-slate-400 border border-slate-200 px-2 py-0.5 rounded">{rx.id}</span>
+                <span className="font-mono text-[10px] text-slate-500 border border-slate-200 px-2 py-0.5 rounded">{rx.id}</span>
                 <RxStatusBadge rx={rx} />
               </div>
             </div>
@@ -467,7 +467,7 @@ function DoctorPrescriptions() {
                   <div key={i} className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs">
                     <div className="font-bold text-slate-800 mb-1.5">{m.name}</div>
                     <DoseSchedule schedule={m.schedule} />
-                    <div className={`mt-1.5 ${m.refillsLeft === 0 ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>
+                    <div className={`mt-1.5 ${m.refillsLeft === 0 ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
                       {m.duration} • {m.refillsLeft === 0 ? 'No refills left' : `${m.refillsLeft} refills left`}
                     </div>
                   </div>

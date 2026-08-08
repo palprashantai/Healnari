@@ -32,7 +32,7 @@ function FilePreviewModal({ file, onClose, onDownload }) {
           <span className="flex items-center gap-2 text-emerald-400 font-bold">
             <i className="fas fa-shield-check"></i> Verified Clinical Document
           </span>
-          <span className="text-slate-400">LOINC: 2986-8 (Endocrine Panel)</span>
+          <span className="text-slate-500">LOINC: 2986-8 (Endocrine Panel)</span>
         </div>
 
         <div className="bg-slate-100 rounded-2xl aspect-video flex flex-col items-center justify-center gap-3 border border-slate-200 relative overflow-hidden group">
@@ -41,20 +41,20 @@ function FilePreviewModal({ file, onClose, onDownload }) {
           </div>
           <i className={`fas ${file.icon} text-6xl ${file.color.split(' ')[1]}`}></i>
           <p className="text-sm text-slate-700 font-bold">{file.name}</p>
-          <p className="text-xs text-slate-400">{file.size} • Uploaded {file.date}</p>
+          <p className="text-xs text-slate-500">{file.size} • Uploaded {file.date}</p>
         </div>
 
         <div className="grid grid-cols-3 gap-3 text-xs">
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <p className="text-slate-400 font-bold mb-0.5">Laboratory Provider</p>
+            <p className="text-slate-500 font-bold mb-0.5">Laboratory Provider</p>
             <p className="font-bold text-slate-800">{file.lab}</p>
           </div>
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <p className="text-slate-400 font-bold mb-0.5">Upload & Verification</p>
+            <p className="text-slate-500 font-bold mb-0.5">Upload & Verification</p>
             <p className="font-bold text-slate-800">{file.date}</p>
           </div>
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <p className="text-slate-400 font-bold mb-0.5">Security & Compliance</p>
+            <p className="text-slate-500 font-bold mb-0.5">Security & Compliance</p>
             <p className="font-bold text-emerald-700 flex items-center gap-1">
               <i className="fas fa-lock text-[10px]"></i> AES-256 Encrypted
             </p>
@@ -289,7 +289,7 @@ function PatientRecords() {
               <input ref={fileInputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={handleFileUpload} />
 
               <div className="relative">
-                <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
                 <input value={docSearch} onChange={e => setDocSearch(e.target.value)} placeholder="Search documents or lab name..."
                   className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white shadow-sm" />
               </div>
@@ -297,7 +297,7 @@ function PatientRecords() {
               {/* Documents Grid */}
               <div className="grid md:grid-cols-2 gap-3">
                 {filteredDocs.length === 0 && (
-                  <div className="col-span-full text-center py-10 text-slate-400 text-sm border border-slate-200 rounded-xl bg-slate-50">
+                  <div className="col-span-full text-center py-10 text-slate-500 text-sm border border-slate-200 rounded-xl bg-slate-50">
                     No documents found matching "{docSearch}".
                   </div>
                 )}
@@ -309,7 +309,7 @@ function PatientRecords() {
                     <div className="flex-1 overflow-hidden">
                       <h4 className="font-bold text-slate-800 truncate text-sm">{doc.name}</h4>
                       <p className="text-xs text-slate-500 mt-0.5">{doc.date} • {doc.lab}</p>
-                      <p className="text-xs text-slate-400">{doc.size}</p>
+                      <p className="text-xs text-slate-500">{doc.size}</p>
                     </div>
                     <div className="flex flex-col gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity">
                       <button onClick={() => setPreviewFile(doc)} className="w-8 h-8 rounded-lg bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-600 flex items-center justify-center text-xs transition-colors" title="Preview">
@@ -353,7 +353,7 @@ function PatientRecords() {
                         <input value={newAllergy} onChange={e => setNewAllergy(e.target.value)} placeholder="Type allergy..." onKeyDown={e => e.key === 'Enter' && addAllergy()}
                           className="flex-1 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-aubergine-300" autoFocus />
                         <button onClick={addAllergy} className="bg-aubergine-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Add</button>
-                        <button onClick={() => setShowAllergyInput(false)} className="text-slate-400 hover:text-slate-600 px-2"><i className="fas fa-xmark"></i></button>
+                        <button onClick={() => setShowAllergyInput(false)} className="text-slate-500 hover:text-slate-600 px-2"><i className="fas fa-xmark"></i></button>
                       </div>
                     ) : (
                       <button onClick={() => setShowAllergyInput(true)} className="text-xs text-aubergine-600 hover:text-aubergine-700 font-bold flex items-center gap-1">
@@ -369,7 +369,7 @@ function PatientRecords() {
                       {conditions.map(c => (
                         <span key={c} className="bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5">
                           {c}
-                          <button onClick={() => { setConditions(prev => prev.filter(x => x !== c)); toast(`Removed "${c}" from conditions.`, 'info'); }} className="text-slate-400 hover:text-slate-600"><i className="fas fa-xmark text-[10px]"></i></button>
+                          <button onClick={() => { setConditions(prev => prev.filter(x => x !== c)); toast(`Removed "${c}" from conditions.`, 'info'); }} className="text-slate-500 hover:text-slate-600"><i className="fas fa-xmark text-[10px]"></i></button>
                         </span>
                       ))}
                     </div>
@@ -378,7 +378,7 @@ function PatientRecords() {
                         <input value={newCondition} onChange={e => setNewCondition(e.target.value)} placeholder="Type condition..." onKeyDown={e => e.key === 'Enter' && addCondition()}
                           className="flex-1 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-aubergine-300" autoFocus />
                         <button onClick={addCondition} className="bg-aubergine-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Add</button>
-                        <button onClick={() => setShowConditionInput(false)} className="text-slate-400 hover:text-slate-600 px-2"><i className="fas fa-xmark"></i></button>
+                        <button onClick={() => setShowConditionInput(false)} className="text-slate-500 hover:text-slate-600 px-2"><i className="fas fa-xmark"></i></button>
                       </div>
                     ) : (
                       <button onClick={() => setShowConditionInput(true)} className="mt-2 text-xs text-aubergine-600 hover:text-aubergine-700 font-bold flex items-center gap-1">

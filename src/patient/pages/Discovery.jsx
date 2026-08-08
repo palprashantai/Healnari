@@ -109,7 +109,7 @@ function BookingModal({ doc, isOpen, onClose, toast }) {
             <div className="flex justify-between"><span className="text-slate-500">Type</span><span className="font-bold text-slate-800">{type}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Slot</span><span className="font-bold text-slate-800">{slot}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Fee</span><span className="font-black text-aubergine-800">₹{doc.fee}</span></div>
-            <p className="text-[10px] text-slate-400 pt-2 border-t border-slate-200">
+            <p className="text-[10px] text-slate-500 pt-2 border-t border-slate-200">
               🔒 Private & confidential. Governed under NMC Telemedicine Guidelines, India.
             </p>
           </div>
@@ -170,7 +170,7 @@ function DoctorCard({ doc, onBook, onFavorite, favorites }) {
             <span className="text-[10px] bg-slate-100 text-slate-500 font-bold px-1.5 py-0.5 rounded font-mono border border-slate-200 inline-block mt-1">{doc.regNo}</span>
           </div>
           <button onClick={() => onFavorite(doc.id)}
-            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isFav ? 'bg-rose-100 text-rose-500' : 'bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-400'}`}>
+            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isFav ? 'bg-rose-100 text-rose-500' : 'bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-400'}`}>
             <i className={`fas fa-heart text-xs ${isFav ? '' : ''}`}></i>
           </button>
         </div>
@@ -185,7 +185,7 @@ function DoctorCard({ doc, onBook, onFavorite, favorites }) {
               <strong className="text-aubergine-800">Care Link:</strong> {doc.collab}
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Languages</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Languages</p>
               <div className="flex gap-1">{doc.lang.map(l => <span key={l} className="text-[10px] bg-sky-50 border border-sky-100 text-sky-700 font-bold px-2 py-0.5 rounded-full">{l}</span>)}</div>
             </div>
           </div>
@@ -201,18 +201,18 @@ function DoctorCard({ doc, onBook, onFavorite, favorites }) {
         {/* Stats */}
         <div className="flex items-center justify-between py-3 border-y border-slate-100 mb-4 text-xs font-bold">
           <div className="flex flex-col">
-            <span className="text-[9px] text-slate-400 uppercase tracking-wider mb-0.5">Rating</span>
+            <span className="text-[9px] text-slate-500 uppercase tracking-wider mb-0.5">Rating</span>
             <span className="flex items-center gap-1 text-slate-700">
               <Stars rating={doc.rating} />
-              {doc.rating} <span className="text-slate-400 font-normal">({doc.reviews})</span>
+              {doc.rating} <span className="text-slate-500 font-normal">({doc.reviews})</span>
             </span>
           </div>
           <div className="flex flex-col items-center">
-            <span className="text-[9px] text-slate-400 uppercase tracking-wider mb-0.5">Experience</span>
+            <span className="text-[9px] text-slate-500 uppercase tracking-wider mb-0.5">Experience</span>
             <span className="text-slate-700">{doc.exp}</span>
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-[9px] text-slate-400 uppercase tracking-wider mb-0.5">Consult Fee</span>
+            <span className="text-[9px] text-slate-500 uppercase tracking-wider mb-0.5">Consult Fee</span>
             <span className="text-slate-800 font-black text-sm">₹{doc.fee}</span>
           </div>
         </div>
@@ -288,7 +288,7 @@ function PatientDiscovery() {
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap gap-3 items-center">
         {/* Search */}
         <div className="relative flex-1 min-w-40">
-          <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+          <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or specialty..."
             className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50" />
         </div>
@@ -328,7 +328,7 @@ function PatientDiscovery() {
           <DoctorCard key={doc.id} doc={doc} onBook={d => setSelectedDoc(d)} onFavorite={handleFavorite} favorites={favorites} />
         ))}
         {filtered.length === 0 && (
-          <div className="col-span-3 text-center py-16 text-slate-400">
+          <div className="col-span-3 text-center py-16 text-slate-500">
             <i className="fas fa-user-doctor text-4xl mb-3 block"></i>
             <p className="font-bold">No doctors found matching your filters.</p>
             <button onClick={() => { setSearch(''); setSpecialty('All'); setOnlineOnly(false); }} className="mt-3 text-aubergine-600 font-bold text-sm hover:underline">Reset Filters</button>

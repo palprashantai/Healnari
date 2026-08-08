@@ -17,13 +17,13 @@ function FloatingCTA({ onBook }) {
 
   return (
     <div
-      className={`fixed bottom-6 right-5 z-50 flex flex-col items-end gap-3 transition-all duration-500 ${
+      className={`fixed bottom-6 left-5 z-50 flex flex-col items-start gap-3 transition-all duration-500 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'
       }`}
     >
       {/* Expandable Action Buttons */}
       {isExpanded && (
-        <div className="flex flex-col items-end gap-2.5 animate-fade-in">
+        <div className="flex flex-col items-start gap-2.5 animate-fade-in">
           {/* WhatsApp */}
           <a
             href={`https://wa.me/${whatsappNumber}?text=${whatsappMsg}`}

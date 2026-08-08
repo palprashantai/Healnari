@@ -197,7 +197,7 @@ function DoctorReports() {
             </button>
             {showActionsMenu && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
-                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Messaging</p></div>
+                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p></div>
                 <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
                 </button>
@@ -297,7 +297,7 @@ function DoctorReports() {
           ))}
 
           {tab === 'pending' && pending.length === 0 && (
-            <div className="text-center py-16 text-slate-400">
+            <div className="text-center py-16 text-slate-500">
               <i className="fas fa-circle-check text-4xl mb-3 block text-emerald-400"></i>
               <p className="font-bold">All reports reviewed!</p>
             </div>
@@ -327,7 +327,7 @@ function DoctorReports() {
           ))}
 
           {tab === 'reviewed' && reviewed.length === 0 && (
-            <div className="text-center py-16 text-slate-400">
+            <div className="text-center py-16 text-slate-500">
               <i className="fas fa-file-circle-check text-4xl mb-3 block text-slate-300"></i>
               <p className="font-bold">No reviewed reports yet.</p>
             </div>

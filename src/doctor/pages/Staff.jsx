@@ -183,7 +183,7 @@ function DoctorStaff() {
             </button>
             {showActionsMenu && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
-                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Messaging</p></div>
+                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p></div>
                 <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
                 </button>
@@ -246,7 +246,7 @@ function DoctorStaff() {
         {tab === 'staff' && (
           <div className="divide-y divide-slate-50">
             {staff.length === 0 ? (
-              <div className="text-center py-12 text-slate-400">
+              <div className="text-center py-12 text-slate-500">
                 <i className="fas fa-user-group text-3xl mb-2 block text-slate-300"></i>
                 <p className="font-bold text-sm">No team members added yet</p>
               </div>
@@ -271,7 +271,7 @@ function DoctorStaff() {
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${s.status === 'On Duty' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>{s.status}</span>
                   </div>
                   <p className="text-xs text-aubergine-700 font-bold mt-0.5">{s.role}</p>
-                  <p className="text-xs text-slate-400">{s.shift} • Joined {s.joinedOn}</p>
+                  <p className="text-xs text-slate-500">{s.shift} • Joined {s.joinedOn}</p>
                 </div>
 
                 <div className="flex gap-2 items-center">
@@ -297,7 +297,7 @@ function DoctorStaff() {
         {tab === 'leaves' && (
           <div className="divide-y divide-slate-50">
             {leaves.length === 0 ? (
-              <div className="text-center py-12 text-slate-400">
+              <div className="text-center py-12 text-slate-500">
                 <i className="fas fa-circle-check text-3xl mb-2 block text-emerald-400"></i>
                 <p className="font-bold text-sm">No pending leave requests</p>
               </div>

@@ -22,6 +22,7 @@ import NewsletterSignup from '../components/NewsletterSignup.jsx';
 import LabTests from '../components/LabTests.jsx';
 import Reveal from '../../components/Reveal.jsx';
 import ScrollProgressBar from '../../components/ScrollProgressBar.jsx';
+import AiChatWidget from '../../tools/AiChatWidget.jsx';
 
 function LandingPage() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -176,6 +177,9 @@ function LandingPage() {
 
       {/* Exit Intent Lead Capture */}
       <ExitIntentModal />
+
+      {/* AI Assistant */}
+      <AiChatWidget context="landing" />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { HealNariLogo } from '../../components/HealNariLogo.jsx';
 import { PageTransition } from '../../components/PageTransition.jsx';
 import { NavHoverRail } from '../../components/NavHoverRail.jsx';
 import { ModuleAccentBar } from '../../components/ModuleAccentBar.jsx';
+import AiChatWidget from '../../tools/AiChatWidget.jsx';
 
 const DEFAULT_ACCENT = '#6B46C1';
 
@@ -134,7 +135,7 @@ function NotificationsPanel({ notifications, onMarkAllRead, onClose, panelRef })
         </h3>
         <div className="flex items-center gap-2">
           <button onClick={onMarkAllRead} className="text-xs text-aubergine-600 font-bold hover:underline">Mark all read</button>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 ml-1"><i className="fas fa-xmark"></i></button>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 ml-1"><i className="fas fa-xmark"></i></button>
         </div>
       </div>
       <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
@@ -146,7 +147,7 @@ function NotificationsPanel({ notifications, onMarkAllRead, onClose, panelRef })
             <div className="flex-1 min-w-0">
               <p className={`text-sm font-bold text-slate-800 ${!n.read ? '' : 'text-slate-600'}`}>{n.title}</p>
               <p className="text-xs text-slate-500 truncate">{n.msg}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">{n.time}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">{n.time}</p>
             </div>
             {!n.read && <div className="w-2 h-2 bg-aubergine-500 rounded-full mt-2 flex-shrink-0"></div>}
           </div>
@@ -288,7 +289,7 @@ function PatientLayout() {
                 <p className="font-bold text-slate-800 leading-tight">{user?.name || 'Priya Sharma'}</p>
                 <p className="text-sand-600">Care Member</p>
               </div>
-              <i className="fas fa-chevron-down text-[10px] text-slate-400 hidden lg:block"></i>
+              <i className="fas fa-chevron-down text-[10px] text-slate-500 hidden lg:block"></i>
             </div>
           </div>
         </header>
@@ -298,6 +299,8 @@ function PatientLayout() {
           <PageTransition />
         </main>
       </div>
+      
+      <AiChatWidget context="patient" />
     </div>
   );
 }

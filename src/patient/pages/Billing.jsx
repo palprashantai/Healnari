@@ -114,7 +114,7 @@ function PaymentModal({ isOpen, onClose, amount, description, onSuccess }) {
           <div>
             <h3 className="font-black text-slate-800 text-xl">Payment Successful!</h3>
             <p className="text-sm text-slate-500 mt-1">₹{amount} paid via {method}</p>
-            <p className="text-xs text-slate-400 mt-0.5">Receipt sent to your registered email</p>
+            <p className="text-xs text-slate-500 mt-0.5">Receipt sent to your registered email</p>
           </div>
           <button onClick={done} className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
             Done
@@ -205,8 +205,8 @@ function PatientBilling() {
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="text-sm text-slate-500 font-medium mb-1">Next Consultation</div>
           <div className="text-2xl font-black text-slate-800">₹{couponApplied ? Math.round(UPCOMING_PAYMENT.amount * 0.9) : UPCOMING_PAYMENT.amount}</div>
-          {couponApplied && <div className="text-xs text-slate-400 font-bold line-through">₹799 <span className="no-underline text-emerald-600">(10% off applied!)</span></div>}
-          <div className="text-xs text-slate-400 mt-1">Due: {UPCOMING_PAYMENT.date}</div>
+          {couponApplied && <div className="text-xs text-slate-500 font-bold line-through">₹799 <span className="no-underline text-emerald-600">(10% off applied!)</span></div>}
+          <div className="text-xs text-slate-500 mt-1">Due: {UPCOMING_PAYMENT.date}</div>
           <button onClick={() => openPay(UPCOMING_PAYMENT.amount, `Consultation — ${UPCOMING_PAYMENT.doctor}`)}
             className="mt-3 w-full text-center bg-aubergine-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer hover:bg-aubergine-700 transition-colors">
             Pay Now
@@ -236,7 +236,7 @@ function PatientBilling() {
           {couponMsg && !couponApplied && (
             <p className="text-xs mt-2 font-medium text-rose-500">{couponMsg}</p>
           )}
-          <p className="text-[10px] text-slate-400 mt-3 italic">Hint: Try HEALNARI10</p>
+          <p className="text-[10px] text-slate-500 mt-3 italic">Hint: Try HEALNARI10</p>
         </div>
       </div>
 
@@ -261,7 +261,7 @@ function PatientBilling() {
               </div>
             ) : (
               <>
-                <span className="text-xs text-slate-400 font-bold">Estimated Cost: ₹1,499 (Zero-Fee Pick-up)</span>
+                <span className="text-xs text-slate-500 font-bold">Estimated Cost: ₹1,499 (Zero-Fee Pick-up)</span>
                 <button onClick={handleBookCollection}
                   className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-colors flex items-center gap-2">
                   <i className="fas fa-truck-droplet"></i> Book Home Blood Collection
@@ -299,7 +299,7 @@ function PatientBilling() {
                   <td className="px-5 py-4 text-slate-500 whitespace-nowrap">{txn.date}</td>
                   <td className="px-5 py-4">
                     <div className="font-bold text-slate-800 text-sm">{txn.doctor}</div>
-                    <div className="text-xs text-slate-400 font-mono">{txn.id}</div>
+                    <div className="text-xs text-slate-500 font-mono">{txn.id}</div>
                   </td>
                   <td className="px-5 py-4 text-slate-600">{txn.type}</td>
                   <td className="px-5 py-4">

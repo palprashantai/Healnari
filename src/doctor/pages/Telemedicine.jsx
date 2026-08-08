@@ -102,7 +102,7 @@ function ActiveCallUI({ session, onEnd }) {
 
           {/* Doctor PiP */}
           <div className="absolute bottom-4 right-4 w-32 h-24 bg-slate-800 rounded-xl border border-white/20 flex items-center justify-center text-white text-xs font-bold shadow-xl overflow-hidden">
-            {vidOff ? <i className="fas fa-video-slash text-slate-400 text-xl"></i> : <span className="bg-aubergine-900/80 px-2 py-1 rounded text-[10px]">Dr. Sarah Mitchell</span>}
+            {vidOff ? <i className="fas fa-video-slash text-slate-500 text-xl"></i> : <span className="bg-aubergine-900/80 px-2 py-1 rounded text-[10px]">Dr. Sarah Mitchell</span>}
           </div>
         </div>
 
@@ -156,12 +156,12 @@ function ActiveCallUI({ session, onEnd }) {
         {activeTab === 'notes' && (
           <div className="flex-1 flex flex-col space-y-3">
             <div>
-              <label className="text-[11px] font-bold text-slate-400 mb-1 block">Subjective / Objective Findings</label>
+              <label className="text-[11px] font-bold text-slate-500 mb-1 block">Subjective / Objective Findings</label>
               <textarea rows={6} value={clinicalNotes} onChange={e => setClinicalNotes(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-aubergine-500 resize-none font-mono" />
             </div>
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] space-y-1">
-              <p className="text-slate-400 font-bold">Vitals & Patient Summary:</p>
+              <p className="text-slate-500 font-bold">Vitals & Patient Summary:</p>
               <p className="text-slate-300">BP: 118/78 mmHg • BMI: 24.2 • Known Allergy: Penicillin</p>
             </div>
           </div>
@@ -182,7 +182,7 @@ function ActiveCallUI({ session, onEnd }) {
 
         {activeTab === 'lab' && (
           <div className="flex-1 space-y-3 text-xs">
-            <p className="text-slate-400">Order Diagnostic Tests:</p>
+            <p className="text-slate-500">Order Diagnostic Tests:</p>
             <div className="space-y-1.5">
               {['Hormonal Panel (LH, FSH, AMH)', 'Full Thyroid Profile (TSH, FT3, FT4)', 'Fasting Glucose & HbA1c'].map(lab => (
                 <label key={lab} className="flex items-center gap-2 p-2 bg-slate-950 rounded-lg border border-slate-800 cursor-pointer text-slate-300">
@@ -270,7 +270,7 @@ function DoctorTelemedicine() {
             </button>
             {showActionsMenu && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
-                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Messaging</p></div>
+                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p></div>
                 <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
                 </button>

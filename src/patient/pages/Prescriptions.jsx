@@ -61,11 +61,11 @@ function PrescriptionModal({ rx, onClose }) {
         {/* Header info */}
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <p className="text-xs text-slate-400 font-bold mb-1">Prescribed By</p>
+            <p className="text-xs text-slate-500 font-bold mb-1">Prescribed By</p>
             <p className="font-bold text-slate-800">{rx.doctor}</p>
           </div>
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <p className="text-xs text-slate-400 font-bold mb-1">Date • Valid Till</p>
+            <p className="text-xs text-slate-500 font-bold mb-1">Date • Valid Till</p>
             <p className="font-bold text-slate-800">{rx.date} → {rx.validTill}</p>
           </div>
         </div>
@@ -82,7 +82,7 @@ function PrescriptionModal({ rx, onClose }) {
                   <div>
                     <p className="font-black text-slate-800 mb-1.5">{m.name}</p>
                     <DoseSchedule schedule={m.schedule} />
-                    <p className="text-xs text-slate-400 mt-1.5">Duration: {m.duration}</p>
+                    <p className="text-xs text-slate-500 mt-1.5">Duration: {m.duration}</p>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${m.refills > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
                     {m.refills > 0 ? `${m.refills} Refills Left` : 'No Refills Left'}
@@ -190,7 +190,7 @@ function PatientPrescriptions() {
         {STATUS_TABS.map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors ${tab === t ? 'bg-aubergine-700 text-white border-aubergine-700' : 'bg-white text-slate-500 border-slate-200 hover:border-aubergine-300 hover:text-aubergine-600'}`}>
-            {t} <span className={tab === t ? 'text-aubergine-200' : 'text-slate-400'}>({tabCount(t)})</span>
+            {t} <span className={tab === t ? 'text-aubergine-200' : 'text-slate-500'}>({tabCount(t)})</span>
           </button>
         ))}
       </div>
@@ -226,7 +226,7 @@ function PatientPrescriptions() {
                           <div>
                             <div className="font-bold text-slate-800 text-sm mb-1">{m.name}</div>
                             <DoseSchedule schedule={m.schedule} />
-                            <div className="text-xs text-slate-400 mt-1">{m.duration}</div>
+                            <div className="text-xs text-slate-500 mt-1">{m.duration}</div>
                           </div>
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${m.refills > 0 ? 'bg-sky-50 text-sky-600 border border-sky-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
                             {m.refills > 0 ? `${m.refills}×` : 'None left'}
@@ -264,7 +264,7 @@ function PatientPrescriptions() {
             );
           })}
           {tabFiltered.length === 0 && prescriptions.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-400">
+            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-500">
               No prescriptions in this category.
             </div>
           )}
@@ -313,10 +313,10 @@ function PatientPrescriptions() {
             <div className="flex gap-1 mb-3">
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => (
                 <div key={d} className="flex-1 flex flex-col items-center gap-1">
-                  <div className={`w-full aspect-square rounded-md text-[8px] flex items-center justify-center font-bold ${i < 4 ? 'bg-emerald-500 text-white' : i === 4 ? 'bg-amber-400 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                  <div className={`w-full aspect-square rounded-md text-[8px] flex items-center justify-center font-bold ${i < 4 ? 'bg-emerald-500 text-white' : i === 4 ? 'bg-amber-400 text-white' : 'bg-slate-100 text-slate-500'}`}>
                     {i < 4 ? '✓' : i === 4 ? '~' : '·'}
                   </div>
-                  <span className="text-[9px] text-slate-400">{d}</span>
+                  <span className="text-[9px] text-slate-500">{d}</span>
                 </div>
               ))}
             </div>

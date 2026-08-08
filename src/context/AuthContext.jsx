@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { apiFetch, getTokens, setTokens, clearTokens } from '../lib/apiClient.js';
 
 const AuthContext = createContext();
 
@@ -6,103 +7,78 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
-const DEMO_PATIENT = {
-  role: 'patient',
-  name: 'Priya Sharma',
-  email: 'priya.sharma@example.com',
-  phone: '+91 98765 43210',
-  dob: '1996-04-12',
-  bloodGroup: 'B+',
-  height: '163',
-  weight: '64.5',
-  city: 'Mumbai',
-};
-
-export const DEMO_DOCTOR = {
-  role: 'doctor',
-  name: 'Dr. Sarah Mitchell',
-  email: 'sarah.mitchell@healnari.app',
-  phone: '+91 98765 00001',
-  specialty: 'Gynaecology & Obstetrics',
-  qualification: 'MBBS, MD (OBG)',
-  regNo: 'MCI-29402',
-  experience: '12 Years',
-  clinicName: 'HealNari Women\'s Clinic — Bandra',
-  clinicAddress: 'Shop 4, Mehta Plaza, Bandra West, Mumbai — 400050',
-  consultFee: 799,
-  bio: 'Expert in menstrual irregularities, endometriosis, adolescent gynaecology, and PCOS reversal protocols.',
-};
-
-export const DEMO_ADMIN = {
-  role: 'admin',
-  name: 'System Administrator',
-  email: 'admin@healnari.app',
-  accessLevel: 'Super Admin',
-  region: 'India Operations',
-};
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Auto-detect which portal is being accessed
-    const isAdmin   = window.location.pathname.startsWith('/admin-dashboard');
-    const isDoctor  = window.location.pathname.startsWith('/doctor-dashboard');
-    const isPatient = window.location.pathname.startsWith('/patient-dashboard');
-
-    const storedUser = localStorage.getItem('healnari_user');
-    if (storedUser) {
-      try {
-        const parsed = JSON.parse(storedUser);
-        // If role doesn't match the URL, swap to the correct demo user
-        if (isAdmin && parsed.role !== 'admin') {
-          setUser(DEMO_ADMIN);
-          localStorage.setItem('healnari_user', JSON.stringify(DEMO_ADMIN));
-        } else if (isDoctor && parsed.role !== 'doctor') {
-          setUser(DEMO_DOCTOR);
-          localStorage.setItem('healnari_user', JSON.stringify(DEMO_DOCTOR));
-        } else if (isPatient && parsed.role !== 'patient') {
-          setUser(DEMO_PATIENT);
-          localStorage.setItem('healnari_user', JSON.stringify(DEMO_PATIENT));
-        } else {
-          setUser(parsed);
-        }
-      } catch (e) {
-        const demo = isAdmin ? DEMO_ADMIN : isDoctor ? DEMO_DOCTOR : DEMO_PATIENT;
-        setUser(demo);
-        localStorage.setItem('healnari_user', JSON.stringify(demo));
-      }
-    } else {
-      const demo = isAdmin ? DEMO_ADMIN : isDoctor ? DEMO_DOCTOR : DEMO_PATIENT;
-      setUser(demo);
-      localStorage.setItem('healnari_user', JSON.stringify(demo));
+  const loadMe = useCallback(async () => {
+    if (!getTokens()?.accessToken) {
+      setUser(null);
+      return;
     }
-    setLoading(false);
+    try {
+      setUser(await apiFetch('/auth/me'));
+    } catch {
+      clearTokens();
+      setUser(null);
+    }
   }, []);
 
-  const login = (userData) => {
-    setUser(userData);
-    localStorage.setItem('healnari_user', JSON.stringify(userData));
+  useEffect(() => {
+    loadMe().finally(() => setLoading(false));
+  }, [loadMe]);
+
+  /** role: 'patient' | 'doctor'. extra: { fullName, specialty?, registrationNo? } */
+  const signUp = async (email, password, role, extra = {}) => {
+    try {
+      const data = await apiFetch('/auth/register', {
+        method: 'POST',
+        skipAuth: true,
+        body: { email, password, role, ...extra },
+      });
+      setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+      setUser(data.user);
+      return { user: data.user };
+    } catch (error) {
+      return { error };
+    }
+  };
+
+  const signIn = async (email, password) => {
+    try {
+      const data = await apiFetch('/auth/login', { method: 'POST', skipAuth: true, body: { email, password } });
+      setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+      setUser(data.user);
+      return { user: data.user };
+    } catch (error) {
+      return { error };
+    }
   };
 
   const logout = () => {
+    clearTokens();
     setUser(null);
-    localStorage.removeItem('healnari_user');
-    // Re-set demo user after brief delay to allow redirect then re-login
-    setTimeout(() => {
-      setUser(DEMO_PATIENT);
-      localStorage.setItem('healnari_user', JSON.stringify(DEMO_PATIENT));
-    }, 1500);
   };
 
-  const updateUser = (updates) => {
-    const updated = { ...user, ...updates };
-    setUser(updated);
-    localStorage.setItem('healnari_user', JSON.stringify(updated));
+  /** Optimistic local merge + best-effort persist of the fields `vision` tracks on `profiles`. */
+  const updateUser = async (updates) => {
+    setUser(prev => ({ ...prev, ...updates }));
+
+    const patch = {};
+    if (updates.name !== undefined) patch.fullName = updates.name;
+    if (updates.phone !== undefined) patch.phone = updates.phone;
+    if (updates.specialty !== undefined) patch.specialty = updates.specialty;
+    if (updates.regNo !== undefined) patch.registrationNo = updates.regNo;
+    if (Object.keys(patch).length === 0) return;
+
+    try {
+      await apiFetch('/auth/me', { method: 'PUT', body: patch });
+    } catch (error) {
+      console.error('Failed to save profile', error);
+    }
   };
 
-  const value = { user, login, logout, updateUser, loading };
+  const value = { user, signUp, signIn, logout, updateUser, loading };
 
   return (
     <AuthContext.Provider value={value}>
