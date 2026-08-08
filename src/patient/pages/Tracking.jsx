@@ -52,7 +52,7 @@ function LogVitalModal({ vitalKey, vital, isOpen, onClose, onSave }) {
             className="w-full border border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-center focus:outline-none focus:ring-2 focus:ring-aubergine-300"
             autoFocus
           />
-          <p className="text-xs text-slate-400 text-center mt-1">Unit: {vital.unit}</p>
+          <p className="text-xs text-slate-500 text-center mt-1">Unit: {vital.unit}</p>
         </div>
         <button onClick={handleSave} className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
           Save Reading
@@ -218,7 +218,7 @@ function PatientTracking() {
             <h3 className="text-slate-500 font-semibold text-xs mb-1">{vital.label}</h3>
             <div className={`flex items-end gap-1.5 transition-all ${discreet ? 'discreet-blur' : ''}`}>
               <span className="text-3xl font-black text-slate-800">{vital.value}</span>
-              <span className="text-sm font-bold text-slate-400 mb-1">{vital.unit}</span>
+              <span className="text-sm font-bold text-slate-500 mb-1">{vital.unit}</span>
             </div>
             <div className={`mt-3 text-xs font-bold ${vital.trendColor} flex items-center gap-1`}>{vital.trend}</div>
           </div>
@@ -230,7 +230,7 @@ function PatientTracking() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
           <div>
             <h3 className="font-extrabold text-slate-800 text-base">Androgen Excess Tracker</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Ferriman-Gallwey scale visual grading for hirsutism tracking.</p>
+            <p className="text-xs text-slate-500 mt-0.5">Ferriman-Gallwey scale visual grading for hirsutism tracking.</p>
           </div>
           <div className="grid grid-cols-4 gap-2">
             {HIRSUTISM_GRADES.map(g => (
@@ -253,11 +253,11 @@ function PatientTracking() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="font-extrabold text-slate-800 text-base">Daily PCOS Lifestyle Log</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Today's healthy habits tracker</p>
+              <p className="text-xs text-slate-500 mt-0.5">Today's healthy habits tracker</p>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-black text-aubergine-600">{completedCount}<span className="text-sm text-slate-400">/{LIFESTYLE_ITEMS.length}</span></div>
-              <div className="text-[10px] text-slate-400 font-bold">Completed</div>
+              <div className="text-2xl font-black text-aubergine-600">{completedCount}<span className="text-sm text-slate-500">/{LIFESTYLE_ITEMS.length}</span></div>
+              <div className="text-[10px] text-slate-500 font-bold">Completed</div>
             </div>
           </div>
 

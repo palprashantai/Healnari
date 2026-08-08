@@ -1,47 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { Tilt3D } from '../../components/Tilt3D.jsx';
-
-/* ─── Dummy Data ──────────────────────────────── */
-const STATS = [
-  { label: 'Total Users',       value: '24,592', trend: '+12% this month', up: true,  icon: 'fa-users',         color: 'text-sky-600',       bg: 'bg-sky-50' },
-  { label: 'Active Doctors',    value: '342',    trend: '15 onboarded this week',    up: true,  icon: 'fa-user-doctor',   color: 'text-emerald-600',   bg: 'bg-emerald-50' },
-  { label: 'Platform Revenue',  value: '₹12.4L', trend: '+18% this month', up: true,  icon: 'fa-indian-rupee-sign', color: 'text-aubergine-600', bg: 'bg-aubergine-50' },
-  { label: 'Pending Verifications',value:'14',   trend: 'Requires action', up: null,  icon: 'fa-user-check',    color: 'text-amber-600',     bg: 'bg-amber-50' },
-];
-
-const SYSTEM_HEALTH = [
-  { name: 'API Services', status: 'Operational', ping: '24ms', color: 'bg-emerald-500' },
-  { name: 'Database Load', status: 'Normal', ping: '12%', color: 'bg-emerald-500' },
-  { name: 'SMS Gateway', status: 'Warning', ping: 'Quota 90%', color: 'bg-amber-500' },
-  { name: 'Video Servers', status: 'Operational', ping: '45ms', color: 'bg-emerald-500' },
-];
-
-const DOCTOR_VERIFICATIONS = [
-  { id: 1, name: 'Dr. Ramesh Kumar', spec: 'Gynaecology', docs: ['License.pdf', 'Aadhar.jpg'], status: 'Pending' },
-  { id: 2, name: 'Dr. Sarah Mitchell', spec: 'Endocrinology', docs: ['Registration.pdf', 'Passport.jpg'], status: 'Pending' },
-];
-
-const REFUND_REQUESTS = [
-  { id: 1, patient: 'Priya Sharma', amount: '₹299', reason: 'Doctor Cancelled', status: 'Pending', gateway: 'Razorpay' },
-];
-
-const SUPPORT_TICKETS = [
-  { id: 1, user: 'Priya Sharma', role: 'Patient', issue: 'Doctor did not join video call', status: 'Open', priority: 'High', time: '10 mins ago' },
-  { id: 2, user: 'Dr. Anita Desai', role: 'Doctor', issue: 'Payout delayed for last week', status: 'Investigating', priority: 'Medium', time: '2 hrs ago' },
-];
+import { apiFetch } from '../../lib/apiClient.js';
 
 /* ─── Modals ─────────────────────────────────── */
 function DocumentViewerModal({ isOpen, onClose, doctor, toast, onResolve }) {
   if (!doctor) return null;
+  // Fallback docs if none provided by backend yet
+  const docs = doctor.docs || ['License.pdf', 'Aadhar.jpg'];
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Verify Documents — ${doctor.name}`} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={`Verify Documents — ${doctor.full_name || doctor.name}`} size="lg">
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="w-full sm:w-1/3 space-y-2">
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Uploaded Files</h4>
-            {doctor.docs.map((d, i) => (
+            {docs.map((d, i) => (
               <div key={i} className="p-3 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:border-aubergine-300 transition-colors">
                 <i className="fas fa-file-pdf text-rose-500 mr-2"></i>
                 <span className="text-sm font-bold text-slate-700">{d}</span>
@@ -50,13 +24,13 @@ function DocumentViewerModal({ isOpen, onClose, doctor, toast, onResolve }) {
           </div>
           <div className="w-full sm:w-2/3 bg-slate-900 rounded-xl flex flex-col items-center justify-center relative min-h-[300px] border border-slate-700">
             <i className="fas fa-lock text-slate-700 text-4xl mb-4"></i>
-            <span className="text-slate-500 text-xs font-bold">Secure Document Viewer Mock</span>
-            <span className="text-slate-600 text-[10px] mt-1">(Watermarked view of {doctor.docs[0]})</span>
+            <span className="text-slate-500 text-xs font-bold">Secure Document Viewer</span>
+            <span className="text-slate-600 text-[10px] mt-1">(Watermarked view of {docs[0]})</span>
           </div>
         </div>
         <div className="flex gap-3 pt-4 border-t border-slate-100">
-          <button onClick={() => { toast('Verification Rejected', 'info'); onClose(); onResolve(doctor.id, 'Rejected'); }} className="flex-1 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold py-2.5 rounded-xl text-sm border border-rose-200 transition-colors">Reject</button>
-          <button onClick={() => { toast('Doctor Verified successfully', 'success'); onClose(); onResolve(doctor.id, 'Approved'); }} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+          <button onClick={() => onResolve(doctor.id, 'rejected')} className="flex-1 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold py-2.5 rounded-xl text-sm border border-rose-200 transition-colors">Reject</button>
+          <button onClick={() => onResolve(doctor.id, 'approved')} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
             <i className="fas fa-check-circle"></i> Approve KYC
           </button>
         </div>
@@ -68,14 +42,14 @@ function DocumentViewerModal({ isOpen, onClose, doctor, toast, onResolve }) {
 function RefundModal({ isOpen, onClose, refund, toast, onProcess }) {
   if (!refund) return null;
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Process Refund — ${refund.patient}`} size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title={`Process Refund — ${refund.patient_name}`} size="sm">
       <div className="space-y-4">
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 text-sm">
-          <div className="flex justify-between items-center"><span className="text-slate-500 text-xs">Amount</span><span className="font-black text-lg text-slate-800">{refund.amount}</span></div>
+          <div className="flex justify-between items-center"><span className="text-slate-500 text-xs">Amount</span><span className="font-black text-lg text-slate-800">₹{refund.amount}</span></div>
           <div className="flex justify-between items-center"><span className="text-slate-500 text-xs">Reason</span><span className="font-bold text-slate-700">{refund.reason}</span></div>
           <div className="flex justify-between items-center"><span className="text-slate-500 text-xs">Gateway</span><span className="font-bold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200 text-[10px]"><i className="fas fa-credit-card mr-1 text-sky-600"></i>{refund.gateway}</span></div>
         </div>
-        <button onClick={() => { toast(`Refund of ${refund.amount} initiated via Razorpay.`, 'success'); onProcess(refund.id); onClose(); }} 
+        <button onClick={() => onProcess(refund.id)} 
           className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-md">
           Initiate Refund to Source
         </button>
@@ -91,20 +65,20 @@ function TicketModal({ isOpen, onClose, ticket, toast, onResolve }) {
       <div className="space-y-4">
         <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm">
           <div className="flex items-center gap-2 mb-2">
-            <span className="font-bold text-slate-800">{ticket.user}</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-600">{ticket.role}</span>
+            <span className="font-bold text-slate-800">{ticket.user_name}</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-600">{ticket.user_role}</span>
           </div>
           <p className="text-slate-600 mb-3">{ticket.issue}</p>
           <div className="flex justify-between text-xs text-slate-400">
             <span>Priority: <span className={ticket.priority === 'High' ? 'text-rose-600 font-bold' : 'font-bold'}>{ticket.priority}</span></span>
-            <span>{ticket.time}</span>
+            <span>{new Date(ticket.created_at).toLocaleString()}</span>
           </div>
         </div>
         <div className="flex gap-2">
           <button onClick={() => { toast('Ticket escalated to engineering.', 'info'); onClose(); }} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-sm transition-colors border border-slate-200">
             Escalate
           </button>
-          <button onClick={() => { toast('Ticket resolved and user notified.', 'success'); onResolve(ticket.id); onClose(); }} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors shadow-md flex justify-center items-center gap-2">
+          <button onClick={() => onResolve(ticket.id)} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors shadow-md flex justify-center items-center gap-2">
             <i className="fas fa-check"></i> Resolve
           </button>
         </div>
@@ -117,21 +91,96 @@ function TicketModal({ isOpen, onClose, ticket, toast, onResolve }) {
 function AdminDashboard() {
   const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
-  const [verifications, setVerifications] = useState(DOCTOR_VERIFICATIONS);
-  const [refunds, setRefunds] = useState(REFUND_REQUESTS);
-  const [tickets, setTickets] = useState(SUPPORT_TICKETS);
+  const [loading, setLoading] = useState(true);
+
+  // Data states
+  const [stats, setStats] = useState(null);
+  const [health, setHealth] = useState([]);
+  const [verifications, setVerifications] = useState([]);
+  const [refunds, setRefunds] = useState([]);
+  const [tickets, setTickets] = useState([]);
   
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [selectedRefund, setSelectedRefund] = useState(null);
   const [selectedTicket, setSelectedTicket] = useState(null);
 
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      const [dashStats, sysHealth, pendingVerifs, refundList, ticketList] = await Promise.all([
+        apiFetch('/admin/dashboard'),
+        apiFetch('/admin/system-health'),
+        apiFetch('/admin/verifications'),
+        apiFetch('/admin/refunds'),
+        apiFetch('/admin/tickets'),
+      ]);
+      setStats(dashStats);
+      setHealth(sysHealth);
+      setVerifications(pendingVerifs);
+      setRefunds(refundList.filter(r => r.status === 'Pending'));
+      setTickets(ticketList.filter(t => t.status !== 'Resolved'));
+    } catch (err) {
+      console.error(err);
+      toast(err.message || 'Failed to load admin data', 'error');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
   const handleRefresh = () => {
     setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-      toast('System metrics refreshed.', 'success');
-    }, 1000);
+    fetchDashboardData();
+    toast('System metrics refreshed.', 'success');
   };
+
+  const handleResolveVerification = async (id, status) => {
+    try {
+      await apiFetch(`/admin/verifications/${id}`, { method: 'PUT', body: { status } });
+      toast(`Doctor ${status === 'approved' ? 'verified' : 'rejected'} successfully`, 'success');
+      setSelectedDoc(null);
+      setVerifications(prev => prev.filter(v => v.id !== id));
+      fetchDashboardData();
+    } catch (err) {
+      toast('Failed to update verification', 'error');
+    }
+  };
+
+  const handleProcessRefund = async (id) => {
+    try {
+      await apiFetch(`/admin/refunds/${id}/process`, { method: 'PUT' });
+      toast(`Refund initiated successfully.`, 'success');
+      setSelectedRefund(null);
+      setRefunds(prev => prev.filter(r => r.id !== id));
+      fetchDashboardData();
+    } catch (err) {
+      toast('Failed to process refund', 'error');
+    }
+  };
+
+  const handleResolveTicket = async (id) => {
+    try {
+      await apiFetch(`/admin/tickets/${id}/resolve`, { method: 'PUT' });
+      toast('Ticket resolved and user notified.', 'success');
+      setSelectedTicket(null);
+      setTickets(prev => prev.filter(t => t.id !== id));
+      fetchDashboardData();
+    } catch (err) {
+      toast('Failed to resolve ticket', 'error');
+    }
+  };
+
+  if (loading) return <div className="p-8 text-center text-slate-500 font-bold">Loading dashboard...</div>;
+
+  const displayStats = [
+    { label: 'Total Users',       value: stats?.totalUsers || 0, trend: 'Active platform users', up: true,  icon: 'fa-users',         color: 'text-sky-600',       bg: 'bg-sky-50' },
+    { label: 'Active Doctors',    value: stats?.activeDoctors || 0,    trend: 'Total onboarded',    up: true,  icon: 'fa-user-doctor',   color: 'text-emerald-600',   bg: 'bg-emerald-50' },
+    { label: 'Platform Revenue',  value: `₹${stats?.platformRevenue || 0}`, trend: 'Total volume', up: true,  icon: 'fa-indian-rupee-sign', color: 'text-aubergine-600', bg: 'bg-aubergine-50' },
+    { label: 'Pending Verifications',value: stats?.pendingVerifications || 0,   trend: 'Requires action', up: null,  icon: 'fa-user-check',    color: 'text-amber-600',     bg: 'bg-amber-50' },
+  ];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -148,16 +197,16 @@ function AdminDashboard() {
 
       {/* Stats Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
-        {STATS.map(s => (
+        {displayStats.map(s => (
           <Tilt3D key={s.label} max={5}>
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between card-premium">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between card-premium h-full">
             <div className="flex justify-between items-start mb-2">
               <div className={`w-10 h-10 rounded-xl ${s.bg} ${s.color} flex items-center justify-center text-lg`}>
                 <i className={`fas ${s.icon}`}></i>
               </div>
               {s.up !== null && (
                 <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${s.up ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                  <i className={`fas fa-arrow-${s.up ? 'up' : 'down'} mr-1`}></i>{s.trend.split(' ')[0]}
+                   {s.trend}
                 </span>
               )}
             </div>
@@ -185,11 +234,11 @@ function AdminDashboard() {
                 <div key={v.id} className="px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-black">
-                      {v.name.split(' ')[1]?.[0]}{v.name.split(' ')[2]?.[0]}
+                      {v.full_name?.split(' ')[1]?.[0] || 'D'}{v.full_name?.split(' ')[2]?.[0] || 'r'}
                     </div>
                     <div>
-                      <p className="font-bold text-slate-800 text-sm">{v.name}</p>
-                      <p className="text-xs text-slate-500">{v.spec} • {v.docs.length} documents uploaded</p>
+                      <p className="font-bold text-slate-800 text-sm">{v.full_name || 'Unnamed Doctor'}</p>
+                      <p className="text-xs text-slate-500">{v.specialty || 'General'} • Pending review</p>
                     </div>
                   </div>
                   <button onClick={() => setSelectedDoc(v)} className="bg-white border border-slate-200 hover:border-aubergine-300 hover:text-aubergine-700 text-slate-600 font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-sm">
@@ -215,11 +264,11 @@ function AdminDashboard() {
               {refunds.map(r => (
                 <div key={r.id} className="px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                   <div>
-                    <p className="font-bold text-slate-800 text-sm">{r.patient}</p>
+                    <p className="font-bold text-slate-800 text-sm">{r.patient_name}</p>
                     <p className="text-xs text-slate-500 mt-0.5">Reason: {r.reason}</p>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="font-black text-rose-600">{r.amount}</span>
+                    <span className="font-black text-rose-600">₹{r.amount}</span>
                     <button onClick={() => setSelectedRefund(r)} className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors shadow-sm">
                       Process
                     </button>
@@ -246,11 +295,11 @@ function AdminDashboard() {
                 <div key={t.id} className="px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <p className="font-bold text-slate-800 text-sm">{t.user}</p>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">{t.role}</span>
+                      <p className="font-bold text-slate-800 text-sm">{t.user_name}</p>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200 uppercase">{t.user_role}</span>
                     </div>
                     <p className="text-xs text-slate-600 mb-1">{t.issue}</p>
-                    <p className="text-[10px] text-slate-400">{t.time}</p>
+                    <p className="text-[10px] text-slate-400">{new Date(t.created_at).toLocaleString()}</p>
                   </div>
                   <button onClick={() => setSelectedTicket(t)} className="bg-white border border-slate-200 hover:border-sky-300 hover:text-sky-700 text-slate-600 font-bold px-4 py-2 rounded-xl text-xs transition-all shadow-sm">
                     Review
@@ -277,10 +326,10 @@ function AdminDashboard() {
               </span>
             </div>
             <div className="p-5 space-y-4">
-              {SYSTEM_HEALTH.map(h => (
+              {health.map(h => (
                 <div key={h.name} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`w-2.5 h-2.5 rounded-full ${h.color}`}></div>
+                    <div className={`w-2.5 h-2.5 rounded-full ${h.status === 'Operational' ? 'bg-emerald-500' : 'bg-amber-500'}`}></div>
                     <span className="text-sm font-semibold text-slate-700">{h.name}</span>
                   </div>
                   <div className="text-right">
@@ -300,9 +349,9 @@ function AdminDashboard() {
       </div>
 
       {/* Modals */}
-      <DocumentViewerModal isOpen={!!selectedDoc} onClose={() => setSelectedDoc(null)} doctor={selectedDoc} toast={toast} onResolve={(id, status) => setVerifications(prev => prev.filter(v => v.id !== id))} />
-      <RefundModal isOpen={!!selectedRefund} onClose={() => setSelectedRefund(null)} refund={selectedRefund} toast={toast} onProcess={(id) => setRefunds(prev => prev.filter(r => r.id !== id))} />
-      <TicketModal isOpen={!!selectedTicket} onClose={() => setSelectedTicket(null)} ticket={selectedTicket} toast={toast} onResolve={(id) => setTickets(prev => prev.filter(t => t.id !== id))} />
+      <DocumentViewerModal isOpen={!!selectedDoc} onClose={() => setSelectedDoc(null)} doctor={selectedDoc} toast={toast} onResolve={handleResolveVerification} />
+      <RefundModal isOpen={!!selectedRefund} onClose={() => setSelectedRefund(null)} refund={selectedRefund} toast={toast} onProcess={handleProcessRefund} />
+      <TicketModal isOpen={!!selectedTicket} onClose={() => setSelectedTicket(null)} ticket={selectedTicket} toast={toast} onResolve={handleResolveTicket} />
     </div>
   );
 }

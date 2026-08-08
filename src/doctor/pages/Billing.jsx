@@ -1,22 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
-
-/* ─── Dummy Data ──────────────────────────────── */
-const EARNINGS = [
-  { label: 'This Month', value: '₹38,400', sub: '48 consultations', trend: '+12% vs last month', up: true },
-  { label: 'Last Month',  value: '₹34,200', sub: '43 consultations', trend: 'Baseline', up: null },
-  { label: 'Pending',     value: '₹5,600',  sub: '7 consultations', trend: 'UPI pending', up: null },
-  { label: 'Total YTD',   value: '₹2,14,800', sub: 'Since Jan 2026', trend: '+22% YoY', up: true },
-];
-
-const TRANSACTIONS = [
-  { id: 'TXN-9821', patient: 'Priya Sharma',  date: '25 Jun 2026', type: 'Video Consult', amount: 799,  status: 'settled',  method: 'UPI',   payout: '23 Jun' },
-  { id: 'TXN-9654', patient: 'Anita Desai',   date: '20 Jun 2026', type: 'Fertility Consult', amount: 999, status: 'settled', method: 'Card', payout: '18 Jun' },
-  { id: 'TXN-9210', patient: 'Kavita Patel',  date: '10 Jun 2026', type: 'Follow-up',     amount: 499,  status: 'settled',  method: 'Wallet', payout: '8 Jun' },
-  { id: 'TXN-8987', patient: 'Aisha Khan',    date: '5 Jun 2026',  type: 'Clinic Visit',  amount: 799,  status: 'pending',  method: 'UPI',   payout: 'Pending' },
-  { id: 'TXN-8654', patient: 'Sunita Desai',  date: '1 Jun 2026',  type: 'Video Consult', amount: 799,  status: 'refunded', method: 'Card',  payout: 'Refunded' },
-];
+import { apiFetch } from '../../lib/apiClient.js';
 
 const STATUS_STYLE = {
   settled: 'bg-emerald-50 text-emerald-700 border-emerald-100',
@@ -24,15 +9,29 @@ const STATUS_STYLE = {
   refunded: 'bg-rose-50 text-rose-700 border-rose-100',
 };
 
+const PAYMENT_STATUS_TO_DISPLAY = {
+  Paid: 'settled',
+  Pending: 'pending',
+  Refunded: 'refunded',
+  'Insurance Claimed': 'settled',
+};
+
 /* ─── Payout Modal ───────────────────────────── */
-function PayoutModal({ isOpen, onClose, onRequest, toast }) {
+function PayoutModal({ isOpen, onClose, onRequest, available, toast }) {
   const [method, setMethod] = useState('Bank Account');
-  const [amount, setAmount] = useState('5600');
+  const [amount, setAmount] = useState('');
   const [step, setStep] = useState(1);
 
-  const submit = () => {
+  useEffect(() => { if (isOpen) setAmount(String(available || 0)); }, [isOpen, available]);
+
+  const submit = async () => {
     setStep(2);
-    setTimeout(() => { onRequest(method, amount); onClose(); setStep(1); }, 1500);
+    try {
+      await onRequest(method, amount);
+    } finally {
+      onClose();
+      setStep(1);
+    }
   };
 
   return (
@@ -40,8 +39,8 @@ function PayoutModal({ isOpen, onClose, onRequest, toast }) {
       {step === 1 ? (
         <div className="space-y-4">
           <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-4 text-center">
-            <p className="text-xs text-slate-500">Available for payout</p>
-            <p className="text-3xl font-black text-aubergine-800">₹5,600</p>
+            <p className="text-xs text-slate-500">Settled this month</p>
+            <p className="text-3xl font-black text-aubergine-800">₹{Number(available || 0).toLocaleString()}</p>
           </div>
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1.5 block">Payout Amount</label>
@@ -85,7 +84,7 @@ function InvoiceModal({ txn, isOpen, onClose }) {
             <p className="text-xs text-slate-500">Dr. Sarah Mitchell</p>
           </div>
           <div className="text-right text-xs text-slate-500 font-mono">
-            <p className="font-bold text-slate-800">{txn.id}</p>
+            <p className="font-bold text-slate-800">{txn.txn_ref || txn.id}</p>
             <p>{txn.date}</p>
           </div>
         </div>
@@ -106,18 +105,58 @@ function InvoiceModal({ txn, isOpen, onClose }) {
 /* ─── Main Component ─────────────────────────── */
 function DoctorBilling() {
   const toast = useToast();
+  const [transactions, setTransactions] = useState([]);
+  const [summary, setSummary] = useState({ thisMonth: 0, thisMonthCount: 0, lastMonth: 0, lastMonthCount: 0, pending: 0, pendingCount: 0, totalYtd: 0 });
+  const [loading, setLoading] = useState(true);
   const [showPayout, setShowPayout] = useState(false);
   const [invoiceTxn, setInvoiceTxn] = useState(null);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  const filtered = TRANSACTIONS.filter(t => {
-    const ms = !search || t.patient.toLowerCase().includes(search.toLowerCase()) || t.id.toLowerCase().includes(search.toLowerCase());
+  const load = () => {
+    Promise.all([apiFetch('/billing/transactions'), apiFetch('/billing/summary')])
+      .then(([txns, sum]) => { setTransactions(txns); setSummary(sum); })
+      .catch(err => toast(err.message || 'Failed to load billing data', 'error'))
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, []);
+
+  const rows = transactions.map(t => ({
+    id: t.id,
+    txn_ref: t.txn_ref,
+    patient: t.patientName,
+    date: new Date(t.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+    type: t.service,
+    amount: Number(t.amount),
+    status: PAYMENT_STATUS_TO_DISPLAY[t.status] || 'pending',
+    method: t.method || '—',
+  }));
+
+  const EARNINGS = [
+    { label: 'This Month', value: `₹${summary.thisMonth.toLocaleString()}`, sub: `${summary.thisMonthCount} consultations`, trend: null, up: null },
+    { label: 'Last Month', value: `₹${summary.lastMonth.toLocaleString()}`, sub: `${summary.lastMonthCount} consultations`, trend: 'Baseline', up: null },
+    { label: 'Pending', value: `₹${summary.pending.toLocaleString()}`, sub: `${summary.pendingCount} consultations`, trend: null, up: null },
+    { label: 'Total YTD', value: `₹${summary.totalYtd.toLocaleString()}`, sub: 'Since Jan', trend: null, up: null },
+  ];
+
+  const filtered = rows.filter(t => {
+    const ms = !search || t.patient.toLowerCase().includes(search.toLowerCase()) || (t.txn_ref || '').toLowerCase().includes(search.toLowerCase());
     const mf = filterStatus === 'all' || t.status === filterStatus;
     return ms && mf;
   });
 
   const total = filtered.reduce((s, t) => s + (t.status === 'settled' ? t.amount : 0), 0);
+
+  const requestPayout = async (method, amount) => {
+    try {
+      await apiFetch('/billing/payouts', { method: 'POST', body: { method, amount } });
+      toast(`Payout of ₹${amount} via ${method} initiated. Processing in 1–2 business days.`, 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to request payout', 'error');
+    }
+  };
+
+  if (loading) return <div className="p-10 text-center text-sm text-slate-500">Loading billing data...</div>;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -138,7 +177,7 @@ function DoctorBilling() {
           <div key={e.label} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className="text-xs font-semibold text-slate-500 mb-1">{e.label}</div>
             <div className="text-2xl font-black text-slate-800 mb-1">{e.value}</div>
-            <div className="text-xs text-slate-400">{e.sub}</div>
+            <div className="text-xs text-slate-500">{e.sub}</div>
             {e.up !== null && (
               <div className={`text-xs font-bold mt-2 flex items-center gap-1 ${e.up ? 'text-emerald-600' : 'text-rose-500'}`}>
                 <i className={`fas fa-arrow-${e.up ? 'up' : 'down'} text-[10px]`}></i> {e.trend}
@@ -153,7 +192,7 @@ function DoctorBilling() {
         <div className="p-5 border-b border-slate-100 flex flex-wrap gap-3 items-center justify-between">
           <div className="flex gap-2 flex-wrap items-center">
             <div className="relative">
-              <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+              <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient or ID..."
                 className="pl-8 pr-4 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-aubergine-300 w-44" />
             </div>
@@ -177,7 +216,7 @@ function DoctorBilling() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="bg-slate-50 text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100">
+              <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wider border-b border-slate-100">
                 <th className="px-5 py-3 font-semibold">ID</th>
                 <th className="px-5 py-3 font-semibold">Patient</th>
                 <th className="px-5 py-3 font-semibold">Date</th>
@@ -191,7 +230,7 @@ function DoctorBilling() {
             <tbody className="divide-y divide-slate-50">
               {filtered.map(t => (
                 <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-4 font-mono text-xs text-slate-400">{t.id}</td>
+                  <td className="px-5 py-4 font-mono text-xs text-slate-500">{t.txn_ref || t.id}</td>
                   <td className="px-5 py-4 font-bold text-slate-800">{t.patient}</td>
                   <td className="px-5 py-4 text-slate-500 text-xs whitespace-nowrap">{t.date}</td>
                   <td className="px-5 py-4 text-xs"><span className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-full font-bold">{t.type}</span></td>
@@ -208,15 +247,14 @@ function DoctorBilling() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={8} className="px-5 py-10 text-center text-sm text-slate-400">No transactions match this filter.</td></tr>
+                <tr><td colSpan={8} className="px-5 py-10 text-center text-sm text-slate-500">No transactions match this filter.</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      <PayoutModal isOpen={showPayout} onClose={() => setShowPayout(false)} toast={toast}
-        onRequest={(method, amount) => toast(`Payout of ₹${amount} via ${method} initiated. Processing in 1–2 business days.`, 'success')} />
+      <PayoutModal isOpen={showPayout} onClose={() => setShowPayout(false)} toast={toast} available={summary.thisMonth} onRequest={requestPayout} />
       <InvoiceModal txn={invoiceTxn} isOpen={!!invoiceTxn} onClose={() => setInvoiceTxn(null)} />
     </div>
   );

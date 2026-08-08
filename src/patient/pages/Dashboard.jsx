@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { StepIndicator } from '../../components/StepIndicator.jsx';
-import { Tilt3D } from '../../components/Tilt3D.jsx';
 
 /* ─── Dummy Data ─────────────────────────────── */
 const CYCLE_PHASES = [
@@ -62,11 +61,11 @@ function VideoCallModal({ isOpen, onClose, toast }) {
               <div className="text-center">
                 <div className="w-20 h-20 rounded-full bg-aubergine-700 flex items-center justify-center text-3xl font-black text-white mx-auto mb-3">SM</div>
                 <p className="text-white font-bold">Dr. Sarah Mitchell</p>
-                <p className="text-slate-400 text-xs mt-1">● Live • 00:01:24</p>
+                <p className="text-slate-500 text-xs mt-1">● Live • 00:01:24</p>
               </div>
             </div>
             {/* Self-cam */}
-            <div className="absolute bottom-3 right-3 w-24 h-16 bg-slate-700 rounded-xl border-2 border-white/20 flex items-center justify-center text-xs text-slate-400">
+            <div className="absolute bottom-3 right-3 w-24 h-16 bg-slate-700 rounded-xl border-2 border-white/20 flex items-center justify-center text-xs text-slate-500">
               {videoOff ? <i className="fas fa-video-slash text-slate-500 text-xl"></i> : <span className="font-bold text-white">You</span>}
             </div>
           </div>
@@ -81,7 +80,7 @@ function VideoCallModal({ isOpen, onClose, toast }) {
             <button onClick={handleEnd} className="w-14 h-14 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center text-xl transition-all shadow-lg">
               <i className="fas fa-phone-slash"></i>
             </button>
-            <button onClick={() => toast('Chat feature coming soon!', 'info')} className="w-12 h-12 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-lg transition-all">
+            <button className="w-12 h-12 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-lg transition-all">
               <i className="fas fa-comment"></i>
             </button>
           </div>
@@ -131,7 +130,7 @@ function SymptomCheckerModal({ isOpen, onClose, toast }) {
             <p className="text-sm font-bold text-slate-700 mb-1">Overall Pain / Discomfort Level</p>
             <input type="range" min={1} max={10} value={severity} onChange={e => setSeverity(+e.target.value)}
               className="w-full accent-aubergine-600" />
-            <div className="flex justify-between text-xs text-slate-400 mt-1"><span>1 - Minimal</span><span className="font-black text-aubergine-600 text-base">{severity}</span><span>10 - Severe</span></div>
+            <div className="flex justify-between text-xs text-slate-500 mt-1"><span>1 - Minimal</span><span className="font-black text-aubergine-600 text-base">{severity}</span><span>10 - Severe</span></div>
           </div>
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 font-medium">
             <i className="fas fa-circle-info mr-1.5"></i>
@@ -185,7 +184,7 @@ function LabReportsModal({ isOpen, onClose }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-bold text-slate-800 text-sm">{lab.name}</p>
-                <p className="text-xs text-slate-400">Ref: {lab.ref}</p>
+                <p className="text-xs text-slate-500">Ref: {lab.ref}</p>
               </div>
               <div className="text-right">
                 <p className="font-black text-slate-800">{lab.value}</p>
@@ -195,11 +194,11 @@ function LabReportsModal({ isOpen, onClose }) {
               </div>
             </div>
             <p className="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200/70">
-              <i className="fas fa-circle-info text-slate-400 mr-1"></i>{PLAIN_LANGUAGE[lab.status]}
+              <i className="fas fa-circle-info text-slate-500 mr-1"></i>{PLAIN_LANGUAGE[lab.status]}
             </p>
           </div>
         ))}
-        <p className="text-[10px] text-slate-400 pt-2 border-t border-slate-100">Reviewed by Dr. Sarah Mitchell on 5 Aug 2026. Repeat panel recommended in 3 months.</p>
+        <p className="text-[10px] text-slate-500 pt-2 border-t border-slate-100">Reviewed by Dr. Sarah Mitchell on 5 Aug 2026. Repeat panel recommended in 3 months.</p>
       </div>
     </Modal>
   );
@@ -285,8 +284,16 @@ function QuickBookModal({ isOpen, onClose, toast }) {
 /* ─── Cycle Dashboard ────────────────────────── */
 function CycleDashboardView({ toast }) {
   const [currentPhase, setCurrentPhase] = useState('ovulation');
+  const todayKey = `cycle_logged_${new Date().toISOString().slice(0, 10)}`;
+  const [loggedToday, setLoggedToday] = useState(() => localStorage.getItem(todayKey) === 'true');
 
   const phase = CYCLE_PHASES.find(p => p.id === currentPhase);
+
+  const logToday = () => {
+    localStorage.setItem(todayKey, 'true');
+    setLoggedToday(true);
+    toast(`Logged today as ${phase.label} phase.`, 'success');
+  };
 
   return (
     <div className="p-6 md:p-8">
@@ -308,7 +315,7 @@ function CycleDashboardView({ toast }) {
             className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${currentPhase === p.id ? 'border-aubergine-500 bg-aubergine-50' : 'border-slate-200 hover:border-slate-300 bg-white'}`}>
             <div className={`w-4 h-4 rounded-full ${p.color} ${currentPhase === p.id ? 'animate-pulse' : ''}`}></div>
             <span className={`text-[10px] font-black ${currentPhase === p.id ? 'text-aubergine-700' : 'text-slate-500'}`}>{p.label}</span>
-            <span className="text-[9px] text-slate-400">{p.day}</span>
+            <span className="text-[9px] text-slate-500">{p.day}</span>
           </button>
         ))}
       </div>
@@ -321,10 +328,21 @@ function CycleDashboardView({ toast }) {
         </div>
       </div>
 
-      <div className="bg-sand-50 rounded-xl p-4 flex items-start gap-3 border border-sand-200">
+      <div className="bg-sand-50 rounded-xl p-4 flex items-start gap-3 border border-sand-200 mb-4">
         <i className="fas fa-lightbulb text-amber-500 mt-0.5 flex-shrink-0"></i>
         <p className="text-sm text-slate-600">{phase.tip}</p>
       </div>
+
+      {/* One real write action on the most-viewed screen, not only on the Tracking page */}
+      <button onClick={logToday} disabled={loggedToday}
+        className={`w-full py-3 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
+          loggedToday
+            ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default'
+            : 'bg-aubergine-600 hover:bg-aubergine-700 text-white'
+        }`}>
+        <i className={`fas ${loggedToday ? 'fa-circle-check' : 'fa-plus'}`}></i>
+        {loggedToday ? "Today's phase logged" : `Log Today as ${phase.label}`}
+      </button>
     </div>
   );
 }
@@ -382,7 +400,7 @@ function OnboardingModal({ isOpen, onClose, toast }) {
             className="w-full mt-4 bg-aubergine-600 disabled:opacity-40 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
             Next → Medical History
           </button>
-          <button onClick={onClose} className="w-full text-center text-xs text-slate-400 hover:text-slate-600 font-semibold">
+          <button onClick={onClose} className="w-full text-center text-xs text-slate-500 hover:text-slate-600 font-semibold">
             Skip for now
           </button>
         </div>
@@ -402,7 +420,7 @@ function OnboardingModal({ isOpen, onClose, toast }) {
             className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
             <i className="fas fa-check"></i> Complete Profile
           </button>
-          <button onClick={onClose} className="w-full text-center text-xs text-slate-400 hover:text-slate-600 font-semibold">
+          <button onClick={onClose} className="w-full text-center text-xs text-slate-500 hover:text-slate-600 font-semibold">
             Skip for now
           </button>
         </div>
@@ -421,12 +439,16 @@ function PatientDashboard() {
   const [showSymptomChecker, setShowSymptomChecker] = useState(false);
   const [showLabReports, setShowLabReports] = useState(false);
   const [showQuickBook, setShowQuickBook] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('healnari_onboarding_done') !== 'true');
+  // The profile ask no longer blocks the very first paint — it waits for the dashboard
+  // itself to render, then offers an inline, dismissible invite instead of a forced modal.
+  const [onboardingDone, setOnboardingDone] = useState(() => localStorage.getItem('healnari_onboarding_done') === 'true');
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [discreet, setDiscreet] = useState(localStorage.getItem('discreet_mode') === 'true');
 
   const dismissOnboarding = () => {
     localStorage.setItem('healnari_onboarding_done', 'true');
+    setOnboardingDone(true);
     setShowOnboarding(false);
   };
   const [goals, setGoals] = useState([
@@ -500,7 +522,7 @@ function PatientDashboard() {
         </div>
       </div>
 
-      {/* Stats strip */}
+      {/* Stats strip — held still so the numbers are legible to scan at a glance */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: 'Next Appointment', value: '3 Days', icon: 'fa-calendar', color: 'text-aubergine-600 bg-aubergine-50', onClick: () => navigate('/patient-dashboard/appointments') },
@@ -508,18 +530,41 @@ function PatientDashboard() {
           { label: 'Health Score', value: '82/100', icon: 'fa-heart-pulse', color: 'text-rose-600 bg-rose-50', onClick: () => navigate('/patient-dashboard/tracking') },
           { label: 'Unread Reports', value: '1 New', icon: 'fa-file-medical', color: 'text-sky-600 bg-sky-50', onClick: () => setShowLabReports(true) },
         ].map(stat => (
-          <Tilt3D key={stat.label} max={5}>
-            <button onClick={stat.onClick}
-              className="w-full bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-aubergine-200 transition-all group text-left">
-              <div className={`w-10 h-10 rounded-xl ${stat.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
-                <i className={`fas ${stat.icon}`}></i>
-              </div>
-              <div className="font-black text-slate-800 text-lg">{stat.value}</div>
-              <div className="text-xs text-slate-500 font-medium">{stat.label}</div>
-            </button>
-          </Tilt3D>
+          <button key={stat.label} onClick={stat.onClick}
+            className="w-full bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-aubergine-200 transition-all group text-left">
+            <div className={`w-10 h-10 rounded-xl ${stat.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+              <i className={`fas ${stat.icon}`}></i>
+            </div>
+            <div className="font-black text-slate-800 text-lg">{stat.value}</div>
+            <div className="text-xs text-slate-500 font-medium">{stat.label}</div>
+          </button>
         ))}
       </div>
+
+      {/* Inline profile-completion invite — replaces a modal that used to block first
+          paint. Same destination (OnboardingModal), just earned rather than forced. */}
+      {!onboardingDone && (
+        <div className="bg-aubergine-50 border border-aubergine-100 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center text-lg flex-shrink-0">
+              <i className="fas fa-clipboard-user"></i>
+            </div>
+            <div>
+              <p className="font-bold text-aubergine-900">Complete your health profile</p>
+              <p className="text-xs text-aubergine-700">Two quick steps — helps your care team personalize what you see here.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button onClick={() => setShowOnboarding(true)} className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors whitespace-nowrap">
+              Complete Profile
+            </button>
+            <button onClick={dismissOnboarding} aria-label="Dismiss profile prompt" title="Not now"
+              className="w-9 h-9 rounded-xl border border-aubergine-200 text-aubergine-700 hover:bg-aubergine-100 transition-colors flex items-center justify-center">
+              <i className="fas fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Main Column */}

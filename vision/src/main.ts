@@ -1,14 +1,14 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { AppModule } from '@/app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
-import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import { AllExceptionsFilter } from '@/core/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Allow frontend to make requests
-  app.enableCors();
+  // Allow the frontend dev/prod origin to make requests
+  app.enableCors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' });
 
   // Apply Global Validation Pipe
   app.useGlobalPipes(

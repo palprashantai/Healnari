@@ -218,8 +218,8 @@ function PatientFamily() {
                     <div className="flex items-start gap-2 flex-1">
                       <i className={`fas ${perm.icon} ${perm.color} mt-0.5 text-xs w-4 text-center`}></i>
                       <div>
-                        <p className={`text-xs font-bold ${perm.sensitive && !isOn ? 'text-slate-400' : 'text-slate-700'}`}>{perm.label}</p>
-                        <p className="text-[10px] text-slate-400">{perm.sub}</p>
+                        <p className={`text-xs font-bold ${perm.sensitive && !isOn ? 'text-slate-500' : 'text-slate-700'}`}>{perm.label}</p>
+                        <p className="text-[10px] text-slate-500">{perm.sub}</p>
                       </div>
                     </div>
                     <button onClick={() => togglePermission(idx, perm.key)}
@@ -250,11 +250,11 @@ function PatientFamily() {
           onClick={() => setShowInviteForm(true)}
           className="bg-white rounded-2xl shadow-sm border-2 border-dashed border-slate-200 p-6 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-aubergine-300 hover:bg-aubergine-50/20 transition-all group min-h-48">
           <div className="w-14 h-14 rounded-full bg-slate-100 group-hover:bg-aubergine-100 flex items-center justify-center transition-colors">
-            <i className="fas fa-user-plus text-slate-400 group-hover:text-aubergine-600 text-xl transition-colors"></i>
+            <i className="fas fa-user-plus text-slate-500 group-hover:text-aubergine-600 text-xl transition-colors"></i>
           </div>
           <div className="text-center">
             <p className="font-bold text-slate-500 group-hover:text-aubergine-700 transition-colors text-sm">Invite Another Person</p>
-            <p className="text-xs text-slate-400 mt-0.5">Add a caregiver or family member</p>
+            <p className="text-xs text-slate-500 mt-0.5">Add a caregiver or family member</p>
           </div>
         </div>
       </div>

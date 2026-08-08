@@ -1,15 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
-
-/* ─── Dummy Data ─────────────────────────────── */
-const TRANSACTIONS = [
-  { id: 'TXN-9821', date: '25 Jun 2026', doctor: 'Dr. Sarah Mitchell', type: 'Consultation', amount: 799, status: 'paid', method: 'UPI' },
-  { id: 'TXN-9654', date: '18 Jun 2026', doctor: 'Dr. Ananya Pillai', type: 'Follow-up', amount: 399, status: 'paid', method: 'Card' },
-  { id: 'TXN-9210', date: '10 Jun 2026', doctor: 'Dr. Sarah Mitchell', type: 'Lab Package', amount: 1499, status: 'paid', method: 'Net Banking' },
-  { id: 'TXN-8987', date: '28 May 2026', doctor: 'Dr. Vivek Nair', type: 'Consultation', amount: 599, status: 'refunded', method: 'UPI' },
-  { id: 'TXN-8654', date: '14 May 2026', doctor: 'Dr. Sarah Mitchell', type: 'Consultation', amount: 799, status: 'paid', method: 'Wallet' },
-];
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
+import { apiFetch } from '../../lib/apiClient.js';
 
 const STATUS_STYLE = {
   paid:     'bg-emerald-50 text-emerald-700 border-emerald-100',
@@ -17,9 +10,9 @@ const STATUS_STYLE = {
   pending:  'bg-amber-50 text-amber-700 border-amber-100',
 };
 
-const METHOD_ICON = { UPI: 'fa-mobile-screen-button', Card: 'fa-credit-card', 'Net Banking': 'fa-building-columns', Wallet: 'fa-wallet' };
+const PAYMENT_STATUS_TO_DISPLAY = { Paid: 'paid', Pending: 'pending', Refunded: 'refunded', 'Insurance Claimed': 'paid' };
 
-const UPCOMING_PAYMENT = { doctor: 'Dr. Sarah Mitchell', date: 'Mon, 10 Aug 2026', amount: 799, id: 'APT-101' };
+const METHOD_ICON = { UPI: 'fa-mobile-screen-button', Card: 'fa-credit-card', 'Net Banking': 'fa-building-columns', Wallet: 'fa-wallet' };
 
 /* ─── Payment Modal ──────────────────────────── */
 function PaymentModal({ isOpen, onClose, amount, description, onSuccess }) {
@@ -35,16 +28,19 @@ function PaymentModal({ isOpen, onClose, amount, description, onSuccess }) {
     { id: 'Wallet', label: 'HealNari Wallet (₹450 balance)', icon: 'fa-wallet', color: 'text-emerald-600' },
   ];
 
-  const pay = () => {
+  const pay = async () => {
     setProcessing(true);
-    setTimeout(() => {
-      setProcessing(false);
+    try {
+      await onSuccess(method);
       setStep(3);
-    }, 2000);
+    } catch {
+      // onSuccess already toasts the error — stay on step 2 so they can retry.
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const done = () => {
-    onSuccess(method);
     onClose();
     setStep(1); setUpiId(''); setProcessing(false);
   };
@@ -114,7 +110,7 @@ function PaymentModal({ isOpen, onClose, amount, description, onSuccess }) {
           <div>
             <h3 className="font-black text-slate-800 text-xl">Payment Successful!</h3>
             <p className="text-sm text-slate-500 mt-1">₹{amount} paid via {method}</p>
-            <p className="text-xs text-slate-400 mt-0.5">Receipt sent to your registered email</p>
+            <p className="text-xs text-slate-500 mt-0.5">Receipt sent to your registered email</p>
           </div>
           <button onClick={done} className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
             Done
@@ -128,16 +124,50 @@ function PaymentModal({ isOpen, onClose, amount, description, onSuccess }) {
 /* ─── Main Component ─────────────────────────── */
 function PatientBilling() {
   const toast = useToast();
+  const { appointments } = useClinicData();
   const [coupon, setCoupon] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponMsg, setCouponMsg] = useState('');
-  const [transactions, setTransactions] = useState(TRANSACTIONS);
+  const [rawTransactions, setRawTransactions] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [payTarget, setPayTarget] = useState(null);
   const [showPayModal, setShowPayModal] = useState(false);
   const [payFor, setPayFor] = useState({ amount: 0, description: '' });
   const [labsData, setLabsData] = useState(() => {
     const raw = localStorage.getItem('prescribed_labs');
     return raw ? JSON.parse(raw) : null;
   });
+
+  const loadTransactions = () => apiFetch('/billing/transactions').then(setRawTransactions).catch(err => toast(err.message || 'Failed to load transactions', 'error'));
+  useEffect(() => { loadTransactions(); }, []);
+  useEffect(() => { apiFetch('/doctors/search').then(setDoctors).catch(() => setDoctors([])); }, []);
+
+  const transactions = useMemo(() => rawTransactions.map(t => ({
+    id: t.id,
+    txn_ref: t.txn_ref,
+    date: new Date(t.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+    doctor: t.doctorName ? `Dr. ${t.doctorName}` : '—',
+    type: t.service,
+    amount: Number(t.amount),
+    status: PAYMENT_STATUS_TO_DISPLAY[t.status] || 'pending',
+    method: t.method || '—',
+  })), [rawTransactions]);
+
+  const doctorById = useMemo(() => new Map(doctors.map(d => [d.id, d])), [doctors]);
+
+  const upcomingPayment = useMemo(() => {
+    const next = appointments
+      .filter(a => !['Done', 'Cancelled', 'No Show', 'Requested'].includes(a.status))
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''))[0];
+    if (!next) return null;
+    const doc = doctorById.get(next.doctorId);
+    return {
+      appointmentId: next.id,
+      doctor: `Dr. ${next.doctorName}`,
+      date: next.date,
+      amount: doc?.consultation_fee ?? 799,
+    };
+  }, [appointments, doctorById]);
 
   const totalPaid = transactions.filter(t => t.status === 'paid').reduce((s, t) => s + t.amount, 0);
 
@@ -153,23 +183,21 @@ function PatientBilling() {
     }
   };
 
-  const openPay = (amount, description) => {
+  const openPay = (amount, description, appointmentId) => {
     setPayFor({ amount: couponApplied ? Math.round(amount * 0.9) : amount, description });
+    setPayTarget(appointmentId);
     setShowPayModal(true);
   };
 
-  const handlePaySuccess = (method) => {
-    const newTxn = {
-      id: `TXN-${Math.floor(Math.random() * 9000) + 1000}`,
-      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      doctor: UPCOMING_PAYMENT.doctor,
-      type: 'Consultation',
-      amount: payFor.amount,
-      status: 'paid',
-      method,
-    };
-    setTransactions(prev => [newTxn, ...prev]);
-    toast(`Payment of ₹${payFor.amount} successful!`, 'success');
+  const handlePaySuccess = async (method) => {
+    try {
+      await apiFetch('/billing/pay', { method: 'POST', body: { appointmentId: payTarget, method } });
+      await loadTransactions();
+      toast(`Payment of ₹${payFor.amount} successful!`, 'success');
+    } catch (err) {
+      toast(err.message || 'Payment failed', 'error');
+      throw err;
+    }
   };
 
   const handleExport = () => {
@@ -204,13 +232,19 @@ function PatientBilling() {
         {/* Upcoming Due */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="text-sm text-slate-500 font-medium mb-1">Next Consultation</div>
-          <div className="text-2xl font-black text-slate-800">₹{couponApplied ? Math.round(UPCOMING_PAYMENT.amount * 0.9) : UPCOMING_PAYMENT.amount}</div>
-          {couponApplied && <div className="text-xs text-slate-400 font-bold line-through">₹799 <span className="no-underline text-emerald-600">(10% off applied!)</span></div>}
-          <div className="text-xs text-slate-400 mt-1">Due: {UPCOMING_PAYMENT.date}</div>
-          <button onClick={() => openPay(UPCOMING_PAYMENT.amount, `Consultation — ${UPCOMING_PAYMENT.doctor}`)}
-            className="mt-3 w-full text-center bg-aubergine-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer hover:bg-aubergine-700 transition-colors">
-            Pay Now
-          </button>
+          {upcomingPayment ? (
+            <>
+              <div className="text-2xl font-black text-slate-800">₹{couponApplied ? Math.round(upcomingPayment.amount * 0.9) : upcomingPayment.amount}</div>
+              {couponApplied && <div className="text-xs text-slate-500 font-bold line-through">₹{upcomingPayment.amount} <span className="no-underline text-emerald-600">(10% off applied!)</span></div>}
+              <div className="text-xs text-slate-500 mt-1">{upcomingPayment.doctor} • {upcomingPayment.date}</div>
+              <button onClick={() => openPay(upcomingPayment.amount, `Consultation — ${upcomingPayment.doctor}`, upcomingPayment.appointmentId)}
+                className="mt-3 w-full text-center bg-aubergine-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer hover:bg-aubergine-700 transition-colors">
+                Pay Now
+              </button>
+            </>
+          ) : (
+            <div className="text-sm text-slate-500 mt-2">No upcoming consultation due.</div>
+          )}
         </div>
 
         {/* Coupon */}
@@ -236,7 +270,7 @@ function PatientBilling() {
           {couponMsg && !couponApplied && (
             <p className="text-xs mt-2 font-medium text-rose-500">{couponMsg}</p>
           )}
-          <p className="text-[10px] text-slate-400 mt-3 italic">Hint: Try HEALNARI10</p>
+          <p className="text-[10px] text-slate-500 mt-3 italic">Hint: Try HEALNARI10</p>
         </div>
       </div>
 
@@ -261,7 +295,7 @@ function PatientBilling() {
               </div>
             ) : (
               <>
-                <span className="text-xs text-slate-400 font-bold">Estimated Cost: ₹1,499 (Zero-Fee Pick-up)</span>
+                <span className="text-xs text-slate-500 font-bold">Estimated Cost: ₹1,499 (Zero-Fee Pick-up)</span>
                 <button onClick={handleBookCollection}
                   className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-colors flex items-center gap-2">
                   <i className="fas fa-truck-droplet"></i> Book Home Blood Collection
@@ -299,7 +333,7 @@ function PatientBilling() {
                   <td className="px-5 py-4 text-slate-500 whitespace-nowrap">{txn.date}</td>
                   <td className="px-5 py-4">
                     <div className="font-bold text-slate-800 text-sm">{txn.doctor}</div>
-                    <div className="text-xs text-slate-400 font-mono">{txn.id}</div>
+                    <div className="text-xs text-slate-500 font-mono">{txn.txn_ref || txn.id}</div>
                   </td>
                   <td className="px-5 py-4 text-slate-600">{txn.type}</td>
                   <td className="px-5 py-4">

@@ -110,6 +110,38 @@
   }
 }
 
+/* ── Discreet Mode ─────────────────────────────────────────────────
+   Blurs sensitive content for shoulder-surfing privacy. Applied either
+   directly to a content container, or to <body> (landing page), in
+   which case only <main> is blurred so the toggle control itself
+   stays visible and reachable. Sharpens on hover/focus so the owner
+   can still read it; reverts as soon as attention moves away. */
+.discreet-blur {
+  filter: blur(7px) saturate(0.7);
+  transition: filter 0.2s ease;
+}
+.discreet-blur:hover,
+.discreet-blur:focus-within {
+  filter: none;
+}
+body.discreet-blur {
+  filter: none;
+}
+body.discreet-blur main {
+  filter: blur(7px) saturate(0.7);
+  transition: filter 0.2s ease;
+}
+body.discreet-blur main:hover,
+body.discreet-blur main:focus-within {
+  filter: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .discreet-blur,
+  body.discreet-blur main {
+    transition: none;
+  }
+}
+
 /* Page entrance keyframes */
 @keyframes pageFadeIn {
   from { opacity: 0; transform: translateY(10px); }
@@ -151,4 +183,8 @@
   -webkit-background-clip: text;
   background-clip: text;
   animation: shimmerText 4s linear infinite;
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
 }

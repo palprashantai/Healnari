@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { DoseSchedule } from '../../components/DoseSchedule.jsx';
 import { RxStatusBadge, resolveRxStatus } from '../../components/RxStatus.jsx';
 import { StepIndicator } from '../../components/StepIndicator.jsx';
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -51,9 +52,7 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
   );
 }
 
-/* ─── Dummy Data ──────────────────────────────── */
-const PATIENTS = ['Priya Sharma', 'Anita Desai', 'Kavita Patel', 'Aisha Khan', 'Sunita Desai'];
-
+/* ─── Reference data (not patient/prescription records — no backend needed) ── */
 const MED_LIBRARY = [
   'Metformin 500mg', 'Metformin 1000mg', 'Myo-Inositol Sachet 2g', 'Vitamin D3 60000 IU',
   'Norethisterone 5mg', 'Dienogest 2mg', 'Mefenamic Acid 500mg', 'Clomiphene Citrate 50mg',
@@ -65,47 +64,6 @@ const SCHEDULE_PRESETS = ['1-0-1', '1-1-1', '1-0-0', '0-0-1', '0-1-0', 'SOS'];
 
 const STATUS_TABS = ['All', 'Active', 'Expiring Soon', 'Refill Requested', 'Expired'];
 
-const INITIAL_RX = [
-  {
-    id: 'RX-A01', patient: 'Priya Sharma', date: '25 Jun 2026', diagnosis: 'PCOS — Insulin Resistance',
-    status: 'Active', validTill: '25 Dec 2026',
-    meds: [
-      { name: 'Metformin 500mg', schedule: '1-0-1 (After Meals)', duration: '30 Days', refillsLeft: 2 },
-      { name: 'Myo-Inositol Sachet 2g', schedule: '1-0-0 (Empty Stomach)', duration: '30 Days', refillsLeft: 2 },
-    ],
-    instructions: 'Avoid high-GI foods. Exercise 30 mins daily. Follow-up TSH in 6 weeks.',
-    refillRequested: false,
-  },
-  {
-    id: 'RX-A02', patient: 'Kavita Patel', date: '10 Jun 2026', diagnosis: 'Oligomenorrhea',
-    status: 'Active', validTill: '10 Sep 2026',
-    meds: [
-      { name: 'Norethisterone 5mg', schedule: '1-0-0 (Days 16–25 of cycle)', duration: '10 Days', refillsLeft: 1 },
-    ],
-    instructions: 'Take for 10 days. Withdrawal bleed expected 2–4 days after stopping.',
-    refillRequested: true,
-  },
-  {
-    id: 'RX-A03', patient: 'Aisha Khan', date: '1 Jun 2026', diagnosis: 'Endometriosis Gr.2',
-    status: 'Active', validTill: '1 Dec 2026',
-    meds: [
-      { name: 'Dienogest 2mg', schedule: '1-0-0 (Daily)', duration: '6 Months', refillsLeft: 3 },
-      { name: 'Mefenamic Acid 500mg', schedule: 'PRN (During pain)', duration: 'As needed', refillsLeft: 0 },
-    ],
-    instructions: 'Monitor for breakthrough bleeding. Return immediately if pain exceeds 8/10.',
-    refillRequested: false,
-  },
-  {
-    id: 'RX-A04', patient: 'Anita Desai', date: '15 May 2026', diagnosis: 'Fertility Enhancement',
-    status: 'Expired', validTill: '15 Jun 2026',
-    meds: [
-      { name: 'Clomiphene Citrate 50mg', schedule: '1-0-0 (Days 2–6)', duration: 'Per cycle', refillsLeft: 0 },
-    ],
-    instructions: 'Monitor follicular growth via ultrasound on Day 12. Schedule trigger shot.',
-    refillRequested: false,
-  },
-];
-
 const TEMPLATES = [
   { name: 'PCOS First-Line Protocol',     meds: ['Metformin 500mg BD', 'Myo-Inositol 2g OD', 'Vitamin D3 60K IU weekly'] },
   { name: 'Cycle Regulation (Norethisterone)', meds: ['Norethisterone 5mg OD (Day 16–25)'] },
@@ -114,9 +72,9 @@ const TEMPLATES = [
 ];
 
 /* ─── Write Rx Modal ─────────────────────────── */
-function WriteRxModal({ isOpen, onClose, onSave }) {
+function WriteRxModal({ isOpen, onClose, onSave, patients }) {
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ patient: '', diagnosis: '', meds: [{ name: '', schedule: '', duration: '' }], instructions: '' });
+  const [form, setForm] = useState({ patientId: '', patient: '', diagnosis: '', meds: [{ name: '', schedule: '', duration: '' }], instructions: '' });
   const [template, setTemplate] = useState('');
 
   const applyTemplate = (tmpl) => {
@@ -131,7 +89,7 @@ function WriteRxModal({ isOpen, onClose, onSave }) {
   const removeMed = (i) => setForm(p => ({ ...p, meds: p.meds.filter((_, idx) => idx !== i) }));
   const updateMed = (i, k, v) => setForm(p => ({ ...p, meds: p.meds.map((m, idx) => idx === i ? { ...m, [k]: v } : m) }));
 
-  const reset = () => { setStep(1); setForm({ patient: '', diagnosis: '', meds: [{ name: '', schedule: '', duration: '' }], instructions: '' }); setTemplate(''); onClose(); };
+  const reset = () => { setStep(1); setForm({ patientId: '', patient: '', diagnosis: '', meds: [{ name: '', schedule: '', duration: '' }], instructions: '' }); setTemplate(''); onClose(); };
 
   return (
     <Modal isOpen={isOpen} onClose={reset} title="Write Prescription" size="lg">
@@ -150,9 +108,12 @@ function WriteRxModal({ isOpen, onClose, onSave }) {
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-bold text-slate-500 mb-1.5 block">Patient *</label>
-              <select value={form.patient} onChange={e => setForm(p => ({ ...p, patient: e.target.value }))} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
+              <select value={form.patientId} onChange={e => {
+                const pt = patients.find(p => p.id === e.target.value);
+                setForm(p => ({ ...p, patientId: e.target.value, patient: pt?.name || '' }));
+              }} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
                 <option value="">Select patient</option>
-                {PATIENTS.map(p => <option key={p}>{p}</option>)}
+                {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
@@ -196,7 +157,7 @@ function WriteRxModal({ isOpen, onClose, onSave }) {
 
                   {/* Quick schedule presets — tap instead of typing dose codes */}
                   <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Quick set:</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Quick set:</span>
                     {SCHEDULE_PRESETS.map(preset => (
                       <button key={preset} type="button" onClick={() => updateMed(i, 'schedule', preset)}
                         className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${med.schedule.startsWith(preset) ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-white text-slate-500 border-slate-200 hover:border-aubergine-300 hover:text-aubergine-600'}`}>
@@ -244,7 +205,7 @@ function WriteRxModal({ isOpen, onClose, onSave }) {
               </div>
               <div className="text-right text-xs text-slate-500">
                 <p>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
-                <p className="font-mono text-slate-400">RX-{Math.floor(Math.random() * 9000) + 1000}</p>
+                <p className="font-mono text-slate-500">RX-{Math.floor(Math.random() * 9000) + 1000}</p>
               </div>
             </div>
             <div className="text-xs space-y-1">
@@ -282,9 +243,28 @@ function WriteRxModal({ isOpen, onClose, onSave }) {
 }
 
 /* ─── Main Component ─────────────────────────── */
+/** The backend stores one row per medication line (no diagnosis/bundle concept),
+ * so a "prescription card" here is a patient's active meds grouped together —
+ * diagnosis comes from the patient's own chronic_conditions, not the Rx form. */
+function toRxCards(patients) {
+  return patients.filter(p => p.meds.length > 0).map(p => ({
+    id: p.id,
+    patientId: p.id,
+    patient: p.name,
+    date: p.meds[0]?.prescribedOn || '',
+    diagnosis: p.diagnosis && p.diagnosis !== 'Pending' ? p.diagnosis : 'General',
+    status: p.meds.some(m => m.refillsLeft > 0) ? 'Active' : 'Expired',
+    validTill: p.meds.reduce((latest, m) => (!latest || (m.validTill && m.validTill > latest)) ? m.validTill : latest, ''),
+    meds: p.meds.map(m => ({ id: m.id, name: m.name, schedule: m.dosage ? `${m.dosage} (${m.frequency || ''})` : (m.frequency || ''), duration: m.duration || '', refillsLeft: m.refillsLeft, refillRequested: m.refillRequested })),
+    instructions: p.meds.find(m => m.instructions)?.instructions || '',
+    refillRequested: p.meds.some(m => m.refillRequested),
+  }));
+}
+
 function DoctorPrescriptions() {
   const toast = useToast();
-  const [prescriptions, setPrescriptions] = useState(INITIAL_RX);
+  const { patients, addRx, approveRefill: approveRefillApi } = useClinicData();
+  const prescriptions = useMemo(() => toRxCards(patients), [patients]);
   const [showWrite, setShowWrite] = useState(false);
   const [refillTarget, setRefillTarget] = useState(null);
   const [search, setSearch] = useState('');
@@ -326,23 +306,22 @@ function DoctorPrescriptions() {
     (!search || rx.patient.toLowerCase().includes(search.toLowerCase()) || rx.diagnosis.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const approveRefill = (rx) => {
-    setPrescriptions(prev => prev.map(r => r.id === rx.id ? { ...r, refillRequested: false, meds: r.meds.map(m => ({ ...m, refillsLeft: m.refillsLeft + 1 })) } : r));
+  const approveRefill = async (rx) => {
+    const requested = rx.meds.filter(m => m.refillRequested);
+    await Promise.all(requested.map(m => approveRefillApi(rx.patientId, m.id)));
     toast(`Refill approved for ${rx.patient}. New prescription issued.`, 'success');
     setRefillTarget(null);
   };
 
-  const handleNewRx = (form) => {
-    const newRx = {
-      id: `RX-A${String(prescriptions.length + 1).padStart(2, '0')}`,
-      patient: form.patient, date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      diagnosis: form.diagnosis, status: 'Active',
-      validTill: new Date(Date.now() + 180 * 86400000).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      meds: form.meds.filter(m => m.name).map(m => ({ ...m, refillsLeft: 2 })),
-      instructions: form.instructions, refillRequested: false,
-    };
-    setPrescriptions(prev => [newRx, ...prev]);
-    toast(`Prescription issued to ${form.patient}. Patient notified via SMS.`, 'success');
+  const handleNewRx = async (form) => {
+    try {
+      await Promise.all(form.meds.filter(m => m.name).map(m => addRx(form.patientId, {
+        name: m.name, dosage: '', frequency: m.schedule, duration: m.duration, instructions: form.instructions,
+      })));
+      toast(`Prescription issued to ${form.patient}. Patient notified via SMS.`, 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to issue prescription', 'error');
+    }
   };
 
   return (
@@ -360,7 +339,7 @@ function DoctorPrescriptions() {
             </button>
             {showActionsMenu && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
-                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Messaging</p></div>
+                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p></div>
                 <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
                 </button>
@@ -399,7 +378,7 @@ function DoctorPrescriptions() {
 
       {/* Search */}
       <div className="relative">
-        <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+        <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient or diagnosis..."
           className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white shadow-sm" />
       </div>
@@ -410,7 +389,7 @@ function DoctorPrescriptions() {
           {STATUS_TABS.map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors ${tab === t ? 'bg-aubergine-700 text-white border-aubergine-700' : 'bg-white text-slate-500 border-slate-200 hover:border-aubergine-300 hover:text-aubergine-600'}`}>
-              {t} <span className={tab === t ? 'text-aubergine-200' : 'text-slate-400'}>({tabCount(t)})</span>
+              {t} <span className={tab === t ? 'text-aubergine-200' : 'text-slate-500'}>({tabCount(t)})</span>
             </button>
           ))}
         </div>
@@ -429,7 +408,7 @@ function DoctorPrescriptions() {
       {/* Rx Cards */}
       <div className="space-y-4">
         {filtered.length === 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-400">
+          <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-500">
             No prescriptions match this filter.
           </div>
         )}
@@ -452,11 +431,11 @@ function DoctorPrescriptions() {
                     {rx.refillRequested && <span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 font-bold px-2 py-0.5 rounded-full">Refill Requested</span>}
                   </div>
                   <p className="text-xs text-aubergine-700 font-bold">{rx.diagnosis}</p>
-                  <p className="text-[10px] text-slate-400">{rx.date} → Valid till {rx.validTill}</p>
+                  <p className="text-[10px] text-slate-500">{rx.date} → Valid till {rx.validTill}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="font-mono text-[10px] text-slate-400 border border-slate-200 px-2 py-0.5 rounded">{rx.id}</span>
+                <span className="font-mono text-[10px] text-slate-500 border border-slate-200 px-2 py-0.5 rounded">{rx.id}</span>
                 <RxStatusBadge rx={rx} />
               </div>
             </div>
@@ -467,7 +446,7 @@ function DoctorPrescriptions() {
                   <div key={i} className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs">
                     <div className="font-bold text-slate-800 mb-1.5">{m.name}</div>
                     <DoseSchedule schedule={m.schedule} />
-                    <div className={`mt-1.5 ${m.refillsLeft === 0 ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>
+                    <div className={`mt-1.5 ${m.refillsLeft === 0 ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
                       {m.duration} • {m.refillsLeft === 0 ? 'No refills left' : `${m.refillsLeft} refills left`}
                     </div>
                   </div>
@@ -500,13 +479,13 @@ function DoctorPrescriptions() {
       </div>
 
       {/* Modals */}
-      <WriteRxModal isOpen={showWrite} onClose={() => setShowWrite(false)} onSave={handleNewRx} />
+      <WriteRxModal isOpen={showWrite} onClose={() => setShowWrite(false)} onSave={handleNewRx} patients={patients} />
       <ConfirmModal
         isOpen={!!refillTarget}
         onClose={() => setRefillTarget(null)}
         onConfirm={() => approveRefill(refillTarget)}
         title={`Approve Refill — ${refillTarget?.patient}`}
-        message={`Approve the refill request for "${refillTarget?.meds?.[0]?.name}" and issue a new prescription to ${refillTarget?.patient}?`}
+        message={`Approve the refill request for "${refillTarget?.meds?.find(m => m.refillRequested)?.name}" and issue a new prescription to ${refillTarget?.patient}?`}
         confirmLabel="Approve & Issue"
         confirmStyle="primary"
       />

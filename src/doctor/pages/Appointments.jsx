@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
+import { apiFetch } from '../../lib/apiClient.js';
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -61,24 +63,6 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
     </Modal>
   );
 }
-
-/* ─── Dummy Data ──────────────────────────────── */
-const INITIAL_QUEUE = [
-  { id: 1, token: 'T-01', name: 'Priya Sharma',   age: '28F', type: 'PCOS Follow-up',    time: '09:30 AM', date: 'Today',    mode: 'Video',  status: 'In Progress', phone: '+91 98765 43210' },
-  { id: 2, token: 'T-02', name: 'Anita Desai',    age: '34F', type: 'Fertility Consult',  time: '10:00 AM', date: 'Today',    mode: 'Clinic', status: 'Waiting',     phone: '+91 97654 32109' },
-  { id: 3, token: 'T-03', name: 'Kavita Patel',   age: '22F', type: 'Irregular Cycles',   time: '10:30 AM', date: 'Today',    mode: 'Video',  status: 'Upcoming',    phone: '+91 96543 21098' },
-  { id: 4, token: 'T-04', name: 'Aisha Khan',     age: '29F', type: 'Endometriosis',       time: '11:00 AM', date: 'Today',    mode: 'Clinic', status: 'Upcoming',    phone: '+91 95432 10987' },
-];
-
-const REQUESTS = [
-  { id: 5, name: 'Riya Patel',   age: '25F', type: 'General Checkup',     time: '09:00 AM', date: 'Tomorrow',         mode: 'Video' },
-  { id: 6, name: 'Meera Reddy',  age: '31F', type: 'Thyroid Panel Review', time: '12:30 PM', date: 'Thu, 5 Jul 2026',  mode: 'Clinic' },
-];
-
-const PAST = [
-  { id: 'P1', name: 'Sunita Desai',  age: '38F', type: 'PCOS Mgmt',        date: '25 Jun 2026', mode: 'Clinic', notes: 'Adjusted Metformin. Repeat labs in 6 weeks.' },
-  { id: 'P2', name: 'Divya Menon',   age: '26F', type: 'Fertility Consult', date: '20 Jun 2026', mode: 'Video',  notes: 'AMH low-normal. Follow-up recommended.' },
-];
 
 const STATUS_BADGE = {
   'In Progress': 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -143,7 +127,7 @@ function DoctorCallModal({ isOpen, onClose, patient, toast }) {
             <p className="text-sm text-emerald-600 font-semibold mt-1 flex items-center justify-center gap-1.5">
               <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Patient is waiting
             </p>
-            <p className="text-xs text-slate-400 mt-1">{patient?.type} • {patient?.time}</p>
+            <p className="text-xs text-slate-500 mt-1">{patient?.type} • {patient?.time}</p>
           </div>
           <button onClick={() => { setActive(true); toast('Connected to patient!', 'success'); }}
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl text-base transition-all flex items-center justify-center gap-3 shadow-lg">
@@ -158,13 +142,13 @@ function DoctorCallModal({ isOpen, onClose, patient, toast }) {
                 {patient?.name?.split(' ').map(n => n[0]).join('')}
               </div>
               <p className="font-bold">{patient?.name}</p>
-              <p className="text-slate-400 text-xs mt-1">● Live</p>
+              <p className="text-slate-500 text-xs mt-1">● Live</p>
             </div>
             <div className="absolute top-3 right-3 bg-white/10 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/20">
               <i className="fas fa-clock mr-1"></i> <span>00:00</span>
             </div>
             <div className="absolute bottom-3 right-3 w-24 h-16 bg-slate-700 rounded-xl border border-white/10 flex items-center justify-center text-white text-xs font-bold">
-              {vidOff ? <i className="fas fa-video-slash text-slate-400 text-xl"></i> : 'You'}
+              {vidOff ? <i className="fas fa-video-slash text-slate-500 text-xl"></i> : 'You'}
             </div>
           </div>
           <div className="flex items-center justify-center gap-4">
@@ -188,10 +172,44 @@ function DoctorCallModal({ isOpen, onClose, patient, toast }) {
 /* ─── Main Component ─────────────────────────── */
 function DoctorAppointments() {
   const toast = useToast();
+  const { appointments, patients, approveRequest: approveRequestApi, rejectRequest: rejectRequestApi, cancelAppointment, callNextForDoctor } = useClinicData();
   const [tab, setTab] = useState('queue');
-  const [queue, setQueue] = useState(INITIAL_QUEUE);
-  const [requests, setRequests] = useState(REQUESTS);
-  const [past] = useState(PAST);
+
+  const ageByPatientId = useMemo(() => new Map(patients.map(p => [p.id, p.age])), [patients]);
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const formatDate = (iso) => {
+    if (!iso) return '—';
+    if (iso === todayStr) return 'Today';
+    return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const toRow = (a) => ({
+    id: a.id,
+    token: null,
+    name: a.patientName,
+    age: ageByPatientId.get(a.patientId) ? `${ageByPatientId.get(a.patientId)}F` : '—',
+    type: a.reason || a.type,
+    time: a.time,
+    date: formatDate(a.date),
+    mode: a.type === 'Video Consult' ? 'Video' : 'Clinic',
+    status: a.status,
+    notes: a.reason || '',
+  });
+
+  const queue = useMemo(() => appointments
+    .filter(a => a.date === todayStr && a.status !== 'Requested' && a.status !== 'Cancelled')
+    .map(toRow)
+    .map((r, i) => ({ ...r, token: `T-${String(i + 1).padStart(2, '0')}` })),
+    [appointments, todayStr, ageByPatientId]);
+
+  const requests = useMemo(() => appointments.filter(a => a.status === 'Requested').map(toRow), [appointments, ageByPatientId]);
+
+  const past = useMemo(() => appointments
+    .filter(a => a.date < todayStr && a.status !== 'Requested')
+    .map(toRow),
+    [appointments, todayStr, ageByPatientId]);
+
   const [notesTarget, setNotesTarget] = useState(null);
   const [callTarget, setCallTarget] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
@@ -228,14 +246,15 @@ function DoctorAppointments() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleBulkAction = (action) => {
+  const handleBulkAction = async (action) => {
     setShowActionsMenu(false);
     if (selectedIds.length === 0) {
       toast('Please select at least one appointment first.', 'error');
       return;
     }
     if (action === 'Approve Selected') {
-      toast(`Approving ${selectedIds.length} requests...`, 'success');
+      await Promise.all(selectedIds.map(id => approveRequestApi(id)));
+      toast(`Approved ${selectedIds.length} requests.`, 'success');
       setSelectedIds([]);
     } else {
       setBulkModalParams({ isOpen: true, channel: action });
@@ -254,45 +273,37 @@ function DoctorAppointments() {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  const callNext = () => {
-    let progDone = false;
-    let waitCalled = false;
-    const next = queue.map(p => {
-      if (p.status === 'In Progress' && !progDone) { progDone = true; return { ...p, status: 'Done' }; }
-      if (p.status === 'Waiting' && !waitCalled) { waitCalled = true; return { ...p, status: 'In Progress' }; }
-      return p;
-    });
-    // promote first Upcoming to Waiting
-    let upCalled = false;
-    const final = next.map(p => {
-      if (p.status === 'Upcoming' && !upCalled) { upCalled = true; return { ...p, status: 'Waiting' }; }
-      return p;
-    });
-    setQueue(final);
+  const callNext = async () => {
     const nxt = queue.find(p => p.status === 'Waiting');
-    toast(`Called ${nxt?.name || 'next patient'} (${nxt?.token})`, 'success');
+    await callNextForDoctor();
+    toast(nxt ? `Called ${nxt.name} (${nxt.token})` : 'Queue advanced', 'success');
   };
 
-  const approveRequest = (req) => {
-    const newToken = `T-0${queue.length + 1}`;
-    setQueue(prev => [...prev, { ...req, token: newToken, status: 'Upcoming', date: req.date }]);
-    setRequests(prev => prev.filter(r => r.id !== req.id));
+  const approveRequest = async (req) => {
+    await approveRequestApi(req.id);
     toast(`Appointment approved for ${req.name}`, 'success');
   };
 
-  const rejectRequest = (req) => {
-    setRequests(prev => prev.filter(r => r.id !== req.id));
+  const rejectRequest = async (req) => {
+    await rejectRequestApi(req.id);
     toast(`Request from ${req.name} rejected`, 'info');
   };
 
-  const handleCancel = () => {
-    setQueue(prev => prev.filter(q => q.id !== cancelTarget.id));
-    toast(`Appointment with ${cancelTarget.name} cancelled`, 'info');
+  const handleCancel = async () => {
+    const name = cancelTarget.name;
+    await cancelAppointment(cancelTarget.id);
+    toast(`Appointment with ${name} cancelled`, 'info');
     setCancelTarget(null);
   };
 
-  const saveNotes = ({ notes, diagnosis, followUp }) => {
-    toast(`SOAP notes saved for ${notesTarget?.name}`, 'success');
+  const saveNotes = async ({ notes, diagnosis, followUp }) => {
+    const combined = [notes && `Subjective: ${notes}`, diagnosis && `Assessment: ${diagnosis}`, followUp && `Plan: ${followUp}`].filter(Boolean).join('\n');
+    try {
+      if (combined) await apiFetch(`/telemedicine/${notesTarget.id}/notes`, { method: 'POST', body: { note: combined } });
+      toast(`SOAP notes saved for ${notesTarget?.name}`, 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to save notes', 'error');
+    }
   };
 
   return (
@@ -344,7 +355,7 @@ function DoctorAppointments() {
         <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-3 bg-white justify-between items-center">
           <div className="flex gap-3 flex-1 w-full max-w-md">
             <div className="relative flex-1">
-              <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+              <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient or token..."
                 className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white" />
             </div>
@@ -365,7 +376,7 @@ function DoctorAppointments() {
             {showActionsMenu && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
                 <div className="px-3 py-1.5 mb-1">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Messaging</p>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p>
                 </div>
                 <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
@@ -392,7 +403,7 @@ function DoctorAppointments() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm border-collapse">
             <thead>
-              <tr className="bg-slate-50 text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100">
+              <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wider border-b border-slate-100">
                 <th className="px-5 py-3 w-10">
                   <label className="flex items-center justify-center cursor-pointer">
                     <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedIds.length > 0 && selectedIds.length === filteredData.length ? 'bg-aubergine-600 border-aubergine-600 text-white' : selectedIds.length > 0 ? 'bg-aubergine-100 border-aubergine-300 text-aubergine-600' : 'bg-white border-slate-300'}`}>
@@ -426,7 +437,7 @@ function DoctorAppointments() {
                   </td>
                   <td className="px-5 py-4">
                     <div className="font-bold text-slate-800">{p.name}</div>
-                    <div className="text-xs text-slate-400">{p.age}</div>
+                    <div className="text-xs text-slate-500">{p.age}</div>
                   </td>
                   <td className="px-5 py-4 text-xs"><span className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-full font-bold">{p.type}</span></td>
                   <td className="px-5 py-4 font-bold text-aubergine-700 text-xs whitespace-nowrap">{p.time}</td>
@@ -436,7 +447,7 @@ function DoctorAppointments() {
                     </span>
                   </td>
                   <td className="px-5 py-4">
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[p.status] || 'bg-slate-100 text-slate-400 border-slate-200'}`}>{p.status}</span>
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[p.status] || 'bg-slate-100 text-slate-500 border-slate-200'}`}>{p.status}</span>
                   </td>
                   <td className="px-5 py-4 text-right">
                     <div className="flex justify-end gap-2">
@@ -456,7 +467,7 @@ function DoctorAppointments() {
                 </tr>
               ))}
               {tab === 'queue' && filteredData.length === 0 && (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-400">No patients match your filters.</td></tr>
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-500">No patients match your filters.</td></tr>
               )}
 
               {tab === 'requests' && filteredData.map(r => (
@@ -471,7 +482,7 @@ function DoctorAppointments() {
                   </td>
                   <td className="px-5 py-4">
                     <div className="font-bold text-slate-800">{r.name}</div>
-                    <div className="text-xs text-slate-400">{r.age}</div>
+                    <div className="text-xs text-slate-500">{r.age}</div>
                   </td>
                   <td className="px-5 py-4 text-xs"><span className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-full font-bold">{r.type}</span></td>
                   <td className="px-5 py-4 font-bold text-aubergine-700 text-xs whitespace-nowrap">{r.date} • {r.time}</td>
@@ -489,7 +500,7 @@ function DoctorAppointments() {
                 </tr>
               ))}
               {tab === 'requests' && filteredData.length === 0 && (
-                <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-400">No new appointment requests match your filters.</td></tr>
+                <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-500">No new appointment requests match your filters.</td></tr>
               )}
 
               {tab === 'past' && filteredData.map(p => (
@@ -504,7 +515,7 @@ function DoctorAppointments() {
                   </td>
                   <td className="px-5 py-4">
                     <div className="font-bold text-slate-800">{p.name}</div>
-                    <div className="text-xs text-slate-400">{p.age}</div>
+                    <div className="text-xs text-slate-500">{p.age}</div>
                   </td>
                   <td className="px-5 py-4 text-xs"><span className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-full font-bold">{p.type}</span></td>
                   <td className="px-5 py-4 font-bold text-aubergine-700 text-xs whitespace-nowrap">{p.date}</td>
@@ -521,7 +532,7 @@ function DoctorAppointments() {
                 </tr>
               ))}
               {tab === 'past' && filteredData.length === 0 && (
-                <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-400">No past consultations match your filters.</td></tr>
+                <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-500">No past consultations match your filters.</td></tr>
               )}
             </tbody>
           </table>

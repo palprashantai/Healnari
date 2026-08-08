@@ -1,51 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { DoseSchedule } from '../../components/DoseSchedule.jsx';
 import { RxStatusBadge, resolveRxStatus } from '../../components/RxStatus.jsx';
-
-/* ─── Dummy Data ─────────────────────────────── */
-const INITIAL_PRESCRIPTIONS = [
-  {
-    id: 'RX-894',
-    doctor: 'Dr. Sarah Mitchell',
-    date: '25 Jun 2026',
-    diagnosis: 'PCOS Management',
-    status: 'Active',
-    validTill: '25 Dec 2026',
-    medicines: [
-      { name: 'Metformin 500mg', schedule: '1-0-1 (After Meals)', duration: '30 Days', refills: 2 },
-      { name: 'Myo-Inositol Sachet', schedule: '1-0-0 (Morning, Empty Stomach)', duration: '30 Days', refills: 2 },
-    ],
-    instructions: 'Monitor fasting blood glucose weekly. Avoid high-GI foods. Combine with 30-min daily exercise.',
-  },
-  {
-    id: 'RX-861',
-    doctor: 'Dr. Sarah Mitchell',
-    date: '30 Jul 2026',
-    diagnosis: 'Endometriosis Gr.2',
-    status: 'Active',
-    validTill: '18 Aug 2026',
-    medicines: [
-      { name: 'Dienogest 2mg', schedule: '1-0-0 (Daily)', duration: '6 Months', refills: 0 },
-    ],
-    instructions: 'Monitor for breakthrough bleeding. Return immediately if pain exceeds 8/10.',
-  },
-  {
-    id: 'RX-742',
-    doctor: 'Dr. Anita Sharma',
-    date: '20 Feb 2026',
-    diagnosis: 'Vitamin D Deficiency',
-    status: 'Completed',
-    validTill: '20 Apr 2026',
-    medicines: [
-      { name: 'Cholecalciferol 60K IU', schedule: '1-0-0 (Once a week)', duration: '8 Weeks', refills: 0 },
-    ],
-    instructions: 'Take with full glass of milk or milk product. Sun exposure 15–20 mins recommended daily.',
-  },
-];
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
 
 const STATUS_TABS = ['All', 'Active', 'Expiring Soon', 'Completed', 'Expired'];
+
+/** The backend stores one row per medication line — each becomes its own
+ * card here (medicines is a 1-item array) rather than a fabricated bundle. */
+function toRxCards(myPatient) {
+  if (!myPatient) return [];
+  return myPatient.meds.map(m => ({
+    id: m.id,
+    doctor: 'Your Doctor',
+    date: m.prescribedOn,
+    diagnosis: myPatient.diagnosis && myPatient.diagnosis !== 'Pending' ? myPatient.diagnosis : 'General',
+    status: m.refillsLeft > 0 ? 'Active' : 'Expired',
+    validTill: m.validTill,
+    medicines: [{ name: m.name, schedule: m.frequency, duration: m.duration, refills: m.refillsLeft }],
+    instructions: m.instructions,
+    refillRequested: m.refillRequested,
+  }));
+}
 
 const REMINDER_SLOTS = [
   { id: 'morning', label: 'Morning Meds', time: '8:00 AM', meds: ['Myo-Inositol Sachet'] },
@@ -61,11 +38,11 @@ function PrescriptionModal({ rx, onClose }) {
         {/* Header info */}
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <p className="text-xs text-slate-400 font-bold mb-1">Prescribed By</p>
+            <p className="text-xs text-slate-500 font-bold mb-1">Prescribed By</p>
             <p className="font-bold text-slate-800">{rx.doctor}</p>
           </div>
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <p className="text-xs text-slate-400 font-bold mb-1">Date • Valid Till</p>
+            <p className="text-xs text-slate-500 font-bold mb-1">Date • Valid Till</p>
             <p className="font-bold text-slate-800">{rx.date} → {rx.validTill}</p>
           </div>
         </div>
@@ -82,7 +59,7 @@ function PrescriptionModal({ rx, onClose }) {
                   <div>
                     <p className="font-black text-slate-800 mb-1.5">{m.name}</p>
                     <DoseSchedule schedule={m.schedule} />
-                    <p className="text-xs text-slate-400 mt-1.5">Duration: {m.duration}</p>
+                    <p className="text-xs text-slate-500 mt-1.5">Duration: {m.duration}</p>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${m.refills > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
                     {m.refills > 0 ? `${m.refills} Refills Left` : 'No Refills Left'}
@@ -146,7 +123,8 @@ function RefillModal({ rx, onClose, onSubmit }) {
 /* ─── Main Component ─────────────────────────── */
 function PatientPrescriptions() {
   const toast = useToast();
-  const [prescriptions, setPrescriptions] = useState(INITIAL_PRESCRIPTIONS);
+  const { patients, requestRefill } = useClinicData();
+  const prescriptions = useMemo(() => toRxCards(patients[0]), [patients]);
   const [detailRx, setDetailRx] = useState(null);
   const [refillRx, setRefillRx] = useState(null);
   const [reminders, setReminders] = useState({ morning: true, evening: false });
@@ -155,8 +133,13 @@ function PatientPrescriptions() {
   const tabFiltered = prescriptions.filter(rx => tab === 'All' || resolveRxStatus(rx) === tab);
   const tabCount = (t) => prescriptions.filter(rx => t === 'All' || resolveRxStatus(rx) === t).length;
 
-  const handleRefillSubmit = (pharmacy, urgent) => {
-    toast(`Refill requested via ${pharmacy}${urgent ? ' (Urgent)' : ''}. Expected in ${urgent ? '24h' : '2–3 days'}.`, 'success');
+  const handleRefillSubmit = async (pharmacy, urgent) => {
+    try {
+      await requestRefill(refillRx.id);
+      toast(`Refill requested via ${pharmacy}${urgent ? ' (Urgent)' : ''}. Your doctor will review it shortly.`, 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to request refill', 'error');
+    }
     setRefillRx(null);
   };
 
@@ -190,7 +173,7 @@ function PatientPrescriptions() {
         {STATUS_TABS.map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`text-xs font-bold px-3.5 py-2 rounded-xl border transition-colors ${tab === t ? 'bg-aubergine-700 text-white border-aubergine-700' : 'bg-white text-slate-500 border-slate-200 hover:border-aubergine-300 hover:text-aubergine-600'}`}>
-            {t} <span className={tab === t ? 'text-aubergine-200' : 'text-slate-400'}>({tabCount(t)})</span>
+            {t} <span className={tab === t ? 'text-aubergine-200' : 'text-slate-500'}>({tabCount(t)})</span>
           </button>
         ))}
       </div>
@@ -226,7 +209,7 @@ function PatientPrescriptions() {
                           <div>
                             <div className="font-bold text-slate-800 text-sm mb-1">{m.name}</div>
                             <DoseSchedule schedule={m.schedule} />
-                            <div className="text-xs text-slate-400 mt-1">{m.duration}</div>
+                            <div className="text-xs text-slate-500 mt-1">{m.duration}</div>
                           </div>
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${m.refills > 0 ? 'bg-sky-50 text-sky-600 border border-sky-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
                             {m.refills > 0 ? `${m.refills}×` : 'None left'}
@@ -251,7 +234,12 @@ function PatientPrescriptions() {
                         className="bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold px-4 py-2 rounded-xl text-sm shadow-sm transition-colors border border-sky-200 flex items-center gap-1.5">
                         <i className="fas fa-share-nodes"></i> Share
                       </button>
-                      {canRefill && (
+                      {canRefill && rx.refillRequested && (
+                        <span className="bg-amber-50 text-amber-700 font-bold px-4 py-2 rounded-xl text-sm border border-amber-200 flex items-center gap-1.5">
+                          <i className="fas fa-clock"></i> Refill Requested
+                        </span>
+                      )}
+                      {canRefill && !rx.refillRequested && (
                         <button onClick={() => setRefillRx(rx)}
                           className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-4 py-2 rounded-xl text-sm shadow-sm transition-colors border border-emerald-200 flex items-center gap-1.5">
                           <i className="fas fa-pills"></i> Request Refill
@@ -264,7 +252,7 @@ function PatientPrescriptions() {
             );
           })}
           {tabFiltered.length === 0 && prescriptions.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-400">
+            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-sm text-slate-500">
               No prescriptions in this category.
             </div>
           )}
@@ -313,10 +301,10 @@ function PatientPrescriptions() {
             <div className="flex gap-1 mb-3">
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => (
                 <div key={d} className="flex-1 flex flex-col items-center gap-1">
-                  <div className={`w-full aspect-square rounded-md text-[8px] flex items-center justify-center font-bold ${i < 4 ? 'bg-emerald-500 text-white' : i === 4 ? 'bg-amber-400 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                  <div className={`w-full aspect-square rounded-md text-[8px] flex items-center justify-center font-bold ${i < 4 ? 'bg-emerald-500 text-white' : i === 4 ? 'bg-amber-400 text-white' : 'bg-slate-100 text-slate-500'}`}>
                     {i < 4 ? '✓' : i === 4 ? '~' : '·'}
                   </div>
-                  <span className="text-[9px] text-slate-400">{d}</span>
+                  <span className="text-[9px] text-slate-500">{d}</span>
                 </div>
               ))}
             </div>

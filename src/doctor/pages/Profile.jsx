@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { useAuth, DEMO_DOCTOR } from '../../context/AuthContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 
 /* ─── Main Component ─────────────────────────── */
 function DoctorProfile() {
   const { user, updateUser, logout } = useAuth();
+  const { kycVerified } = useClinicData();
   const toast = useToast();
-  const doc = user || DEMO_DOCTOR;
+  const doc = user || {};
 
   const [tab, setTab] = useState('profile');
   const [form, setForm] = useState({
@@ -78,9 +80,15 @@ function DoctorProfile() {
               <i className="fas fa-stethoscope mr-1"></i> {form.experience} Experience
             </span>
             <span className="bg-white/20 border border-white/20 text-white text-xs font-bold px-3 py-1 rounded-full font-mono">{form.regNo}</span>
-            <span className="bg-emerald-500/80 border border-emerald-400/40 text-white text-xs font-bold px-3 py-1 rounded-full">
-              <i className="fas fa-circle-check mr-1 text-[10px]"></i>Verified
-            </span>
+            {kycVerified ? (
+              <span className="bg-emerald-500/80 border border-emerald-400/40 text-white text-xs font-bold px-3 py-1 rounded-full">
+                <i className="fas fa-circle-check mr-1 text-[10px]"></i>Verified
+              </span>
+            ) : (
+              <span className="bg-amber-500/80 border border-amber-400/40 text-white text-xs font-bold px-3 py-1 rounded-full">
+                <i className="fas fa-clock mr-1 text-[10px]"></i>KYC Pending
+              </span>
+            )}
           </div>
         </div>
         <button onClick={() => setShowPhotoModal(true)}
@@ -151,7 +159,7 @@ function DoctorProfile() {
                     <div key={n.label} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
                       <div>
                         <p className="text-sm font-bold text-slate-700">{n.label}</p>
-                        <p className="text-xs text-slate-400">{n.sub}</p>
+                        <p className="text-xs text-slate-500">{n.sub}</p>
                       </div>
                       <button onClick={() => { n.set(!n.state); toast(`${n.label} ${!n.state ? 'enabled' : 'disabled'}.`, 'info'); }}
                         className={`w-12 h-6 rounded-full relative transition-all border ${n.state ? 'bg-aubergine-600 border-aubergine-600' : 'bg-slate-200 border-slate-300'}`}>
@@ -177,7 +185,7 @@ function DoctorProfile() {
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(availability).map(([day, active]) => (
                     <button key={day} onClick={() => { setAvailability(prev => ({ ...prev, [day]: !prev[day] })); toast(`${day} ${!active ? 'enabled' : 'disabled'}.`, 'info'); }}
-                      className={`w-14 h-14 rounded-2xl font-bold text-sm flex flex-col items-center justify-center border transition-all ${active ? 'bg-aubergine-600 text-white border-aubergine-600 shadow-sm' : 'bg-slate-100 text-slate-400 border-slate-200 hover:border-aubergine-300'}`}>
+                      className={`w-14 h-14 rounded-2xl font-bold text-sm flex flex-col items-center justify-center border transition-all ${active ? 'bg-aubergine-600 text-white border-aubergine-600 shadow-sm' : 'bg-slate-100 text-slate-500 border-slate-200 hover:border-aubergine-300'}`}>
                       {day}
                       {active && <i className="fas fa-check text-[10px] mt-0.5"></i>}
                     </button>

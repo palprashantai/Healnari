@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { DoseSchedule } from '../../components/DoseSchedule.jsx';
 import { RxStatusBadge } from '../../components/RxStatus.jsx';
@@ -64,445 +65,6 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
   );
 }
 
-/* ─── Rich Dummy Data ──────────────────────────────── */
-const INITIAL_PATIENTS = [
-  {
-    id: 1,
-    name: 'Priya Sharma',
-    age: 28,
-    blood: 'B+',
-    phone: '+91 98765 43210',
-    email: 'priya.sharma@example.com',
-    address: 'Indiranagar, Bengaluru, KA',
-    since: 'Jan 2023',
-    visits: 12,
-    diagnosis: 'PCOS — IR Subtype',
-    lastVisit: '25 Jun 2026',
-    nextVisit: '5 Jul 2026',
-    status: 'active',
-    alert: 'Elevated TSH (5.2 mIU/L) — review pending',
-    height: '163 cm',
-    weight: '64.5 kg',
-    bmi: '24.2',
-    bp: '118/76 mmHg',
-    pulse: '72 bpm',
-    spo2: '99%',
-    temp: '98.4 °F',
-    bloodSugar: '112 mg/dL (Fasting)',
-    allergies: ['Penicillin', 'Sulfa Drugs'],
-    meds: [
-      { id: 'RX-101', date: '25 Jun 2026', medName: 'Metformin 500mg', dosage: '500mg', schedule: '1-0-1', duration: '30 Days', refillsLeft: 2, status: 'Active', instructions: 'Take after meals to reduce GI disturbance.', prescribedBy: 'Dr. Sarah Mitchell' },
-      { id: 'RX-102', date: '25 Jun 2026', medName: 'Myo-Inositol Sachet 2g', dosage: '2g', schedule: '1-0-0', duration: '30 Days', refillsLeft: 2, status: 'Active', instructions: 'Dissolve in 200ml water on empty stomach.', prescribedBy: 'Dr. Sarah Mitchell' },
-      { id: 'RX-103', date: '10 May 2026', medName: 'Vitamin D3 60,000 IU', dosage: '60K IU', schedule: '0-0-1', duration: '8 Weeks', refillsLeft: 0, status: 'Expired', instructions: 'Take weekly with milk after dinner.', prescribedBy: 'Dr. Sarah Mitchell' },
-    ],
-    reports: [
-      {
-        id: 'REP-901',
-        date: '24 Jun 2026',
-        testCategory: 'Pathology',
-        testName: 'Comprehensive Thyroid & Metabolic Profile',
-        labName: 'Dr. Lal PathLabs',
-        status: 'Completed',
-        urgent: true,
-        results: {
-          'TSH (Serum)': { value: '5.2 mIU/L', ref: '0.4 – 4.0 mIU/L', status: 'high' },
-          'Free T4': { value: '1.1 ng/dL', ref: '0.8 – 1.8 ng/dL', status: 'normal' },
-          'Anti-TPO Ab': { value: '98 IU/mL', ref: '< 35 IU/mL', status: 'high' },
-          'Fasting Insulin': { value: '18.4 uIU/mL', ref: '2.6 – 24.9 uIU/mL', status: 'normal' },
-          'HOMA-IR Index': { value: '3.8', ref: '< 2.5', status: 'high' },
-        },
-        interpretation: 'Elevated TSH combined with elevated Anti-TPO titers indicates autoimmune subclinical hypothyroidism. Insulin resistance is evident (HOMA-IR 3.8). Suggest initiating low-dose Levothyroxine 25mcg.',
-        doctorAction: 'Patient informed. Follow-up consultation scheduled.',
-      },
-      {
-        id: 'REP-902',
-        date: '15 Mar 2026',
-        testCategory: 'Imaging',
-        testName: 'Pelvic Ultrasound (TVS)',
-        labName: 'City Scans & Diagnostics',
-        status: 'Completed',
-        urgent: false,
-        results: {
-          'Right Ovarian Volume': { value: '11.4 cc', ref: '< 10 cc', status: 'high' },
-          'Left Ovarian Volume': { value: '12.1 cc', ref: '< 10 cc', status: 'high' },
-          'Follicle Count': { value: '> 14 peripherally arranged follicles per ovary', ref: '< 12', status: 'high' },
-          'Endometrial Thickness': { value: '7.8 mm (Proliferative)', ref: '4 – 12 mm', status: 'normal' },
-        },
-        interpretation: 'Bilateral enlarged polycystic ovaries with peripheral string-of-pearls follicle pattern, classic for PCOS morphology.',
-        doctorAction: 'Reviewed & saved to baseline EMR.',
-      },
-    ],
-    consultations: [
-      { date: '25 Jun 2026', type: 'Follow-up', chiefComplaint: 'Weight management difficulty, mild fatigue', assessment: 'Subclinical Hypothyroidism + PCOS Insulin Resistance', plan: 'Continue Metformin & Myo-Inositol. Repeat TSH in 6 weeks.', doctor: 'Dr. Sarah Mitchell' },
-      { date: '10 May 2026', type: 'Routine Review', chiefComplaint: 'Irregular cycles (38-45 days)', assessment: 'Anovulatory PCOS cycles', plan: 'Started Vit D3 loading dose. Cycle calendar advised.', doctor: 'Dr. Sarah Mitchell' },
-      { date: '15 Jan 2026', type: 'Initial Consultation', chiefComplaint: 'Oligomenorrhea, facial acne, weight gain', assessment: 'PCOS Primary Diagnosis', plan: 'Full hormonal panel & pelvic ultrasound ordered.', doctor: 'Dr. Sarah Mitchell' },
-    ],
-    medicalHistory: {
-      chronicConditions: ['Polycystic Ovary Syndrome (PCOS)', 'Subclinical Hypothyroidism'],
-      surgeries: ['Appendectomy (2018)'],
-      familyHistory: ['Mother: Type 2 Diabetes Mellitus', 'Maternal Aunt: Hypothyroidism'],
-      lifestyle: 'Sedentary work, Non-smoker, Social drinker, Moderate Stress',
-    },
-    clinicalNotes: [
-      { text: 'Patient reports improved cycle regularity with Metformin. Weight lost: 1.5kg over 2 months. Encouraged low-GI diet.', date: '25 Jun 2026 11:30 AM', author: 'Dr. Sarah Mitchell' },
-      { text: 'Patient counseled on lifestyle modification and 30 mins daily brisk walk.', date: '10 May 2026 04:15 PM', author: 'Dr. Sarah Mitchell' },
-    ],
-    payments: [
-      { id: 'INV-7801', date: '25 Jun 2026', service: 'PCOS Follow-up Consultation', category: 'Consultation Fee', amount: 799, status: 'Paid', method: 'UPI (GPay)', txnRef: 'UPI-948201', invoiceUrl: '#' },
-      { id: 'INV-7802', date: '24 Jun 2026', service: 'Comprehensive Thyroid & Metabolic Lab Panel', category: 'Lab & Diagnostics', amount: 2450, status: 'Paid', method: 'Credit Card', txnRef: 'TXN-882014', invoiceUrl: '#' },
-      { id: 'INV-7803', date: '10 May 2026', service: 'Routine Gynecological Review & Vit D Test', category: 'Consultation Fee', amount: 1299, status: 'Paid', method: 'UPI (PhonePe)', txnRef: 'UPI-774102', invoiceUrl: '#' },
-      { id: 'INV-7804', date: '15 Mar 2026', service: 'Pelvic TVS Ultrasound Scan', category: 'Imaging Scan', amount: 1800, status: 'Paid', method: 'Net Banking', txnRef: 'HDFC-663219', invoiceUrl: '#' },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Anita Desai',
-    age: 34,
-    blood: 'A+',
-    phone: '+91 97654 32109',
-    email: 'anita.desai@example.com',
-    address: 'Koramangala, Bengaluru, KA',
-    since: 'Mar 2023',
-    visits: 7,
-    diagnosis: 'Primary Infertility',
-    lastVisit: '20 Jun 2026',
-    nextVisit: '10 Jul 2026',
-    status: 'active',
-    alert: null,
-    height: '158 cm',
-    weight: '58 kg',
-    bmi: '23.2',
-    bp: '120/80 mmHg',
-    pulse: '76 bpm',
-    spo2: '98%',
-    temp: '98.6 °F',
-    bloodSugar: '95 mg/dL',
-    allergies: [],
-    meds: [
-      { id: 'RX-201', date: '20 Jun 2026', medName: 'Clomiphene Citrate 50mg', dosage: '50mg', schedule: '1-0-0', duration: '5 Days', refillsLeft: 1, status: 'Active', instructions: 'Take from Cycle Day 2 to Day 6.', prescribedBy: 'Dr. Sarah Mitchell' },
-      { id: 'RX-202', date: '20 Jun 2026', medName: 'Folic Acid 5mg', dosage: '5mg', schedule: '1-0-0', duration: '90 Days', refillsLeft: 3, status: 'Active', instructions: 'Take daily with breakfast.', prescribedBy: 'Dr. Sarah Mitchell' },
-    ],
-    reports: [
-      {
-        id: 'REP-903',
-        date: '18 Jun 2026',
-        testCategory: 'Pathology',
-        testName: 'Ovarian Reserve & Hormone Panel',
-        labName: 'Apollo Diagnostics',
-        status: 'Completed',
-        urgent: false,
-        results: {
-          'Serum AMH': { value: '2.8 ng/mL', ref: '1.5 – 4.0 ng/mL', status: 'normal' },
-          'FSH (Day 3)': { value: '6.5 mIU/mL', ref: '3.5 – 12.5 mIU/mL', status: 'normal' },
-          'LH (Day 3)': { value: '5.8 mIU/mL', ref: '2.4 – 12.6 mIU/mL', status: 'normal' },
-          'Serum Prolactin': { value: '14.2 ng/mL', ref: '4.8 – 23.3 ng/mL', status: 'normal' },
-        },
-        interpretation: 'Normal ovarian reserve parameters. Good response potential for ovulation induction protocols.',
-        doctorAction: 'Approved for Clomiphene Cycle #2.',
-      },
-      {
-        id: 'REP-904',
-        date: '02 May 2026',
-        testCategory: 'Imaging',
-        testName: 'Hysterosalpingography (HSG Scan)',
-        labName: 'City Scans & Diagnostics',
-        status: 'Completed',
-        urgent: false,
-        results: {
-          'Uterine Cavity': { value: 'Normal size, smooth contour, no filling defect', ref: 'Normal', status: 'normal' },
-          'Bilateral Fallopian Tubes': { value: 'Patent with free peritoneal spill of contrast', ref: 'Patent', status: 'normal' },
-        },
-        interpretation: 'Normal uterine cavity with bilateral patent Fallopian tubes.',
-        doctorAction: 'Tubal factor ruled out.',
-      },
-    ],
-    consultations: [
-      { date: '20 Jun 2026', type: 'Follicular Monitoring', chiefComplaint: 'Cycle Day 10 ovulation tracking', assessment: 'Leading follicle 16mm Right Ovary', plan: 'Plan HCG trigger on Day 13.', doctor: 'Dr. Sarah Mitchell' },
-      { date: '02 May 2026', type: 'HSG Review', chiefComplaint: 'Reviewing tubal patency scan', assessment: 'Normal pelvic anatomy & patent tubes', plan: 'Proceeding with ovulation induction.', doctor: 'Dr. Sarah Mitchell' },
-    ],
-    medicalHistory: {
-      chronicConditions: ['Primary Subfertility (2 Years TTC)'],
-      surgeries: ['None'],
-      familyHistory: ['No significant reproductive illness'],
-      lifestyle: 'Active yoga practitioner, Non-smoker',
-    },
-    clinicalNotes: [
-      { text: 'Couples counseling completed regarding timed intercourse window. Follicular scan scheduled.', date: '20 Jun 2026 10:00 AM', author: 'Dr. Sarah Mitchell' },
-    ],
-    payments: [
-      { id: 'INV-7805', date: '20 Jun 2026', service: 'Follicular Monitoring Ultrasound', category: 'Ultrasound Scan', amount: 1500, status: 'Paid', method: 'Credit Card', txnRef: 'TXN-902145', invoiceUrl: '#' },
-      { id: 'INV-7806', date: '18 Jun 2026', service: 'Ovarian Reserve AMH & Hormone Panel', category: 'Lab & Diagnostics', amount: 3200, status: 'Paid', method: 'UPI (Paytm)', txnRef: 'UPI-302194', invoiceUrl: '#' },
-      { id: 'INV-7807', date: '02 May 2026', service: 'HSG Procedure & Specialist Fee', category: 'Procedure', amount: 4500, status: 'Paid', method: 'Health Insurance', txnRef: 'INS-774012', invoiceUrl: '#' },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Kavita Patel',
-    age: 22,
-    blood: 'O+',
-    phone: '+91 96543 21098',
-    email: 'kavita.patel@example.com',
-    address: 'Whitefield, Bengaluru, KA',
-    since: 'Jun 2024',
-    visits: 4,
-    diagnosis: 'Oligomenorrhea',
-    lastVisit: '10 Jun 2026',
-    nextVisit: '30 Jun 2026',
-    status: 'active',
-    alert: null,
-    height: '160 cm',
-    weight: '55 kg',
-    bmi: '21.5',
-    bp: '112/70 mmHg',
-    pulse: '68 bpm',
-    spo2: '99%',
-    temp: '98.2 °F',
-    bloodSugar: '88 mg/dL',
-    allergies: [],
-    meds: [
-      { id: 'RX-301', date: '10 Jun 2026', medName: 'Norethisterone 5mg', dosage: '5mg', schedule: '1-0-0', duration: '10 Days', refillsLeft: 1, status: 'Active', instructions: 'Take for 10 days. Bleed expected 2-4 days after stopping.', prescribedBy: 'Dr. Sarah Mitchell' },
-    ],
-    reports: [
-      {
-        id: 'REP-905',
-        date: '08 Jun 2026',
-        testCategory: 'Pathology',
-        testName: 'Serum Prolactin & Thyroid Panel',
-        labName: 'Dr. Lal PathLabs',
-        status: 'Completed',
-        urgent: false,
-        results: {
-          'Serum Prolactin': { value: '12.5 ng/mL', ref: '4.8 – 23.3 ng/mL', status: 'normal' },
-          'TSH': { value: '2.1 mIU/L', ref: '0.4 – 4.0 mIU/L', status: 'normal' },
-          'Beta-hCG': { value: '< 1.2 mIU/mL (Negative)', ref: '< 5.0 mIU/mL', status: 'normal' },
-        },
-        interpretation: 'Hyperprolactinemia and Thyroid dysfunction ruled out. Pregnancy test negative.',
-        doctorAction: 'Initiated withdrawal bleeding course.',
-      },
-    ],
-    consultations: [
-      { date: '10 Jun 2026', type: 'Amenorrhea Evaluation', chiefComplaint: 'No menses for 60 days', assessment: 'Stress-induced hypothalamic oligomenorrhea', plan: 'Norethisterone withdrawal challenge.', doctor: 'Dr. Sarah Mitchell' },
-    ],
-    medicalHistory: {
-      chronicConditions: ['Occasional Anovulatory Cycles'],
-      surgeries: ['None'],
-      familyHistory: ['Unremarkable'],
-      lifestyle: 'College student, High exam stress',
-    },
-    clinicalNotes: [
-      { text: 'Advised stress reduction techniques and regular sleep routine.', date: '10 Jun 2026 02:40 PM', author: 'Dr. Sarah Mitchell' },
-    ],
-    payments: [
-      { id: 'INV-7808', date: '10 Jun 2026', service: 'Amenorrhea Teleconsultation', category: 'Consultation Fee', amount: 499, status: 'Paid', method: 'UPI (GPay)', txnRef: 'UPI-440219', invoiceUrl: '#' },
-      { id: 'INV-7809', date: '08 Jun 2026', service: 'Prolactin & Thyroid Screening Lab', category: 'Lab & Diagnostics', amount: 1200, status: 'Paid', method: 'Debit Card', txnRef: 'TXN-110294', invoiceUrl: '#' },
-    ],
-  },
-  {
-    id: 4,
-    name: 'Aisha Khan',
-    age: 29,
-    blood: 'AB-',
-    phone: '+91 95432 10987',
-    email: 'aisha.khan@example.com',
-    address: 'HSR Layout, Bengaluru, KA',
-    since: 'Sep 2022',
-    visits: 18,
-    diagnosis: 'Endometriosis Gr.2',
-    lastVisit: '1 Jun 2026',
-    nextVisit: null,
-    status: 'active',
-    alert: 'Pain score 7/10 reported. Consider escalating therapy.',
-    height: '155 cm',
-    weight: '52 kg',
-    bmi: '21.6',
-    bp: '122/82 mmHg',
-    pulse: '78 bpm',
-    spo2: '98%',
-    temp: '98.5 °F',
-    bloodSugar: '92 mg/dL',
-    allergies: ['Aspirin'],
-    meds: [
-      { id: 'RX-401', date: '01 Jun 2026', medName: 'Dienogest 2mg', dosage: '2mg', schedule: '1-0-0', duration: '6 Months', refillsLeft: 3, status: 'Active', instructions: 'Take fixed time daily without interruption.', prescribedBy: 'Dr. Sarah Mitchell' },
-      { id: 'RX-402', date: '01 Jun 2026', medName: 'Mefenamic Acid 500mg', dosage: '500mg', schedule: '0-0-1', duration: 'PRN', refillsLeft: 0, status: 'Active', instructions: 'Take during severe dysmenorrhea episodes with food.', prescribedBy: 'Dr. Sarah Mitchell' },
-    ],
-    reports: [
-      {
-        id: 'REP-906',
-        date: '28 May 2026',
-        testCategory: 'Pathology',
-        testName: 'CA-125 Biomarker & Inflammatory Screen',
-        labName: 'SRL Diagnostics',
-        status: 'Completed',
-        urgent: true,
-        results: {
-          'Serum CA-125': { value: '48.5 U/mL', ref: '< 35 U/mL', status: 'high' },
-          'ESR': { value: '28 mm/hr', ref: '0 – 20 mm/hr', status: 'high' },
-          'hs-CRP': { value: '4.2 mg/L', ref: '< 3.0 mg/L', status: 'high' },
-        },
-        interpretation: 'Moderately elevated CA-125 consistent with active Grade 2 Pelvic Endometriosis inflammation.',
-        doctorAction: 'Escalated progestin suppressive therapy.',
-      },
-      {
-        id: 'REP-907',
-        date: '15 Jan 2026',
-        testCategory: 'Imaging',
-        testName: 'Pelvic MRI with Endometriosis Protocol',
-        labName: 'City Scans & Diagnostics',
-        status: 'Completed',
-        urgent: false,
-        results: {
-          'Left Ovary': { value: '2.4 cm Endometrioma (Chocolate Cyst)', ref: 'Absent', status: 'high' },
-          'Uterosacral Ligaments': { value: 'Thickened with small endometriotic implants', ref: 'Normal', status: 'high' },
-          'Pouch of Douglas': { value: 'Minimal obliteration', ref: 'Free', status: 'normal' },
-        },
-        interpretation: 'Grade 2 pelvic endometriosis with left ovarian endometrioma.',
-        doctorAction: 'Medical management initiated over surgical intervention.',
-      },
-    ],
-    consultations: [
-      { date: '01 Jun 2026', type: 'Pain Management Review', chiefComplaint: 'Cyclic pelvic pain 7/10, dyspareunia', assessment: 'Active Endometriosis symptom flare', plan: 'Adjusted Dienogest schedule & PRN analgesia.', doctor: 'Dr. Sarah Mitchell' },
-    ],
-    medicalHistory: {
-      chronicConditions: ['Pelvic Endometriosis Grade 2', 'Dysmenorrhea'],
-      surgeries: ['Diagnostic Laparoscopy (Nov 2023)'],
-      familyHistory: ['Sister: Endometriosis'],
-      lifestyle: 'IT Professional, Pilates twice weekly',
-    },
-    clinicalNotes: [
-      { text: 'Discussed conservative management vs laparoscopic ablation. Patient prefers continuing medical suppression with Dienogest.', date: '01 Jun 2026 05:00 PM', author: 'Dr. Sarah Mitchell' },
-    ],
-    payments: [
-      { id: 'INV-7810', date: '01 Jun 2026', service: 'Pain Management In-Person Review', category: 'Consultation Fee', amount: 799, status: 'Pending', method: 'UPI Pending', txnRef: 'REQ-551029', invoiceUrl: '#' },
-      { id: 'INV-7811', date: '28 May 2026', service: 'CA-125 Biomarker & Inflammatory Lab', category: 'Lab & Diagnostics', amount: 1950, status: 'Paid', method: 'Credit Card', txnRef: 'TXN-771029', invoiceUrl: '#' },
-      { id: 'INV-7812', date: '15 Jan 2026', service: 'Pelvic Contrast MRI Scan', category: 'Imaging Scan', amount: 6500, status: 'Paid', method: 'Health Insurance', txnRef: 'INS-994021', invoiceUrl: '#' },
-    ],
-  },
-  {
-    id: 5,
-    name: 'Sunita Desai',
-    age: 38,
-    blood: 'B-',
-    phone: '+91 94321 09876',
-    email: 'sunita.desai@example.com',
-    address: 'Jayanagar, Bengaluru, KA',
-    since: 'Nov 2021',
-    visits: 24,
-    diagnosis: 'PCOS + Type 2 DM',
-    lastVisit: '15 May 2026',
-    nextVisit: null,
-    status: 'inactive',
-    alert: null,
-    height: '161 cm',
-    weight: '72 kg',
-    bmi: '27.7',
-    bp: '130/84 mmHg',
-    pulse: '80 bpm',
-    spo2: '97%',
-    temp: '98.6 °F',
-    bloodSugar: '154 mg/dL (Post-Prandial)',
-    allergies: [],
-    meds: [
-      { id: 'RX-501', date: '15 May 2026', medName: 'Metformin 1000mg ER', dosage: '1000mg', schedule: '1-0-1', duration: '90 Days', refillsLeft: 1, status: 'Active', instructions: 'Take after principal meals.', prescribedBy: 'Dr. Sarah Mitchell' },
-      { id: 'RX-502', date: '15 May 2026', medName: 'Sitagliptin 50mg', dosage: '50mg', schedule: '1-0-0', duration: '90 Days', refillsLeft: 1, status: 'Active', instructions: 'Take in morning with water.', prescribedBy: 'Dr. Sarah Mitchell' },
-    ],
-    reports: [
-      {
-        id: 'REP-908',
-        date: '12 May 2026',
-        testCategory: 'Pathology',
-        testName: 'Glycemia & Renal Panel',
-        labName: 'SRL Diagnostics',
-        status: 'Completed',
-        urgent: false,
-        results: {
-          'HbA1c': { value: '7.2%', ref: '< 5.7%', status: 'high' },
-          'Fasting Plasma Glucose': { value: '142 mg/dL', ref: '70 – 99 mg/dL', status: 'high' },
-          'Serum Creatinine': { value: '0.8 mg/dL', ref: '0.5 – 1.1 mg/dL', status: 'normal' },
-        },
-        interpretation: 'Suboptimal diabetic control (HbA1c 7.2%). Dose escalation recommended.',
-        doctorAction: 'Sitagliptin added to Metformin ER.',
-      },
-    ],
-    consultations: [
-      { date: '15 May 2026', type: 'Endocrine Follow-up', chiefComplaint: 'Polydipsia, mild weight gain', assessment: 'T2DM Suboptimal Control + PCOS', plan: 'Escalated therapy, endocrinologist referral.', doctor: 'Dr. Sarah Mitchell' },
-    ],
-    medicalHistory: {
-      chronicConditions: ['Type 2 Diabetes Mellitus', 'PCOS', 'Dyslipidemia'],
-      surgeries: ['Cesarean Section (2015)'],
-      familyHistory: ['Father: Type 2 DM, CAD'],
-      lifestyle: 'Sedentary',
-    },
-    clinicalNotes: [
-      { text: 'Referred to clinical nutritionist for medical nutrition therapy.', date: '15 May 2026 12:15 PM', author: 'Dr. Sarah Mitchell' },
-    ],
-    payments: [
-      { id: 'INV-7813', date: '15 May 2026', service: 'Diabetic & Endocrine Consultation', category: 'Consultation Fee', amount: 799, status: 'Paid', method: 'Cash', txnRef: 'CSH-10492', invoiceUrl: '#' },
-      { id: 'INV-7814', date: '12 May 2026', service: 'HbA1c & Renal Function Lab Panel', category: 'Lab & Diagnostics', amount: 1600, status: 'Paid', method: 'UPI (Paytm)', txnRef: 'UPI-883019', invoiceUrl: '#' },
-    ],
-  },
-  {
-    id: 6,
-    name: 'Divya Menon',
-    age: 26,
-    blood: 'A-',
-    phone: '+91 93210 98765',
-    email: 'divya.menon@example.com',
-    address: 'Hebbal, Bengaluru, KA',
-    since: 'Feb 2024',
-    visits: 3,
-    diagnosis: 'Low AMH / Diminished Ovarian Reserve',
-    lastVisit: '18 Jun 2026',
-    nextVisit: '20 Jul 2026',
-    status: 'active',
-    alert: null,
-    height: '165 cm',
-    weight: '60 kg',
-    bmi: '22.0',
-    bp: '116/74 mmHg',
-    pulse: '74 bpm',
-    spo2: '99%',
-    temp: '98.4 °F',
-    bloodSugar: '90 mg/dL',
-    allergies: [],
-    meds: [
-      { id: 'RX-601', date: '18 Jun 2026', medName: 'DHEA 25mg', dosage: '25mg', schedule: '1-1-1', duration: '60 Days', refillsLeft: 2, status: 'Active', instructions: 'Take 25mg three times daily.', prescribedBy: 'Dr. Sarah Mitchell' },
-      { id: 'RX-602', date: '18 Jun 2026', medName: 'Coenzyme Q10 600mg', dosage: '600mg', schedule: '1-0-0', duration: '60 Days', refillsLeft: 2, status: 'Active', instructions: 'Take with fat-containing breakfast.', prescribedBy: 'Dr. Sarah Mitchell' },
-    ],
-    reports: [
-      {
-        id: 'REP-909',
-        date: '15 Jun 2026',
-        testCategory: 'Pathology',
-        testName: 'Ovarian Reserve Markers',
-        labName: 'Apollo Diagnostics',
-        status: 'Completed',
-        urgent: false,
-        results: {
-          'Serum AMH': { value: '0.9 ng/mL', ref: '1.5 – 4.0 ng/mL', status: 'low' },
-          'Antral Follicle Count (AFC)': { value: '5 (Bilateral Total)', ref: '> 10', status: 'low' },
-        },
-        interpretation: 'Diminished Ovarian Reserve for age. Pre-conception optimization advised promptly.',
-        doctorAction: 'Started DHEA & CoQ10 supplementation.',
-      },
-    ],
-    consultations: [
-      { date: '18 Jun 2026', type: 'DOR Counseling', chiefComplaint: 'Concerns regarding low AMH results', assessment: 'Diminished Ovarian Reserve', plan: 'Pre-IVF oocyte quality priming protocol.', doctor: 'Dr. Sarah Mitchell' },
-    ],
-    medicalHistory: {
-      chronicConditions: ['Diminished Ovarian Reserve (DOR)'],
-      surgeries: ['Ovarian Cystectomy (2022)'],
-      familyHistory: ['Mother: Early Menopause (Age 42)'],
-      lifestyle: 'Fitness enthusiast, Balanced diet',
-    },
-    clinicalNotes: [
-      { text: 'Discussed fertility preservation vs immediate ART options.', date: '18 Jun 2026 03:20 PM', author: 'Dr. Sarah Mitchell' },
-    ],
-    payments: [
-      { id: 'INV-7815', date: '18 Jun 2026', service: 'DOR Fertility Counseling Session', category: 'Consultation Fee', amount: 999, status: 'Paid', method: 'UPI (GPay)', txnRef: 'UPI-701928', invoiceUrl: '#' },
-      { id: 'INV-7816', date: '15 Jun 2026', service: 'AMH & Antral Follicle Count Scan', category: 'Lab & Diagnostics', amount: 2800, status: 'Paid', method: 'Credit Card', txnRef: 'TXN-401928', invoiceUrl: '#' },
-    ],
-  },
-];
 
 /* ─── Write Rx Modal ─────────────────────────── */
 function InlineWriteRxModal({ isOpen, onClose, patient, onSaveRx }) {
@@ -844,26 +406,26 @@ function ViewInvoiceModal({ invoice, patient, isOpen, onClose }) {
           <div>
             <h2 className="text-xl font-black text-aubergine-900 tracking-tight">HealNari Clinic</h2>
             <p className="text-xs text-slate-500">Medical Billing &amp; Payment Receipt</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">GSTIN: 29AAAAA0000A1Z5</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">GSTIN: 29AAAAA0000A1Z5</p>
           </div>
           <div className="text-right">
             <span className={`text-xs font-bold px-3 py-1 rounded-full border ${invoice.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
               ● {invoice.status}
             </span>
             <p className="text-xs font-mono font-bold text-slate-600 mt-1">{invoice.id}</p>
-            <p className="text-[11px] text-slate-400">{invoice.date}</p>
+            <p className="text-[11px] text-slate-500">{invoice.date}</p>
           </div>
         </div>
 
         {/* Patient Bar */}
         <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-xs grid grid-cols-2 gap-3">
           <div>
-            <p className="text-slate-400 font-bold uppercase text-[10px]">Billed To</p>
+            <p className="text-slate-500 font-bold uppercase text-[10px]">Billed To</p>
             <p className="font-black text-slate-800 text-sm mt-0.5">{patient.name}</p>
             <p className="text-slate-600">{patient.phone}</p>
           </div>
           <div>
-            <p className="text-slate-400 font-bold uppercase text-[10px]">Payment Details</p>
+            <p className="text-slate-500 font-bold uppercase text-[10px]">Payment Details</p>
             <p className="font-bold text-slate-800 text-xs mt-0.5">{invoice.method}</p>
             <p className="text-slate-500 font-mono text-[11px]">Ref: {invoice.txnRef}</p>
           </div>
@@ -919,25 +481,25 @@ function ViewRxDocModal({ rx, patient, isOpen, onClose }) {
           <div>
             <h2 className="text-xl font-black text-aubergine-900 tracking-tight">HealNari Women's Health Clinic</h2>
             <p className="text-xs text-slate-500">Center for Gynaecology, PCOS & Advanced Reproductive Medicine</p>
-            <p className="text-[11px] text-slate-400 mt-1">102 Medical Hub, Indiranagar, Bengaluru • Phone: +91 80 4567 8900</p>
+            <p className="text-[11px] text-slate-500 mt-1">102 Medical Hub, Indiranagar, Bengaluru • Phone: +91 80 4567 8900</p>
           </div>
           <div className="text-right">
             <span className="text-2xl font-serif text-aubergine-800 font-bold">Rx</span>
             <p className="text-xs font-mono font-bold text-slate-500">{rx.id}</p>
-            <p className="text-xs text-slate-400">{rx.date}</p>
+            <p className="text-xs text-slate-500">{rx.date}</p>
           </div>
         </div>
 
         {/* Doctor & Patient Bar */}
         <div className="grid grid-cols-2 gap-4 bg-slate-50 rounded-xl p-4 border border-slate-100 text-xs">
           <div>
-            <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Patient Information</p>
+            <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Patient Information</p>
             <p className="font-black text-slate-800 text-sm mt-0.5">{patient.name}</p>
             <p className="text-slate-600">{patient.age} Yrs / {patient.blood} • {patient.phone}</p>
             <p className="text-aubergine-700 font-bold mt-1">Diagnosis: {patient.diagnosis}</p>
           </div>
           <div className="text-right sm:text-left">
-            <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Prescribing Doctor</p>
+            <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Prescribing Doctor</p>
             <p className="font-black text-slate-800 text-sm mt-0.5">{rx.prescribedBy}</p>
             <p className="text-slate-600">MD, DGO (Obstetrics & Gynaecology)</p>
             <p className="text-slate-500">Reg No: KMC-84920</p>
@@ -982,8 +544,8 @@ function ViewRxDocModal({ rx, patient, isOpen, onClose }) {
         {/* Signature & Footer */}
         <div className="flex justify-between items-end pt-4 border-t border-slate-200">
           <div>
-            <p className="text-[10px] text-slate-400">Digitally signed & stored in EMR encrypted registry.</p>
-            <p className="text-[10px] text-slate-400">Valid until: {rx.duration}</p>
+            <p className="text-[10px] text-slate-500">Digitally signed & stored in EMR encrypted registry.</p>
+            <p className="text-[10px] text-slate-500">Valid until: {rx.duration}</p>
           </div>
           <div className="text-center">
             <div className="font-serif italic text-aubergine-800 text-lg font-bold">Dr. Sarah Mitchell</div>
@@ -1017,25 +579,25 @@ function ViewLabDocModal({ report, patient, isOpen, onClose }) {
           <div>
             <h2 className="text-xl font-black text-sky-900 tracking-tight">{report.labName}</h2>
             <p className="text-xs text-slate-500">NABL & CAP Accredited Diagnostic Laboratory</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">Report ID: <span className="font-mono font-bold text-slate-700">{report.id}</span></p>
+            <p className="text-[11px] text-slate-500 mt-0.5">Report ID: <span className="font-mono font-bold text-slate-700">{report.id}</span></p>
           </div>
           <div className="text-right">
             <span className={`text-xs font-bold px-3 py-1 rounded-full border ${report.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
               {report.status}
             </span>
-            <p className="text-xs text-slate-400 mt-1">{report.date}</p>
+            <p className="text-xs text-slate-500 mt-1">{report.date}</p>
           </div>
         </div>
 
         {/* Patient Bar */}
         <div className="grid grid-cols-2 gap-4 bg-slate-50 rounded-xl p-4 border border-slate-100 text-xs">
           <div>
-            <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Patient Name</p>
+            <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Patient Name</p>
             <p className="font-black text-slate-800 text-sm">{patient.name}</p>
             <p className="text-slate-600">{patient.age}Y / {patient.blood} • {patient.phone}</p>
           </div>
           <div>
-            <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Referred By</p>
+            <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Referred By</p>
             <p className="font-black text-slate-800 text-sm">Dr. Sarah Mitchell</p>
             <p className="text-slate-600">HealNari Women's Health Clinic</p>
           </div>
@@ -1173,7 +735,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
         >
           <i className="fas fa-arrow-left text-aubergine-600"></i> Back to Patient Registry
         </button>
-        <p className="text-xs text-slate-400 font-medium hidden sm:block">
+        <p className="text-xs text-slate-500 font-medium hidden sm:block">
           Doctor Portal &gt; Patients &amp; EMR &gt; <span className="text-slate-700 font-bold">{patient.name}</span>
         </p>
       </div>
@@ -1314,26 +876,26 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
               <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider mb-3">Recorded Patient Vitals</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <p className="text-slate-400 font-bold text-[10px] uppercase">Blood Pressure</p>
+                  <p className="text-slate-500 font-bold text-[10px] uppercase">Blood Pressure</p>
                   <p className="font-black text-slate-900 text-lg mt-1">{patient.bp}</p>
                   <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
                     <i className="fas fa-circle-check"></i> Optimal BP Range
                   </span>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <p className="text-slate-400 font-bold text-[10px] uppercase">Body Mass Index (BMI)</p>
+                  <p className="text-slate-500 font-bold text-[10px] uppercase">Body Mass Index (BMI)</p>
                   <p className="font-black text-slate-900 text-lg mt-1">{patient.bmi} <span className="text-xs font-normal text-slate-500">({patient.weight})</span></p>
                   <span className="text-[10px] text-slate-500 font-medium block mt-1">Height: {patient.height}</span>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <p className="text-slate-400 font-bold text-[10px] uppercase">Pulse / SpO2</p>
+                  <p className="text-slate-500 font-bold text-[10px] uppercase">Pulse / SpO2</p>
                   <p className="font-black text-slate-900 text-lg mt-1">{patient.pulse} <span className="text-xs font-normal text-slate-500">/ {patient.spo2}</span></p>
                   <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
                     <i className="fas fa-heart-pulse"></i> Normal Resting Rate
                   </span>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <p className="text-slate-400 font-bold text-[10px] uppercase">Fasting Glucose</p>
+                  <p className="text-slate-500 font-bold text-[10px] uppercase">Fasting Glucose</p>
                   <p className="font-black text-slate-900 text-lg mt-1">{patient.bloodSugar}</p>
                   <span className="text-[10px] text-amber-600 font-bold block mt-1">Monitored Metric</span>
                 </div>
@@ -1355,7 +917,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-slate-400 italic">No drug allergies reported in EMR.</p>
+                  <p className="text-slate-500 italic">No drug allergies reported in EMR.</p>
                 )}
               </div>
 
@@ -1365,11 +927,11 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                 </h4>
                 <div className="grid grid-cols-2 gap-3 bg-white p-3 rounded-xl border border-slate-200">
                   <div>
-                    <span className="text-slate-400 font-bold text-[10px] block uppercase">Total Settled Paid</span>
+                    <span className="text-slate-500 font-bold text-[10px] block uppercase">Total Settled Paid</span>
                     <span className="font-black text-emerald-700 text-base">₹{totalPaid.toLocaleString('en-IN')}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 font-bold text-[10px] block uppercase">Outstanding Due</span>
+                    <span className="text-slate-500 font-bold text-[10px] block uppercase">Outstanding Due</span>
                     <span className={`font-black text-base ${totalPending > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
                       ₹{totalPending.toLocaleString('en-IN')}
                     </span>
@@ -1397,7 +959,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                       <span className="bg-aubergine-100 text-aubergine-800 font-bold px-3 py-1 rounded-xl border border-aubergine-200 text-xs">
                         {m.schedule}
                       </span>
-                      <p className="text-[11px] text-slate-400 mt-1">{m.duration}</p>
+                      <p className="text-[11px] text-slate-500 mt-1">{m.duration}</p>
                     </div>
                   </div>
                 ))}
@@ -1461,7 +1023,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                           ● {m.status}
                         </span>
                       </div>
-                      <p className="text-slate-400 text-xs mt-1">
+                      <p className="text-slate-500 text-xs mt-1">
                         Prescription ID: <span className="font-mono font-bold text-slate-600">{m.id}</span> • Prescribed on {m.date} by {m.prescribedBy}
                       </p>
                     </div>
@@ -1476,15 +1038,15 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
                   <div className="grid grid-cols-3 gap-4 bg-white rounded-xl p-4 border border-slate-100 text-slate-700">
                     <div>
-                      <span className="text-slate-400 text-[10px] font-bold block uppercase">Dose Frequency</span>
+                      <span className="text-slate-500 text-[10px] font-bold block uppercase">Dose Frequency</span>
                       <span className="font-black text-aubergine-800 text-sm">{m.schedule}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 text-[10px] font-bold block uppercase">Course Duration</span>
+                      <span className="text-slate-500 text-[10px] font-bold block uppercase">Course Duration</span>
                       <span className="font-black text-slate-800 text-sm">{m.duration}</span>
                     </div>
                     <div>
-                      <span className="text-slate-400 text-[10px] font-bold block uppercase">Authorized Refills</span>
+                      <span className="text-slate-500 text-[10px] font-bold block uppercase">Authorized Refills</span>
                       <span className="font-black text-slate-800 text-sm">{m.refillsLeft} Remaining</span>
                     </div>
                   </div>
@@ -1497,7 +1059,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
               {patient.meds.length === 0 && (
                 <div className="text-center py-12 bg-slate-50 rounded-2xl border border-slate-200">
-                  <p className="text-slate-400">No prescription records found for this patient.</p>
+                  <p className="text-slate-500">No prescription records found for this patient.</p>
                 </div>
               )}
             </div>
@@ -1546,7 +1108,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                         <span className="font-black text-slate-900 text-base">{r.testName}</span>
                         {r.urgent && <span className="bg-rose-100 text-rose-700 font-bold px-3 py-0.5 rounded-full text-[11px]">⚡ Priority Urgent</span>}
                       </div>
-                      <p className="text-slate-400 text-xs mt-1">
+                      <p className="text-slate-500 text-xs mt-1">
                         Category: <strong className="text-slate-700">{r.testCategory}</strong> • Lab: {r.labName} • Date: {r.date}
                       </p>
                     </div>
@@ -1600,7 +1162,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
               {filteredReports.length === 0 && (
                 <div className="text-center py-12 bg-slate-50 rounded-2xl border border-slate-200">
-                  <p className="text-slate-400">No lab reports found in this category.</p>
+                  <p className="text-slate-500">No lab reports found in this category.</p>
                 </div>
               )}
             </div>
@@ -1627,19 +1189,19 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
             {/* Financial Summary Metric Bar */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <span className="text-slate-400 font-bold text-[10px] uppercase">Total Amount Billed</span>
+                <span className="text-slate-500 font-bold text-[10px] uppercase">Total Amount Billed</span>
                 <p className="font-black text-slate-900 text-xl mt-1">₹{(totalPaid + totalPending).toLocaleString('en-IN')}</p>
                 <span className="text-[10px] text-slate-500 font-medium">Cumulative consultations &amp; lab orders</span>
               </div>
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <span className="text-slate-400 font-bold text-[10px] uppercase">Total Settled Payments</span>
+                <span className="text-slate-500 font-bold text-[10px] uppercase">Total Settled Payments</span>
                 <p className="font-black text-emerald-700 text-xl mt-1">₹{totalPaid.toLocaleString('en-IN')}</p>
                 <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
                   <i className="fas fa-check-circle"></i> Successfully Received
                 </span>
               </div>
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <span className="text-slate-400 font-bold text-[10px] uppercase">Outstanding Pending Due</span>
+                <span className="text-slate-500 font-bold text-[10px] uppercase">Outstanding Pending Due</span>
                 <p className={`font-black text-xl mt-1 ${totalPending > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
                   ₹{totalPending.toLocaleString('en-IN')}
                 </p>
@@ -1704,7 +1266,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
               </table>
 
               {(patient.payments || []).length === 0 && (
-                <div className="text-center py-12 text-slate-400">No payment transaction records found.</div>
+                <div className="text-center py-12 text-slate-500">No payment transaction records found.</div>
               )}
             </div>
           </div>
@@ -1722,15 +1284,15 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="bg-white p-3.5 rounded-xl border border-slate-200">
-                    <span className="text-slate-400 font-bold block text-[10px] uppercase">Chief Complaint</span>
+                    <span className="text-slate-500 font-bold block text-[10px] uppercase">Chief Complaint</span>
                     <span className="text-slate-800 font-medium text-xs mt-1 block">{c.chiefComplaint}</span>
                   </div>
                   <div className="bg-white p-3.5 rounded-xl border border-slate-200">
-                    <span className="text-slate-400 font-bold block text-[10px] uppercase">Clinical Assessment</span>
+                    <span className="text-slate-500 font-bold block text-[10px] uppercase">Clinical Assessment</span>
                     <span className="text-aubergine-800 font-bold text-xs mt-1 block">{c.assessment}</span>
                   </div>
                   <div className="bg-white p-3.5 rounded-xl border border-slate-200">
-                    <span className="text-slate-400 font-bold block text-[10px] uppercase">Management Plan</span>
+                    <span className="text-slate-500 font-bold block text-[10px] uppercase">Management Plan</span>
                     <span className="text-slate-800 font-medium text-xs mt-1 block">{c.plan}</span>
                   </div>
                 </div>
@@ -1813,7 +1375,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
               {patient.clinicalNotes.map((note, i) => (
                 <div key={i} className="bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-xs space-y-2">
                   <p className="text-slate-800 leading-relaxed font-medium text-xs">{note.text}</p>
-                  <div className="flex justify-between items-center text-[11px] text-slate-400 pt-2 border-t border-slate-200">
+                  <div className="flex justify-between items-center text-[11px] text-slate-500 pt-2 border-t border-slate-200">
                     <span>Recorded by {note.author}</span>
                     <span>🕒 {note.date}</span>
                   </div>
@@ -1835,17 +1397,84 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
   );
 }
 
+/* ─── Add Patient Modal ─────────────────────────── */
+function AddPatientModal({ isOpen, onClose, onAdd }) {
+  const [form, setForm] = useState({ name: '', phone: '', email: '', age: '', blood: '', diagnosis: '', address: '' });
+  const handle = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!form.name.trim() || !form.phone.trim()) return;
+    onAdd({ ...form, age: form.age ? Number(form.age) : '—' });
+    setForm({ name: '', phone: '', email: '', age: '', blood: '', diagnosis: '', address: '' });
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Add New Patient" size="md">
+      <form onSubmit={submit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-bold text-slate-500 mb-1 block">Full Name *</label>
+            <input required value={form.name} onChange={(e) => handle('name', e.target.value)} placeholder="e.g. Meera Nair"
+              className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 mb-1 block">Phone *</label>
+            <input required value={form.phone} onChange={(e) => handle('phone', e.target.value)} placeholder="+91 90000 00000"
+              className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="text-xs font-bold text-slate-500 mb-1 block">Age</label>
+            <input type="number" value={form.age} onChange={(e) => handle('age', e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+          </div>
+          <div className="col-span-2">
+            <label className="text-xs font-bold text-slate-500 mb-1 block">Blood Group</label>
+            <input value={form.blood} onChange={(e) => handle('blood', e.target.value)} placeholder="e.g. B+"
+              className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1 block">Email</label>
+          <input type="email" value={form.email} onChange={(e) => handle('email', e.target.value)}
+            className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1 block">Presenting Concern / Diagnosis</label>
+          <input value={form.diagnosis} onChange={(e) => handle('diagnosis', e.target.value)} placeholder="e.g. Irregular Cycles"
+            className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+        </div>
+        <div className="flex gap-3 pt-3 border-t border-slate-100">
+          <button type="button" onClick={onClose} className="flex-1 border border-slate-200 text-slate-600 font-bold py-2 rounded-xl text-sm hover:bg-slate-50">Cancel</button>
+          <button type="submit" className="flex-1 bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold py-2 rounded-xl text-sm transition-colors flex items-center justify-center gap-1.5">
+            <i className="fas fa-user-plus"></i> Add to Registry
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 /* ─── Main Component ─────────────────────────── */
 function DoctorPatients() {
   const toast = useToast();
-  const [patients, setPatients] = useState(INITIAL_PATIENTS);
+  const { patients, updatePatient, addPatient } = useClinicData();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const [showAddPatient, setShowAddPatient] = useState(false);
+  const selectedPatient = patients.find((p) => p.id === selectedPatientId) || null;
 
   const handleUpdatePatient = (updatedPatient) => {
-    setPatients((prev) => prev.map((p) => (p.id === updatedPatient.id ? updatedPatient : p)));
-    setSelectedPatient(updatedPatient);
+    updatePatient(updatedPatient);
+  };
+
+  const handleAddPatient = (form) => {
+    const created = addPatient(form);
+    setShowAddPatient(false);
+    toast(`${created.name} added to the patient registry.`, 'success');
   };
 
   // If a patient is selected, render the FULL PAGE EMR view!
@@ -1853,7 +1482,7 @@ function DoctorPatients() {
     return (
       <PatientEMRFullPage
         patient={selectedPatient}
-        onBack={() => setSelectedPatient(null)}
+        onBack={() => setSelectedPatientId(null)}
         toast={toast}
         onUpdatePatient={handleUpdatePatient}
       />
@@ -1930,7 +1559,7 @@ function DoctorPatients() {
             {showActionsMenu && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
                 <div className="px-3 py-1.5 mb-1">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Messaging</p>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p>
                 </div>
                 <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
@@ -1943,13 +1572,13 @@ function DoctorPatients() {
                 </button>
                 <div className="h-px bg-slate-100 my-1"></div>
                 <button onClick={() => handleBulkAction('Export CSV')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-3 transition-colors">
-                  <i className="fas fa-file-export text-slate-400 w-4"></i> Export Selected
+                  <i className="fas fa-file-export text-slate-500 w-4"></i> Export Selected
                 </button>
               </div>
             )}
           </div>
           <button
-            onClick={() => toast('New patient registration form opened.', 'info')}
+            onClick={() => setShowAddPatient(true)}
             className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm"
           >
             <i className="fas fa-user-plus"></i> Add Patient
@@ -1960,7 +1589,7 @@ function DoctorPatients() {
       {/* Filter & Search Bar */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-40">
-          <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+          <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -1987,7 +1616,7 @@ function DoctorPatients() {
             </button>
           ))}
         </div>
-        <p className="text-xs text-slate-400 font-medium">{filtered.length} results</p>
+        <p className="text-xs text-slate-500 font-medium">{filtered.length} results</p>
       </div>
       
       {/* Select All Bar */}
@@ -2037,7 +1666,7 @@ function DoctorPatients() {
             <div className="flex-1 min-w-0 space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-black text-slate-800 text-base">{p.name}</h3>
-                <span className="text-[11px] text-slate-400 font-mono font-semibold bg-slate-100 px-2 py-0.5 rounded">ID: #{p.id * 1042}</span>
+                <span className="text-[11px] text-slate-500 font-mono font-semibold bg-slate-100 px-2 py-0.5 rounded">ID: #{p.id * 1042}</span>
                 {p.alert && <span className="text-[10px] bg-rose-100 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full font-bold">⚠ {p.alert}</span>}
               </div>
 
@@ -2045,7 +1674,7 @@ function DoctorPatients() {
 
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                 <span>
-                  <i className="fas fa-user mr-1 text-slate-400"></i> {p.age}F • Blood: <strong>{p.blood}</strong>
+                  <i className="fas fa-user mr-1 text-slate-500"></i> {p.age}F • Blood: <strong>{p.blood}</strong>
                 </span>
                 <span>
                   <i className="fas fa-file-prescription mr-1 text-emerald-500"></i> {p.meds.length} Prescriptions
@@ -2054,7 +1683,7 @@ function DoctorPatients() {
                   <i className="fas fa-vial mr-1 text-sky-500"></i> {p.reports.length} Lab Reports
                 </span>
                 <span>
-                  <i className="fas fa-calendar-check mr-1 text-slate-400"></i> Last: {p.lastVisit}
+                  <i className="fas fa-calendar-check mr-1 text-slate-500"></i> Last: {p.lastVisit}
                 </span>
               </div>
             </div>
@@ -2069,7 +1698,7 @@ function DoctorPatients() {
                 <i className="fas fa-phone text-sm"></i>
               </button>
               <button
-                onClick={() => setSelectedPatient(p)}
+                onClick={() => setSelectedPatientId(p.id)}
                 className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-all flex items-center gap-2 shadow-sm"
               >
                 <i className="fas fa-folder-open text-amber-300"></i> Open Complete EMR Page

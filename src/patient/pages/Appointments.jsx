@@ -1,47 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
+import { apiFetch } from '../../lib/apiClient.js';
 
-/* ─── Dummy Data ─────────────────────────────── */
-const DOCTORS = [
-  'Dr. Sarah Mitchell (Gynaecologist)',
-  'Dr. Ananya Mehta (Endocrinologist)',
-  'Dr. Ritu Khanna (Thyroid)',
-  'Dr. Shreya Verma (Dermatologist)',
-  'Dr. Priya Nair (Sexual Health)',
-];
 const SLOTS = ['9:00 AM', '10:30 AM', '12:00 PM', '2:00 PM', '4:00 PM', '5:30 PM'];
-
-let nextId = 200;
-
-const INITIAL_UPCOMING = [
-  { id: 'APT-101', doctor: 'Dr. Sarah Mitchell', specialty: 'Gynaecologist', date: '2026-08-10', dateLabel: '10 Aug 2026', time: '10:30 AM', status: 'Confirmed', type: 'Video Consult', fee: 799 },
-  { id: 'APT-102', doctor: 'Dr. Anita Sharma', specialty: 'Endocrinologist', date: '2026-08-25', dateLabel: '25 Aug 2026', time: '11:15 AM', status: 'Pending', type: 'Clinic Visit', fee: 899 },
-];
-
-const INITIAL_PAST = [
-  { id: 'APT-098', doctor: 'Dr. Sarah Mitchell', specialty: 'Gynaecologist', date: '2026-06-10', dateLabel: '10 Jun 2026', time: '2:00 PM', status: 'Completed', type: 'Video Consult', fee: 799 },
-  { id: 'APT-087', doctor: 'Dr. Ritu Khanna', specialty: 'Endocrinologist', date: '2026-05-12', dateLabel: '12 May 2026', time: '11:00 AM', status: 'Completed', type: 'Clinic Visit', fee: 899 },
-];
 
 const WAITLIST = { doctor: 'Dr. Meera Reddy (Gynecology)', requested: 'Tomorrow, Morning Slot', position: 4 };
 
 /* ─── Booking Modal ──────────────────────────── */
-function BookingModal({ isOpen, onClose, onBook, prefill = {} }) {
+function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
-    doctor: prefill.doctor || '',
+    doctorId: prefill.doctorId || '',
     type: prefill.type || 'Video Consult',
     date: '',
     slot: '',
     notes: '',
   });
 
-  const reset = () => { setStep(1); setForm({ doctor: '', type: 'Video Consult', date: '', slot: '', notes: '' }); onClose(); };
+  useEffect(() => {
+    if (isOpen) setForm({ doctorId: prefill.doctorId || '', type: prefill.type || 'Video Consult', date: '', slot: '', notes: '' });
+  }, [isOpen, prefill.doctorId, prefill.type]);
+
+  const selectedDoctor = doctors.find(d => d.id === form.doctorId);
+
+  const reset = () => { setStep(1); setForm({ doctorId: '', type: 'Video Consult', date: '', slot: '', notes: '' }); onClose(); };
 
   const confirm = () => {
-    onBook({ ...form });
+    onBook({ ...form, doctorName: selectedDoctor?.full_name, fee: selectedDoctor?.consultation_fee });
     reset();
   };
 
@@ -51,10 +39,10 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {} }) {
         <div className="space-y-4">
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1.5 block">Select Doctor *</label>
-            <select value={form.doctor} onChange={e => setForm(p => ({ ...p, doctor: e.target.value }))}
+            <select value={form.doctorId} onChange={e => setForm(p => ({ ...p, doctorId: e.target.value }))}
               className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
               <option value="">-- Choose a specialist --</option>
-              {DOCTORS.map(d => <option key={d}>{d}</option>)}
+              {doctors.map(d => <option key={d.id} value={d.id}>Dr. {d.full_name} ({d.specialty || 'Specialist'})</option>)}
             </select>
           </div>
           <div>
@@ -80,7 +68,7 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {} }) {
               placeholder="Any specific concerns or symptoms..."
               className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-none" />
           </div>
-          <button disabled={!form.doctor || !form.date} onClick={() => setStep(2)}
+          <button disabled={!form.doctorId || !form.date} onClick={() => setStep(2)}
             className="w-full bg-aubergine-600 disabled:opacity-40 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
             Choose Time Slot →
           </button>
@@ -98,10 +86,10 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {} }) {
             ))}
           </div>
           <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-4 text-xs space-y-1.5">
-            <div className="flex justify-between"><span className="font-bold text-slate-600">Doctor</span><span className="text-slate-800">{form.doctor}</span></div>
+            <div className="flex justify-between"><span className="font-bold text-slate-600">Doctor</span><span className="text-slate-800">Dr. {selectedDoctor?.full_name}</span></div>
             <div className="flex justify-between"><span className="font-bold text-slate-600">Type</span><span className="text-slate-800">{form.type}</span></div>
             <div className="flex justify-between"><span className="font-bold text-slate-600">Date & Time</span><span className="text-slate-800">{form.date} • {form.slot || '—'}</span></div>
-            <div className="flex justify-between"><span className="font-bold text-slate-600">Consult Fee</span><span className="text-aubergine-700 font-black">₹799</span></div>
+            <div className="flex justify-between"><span className="font-bold text-slate-600">Consult Fee</span><span className="text-aubergine-700 font-black">₹{selectedDoctor?.consultation_fee ?? 799}</span></div>
           </div>
           <div className="flex gap-3">
             <button onClick={() => setStep(1)} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors">← Back</button>
@@ -154,10 +142,10 @@ function VideoCallModal({ isOpen, onClose, doctor, toast }) {
                 {doctor?.split(' ').slice(1).map(n => n[0]).join('')}
               </div>
               <p className="font-bold">{doctor}</p>
-              <p className="text-slate-400 text-xs mt-1">● Live</p>
+              <p className="text-slate-500 text-xs mt-1">● Live</p>
             </div>
             <div className="absolute bottom-3 right-3 w-24 h-16 bg-slate-700 rounded-xl border border-white/10 flex items-center justify-center text-white text-xs font-bold">
-              {vidOff ? <i className="fas fa-video-slash text-slate-400 text-xl"></i> : 'You'}
+              {vidOff ? <i className="fas fa-video-slash text-slate-500 text-xl"></i> : 'You'}
             </div>
           </div>
           <div className="flex items-center justify-center gap-4">
@@ -178,13 +166,58 @@ function VideoCallModal({ isOpen, onClose, doctor, toast }) {
 }
 
 /* ─── Main Component ─────────────────────────── */
+const STATUS_LABEL = {
+  Requested: 'Pending',
+  Upcoming: 'Confirmed',
+  Waiting: 'Confirmed',
+  'In Progress': 'Confirmed',
+  Done: 'Completed',
+  Cancelled: 'Cancelled',
+  'No Show': 'Cancelled',
+};
+
 function PatientAppointments() {
   const toast = useToast();
   const navigate = useNavigate();
+  const { appointments, addAppointment, cancelAppointment } = useClinicData();
+  const [doctors, setDoctors] = useState([]);
   const [tab, setTab] = useState('upcoming');
-  const [upcoming, setUpcoming] = useState(INITIAL_UPCOMING);
-  const [past] = useState(INITIAL_PAST);
   const [waitPos, setWaitPos] = useState(WAITLIST.position);
+
+  useEffect(() => {
+    apiFetch('/doctors/search').then(setDoctors).catch(() => setDoctors([]));
+  }, []);
+
+  const doctorById = useMemo(() => new Map(doctors.map(d => [d.id, d])), [doctors]);
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const toRow = (a) => {
+    const doc = doctorById.get(a.doctorId);
+    return {
+      id: a.id,
+      doctorId: a.doctorId,
+      doctor: `Dr. ${a.doctorName}`,
+      specialty: doc?.specialty || 'Specialist',
+      date: a.date,
+      dateLabel: a.date ? new Date(a.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
+      time: a.time,
+      status: STATUS_LABEL[a.status] || a.status,
+      type: a.type,
+      fee: doc?.consultation_fee ?? 799,
+    };
+  };
+
+  const upcoming = useMemo(() => appointments
+    .filter(a => !['Done', 'Cancelled', 'No Show'].includes(a.status))
+    .map(toRow)
+    .sort((a, b) => (a.date || '').localeCompare(b.date || '')),
+    [appointments, doctorById]);
+
+  const past = useMemo(() => appointments
+    .filter(a => ['Done', 'Cancelled', 'No Show'].includes(a.status))
+    .map(toRow)
+    .sort((a, b) => (b.date || '').localeCompare(a.date || '')),
+    [appointments, doctorById]);
 
   // Modals
   const [showBook, setShowBook] = useState(false);
@@ -207,26 +240,26 @@ function PatientAppointments() {
   };
   const filteredData = getFilteredData();
 
-  const handleBook = (form) => {
-    const newApt = {
-      id: `APT-${++nextId}`,
-      doctor: form.doctor.split('(')[0].trim(),
-      specialty: form.doctor.match(/\((.*)\)/)?.[1] || 'Specialist',
-      date: form.date,
-      dateLabel: new Date(form.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-      time: form.slot,
-      status: 'Pending',
-      type: form.type,
-      fee: 799,
-    };
-    setUpcoming(prev => [...prev, newApt].sort((a, b) => a.date.localeCompare(b.date)));
-    setSuccessApt(newApt);
-    toast('Appointment booked! Confirmation SMS sent.', 'success');
+  const handleBook = async (form) => {
+    try {
+      const saved = await addAppointment({
+        doctorId: form.doctorId,
+        type: form.type,
+        date: form.date,
+        time: form.slot,
+        reason: form.notes,
+      });
+      setSuccessApt(toRow(saved));
+      toast('Appointment requested! We\'ll confirm it shortly.', 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to book appointment', 'error');
+    }
   };
 
-  const handleCancel = () => {
-    setUpcoming(prev => prev.filter(a => a.id !== cancelTarget.id));
-    toast(`Appointment with ${cancelTarget.doctor} cancelled. Refund initiated.`, 'info');
+  const handleCancel = async () => {
+    const doctorName = cancelTarget.doctor;
+    await cancelAppointment(cancelTarget.id);
+    toast(`Appointment with ${doctorName} cancelled. Refund initiated.`, 'info');
     setCancelTarget(null);
   };
 
@@ -286,7 +319,7 @@ function PatientAppointments() {
         {/* Filters */}
         <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-3 bg-white">
           <div className="relative flex-1">
-            <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search doctor, specialty, or ID..."
               className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white" />
           </div>
@@ -320,7 +353,7 @@ function PatientAppointments() {
                   <td className="px-6 py-4">
                     <div className="font-bold text-slate-800">{apt.doctor}</div>
                     <div className="text-xs text-slate-500">{apt.specialty}</div>
-                    <div className="text-xs text-slate-400 font-mono mt-0.5">{apt.id}</div>
+                    <div className="text-xs text-slate-500 font-mono mt-0.5">{apt.id}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="font-bold text-aubergine-700">{apt.dateLabel}</div>
@@ -330,7 +363,7 @@ function PatientAppointments() {
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1 w-max">
                       <i className={`fas ${apt.type === 'Video Consult' ? 'fa-video' : 'fa-hospital'} text-[10px]`}></i> {apt.type}
                     </span>
-                    <div className="text-xs text-slate-400 mt-1">₹{apt.fee}</div>
+                    <div className="text-xs text-slate-500 mt-1">₹{apt.fee}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${STATUS_BADGE[apt.status] || 'bg-slate-100 text-slate-600'}`}>
@@ -363,7 +396,7 @@ function PatientAppointments() {
                           className="text-slate-500 hover:text-slate-700 font-bold px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors text-xs flex items-center gap-1.5">
                           <i className="fas fa-download"></i> Summary
                         </button>
-                        <button onClick={() => { setBookPrefill({ doctor: apt.doctor, followUp: true }); setShowBook(true); }}
+                        <button onClick={() => { setBookPrefill({ doctorId: apt.doctorId, followUp: true }); setShowBook(true); }}
                           className="text-aubergine-600 font-bold hover:text-aubergine-800 transition-colors px-3 py-1.5 rounded-lg hover:bg-aubergine-50 text-xs flex items-center gap-1.5">
                           <i className="fas fa-calendar-plus"></i> Follow-up
                         </button>
@@ -429,7 +462,7 @@ function PatientAppointments() {
       )}
 
       {/* Modals */}
-      <BookingModal isOpen={showBook} onClose={() => setShowBook(false)} onBook={handleBook} prefill={bookPrefill} />
+      <BookingModal isOpen={showBook} onClose={() => setShowBook(false)} onBook={handleBook} prefill={bookPrefill} doctors={doctors} />
       <ConfirmModal
         isOpen={!!cancelTarget}
         onClose={() => setCancelTarget(null)}

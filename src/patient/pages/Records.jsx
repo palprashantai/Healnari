@@ -1,25 +1,14 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
+import { apiFetch } from '../../lib/apiClient.js';
 
-/* ─── Dummy Data ─────────────────────────────── */
-const INITIAL_DOCS = [
-  { id: 1, name: 'Hormonal_Panel_Aug2023.pdf', type: 'pdf', size: '1.2 MB', date: '15 Aug 2023', lab: 'Dr. Lal PathLabs', icon: 'fa-file-pdf', color: 'bg-rose-50 text-rose-500' },
-  { id: 2, name: 'Pelvic_Ultrasound_Scan.jpg', type: 'image', size: '3.8 MB', date: '10 Aug 2023', lab: 'City Scans', icon: 'fa-image', color: 'bg-indigo-50 text-indigo-500' },
-  { id: 3, name: 'CBC_Report_Jan2024.pdf', type: 'pdf', size: '0.8 MB', date: '05 Jan 2024', lab: 'Apollo Diagnostics', icon: 'fa-file-pdf', color: 'bg-rose-50 text-rose-500' },
-  { id: 4, name: 'Thyroid_Panel_Mar2024.pdf', type: 'pdf', size: '1.1 MB', date: '20 Mar 2024', lab: 'Dr. Lal PathLabs', icon: 'fa-file-pdf', color: 'bg-rose-50 text-rose-500' },
-];
-
-const INITIAL_ALLERGIES = ['Penicillin'];
-const INITIAL_CONDITIONS = ['PCOS', 'Insulin Resistance'];
-const INITIAL_VACCINES = [
-  { name: 'HPV Vaccine (Gardasil 9)', doses: 'Dose 1: 12 Jan 2020 • Dose 2: 15 Mar 2020', done: true },
-  { name: 'COVID-19 (Covishield)', doses: 'Fully Vaccinated + Booster', done: true },
-];
-const INITIAL_CONTACTS = [
-  { name: 'Rahul Sharma', relation: 'Husband', phone: '+91 98765 43210' },
-  { name: 'Dr. Vivek Joshi', relation: 'Family Physician', phone: '+91 98765 43211' },
-];
+const FILE_STYLE = {
+  pdf: { icon: 'fa-file-pdf', color: 'bg-rose-50 text-rose-500' },
+  image: { icon: 'fa-image', color: 'bg-indigo-50 text-indigo-500' },
+};
 
 /* ─── File Preview Modal ─────────────────────── */
 function FilePreviewModal({ file, onClose, onDownload }) {
@@ -32,7 +21,7 @@ function FilePreviewModal({ file, onClose, onDownload }) {
           <span className="flex items-center gap-2 text-emerald-400 font-bold">
             <i className="fas fa-shield-check"></i> Verified Clinical Document
           </span>
-          <span className="text-slate-400">LOINC: 2986-8 (Endocrine Panel)</span>
+          <span className="text-slate-500">LOINC: 2986-8 (Endocrine Panel)</span>
         </div>
 
         <div className="bg-slate-100 rounded-2xl aspect-video flex flex-col items-center justify-center gap-3 border border-slate-200 relative overflow-hidden group">
@@ -41,20 +30,20 @@ function FilePreviewModal({ file, onClose, onDownload }) {
           </div>
           <i className={`fas ${file.icon} text-6xl ${file.color.split(' ')[1]}`}></i>
           <p className="text-sm text-slate-700 font-bold">{file.name}</p>
-          <p className="text-xs text-slate-400">{file.size} • Uploaded {file.date}</p>
+          <p className="text-xs text-slate-500">{file.size} • Uploaded {file.date}</p>
         </div>
 
         <div className="grid grid-cols-3 gap-3 text-xs">
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <p className="text-slate-400 font-bold mb-0.5">Laboratory Provider</p>
+            <p className="text-slate-500 font-bold mb-0.5">Laboratory Provider</p>
             <p className="font-bold text-slate-800">{file.lab}</p>
           </div>
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <p className="text-slate-400 font-bold mb-0.5">Upload & Verification</p>
+            <p className="text-slate-500 font-bold mb-0.5">Upload & Verification</p>
             <p className="font-bold text-slate-800">{file.date}</p>
           </div>
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-            <p className="text-slate-400 font-bold mb-0.5">Security & Compliance</p>
+            <p className="text-slate-500 font-bold mb-0.5">Security & Compliance</p>
             <p className="font-bold text-emerald-700 flex items-center gap-1">
               <i className="fas fa-lock text-[10px]"></i> AES-256 Encrypted
             </p>
@@ -165,79 +154,123 @@ function InsuranceModal({ isOpen, onClose, onSave }) {
 /* ─── Main Component ─────────────────────────── */
 function PatientRecords() {
   const toast = useToast();
+  const { user } = useAuth();
+  const { patients, updatePatient } = useClinicData();
+  const myPatient = patients[0];
   const fileInputRef = useRef(null);
   const [tab, setTab] = useState('documents');
 
   // Documents
-  const [docs, setDocs] = useState(INITIAL_DOCS);
+  const [rawDocs, setRawDocs] = useState([]);
   const [previewFile, setPreviewFile] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [docSearch, setDocSearch] = useState('');
 
+  const loadDocs = () => apiFetch(`/records/documents/${user.id}`).then(setRawDocs).catch(err => toast(err.message || 'Failed to load documents', 'error'));
+  const loadVaccines = () => apiFetch(`/records/vaccinations/${user.id}`).then(setRawVaccines).catch(err => toast(err.message || 'Failed to load vaccinations', 'error'));
+  const loadContacts = () => apiFetch(`/records/emergency-contacts/${user.id}`).then(setRawContacts).catch(err => toast(err.message || 'Failed to load contacts', 'error'));
+
+  const docs = rawDocs.map(d => ({
+    id: d.id,
+    name: d.file_name,
+    type: d.file_type,
+    size: d.size_bytes ? (d.size_bytes / 1024 / 1024).toFixed(1) + ' MB' : '—',
+    date: new Date(d.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+    lab: d.lab_name || 'Uploaded by Patient',
+    icon: (FILE_STYLE[d.file_type] || FILE_STYLE.pdf).icon,
+    color: (FILE_STYLE[d.file_type] || FILE_STYLE.pdf).color,
+  }));
+
   const filteredDocs = docs.filter(doc => !docSearch || doc.name.toLowerCase().includes(docSearch.toLowerCase()) || doc.lab.toLowerCase().includes(docSearch.toLowerCase()));
 
   // Profile
-  const [allergies, setAllergies] = useState(INITIAL_ALLERGIES);
-  const [conditions, setConditions] = useState(INITIAL_CONDITIONS);
+  const allergies = myPatient?.allergies || [];
+  const conditions = myPatient?.medicalHistory?.chronicConditions || [];
   const [newAllergy, setNewAllergy] = useState('');
   const [showAllergyInput, setShowAllergyInput] = useState(false);
   const [newCondition, setNewCondition] = useState('');
   const [showConditionInput, setShowConditionInput] = useState(false);
-  const [vaccines, setVaccines] = useState(INITIAL_VACCINES);
+  const [rawVaccines, setRawVaccines] = useState([]);
   const [showVaccineModal, setShowVaccineModal] = useState(false);
+  const vaccines = rawVaccines.map(v => ({ name: v.name, doses: v.doses, done: v.completed }));
 
-  // Insurance
-  const [contacts, setContacts] = useState(INITIAL_CONTACTS);
+  // Insurance — no backend table yet; this section stays local-only until one exists.
+  const [rawContacts, setRawContacts] = useState([]);
   const [showContactModal, setShowContactModal] = useState(false);
   const [showInsuranceModal, setShowInsuranceModal] = useState(false);
   const [insurance, setInsurance] = useState({ provider: 'Star Health Comprehensive', policy: 'SH-9823-1102', validity: 'Dec 2026' });
   const [deleteContactTarget, setDeleteContactTarget] = useState(null);
+  const contacts = rawContacts.map(c => ({ id: c.id, name: c.name, relation: c.relation, phone: c.phone }));
 
-  const handleFileUpload = (e) => {
+  useEffect(() => { if (user?.id) { loadDocs(); loadVaccines(); loadContacts(); } }, [user?.id]);
+
+  const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-    const newDocs = files.map((f, i) => ({
-      id: Date.now() + i,
-      name: f.name,
-      type: f.type.includes('pdf') ? 'pdf' : 'image',
-      size: (f.size / 1024 / 1024).toFixed(1) + ' MB',
-      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      lab: 'Uploaded by Patient',
-      icon: f.type.includes('pdf') ? 'fa-file-pdf' : 'fa-image',
-      color: f.type.includes('pdf') ? 'bg-rose-50 text-rose-500' : 'bg-indigo-50 text-indigo-500',
-    }));
-    setDocs(prev => [...newDocs, ...prev]);
-    toast(`${files.length} file${files.length > 1 ? 's' : ''} uploaded successfully!`, 'success');
+    try {
+      await Promise.all(files.map(f => apiFetch('/records/documents', {
+        method: 'POST',
+        body: {
+          patientId: user.id,
+          fileName: f.name,
+          fileType: f.type.includes('pdf') ? 'pdf' : 'image',
+          sizeBytes: f.size,
+          labName: 'Uploaded by Patient',
+        },
+      })));
+      await loadDocs();
+      toast(`${files.length} file${files.length > 1 ? 's' : ''} uploaded successfully!`, 'success');
+    } catch (err) {
+      toast(err.message || 'Upload failed', 'error');
+    }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleDeleteDoc = () => {
-    setDocs(prev => prev.filter(d => d.id !== deleteTarget.id));
-    toast('Document deleted from your vault.', 'info');
+  const handleDeleteDoc = async () => {
+    const name = deleteTarget.name;
+    try {
+      await apiFetch(`/records/documents/${deleteTarget.id}`, { method: 'DELETE' });
+      await loadDocs();
+      toast('Document deleted from your vault.', 'info');
+    } catch (err) {
+      toast(err.message || 'Failed to delete document', 'error');
+    }
     setDeleteTarget(null);
   };
 
-  const addAllergy = () => {
-    if (newAllergy.trim()) {
-      setAllergies(prev => [...prev, newAllergy.trim()]);
-      toast(`Allergy "${newAllergy.trim()}" added to your profile.`, 'success');
+  const addAllergy = async () => {
+    const value = newAllergy.trim();
+    if (!value) return;
+    try {
+      await updatePatient({ ...myPatient, allergies: [...allergies, value] });
+      toast(`Allergy "${value}" added to your profile.`, 'success');
       setNewAllergy('');
       setShowAllergyInput(false);
+    } catch (err) {
+      toast(err.message || 'Failed to add allergy', 'error');
     }
   };
 
-  const addCondition = () => {
-    if (newCondition.trim()) {
-      setConditions(prev => [...prev, newCondition.trim()]);
-      toast(`Added "${newCondition.trim()}" to conditions.`, 'success');
+  const addCondition = async () => {
+    const value = newCondition.trim();
+    if (!value) return;
+    try {
+      await updatePatient({ ...myPatient, medicalHistory: { ...myPatient.medicalHistory, chronicConditions: [...conditions, value] } });
+      toast(`Added "${value}" to conditions.`, 'success');
       setNewCondition('');
       setShowConditionInput(false);
+    } catch (err) {
+      toast(err.message || 'Failed to add condition', 'error');
     }
   };
 
-  const removeAllergy = (a) => {
-    setAllergies(prev => prev.filter(x => x !== a));
-    toast(`Allergy "${a}" removed.`, 'info');
+  const removeAllergy = async (a) => {
+    try {
+      await updatePatient({ ...myPatient, allergies: allergies.filter(x => x !== a) });
+      toast(`Allergy "${a}" removed.`, 'info');
+    } catch (err) {
+      toast(err.message || 'Failed to remove allergy', 'error');
+    }
   };
 
   return (
@@ -289,7 +322,7 @@ function PatientRecords() {
               <input ref={fileInputRef} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={handleFileUpload} />
 
               <div className="relative">
-                <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
                 <input value={docSearch} onChange={e => setDocSearch(e.target.value)} placeholder="Search documents or lab name..."
                   className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white shadow-sm" />
               </div>
@@ -297,7 +330,7 @@ function PatientRecords() {
               {/* Documents Grid */}
               <div className="grid md:grid-cols-2 gap-3">
                 {filteredDocs.length === 0 && (
-                  <div className="col-span-full text-center py-10 text-slate-400 text-sm border border-slate-200 rounded-xl bg-slate-50">
+                  <div className="col-span-full text-center py-10 text-slate-500 text-sm border border-slate-200 rounded-xl bg-slate-50">
                     No documents found matching "{docSearch}".
                   </div>
                 )}
@@ -309,7 +342,7 @@ function PatientRecords() {
                     <div className="flex-1 overflow-hidden">
                       <h4 className="font-bold text-slate-800 truncate text-sm">{doc.name}</h4>
                       <p className="text-xs text-slate-500 mt-0.5">{doc.date} • {doc.lab}</p>
-                      <p className="text-xs text-slate-400">{doc.size}</p>
+                      <p className="text-xs text-slate-500">{doc.size}</p>
                     </div>
                     <div className="flex flex-col gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity">
                       <button onClick={() => setPreviewFile(doc)} className="w-8 h-8 rounded-lg bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-600 flex items-center justify-center text-xs transition-colors" title="Preview">
@@ -353,7 +386,7 @@ function PatientRecords() {
                         <input value={newAllergy} onChange={e => setNewAllergy(e.target.value)} placeholder="Type allergy..." onKeyDown={e => e.key === 'Enter' && addAllergy()}
                           className="flex-1 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-aubergine-300" autoFocus />
                         <button onClick={addAllergy} className="bg-aubergine-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Add</button>
-                        <button onClick={() => setShowAllergyInput(false)} className="text-slate-400 hover:text-slate-600 px-2"><i className="fas fa-xmark"></i></button>
+                        <button onClick={() => setShowAllergyInput(false)} className="text-slate-500 hover:text-slate-600 px-2"><i className="fas fa-xmark"></i></button>
                       </div>
                     ) : (
                       <button onClick={() => setShowAllergyInput(true)} className="text-xs text-aubergine-600 hover:text-aubergine-700 font-bold flex items-center gap-1">
@@ -369,7 +402,14 @@ function PatientRecords() {
                       {conditions.map(c => (
                         <span key={c} className="bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5">
                           {c}
-                          <button onClick={() => { setConditions(prev => prev.filter(x => x !== c)); toast(`Removed "${c}" from conditions.`, 'info'); }} className="text-slate-400 hover:text-slate-600"><i className="fas fa-xmark text-[10px]"></i></button>
+                          <button onClick={async () => {
+                          try {
+                            await updatePatient({ ...myPatient, medicalHistory: { ...myPatient.medicalHistory, chronicConditions: conditions.filter(x => x !== c) } });
+                            toast(`Removed "${c}" from conditions.`, 'info');
+                          } catch (err) {
+                            toast(err.message || 'Failed to remove condition', 'error');
+                          }
+                        }} className="text-slate-500 hover:text-slate-600"><i className="fas fa-xmark text-[10px]"></i></button>
                         </span>
                       ))}
                     </div>
@@ -378,7 +418,7 @@ function PatientRecords() {
                         <input value={newCondition} onChange={e => setNewCondition(e.target.value)} placeholder="Type condition..." onKeyDown={e => e.key === 'Enter' && addCondition()}
                           className="flex-1 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-aubergine-300" autoFocus />
                         <button onClick={addCondition} className="bg-aubergine-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold">Add</button>
-                        <button onClick={() => setShowConditionInput(false)} className="text-slate-400 hover:text-slate-600 px-2"><i className="fas fa-xmark"></i></button>
+                        <button onClick={() => setShowConditionInput(false)} className="text-slate-500 hover:text-slate-600 px-2"><i className="fas fa-xmark"></i></button>
                       </div>
                     ) : (
                       <button onClick={() => setShowConditionInput(true)} className="mt-2 text-xs text-aubergine-600 hover:text-aubergine-700 font-bold flex items-center gap-1">
@@ -458,8 +498,8 @@ function PatientRecords() {
                   </button>
                 </h3>
                 <div className="space-y-3">
-                  {contacts.map((c, i) => (
-                    <div key={i} className="border border-slate-200 rounded-xl p-4 flex justify-between items-center hover:border-aubergine-200 transition-colors group">
+                  {contacts.map((c) => (
+                    <div key={c.id} className="border border-slate-200 rounded-xl p-4 flex justify-between items-center hover:border-aubergine-200 transition-colors group">
                       <div>
                         <h4 className="font-bold text-slate-800">{c.name}</h4>
                         <p className="text-xs text-slate-500 font-medium">{c.relation} • {c.phone}</p>
@@ -469,7 +509,7 @@ function PatientRecords() {
                           className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 w-9 h-9 rounded-full flex items-center justify-center transition-colors border border-emerald-100">
                           <i className="fas fa-phone text-sm"></i>
                         </a>
-                        <button onClick={() => setDeleteContactTarget(i)} aria-label="Remove contact"
+                        <button onClick={() => setDeleteContactTarget(c)} aria-label="Remove contact"
                           className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 bg-rose-50 text-rose-500 hover:bg-rose-100 w-9 h-9 rounded-full flex items-center justify-center transition-all border border-rose-100">
                           <i className="fas fa-trash text-xs"></i>
                         </button>
@@ -494,8 +534,24 @@ function PatientRecords() {
         confirmLabel="Delete"
         confirmStyle="danger"
       />
-      <AddContactModal isOpen={showContactModal} onClose={() => setShowContactModal(false)} onAdd={c => { setContacts(prev => [...prev, c]); toast(`${c.name} added as emergency contact.`, 'success'); }} />
-      <AddVaccineModal isOpen={showVaccineModal} onClose={() => setShowVaccineModal(false)} onAdd={v => { setVaccines(prev => [...prev, v]); toast(`Vaccination record for "${v.name}" added.`, 'success'); }} />
+      <AddContactModal isOpen={showContactModal} onClose={() => setShowContactModal(false)} onAdd={async c => {
+        try {
+          await apiFetch('/records/emergency-contacts', { method: 'POST', body: { patientId: user.id, name: c.name, relation: c.relation, phone: c.phone } });
+          await loadContacts();
+          toast(`${c.name} added as emergency contact.`, 'success');
+        } catch (err) {
+          toast(err.message || 'Failed to add contact', 'error');
+        }
+      }} />
+      <AddVaccineModal isOpen={showVaccineModal} onClose={() => setShowVaccineModal(false)} onAdd={async v => {
+        try {
+          await apiFetch('/records/vaccinations', { method: 'POST', body: { patientId: user.id, name: v.name, doses: v.doses, completed: true } });
+          await loadVaccines();
+          toast(`Vaccination record for "${v.name}" added.`, 'success');
+        } catch (err) {
+          toast(err.message || 'Failed to add vaccination', 'error');
+        }
+      }} />
       <InsuranceModal isOpen={showInsuranceModal} onClose={() => setShowInsuranceModal(false)}
         onSave={data => {
           setInsurance({ provider: data.provider, policy: data.policy, validity: data.validity });
@@ -503,11 +559,20 @@ function PatientRecords() {
           toast('Insurance details updated.', 'success');
         }} />
       <ConfirmModal
-        isOpen={deleteContactTarget !== null}
+        isOpen={!!deleteContactTarget}
         onClose={() => setDeleteContactTarget(null)}
-        onConfirm={() => { setContacts(prev => prev.filter((_, i) => i !== deleteContactTarget)); toast('Contact removed.', 'info'); setDeleteContactTarget(null); }}
+        onConfirm={async () => {
+          try {
+            await apiFetch(`/records/emergency-contacts/${deleteContactTarget.id}`, { method: 'DELETE' });
+            await loadContacts();
+            toast('Contact removed.', 'info');
+          } catch (err) {
+            toast(err.message || 'Failed to remove contact', 'error');
+          }
+          setDeleteContactTarget(null);
+        }}
         title="Remove Contact?"
-        message={`Remove ${contacts[deleteContactTarget]?.name} from your emergency contacts?`}
+        message={`Remove ${deleteContactTarget?.name} from your emergency contacts?`}
         confirmLabel="Remove"
         confirmStyle="danger"
       />

@@ -1,34 +1,44 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useToast } from '../components/Toast.jsx';
 
 function AuthModal({ onClose }) {
   const [role, setRole] = useState('patient'); // 'patient' or 'doctor'
   const [mode, setMode] = useState('login'); // 'login' or 'register'
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [regNo, setRegNo] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const { login } = useAuth();
+  const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
 
-    // Simulate authentication
-    const userData = {
-      role: role,
-      name: role === 'doctor' ? 'Dr. Sarah Mitchell' : 'Jane Doe',
-      email: 'user@example.com'
-    };
-
-    login(userData);
-    onClose();
-
-    // Redirect based on role
-    if (role === 'patient') {
-      navigate('/patient-dashboard');
-    } else if (role === 'doctor') {
-      navigate('/doctor-dashboard');
-    } else {
-      navigate('/admin-dashboard');
+    try {
+      if (mode === 'login') {
+        const { user, error } = await signIn(email, password);
+        if (error) { toast(error.message, 'error'); return; }
+        onClose();
+        navigate(user.role === 'admin' ? '/admin-dashboard' : (user.role === 'doctor' ? '/doctor-dashboard' : '/patient-dashboard'));
+      } else {
+        const { user, error } = await signUp(email, password, role, {
+          fullName,
+          specialty: role === 'doctor' ? 'General' : undefined,
+          registrationNo: role === 'doctor' ? regNo : undefined,
+        });
+        if (error) { toast(error.message, 'error'); return; }
+        onClose();
+        navigate(user.role === 'admin' ? '/admin-dashboard' : (user.role === 'doctor' ? '/doctor-dashboard' : '/patient-dashboard'));
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -108,7 +118,7 @@ function AuthModal({ onClose }) {
             <button
               onClick={() => setRole('admin')}
               className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-lg transition-all flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 ${role === 'admin'
-                ? 'bg-white text-slate-900 shadow-sm'
+                ? 'bg-white text-sky-700 shadow-sm'
                 : 'text-slate-500 hover:text-slate-700'
                 }`}
             >
@@ -127,6 +137,8 @@ function AuthModal({ onClose }) {
                   <input
                     type="text"
                     required
+                    value={fullName}
+                    onChange={e => setFullName(e.target.value)}
                     placeholder={role === 'doctor' ? "Dr. Jane Doe" : "Jane Doe"}
                     className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none transition-all text-sm"
                   />
@@ -143,6 +155,8 @@ function AuthModal({ onClose }) {
                 <input
                   type="email"
                   required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none transition-all text-sm"
                 />
@@ -163,6 +177,8 @@ function AuthModal({ onClose }) {
                 <input
                   type="password"
                   required
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none transition-all text-sm"
                 />
@@ -179,6 +195,8 @@ function AuthModal({ onClose }) {
                   <input
                     type="text"
                     required
+                    value={regNo}
+                    onChange={e => setRegNo(e.target.value)}
                     placeholder="e.g. MCI-12345"
                     className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-200 outline-none transition-all text-sm"
                   />
@@ -188,12 +206,13 @@ function AuthModal({ onClose }) {
 
             <button
               type="submit"
-              className={`w-full py-3.5 rounded-xl font-bold text-white shadow-md transition-all mt-4 ${role === 'patient'
+              disabled={submitting}
+              className={`w-full py-3.5 rounded-xl font-bold text-white shadow-md transition-all mt-4 disabled:opacity-60 ${role === 'patient'
                 ? 'bg-brand-600 hover:bg-brand-700 shadow-brand-200'
                 : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
                 }`}
             >
-              {mode === 'login' ? 'Sign In' : 'Create Account'}
+              {submitting ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
             </button>
           </form>
 

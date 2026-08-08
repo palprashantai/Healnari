@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
+import { apiFetch } from '../../lib/apiClient.js';
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -48,21 +49,9 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
   );
 }
 
-/* ─── Dummy Data ──────────────────────────────── */
-const INITIAL_STAFF = [
-  { id: 1, name: 'Neha Kulkarni', role: 'Nurse Practitioner',  shift: 'Morning (8AM–4PM)', status: 'On Duty', phone: '+91 98765 11111', joinedOn: 'Jan 2024', avatar: 'NK' },
-  { id: 2, name: 'Ravi Sharma',   role: 'Receptionist',        shift: 'Morning (9AM–5PM)', status: 'On Duty', phone: '+91 98765 22222', joinedOn: 'Mar 2023', avatar: 'RS' },
-  { id: 3, name: 'Pooja Singh',   role: 'Lab Technician',      shift: 'Morning (8AM–2PM)', status: 'Off Duty',phone: '+91 98765 33333', joinedOn: 'Jun 2022', avatar: 'PS' },
-  { id: 4, name: 'Arun Yadav',    role: 'Clinic Coordinator',  shift: 'Evening (2PM–9PM)', status: 'On Duty', phone: '+91 98765 44444', joinedOn: 'Sep 2024', avatar: 'AY' },
-];
-
+/* ─── Reference lists (not records — no backend needed) ──────── */
 const ROLES = ['Nurse Practitioner', 'Receptionist', 'Lab Technician', 'Clinic Coordinator', 'Admin Assistant'];
 const SHIFTS = ['Morning (8AM–4PM)', 'Morning (9AM–5PM)', 'Morning (8AM–2PM)', 'Evening (2PM–9PM)', 'Night (9PM–6AM)'];
-
-const LEAVES = [
-  { id: 1, name: 'Pooja Singh', type: 'Sick Leave',   from: '28 Jun 2026', to: '30 Jun 2026', status: 'pending' },
-  { id: 2, name: 'Ravi Sharma', type: 'Casual Leave', from: '5 Jul 2026',  to: '5 Jul 2026',  status: 'pending' },
-];
 
 /* ─── Add/Edit Staff Modal ───────────────────── */
 function StaffModal({ isOpen, onClose, onSave, existing }) {
@@ -106,12 +95,32 @@ function StaffModal({ isOpen, onClose, onSave, existing }) {
 /* ─── Main Component ─────────────────────────── */
 function DoctorStaff() {
   const toast = useToast();
-  const [staff, setStaff] = useState(INITIAL_STAFF);
-  const [leaves, setLeaves] = useState(LEAVES);
+  const [rawStaff, setRawStaff] = useState([]);
+  const [rawLeaves, setRawLeaves] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [removeTarget, setRemoveTarget] = useState(null);
   const [tab, setTab] = useState('staff');
+
+  const load = () => Promise.all([apiFetch('/staff'), apiFetch('/staff/leaves')])
+    .then(([s, l]) => { setRawStaff(s); setRawLeaves(l); })
+    .catch(err => toast(err.message || 'Failed to load staff data', 'error'))
+    .finally(() => setLoading(false));
+  useEffect(() => { load(); }, []);
+
+  const staff = rawStaff.map(s => ({
+    id: s.id, name: s.name, role: s.role, shift: s.shift, status: s.status, phone: s.phone || '',
+    joinedOn: new Date(s.joined_on).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
+    avatar: s.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
+  }));
+
+  const nameByStaffId = useMemo(() => new Map(rawStaff.map(s => [s.id, s.name])), [rawStaff]);
+  const leaves = rawLeaves.filter(l => l.status === 'Pending').map(l => ({
+    id: l.id, name: nameByStaffId.get(l.staff_id) || 'Staff', type: l.leave_type,
+    from: new Date(l.from_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+    to: new Date(l.to_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+  }));
 
   const [selectedIds, setSelectedIds] = useState([]);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -136,37 +145,65 @@ function DoctorStaff() {
   };
   const toggleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-  const toggleStatus = (id) => {
-    setStaff(prev => prev.map(s => s.id === id ? { ...s, status: s.status === 'On Duty' ? 'Off Duty' : 'On Duty' } : s));
+  const toggleStatus = async (id) => {
     const member = staff.find(s => s.id === id);
-    toast(`${member?.name} marked as ${member?.status === 'On Duty' ? 'Off Duty' : 'On Duty'}.`, 'info');
+    const nextStatus = member?.status === 'On Duty' ? 'Off Duty' : 'On Duty';
+    try {
+      await apiFetch(`/staff/${id}`, { method: 'PUT', body: { status: nextStatus } });
+      await load();
+      toast(`${member?.name} marked as ${nextStatus}.`, 'info');
+    } catch (err) {
+      toast(err.message || 'Failed to update status', 'error');
+    }
   };
 
-  const addStaff = (form) => {
-    const newMember = { ...form, id: Date.now(), status: 'On Duty', joinedOn: new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }), avatar: form.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) };
-    setStaff(prev => [...prev, newMember]);
-    toast(`${form.name} added to clinic team.`, 'success');
+  const addStaff = async (form) => {
+    try {
+      await apiFetch('/staff', { method: 'POST', body: { name: form.name, role: form.role, shift: form.shift, phone: form.phone } });
+      await load();
+      toast(`${form.name} added to clinic team.`, 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to add staff member', 'error');
+    }
   };
 
-  const updateStaff = (form) => {
-    setStaff(prev => prev.map(s => s.id === editTarget.id ? { ...s, ...form } : s));
-    toast('Staff details updated.', 'success');
+  const updateStaff = async (form) => {
+    try {
+      await apiFetch(`/staff/${editTarget.id}`, { method: 'PUT', body: { name: form.name, role: form.role, shift: form.shift, phone: form.phone } });
+      await load();
+      toast('Staff details updated.', 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to update staff member', 'error');
+    }
     setEditTarget(null);
   };
 
-  const removeStaff = () => {
-    setStaff(prev => prev.filter(s => s.id !== removeTarget.id));
-    toast(`${removeTarget.name} removed from clinic team.`, 'info');
+  const removeStaff = async () => {
+    const name = removeTarget.name;
+    try {
+      await apiFetch(`/staff/${removeTarget.id}`, { method: 'DELETE' });
+      await load();
+      toast(`${name} removed from clinic team.`, 'info');
+    } catch (err) {
+      toast(err.message || 'Failed to remove staff member', 'error');
+    }
     setRemoveTarget(null);
   };
 
-  const handleLeave = (id, approve) => {
-    setLeaves(prev => prev.filter(l => l.id !== id));
+  const handleLeave = async (id, approve) => {
     const l = leaves.find(x => x.id === id);
-    toast(`${l?.name}'s ${l?.type} ${approve ? 'approved' : 'rejected'}.`, approve ? 'success' : 'info');
+    try {
+      await apiFetch(`/staff/leaves/${id}`, { method: 'PUT', body: { status: approve ? 'Approved' : 'Rejected' } });
+      await load();
+      toast(`${l?.name}'s ${l?.type} ${approve ? 'approved' : 'rejected'}.`, approve ? 'success' : 'info');
+    } catch (err) {
+      toast(err.message || 'Failed to update leave request', 'error');
+    }
   };
 
   const onDuty = staff.filter(s => s.status === 'On Duty').length;
+
+  if (loading) return <div className="p-10 text-center text-sm text-slate-500">Loading staff...</div>;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -183,7 +220,7 @@ function DoctorStaff() {
             </button>
             {showActionsMenu && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
-                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Messaging</p></div>
+                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p></div>
                 <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
                 </button>
@@ -246,7 +283,7 @@ function DoctorStaff() {
         {tab === 'staff' && (
           <div className="divide-y divide-slate-50">
             {staff.length === 0 ? (
-              <div className="text-center py-12 text-slate-400">
+              <div className="text-center py-12 text-slate-500">
                 <i className="fas fa-user-group text-3xl mb-2 block text-slate-300"></i>
                 <p className="font-bold text-sm">No team members added yet</p>
               </div>
@@ -271,7 +308,7 @@ function DoctorStaff() {
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${s.status === 'On Duty' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>{s.status}</span>
                   </div>
                   <p className="text-xs text-aubergine-700 font-bold mt-0.5">{s.role}</p>
-                  <p className="text-xs text-slate-400">{s.shift} • Joined {s.joinedOn}</p>
+                  <p className="text-xs text-slate-500">{s.shift} • Joined {s.joinedOn}</p>
                 </div>
 
                 <div className="flex gap-2 items-center">
@@ -297,7 +334,7 @@ function DoctorStaff() {
         {tab === 'leaves' && (
           <div className="divide-y divide-slate-50">
             {leaves.length === 0 ? (
-              <div className="text-center py-12 text-slate-400">
+              <div className="text-center py-12 text-slate-500">
                 <i className="fas fa-circle-check text-3xl mb-2 block text-emerald-400"></i>
                 <p className="font-bold text-sm">No pending leave requests</p>
               </div>

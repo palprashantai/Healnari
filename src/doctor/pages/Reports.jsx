@@ -1,7 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
+import { apiFetch } from '../../lib/apiClient.js';
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -57,22 +59,6 @@ const LAB_TRENDS = [
   { name: 'Apr', normal: 61, abnormal: 18 },
   { name: 'May', normal: 59, abnormal: 14 },
   { name: 'Jun', normal: 75, abnormal: 22 },
-];
-const PENDING_LABS = [
-  { id: 1, patient: 'Priya Sharma', tests: ['TSH', 'Free T4', 'Anti-TPO Ab'], lab: 'Dr. Lal PathLabs', received: '10 mins ago', urgent: true,
-    results: { TSH: '5.2 mIU/L ↑ (ref: 0.4–4.0)', 'Free T4': '1.1 ng/dL (Normal)', 'Anti-TPO Ab': '98 IU/mL ↑ (ref: <35)' },
-    interpretation: 'Elevated TSH with high Anti-TPO suggests Hashimoto\'s thyroiditis. Consider Levothyroxine initiation.' },
-  { id: 2, patient: 'Meera Nair',  tests: ['AMH', 'LH', 'FSH'], lab: 'Apollo Diagnostics', received: '2 hrs ago', urgent: false,
-    results: { AMH: '1.2 ng/mL (Low-Normal)', LH: '8.2 mIU/mL', FSH: '6.4 mIU/mL' },
-    interpretation: 'AMH is low-normal suggesting diminished ovarian reserve. LH:FSH ratio normal. Recommend fertility counselling.' },
-  { id: 3, patient: 'Sunita Desai', tests: ['HbA1c', 'Fasting Insulin', 'HOMA-IR'], lab: 'SRL Diagnostics', received: 'Yesterday', urgent: false,
-    results: { HbA1c: '7.2% ↑ (ref: <5.7%)', 'Fasting Insulin': '24 μIU/mL ↑', 'HOMA-IR': '5.4 ↑ (ref: <2.5)' },
-    interpretation: 'Poor glycaemic control. HOMA-IR suggests significant insulin resistance. Escalate Metformin and add lifestyle counselling.' },
-];
-
-const REVIEWED = [
-  { id: 'R1', patient: 'Kavita Patel', tests: 'LH, FSH, Prolactin', lab: 'Dr. Lal PathLabs', date: '20 Jun 2026', action: 'Norethisterone continued. Follow-up in 2 months.' },
-  { id: 'R2', patient: 'Aisha Khan', tests: 'CA-125, TVS', lab: 'City Scans', date: '15 Jun 2026', action: 'Endometriosis Gr.2 confirmed. Dienogest initiated.' },
 ];
 
 /* ─── Lab Review Modal ───────────────────────── */
@@ -138,10 +124,34 @@ function LabReviewModal({ lab, isOpen, onClose, onAction }) {
 /* ─── Main Component ─────────────────────────── */
 function DoctorReports() {
   const toast = useToast();
-  const [pending, setPending] = useState(PENDING_LABS);
-  const [reviewed, setReviewed] = useState(REVIEWED);
+  const { patients } = useClinicData();
+  const [rawReports, setRawReports] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('pending');
   const [selectedLab, setSelectedLab] = useState(null);
+
+  const loadReports = () => apiFetch('/records/lab-reports')
+    .then(setRawReports)
+    .catch(err => toast(err.message || 'Failed to load lab reports', 'error'))
+    .finally(() => setLoading(false));
+  useEffect(() => { loadReports(); }, []);
+
+  const nameByPatientId = useMemo(() => new Map(patients.map(p => [p.id, p.name])), [patients]);
+
+  const toRow = (r) => ({
+    id: r.id,
+    patient: nameByPatientId.get(r.patient_id) || 'Patient',
+    tests: [r.test_name],
+    lab: r.lab_name || '—',
+    received: new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+    urgent: r.urgent,
+    results: r.results || {},
+    interpretation: r.interpretation || 'No AI interpretation available for this report.',
+    action: r.doctor_action,
+  });
+
+  const pending = rawReports.filter(r => r.status === 'Pending').map(toRow);
+  const reviewed = rawReports.filter(r => r.status === 'Completed').map(r => ({ ...toRow(r), tests: r.test_name, date: toRow(r).received }));
 
   const [selectedIds, setSelectedIds] = useState([]);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -167,20 +177,21 @@ function DoctorReports() {
   };
   const toggleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-  const handleAction = (lab, action, orderMore) => {
-    const reviewedEntry = {
-      id: `R${Date.now()}`,
-      patient: lab.patient,
-      tests: lab.tests.join(', '),
-      lab: lab.lab,
-      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      action: action || 'Reviewed. No immediate action required.',
-    };
-    setPending(prev => prev.filter(p => p.id !== lab.id));
-    setReviewed(prev => [reviewedEntry, ...prev]);
-    if (orderMore) toast(`New labs ordered for ${lab.patient}: ${orderMore}`, 'success');
-    toast(`Report for ${lab.patient} reviewed and action saved.`, 'success');
+  const handleAction = async (lab, action, orderMore) => {
+    try {
+      await apiFetch(`/records/lab-reports/${lab.id}/review`, {
+        method: 'PUT',
+        body: { doctorAction: action || 'Reviewed. No immediate action required.' },
+      });
+      await loadReports();
+      if (orderMore) toast(`Additional labs noted for ${lab.patient}: ${orderMore} (order manually via Order Labs)`, 'info');
+      toast(`Report for ${lab.patient} reviewed and action saved.`, 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to save review', 'error');
+    }
   };
+
+  if (loading) return <div className="p-10 text-center text-sm text-slate-500">Loading lab reports...</div>;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -197,7 +208,7 @@ function DoctorReports() {
             </button>
             {showActionsMenu && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
-                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bulk Messaging</p></div>
+                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p></div>
                 <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
                 </button>
@@ -297,7 +308,7 @@ function DoctorReports() {
           ))}
 
           {tab === 'pending' && pending.length === 0 && (
-            <div className="text-center py-16 text-slate-400">
+            <div className="text-center py-16 text-slate-500">
               <i className="fas fa-circle-check text-4xl mb-3 block text-emerald-400"></i>
               <p className="font-bold">All reports reviewed!</p>
             </div>
@@ -327,7 +338,7 @@ function DoctorReports() {
           ))}
 
           {tab === 'reviewed' && reviewed.length === 0 && (
-            <div className="text-center py-16 text-slate-400">
+            <div className="text-center py-16 text-slate-500">
               <i className="fas fa-file-circle-check text-4xl mb-3 block text-slate-300"></i>
               <p className="font-bold">No reviewed reports yet.</p>
             </div>

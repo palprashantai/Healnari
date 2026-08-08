@@ -1,6 +1,7 @@
 import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import { ClinicDataProvider } from './context/ClinicDataContext.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 
 const LandingPage = lazy(() => import('./landing/pages/LandingPage.jsx'));
@@ -112,6 +113,7 @@ function App() {
 
   return (
     <AuthProvider>
+      <ClinicDataProvider>
       <ToastProvider>
         <Router>
           <Suspense fallback={
@@ -194,6 +196,7 @@ function App() {
           </Suspense>
         </Router>
       </ToastProvider>
+      </ClinicDataProvider>
     </AuthProvider>
   );
 }

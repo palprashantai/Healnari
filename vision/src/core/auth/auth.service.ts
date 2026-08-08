@@ -1,0 +1,96 @@
+import { BadRequestException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
+import { SupabaseService } from '@/core/supabase/supabase.service';
+import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
+import { AuthUser } from '@/core/decorators/current-user.decorator';
+import { RegisterDto, UpdateMeDto } from '@/core/auth/auth.controller';
+import { Profile } from '@/shared/interfaces/profile.interface';
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private readonly supabase: SupabaseService,
+  ) {}
+
+  toAppUser(user: AuthUser) {
+    const p = user.profile;
+    return {
+      id: p.id,
+      email: user.email,
+      role: p.role,
+      name: p.full_name,
+      phone: p.phone || '',
+      avatarUrl: p.avatar_url || '',
+      specialty: p.specialty || '',
+      regNo: p.registration_no || '',
+      kycVerified: p.kyc_verified,
+    };
+  }
+
+  async register(body: RegisterDto) {
+    const { data, error } = await this.supabase.admin.auth.admin.createUser({
+      email: body.email,
+      password: body.password,
+      email_confirm: true,
+      user_metadata: { role: body.role, full_name: body.fullName, specialty: body.specialty },
+    });
+    if (error) throw new BadRequestException(error.message);
+
+    if (body.registrationNo) {
+      await this.supabase.admin.from('profiles').update({ registration_no: body.registrationNo }).eq('id', data.user.id);
+    }
+
+    // The DB trigger that creates the profiles row fires asynchronously off
+    // the auth.users insert above; sign in right away to also hand back a
+    // session, by which point it has committed.
+    const { data: session, error: signInError } = await this.supabase.anon.auth.signInWithPassword({
+      email: body.email,
+      password: body.password,
+    });
+    if (signInError || !session.session) throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+
+    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', data.user.id).single();
+    if (!profile) throw new InternalServerErrorException('Failed to fetch profile after registration');
+
+    return {
+      accessToken: session.session.access_token,
+      refreshToken: session.session.refresh_token,
+      user: this.toAppUser({ id: profile.id, email: data.user.email as string, profile }),
+    };
+  }
+
+  async login(email: string, password: string) {
+    const { data, error } = await this.supabase.anon.auth.signInWithPassword({ email, password });
+    if (error || !data.session) throw new UnauthorizedException(ERROR_MESSAGES.INVALID_CREDENTIALS);
+
+    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', data.user.id).single();
+    if (!profile) throw new UnauthorizedException(ERROR_MESSAGES.USER_NOT_FOUND);
+
+    return {
+      accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+      user: this.toAppUser({ id: profile.id, email: data.user.email as string, profile }),
+    };
+  }
+
+  async refresh(refreshToken: string) {
+    const { data, error } = await this.supabase.anon.auth.refreshSession({ refresh_token: refreshToken });
+    if (error || !data.session) throw new UnauthorizedException('Session expired, please log in again.');
+    return { accessToken: data.session.access_token, refreshToken: data.session.refresh_token };
+  }
+
+  async updateMe(userId: string, body: UpdateMeDto) {
+    const patch: Partial<Profile> = {};
+    if (body.fullName !== undefined) patch.full_name = body.fullName;
+    if (body.phone !== undefined) patch.phone = body.phone;
+    if (body.specialty !== undefined) patch.specialty = body.specialty;
+    if (body.registrationNo !== undefined) patch.registration_no = body.registrationNo;
+
+    if (Object.keys(patch).length > 0) {
+      await this.supabase.admin.from('profiles').update(patch).eq('id', userId);
+    }
+    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', userId).single();
+    if (!profile) throw new InternalServerErrorException('Profile not found after update');
+    
+    return this.toAppUser({ id: profile.id, email: '', profile });
+  }
+}

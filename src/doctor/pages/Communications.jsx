@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import { apiFetch } from '../../lib/apiClient.js';
 
 const TEMPLATES = [
   { id: 'T1', name: 'Appointment Reminder', content: 'Hi [Name],\n\nThis is a friendly reminder for your upcoming consultation on [Date] at [Time]. Please try to join 5 minutes early.\n\nThanks,\nDr. Sarah' },
@@ -29,11 +30,19 @@ function DoctorCommunications() {
 
   const [isSending, setIsSending] = useState(false);
 
-  const [broadcastHistory] = useState([
-    { id: 'BC-901', subject: 'Diet Plan Attached', audience: 'Recent Consultations', date: '01 Aug 2026', status: 'Sent', opens: '85%', clicks: '40%' },
-    { id: 'BC-902', subject: 'Follow-up Check-in', audience: 'Post-Operative', date: '25 Jul 2026', status: 'Sent', opens: '92%', clicks: '55%' },
-    { id: 'BC-903', subject: 'Appointment Reminder', audience: 'Upcoming Appointments', date: '10 Aug 2026', status: 'Scheduled', opens: '-', clicks: '-' },
-  ]);
+  const [rawBroadcasts, setRawBroadcasts] = useState([]);
+  const loadBroadcasts = () => apiFetch('/communications/broadcasts').then(setRawBroadcasts).catch(err => toast(err.message || 'Failed to load broadcast history', 'error'));
+  useEffect(() => { loadBroadcasts(); }, []);
+
+  const broadcastHistory = rawBroadcasts.map(b => ({
+    id: b.id.slice(0, 8).toUpperCase(),
+    subject: b.subject,
+    audience: b.audience,
+    date: new Date(b.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+    status: b.status,
+    opens: '—',
+    clicks: '—',
+  }));
 
   // When template changes, auto-fill the editor
   useEffect(() => {
@@ -49,26 +58,39 @@ function DoctorCommunications() {
     }
   }, [selectedTemplate]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!messageSubject || !messageBody) {
       toast('Please provide a subject and message body.', 'error');
       return;
     }
-    if (!sendEmail && !sendPush && !sendWhatsapp) {
+    const channels = [sendEmail && 'Email', sendPush && 'Push', sendWhatsapp && 'WhatsApp'].filter(Boolean);
+    if (channels.length === 0) {
       toast('Select at least one delivery channel.', 'error');
       return;
     }
-    
+    if (scheduleType === 'scheduled' && !scheduleDate) {
+      toast('Pick a date/time to schedule for.', 'error');
+      return;
+    }
+
     setIsSending(true);
     toast('Preparing broadcast...', 'info');
-    
-    setTimeout(() => {
-      setIsSending(false);
-      toast(`Message successfully broadcasted to your patients!`, 'success');
+
+    try {
+      await apiFetch('/communications/broadcasts', {
+        method: 'POST',
+        body: { subject: messageSubject, body: messageBody, audience, channels, scheduleType, scheduledFor: scheduleType === 'scheduled' ? scheduleDate : undefined },
+      });
+      await loadBroadcasts();
+      toast(scheduleType === 'scheduled' ? 'Message scheduled!' : 'Message successfully broadcasted to your patients!', 'success');
       setMessageSubject('');
       setMessageBody('');
       setSelectedTemplate('');
-    }, 2000);
+    } catch (err) {
+      toast(err.message || 'Failed to send broadcast', 'error');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -191,7 +213,7 @@ function DoctorCommunications() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full min-h-[500px]">
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl flex items-center justify-between">
               <h2 className="font-bold text-slate-800">Message Editor</h2>
-              <span className="text-xs text-slate-400 font-mono">Use [Name] for dynamic tagging</span>
+              <span className="text-xs text-slate-500 font-mono">Use [Name] for dynamic tagging</span>
             </div>
             
             <div className="p-6 flex-1 flex flex-col space-y-4">
@@ -259,7 +281,7 @@ function DoctorCommunications() {
             <tbody className="divide-y divide-slate-100">
               {broadcastHistory.map(b => (
                 <tr key={b.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 font-mono text-xs text-slate-400">{b.id}</td>
+                  <td className="px-6 py-4 font-mono text-xs text-slate-500">{b.id}</td>
                   <td className="px-6 py-4 text-sm font-bold text-slate-700">{b.date}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{b.audience}</td>
                   <td className="px-6 py-4">

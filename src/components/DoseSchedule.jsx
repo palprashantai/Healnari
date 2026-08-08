@@ -50,7 +50,7 @@ export function DoseSchedule({ schedule, className = '' }) {
           );
         })}
       </div>
-      {parsed.note && <p className="text-[10px] text-slate-400 mt-1">{parsed.note}</p>}
+      {parsed.note && <p className="text-[10px] text-slate-500 mt-1">{parsed.note}</p>}
     </div>
   );
 }
