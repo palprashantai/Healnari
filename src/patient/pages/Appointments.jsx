@@ -4,10 +4,54 @@ import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+import { todayLocalStr } from '../../lib/dateUtils.js';
 
 const SLOTS = ['9:00 AM', '10:30 AM', '12:00 PM', '2:00 PM', '4:00 PM', '5:30 PM'];
 
-const WAITLIST = { doctor: 'Dr. Meera Reddy (Gynecology)', requested: 'Tomorrow, Morning Slot', position: 4 };
+/* ─── Join Waitlist Modal ────────────────────── */
+function JoinWaitlistModal({ isOpen, onClose, doctors, onJoin }) {
+  const [doctorId, setDoctorId] = useState('');
+  const [preferredWindow, setPreferredWindow] = useState('');
+  const [joining, setJoining] = useState(false);
+
+  const submit = async () => {
+    if (!doctorId || !preferredWindow) return;
+    setJoining(true);
+    try {
+      await onJoin(doctorId, preferredWindow);
+      setDoctorId('');
+      setPreferredWindow('');
+      onClose();
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Join Waitlist" size="sm">
+      <div className="space-y-4">
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Doctor</label>
+          <select value={doctorId} onChange={e => setDoctorId(e.target.value)}
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
+            <option value="">-- Choose a doctor --</option>
+            {doctors.map(d => <option key={d.id} value={d.id}>{d.full_name} ({d.specialty || 'Specialist'})</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Preferred Window</label>
+          <input value={preferredWindow} onChange={e => setPreferredWindow(e.target.value)}
+            placeholder="e.g. Tomorrow, Morning Slot"
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+        </div>
+        <button disabled={!doctorId || !preferredWindow || joining} onClick={submit}
+          className="w-full bg-aubergine-600 disabled:opacity-40 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
+          {joining ? 'Joining…' : 'Join Waitlist'}
+        </button>
+      </div>
+    </Modal>
+  );
+}
 
 /* ─── Booking Modal ──────────────────────────── */
 function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
@@ -59,7 +103,7 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1.5 block">Preferred Date *</label>
             <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
-              min={new Date().toISOString().split('T')[0]}
+              min={todayLocalStr()}
               className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
           </div>
           <div>
@@ -179,17 +223,17 @@ const STATUS_LABEL = {
 function PatientAppointments() {
   const toast = useToast();
   const navigate = useNavigate();
-  const { appointments, addAppointment, cancelAppointment } = useClinicData();
+  const { appointments, addAppointment, cancelAppointment, waitlist, joinWaitlist, leaveWaitlist } = useClinicData();
   const [doctors, setDoctors] = useState([]);
   const [tab, setTab] = useState('upcoming');
-  const [waitPos, setWaitPos] = useState(WAITLIST.position);
+  const [showJoinWaitlist, setShowJoinWaitlist] = useState(false);
 
   useEffect(() => {
     apiFetch('/doctors/search').then(setDoctors).catch(() => setDoctors([]));
   }, []);
 
   const doctorById = useMemo(() => new Map(doctors.map(d => [d.id, d])), [doctors]);
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayLocalStr();
 
   const toRow = (a) => {
     const doc = doctorById.get(a.doctorId);
@@ -263,9 +307,22 @@ function PatientAppointments() {
     setCancelTarget(null);
   };
 
-  const handleWaitlistCancel = () => {
-    toast('Removed from waitlist for Dr. Meera Reddy.', 'info');
-    setWaitPos(null);
+  const handleJoinWaitlist = async (doctorId, preferredWindow) => {
+    try {
+      await joinWaitlist(doctorId, preferredWindow);
+      toast('Added to the waitlist. We\'ll notify you when a slot opens.', 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to join waitlist.', 'error');
+    }
+  };
+
+  const handleWaitlistCancel = async (entry) => {
+    try {
+      await leaveWaitlist(entry.id);
+      toast(`Removed from waitlist for ${doctorById.get(entry.doctor_id)?.full_name || 'the doctor'}.`, 'info');
+    } catch (err) {
+      toast(err.message || 'Failed to leave waitlist.', 'error');
+    }
   };
 
   const STATUS_BADGE = {
@@ -432,37 +489,41 @@ function PatientAppointments() {
       </div>
 
       {/* Waitlist */}
-      {waitPos !== null && (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-            <h3 className="font-bold text-slate-800">Waitlist Requests</h3>
-            <span className="text-xs text-slate-500">{waitPos > 0 ? `Position #${waitPos}` : 'Active'}</span>
-          </div>
-          <div className="p-4">
-            <div className="flex items-center justify-between bg-amber-50 border border-amber-200 p-4 rounded-xl">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+          <h3 className="font-bold text-slate-800">Waitlist Requests</h3>
+          <button onClick={() => setShowJoinWaitlist(true)} className="text-xs text-aubergine-600 font-bold hover:underline flex items-center gap-1">
+            <i className="fas fa-plus"></i> Join Waitlist
+          </button>
+        </div>
+        <div className="p-4 space-y-3">
+          {waitlist.length === 0 && (
+            <p className="text-xs text-slate-500 text-center py-4">You're not on any waitlists. Join one for a doctor who's fully booked.</p>
+          )}
+          {waitlist.map(entry => (
+            <div key={entry.id} className="flex items-center justify-between bg-amber-50 border border-amber-200 p-4 rounded-xl">
               <div>
-                <h4 className="font-bold text-amber-900 text-sm">{WAITLIST.doctor}</h4>
-                <p className="text-xs text-amber-700 mt-1">Requested for: {WAITLIST.requested}</p>
-                <button onClick={() => toast('Waitlist notification preferences saved', 'success')}
-                  className="mt-2 text-xs text-amber-700 underline font-semibold">Notify me when slot opens</button>
+                <h4 className="font-bold text-amber-900 text-sm">{doctorById.get(entry.doctor_id)?.full_name || 'Doctor'}</h4>
+                <p className="text-xs text-amber-700 mt-1">Requested for: {entry.preferred_window}</p>
               </div>
               <div className="flex flex-col items-end gap-2">
                 <div className="text-right">
-                  <div className="text-2xl font-black text-amber-600">#{waitPos}</div>
+                  <div className="text-2xl font-black text-amber-600">#{entry.position}</div>
                   <div className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">In Queue</div>
                 </div>
-                <button onClick={handleWaitlistCancel}
+                <button onClick={() => handleWaitlistCancel(entry)}
                   className="text-xs text-rose-600 hover:text-rose-800 font-bold px-3 py-1 rounded-lg hover:bg-rose-50 transition-colors border border-rose-200">
                   Leave Queue
                 </button>
               </div>
             </div>
-          </div>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* Modals */}
       <BookingModal isOpen={showBook} onClose={() => setShowBook(false)} onBook={handleBook} prefill={bookPrefill} doctors={doctors} />
+      <JoinWaitlistModal isOpen={showJoinWaitlist} onClose={() => setShowJoinWaitlist(false)} doctors={doctors} onJoin={handleJoinWaitlist} />
       <ConfirmModal
         isOpen={!!cancelTarget}
         onClose={() => setCancelTarget(null)}

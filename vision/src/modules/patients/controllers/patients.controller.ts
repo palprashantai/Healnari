@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsEmail, IsIn, IsObject, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsArray, IsDateString, IsEmail, IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import { PatientsService } from '@/modules/patients/services/patients.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
@@ -65,6 +65,12 @@ export class JoinWaitlistDto {
   @ApiProperty({ example: 'Tomorrow, Morning Slot' }) @IsString() preferredWindow: string;
 }
 
+export class QuickFertilityEstimateDto {
+  @ApiProperty({ example: '2026-08-01', description: 'First day of your last menstrual period' }) @IsDateString() lastPeriodStart: string;
+  @ApiProperty({ example: 5 }) @IsInt() @Min(1) @Max(15) periodDurationDays: number;
+  @ApiProperty({ example: 28 }) @IsInt() @Min(15) @Max(90) cycleLengthDays: number;
+}
+
 @ApiTags('Patients')
 @Controller('api/patients')
 export class PatientsController {
@@ -102,6 +108,20 @@ export class PatientsController {
   @Get('me/cycle-logs')
   async getCycleLogs(@CurrentUser() user: AuthUser) {
     const data = await this.patientsService.getCycleLogs(user);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({ summary: "Get the caller's ovulation/fertile-window prediction, derived from cycle log history" })
+  @Get('me/fertility-prediction')
+  async getFertilityPrediction(@CurrentUser() user: AuthUser) {
+    const data = await this.patientsService.getFertilityPrediction(user);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({ summary: "One-off calendar estimate from manually-entered last period date + period/cycle length, for patients without 2+ logged cycles yet" })
+  @Post('me/fertility-prediction/quick-estimate')
+  async quickFertilityEstimate(@CurrentUser() user: AuthUser, @Body() body: QuickFertilityEstimateDto) {
+    const data = await this.patientsService.quickFertilityEstimate(user, body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 

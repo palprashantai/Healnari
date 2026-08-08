@@ -14,6 +14,7 @@ const AdminLayout = lazy(() => import('./admin/layouts/AdminLayout.jsx'));
 const PatientDashboard = lazy(() => import('./patient/pages/Dashboard.jsx'));
 const PatientDiscovery = lazy(() => import('./patient/pages/Discovery.jsx'));
 const PatientTracking = lazy(() => import('./patient/pages/Tracking.jsx'));
+const PatientFertility = lazy(() => import('./patient/pages/Fertility.jsx'));
 const PatientAppointments = lazy(() => import('./patient/pages/Appointments.jsx'));
 const PatientPrescriptions = lazy(() => import('./patient/pages/Prescriptions.jsx'));
 const PatientRecords = lazy(() => import('./patient/pages/Records.jsx'));
@@ -139,6 +140,7 @@ function App() {
                 <Route index element={<PatientDashboard />} />
                 <Route path="find-doctor" element={<PatientDiscovery />} />
                 <Route path="tracking" element={<PatientTracking />} />
+                <Route path="fertility" element={<PatientFertility />} />
                 <Route path="appointments" element={<PatientAppointments />} />
                 <Route path="prescriptions" element={<PatientPrescriptions />} />
                 <Route path="records" element={<PatientRecords />} />

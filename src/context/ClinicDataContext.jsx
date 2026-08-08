@@ -17,6 +17,8 @@ export function ClinicDataProvider({ children }) {
   const [vitals, setVitals] = useState({});
   const [lifestyleLogs, setLifestyleLogs] = useState({});
   const [careConnections, setCareConnections] = useState([]);
+  const [favorites, setFavorites] = useState([]);
+  const [waitlist, setWaitlist] = useState([]);
   const [kycVerified, setKycVerified] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -64,6 +66,7 @@ export function ClinicDataProvider({ children }) {
       alert: record?.chronic_conditions?.length ? record.chronic_conditions[0] : null,
       height: record?.height_cm || '—',
       weight: record?.weight_kg || '—',
+      city: record?.city || '',
       bmi: '—', bp: '—', pulse: '—', spo2: '—', temp: '—', bloodSugar: '—',
       allergies: record?.allergies || [],
       meds,
@@ -135,6 +138,12 @@ export function ClinicDataProvider({ children }) {
 
         const connections = await apiFetch('/patients/me/care-connections');
         setCareConnections(connections.map(adaptCareConnection));
+
+        const favs = await apiFetch('/patients/me/favorites');
+        setFavorites(favs.map(f => f.doctor_id));
+
+        const wait = await apiFetch('/patients/me/waitlist');
+        setWaitlist(wait);
       }
 
       if (user.role === 'doctor' || user.role === 'patient') {
@@ -161,7 +170,7 @@ export function ClinicDataProvider({ children }) {
         method: 'PUT',
         body: {
           name: updated.name, phone: updated.phone, dob: updated.dob, bloodGroup: updated.blood,
-          allergies: updated.allergies, chronicConditions: updated.medicalHistory?.chronicConditions,
+          city: updated.city, allergies: updated.allergies, chronicConditions: updated.medicalHistory?.chronicConditions,
         }
       });
       // Sync back
@@ -378,6 +387,44 @@ export function ClinicDataProvider({ children }) {
     }
   };
 
+  /* ── Discovery favourites ─────────────────────────────────── */
+  const toggleFavorite = async (doctorId) => {
+    const isFav = favorites.includes(doctorId);
+    setFavorites(prev => (isFav ? prev.filter(id => id !== doctorId) : [...prev, doctorId]));
+    try {
+      if (isFav) await apiFetch(`/patients/me/favorites/${doctorId}`, { method: 'DELETE' });
+      else await apiFetch('/patients/me/favorites', { method: 'POST', body: { doctorId } });
+    } catch (err) {
+      console.error(err);
+      setFavorites(prev => (isFav ? [...prev, doctorId] : prev.filter(id => id !== doctorId))); // rollback
+      throw err;
+    }
+  };
+
+  /* ── Appointment waitlist ─────────────────────────────────── */
+  const joinWaitlist = async (doctorId, preferredWindow) => {
+    try {
+      const res = await apiFetch('/patients/me/waitlist', { method: 'POST', body: { doctorId, preferredWindow } });
+      setWaitlist(prev => [{ ...res, position: prev.filter(w => w.doctor_id === doctorId).length + 1 }, ...prev]);
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const leaveWaitlist = async (id) => {
+    const prev = waitlist;
+    setWaitlist(cur => cur.filter(w => w.id !== id));
+    try {
+      await apiFetch(`/patients/me/waitlist/${id}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error(err);
+      setWaitlist(prev); // rollback
+      throw err;
+    }
+  };
+
   const verifyKyc = async () => {
     try {
       await apiFetch('/doctors/me/kyc', { method: 'PUT' });
@@ -396,6 +443,8 @@ export function ClinicDataProvider({ children }) {
     vitals, logVital,
     lifestyleLogs, logLifestyle,
     careConnections, inviteConnection, updateConnectionPermissions, removeConnection,
+    favorites, toggleFavorite,
+    waitlist, joinWaitlist, leaveWaitlist,
     kycVerified, verifyKyc,
   };
 

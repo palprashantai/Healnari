@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+import { todayLocalStr } from '../../lib/dateUtils.js';
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -208,7 +209,7 @@ function DoctorTelemedicine() {
   const [rawSessions, setRawSessions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayLocalStr();
   const loadQueue = () => apiFetch('/telemedicine/queue')
     .then(setRawSessions)
     .catch(err => toast(err.message || 'Failed to load queue', 'error'))

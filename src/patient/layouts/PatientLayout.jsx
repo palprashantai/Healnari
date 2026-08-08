@@ -17,6 +17,7 @@ const MENU_ITEMS = [
   { name: 'Medical Records',    icon: 'fa-file-medical',   path: '/patient-dashboard/records',       color: '#f59e0b' },
   { name: 'Prescriptions',      icon: 'fa-pills',          path: '/patient-dashboard/prescriptions', color: '#f43f5e' },
   { name: 'Health Tracking',    icon: 'fa-heart-pulse',    path: '/patient-dashboard/tracking',      color: '#6366f1' },
+  { name: 'Fertility Insights', icon: 'fa-circle-dot',     path: '/patient-dashboard/fertility',     color: '#e11d48' },
   { name: 'Partner & Support',  icon: 'fa-users',          path: '/patient-dashboard/family',        color: '#d946ef' },
   { name: 'Billing & Payments', icon: 'fa-credit-card',    path: '/patient-dashboard/billing',       color: '#14b8a6' },
   { name: 'My Profile',         icon: 'fa-circle-user',    path: '/patient-dashboard/profile',       color: '#64748b' },

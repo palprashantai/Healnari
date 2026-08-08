@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { todayLocalStr } from '../lib/dateUtils.js';
 
 function CycleTracker() {
   const [step, setStep] = useState(1);
@@ -130,7 +131,7 @@ function CycleTracker() {
                 <input
                   type="date"
                   value={data.lastPeriodDate}
-                  max={new Date().toISOString().split('T')[0]}
+                  max={todayLocalStr()}
                   onChange={(e) => setData({...data, lastPeriodDate: e.target.value})}
                   className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none"
                 />

@@ -69,6 +69,8 @@ export function AuthProvider({ children }) {
     if (updates.phone !== undefined) patch.phone = updates.phone;
     if (updates.specialty !== undefined) patch.specialty = updates.specialty;
     if (updates.regNo !== undefined) patch.registrationNo = updates.regNo;
+    if (updates.emailNotifications !== undefined) patch.emailNotifications = updates.emailNotifications;
+    if (updates.smsNotifications !== undefined) patch.smsNotifications = updates.smsNotifications;
     if (Object.keys(patch).length === 0) return;
 
     try {
@@ -78,7 +80,25 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const value = { user, signUp, signIn, logout, updateUser, loading };
+  const updatePassword = async (currentPassword, newPassword) => {
+    await apiFetch('/auth/password', { method: 'PUT', body: { currentPassword, newPassword } });
+  };
+
+  const uploadAvatar = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const data = await apiFetch('/auth/me/avatar', { method: 'POST', body: formData });
+    setUser(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
+    return data;
+  };
+
+  const removeAvatar = async () => {
+    const data = await apiFetch('/auth/me/avatar', { method: 'DELETE' });
+    setUser(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
+    return data;
+  };
+
+  const value = { user, signUp, signIn, logout, updateUser, updatePassword, uploadAvatar, removeAvatar, loading };
 
   return (
     <AuthContext.Provider value={value}>

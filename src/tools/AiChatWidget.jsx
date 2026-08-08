@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { Activity, ArrowUp, ChevronDown, Lock } from 'lucide-react';
+import { getTokens } from '../lib/apiClient.js';
 
 // The vision ChatGateway listens on the API's own origin (no /api suffix, no
 // separate ws proxy) — see vision/src/modules/ai/gateways/chat.gateway.ts.
@@ -87,9 +88,15 @@ export default function AiChatWidget({ context = 'landing' }) {
   }, [messages, isOpen]);
 
   // Connects once for the life of the widget — see vision/src/modules/ai/gateways/chat.gateway.ts
-  // for the 'chat_message' -> 'chat_reply' contract this mirrors.
+  // for the 'chat_message' -> 'chat_reply' contract this mirrors. The access
+  // token (if signed in) rides along in the handshake so the gateway can
+  // resolve who's asking — needed for anything the assistant writes on the
+  // patient's behalf, like logging a period day or calculating an estimate.
   useEffect(() => {
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, {
+      transports: ['websocket', 'polling'],
+      auth: { token: getTokens()?.accessToken || null },
+    });
     socketRef.current = socket;
 
     socket.on('chat_reply', (payload) => {

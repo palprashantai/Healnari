@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { GoogleGenerativeAI, FunctionDeclaration, SchemaType } from '@google/generative-ai';
+import { Content, GoogleGenerativeAI, FunctionDeclaration, SchemaType } from '@google/generative-ai';
 import { OpenAI } from 'openai';
 import { SupabaseService } from '@/core/supabase/supabase.service';
+import { PatientsService } from '@/modules/patients/services/patients.service';
+import type { AuthUser } from '@/core/decorators/current-user.decorator';
 
 /**
  * Server-side allow-list for /api/chat. 
@@ -13,6 +15,42 @@ export const ALLOWED_QUERY_ENTITIES: Record<string, { select: string[] }> = {
 };
 
 const MAX_TAKE = 25;
+
+/** Mirrors QuickFertilityEstimateDto — the same three inputs the Fertility
+ * page's "Quick Estimate" form asks for, gathered conversationally instead.
+ * The model is instructed (see handlePatientAgent's systemInstruction) to
+ * keep asking/confirming until it has current values for all three, and to
+ * always use the patient's latest answer if they change one — that's what
+ * makes "the date can change too" actually work, since each turn shares the
+ * same chat history rather than starting fresh. */
+const calculateFertilityEstimateDeclaration: FunctionDeclaration = {
+  name: 'calculateFertilityEstimate',
+  description: "Calculates the patient's fertile window and estimated ovulation date from their last period start date, period length, and cycle length. Call this only once you have a confirmed, current value for all three — if the patient corrects an earlier answer, use their newest value.",
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      lastPeriodStart: {
+        type: SchemaType.STRING,
+        description: 'The first day of the last menstrual period, as YYYY-MM-DD. Convert relative answers ("last Tuesday", "5 days ago") to an absolute date using today\'s date.',
+      },
+      periodDurationDays: { type: SchemaType.NUMBER, description: 'How many days the period usually lasts. Typically 3-7.' },
+      cycleLengthDays: { type: SchemaType.NUMBER, description: 'Days from the start of one period to the start of the next. Typically 21-35; default to 28 if the patient is unsure.' },
+    },
+    required: ['lastPeriodStart', 'periodDurationDays', 'cycleLengthDays'],
+  },
+} as any as FunctionDeclaration;
+
+const logPeriodDayDeclaration: FunctionDeclaration = {
+  name: 'logPeriodDay',
+  description: "Logs a single specific date as a period (menstrual flow) day in the patient's tracking history. Use this when the patient just wants to record a period day, without asking for a fertile-window calculation.",
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      date: { type: SchemaType.STRING, description: 'The date to log, as YYYY-MM-DD. Convert relative answers ("today", "yesterday") using today\'s date.' },
+    },
+    required: ['date'],
+  },
+} as any as FunctionDeclaration;
 
 function isPlainScalar(value: unknown): value is string | number | boolean {
   return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
@@ -66,7 +104,10 @@ export class AiService {
   private genAI: GoogleGenerativeAI;
   private openaiClient: OpenAI;
 
-  constructor(private readonly supabaseService: SupabaseService) {
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly patientsService: PatientsService,
+  ) {
     const geminiKey = process.env.GEMINI_API_KEY;
     const openaiKey = process.env.OPENAI_API_KEY;
 
@@ -79,14 +120,24 @@ export class AiService {
   }
 
   // --- Router ---
-  async processQuery(message: string, context: 'doctor' | 'patient' | 'landing'): Promise<string> {
+  // `history` and the returned `history` are the chat's full turn-by-turn
+  // memory for this socket connection (see ChatGateway) — without threading
+  // this through, every message would be answered with no memory of what the
+  // patient already said, which is what made the old multi-question fertility
+  // flow unable to track or correct answers at all.
+  async processQuery(
+    message: string,
+    context: 'doctor' | 'patient' | 'landing',
+    user: AuthUser | null,
+    history: Content[],
+  ): Promise<{ text: string; history: Content[] }> {
     switch (context) {
       case 'doctor':
-        return this.handleDoctorAgent(message);
+        return { text: await this.handleDoctorAgent(message), history };
       case 'patient':
-        return this.handlePatientAgent(message);
+        return this.handlePatientAgent(message, user, history);
       case 'landing':
-        return this.handleLandingAgent(message);
+        return { text: await this.handleLandingAgent(message), history };
       default:
         throw new Error('Unknown context');
     }
@@ -134,13 +185,70 @@ export class AiService {
     return this.generateNaturalResponse(dbResult, parsedQuery);
   }
 
-  private async handlePatientAgent(userQuery: string): Promise<string> {
-    // Basic patient agent implementation. Could use a 'bookAppointment' tool here.
+  /** Real conversational memory (via `history`) plus two tools that write to
+   * the patient's actual data: calculateFertilityEstimate (the same DTO/logic
+   * the Fertility page's Quick Estimate form uses) and logPeriodDay. Because
+   * the full turn history is replayed into the model every time, the patient
+   * can correct an earlier answer ("actually it was the 3rd") and the model
+   * carries that correction into the eventual function call — that's the fix
+   * for "the period date can change, so let them set it manually". */
+  private async handlePatientAgent(userQuery: string, user: AuthUser | null, history: Content[]): Promise<{ text: string; history: Content[] }> {
     if (!this.genAI) throw new Error('AI not configured.');
-    const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const prompt = `You are a helpful Patient Assistant for HealNari. Answer this: ${userQuery}`;
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+
+    const today = new Date().toISOString().slice(0, 10);
+    const systemInstruction = `You are a warm, plain-language Patient Assistant for HealNari, a women's health app. Today's date is ${today}.
+
+When a patient asks about their fertile window, ovulation, or period prediction, gather these three things conversationally, one at a time rather than all at once:
+1. The first day of their last period (accept relative answers like "last Tuesday" or "5 days ago" and convert to YYYY-MM-DD using today's date).
+2. How many days their period usually lasts.
+3. How many days from the start of one period to the start of the next.
+
+If the patient corrects or changes an answer they already gave, always use their latest value — confirm the update in one short sentence and continue, never argue with a correction.
+
+Once you have a current value for all three, call calculateFertilityEstimate. If the patient just wants to record that their period started on a specific day, without asking for a calculation, call logPeriodDay instead.
+
+Keep replies short and non-technical. Never give a medical diagnosis; suggest seeing a doctor for anything that sounds concerning.`;
+
+    const model = this.genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      tools: [{ functionDeclarations: [calculateFertilityEstimateDeclaration, logPeriodDayDeclaration] }],
+      systemInstruction,
+    });
+
+    const chat = model.startChat({ history });
+    let result = await chat.sendMessage(userQuery);
+    const call = result.response.functionCalls()?.[0];
+
+    if (call) {
+      if (!user || user.profile.role !== 'patient') {
+        const text = "I can do that once you're signed in as a patient — please log in and ask me again.";
+        return { text, history: await chat.getHistory() };
+      }
+
+      let functionResponsePayload: Record<string, unknown>;
+      try {
+        if (call.name === 'calculateFertilityEstimate') {
+          const args = call.args as { lastPeriodStart: string; periodDurationDays: number; cycleLengthDays: number };
+          functionResponsePayload = await this.patientsService.quickFertilityEstimate(user, {
+            lastPeriodStart: args.lastPeriodStart,
+            periodDurationDays: Math.round(args.periodDurationDays),
+            cycleLengthDays: Math.round(args.cycleLengthDays),
+          }) as unknown as Record<string, unknown>;
+        } else if (call.name === 'logPeriodDay') {
+          const args = call.args as { date: string };
+          const log = await this.patientsService.logCycle(user, args.date, { flow: 'Medium' });
+          functionResponsePayload = { logged: true, date: args.date, log };
+        } else {
+          functionResponsePayload = { error: `Unknown function: ${call.name}` };
+        }
+      } catch (err: any) {
+        functionResponsePayload = { error: err?.message || 'Something went wrong while saving that.' };
+      }
+
+      result = await chat.sendMessage([{ functionResponse: { name: call.name, response: functionResponsePayload } }]);
+    }
+
+    return { text: result.response.text(), history: await chat.getHistory() };
   }
 
   private async handleLandingAgent(userQuery: string): Promise<string> {

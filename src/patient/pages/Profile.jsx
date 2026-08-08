@@ -5,7 +5,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 
 function PatientProfile() {
-  const { user, updateUser, logout } = useAuth();
+  const { user, updateUser, updatePassword, uploadAvatar, removeAvatar, logout } = useAuth();
   const { patients, updatePatient } = useClinicData();
   const own = patients?.[0];
   const toast = useToast();
@@ -35,18 +35,21 @@ function PatientProfile() {
       bloodGroup: own.blood && own.blood !== '—' ? own.blood : p.bloodGroup,
       height: own.height && own.height !== '—' ? String(own.height) : p.height,
       weight: own.weight && own.weight !== '—' ? String(own.weight) : p.weight,
+      city: own.city || p.city,
     }));
     setHydrated(true);
   }, [own, hydrated, user]);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pwdForm, setPwdForm] = useState({ current: '', newPwd: '', confirm: '' });
+  const [pwdSaving, setPwdSaving] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [photoSaving, setPhotoSaving] = useState(false);
   const [twoFA, setTwoFA] = useState(false);
-  const [emailNotif, setEmailNotif] = useState(true);
-  const [smsNotif, setSmsNotif] = useState(true);
+  const [emailNotif, setEmailNotif] = useState(user?.emailNotifications ?? true);
+  const [smsNotif, setSmsNotif] = useState(user?.smsNotifications ?? true);
 
   const handleSave = async () => {
     setSaving(true);
@@ -59,6 +62,7 @@ function PatientProfile() {
           blood: form.bloodGroup,
           height: form.height,
           weight: form.weight,
+          city: form.city,
         });
       }
       setSaved(true);
@@ -71,12 +75,60 @@ function PatientProfile() {
     }
   };
 
-  const handlePasswordUpdate = () => {
+  const toggleNotif = async (key, current, setter) => {
+    setter(!current);
+    try {
+      await updateUser?.({ [key]: !current });
+      toast(`${key === 'emailNotifications' ? 'Email' : 'SMS'} notifications ${!current ? 'enabled' : 'disabled'}.`, 'info');
+    } catch {
+      setter(current); // rollback
+      toast('Failed to update notification preference.', 'error');
+    }
+  };
+
+  const handlePasswordUpdate = async () => {
     if (!pwdForm.current) { toast('Please enter your current password.', 'error'); return; }
-    if (pwdForm.newPwd.length < 8) { toast('New password must be at least 8 characters.', 'error'); return; }
+    if (pwdForm.newPwd.length < 6) { toast('New password must be at least 6 characters.', 'error'); return; }
     if (pwdForm.newPwd !== pwdForm.confirm) { toast('New passwords do not match.', 'error'); return; }
-    toast('Password updated successfully!', 'success');
-    setPwdForm({ current: '', newPwd: '', confirm: '' });
+    setPwdSaving(true);
+    try {
+      await updatePassword(pwdForm.current, pwdForm.newPwd);
+      toast('Password updated successfully!', 'success');
+      setPwdForm({ current: '', newPwd: '', confirm: '' });
+    } catch (err) {
+      toast(err.message || 'Failed to update password. Please try again.', 'error');
+    } finally {
+      setPwdSaving(false);
+    }
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoSaving(true);
+    try {
+      await uploadAvatar(file);
+      toast('Profile photo updated!', 'success');
+      setShowPhotoModal(false);
+    } catch (err) {
+      toast(err.message || 'Failed to upload photo. Please try again.', 'error');
+    } finally {
+      setPhotoSaving(false);
+      e.target.value = '';
+    }
+  };
+
+  const handlePhotoRemove = async () => {
+    setPhotoSaving(true);
+    try {
+      await removeAvatar();
+      toast('Photo removed.', 'info');
+      setShowPhotoModal(false);
+    } catch (err) {
+      toast(err.message || 'Failed to remove photo. Please try again.', 'error');
+    } finally {
+      setPhotoSaving(false);
+    }
   };
 
   const initials = form.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
@@ -95,8 +147,8 @@ function PatientProfile() {
       <div className={`bg-gradient-to-r ${FIELD_COLOR[activeTab]} rounded-3xl p-8 text-white flex flex-col sm:flex-row items-center sm:items-start gap-6 relative overflow-hidden transition-all duration-500`}>
         <div className="absolute -right-8 -top-8 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
         <div className="relative">
-          <div className="w-24 h-24 rounded-3xl bg-white/20 border-4 border-white/30 flex items-center justify-center text-3xl font-black text-white shrink-0 shadow-xl">
-            {initials}
+          <div className="w-24 h-24 rounded-3xl bg-white/20 border-4 border-white/30 flex items-center justify-center text-3xl font-black text-white shrink-0 shadow-xl overflow-hidden">
+            {user?.avatarUrl ? <img src={user.avatarUrl} alt={form.name} className="w-full h-full object-cover" /> : initials}
           </div>
           <button onClick={() => setShowPhotoModal(true)}
             className="absolute -bottom-2 -right-2 w-8 h-8 bg-white text-aubergine-700 rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform">
@@ -170,15 +222,15 @@ function PatientProfile() {
                 <h4 className="font-bold text-slate-700 text-sm mb-3">Notification Preferences</h4>
                 <div className="space-y-3">
                   {[
-                    { label: 'Email Notifications', sub: 'Appointment reminders, lab reports', state: emailNotif, set: setEmailNotif },
-                    { label: 'SMS Notifications', sub: 'Booking confirmations, urgent alerts', state: smsNotif, set: setSmsNotif },
+                    { label: 'Email Notifications', sub: 'Appointment reminders, lab reports', key: 'emailNotifications', state: emailNotif, set: setEmailNotif },
+                    { label: 'SMS Notifications', sub: 'Booking confirmations, urgent alerts', key: 'smsNotifications', state: smsNotif, set: setSmsNotif },
                   ].map(n => (
                     <div key={n.label} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
                       <div>
                         <p className="text-sm font-bold text-slate-700">{n.label}</p>
                         <p className="text-xs text-slate-500">{n.sub}</p>
                       </div>
-                      <button onClick={() => { n.set(!n.state); toast(`${n.label} ${!n.state ? 'enabled' : 'disabled'}.`, 'info'); }}
+                      <button onClick={() => toggleNotif(n.key, n.state, n.set)}
                         className={`w-12 h-6 rounded-full relative transition-all border ${n.state ? 'bg-aubergine-600 border-aubergine-600' : 'bg-slate-200 border-slate-300'}`}>
                         <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${n.state ? 'right-1' : 'left-1'}`}></div>
                       </button>
@@ -265,9 +317,9 @@ function PatientProfile() {
                       className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
                   </div>
                 ))}
-                <button onClick={handlePasswordUpdate}
-                  className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-colors flex items-center gap-2">
-                  <i className="fas fa-key"></i> Update Password
+                <button onClick={handlePasswordUpdate} disabled={pwdSaving}
+                  className="bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-60 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-colors flex items-center gap-2">
+                  <i className={`fas ${pwdSaving ? 'fa-spinner fa-spin' : 'fa-key'}`}></i> {pwdSaving ? 'Updating…' : 'Update Password'}
                 </button>
               </div>
 
@@ -329,17 +381,22 @@ function PatientProfile() {
       {/* Modals */}
       <Modal isOpen={showPhotoModal} onClose={() => setShowPhotoModal(false)} title="Change Profile Photo" size="sm">
         <div className="space-y-4 text-center">
-          <div className="w-24 h-24 rounded-3xl bg-aubergine-100 text-aubergine-700 text-3xl font-black flex items-center justify-center mx-auto">{initials}</div>
+          <div className="w-24 h-24 rounded-3xl bg-aubergine-100 text-aubergine-700 text-3xl font-black flex items-center justify-center mx-auto overflow-hidden">
+            {user?.avatarUrl ? <img src={user.avatarUrl} alt={form.name} className="w-full h-full object-cover" /> : initials}
+          </div>
           <p className="text-sm text-slate-500">Upload a new profile photo (PNG, JPG up to 5MB)</p>
-          <input type="file" accept="image/*" className="hidden" id="photo-upload" onChange={() => { toast('Profile photo updated!', 'success'); setShowPhotoModal(false); }} />
+          <input type="file" accept="image/*" className="hidden" id="photo-upload" onChange={handlePhotoUpload} disabled={photoSaving} />
           <label htmlFor="photo-upload"
-            className="block w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors cursor-pointer">
-            <i className="fas fa-upload mr-2"></i> Choose Photo
+            className="block w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors cursor-pointer aria-disabled:opacity-60"
+            aria-disabled={photoSaving}>
+            <i className={`fas ${photoSaving ? 'fa-spinner fa-spin' : 'fa-upload'} mr-2`}></i> {photoSaving ? 'Uploading…' : 'Choose Photo'}
           </label>
-          <button onClick={() => { toast('Photo removed.', 'info'); setShowPhotoModal(false); }}
-            className="w-full border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold py-2.5 rounded-xl text-sm transition-colors">
-            Remove Photo
-          </button>
+          {user?.avatarUrl && (
+            <button onClick={handlePhotoRemove} disabled={photoSaving}
+              className="w-full border border-rose-200 text-rose-600 hover:bg-rose-50 disabled:opacity-60 font-bold py-2.5 rounded-xl text-sm transition-colors">
+              Remove Photo
+            </button>
+          )}
         </div>
       </Modal>
 

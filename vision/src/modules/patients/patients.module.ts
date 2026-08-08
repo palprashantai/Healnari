@@ -7,5 +7,6 @@ import { SupabaseModule } from '@/core/supabase/supabase.module';
   imports: [SupabaseModule],
   controllers: [PatientsController],
   providers: [PatientsService],
+  exports: [PatientsService],
 })
 export class PatientsModule {}

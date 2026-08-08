@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
+import { LIFESTYLE_ITEMS } from '../lifestyleConfig.js';
+import { todayLocalStr } from '../../lib/dateUtils.js';
 
 /* ─── Config ─────────────────────────────────── */
 const HIRSUTISM_GRADES = [
@@ -18,16 +20,7 @@ const VITALS_CONFIG = {
   sleep: { label: 'Sleep Duration', icon: 'fa-moon', color: 'bg-indigo-50 text-indigo-500', unit: 'hrs' },
 };
 
-const LIFESTYLE_ITEMS = [
-  { key: 'sleep', label: '8 Hours Restful Sleep', icon: 'fa-moon', color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
-  { key: 'lowGI', label: 'Low-GI, Anti-Inflammatory Nutrition', icon: 'fa-wheat-awn', color: 'text-amber-600 bg-amber-50 border-amber-100' },
-  { key: 'exercise', label: '30 Mins Resistance Exercise', icon: 'fa-dumbbell', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
-  { key: 'meds', label: 'Myo-Inositol / Prescribed Meds Taken', icon: 'fa-pills', color: 'text-rose-600 bg-rose-50 border-rose-100' },
-  { key: 'water', label: 'Drink 2.5L Water', icon: 'fa-bottle-water', color: 'text-sky-600 bg-sky-50 border-sky-100' },
-  { key: 'stress', label: 'Mindfulness / Stress Management (10 mins)', icon: 'fa-brain', color: 'text-aubergine-600 bg-aubergine-50 border-aubergine-100' },
-];
-
-const todayKey = () => new Date().toISOString().slice(0, 10);
+const todayKey = todayLocalStr;
 
 /** Derives a "vs last reading" trend line from the current + previous logged values. */
 function computeTrend(current, previous, unit) {

@@ -38,6 +38,7 @@ export const SUCCESS_MESSAGES = {
 
   // Generic
   DATA_RETRIEVED: 'Data retrieved successfully.',
+  DATA_UPDATED: 'Data updated successfully.',
   HEALTH_METRICS_UPDATED: 'Health metrics updated successfully.',
   GOAL_LOGGED: 'Goal progress logged for today.',
 

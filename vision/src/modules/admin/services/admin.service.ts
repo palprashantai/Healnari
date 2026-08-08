@@ -33,7 +33,7 @@ export class AdminService {
 
       const { data: doneAppointments } = await this.supabase.admin.from('appointments').select('doctor_id').eq('status', AppointmentStatus.DONE);
       let totalRevenue = 0;
-      if (doneAppointments?.length > 0) {
+      if (doneAppointments && doneAppointments.length > 0) {
         const doctorIds = [...new Set(doneAppointments.map(a => a.doctor_id))];
         const { data: doctors } = await this.supabase.admin.from('profiles').select('id, consultation_fee').in('id', doctorIds);
         const feeByDoctor = new Map((doctors || []).map(d => [d.id, d.consultation_fee]));
@@ -358,7 +358,7 @@ export class AdminService {
       let totalRevenue = 0;
       const bySpecialtyMap = new Map<string, number>();
 
-      if (doneAppointments?.length > 0) {
+      if (doneAppointments && doneAppointments.length > 0) {
         const doctorIds = [...new Set(doneAppointments.map(a => a.doctor_id))];
         const { data: doctors } = await this.supabase.admin.from('profiles').select('id, consultation_fee, specialty').in('id', doctorIds);
         const doctorInfo = new Map((doctors || []).map(d => [d.id, d]));

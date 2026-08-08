@@ -3,6 +3,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+import { todayLocalStr } from '../../lib/dateUtils.js';
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -176,7 +177,7 @@ function DoctorAppointments() {
   const [tab, setTab] = useState('queue');
 
   const ageByPatientId = useMemo(() => new Map(patients.map(p => [p.id, p.age])), [patients]);
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayLocalStr();
 
   const formatDate = (iso) => {
     if (!iso) return '—';

@@ -6,6 +6,7 @@ import { Profile, ProfileRole } from '@/shared/interfaces/profile.interface';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
+import { addDays, computeFertilityPrediction, computeQuickEstimate } from '@/modules/patients/services/fertility-prediction.util';
 import {
   CreatePatientDto,
   InviteConnectionDto,
@@ -13,6 +14,7 @@ import {
   LogCycleDto,
   LogLifestyleDto,
   LogVitalDto,
+  QuickFertilityEstimateDto,
   UpdateConnectionPermissionsDto,
   UpdatePatientDto,
 } from '@/modules/patients/controllers/patients.controller';
@@ -122,6 +124,39 @@ export class PatientsService {
     if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     const { data: logs } = await this.supabase.admin.from('cycle_logs').select().eq('patient_id', user.id).order('log_date', { ascending: false });
     return logs || [];
+  }
+
+  async getFertilityPrediction(user: AuthUser) {
+    if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+
+    const [{ data: logs }, { data: record }] = await Promise.all([
+      this.supabase.admin.from('cycle_logs').select('log_date, flow').eq('patient_id', user.id).order('log_date', { ascending: true }),
+      this.supabase.admin.from('patient_records').select('chronic_conditions').eq('patient_id', user.id).single(),
+    ]);
+
+    const pcosFlag = (record?.chronic_conditions || []).some((c: string) => /pcos|pcod/i.test(c));
+    return computeFertilityPrediction(logs || [], pcosFlag);
+  }
+
+  /** Quick calendar estimate from 3 manually-entered values, for patients who
+   * don't have 2+ logged cycles yet. Also seeds cycle_logs for the reported
+   * period days (without overwriting anything already logged) so this
+   * contributes toward a real history-based prediction going forward. */
+  async quickFertilityEstimate(user: AuthUser, body: QuickFertilityEstimateDto) {
+    if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+
+    const rows = Array.from({ length: body.periodDurationDays }, (_, i) => ({
+      patient_id: user.id,
+      log_date: addDays(body.lastPeriodStart, i),
+      flow: 'Medium',
+      symptoms: [],
+    }));
+    await this.supabase.admin.from('cycle_logs').upsert(rows, { onConflict: 'patient_id,log_date', ignoreDuplicates: true });
+
+    const { data: record } = await this.supabase.admin.from('patient_records').select('chronic_conditions').eq('patient_id', user.id).single();
+    const pcosFlag = (record?.chronic_conditions || []).some((c: string) => /pcos|pcod/i.test(c));
+
+    return computeQuickEstimate(body.lastPeriodStart, body.periodDurationDays, body.cycleLengthDays, pcosFlag);
   }
 
   async logCycle(user: AuthUser, date: string, body: LogCycleDto) {

@@ -2,9 +2,10 @@ import { Module } from '@nestjs/common';
 import { AiService } from '@/modules/ai/services/ai.service';
 import { ChatGateway } from '@/modules/ai/gateways/chat.gateway';
 import { SupabaseModule } from '@/core/supabase/supabase.module';
+import { PatientsModule } from '@/modules/patients/patients.module';
 
 @Module({
-  imports: [SupabaseModule],
+  imports: [SupabaseModule, PatientsModule],
   providers: [AiService, ChatGateway],
   exports: [AiService],
 })

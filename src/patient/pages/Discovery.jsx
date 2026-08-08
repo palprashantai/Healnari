@@ -3,6 +3,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+import { todayLocalStr } from '../../lib/dateUtils.js';
 
 const PAYMENT_METHODS = ['UPI', 'Card', 'Net Banking', 'Wallet'];
 
@@ -10,7 +11,7 @@ const PAYMENT_METHODS = ['UPI', 'Card', 'Net Banking', 'Wallet'];
 function BookingModal({ doc, isOpen, onClose, toast, addAppointment }) {
   const [step, setStep] = useState(1);
   const [type, setType] = useState('Video Consult');
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayLocalStr);
   const [slot, setSlot] = useState('');
   const [slots, setSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
@@ -93,7 +94,7 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment }) {
           {/* Date */}
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1.5 block">Date</label>
-            <input type="date" value={date} min={new Date().toISOString().slice(0, 10)} onChange={e => setDate(e.target.value)}
+            <input type="date" value={date} min={todayLocalStr()} onChange={e => setDate(e.target.value)}
               className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
           </div>
 
@@ -240,13 +241,12 @@ function DoctorCard({ doc, onBook, onFavorite, favorites }) {
 /* ─── Main Component ─────────────────────────── */
 function PatientDiscovery() {
   const toast = useToast();
-  const { addAppointment } = useClinicData();
+  const { addAppointment, favorites, toggleFavorite } = useClinicData();
   const [rawDoctors, setRawDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [search, setSearch] = useState('');
   const [specialty, setSpecialty] = useState('All');
-  const [favorites, setFavorites] = useState([]);
 
   useEffect(() => {
     apiFetch('/doctors/search')
@@ -266,12 +266,14 @@ function PatientDiscovery() {
 
   const specialties = useMemo(() => ['All', ...new Set(doctors.map(d => d.specialty).filter(Boolean))], [doctors]);
 
-  const handleFavorite = (id) => {
-    setFavorites(prev => {
-      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
-      toast(next.includes(id) ? 'Added to favourites!' : 'Removed from favourites.', 'info');
-      return next;
-    });
+  const handleFavorite = async (id) => {
+    const wasFav = favorites.includes(id);
+    try {
+      await toggleFavorite(id);
+      toast(wasFav ? 'Removed from favourites.' : 'Added to favourites!', 'info');
+    } catch (err) {
+      toast(err.message || 'Failed to update favourites.', 'error');
+    }
   };
 
   const filtered = doctors.filter(d => {

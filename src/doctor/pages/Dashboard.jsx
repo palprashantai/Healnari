@@ -6,8 +6,8 @@ import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { Tilt3D } from '../../components/Tilt3D.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+import { todayLocalStr } from '../../lib/dateUtils.js';
 
-const TODAY_ISO = new Date().toISOString().slice(0, 10);
 const DAY_MS = 86400000;
 /** "Today" / "Yesterday" / "N days ago" from a "DD Mon YYYY" date string — used for
  * the lab-review widget, which only has date-level (not time-level) granularity. */
@@ -234,13 +234,14 @@ function DoctorDashboard() {
   const { patients, appointments, refillRequests, approveRefill: ctxApproveRefill, rejectRefill: ctxRejectRefill, callNextForDoctor, kycVerified, verifyKyc } = useClinicData();
 
   const doctorName = user?.name || 'Dr. Sarah Mitchell';
+  const todayIso = todayLocalStr();
 
   // Today's queue, joined against the shared patient roster — the exact same
   // appointment records the Appointments page and the patient portal both read,
   // so calling the next patient here shows up everywhere else too.
   const queue = useMemo(() => {
     return appointments
-      .filter(a => a.doctorName === doctorName && a.date === TODAY_ISO)
+      .filter(a => a.doctorName === doctorName && a.date === todayIso)
       .sort((a, b) => a.time.localeCompare(b.time))
       .map((a, i) => {
         const patient = patients.find(p => p.id === a.patientId);
@@ -257,7 +258,7 @@ function DoctorDashboard() {
           patient,
         };
       });
-  }, [appointments, patients, doctorName]);
+  }, [appointments, patients, doctorName, todayIso]);
 
   // Every patient's own med list is the single source for refill requests — this
   // is guaranteed to name the drug the patient is actually on.

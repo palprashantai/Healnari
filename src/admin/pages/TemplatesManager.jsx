@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { ConfirmModal } from '../../components/Modal.jsx';
+import { apiFetch } from '../../lib/apiClient.js';
 
 const INITIAL_TEMPLATES = [
   { id: 'T-101', type: 'email', audience: 'General', label: 'System Maintenance Notice', text: 'Dear [Name],\n\nThe platform will undergo maintenance on [Date].\n\nThanks,\nAdmin Team' },
@@ -14,7 +15,9 @@ const INITIAL_TEMPLATES = [
 
 function AdminTemplates() {
   const toast = useToast();
-  const [templates, setTemplates] = useState(INITIAL_TEMPLATES);
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [filterType, setFilterType] = useState('All');
   const [search, setSearch] = useState('');
 
@@ -23,10 +26,17 @@ function AdminTemplates() {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   
   // Form State
-  const [formData, setFormData] = useState({ label: '', type: 'email', audience: 'General', text: '' });
+  const [formData, setFormData] = useState({ name: '', type: 'email', audience: 'General', content: '' });
+
+  useEffect(() => {
+    apiFetch('/admin/communications/templates')
+      .then(d => setTemplates(d || []))
+      .catch(() => toast('Failed to load templates', 'error'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filteredTemplates = templates.filter(t => {
-    const ms = !search || t.label.toLowerCase().includes(search.toLowerCase()) || t.text.toLowerCase().includes(search.toLowerCase());
+    const ms = !search || (t.name || t.label || '').toLowerCase().includes(search.toLowerCase()) || (t.content || t.text || '').toLowerCase().includes(search.toLowerCase());
     const mt = filterType === 'All' || t.type === filterType;
     return ms && mt;
   });
@@ -46,13 +56,13 @@ function AdminTemplates() {
   };
 
   const openCreate = () => {
-    setFormData({ label: '', type: 'email', audience: 'General', text: '' });
+    setFormData({ name: '', type: 'email', audience: 'General', content: '' });
     setView('create');
   };
 
   const openEdit = (t) => {
     setSelectedTemplate(t);
-    setFormData({ label: t.label, type: t.type, audience: t.audience, text: t.text });
+    setFormData({ name: t.name || t.label, type: t.type || 'email', audience: t.audience || 'General', content: t.content || t.text });
     setView('edit');
   };
 
@@ -61,28 +71,47 @@ function AdminTemplates() {
     setDeleteModalOpen(true);
   };
 
-  const handleSave = () => {
-    if (!formData.label || !formData.text) {
-      toast('Please provide a template label and content.', 'error');
+  const handleSave = async () => {
+    if (!formData.name || !formData.content) {
+      toast('Please provide a template name and content.', 'error');
       return;
     }
-
-    if (view === 'create') {
-      const newT = { id: `T-${Math.floor(Math.random() * 900) + 100}`, ...formData };
-      setTemplates(prev => [newT, ...prev]);
-      toast('Template created successfully!', 'success');
-    } else if (view === 'edit') {
-      setTemplates(prev => prev.map(t => t.id === selectedTemplate.id ? { ...t, ...formData } : t));
-      toast('Template updated successfully!', 'success');
+    setSaving(true);
+    try {
+      if (view === 'create') {
+        const res = await apiFetch('/admin/communications/templates', {
+          method: 'POST',
+          body: { name: formData.name, content: formData.content },
+        });
+        setTemplates(prev => [res, ...prev]);
+        toast('Template created successfully!', 'success');
+      } else if (view === 'edit') {
+        const res = await apiFetch(`/admin/communications/templates/${selectedTemplate.id}`, {
+          method: 'PUT',
+          body: { name: formData.name, content: formData.content },
+        });
+        setTemplates(prev => prev.map(t => t.id === selectedTemplate.id ? res : t));
+        toast('Template updated successfully!', 'success');
+      }
+    } catch {
+      toast('Failed to save template', 'error');
+    } finally {
+      setSaving(false);
     }
     setView('list');
   };
 
-  const handleDelete = () => {
-    setTemplates(prev => prev.filter(t => t.id !== selectedTemplate.id));
-    toast('Template deleted.', 'success');
+  const handleDelete = async () => {
+    try {
+      await apiFetch(`/admin/communications/templates/${selectedTemplate.id}`, { method: 'DELETE' });
+      setTemplates(prev => prev.filter(t => t.id !== selectedTemplate.id));
+      toast('Template deleted.', 'success');
+    } catch {
+      toast('Failed to delete template', 'error');
+    }
     setDeleteModalOpen(false);
   };
+
 
   if (view === 'create' || view === 'edit') {
     return (
@@ -164,8 +193,8 @@ function AdminTemplates() {
                   <label className="text-[10px] font-bold text-slate-400 mb-2 block uppercase tracking-widest">Template Name</label>
                   <input 
                     type="text"
-                    value={formData.label}
-                    onChange={e => setFormData({...formData, label: e.target.value})}
+                    value={formData.name}
+                    onChange={e => setFormData({...formData, name: e.target.value})}
                     className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-base font-bold px-4 py-3.5 rounded-xl outline-none focus:bg-white focus:ring-2 focus:ring-sky-100 focus:border-sky-300 transition-all"
                     placeholder="e.g. Appointment Reminder"
                   />
@@ -183,8 +212,8 @@ function AdminTemplates() {
                       <button className="text-slate-600 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-xs font-bold px-2.5 py-1 rounded-lg transition-colors shadow-sm">{'[Time]'}</button>
                     </div>
                     <textarea 
-                      value={formData.text}
-                      onChange={e => setFormData({...formData, text: e.target.value})}
+                      value={formData.content}
+                      onChange={e => setFormData({...formData, content: e.target.value})}
                       rows="12"
                       className="w-full bg-white text-slate-700 text-sm px-4 py-4 outline-none resize-y font-mono"
                       placeholder="Type your message template here..."
@@ -192,7 +221,7 @@ function AdminTemplates() {
                   </div>
                   <div className="flex justify-between mt-2">
                     <p className="text-[10px] text-slate-400"><i className="fas fa-info-circle mr-1"></i> SMS messages over 160 characters may be split.</p>
-                    <p className={`text-xs font-bold ${formData.text.length > 160 && formData.type !== 'email' ? 'text-amber-500' : 'text-slate-400'}`}>{formData.text.length} chars</p>
+                    <p className={`text-xs font-bold ${(formData.content || '').length > 160 && formData.type !== 'email' ? 'text-amber-500' : 'text-slate-400'}`}>{(formData.content || '').length} chars</p>
                   </div>
                 </div>
               </div>

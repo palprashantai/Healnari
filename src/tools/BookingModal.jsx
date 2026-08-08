@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StepIndicator } from '../components/StepIndicator.jsx';
 import { markLeadCaptured } from './leadCapture.js';
+import { todayLocalStr } from '../lib/dateUtils.js';
 
 const STEP_FIELDS = [
   ['doctor', 'concern'],
@@ -33,7 +34,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
   }, [selectedDoc]);
 
   // Set the minimum selectable date to today's date
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = todayLocalStr();
 
   const doctorsList = [
     'Dr. Ananya Mehta',
