@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { Tilt3D } from '../../components/Tilt3D.jsx';
+import { apiFetch } from '../../lib/apiClient.js';
 
 const TODAY_ISO = new Date().toISOString().slice(0, 10);
 const DAY_MS = 86400000;
@@ -179,14 +180,17 @@ function AIAssistantModal({ isOpen, onClose, patient }) {
 function KYCModal({ isOpen, onClose, toast, onVerify }) {
   const [loading, setLoading] = useState(false);
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      onVerify();
+    try {
+      await onVerify();
       toast('Documents uploaded successfully. Pending admin verification.', 'success');
       onClose();
-    }, 1500);
+    } catch {
+      toast('Failed to submit KYC. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -279,6 +283,11 @@ function DoctorDashboard() {
   };
   const [urgentLab, setUrgentLab] = useState(null);
   const [callActive, setCallActive] = useState(false);
+  const [earnings, setEarnings] = useState(null);
+
+  useEffect(() => {
+    apiFetch('/billing/summary').then(setEarnings).catch(() => setEarnings(null));
+  }, []);
 
   const currentPatient = queue.find(q => q.status === 'In Progress');
   const nextPatient    = queue.find(q => q.status === 'Waiting');
@@ -481,12 +490,14 @@ function DoctorDashboard() {
              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 blur-2xl rounded-full -mr-10 -mt-10"></div>
              <div className="relative z-10">
                <div className="flex justify-between items-center mb-4">
-                 <h3 className="font-bold text-aubergine-100 text-sm">Week Earnings</h3>
+                 <h3 className="font-bold text-aubergine-100 text-sm">This Month's Earnings</h3>
                  <i className="fas fa-wallet text-aubergine-300"></i>
                </div>
-               <div className="text-3xl font-black mb-1">₹14,500</div>
-               <p className="text-xs text-aubergine-200 mb-4">+12% from last week</p>
-               <button className="w-full bg-white/20 hover:bg-white/30 text-white font-bold py-2 rounded-xl text-xs transition-colors border border-white/20">View Payouts</button>
+               <div className="text-3xl font-black mb-1">₹{(earnings?.thisMonth ?? 0).toLocaleString('en-IN')}</div>
+               <p className="text-xs text-aubergine-200 mb-4">
+                 {earnings ? `${earnings.thisMonthCount} paid consultation${earnings.thisMonthCount === 1 ? '' : 's'} this month` : 'Loading…'}
+               </p>
+               <button onClick={() => navigate('/doctor-dashboard/billing')} className="w-full bg-white/20 hover:bg-white/30 text-white font-bold py-2 rounded-xl text-xs transition-colors border border-white/20">View Payouts</button>
              </div>
           </div>
           </Tilt3D>

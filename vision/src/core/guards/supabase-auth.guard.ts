@@ -1,6 +1,5 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import * as jwt from 'jsonwebtoken';
 import { IS_PUBLIC_KEY } from '@/core/decorators/public.decorator';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 
@@ -26,17 +25,15 @@ export class SupabaseAuthGuard implements CanActivate {
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
     if (!token) throw new UnauthorizedException('Missing bearer token');
 
-    let payload: jwt.JwtPayload;
-    try {
-      payload = jwt.verify(token, process.env.SUPABASE_JWT_SECRET as string) as jwt.JwtPayload;
-    } catch {
+    const { data: userResponse, error } = await this.supabase.anon.auth.getUser(token);
+    if (error || !userResponse?.user) {
       throw new UnauthorizedException('Invalid or expired token');
     }
 
-    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', payload.sub).single();
+    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', userResponse.user.id).single();
     if (!profile) throw new UnauthorizedException('No profile for this account');
 
-    request.user = { id: profile.id, email: payload.email as string, profile };
+    request.user = { id: profile.id, email: userResponse.user.email, profile };
     return true;
   }
 }

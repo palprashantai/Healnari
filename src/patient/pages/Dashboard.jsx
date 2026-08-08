@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { StepIndicator } from '../../components/StepIndicator.jsx';
+import { apiFetch } from '../../lib/apiClient.js';
 
 /* ─── Dummy Data ─────────────────────────────── */
 const CYCLE_PHASES = [
@@ -16,14 +18,16 @@ const CYCLE_PHASES = [
 const SYMPTOMS = ['Cramps', 'Bloating', 'Headache', 'Fatigue', 'Mood Swings', 'Spotting', 'Nausea', 'Back Pain', 'Breast Tenderness', 'Acne'];
 
 /* ─── Sub-components ─────────────────────────── */
-function VideoCallModal({ isOpen, onClose, toast }) {
+function VideoCallModal({ isOpen, onClose, toast, appointment }) {
   const [callActive, setCallActive] = useState(false);
   const [muted, setMuted] = useState(false);
   const [videoOff, setVideoOff] = useState(false);
+  const doctorName = appointment ? `Dr. ${appointment.doctorName}` : 'your doctor';
+  const initials = appointment ? appointment.doctorName.split(' ').filter(w => w).map(w => w[0]).join('').slice(0, 2).toUpperCase() : '—';
 
   const handleJoin = () => {
     setCallActive(true);
-    toast('Connected to video call with Dr. Sarah Mitchell', 'success');
+    toast(`Connected to video call with ${doctorName}`, 'success');
   };
 
   const handleEnd = () => {
@@ -40,9 +44,9 @@ function VideoCallModal({ isOpen, onClose, toast }) {
             <i className="fas fa-video text-aubergine-700 text-3xl"></i>
           </div>
           <div>
-            <h4 className="font-black text-slate-800 text-xl">Dr. Sarah Mitchell</h4>
-            <p className="text-sm text-aubergine-600 font-semibold">Gynaecologist • Online</p>
-            <p className="text-xs text-slate-500 mt-1">Scheduled: Today 4:30 PM • 30 min consult</p>
+            <h4 className="font-black text-slate-800 text-xl">{doctorName}</h4>
+            <p className="text-sm text-aubergine-600 font-semibold">{appointment?.reason || 'Consultation'}</p>
+            <p className="text-xs text-slate-500 mt-1">Scheduled: {appointment ? `${appointment.date} ${appointment.time}` : '—'} • 30 min consult</p>
           </div>
           <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs text-slate-600 space-y-2 text-left">
             <div className="flex items-center gap-2"><i className="fas fa-shield-halved text-emerald-500"></i> Private, doctor-only session</div>
@@ -59,8 +63,8 @@ function VideoCallModal({ isOpen, onClose, toast }) {
           <div className="relative bg-slate-900 rounded-2xl overflow-hidden aspect-video flex items-center justify-center">
             <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
               <div className="text-center">
-                <div className="w-20 h-20 rounded-full bg-aubergine-700 flex items-center justify-center text-3xl font-black text-white mx-auto mb-3">SM</div>
-                <p className="text-white font-bold">Dr. Sarah Mitchell</p>
+                <div className="w-20 h-20 rounded-full bg-aubergine-700 flex items-center justify-center text-3xl font-black text-white mx-auto mb-3">{initials}</div>
+                <p className="text-white font-bold">{doctorName}</p>
                 <p className="text-slate-500 text-xs mt-1">● Live • 00:01:24</p>
               </div>
             </div>
@@ -159,61 +163,98 @@ function SymptomCheckerModal({ isOpen, onClose, toast }) {
 }
 
 function LabReportsModal({ isOpen, onClose }) {
-  const LABS = [
-    { name: 'Testosterone (Total)', value: '68 ng/dL', ref: '15–70 ng/dL', status: 'normal' },
-    { name: 'LH : FSH Ratio', value: '2.8 : 1', ref: '< 2 : 1 (normal)', status: 'high' },
-    { name: 'Fasting Insulin', value: '14 mU/L', ref: '< 10 mU/L', status: 'high' },
-    { name: 'HbA1c', value: '5.4%', ref: '< 5.7%', status: 'normal' },
-    { name: 'TSH', value: '2.1 mIU/L', ref: '0.4–4.0 mIU/L', status: 'normal' },
-    { name: 'Vitamin D', value: '18 ng/mL', ref: '> 30 ng/mL', status: 'low' },
-  ];
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const STATUS = { normal: 'text-emerald-600 bg-emerald-50', high: 'text-rose-600 bg-rose-50', low: 'text-amber-600 bg-amber-50' };
-  const PLAIN_LANGUAGE = {
-    normal: 'Within the healthy range — no action needed.',
-    high: 'Above the healthy range. Your doctor will review this with you.',
-    low: 'Below the healthy range. Your doctor will review this with you.',
-  };
+  useEffect(() => {
+    if (!isOpen) return;
+    setLoading(true);
+    apiFetch('/records/lab-reports').then(setReports).catch(() => setReports([])).finally(() => setLoading(false));
+  }, [isOpen]);
+
+  const latest = reports[0];
+  const results = latest?.results && typeof latest.results === 'object' ? Object.entries(latest.results) : [];
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Hormonal Panel — Aug 2026" size="lg">
-      <div className="space-y-3">
-        <p className="text-xs text-slate-500 mb-4">Ordered by Dr. Ritu Khanna • Lal PathLabs • 3 Aug 2026</p>
-        {LABS.map(lab => (
-          <div key={lab.name} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-bold text-slate-800 text-sm">{lab.name}</p>
-                <p className="text-xs text-slate-500">Ref: {lab.ref}</p>
-              </div>
-              <div className="text-right">
-                <p className="font-black text-slate-800">{lab.value}</p>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${STATUS[lab.status]}`}>
-                  {lab.status.toUpperCase()}
-                </span>
+    <Modal isOpen={isOpen} onClose={onClose} title={latest ? latest.test_name : 'Lab Reports'} size="lg">
+      {loading ? (
+        <p className="text-sm text-slate-400 text-center py-8"><i className="fas fa-spinner fa-spin mr-2"></i>Loading…</p>
+      ) : !latest ? (
+        <p className="text-sm text-slate-500 text-center py-8">No lab reports on file yet.</p>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-xs text-slate-500 mb-4">
+            {latest.lab_name || 'Lab'} • {new Date(latest.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+            {latest.status === 'Pending' && <span className="ml-2 text-amber-600 font-bold">Pending Review</span>}
+          </p>
+          {results.length === 0 ? (
+            <p className="text-xs text-slate-500">Results not uploaded yet.</p>
+          ) : results.map(([param, v]) => (
+            <div key={param} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="flex items-center justify-between">
+                <p className="font-bold text-slate-800 text-sm">{param}</p>
+                <div className="text-right">
+                  <p className="font-black text-slate-800">{v.value ?? '—'}</p>
+                  {v.status && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${v.status === 'normal' ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'}`}>
+                      {v.status.toUpperCase()}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-            <p className="text-xs text-slate-500 mt-2 pt-2 border-t border-slate-200/70">
-              <i className="fas fa-circle-info text-slate-500 mr-1"></i>{PLAIN_LANGUAGE[lab.status]}
-            </p>
-          </div>
-        ))}
-        <p className="text-[10px] text-slate-500 pt-2 border-t border-slate-100">Reviewed by Dr. Sarah Mitchell on 5 Aug 2026. Repeat panel recommended in 3 months.</p>
-      </div>
+          ))}
+          {latest.interpretation && (
+            <p className="text-xs text-slate-600 pt-2 border-t border-slate-100"><i className="fas fa-circle-info text-slate-500 mr-1"></i>{latest.interpretation}</p>
+          )}
+        </div>
+      )}
     </Modal>
   );
 }
 
-function QuickBookModal({ isOpen, onClose, toast }) {
+function QuickBookModal({ isOpen, onClose, toast, addAppointment }) {
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ doctor: '', type: 'Video', date: '', slot: '' });
-  const DOCTORS = ['Dr. Sarah Mitchell (Gynaecologist)', 'Dr. Ananya Mehta (Endocrinologist)', 'Dr. Ritu Khanna (Thyroid)', 'Dr. Shreya Verma (Dermatologist)'];
-  const SLOTS = ['9:00 AM', '10:30 AM', '12:00 PM', '3:00 PM', '4:30 PM', '6:00 PM'];
+  const [doctors, setDoctors] = useState([]);
+  const [form, setForm] = useState({ doctorId: '', type: 'Video', date: '', slot: '' });
+  const [slots, setSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [booking, setBooking] = useState(false);
 
-  const confirm = () => {
-    onClose();
-    toast('Appointment booked! Confirmation SMS sent.', 'success');
-    setStep(1); setForm({ doctor: '', type: 'Video', date: '', slot: '' });
+  useEffect(() => {
+    if (isOpen) apiFetch('/doctors/search').then(setDoctors).catch(() => setDoctors([]));
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!form.doctorId || !form.date) return;
+    setSlotsLoading(true);
+    setForm(p => ({ ...p, slot: '' }));
+    apiFetch(`/doctors/${form.doctorId}/slots?date=${form.date}`)
+      .then(res => setSlots(res.availableSlots || []))
+      .catch(() => setSlots([]))
+      .finally(() => setSlotsLoading(false));
+  }, [form.doctorId, form.date]);
+
+  const selectedDoctor = doctors.find(d => d.id === form.doctorId);
+
+  const confirm = async () => {
+    setBooking(true);
+    try {
+      await addAppointment({
+        doctorId: form.doctorId,
+        type: form.type === 'Video' ? 'Video Consult' : 'Clinic Visit',
+        date: form.date,
+        time: form.slot,
+        reason: '',
+      });
+      onClose();
+      toast('Appointment booked! Confirmation SMS sent.', 'success');
+      setStep(1); setForm({ doctorId: '', type: 'Video', date: '', slot: '' });
+    } catch (err) {
+      toast(err.message || 'Failed to book appointment.', 'error');
+    } finally {
+      setBooking(false);
+    }
   };
 
   return (
@@ -223,10 +264,10 @@ function QuickBookModal({ isOpen, onClose, toast }) {
         <div className="space-y-4 mt-3">
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1.5 block">Select Doctor</label>
-            <select value={form.doctor} onChange={e => setForm(p => ({ ...p, doctor: e.target.value }))}
+            <select value={form.doctorId} onChange={e => setForm(p => ({ ...p, doctorId: e.target.value }))}
               className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
               <option value="">-- Choose a specialist --</option>
-              {DOCTORS.map(d => <option key={d}>{d}</option>)}
+              {doctors.map(d => <option key={d.id} value={d.id}>{d.full_name} ({d.specialty || 'Specialist'})</option>)}
             </select>
           </div>
           <div>
@@ -246,7 +287,7 @@ function QuickBookModal({ isOpen, onClose, toast }) {
               min={new Date().toISOString().split('T')[0]}
               className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
           </div>
-          <button disabled={!form.doctor || !form.date} onClick={() => setStep(2)}
+          <button disabled={!form.doctorId || !form.date} onClick={() => setStep(2)}
             className="w-full bg-aubergine-600 disabled:opacity-40 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
             See Available Slots →
           </button>
@@ -255,24 +296,30 @@ function QuickBookModal({ isOpen, onClose, toast }) {
       {step === 2 && (
         <div className="space-y-4 mt-3">
           <p className="text-sm font-bold text-slate-700">Available slots for {form.date}:</p>
-          <div className="grid grid-cols-3 gap-2">
-            {SLOTS.map(slot => (
-              <button key={slot} onClick={() => setForm(p => ({ ...p, slot }))}
-                className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${form.slot === slot ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-aubergine-300'}`}>
-                {slot}
-              </button>
-            ))}
-          </div>
+          {slotsLoading ? (
+            <p className="text-xs text-slate-400 py-2"><i className="fas fa-spinner fa-spin mr-1.5"></i>Loading slots…</p>
+          ) : slots.length === 0 ? (
+            <p className="text-xs text-slate-500 py-2">No slots left for this date — go back and try another date.</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {slots.map(slot => (
+                <button key={slot} onClick={() => setForm(p => ({ ...p, slot }))}
+                  className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${form.slot === slot ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-aubergine-300'}`}>
+                  {slot}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-3 text-xs text-aubergine-800 space-y-1">
-            <p className="font-bold">{form.doctor}</p>
+            <p className="font-bold">{selectedDoctor?.full_name}</p>
             <p>{form.type} • {form.date} • {form.slot || 'No slot selected'}</p>
-            <p className="text-aubergine-600">Fee: ₹799 (Standard Consult)</p>
+            <p className="text-aubergine-600">Fee: ₹{selectedDoctor?.consultation_fee || 799} (Standard Consult)</p>
           </div>
           <div className="flex gap-3">
-            <button onClick={() => setStep(1)} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors">← Back</button>
-            <button disabled={!form.slot} onClick={confirm}
+            <button onClick={() => setStep(1)} disabled={booking} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors disabled:opacity-40">← Back</button>
+            <button disabled={!form.slot || booking} onClick={confirm}
               className="flex-1 bg-emerald-600 disabled:opacity-40 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
-              Confirm Booking ✓
+              {booking ? 'Booking…' : 'Confirm Booking ✓'}
             </button>
           </div>
         </div>
@@ -283,16 +330,23 @@ function QuickBookModal({ isOpen, onClose, toast }) {
 
 /* ─── Cycle Dashboard ────────────────────────── */
 function CycleDashboardView({ toast }) {
+  const { logCycle } = useClinicData();
   const [currentPhase, setCurrentPhase] = useState('ovulation');
-  const todayKey = `cycle_logged_${new Date().toISOString().slice(0, 10)}`;
-  const [loggedToday, setLoggedToday] = useState(() => localStorage.getItem(todayKey) === 'true');
+  const dateKey = new Date().toISOString().slice(0, 10);
+  const todayFlagKey = `cycle_logged_${dateKey}`;
+  const [loggedToday, setLoggedToday] = useState(() => localStorage.getItem(todayFlagKey) === 'true');
 
   const phase = CYCLE_PHASES.find(p => p.id === currentPhase);
 
-  const logToday = () => {
-    localStorage.setItem(todayKey, 'true');
-    setLoggedToday(true);
-    toast(`Logged today as ${phase.label} phase.`, 'success');
+  const logToday = async () => {
+    try {
+      await logCycle(dateKey, { phase: phase.id });
+      localStorage.setItem(todayFlagKey, 'true');
+      setLoggedToday(true);
+      toast(`Logged today as ${phase.label} phase.`, 'success');
+    } catch {
+      toast('Failed to save today\'s log. Please try again.', 'error');
+    }
   };
 
   return (
@@ -348,8 +402,11 @@ function CycleDashboardView({ toast }) {
 }
 
 function OnboardingModal({ isOpen, onClose, toast }) {
+  const { patients, updatePatient } = useClinicData();
+  const own = patients?.[0];
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({ age: '', height: '', weight: '', bloodGroup: '', conditions: [] });
+  const [saving, setSaving] = useState(false);
 
   const CONDITIONS = ['PCOS / PCOD', 'Endometriosis', 'Thyroid Issues', 'Diabetes', 'Hypertension', 'None'];
 
@@ -358,9 +415,29 @@ function OnboardingModal({ isOpen, onClose, toast }) {
     conditions: p.conditions.includes(c) ? p.conditions.filter(x => x !== c) : [...p.conditions, c]
   }));
 
-  const handleComplete = () => {
-    toast('Profile setup complete! Welcome to HealNari.', 'success');
-    onClose();
+  const handleComplete = async () => {
+    if (!own) { onClose(); return; }
+    setSaving(true);
+    try {
+      // Onboarding only asks for age, not an exact birthdate — approximate a
+      // dob (Jan 1 of the birth year) so the record has something to compute
+      // age from elsewhere, rather than discarding the answer entirely.
+      const dob = form.age ? `${new Date().getFullYear() - Number(form.age)}-01-01` : own.dob;
+      await updatePatient({
+        ...own,
+        dob,
+        blood: form.bloodGroup || own.blood,
+        height: form.height || own.height,
+        weight: form.weight || own.weight,
+        medicalHistory: { ...own.medicalHistory, chronicConditions: form.conditions.filter(c => c !== 'None') },
+      });
+      toast('Profile setup complete! Welcome to HealNari.', 'success');
+      onClose();
+    } catch {
+      toast('Could not save your profile right now. Please try again.', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -416,9 +493,9 @@ function OnboardingModal({ isOpen, onClose, toast }) {
               </button>
             ))}
           </div>
-          <button onClick={handleComplete}
-            className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-            <i className="fas fa-check"></i> Complete Profile
+          <button onClick={handleComplete} disabled={saving}
+            className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+            <i className={`fas ${saving ? 'fa-spinner fa-spin' : 'fa-check'}`}></i> {saving ? 'Saving…' : 'Complete Profile'}
           </button>
           <button onClick={onClose} className="w-full text-center text-xs text-slate-500 hover:text-slate-600 font-semibold">
             Skip for now
@@ -432,6 +509,7 @@ function OnboardingModal({ isOpen, onClose, toast }) {
 /* ─── Main Dashboard ─────────────────────────── */
 function PatientDashboard() {
   const { user } = useAuth();
+  const { appointments, patients, addAppointment } = useClinicData();
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -439,6 +517,21 @@ function PatientDashboard() {
   const [showSymptomChecker, setShowSymptomChecker] = useState(false);
   const [showLabReports, setShowLabReports] = useState(false);
   const [showQuickBook, setShowQuickBook] = useState(false);
+  const [pendingReportCount, setPendingReportCount] = useState(0);
+
+  useEffect(() => {
+    apiFetch('/records/lab-reports')
+      .then(reports => setPendingReportCount(reports.filter(r => r.status === 'Pending').length))
+      .catch(() => setPendingReportCount(0));
+  }, []);
+
+  const own = patients?.[0];
+  const upcomingAppointments = (appointments || [])
+    .filter(a => !['Done', 'Cancelled', 'No Show'].includes(a.status))
+    .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || ''));
+  const nextAppointment = upcomingAppointments[0];
+  const daysToNext = nextAppointment ? Math.max(0, Math.ceil((new Date(nextAppointment.date) - new Date(new Date().toDateString())) / 86400000)) : null;
+  const activePrescriptionCount = (own?.meds || []).length;
   // The profile ask no longer blocks the very first paint — it waits for the dashboard
   // itself to render, then offers an inline, dismissible invite instead of a forced modal.
   const [onboardingDone, setOnboardingDone] = useState(() => localStorage.getItem('healnari_onboarding_done') === 'true');
@@ -507,11 +600,13 @@ function PatientDashboard() {
             Welcome back, {user?.name?.split(' ')[0] || 'Priya'}! 👋
           </h1>
           <p className="text-aubergine-100 text-lg max-w-xl">
-            Your next consultation with Dr. Sarah Mitchell is in <span className="font-black text-white">3 days</span>. Stay on track!
+            {nextAppointment
+              ? <>Your next consultation with {nextAppointment.doctorName} is in <span className="font-black text-white">{daysToNext === 0 ? 'today' : `${daysToNext} day${daysToNext === 1 ? '' : 's'}`}</span>. Stay on track!</>
+              : "You don't have any upcoming consultations booked. Ready to book one?"}
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <button onClick={() => setShowVideoCall(true)}
-              className="bg-white text-aubergine-900 hover:bg-sand-50 font-black px-6 py-3 rounded-xl shadow-lg transition-all text-sm flex items-center gap-2 hover:scale-105">
+            <button onClick={() => setShowVideoCall(true)} disabled={!nextAppointment || nextAppointment.type !== 'Video Consult'}
+              className="bg-white text-aubergine-900 hover:bg-sand-50 disabled:opacity-40 font-black px-6 py-3 rounded-xl shadow-lg transition-all text-sm flex items-center gap-2 hover:scale-105">
               <i className="fas fa-video"></i> Join Upcoming Call
             </button>
             <button onClick={() => setShowQuickBook(true)}
@@ -525,10 +620,10 @@ function PatientDashboard() {
       {/* Stats strip — held still so the numbers are legible to scan at a glance */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Next Appointment', value: '3 Days', icon: 'fa-calendar', color: 'text-aubergine-600 bg-aubergine-50', onClick: () => navigate('/patient-dashboard/appointments') },
-          { label: 'Active Prescriptions', value: '2 Rx', icon: 'fa-pills', color: 'text-emerald-600 bg-emerald-50', onClick: () => navigate('/patient-dashboard/prescriptions') },
-          { label: 'Health Score', value: '82/100', icon: 'fa-heart-pulse', color: 'text-rose-600 bg-rose-50', onClick: () => navigate('/patient-dashboard/tracking') },
-          { label: 'Unread Reports', value: '1 New', icon: 'fa-file-medical', color: 'text-sky-600 bg-sky-50', onClick: () => setShowLabReports(true) },
+          { label: 'Next Appointment', value: nextAppointment ? (daysToNext === 0 ? 'Today' : `${daysToNext}d`) : 'None', icon: 'fa-calendar', color: 'text-aubergine-600 bg-aubergine-50', onClick: () => navigate('/patient-dashboard/appointments') },
+          { label: 'Active Prescriptions', value: `${activePrescriptionCount} Rx`, icon: 'fa-pills', color: 'text-emerald-600 bg-emerald-50', onClick: () => navigate('/patient-dashboard/prescriptions') },
+          { label: 'Total Visits', value: (appointments || []).filter(a => a.status === 'Done').length, icon: 'fa-heart-pulse', color: 'text-rose-600 bg-rose-50', onClick: () => navigate('/patient-dashboard/appointments') },
+          { label: 'Lab Reports Pending', value: pendingReportCount, icon: 'fa-file-medical', color: 'text-sky-600 bg-sky-50', onClick: () => setShowLabReports(true) },
         ].map(stat => (
           <button key={stat.label} onClick={stat.onClick}
             className="w-full bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-aubergine-200 transition-all group text-left">
@@ -610,30 +705,30 @@ function PatientDashboard() {
                 className="text-xs text-aubergine-600 font-semibold hover:underline">View All</button>
             </h3>
             <div className="space-y-3">
-              {[
-                { name: 'Dr. Sarah Mitchell', spec: 'Gynaecology', date: 'Mon, 10 Aug', time: '10:30 AM', type: 'video' },
-                { name: 'Dr. Ritu Khanna', spec: 'Endocrinology', date: 'Tue, 25 Aug', time: '11:15 AM', type: 'clinic' },
-              ].map(apt => (
-                <div key={apt.name} className="p-3.5 rounded-xl border border-aubergine-100 bg-aubergine-50/40 hover:bg-aubergine-50 transition-colors cursor-pointer"
+              {upcomingAppointments.slice(0, 2).map(apt => (
+                <div key={apt.id} className="p-3.5 rounded-xl border border-aubergine-100 bg-aubergine-50/40 hover:bg-aubergine-50 transition-colors cursor-pointer"
                   onClick={() => navigate('/patient-dashboard/appointments')}>
                   <div className="flex items-center gap-3 mb-2">
                     <div className="w-9 h-9 rounded-full bg-aubergine-200 overflow-hidden flex-shrink-0 flex items-center justify-center font-black text-aubergine-700 text-sm">
-                      {apt.name.split(' ')[1]?.[0]}{apt.name.split(' ')[2]?.[0]}
+                      {apt.doctorName.split(' ').filter(w => w).map(w => w[0]).join('').slice(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <h4 className="font-bold text-sm text-slate-800">{apt.name}</h4>
-                      <p className="text-xs text-aubergine-600 font-medium">{apt.spec}</p>
+                      <h4 className="font-bold text-sm text-slate-800">Dr. {apt.doctorName}</h4>
+                      <p className="text-xs text-aubergine-600 font-medium">{apt.reason || 'Consultation'}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 text-xs text-slate-600 font-medium">
-                    <span className="flex items-center gap-1"><i className="fas fa-calendar text-aubergine-400"></i>{apt.date}</span>
+                    <span className="flex items-center gap-1"><i className="fas fa-calendar text-aubergine-400"></i>{apt.date ? new Date(apt.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) : '—'}</span>
                     <span className="flex items-center gap-1"><i className="fas fa-clock text-aubergine-400"></i>{apt.time}</span>
-                    <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold ${apt.type === 'video' ? 'bg-sky-50 text-sky-600 border border-sky-100' : 'bg-slate-100 text-slate-600'}`}>
-                      <i className={`fas ${apt.type === 'video' ? 'fa-video' : 'fa-hospital'} mr-1`}></i>{apt.type === 'video' ? 'Video' : 'Clinic'}
+                    <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold ${apt.type === 'Video Consult' ? 'bg-sky-50 text-sky-600 border border-sky-100' : 'bg-slate-100 text-slate-600'}`}>
+                      <i className={`fas ${apt.type === 'Video Consult' ? 'fa-video' : 'fa-hospital'} mr-1`}></i>{apt.type === 'Video Consult' ? 'Video' : 'Clinic'}
                     </span>
                   </div>
                 </div>
               ))}
+              {upcomingAppointments.length === 0 && (
+                <p className="text-xs text-slate-500 text-center py-6">No upcoming visits. <button onClick={() => setShowQuickBook(true)} className="text-aubergine-600 font-bold hover:underline">Book one now</button></p>
+              )}
             </div>
           </div>
 
@@ -684,10 +779,10 @@ function PatientDashboard() {
 
       {/* Modals */}
       {showOnboarding && <OnboardingModal isOpen={showOnboarding} onClose={dismissOnboarding} toast={toast} />}
-      <VideoCallModal isOpen={showVideoCall} onClose={() => setShowVideoCall(false)} toast={toast} />
+      <VideoCallModal isOpen={showVideoCall} onClose={() => setShowVideoCall(false)} toast={toast} appointment={nextAppointment} />
       <SymptomCheckerModal isOpen={showSymptomChecker} onClose={() => setShowSymptomChecker(false)} toast={toast} />
       <LabReportsModal isOpen={showLabReports} onClose={() => setShowLabReports(false)} />
-      <QuickBookModal isOpen={showQuickBook} onClose={() => setShowQuickBook(false)} toast={toast} />
+      <QuickBookModal isOpen={showQuickBook} onClose={() => setShowQuickBook(false)} toast={toast} addAppointment={addAppointment} />
     </div>
   );
 }

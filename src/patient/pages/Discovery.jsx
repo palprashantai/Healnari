@@ -1,42 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
+import { apiFetch } from '../../lib/apiClient.js';
 
-/* ─── Data ───────────────────────────────────── */
-const TEAM_MEMBERS = [
-  { id: 1, name: 'Dr. Ananya Mehta', role: 'Reproductive Endocrinologist', specialty: 'Endocrinology', regNo: 'MCI-15201', exp: '15 Years', rating: 4.9, reviews: 184, fee: 799, lang: ['English', 'Hindi'], image: '/generated/doc1.png', about: 'Specializes in PCOS/PCOD reversal, insulin resistance protocols, and metabolic restoration.', ethos: ['Unmarried-Friendly', 'Weight-Neutral Care', 'Queer-Allied'], collab: 'Works alongside Dr. Sarah Mitchell to coordinate hormonal therapy and cycle restoration.', slots: ['Today 4:30 PM', 'Tomorrow 10:00 AM', 'Tomorrow 2:00 PM'], online: true },
-  { id: 2, name: 'Dr. Sarah Mitchell', role: 'Lead Obstetrician & Gynaecologist', specialty: 'Gynaecology', regNo: 'MCI-29402', exp: '12 Years', rating: 4.9, reviews: 215, fee: 799, lang: ['English'], image: '/generated/doc2.png', about: 'Expert in menstrual irregularities, endometriosis management, and adolescent gynaecology.', ethos: ['Non-Judgmental Care', 'Trauma-Informed', 'Confidential Care'], collab: 'Coordinates metabolic lab panels with Dr. Ritu Khanna for holistic PCOS diagnosis.', slots: ['Today 5:00 PM', 'Thu 10:30 AM', 'Fri 11:00 AM'], online: true },
-  { id: 3, name: 'Dr. Ritu Khanna', role: 'Consultant Endocrinologist', specialty: 'Endocrinology', regNo: 'MCI-92810', exp: '12 Years', rating: 4.8, reviews: 142, fee: 899, lang: ['English', 'Hindi', 'Punjabi'], image: '/generated/doc3.png', about: 'Specialist in Thyroid disorders, insulin sensitizing therapy, and hormonal profile management.', ethos: ['Evidence-Based', 'Root-Cause Focus', 'Body-Positive'], collab: 'Works with Dr. Shreya Verma to address hormone-induced alopecia and severe acne.', slots: ['Tomorrow 9:00 AM', 'Fri 3:00 PM'], online: false },
-  { id: 4, name: 'Dr. Shreya Verma', role: 'Dermatologist & Trichologist', specialty: 'Dermatology', regNo: 'MCI-33821', exp: '10 Years', rating: 4.7, reviews: 98, fee: 699, lang: ['English', 'Hindi'], image: '/generated/doc4.png', about: 'Expert in androgenetic alopecia (hair thinning) and hormonal cystic acne management.', ethos: ['Trauma-Informed', 'Clinical Skin Health', 'Confidential Care'], collab: 'Coordinates thyroid-related hair fall treatments alongside Dr. Ritu Khanna.', slots: ['Thu 1:00 PM', 'Fri 4:00 PM', 'Sat 10:00 AM'], online: true },
-  { id: 5, name: 'Dr. Priya Nair', role: 'Reproductive & Sexual Health Expert', specialty: 'Sexual Health', regNo: 'MCI-77290', exp: '18 Years', rating: 4.9, reviews: 310, fee: 799, lang: ['English', 'Malayalam'], image: '/generated/doc1.png', about: 'Specializes in sexual health, pre-conception counselling, and fertility management.', ethos: ['LGBTQ+ Allied', 'Sex-Positive Care', 'Non-Judgmental Care'], collab: 'Works with Dr. Ananya Mehta to align ovulation tracking with fertility windows.', slots: ['Today 6:00 PM', 'Tomorrow 11:00 AM'], online: true },
-];
-
-const SPECIALTIES = ['All', 'Gynaecology', 'Endocrinology', 'Dermatology', 'Sexual Health'];
-
-/* ─── Stars ──────────────────────────────────── */
-function Stars({ rating }) {
-  return (
-    <span className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map(i => (
-        <i key={i} className={`fas fa-star text-[10px] ${i <= Math.round(rating) ? 'text-amber-400' : 'text-slate-200'}`}></i>
-      ))}
-    </span>
-  );
-}
+const PAYMENT_METHODS = ['UPI', 'Card', 'Net Banking', 'Wallet'];
 
 /* ─── Booking Modal ──────────────────────────── */
-function BookingModal({ doc, isOpen, onClose, toast }) {
+function BookingModal({ doc, isOpen, onClose, toast, addAppointment }) {
   const [step, setStep] = useState(1);
-  const [slot, setSlot] = useState('');
   const [type, setType] = useState('Video Consult');
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [slot, setSlot] = useState('');
+  const [slots, setSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [notes, setNotes] = useState('');
+  const [method, setMethod] = useState('UPI');
+  const [booking, setBooking] = useState(false);
+  const [bookedApt, setBookedApt] = useState(null);
 
-  const confirm = () => {
-    setStep(3);
-    toast(`Appointment booked with ${doc?.name}!`, 'success');
+  useEffect(() => {
+    if (!doc || !date) return;
+    setSlot('');
+    setSlotsLoading(true);
+    apiFetch(`/doctors/${doc.id}/slots?date=${date}`)
+      .then(res => setSlots(res.availableSlots || []))
+      .catch(() => setSlots([]))
+      .finally(() => setSlotsLoading(false));
+  }, [doc, date]);
+
+  const confirm = async () => {
+    setBooking(true);
+    try {
+      const apt = await addAppointment({
+        doctorId: doc.id,
+        type,
+        date,
+        time: slot,
+        reason: notes,
+      });
+      await apiFetch('/billing/pay', { method: 'POST', body: { appointmentId: apt.id, method } });
+      setBookedApt(apt);
+      setStep(3);
+      toast(`Appointment booked with ${doc?.name}!`, 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to book appointment. Please try again.', 'error');
+    } finally {
+      setBooking(false);
+    }
   };
 
-  const reset = () => { setStep(1); setSlot(''); setNotes(''); onClose(); };
+  const reset = () => { setStep(1); setSlot(''); setNotes(''); setBookedApt(null); onClose(); };
 
   if (!doc) return null;
   return (
@@ -44,10 +58,12 @@ function BookingModal({ doc, isOpen, onClose, toast }) {
       {/* Custom Header */}
       <div className="-mx-6 -mt-6 px-6 py-5 bg-gradient-to-r from-aubergine-900 to-aubergine-700 text-white mb-5 rounded-t-3xl">
         <div className="flex items-center gap-4">
-          <img src={doc.image} alt={doc.name} className="w-12 h-12 rounded-2xl border-2 border-white/30 object-cover" />
+          <div className="w-12 h-12 rounded-2xl border-2 border-white/30 bg-white/10 flex items-center justify-center font-black text-lg flex-shrink-0">
+            {doc.name.split(' ').filter(w => w).map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+          </div>
           <div>
             <h3 className="font-black text-lg">{doc.name}</h3>
-            <p className="text-xs text-aubergine-200">{doc.role}</p>
+            <p className="text-xs text-aubergine-200">{doc.specialty || 'Specialist'}</p>
           </div>
           <button onClick={reset} className="ml-auto text-white/60 hover:text-white"><i className="fas fa-xmark text-xl"></i></button>
         </div>
@@ -74,17 +90,30 @@ function BookingModal({ doc, isOpen, onClose, toast }) {
             </div>
           </div>
 
+          {/* Date */}
+          <div>
+            <label className="text-xs font-bold text-slate-500 mb-1.5 block">Date</label>
+            <input type="date" value={date} min={new Date().toISOString().slice(0, 10)} onChange={e => setDate(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+          </div>
+
           {/* Slots */}
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1.5 block">Available Slots</label>
-            <div className="grid grid-cols-2 gap-2">
-              {doc.slots.map(s => (
-                <button key={s} onClick={() => setSlot(s)}
-                  className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-all ${slot === s ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-aubergine-300'}`}>
-                  {s}
-                </button>
-              ))}
-            </div>
+            {slotsLoading ? (
+              <p className="text-xs text-slate-400 py-2"><i className="fas fa-spinner fa-spin mr-1.5"></i>Loading slots…</p>
+            ) : slots.length === 0 ? (
+              <p className="text-xs text-slate-500 py-2">No slots left for this date — try another date.</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {slots.map(s => (
+                  <button key={s} onClick={() => setSlot(s)}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-all ${slot === s ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-aubergine-300'}`}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Notes */}
@@ -107,16 +136,30 @@ function BookingModal({ doc, isOpen, onClose, toast }) {
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-2">
             <div className="flex justify-between"><span className="text-slate-500">Doctor</span><span className="font-bold text-slate-800">{doc.name}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Type</span><span className="font-bold text-slate-800">{type}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">Date</span><span className="font-bold text-slate-800">{date}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Slot</span><span className="font-bold text-slate-800">{slot}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Fee</span><span className="font-black text-aubergine-800">₹{doc.fee}</span></div>
             <p className="text-[10px] text-slate-500 pt-2 border-t border-slate-200">
               🔒 Private & confidential. Governed under NMC Telemedicine Guidelines, India.
             </p>
           </div>
+
+          <div>
+            <label className="text-xs font-bold text-slate-500 mb-1.5 block">Payment Method</label>
+            <div className="grid grid-cols-2 gap-2">
+              {PAYMENT_METHODS.map(m => (
+                <button key={m} onClick={() => setMethod(m)}
+                  className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${method === m ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex gap-3">
-            <button onClick={() => setStep(1)} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors">← Back</button>
-            <button onClick={confirm} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-              <i className="fas fa-lock text-xs"></i> Pay & Book
+            <button onClick={() => setStep(1)} disabled={booking} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors disabled:opacity-40">← Back</button>
+            <button onClick={confirm} disabled={booking} className="flex-1 bg-emerald-600 disabled:opacity-40 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+              {booking ? <i className="fas fa-spinner fa-spin text-xs"></i> : <i className="fas fa-lock text-xs"></i>} {booking ? 'Booking…' : 'Pay & Book'}
             </button>
           </div>
         </div>
@@ -129,10 +172,11 @@ function BookingModal({ doc, isOpen, onClose, toast }) {
           </div>
           <h4 className="font-black text-slate-800 text-xl">Appointment Booked!</h4>
           <p className="text-sm text-slate-500 leading-relaxed">
-            A confirmation SMS and calendar invite has been sent to your registered number.
+            Your consultation has been confirmed and payment recorded.
           </p>
           <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-xs text-left space-y-1.5">
             <div className="flex justify-between"><span className="text-slate-500">With</span><span className="font-bold">{doc.name}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">Date</span><span className="font-bold">{date}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Slot</span><span className="font-bold">{slot}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Type</span><span className="font-bold">{type}</span></div>
           </div>
@@ -145,7 +189,6 @@ function BookingModal({ doc, isOpen, onClose, toast }) {
 
 /* ─── Doctor Card ────────────────────────────── */
 function DoctorCard({ doc, onBook, onFavorite, favorites }) {
-  const [expanded, setExpanded] = useState(false);
   const isFav = favorites.includes(doc.id);
 
   return (
@@ -153,75 +196,34 @@ function DoctorCard({ doc, onBook, onFavorite, favorites }) {
       <div className="p-6 flex-1">
         {/* Header */}
         <div className="flex gap-4 mb-4">
-          <div className="relative">
-            <div className="w-16 h-16 rounded-2xl overflow-hidden bg-aubergine-50 flex-shrink-0 border-2 border-aubergine-100">
-              <img src={doc.image} alt={doc.name} className="w-full h-full object-cover" />
-            </div>
-            {doc.online && (
-              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white" title="Online"></div>
-            )}
+          <div className="w-16 h-16 rounded-2xl bg-aubergine-50 flex-shrink-0 border-2 border-aubergine-100 flex items-center justify-center text-xl font-black text-aubergine-700">
+            {doc.name.split(' ').filter(w => w).map(w => w[0]).join('').slice(0, 2).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <h3 className="font-black text-slate-800 text-base truncate">{doc.name}</h3>
-              <i className="fas fa-circle-check text-aubergine-600 text-xs flex-shrink-0" title="Verified"></i>
+              {doc.verified && <i className="fas fa-circle-check text-aubergine-600 text-xs flex-shrink-0" title="KYC Verified"></i>}
             </div>
-            <p className="text-xs text-aubergine-700 font-bold uppercase tracking-wide mt-0.5">{doc.role}</p>
-            <span className="text-[10px] bg-slate-100 text-slate-500 font-bold px-1.5 py-0.5 rounded font-mono border border-slate-200 inline-block mt-1">{doc.regNo}</span>
+            <p className="text-xs text-aubergine-700 font-bold uppercase tracking-wide mt-0.5">{doc.specialty || 'Specialist'}</p>
+            {doc.regNo && <span className="text-[10px] bg-slate-100 text-slate-500 font-bold px-1.5 py-0.5 rounded font-mono border border-slate-200 inline-block mt-1">{doc.regNo}</span>}
           </div>
           <button onClick={() => onFavorite(doc.id)}
             className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isFav ? 'bg-rose-100 text-rose-500' : 'bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-400'}`}>
-            <i className={`fas fa-heart text-xs ${isFav ? '' : ''}`}></i>
+            <i className="fas fa-heart text-xs"></i>
           </button>
-        </div>
-
-        {/* About */}
-        <p className="text-xs text-slate-600 leading-relaxed mb-3">{doc.about}</p>
-
-        {/* Expanded details */}
-        {expanded && (
-          <div className="animate-fade-in space-y-3 mb-3">
-            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 text-[11px] leading-relaxed text-slate-500">
-              <strong className="text-aubergine-800">Care Link:</strong> {doc.collab}
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Languages</p>
-              <div className="flex gap-1">{doc.lang.map(l => <span key={l} className="text-[10px] bg-sky-50 border border-sky-100 text-sky-700 font-bold px-2 py-0.5 rounded-full">{l}</span>)}</div>
-            </div>
-          </div>
-        )}
-
-        {/* Ethics Tags */}
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {doc.ethos.map(tag => (
-            <span key={tag} className="text-[10px] font-bold bg-indigo-50 border border-indigo-100/50 text-indigo-700 px-2 py-0.5 rounded-full">{tag}</span>
-          ))}
         </div>
 
         {/* Stats */}
         <div className="flex items-center justify-between py-3 border-y border-slate-100 mb-4 text-xs font-bold">
           <div className="flex flex-col">
-            <span className="text-[9px] text-slate-500 uppercase tracking-wider mb-0.5">Rating</span>
-            <span className="flex items-center gap-1 text-slate-700">
-              <Stars rating={doc.rating} />
-              {doc.rating} <span className="text-slate-500 font-normal">({doc.reviews})</span>
-            </span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-[9px] text-slate-500 uppercase tracking-wider mb-0.5">Experience</span>
-            <span className="text-slate-700">{doc.exp}</span>
+            <span className="text-[9px] text-slate-500 uppercase tracking-wider mb-0.5">Status</span>
+            <span className={doc.verified ? 'text-emerald-600' : 'text-amber-600'}>{doc.verified ? 'Verified' : 'Pending Verification'}</span>
           </div>
           <div className="flex flex-col items-end">
             <span className="text-[9px] text-slate-500 uppercase tracking-wider mb-0.5">Consult Fee</span>
             <span className="text-slate-800 font-black text-sm">₹{doc.fee}</span>
           </div>
         </div>
-
-        <button onClick={() => setExpanded(!expanded)}
-          className="w-full text-center text-xs text-aubergine-600 hover:text-aubergine-800 font-bold mb-3 flex items-center justify-center gap-1">
-          {expanded ? 'Show Less' : 'View Details'}
-          <i className={`fas fa-chevron-${expanded ? 'up' : 'down'} text-[10px]`}></i>
-        </button>
       </div>
 
       {/* Book Button */}
@@ -238,11 +240,31 @@ function DoctorCard({ doc, onBook, onFavorite, favorites }) {
 /* ─── Main Component ─────────────────────────── */
 function PatientDiscovery() {
   const toast = useToast();
+  const { addAppointment } = useClinicData();
+  const [rawDoctors, setRawDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [search, setSearch] = useState('');
   const [specialty, setSpecialty] = useState('All');
-  const [onlineOnly, setOnlineOnly] = useState(false);
   const [favorites, setFavorites] = useState([]);
+
+  useEffect(() => {
+    apiFetch('/doctors/search')
+      .then(setRawDoctors)
+      .catch(() => setRawDoctors([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const doctors = useMemo(() => rawDoctors.map(d => ({
+    id: d.id,
+    name: d.full_name,
+    specialty: d.specialty,
+    regNo: d.registration_no,
+    fee: d.consultation_fee || 799,
+    verified: !!d.kyc_verified,
+  })), [rawDoctors]);
+
+  const specialties = useMemo(() => ['All', ...new Set(doctors.map(d => d.specialty).filter(Boolean))], [doctors]);
 
   const handleFavorite = (id) => {
     setFavorites(prev => {
@@ -252,11 +274,10 @@ function PatientDiscovery() {
     });
   };
 
-  const filtered = TEAM_MEMBERS.filter(d => {
-    const matchSearch = !search || d.name.toLowerCase().includes(search.toLowerCase()) || d.role.toLowerCase().includes(search.toLowerCase());
+  const filtered = doctors.filter(d => {
+    const matchSearch = !search || d.name.toLowerCase().includes(search.toLowerCase()) || (d.specialty || '').toLowerCase().includes(search.toLowerCase());
     const matchSpec = specialty === 'All' || d.specialty === specialty;
-    const matchOnline = !onlineOnly || d.online;
-    return matchSearch && matchSpec && matchOnline;
+    return matchSearch && matchSpec;
   });
 
   return (
@@ -264,50 +285,31 @@ function PatientDiscovery() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Collaborative Care Team</h1>
-          <p className="text-sm text-slate-500">HealNari's multidisciplinary team co-treats your PCOS and hormonal concerns.</p>
+          <h1 className="text-2xl font-black text-slate-800">Find a Doctor</h1>
+          <p className="text-sm text-slate-500">Browse HealNari's verified specialists and book a consultation.</p>
         </div>
         <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-sm">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          All {TEAM_MEMBERS.length} Registers Verified
+          {doctors.length} Specialist{doctors.length === 1 ? '' : 's'} Available
         </div>
-      </div>
-
-      {/* Philosophy Banner */}
-      <div className="bg-gradient-to-r from-aubergine-900 to-indigo-950 text-white rounded-3xl p-6 shadow-md relative overflow-hidden">
-        <div className="absolute right-0 top-0 opacity-10 text-9xl transform translate-x-10 translate-y-2">
-          <i className="fas fa-handshake"></i>
-        </div>
-        <h2 className="text-lg font-bold mb-2">Why a Collaborative Team?</h2>
-        <p className="text-xs text-indigo-100 max-w-2xl leading-relaxed">
-          PCOS is not just a gynaecological issue. It affects your metabolism, thyroid, skin, and cycle. Our specialists share notes in a unified EMR to treat root metabolic causes — not just isolated symptoms.
-        </p>
       </div>
 
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap gap-3 items-center">
-        {/* Search */}
         <div className="relative flex-1 min-w-40">
           <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or specialty..."
             className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50" />
         </div>
 
-        {/* Specialty Filter */}
         <div className="flex gap-1.5 flex-wrap">
-          {SPECIALTIES.map(s => (
+          {specialties.map(s => (
             <button key={s} onClick={() => setSpecialty(s)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${specialty === s ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-aubergine-300'}`}>
               {s}
             </button>
           ))}
         </div>
-
-        {/* Online Filter */}
-        <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
-          <input type="checkbox" checked={onlineOnly} onChange={e => setOnlineOnly(e.target.checked)} className="accent-emerald-500 w-4 h-4" />
-          Online Only
-        </label>
 
         {favorites.length > 0 && (
           <span className="text-xs text-rose-600 font-bold flex items-center gap-1">
@@ -318,8 +320,9 @@ function PatientDiscovery() {
 
       {/* Results count */}
       <p className="text-xs text-slate-500 font-medium">
-        Showing {filtered.length} of {TEAM_MEMBERS.length} specialists
-        {search && <> matching "<strong>{search}</strong>"</>}
+        {loading ? 'Loading specialists…' : (
+          <>Showing {filtered.length} of {doctors.length} specialists{search && <> matching "<strong>{search}</strong>"</>}</>
+        )}
       </p>
 
       {/* Doctor Grid */}
@@ -327,17 +330,17 @@ function PatientDiscovery() {
         {filtered.map(doc => (
           <DoctorCard key={doc.id} doc={doc} onBook={d => setSelectedDoc(d)} onFavorite={handleFavorite} favorites={favorites} />
         ))}
-        {filtered.length === 0 && (
+        {!loading && filtered.length === 0 && (
           <div className="col-span-3 text-center py-16 text-slate-500">
             <i className="fas fa-user-doctor text-4xl mb-3 block"></i>
             <p className="font-bold">No doctors found matching your filters.</p>
-            <button onClick={() => { setSearch(''); setSpecialty('All'); setOnlineOnly(false); }} className="mt-3 text-aubergine-600 font-bold text-sm hover:underline">Reset Filters</button>
+            <button onClick={() => { setSearch(''); setSpecialty('All'); }} className="mt-3 text-aubergine-600 font-bold text-sm hover:underline">Reset Filters</button>
           </div>
         )}
       </div>
 
       {/* Booking Modal */}
-      <BookingModal doc={selectedDoc} isOpen={!!selectedDoc} onClose={() => setSelectedDoc(null)} toast={toast} />
+      <BookingModal doc={selectedDoc} isOpen={!!selectedDoc} onClose={() => setSelectedDoc(null)} toast={toast} addAppointment={addAppointment} />
     </div>
   );
 }

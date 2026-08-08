@@ -1,23 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 
 function PatientProfile() {
   const { user, updateUser, logout } = useAuth();
+  const { patients, updatePatient } = useClinicData();
+  const own = patients?.[0];
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('personal');
   const [form, setForm] = useState({
-    name: user?.name || 'Priya Sharma',
-    email: user?.email || 'priya@example.com',
-    phone: user?.phone || '+91 98765 43210',
-    dob: user?.dob || '1996-04-12',
-    bloodGroup: user?.bloodGroup || 'B+',
-    height: user?.height || '163',
-    weight: user?.weight || '64.5',
-    city: user?.city || 'Mumbai',
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    dob: '',
+    bloodGroup: '',
+    height: '',
+    weight: '',
+    city: '',
   });
+  // Real patient record loads after the initial render (ClinicDataContext
+  // fetches it async) — seed the form from it once it's available, without
+  // clobbering anything the user has already started typing.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    if (!own || hydrated) return;
+    setForm(p => ({
+      ...p,
+      name: user?.name || p.name,
+      email: user?.email || p.email,
+      phone: user?.phone || p.phone,
+      dob: own.dob || p.dob,
+      bloodGroup: own.blood && own.blood !== '—' ? own.blood : p.bloodGroup,
+      height: own.height && own.height !== '—' ? String(own.height) : p.height,
+      weight: own.weight && own.weight !== '—' ? String(own.weight) : p.weight,
+    }));
+    setHydrated(true);
+  }, [own, hydrated, user]);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [pwdForm, setPwdForm] = useState({ current: '', newPwd: '', confirm: '' });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -26,11 +48,27 @@ function PatientProfile() {
   const [emailNotif, setEmailNotif] = useState(true);
   const [smsNotif, setSmsNotif] = useState(true);
 
-  const handleSave = () => {
-    updateUser?.(form);
-    setSaved(true);
-    toast('Profile updated successfully!', 'success');
-    setTimeout(() => setSaved(false), 2500);
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateUser?.(form);
+      if (own) {
+        await updatePatient({
+          ...own,
+          dob: form.dob,
+          blood: form.bloodGroup,
+          height: form.height,
+          weight: form.weight,
+        });
+      }
+      setSaved(true);
+      toast('Profile updated successfully!', 'success');
+      setTimeout(() => setSaved(false), 2500);
+    } catch {
+      toast('Failed to save profile. Please try again.', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handlePasswordUpdate = () => {
@@ -149,10 +187,10 @@ function PatientProfile() {
                 </div>
               </div>
 
-              <button onClick={handleSave}
-                className={`mt-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${saved ? 'bg-emerald-500 text-white' : 'bg-aubergine-600 hover:bg-aubergine-700 text-white'}`}>
-                <i className={`fas ${saved ? 'fa-check' : 'fa-floppy-disk'}`}></i>
-                {saved ? 'Saved!' : 'Save Changes'}
+              <button onClick={handleSave} disabled={saving}
+                className={`mt-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 disabled:opacity-60 ${saved ? 'bg-emerald-500 text-white' : 'bg-aubergine-600 hover:bg-aubergine-700 text-white'}`}>
+                <i className={`fas ${saving ? 'fa-spinner fa-spin' : saved ? 'fa-check' : 'fa-floppy-disk'}`}></i>
+                {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Changes'}
               </button>
             </div>
           )}
@@ -201,10 +239,10 @@ function PatientProfile() {
                 })()}
               </div>
 
-              <button onClick={handleSave}
-                className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${saved ? 'bg-emerald-500 text-white' : 'bg-aubergine-600 hover:bg-aubergine-700 text-white'}`}>
-                <i className={`fas ${saved ? 'fa-check' : 'fa-floppy-disk'}`}></i>
-                {saved ? 'Saved!' : 'Save Changes'}
+              <button onClick={handleSave} disabled={saving}
+                className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 disabled:opacity-60 ${saved ? 'bg-emerald-500 text-white' : 'bg-aubergine-600 hover:bg-aubergine-700 text-white'}`}>
+                <i className={`fas ${saving ? 'fa-spinner fa-spin' : saved ? 'fa-check' : 'fa-floppy-disk'}`}></i>
+                {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Changes'}
               </button>
             </div>
           )}

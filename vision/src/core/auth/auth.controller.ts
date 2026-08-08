@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import { AuthService } from '@/core/auth/auth.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
@@ -12,7 +12,10 @@ import { ProfileRole } from '@/shared/interfaces/profile.interface';
 export class RegisterDto {
   @ApiProperty({ example: 'priya.sharma@example.com' }) @IsEmail() email: string;
   @ApiProperty({ example: 'password123' }) @IsString() @MinLength(6) password: string;
-  @ApiProperty({ enum: ProfileRole, example: ProfileRole.PATIENT }) @IsEnum(ProfileRole) role: ProfileRole;
+  // Admin accounts are provisioned manually, never through public self-signup.
+  @ApiProperty({ enum: [ProfileRole.DOCTOR, ProfileRole.PATIENT], example: ProfileRole.PATIENT })
+  @IsIn([ProfileRole.DOCTOR, ProfileRole.PATIENT])
+  role: ProfileRole;
   @ApiProperty({ example: 'Priya Sharma' }) @IsString() fullName: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() specialty?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() registrationNo?: string;

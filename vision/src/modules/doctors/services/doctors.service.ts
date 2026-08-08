@@ -39,9 +39,107 @@ export class DoctorsService {
     return updated;
   }
 
+  async getAnalytics(user: AuthUser) {
+    if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    const doctorId = user.id;
+
+    const [{ data: appointments }, { data: payments }] = await Promise.all([
+      this.supabase.admin.from('appointments').select('patient_id, type, status, scheduled_date').eq('doctor_id', doctorId),
+      this.supabase.admin.from('payments').select('amount, created_at').eq('doctor_id', doctorId).eq('status', 'Paid'),
+    ]);
+
+    const apts = appointments || [];
+    const pays = payments || [];
+
+    // Revenue by month (last 12 months, oldest first)
+    const revenueByMonth = new Map<string, number>();
+    pays.forEach((p) => {
+      const key = new Date(p.created_at).toISOString().slice(0, 7);
+      revenueByMonth.set(key, (revenueByMonth.get(key) || 0) + Number(p.amount));
+    });
+    const consultsByMonth = new Map<string, number>();
+    apts.forEach((a) => {
+      const key = new Date(a.scheduled_date).toISOString().slice(0, 7);
+      consultsByMonth.set(key, (consultsByMonth.get(key) || 0) + 1);
+    });
+    const now = new Date();
+    const monthlyTrend = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
+      const key = d.toISOString().slice(0, 7);
+      return {
+        month: d.toLocaleString('en-US', { month: 'short' }),
+        revenue: revenueByMonth.get(key) || 0,
+        consultations: consultsByMonth.get(key) || 0,
+      };
+    });
+
+    // Consultation delivery mode split
+    const consultTypeSplit = {
+      video: apts.filter((a) => a.type === 'video').length,
+      clinic: apts.filter((a) => a.type === 'clinic').length,
+    };
+
+    // Weekly appointment load (Mon-first)
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const weeklyLoadMap = new Map<string, number>(dayNames.map((d) => [d, 0]));
+    apts.forEach((a) => {
+      const day = dayNames[new Date(a.scheduled_date).getDay()];
+      weeklyLoadMap.set(day, (weeklyLoadMap.get(day) || 0) + 1);
+    });
+    const weeklyLoad = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => ({ day, consultations: weeklyLoadMap.get(day) || 0 }));
+
+    // No-show rate
+    const totalAppointments = apts.length;
+    const noShows = apts.filter((a) => a.status === 'No Show').length;
+    const noShowRate = totalAppointments ? Number(((noShows / totalAppointments) * 100).toFixed(1)) : 0;
+
+    // Patient age demographics + top chronic conditions, from patients this doctor has actually seen
+    const patientIds = [...new Set(apts.map((a) => a.patient_id))];
+    const { data: records } = patientIds.length
+      ? await this.supabase.admin.from('patient_records').select('patient_id, dob, chronic_conditions').in('patient_id', patientIds)
+      : { data: [] as { patient_id: string; dob: string | null; chronic_conditions: string[] }[] };
+
+    const ageBuckets: Record<string, number> = { '18-25': 0, '26-35': 0, '36-45': 0, '46-55': 0, '56+': 0 };
+    const diagnosisCounts = new Map<string, number>();
+    (records || []).forEach((r) => {
+      if (r.dob) {
+        const age = Math.floor((Date.now() - new Date(r.dob).getTime()) / 31557600000);
+        if (age <= 25) ageBuckets['18-25']++;
+        else if (age <= 35) ageBuckets['26-35']++;
+        else if (age <= 45) ageBuckets['36-45']++;
+        else if (age <= 55) ageBuckets['46-55']++;
+        else ageBuckets['56+']++;
+      }
+      (r.chronic_conditions || []).forEach((c) => diagnosisCounts.set(c, (diagnosisCounts.get(c) || 0) + 1));
+    });
+    const topDiagnoses = [...diagnosisCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([condition, count]) => ({ condition, count }));
+
+    return {
+      totalRevenue: pays.reduce((sum, p) => sum + Number(p.amount), 0),
+      totalConsultations: totalAppointments,
+      totalPatients: patientIds.length,
+      noShowRate,
+      monthlyTrend,
+      consultTypeSplit,
+      weeklyLoad,
+      ageDemographics: Object.entries(ageBuckets).map(([age, count]) => ({ age, count })),
+      topDiagnoses,
+    };
+  }
+
   async getAvailableSlots(doctorId: string, date: string) {
     const { data: doctor } = await this.supabase.admin.from('profiles').select().eq('id', doctorId).eq('role', ProfileRole.DOCTOR).single();
     if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
-    return { doctorId, date, availableSlots: STATIC_SLOTS };
+
+    const { data: booked } = await this.supabase.admin
+      .from('appointments')
+      .select('scheduled_time')
+      .eq('doctor_id', doctorId)
+      .eq('scheduled_date', date)
+      .not('status', 'in', '("Cancelled","No Show")');
+
+    const bookedTimes = new Set((booked || []).map((b) => b.scheduled_time));
+    const availableSlots = STATIC_SLOTS.filter((slot) => !bookedTimes.has(slot));
+    return { doctorId, date, availableSlots };
   }
 }

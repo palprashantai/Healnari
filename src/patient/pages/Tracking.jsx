@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
 
 /* ─── Config ─────────────────────────────────── */
 const HIRSUTISM_GRADES = [
@@ -122,6 +123,7 @@ function CycleLogModal({ isOpen, onClose, onSave }) {
 /* ─── Main Component ─────────────────────────── */
 function PatientTracking() {
   const toast = useToast();
+  const { logCycle } = useClinicData();
   const [discreet, setDiscreet] = useState(localStorage.getItem('discreet_mode') === 'true');
   const [vitals, setVitals] = useState(INITIAL_VITALS);
   const [hirsutismGrade, setHirsutismGrade] = useState(0);
@@ -161,9 +163,15 @@ function PatientTracking() {
     setTimeout(() => setLogSaved(false), 3000);
   };
 
-  const handleCycleLogSave = (form) => {
+  const handleCycleLogSave = async (form) => {
     setLastCycleLog(form);
-    toast('Cycle log saved! Your doctor can see this in real-time.', 'success');
+    const todayKey = new Date().toISOString().slice(0, 10);
+    try {
+      await logCycle(todayKey, form);
+      toast('Cycle log saved! Your doctor can see this in real-time.', 'success');
+    } catch {
+      toast('Failed to save cycle log. Please try again.', 'error');
+    }
   };
 
   const completedCount = Object.values(lifestyle).filter(Boolean).length;

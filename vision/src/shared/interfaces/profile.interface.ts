@@ -1,6 +1,7 @@
 export enum ProfileRole {
   DOCTOR = 'doctor',
   PATIENT = 'patient',
+  ADMIN = 'admin',
 }
 
 /** Mirrors `public.profiles` — one row per Supabase `auth.users` row. */

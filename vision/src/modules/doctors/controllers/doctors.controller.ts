@@ -29,6 +29,13 @@ export class DoctorsController {
     return ResponseHelper.success(data, SUCCESS_MESSAGES.KYC_SUBMITTED);
   }
 
+  @ApiOperation({ summary: "Doctor's practice analytics — revenue, consultations, patient demographics (doctor only)" })
+  @Get('me/analytics')
+  async analytics(@CurrentUser() user: AuthUser) {
+    const data = await this.doctorsService.getAnalytics(user);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
   @Public()
   @ApiOperation({ summary: 'Get available time slots for a doctor on a date (static placeholder)' })
   @ApiParam({ name: 'doctorId' })

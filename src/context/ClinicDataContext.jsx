@@ -17,6 +17,12 @@ export function ClinicDataProvider({ children }) {
   const [kycVerified, setKycVerified] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Backend is the source of truth for KYC status — reflect it whenever the
+  // logged-in user changes (login, or a fresh /auth/me after a refresh).
+  useEffect(() => {
+    setKycVerified(!!user?.kycVerified);
+  }, [user]);
+
   // Adapts backend patient format to frontend expectations
   const adaptPatient = (data) => {
     if (!data || !data.profile) return null;
@@ -274,10 +280,19 @@ export function ClinicDataProvider({ children }) {
       await apiFetch(`/patients/me/cycle-logs/${dateKey}`, { method: 'PUT', body: fields });
     } catch (err) {
       console.error(err);
+      throw err;
     }
   };
 
-  const verifyKyc = () => setKycVerified(true);
+  const verifyKyc = async () => {
+    try {
+      await apiFetch('/doctors/me/kyc', { method: 'PUT' });
+      setKycVerified(true);
+    } catch (err) {
+      console.error('Failed to submit KYC', err);
+      throw err;
+    }
+  };
 
   const value = {
     patients, updatePatient, addPatient, addRx, approveRefill, rejectRefill, requestRefill, refillRequests,
