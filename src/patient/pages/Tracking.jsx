@@ -11,11 +11,11 @@ const HIRSUTISM_GRADES = [
   { grade: 3, label: 'Moderate', desc: 'Dense beard-pattern hair growth.' },
 ];
 
-const INITIAL_VITALS = {
-  weight: { value: '64.5', unit: 'kg', label: 'Body Weight', icon: 'fa-weight-scale', color: 'bg-sky-50 text-sky-500', trend: '↓ 0.5 kg from last week', trendColor: 'text-emerald-600' },
-  bp: { value: '118/78', unit: 'mmHg', label: 'Blood Pressure', icon: 'fa-heart-pulse', color: 'bg-rose-50 text-rose-500', trend: '✓ Normal range', trendColor: 'text-slate-500' },
-  sugar: { value: '92', unit: 'mg/dL', label: 'Fasting Sugar', icon: 'fa-droplet', color: 'bg-amber-50 text-amber-500', trend: '✓ Optimal level', trendColor: 'text-emerald-600' },
-  sleep: { value: '7.2', unit: 'hrs', label: 'Sleep Duration', icon: 'fa-moon', color: 'bg-indigo-50 text-indigo-500', trend: '↓ Below 8h goal', trendColor: 'text-amber-600' },
+const VITALS_CONFIG = {
+  weight: { label: 'Body Weight', icon: 'fa-weight-scale', color: 'bg-sky-50 text-sky-500', unit: 'kg' },
+  bp: { label: 'Blood Pressure', icon: 'fa-heart-pulse', color: 'bg-rose-50 text-rose-500', unit: 'mmHg' },
+  sugar: { label: 'Fasting Sugar', icon: 'fa-droplet', color: 'bg-amber-50 text-amber-500', unit: 'mg/dL' },
+  sleep: { label: 'Sleep Duration', icon: 'fa-moon', color: 'bg-indigo-50 text-indigo-500', unit: 'hrs' },
 };
 
 const LIFESTYLE_ITEMS = [
@@ -27,12 +27,37 @@ const LIFESTYLE_ITEMS = [
   { key: 'stress', label: 'Mindfulness / Stress Management (10 mins)', icon: 'fa-brain', color: 'text-aubergine-600 bg-aubergine-50 border-aubergine-100' },
 ];
 
+const todayKey = () => new Date().toISOString().slice(0, 10);
+
+/** Derives a "vs last reading" trend line from the current + previous logged values. */
+function computeTrend(current, previous, unit) {
+  if (previous == null) return { text: 'First reading logged', color: 'text-slate-500' };
+  const curNum = parseFloat(current);
+  const prevNum = parseFloat(previous);
+  if (!isNaN(curNum) && !isNaN(prevNum)) {
+    const diff = +(curNum - prevNum).toFixed(2);
+    if (diff === 0) return { text: '✓ No change from last log', color: 'text-slate-500' };
+    const arrow = diff > 0 ? '↑' : '↓';
+    return { text: `${arrow} ${Math.abs(diff)} ${unit} from last log`, color: diff > 0 ? 'text-amber-600' : 'text-emerald-600' };
+  }
+  if (current === previous) return { text: '✓ Same as last log', color: 'text-slate-500' };
+  return { text: `Updated from ${previous}`, color: 'text-slate-500' };
+}
+
 /* ─── Log Vital Modal ────────────────────────── */
 function LogVitalModal({ vitalKey, vital, isOpen, onClose, onSave }) {
   const [value, setValue] = useState(vital?.value || '');
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
-    if (value.trim()) { onSave(vitalKey, value.trim()); onClose(); }
+  const handleSave = async () => {
+    if (!value.trim()) return;
+    setSaving(true);
+    try {
+      await onSave(vitalKey, value.trim());
+      onClose();
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!vital) return null;
@@ -49,14 +74,15 @@ function LogVitalModal({ vitalKey, vital, isOpen, onClose, onSave }) {
           <input
             value={value}
             onChange={e => setValue(e.target.value)}
-            placeholder={`e.g. ${vital.value}`}
+            placeholder={`e.g. ${vital.value || ''}`}
             className="w-full border border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-center focus:outline-none focus:ring-2 focus:ring-aubergine-300"
             autoFocus
           />
           <p className="text-xs text-slate-500 text-center mt-1">Unit: {vital.unit}</p>
         </div>
-        <button onClick={handleSave} className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
-          Save Reading
+        <button onClick={handleSave} disabled={saving}
+          className="w-full bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-colors">
+          {saving ? 'Saving…' : 'Save Reading'}
         </button>
       </div>
     </Modal>
@@ -123,16 +149,22 @@ function CycleLogModal({ isOpen, onClose, onSave }) {
 /* ─── Main Component ─────────────────────────── */
 function PatientTracking() {
   const toast = useToast();
-  const { logCycle } = useClinicData();
+  const { logCycle, vitals, logVital, lifestyleLogs, logLifestyle } = useClinicData();
   const [discreet, setDiscreet] = useState(localStorage.getItem('discreet_mode') === 'true');
-  const [vitals, setVitals] = useState(INITIAL_VITALS);
-  const [hirsutismGrade, setHirsutismGrade] = useState(0);
-  const [lifestyle, setLifestyle] = useState({ sleep: false, lowGI: false, exercise: false, meds: false, water: false, stress: false });
+  const [hirsutismGrade, setHirsutismGrade] = useState(() => {
+    const v = vitals.hirsutism?.value;
+    return v !== undefined ? parseInt(v, 10) || 0 : 0;
+  });
+  const [lifestyle, setLifestyle] = useState(() => {
+    const saved = lifestyleLogs[todayKey()]?.items || {};
+    return LIFESTYLE_ITEMS.reduce((acc, item) => ({ ...acc, [item.key]: !!saved[item.key] }), {});
+  });
   const [shareLog, setShareLog] = useState(localStorage.getItem('share_tracking_log') === 'true');
   const [logModal, setLogModal] = useState(null); // { key, vital }
   const [showCycleLog, setShowCycleLog] = useState(false);
   const [lastCycleLog, setLastCycleLog] = useState(null);
   const [logSaved, setLogSaved] = useState(false);
+  const [savingLog, setSavingLog] = useState(false);
 
   useEffect(() => {
     const handler = () => setDiscreet(localStorage.getItem('discreet_mode') === 'true');
@@ -147,27 +179,49 @@ function PatientTracking() {
     toast(next ? 'Logs shared with your care team.' : 'Log sharing disabled.', next ? 'success' : 'info');
   };
 
-  const handleVitalSave = (key, value) => {
-    setVitals(prev => ({ ...prev, [key]: { ...prev[key], value } }));
-    toast(`${vitals[key].label} updated to ${value} ${vitals[key].unit}`, 'success');
+  const handleVitalSave = async (key, value) => {
+    const config = VITALS_CONFIG[key];
+    try {
+      await logVital(key, value, config.unit);
+      toast(`${config.label} updated to ${value} ${config.unit}`, 'success');
+    } catch {
+      toast(`Failed to save ${config.label}. Please try again.`, 'error');
+    }
+  };
+
+  const handleHirsutismSelect = async (grade) => {
+    setHirsutismGrade(grade);
+    try {
+      await logVital('hirsutism', String(grade), '');
+      toast(`Grade ${grade} (${HIRSUTISM_GRADES[grade].label}) selected.`, 'info');
+    } catch {
+      toast('Failed to save hirsutism grade. Please try again.', 'error');
+    }
   };
 
   const toggleLifestyle = (key) => {
     setLifestyle(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const saveLifestyleLog = () => {
-    const completed = Object.values(lifestyle).filter(Boolean).length;
-    setLogSaved(true);
-    toast(`Daily log saved! ${completed}/${LIFESTYLE_ITEMS.length} habits completed today.`, 'success');
-    setTimeout(() => setLogSaved(false), 3000);
+  const saveLifestyleLog = async () => {
+    setSavingLog(true);
+    try {
+      await logLifestyle(todayKey(), lifestyle);
+      const completed = Object.values(lifestyle).filter(Boolean).length;
+      setLogSaved(true);
+      toast(`Daily log saved! ${completed}/${LIFESTYLE_ITEMS.length} habits completed today.`, 'success');
+      setTimeout(() => setLogSaved(false), 3000);
+    } catch {
+      toast('Failed to save daily log. Please try again.', 'error');
+    } finally {
+      setSavingLog(false);
+    }
   };
 
   const handleCycleLogSave = async (form) => {
     setLastCycleLog(form);
-    const todayKey = new Date().toISOString().slice(0, 10);
     try {
-      await logCycle(todayKey, form);
+      await logCycle(todayKey(), form);
       toast('Cycle log saved! Your doctor can see this in real-time.', 'success');
     } catch {
       toast('Failed to save cycle log. Please try again.', 'error');
@@ -210,27 +264,32 @@ function PatientTracking() {
 
       {/* Vitals Cards */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {Object.entries(vitals).map(([key, vital]) => (
-          <div key={key} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-aubergine-200 hover:shadow-md transition-all group">
-            <div className="flex justify-between items-start mb-3">
-              <div className={`w-11 h-11 rounded-xl ${vital.color} flex items-center justify-center text-lg`}>
-                <i className={`fas ${vital.icon}`}></i>
+        {Object.entries(VITALS_CONFIG).map(([key, config]) => {
+          const reading = vitals[key];
+          const trend = reading ? computeTrend(reading.value, reading.previousValue, config.unit) : { text: 'No readings yet', color: 'text-slate-400' };
+          const vital = { ...config, value: reading?.value ?? '—' };
+          return (
+            <div key={key} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-aubergine-200 hover:shadow-md transition-all group">
+              <div className="flex justify-between items-start mb-3">
+                <div className={`w-11 h-11 rounded-xl ${config.color} flex items-center justify-center text-lg`}>
+                  <i className={`fas ${config.icon}`}></i>
+                </div>
+                <button onClick={() => setLogModal({ key, vital })}
+                  className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-600 w-8 h-8 rounded-lg flex items-center justify-center text-xs border border-aubergine-100"
+                  aria-label="Update reading"
+                  title="Update Reading">
+                  <i className="fas fa-pen"></i>
+                </button>
               </div>
-              <button onClick={() => setLogModal({ key, vital })}
-                className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-600 w-8 h-8 rounded-lg flex items-center justify-center text-xs border border-aubergine-100"
-                aria-label="Update reading"
-                title="Update Reading">
-                <i className="fas fa-pen"></i>
-              </button>
+              <h3 className="text-slate-500 font-semibold text-xs mb-1">{config.label}</h3>
+              <div className={`flex items-end gap-1.5 transition-all ${discreet ? 'discreet-blur' : ''}`}>
+                <span className="text-3xl font-black text-slate-800">{vital.value}</span>
+                <span className="text-sm font-bold text-slate-500 mb-1">{config.unit}</span>
+              </div>
+              <div className={`mt-3 text-xs font-bold ${trend.color} flex items-center gap-1`}>{trend.text}</div>
             </div>
-            <h3 className="text-slate-500 font-semibold text-xs mb-1">{vital.label}</h3>
-            <div className={`flex items-end gap-1.5 transition-all ${discreet ? 'discreet-blur' : ''}`}>
-              <span className="text-3xl font-black text-slate-800">{vital.value}</span>
-              <span className="text-sm font-bold text-slate-500 mb-1">{vital.unit}</span>
-            </div>
-            <div className={`mt-3 text-xs font-bold ${vital.trendColor} flex items-center gap-1`}>{vital.trend}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
@@ -242,7 +301,7 @@ function PatientTracking() {
           </div>
           <div className="grid grid-cols-4 gap-2">
             {HIRSUTISM_GRADES.map(g => (
-              <button key={g.grade} onClick={() => { setHirsutismGrade(g.grade); toast(`Grade ${g.grade} (${g.label}) selected.`, 'info'); }}
+              <button key={g.grade} onClick={() => handleHirsutismSelect(g.grade)}
                 className={`p-3 rounded-xl border text-center transition-all ${hirsutismGrade === g.grade ? 'border-aubergine-500 bg-aubergine-50 shadow-sm' : 'border-slate-200 hover:bg-slate-50'}`}>
                 <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-2 text-xs font-black ${hirsutismGrade === g.grade ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-100 text-slate-500'}`}>
                   FG {g.grade}
@@ -295,10 +354,10 @@ function PatientTracking() {
             })}
           </div>
 
-          <button onClick={saveLifestyleLog}
-            className={`w-full font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 ${logSaved ? 'bg-emerald-500 text-white' : 'bg-aubergine-600 hover:bg-aubergine-700 text-white'}`}>
+          <button onClick={saveLifestyleLog} disabled={savingLog}
+            className={`w-full font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${logSaved ? 'bg-emerald-500 text-white' : 'bg-aubergine-600 hover:bg-aubergine-700 text-white'}`}>
             <i className={`fas ${logSaved ? 'fa-circle-check' : 'fa-floppy-disk'}`}></i>
-            {logSaved ? 'Log Saved!' : "Save Today's Log"}
+            {savingLog ? 'Saving…' : logSaved ? 'Log Saved!' : "Save Today's Log"}
           </button>
         </div>
       </div>

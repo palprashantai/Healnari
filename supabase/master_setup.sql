@@ -854,6 +854,228 @@ create trigger payments_set_updated_at
 
 
 -- ==========================================
+-- MIGRATION: 0007_tracking_logs.sql
+-- ==========================================
+
+-- Backs the patient Tracking page (vitals, androgen/hirsutism grading, and
+-- the daily PCOS lifestyle checklist), which previously only held state in
+-- component memory. Mirrors the cycle_logs pattern already used on this page:
+-- patient has full read/write on their own rows, doctor gets read-only.
+
+-- ─────────────────────────────────────────────────────────────
+-- vitals_logs — one row per reading. Covers weight/bp/sugar/sleep and the
+-- Ferriman-Gallwey hirsutism grade (vital_key = 'hirsutism', value = grade
+-- as text). History is kept (not upserted) so trend-vs-last-reading can be
+-- computed from the second-latest row per key.
+-- ─────────────────────────────────────────────────────────────
+create table public.vitals_logs (
+  id uuid primary key default gen_random_uuid(),
+  patient_id uuid not null references public.profiles(id) on delete cascade,
+  vital_key text not null check (vital_key in ('weight', 'bp', 'sugar', 'sleep', 'hirsutism')),
+  value text not null,
+  unit text not null default '',
+  logged_at timestamptz not null default now()
+);
+
+create index vitals_logs_patient_key_idx on public.vitals_logs (patient_id, vital_key, logged_at desc);
+
+-- ─────────────────────────────────────────────────────────────
+-- lifestyle_logs — one row per patient per day for the daily habits
+-- checklist. completed_count is derived from items but kept as a column so
+-- the dashboard can query completion without unpacking jsonb.
+-- ─────────────────────────────────────────────────────────────
+create table public.lifestyle_logs (
+  id uuid primary key default gen_random_uuid(),
+  patient_id uuid not null references public.profiles(id) on delete cascade,
+  log_date date not null default current_date,
+  items jsonb not null default '{}',
+  completed_count int not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (patient_id, log_date)
+);
+
+create trigger lifestyle_logs_set_updated_at
+  before update on public.lifestyle_logs
+  for each row execute function public.set_updated_at();
+
+-- ══════════════════════════════════════════════════════════════
+-- Row Level Security
+-- ══════════════════════════════════════════════════════════════
+alter table public.vitals_logs enable row level security;
+alter table public.lifestyle_logs enable row level security;
+
+create policy "vitals_logs_patient_full" on public.vitals_logs
+  for all using (patient_id = auth.uid()) with check (patient_id = auth.uid());
+
+create policy "vitals_logs_doctor_read" on public.vitals_logs
+  for select using (public.current_app_role() = 'doctor');
+
+create policy "lifestyle_logs_patient_full" on public.lifestyle_logs
+  for all using (patient_id = auth.uid()) with check (patient_id = auth.uid());
+
+create policy "lifestyle_logs_doctor_read" on public.lifestyle_logs
+  for select using (public.current_app_role() = 'doctor');
+
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on
+  public.vitals_logs,
+  public.lifestyle_logs
+to authenticated;
+
+
+-- ==========================================
+-- MIGRATION: 0008_care_connections.sql
+-- ==========================================
+
+-- Backs the patient Family / Care Circle page, which previously only held
+-- invited connections in component memory. A care connection is a patient
+-- sharing a limited, permissioned view of their data with someone outside
+-- the clinical relationship (partner, caregiver, family member) — the
+-- invitee need not have a Healnari account, so this is keyed by email, not
+-- a profiles FK. Unlike vitals_logs/cycle_logs, doctors get no read access
+-- here: this is the patient's private social layer, not clinical data.
+
+create table public.care_connections (
+  id uuid primary key default gen_random_uuid(),
+  patient_id uuid not null references public.profiles(id) on delete cascade,
+  invitee_email text not null,
+  invitee_name text not null,
+  relation text not null default 'Partner / Spouse',
+  status text not null default 'Pending Acceptance' check (status in ('Pending Acceptance', 'Connected')),
+  permissions jsonb not null default '{"cycleWindow": true, "appointments": false, "detailedRx": false}',
+  invite_token text not null default encode(gen_random_bytes(6), 'hex'),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (patient_id, invitee_email)
+);
+
+create unique index care_connections_invite_token_uq on public.care_connections (invite_token);
+create index care_connections_patient_idx on public.care_connections (patient_id);
+
+create trigger care_connections_set_updated_at
+  before update on public.care_connections
+  for each row execute function public.set_updated_at();
+
+-- ══════════════════════════════════════════════════════════════
+-- Row Level Security — patient-only, no doctor visibility.
+-- ══════════════════════════════════════════════════════════════
+alter table public.care_connections enable row level security;
+
+create policy "care_connections_patient_full" on public.care_connections
+  for all using (patient_id = auth.uid()) with check (patient_id = auth.uid());
+
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.care_connections to authenticated;
+
+
+-- ==========================================
+-- MIGRATION: 0009_patient_dashboard_dynamism.sql
+-- ==========================================
+
+-- Replaces several remaining fake/local-only widgets on the patient
+-- dashboard with real, persisted data: doctor favourites (Discovery page),
+-- the appointment waitlist card, notification preferences, and the
+-- Profile page's city field (which previously had nowhere to save to).
+
+-- ─────────────────────────────────────────────────────────────
+-- doctor_favorites — a patient's saved/starred doctors on the Discovery
+-- page. Was local component state that reset on every reload.
+-- ─────────────────────────────────────────────────────────────
+create table public.doctor_favorites (
+  id uuid primary key default gen_random_uuid(),
+  patient_id uuid not null references public.profiles(id) on delete cascade,
+  doctor_id uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (patient_id, doctor_id)
+);
+
+create index doctor_favorites_patient_idx on public.doctor_favorites (patient_id);
+
+alter table public.doctor_favorites enable row level security;
+
+create policy "doctor_favorites_patient_full" on public.doctor_favorites
+  for all using (patient_id = auth.uid()) with check (patient_id = auth.uid());
+
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.doctor_favorites to authenticated;
+
+-- ─────────────────────────────────────────────────────────────
+-- appointment_waitlist — join-a-waitlist for a fully booked doctor.
+-- Queue position is computed at read time (count of earlier still-waiting
+-- rows for the same doctor), not stored, so it stays correct as people
+-- join/leave ahead of you.
+-- ─────────────────────────────────────────────────────────────
+create table public.appointment_waitlist (
+  id uuid primary key default gen_random_uuid(),
+  patient_id uuid not null references public.profiles(id) on delete cascade,
+  doctor_id uuid not null references public.profiles(id) on delete cascade,
+  preferred_window text not null,
+  status text not null default 'Waiting' check (status in ('Waiting', 'Notified', 'Cancelled')),
+  created_at timestamptz not null default now()
+);
+
+create index appointment_waitlist_doctor_idx on public.appointment_waitlist (doctor_id, status, created_at);
+create index appointment_waitlist_patient_idx on public.appointment_waitlist (patient_id);
+
+alter table public.appointment_waitlist enable row level security;
+
+create policy "appointment_waitlist_patient_full" on public.appointment_waitlist
+  for all using (patient_id = auth.uid()) with check (patient_id = auth.uid());
+
+create policy "appointment_waitlist_doctor_read" on public.appointment_waitlist
+  for select using (doctor_id = auth.uid());
+
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.appointment_waitlist to authenticated;
+
+-- ─────────────────────────────────────────────────────────────
+-- Notification preferences — Profile page toggles that previously only
+-- lived in component state.
+-- ─────────────────────────────────────────────────────────────
+alter table public.profiles add column if not exists email_notifications boolean not null default true;
+alter table public.profiles add column if not exists sms_notifications boolean not null default true;
+
+-- ─────────────────────────────────────────────────────────────
+-- City — Profile page field that previously had no backing column at all.
+-- ─────────────────────────────────────────────────────────────
+alter table public.patient_records add column if not exists city text;
+
+
+-- ==========================================
+-- MIGRATION: 0010_avatar_storage.sql
+-- ==========================================
+
+-- Backs the Profile page's "Change Photo" — previously a fake upload that
+-- just showed a success toast. Uploads are mediated by the vision backend
+-- using the service-role client (never directly from the frontend, per the
+-- app's existing "frontend only ever talks to vision" convention), so
+-- these RLS policies are defense-in-depth rather than load-bearing: they
+-- matter if storage is ever reached with a non-service-role key.
+--
+-- Objects are stored at `<patient_id>/avatar.<ext>` inside the bucket, so
+-- `storage.foldername(name)` (which splits the object path on '/') gives
+-- the owning user's id as its first element.
+
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+create policy "avatars_public_read" on storage.objects
+  for select using (bucket_id = 'avatars');
+
+create policy "avatars_owner_write" on storage.objects
+  for insert with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy "avatars_owner_update" on storage.objects
+  for update using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text)
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy "avatars_owner_delete" on storage.objects
+  for delete using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+
+-- ==========================================
 -- SEED DATA
 -- ==========================================
 

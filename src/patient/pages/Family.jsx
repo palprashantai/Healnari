@@ -1,20 +1,9 @@
 import React, { useState } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { ConfirmModal } from '../../components/Modal.jsx';
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
 
 /* ─── Data ───────────────────────────────────── */
-const INITIAL_CONNECTIONS = [
-  {
-    id: 1,
-    name: 'Aarav Mehta',
-    relation: 'Partner / Spouse',
-    invitedOn: '15 Jun 2026',
-    status: 'Connected',
-    avatar: 'AM',
-    permissions: { cycleWindow: true, appointments: true, detailedRx: false },
-  },
-];
-
 const PERMISSION_CONFIG = [
   {
     key: 'cycleWindow',
@@ -42,64 +31,68 @@ const PERMISSION_CONFIG = [
 
 function PatientFamily() {
   const toast = useToast();
-  const [connections, setConnections] = useState(INITIAL_CONNECTIONS);
+  const { careConnections, inviteConnection, updateConnectionPermissions, removeConnection } = useClinicData();
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRelation, setInviteRelation] = useState('Partner / Spouse');
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [disconnectTarget, setDisconnectTarget] = useState(null);
   const [sensitiveToggle, setSensitiveToggle] = useState(null);
   const [shareLink, setShareLink] = useState('');
+  const [inviting, setInviting] = useState(false);
 
-  const applyPermissionToggle = (idx, perm, next) => {
-    setConnections(prev => prev.map((c, i) => {
-      if (i !== idx) return c;
-      return { ...c, permissions: { ...c.permissions, [perm]: next } };
-    }));
-    toast(next ? `"${PERMISSION_CONFIG.find(p => p.key === perm)?.label}" enabled.` : 'Permission revoked.', next ? 'success' : 'info');
+  const applyPermissionToggle = async (conn, perm, next) => {
+    try {
+      await updateConnectionPermissions(conn.id, { ...conn.permissions, [perm]: next });
+      toast(next ? `"${PERMISSION_CONFIG.find(p => p.key === perm)?.label}" enabled.` : 'Permission revoked.', next ? 'success' : 'info');
+    } catch {
+      toast('Failed to update permission. Please try again.', 'error');
+    }
   };
 
-  const togglePermission = (idx, perm) => {
-    const conn = connections[idx];
+  const togglePermission = (conn, perm) => {
     const next = !conn.permissions[perm];
 
     if (perm === 'detailedRx' && next) {
       // Warn before enabling sensitive permission
-      setSensitiveToggle({ idx, perm });
+      setSensitiveToggle({ conn, perm });
       return;
     }
 
-    applyPermissionToggle(idx, perm, next);
+    applyPermissionToggle(conn, perm, next);
   };
 
   const confirmSensitiveToggle = () => {
     if (!sensitiveToggle) return;
-    applyPermissionToggle(sensitiveToggle.idx, sensitiveToggle.perm, true);
+    applyPermissionToggle(sensitiveToggle.conn, sensitiveToggle.perm, true);
     setSensitiveToggle(null);
   };
 
-  const handleInvite = (e) => {
+  const handleInvite = async (e) => {
     e.preventDefault();
     if (!inviteEmail) return;
-    const newConn = {
-      id: Date.now(),
-      name: inviteEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-      relation: inviteRelation,
-      invitedOn: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      status: 'Pending Acceptance',
-      avatar: inviteEmail.slice(0, 2).toUpperCase(),
-      permissions: { cycleWindow: true, appointments: false, detailedRx: false },
-    };
-    setConnections(prev => [...prev, newConn]);
-    setShareLink(`https://healnari.app/invite/${Math.random().toString(36).slice(2, 10)}`);
-    toast(`Invitation sent to ${inviteEmail}!`, 'success');
-    setInviteEmail('');
-    setShowInviteForm(false);
+    setInviting(true);
+    try {
+      const newConn = await inviteConnection(inviteEmail, inviteRelation);
+      setShareLink(`${window.location.origin}/invite/${newConn.inviteToken}`);
+      toast(`Invitation sent to ${inviteEmail}!`, 'success');
+      setInviteEmail('');
+      setShowInviteForm(false);
+    } catch (err) {
+      toast(err.message || 'Failed to send invitation. Please try again.', 'error');
+    } finally {
+      setInviting(false);
+    }
   };
 
-  const handleDisconnect = () => {
-    setConnections(prev => prev.filter(c => c.id !== disconnectTarget.id));
-    toast(`${disconnectTarget.name} has been disconnected from your care circle.`, 'info');
+  const handleDisconnect = async () => {
+    const target = disconnectTarget;
     setDisconnectTarget(null);
+    try {
+      await removeConnection(target.id);
+      toast(`${target.name} has been disconnected from your care circle.`, 'info');
+    } catch {
+      toast('Failed to disconnect. Please try again.', 'error');
+    }
   };
 
   return (
@@ -157,9 +150,9 @@ function PatientFamily() {
             Your partner will only see what you explicitly allow. Medical records remain private by default.
           </div>
           <div className="flex gap-3">
-            <button type="submit"
-              className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-colors flex items-center gap-2">
-              <i className="fas fa-paper-plane"></i> Send Invitation
+            <button type="submit" disabled={inviting}
+              className="bg-aubergine-700 hover:bg-aubergine-800 disabled:opacity-60 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-colors flex items-center gap-2">
+              <i className="fas fa-paper-plane"></i> {inviting ? 'Sending…' : 'Send Invitation'}
             </button>
             <button type="button" onClick={() => setShowInviteForm(false)}
               className="border border-slate-200 text-slate-600 font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-slate-50 transition-colors">
@@ -186,7 +179,7 @@ function PatientFamily() {
 
       {/* Connections */}
       <div className="grid md:grid-cols-2 gap-6">
-        {connections.map((c, idx) => (
+        {careConnections.map((c) => (
           <div key={c.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 relative overflow-hidden flex flex-col">
             <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-aubergine-400 to-aubergine-600"></div>
 
@@ -222,7 +215,7 @@ function PatientFamily() {
                         <p className="text-[10px] text-slate-500">{perm.sub}</p>
                       </div>
                     </div>
-                    <button onClick={() => togglePermission(idx, perm.key)}
+                    <button onClick={() => togglePermission(c, perm.key)}
                       className={`flex-shrink-0 w-11 h-6 rounded-full relative transition-all border ${isOn ? 'bg-aubergine-600 border-aubergine-600' : 'bg-slate-200 border-slate-300'}`}>
                       <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all shadow-sm ${isOn ? 'right-1' : 'left-1'}`}></div>
                     </button>

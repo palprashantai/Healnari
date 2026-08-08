@@ -9,6 +9,7 @@ export interface PatientRecord {
   chronic_conditions: string[];
   height_cm: string | null;
   weight_kg: string | null;
+  city: string | null;
   primary_doctor_id: string | null;
   created_at: Date;
   updated_at: Date;

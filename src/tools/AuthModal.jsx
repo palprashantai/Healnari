@@ -95,36 +95,34 @@ function AuthModal({ onClose }) {
         {/* Scrollable Body */}
         <div className="p-6 overflow-y-auto">
 
-          {/* Role Toggle */}
-          <div className="flex bg-slate-100 p-1 rounded-xl mb-6 text-center">
-            <button
-              onClick={() => setRole('patient')}
-              className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-lg transition-all flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 ${role === 'patient'
-                ? 'bg-white text-brand-700 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-                }`}
-            >
-              <i className="fas fa-user"></i> Patient
-            </button>
-            <button
-              onClick={() => setRole('doctor')}
-              className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-lg transition-all flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 ${role === 'doctor'
-                ? 'bg-white text-indigo-700 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-                }`}
-            >
-              <i className="fas fa-user-doctor"></i> Doctor
-            </button>
-            <button
-              onClick={() => setRole('admin')}
-              className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-lg transition-all flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 ${role === 'admin'
-                ? 'bg-white text-sky-700 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-                }`}
-            >
-              <i className="fas fa-shield-halved"></i> Admin
-            </button>
-          </div>
+          {/* Role Toggle — only meaningful at registration. Login is account-bound:
+              your role comes from your account, not from a tab you click, so
+              showing this during login just misleads people into thinking they
+              can pick which dashboard they land on. Admin isn't selectable here
+              at all — those accounts are provisioned manually, never via public
+              self-signup (the backend rejects it too). */}
+          {mode === 'register' && (
+            <div className="flex bg-slate-100 p-1 rounded-xl mb-6 text-center">
+              <button
+                onClick={() => setRole('patient')}
+                className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-lg transition-all flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 ${role === 'patient'
+                  ? 'bg-white text-brand-700 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+                  }`}
+              >
+                <i className="fas fa-user"></i> Patient
+              </button>
+              <button
+                onClick={() => setRole('doctor')}
+                className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-lg transition-all flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 ${role === 'doctor'
+                  ? 'bg-white text-indigo-700 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+                  }`}
+              >
+                <i className="fas fa-user-doctor"></i> Doctor
+              </button>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (

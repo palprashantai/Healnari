@@ -1,5 +1,5 @@
-import { Controller, Get, Put, Post, Param, Body, ForbiddenException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiProperty, ApiParam } from '@nestjs/swagger';
+import { Controller, Get, Put, Post, Delete, Param, Body, ForbiddenException, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiProperty, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { AdminService } from '@/modules/admin/services/admin.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
@@ -11,162 +11,290 @@ import { ProfileRole } from '@/shared/interfaces/profile.interface';
 export class UpdateVerificationDto {
   @ApiProperty({ enum: ['approved', 'rejected'] }) status: string;
 }
+export class ResolveTicketDto {
+  @ApiProperty({ required: false }) resolution?: string;
+}
+export class CmsArticleDto {
+  @ApiProperty() title: string;
+  @ApiProperty() author: string;
+  @ApiProperty() category: string;
+  @ApiProperty({ enum: ['Draft', 'Published', 'Archived'], required: false }) status?: string;
+}
+export class MessageTemplateDto {
+  @ApiProperty() name: string;
+  @ApiProperty() content: string;
+}
+export class BroadcastDto {
+  @ApiProperty() subject: string;
+  @ApiProperty() audience: string;
+  @ApiProperty() body: string;
+  @ApiProperty({ required: false }) scheduleAt?: string;
+}
+export class GenerateReportDto {
+  @ApiProperty() name: string;
+  @ApiProperty() type: string;
+}
 
 @ApiTags('Admin')
 @Controller('api/admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
-  // SupabaseAuthGuard (global) has already verified the caller's real JWT by
-  // the time a request reaches here — this only needs to check their role.
   private checkAdmin(user: AuthUser) {
     if (user.profile.role !== ProfileRole.ADMIN) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
   }
 
-  @ApiOperation({ summary: 'Platform stats (4 stat cards)' })
-  @ApiResponse({ status: 200 })
+  // ─── Dashboard ────────────────────────────────────────────────────
   @Get('dashboard')
+  @ApiOperation({ summary: 'Platform stats (KPI cards)' })
   async getStats(@CurrentUser() user: AuthUser) {
-    try {
-      this.checkAdmin(user);
-      const data = await this.adminService.getDashboardStats();
-      return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
-    } catch (error) { throw error; }
+    this.checkAdmin(user);
+    const data = await this.adminService.getDashboardStats();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  @ApiOperation({ summary: 'System health status (API, DB, SMS, Video)' })
-  @ApiResponse({ status: 200 })
   @Get('system-health')
+  @ApiOperation({ summary: 'System health status' })
   async getSystemHealth(@CurrentUser() user: AuthUser) {
-    try {
-      this.checkAdmin(user);
-      const data = await this.adminService.getSystemHealth();
-      return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
-    } catch (error) { throw error; }
+    this.checkAdmin(user);
+    const data = await this.adminService.getSystemHealth();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  @ApiOperation({ summary: 'Support tickets list' })
-  @ApiResponse({ status: 200 })
-  @Get('tickets')
-  async getTickets(@CurrentUser() user: AuthUser) {
-    try {
-      this.checkAdmin(user);
-      const data = await this.adminService.getSupportTickets();
-      return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
-    } catch (error) { throw error; }
-  }
-
-  @ApiOperation({ summary: 'Resolve a support ticket' })
-  @ApiResponse({ status: 200 })
-  @ApiParam({ name: 'id', description: 'Ticket ID' })
-  @Put('tickets/:id/resolve')
-  async resolveTicket(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    try {
-      this.checkAdmin(user);
-      const data = await this.adminService.resolveTicket(Number(id));
-      return ResponseHelper.success(data, SUCCESS_MESSAGES.TICKET_RESOLVED);
-    } catch (error) { throw error; }
-  }
-
-  @ApiOperation({ summary: 'Refund requests list' })
-  @ApiResponse({ status: 200 })
-  @Get('refunds')
-  async getRefunds(@CurrentUser() user: AuthUser) {
-    try {
-      this.checkAdmin(user);
-      const data = await this.adminService.getRefundRequests();
-      return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
-    } catch (error) { throw error; }
-  }
-
-  @ApiOperation({ summary: 'Initiate refund to source' })
-  @ApiResponse({ status: 200 })
-  @ApiParam({ name: 'id', description: 'Refund ID' })
-  @Put('refunds/:id/process')
-  async processRefund(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    try {
-      this.checkAdmin(user);
-      const data = await this.adminService.processRefund(Number(id));
-      return ResponseHelper.success(data, SUCCESS_MESSAGES.REFUND_INITIATED);
-    } catch (error) { throw error; }
-  }
-
-  @ApiOperation({ summary: 'All platform users list' })
-  @ApiResponse({ status: 200 })
+  // ─── Users ────────────────────────────────────────────────────────
   @Get('users')
-  async getUsers(@CurrentUser() user: AuthUser) {
-    try {
-      this.checkAdmin(user);
-      const data = await this.adminService.getAllUsers();
-      return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
-    } catch (error) { throw error; }
+  @ApiOperation({ summary: 'All platform users (patients)' })
+  @ApiQuery({ name: 'role', required: false })
+  async getUsers(@CurrentUser() user: AuthUser, @Query('role') role?: string) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getAllUsers(role);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  @ApiOperation({ summary: 'Registered clinics and doctors' })
-  @ApiResponse({ status: 200 })
+  @Get('users/:id')
+  @ApiOperation({ summary: 'Single user detail' })
+  async getUserById(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getUserById(id);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Put('users/:id/status')
+  @ApiOperation({ summary: 'Suspend or activate a user' })
+  async updateUserStatus(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: { status: string }) {
+    this.checkAdmin(user);
+    const data = await this.adminService.updateUserStatus(id, body.status);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  // ─── Doctors / Clinics ────────────────────────────────────────────
   @Get('clinics')
+  @ApiOperation({ summary: 'All registered doctors / clinics' })
   async getClinics(@CurrentUser() user: AuthUser) {
-    try {
-      this.checkAdmin(user);
-      const data = await this.adminService.getDoctorsAndClinics();
-      return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
-    } catch (error) { throw error; }
+    this.checkAdmin(user);
+    const data = await this.adminService.getDoctorsAndClinics();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  @ApiOperation({ summary: 'Pending doctor KYC verifications' })
-  @ApiResponse({ status: 200 })
+  @Get('clinics/:id')
+  @ApiOperation({ summary: 'Single doctor/clinic detail with appointments' })
+  async getDoctorDetail(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getDoctorDetail(id);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Put('clinics/:id/commission')
+  @ApiOperation({ summary: 'Update doctor commission rate' })
+  async updateCommission(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: { commissionRate: number }) {
+    this.checkAdmin(user);
+    const data = await this.adminService.updateDoctorCommission(id, body.commissionRate);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  // ─── Verifications ────────────────────────────────────────────────
   @Get('verifications')
+  @ApiOperation({ summary: 'Pending doctor KYC verifications' })
   async getPendingVerifications(@CurrentUser() user: AuthUser) {
-    try {
-      this.checkAdmin(user);
-      const data = await this.adminService.getPendingVerifications();
-      return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
-    } catch (error) { throw error; }
+    this.checkAdmin(user);
+    const data = await this.adminService.getPendingVerifications();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  @ApiOperation({ summary: 'Approve or reject a doctor verification' })
-  @ApiResponse({ status: 200 })
-  @ApiParam({ name: 'id', description: 'Doctor ID' })
   @Put('verifications/:id')
+  @ApiOperation({ summary: 'Approve or reject a doctor verification' })
   async updateVerification(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: UpdateVerificationDto) {
-    try {
-      this.checkAdmin(user);
-      const data = await this.adminService.updateDoctorVerification(id, body.status);
-      const msg = body.status === 'approved' ? SUCCESS_MESSAGES.VERIFICATION_APPROVED : SUCCESS_MESSAGES.VERIFICATION_REJECTED;
-      return ResponseHelper.success(data, msg);
-    } catch (error) { throw error; }
+    this.checkAdmin(user);
+    const data = await this.adminService.updateDoctorVerification(id, body.status);
+    const msg = body.status === 'approved' ? SUCCESS_MESSAGES.VERIFICATION_APPROVED : SUCCESS_MESSAGES.VERIFICATION_REJECTED;
+    return ResponseHelper.success(data, msg);
   }
 
-  @ApiOperation({ summary: 'Platform revenue insights' })
-  @ApiResponse({ status: 200 })
+  // ─── Tickets ──────────────────────────────────────────────────────
+  @Get('tickets')
+  @ApiOperation({ summary: 'All support tickets' })
+  async getTickets(@CurrentUser() user: AuthUser) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getSupportTickets();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Put('tickets/:id/resolve')
+  @ApiOperation({ summary: 'Resolve a support ticket' })
+  async resolveTicket(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    this.checkAdmin(user);
+    const data = await this.adminService.resolveTicket(Number(id));
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.TICKET_RESOLVED);
+  }
+
+  // ─── Refunds ──────────────────────────────────────────────────────
+  @Get('refunds')
+  @ApiOperation({ summary: 'All refund requests' })
+  async getRefunds(@CurrentUser() user: AuthUser) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getRefundRequests();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Put('refunds/:id/process')
+  @ApiOperation({ summary: 'Process a refund' })
+  async processRefund(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    this.checkAdmin(user);
+    const data = await this.adminService.processRefund(Number(id));
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.REFUND_INITIATED);
+  }
+
+  // ─── Revenue ──────────────────────────────────────────────────────
   @Get('revenue')
+  @ApiOperation({ summary: 'Platform revenue insights and payout requests' })
   async getRevenue(@CurrentUser() user: AuthUser) {
-    try {
-      this.checkAdmin(user);
-      const data = await this.adminService.getRevenueData();
-      return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
-    } catch (error) { throw error; }
+    this.checkAdmin(user);
+    const data = await this.adminService.getRevenueData();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  @ApiOperation({ summary: 'Platform-wide analytics reports' })
-  @ApiResponse({ status: 200 })
+  @Get('revenue/payouts')
+  @ApiOperation({ summary: 'Doctor payout requests' })
+  async getPayouts(@CurrentUser() user: AuthUser) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getPayoutRequests();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Put('revenue/payouts/:id/process')
+  @ApiOperation({ summary: 'Mark a payout as processed' })
+  async processPayout(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: { referenceId: string }) {
+    this.checkAdmin(user);
+    const data = await this.adminService.processPayout(id, body.referenceId);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  // ─── Reports ──────────────────────────────────────────────────────
   @Get('reports')
+  @ApiOperation({ summary: 'Platform analytics & generated reports history' })
   async getReports(@CurrentUser() user: AuthUser) {
-    try {
-      this.checkAdmin(user);
-      const data = await this.adminService.getPlatformReports();
-      return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
-    } catch (error) { throw error; }
+    this.checkAdmin(user);
+    const data = await this.adminService.getPlatformReports();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  @ApiOperation({ summary: 'CMS content (banners, FAQs, terms, privacy)' })
-  @ApiResponse({ status: 200 })
+  @Post('reports/generate')
+  @ApiOperation({ summary: 'Generate a new report' })
+  async generateReport(@CurrentUser() user: AuthUser, @Body() body: GenerateReportDto) {
+    this.checkAdmin(user);
+    const data = await this.adminService.generateReport(body.name, body.type);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  // ─── CMS Articles ─────────────────────────────────────────────────
   @Get('cms')
+  @ApiOperation({ summary: 'All CMS articles / content' })
   async getCmsContent(@CurrentUser() user: AuthUser) {
-    try {
-      this.checkAdmin(user);
-      const data = await this.adminService.getCmsContent();
-      return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
-    } catch (error) { throw error; }
+    this.checkAdmin(user);
+    const data = await this.adminService.getCmsArticles();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Post('cms')
+  @ApiOperation({ summary: 'Create a CMS article' })
+  async createCmsArticle(@CurrentUser() user: AuthUser, @Body() body: CmsArticleDto) {
+    this.checkAdmin(user);
+    const data = await this.adminService.createCmsArticle(body);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  @Put('cms/:id/status')
+  @ApiOperation({ summary: 'Toggle CMS article status (publish/unpublish)' })
+  async toggleCmsStatus(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: { status: string }) {
+    this.checkAdmin(user);
+    const data = await this.adminService.updateCmsArticleStatus(id, body.status);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  @Delete('cms/:id')
+  @ApiOperation({ summary: 'Delete a CMS article' })
+  async deleteCmsArticle(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    this.checkAdmin(user);
+    await this.adminService.deleteCmsArticle(id);
+    return ResponseHelper.success(null, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  // ─── Message Templates ────────────────────────────────────────────
+  @Get('communications/templates')
+  @ApiOperation({ summary: 'All message templates' })
+  async getTemplates(@CurrentUser() user: AuthUser) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getMessageTemplates();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Post('communications/templates')
+  @ApiOperation({ summary: 'Create a message template' })
+  async createTemplate(@CurrentUser() user: AuthUser, @Body() body: MessageTemplateDto) {
+    this.checkAdmin(user);
+    const data = await this.adminService.createMessageTemplate(body);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  @Put('communications/templates/:id')
+  @ApiOperation({ summary: 'Update a message template' })
+  async updateTemplate(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: MessageTemplateDto) {
+    this.checkAdmin(user);
+    const data = await this.adminService.updateMessageTemplate(id, body);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  @Delete('communications/templates/:id')
+  @ApiOperation({ summary: 'Delete a message template' })
+  async deleteTemplate(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    this.checkAdmin(user);
+    await this.adminService.deleteMessageTemplate(id);
+    return ResponseHelper.success(null, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  // ─── Broadcasts ───────────────────────────────────────────────────
+  @Get('communications/broadcasts')
+  @ApiOperation({ summary: 'Broadcast history' })
+  async getBroadcasts(@CurrentUser() user: AuthUser) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getBroadcastHistory();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Post('communications/broadcasts')
+  @ApiOperation({ summary: 'Send a broadcast message' })
+  async sendBroadcast(@CurrentUser() user: AuthUser, @Body() body: BroadcastDto) {
+    this.checkAdmin(user);
+    const data = await this.adminService.sendBroadcast(body);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  // ─── Analytics ────────────────────────────────────────────────────
+  @Get('analytics')
+  @ApiOperation({ summary: 'Analytics aggregates for charts' })
+  async getAnalytics(@CurrentUser() user: AuthUser) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getAnalytics();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 }

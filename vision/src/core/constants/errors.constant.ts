@@ -11,6 +11,15 @@ export const ERROR_MESSAGES = {
   PATIENT_NOT_FOUND: 'Patient profile not found.',
   ONBOARDING_INCOMPLETE: 'Please complete onboarding before accessing this feature.',
 
+  // Family / Care Circle
+  CONNECTION_NOT_FOUND: 'Care circle connection not found.',
+  CONNECTION_ALREADY_INVITED: 'This person has already been invited to your care circle.',
+
+  // Discovery / Waitlist
+  FAVORITE_ALREADY_EXISTS: 'This doctor is already in your favourites.',
+  FAVORITE_NOT_FOUND: 'Favourite not found.',
+  WAITLIST_ENTRY_NOT_FOUND: 'Waitlist entry not found.',
+
   // Doctors
   DOCTOR_NOT_FOUND: 'Doctor not found or not verified.',
   KYC_ALREADY_SUBMITTED: 'KYC documents have already been submitted.',

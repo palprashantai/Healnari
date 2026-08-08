@@ -14,6 +14,9 @@ export function ClinicDataProvider({ children }) {
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [cycleLogs, setCycleLogs] = useState({});
+  const [vitals, setVitals] = useState({});
+  const [lifestyleLogs, setLifestyleLogs] = useState({});
+  const [careConnections, setCareConnections] = useState([]);
   const [kycVerified, setKycVerified] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -72,6 +75,18 @@ export function ClinicDataProvider({ children }) {
     };
   };
 
+  const adaptCareConnection = (c) => ({
+    id: c.id,
+    name: c.invitee_name,
+    email: c.invitee_email,
+    relation: c.relation,
+    invitedOn: c.created_at ? new Date(c.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+    status: c.status,
+    avatar: c.invitee_name.slice(0, 2).toUpperCase(),
+    permissions: c.permissions,
+    inviteToken: c.invite_token,
+  });
+
   const adaptAppointment = (a) => ({
     id: a.id,
     patientName: a.patientName || 'Unknown',
@@ -97,7 +112,7 @@ export function ClinicDataProvider({ children }) {
       if (user.role === 'doctor') {
         const pts = await apiFetch('/patients');
         setPatients(pts.map(adaptPatient).filter(Boolean));
-      } else {
+      } else if (user.role === 'patient') {
         const me = await apiFetch('/patients/me');
         if (me) setPatients([adaptPatient(me)]);
         
@@ -107,10 +122,25 @@ export function ClinicDataProvider({ children }) {
           logMap[l.log_date] = { phase: l.phase, flow: l.flow, cramps: l.cramps, mood: l.mood, symptoms: l.symptoms };
         });
         setCycleLogs(logMap);
+
+        const vitalsData = await apiFetch('/patients/me/vitals');
+        setVitals(vitalsData);
+
+        const lifestyle = await apiFetch('/patients/me/lifestyle-logs');
+        const lifestyleMap = {};
+        lifestyle.forEach(l => {
+          lifestyleMap[l.log_date] = { items: l.items, completedCount: l.completed_count };
+        });
+        setLifestyleLogs(lifestyleMap);
+
+        const connections = await apiFetch('/patients/me/care-connections');
+        setCareConnections(connections.map(adaptCareConnection));
       }
 
-      const apts = await apiFetch('/appointments');
-      setAppointments(apts.map(adaptAppointment));
+      if (user.role === 'doctor' || user.role === 'patient') {
+        const apts = await apiFetch('/appointments');
+        setAppointments(apts.map(adaptAppointment));
+      }
     } catch (err) {
       console.error('Failed to fetch clinic data:', err);
     } finally {
@@ -284,6 +314,70 @@ export function ClinicDataProvider({ children }) {
     }
   };
 
+  /* ── Vitals ────────────────────────────────────────────────── */
+  const logVital = async (key, value, unit) => {
+    const prev = vitals[key];
+    try {
+      const res = await apiFetch(`/patients/me/vitals/${key}`, { method: 'PUT', body: { value, unit } });
+      setVitals(p => ({ ...p, [key]: res }));
+      return res;
+    } catch (err) {
+      console.error(err);
+      setVitals(p => ({ ...p, [key]: prev }));
+      throw err;
+    }
+  };
+
+  /* ── Lifestyle logs ────────────────────────────────────────── */
+  const logLifestyle = async (dateKey, items) => {
+    const completedCount = Object.values(items).filter(Boolean).length;
+    setLifestyleLogs(prev => ({ ...prev, [dateKey]: { items, completedCount } }));
+    try {
+      const res = await apiFetch(`/patients/me/lifestyle-logs/${dateKey}`, { method: 'PUT', body: { items } });
+      setLifestyleLogs(prev => ({ ...prev, [dateKey]: { items: res.items, completedCount: res.completed_count } }));
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  /* ── Care circle connections ──────────────────────────────── */
+  const inviteConnection = async (email, relation) => {
+    try {
+      const res = await apiFetch('/patients/me/care-connections', { method: 'POST', body: { email, relation } });
+      const newConn = adaptCareConnection(res);
+      setCareConnections(prev => [newConn, ...prev]);
+      return newConn;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const updateConnectionPermissions = async (id, permissions) => {
+    setCareConnections(prev => prev.map(c => (c.id === id ? { ...c, permissions } : c)));
+    try {
+      await apiFetch(`/patients/me/care-connections/${id}/permissions`, { method: 'PUT', body: { permissions } });
+    } catch (err) {
+      console.error(err);
+      fetchData(); // rollback
+      throw err;
+    }
+  };
+
+  const removeConnection = async (id) => {
+    const prev = careConnections;
+    setCareConnections(cur => cur.filter(c => c.id !== id));
+    try {
+      await apiFetch(`/patients/me/care-connections/${id}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error(err);
+      setCareConnections(prev); // rollback
+      throw err;
+    }
+  };
+
   const verifyKyc = async () => {
     try {
       await apiFetch('/doctors/me/kyc', { method: 'PUT' });
@@ -299,6 +393,9 @@ export function ClinicDataProvider({ children }) {
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment,
     approveRequest, rejectRequest, callNextForDoctor,
     cycleLogs, logCycle,
+    vitals, logVital,
+    lifestyleLogs, logLifestyle,
+    careConnections, inviteConnection, updateConnectionPermissions, removeConnection,
     kycVerified, verifyKyc,
   };
 

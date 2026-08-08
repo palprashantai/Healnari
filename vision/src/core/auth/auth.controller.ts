@@ -1,7 +1,10 @@
-import { Body, Controller, Get, Post, Put } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiProperty } from '@nestjs/swagger';
+import { BadRequestException, Body, Controller, Delete, Get, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { ApiTags, ApiOperation, ApiProperty, ApiConsumes } from '@nestjs/swagger';
 import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import { AuthService } from '@/core/auth/auth.service';
+import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
 import { Public } from '@/core/decorators/public.decorator';
@@ -35,6 +38,13 @@ export class UpdateMeDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() phone?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() specialty?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() registrationNo?: string;
+  @ApiProperty({ required: false }) @IsOptional() emailNotifications?: boolean;
+  @ApiProperty({ required: false }) @IsOptional() smsNotifications?: boolean;
+}
+
+export class UpdatePasswordDto {
+  @ApiProperty() @IsString() currentPassword: string;
+  @ApiProperty({ example: 'newPassword123' }) @IsString() @MinLength(6) newPassword: string;
 }
 
 /** All identity/session state lives in Supabase Auth. This controller is a
@@ -79,6 +89,30 @@ export class AuthController {
   @Put('me')
   async updateMe(@CurrentUser() user: AuthUser, @Body() body: UpdateMeDto) {
     const result = await this.authService.updateMe(user.id, body);
+    return ResponseHelper.success(result, SUCCESS_MESSAGES.PROFILE_UPDATED);
+  }
+
+  @ApiOperation({ summary: "Change the caller's password" })
+  @Put('password')
+  async updatePassword(@CurrentUser() user: AuthUser, @Body() body: UpdatePasswordDto) {
+    await this.authService.updatePassword(user, body.currentPassword, body.newPassword);
+    return ResponseHelper.success(null, SUCCESS_MESSAGES.PASSWORD_UPDATED);
+  }
+
+  @ApiOperation({ summary: "Upload the caller's profile photo" })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } }))
+  @Post('me/avatar')
+  async uploadAvatar(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException(ERROR_MESSAGES.BAD_REQUEST);
+    const result = await this.authService.uploadAvatar(user, file);
+    return ResponseHelper.success(result, SUCCESS_MESSAGES.PROFILE_UPDATED);
+  }
+
+  @ApiOperation({ summary: "Remove the caller's profile photo" })
+  @Delete('me/avatar')
+  async removeAvatar(@CurrentUser() user: AuthUser) {
+    const result = await this.authService.removeAvatar(user);
     return ResponseHelper.success(result, SUCCESS_MESSAGES.PROFILE_UPDATED);
   }
 }

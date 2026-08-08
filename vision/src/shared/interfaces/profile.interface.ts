@@ -18,4 +18,6 @@ export interface Profile {
   created_at: Date;
   consultation_fee: number;
   updated_at: Date;
+  email_notifications: boolean;
+  sms_notifications: boolean;
 }

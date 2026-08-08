@@ -9,6 +9,7 @@ export const SUCCESS_MESSAGES = {
 
   // Profile
   PROFILE_UPDATED: 'Profile successfully updated.',
+  PASSWORD_UPDATED: 'Password successfully updated.',
 
   // Appointments
   APPOINTMENT_BOOKED: 'Consultation successfully booked.',
@@ -39,6 +40,17 @@ export const SUCCESS_MESSAGES = {
   DATA_RETRIEVED: 'Data retrieved successfully.',
   HEALTH_METRICS_UPDATED: 'Health metrics updated successfully.',
   GOAL_LOGGED: 'Goal progress logged for today.',
+
+  // Family / Care Circle
+  CONNECTION_INVITED: 'Invitation sent successfully.',
+  CONNECTION_PERMISSIONS_UPDATED: 'Sharing permissions updated.',
+  CONNECTION_REMOVED: 'Connection removed from your care circle.',
+
+  // Discovery / Waitlist
+  FAVORITE_ADDED: 'Added to favourites.',
+  FAVORITE_REMOVED: 'Removed from favourites.',
+  WAITLIST_JOINED: 'Added to the waitlist.',
+  WAITLIST_LEFT: 'Removed from the waitlist.',
 
   // Records vault
   LAB_REPORT_REVIEWED: 'Lab report reviewed.',
