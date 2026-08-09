@@ -171,6 +171,7 @@ export function ClinicDataProvider({ children }) {
         body: {
           name: updated.name, phone: updated.phone, dob: updated.dob, bloodGroup: updated.blood,
           city: updated.city, allergies: updated.allergies, chronicConditions: updated.medicalHistory?.chronicConditions,
+          heightCm: updated.height, weightKg: updated.weight,
         }
       });
       // Sync back
@@ -290,12 +291,14 @@ export function ClinicDataProvider({ children }) {
   };
 
   const updateAppointmentStatus = async (id, status) => {
-    setAppointments(prev => prev.map(a => (a.id === id ? { ...a, status } : a)));
+    const prev = appointments;
+    setAppointments(cur => cur.map(a => (a.id === id ? { ...a, status } : a)));
     try {
       await apiFetch(`/appointments/${id}/status`, { method: 'PUT', body: { status } });
     } catch (err) {
       console.error(err);
-      fetchData(); // Rollback
+      setAppointments(prev); // Rollback
+      throw err;
     }
   };
 
@@ -314,11 +317,17 @@ export function ClinicDataProvider({ children }) {
 
   /* ── Cycle logs ────────────────────────────────────────────── */
   const logCycle = async (dateKey, fields) => {
-    setCycleLogs(prev => ({ ...prev, [dateKey]: { ...prev[dateKey], ...fields } }));
+    const prev = cycleLogs[dateKey];
+    setCycleLogs(p => ({ ...p, [dateKey]: { ...p[dateKey], ...fields } }));
     try {
       await apiFetch(`/patients/me/cycle-logs/${dateKey}`, { method: 'PUT', body: fields });
     } catch (err) {
       console.error(err);
+      setCycleLogs(p => {
+        const next = { ...p };
+        if (prev === undefined) delete next[dateKey]; else next[dateKey] = prev;
+        return next;
+      });
       throw err;
     }
   };
@@ -339,14 +348,20 @@ export function ClinicDataProvider({ children }) {
 
   /* ── Lifestyle logs ────────────────────────────────────────── */
   const logLifestyle = async (dateKey, items) => {
+    const prev = lifestyleLogs[dateKey];
     const completedCount = Object.values(items).filter(Boolean).length;
-    setLifestyleLogs(prev => ({ ...prev, [dateKey]: { items, completedCount } }));
+    setLifestyleLogs(p => ({ ...p, [dateKey]: { items, completedCount } }));
     try {
       const res = await apiFetch(`/patients/me/lifestyle-logs/${dateKey}`, { method: 'PUT', body: { items } });
-      setLifestyleLogs(prev => ({ ...prev, [dateKey]: { items: res.items, completedCount: res.completed_count } }));
+      setLifestyleLogs(p => ({ ...p, [dateKey]: { items: res.items, completedCount: res.completed_count } }));
       return res;
     } catch (err) {
       console.error(err);
+      setLifestyleLogs(p => {
+        const next = { ...p };
+        if (prev === undefined) delete next[dateKey]; else next[dateKey] = prev;
+        return next;
+      });
       throw err;
     }
   };
@@ -404,9 +419,12 @@ export function ClinicDataProvider({ children }) {
   /* ── Appointment waitlist ─────────────────────────────────── */
   const joinWaitlist = async (doctorId, preferredWindow) => {
     try {
-      const res = await apiFetch('/patients/me/waitlist', { method: 'POST', body: { doctorId, preferredWindow } });
-      setWaitlist(prev => [{ ...res, position: prev.filter(w => w.doctor_id === doctorId).length + 1 }, ...prev]);
-      return res;
+      await apiFetch('/patients/me/waitlist', { method: 'POST', body: { doctorId, preferredWindow } });
+      // Re-fetch rather than fabricate a position client-side — the backend
+      // computes real queue position across all patients waiting for this doctor.
+      const refreshed = await apiFetch('/patients/me/waitlist');
+      setWaitlist(refreshed);
+      return refreshed[0];
     } catch (err) {
       console.error(err);
       throw err;

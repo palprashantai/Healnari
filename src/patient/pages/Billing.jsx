@@ -5,12 +5,15 @@ import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 
 const STATUS_STYLE = {
-  paid:     'bg-emerald-50 text-emerald-700 border-emerald-100',
-  refunded: 'bg-rose-50 text-rose-700 border-rose-100',
-  pending:  'bg-amber-50 text-amber-700 border-amber-100',
+  paid:      'bg-emerald-50 text-emerald-700 border-emerald-100',
+  refunded:  'bg-rose-50 text-rose-700 border-rose-100',
+  pending:   'bg-amber-50 text-amber-700 border-amber-100',
+  insurance: 'bg-sky-50 text-sky-700 border-sky-100',
 };
 
-const PAYMENT_STATUS_TO_DISPLAY = { Paid: 'paid', Pending: 'pending', Refunded: 'refunded', 'Insurance Claimed': 'paid' };
+// 'Insurance Claimed' is NOT out-of-pocket spend — kept as its own status so
+// it's excluded from the "Total Spent" sum below instead of inflating it.
+const PAYMENT_STATUS_TO_DISPLAY = { Paid: 'paid', Pending: 'pending', Refunded: 'refunded', 'Insurance Claimed': 'insurance' };
 
 const METHOD_ICON = { UPI: 'fa-mobile-screen-button', Card: 'fa-credit-card', 'Net Banking': 'fa-building-columns', Wallet: 'fa-wallet' };
 
@@ -125,9 +128,6 @@ function PaymentModal({ isOpen, onClose, amount, description, onSuccess }) {
 function PatientBilling() {
   const toast = useToast();
   const { appointments } = useClinicData();
-  const [coupon, setCoupon] = useState('');
-  const [couponApplied, setCouponApplied] = useState(false);
-  const [couponMsg, setCouponMsg] = useState('');
   const [rawTransactions, setRawTransactions] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [payTarget, setPayTarget] = useState(null);
@@ -171,20 +171,8 @@ function PatientBilling() {
 
   const totalPaid = transactions.filter(t => t.status === 'paid').reduce((s, t) => s + t.amount, 0);
 
-  const applyCoupon = () => {
-    if (coupon.toUpperCase() === 'HEALNARI10') {
-      setCouponApplied(true);
-      setCouponMsg('10% off applied on your next booking!');
-      toast('Coupon HEALNARI10 applied — 10% off!', 'success');
-    } else {
-      setCouponApplied(false);
-      setCouponMsg('Invalid coupon code. Try HEALNARI10!');
-      toast('Invalid coupon code.', 'error');
-    }
-  };
-
   const openPay = (amount, description, appointmentId) => {
-    setPayFor({ amount: couponApplied ? Math.round(amount * 0.9) : amount, description });
+    setPayFor({ amount, description });
     setPayTarget(appointmentId);
     setShowPayModal(true);
   };
@@ -200,16 +188,50 @@ function PatientBilling() {
     }
   };
 
+  // Real client-side CSV built from the already-loaded transaction list — no
+  // backend export endpoint exists, but this doesn't need a fake success toast
+  // since it's an actual file built from actual data.
   const handleExport = () => {
-    toast('Exporting transaction history as CSV...', 'info');
-    setTimeout(() => toast('CSV downloaded to your device!', 'success'), 1500);
+    if (!transactions.length) { toast('No transactions to export yet.', 'info'); return; }
+    const header = ['Date', 'Doctor', 'Type', 'Method', 'Amount', 'Status', 'Reference'];
+    const rows = transactions.map(t => [t.date, t.doctor, t.type, t.method, t.amount, t.status, t.txn_ref || t.id]);
+    const csv = [header, ...rows].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `healnari-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('CSV downloaded to your device!', 'success');
   };
 
+  // No backend invoice/PDF endpoint exists — build a plain-text receipt from
+  // the transaction row's already-loaded (real) data instead of faking a download.
+  const downloadReceipt = (txn) => {
+    const lines = [
+      'HealNari — Payment Receipt', '',
+      `Reference: ${txn.txn_ref || txn.id}`,
+      `Date: ${txn.date}`,
+      `Doctor: ${txn.doctor}`,
+      `Service: ${txn.type}`,
+      `Amount: ₹${txn.amount}`,
+      `Method: ${txn.method}`,
+      `Status: ${txn.status.charAt(0).toUpperCase() + txn.status.slice(1)}`,
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `receipt-${txn.txn_ref || txn.id}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // No home-collection booking endpoint exists yet — be upfront about that
+  // instead of "booking" it purely in localStorage.
   const handleBookCollection = () => {
-    const updated = { ...labsData, status: 'booked' };
-    localStorage.setItem('prescribed_labs', JSON.stringify(updated));
-    setLabsData(updated);
-    toast('Home blood collection booked for tomorrow 7:00 AM!', 'success');
+    toast('Online booking for home collection is coming soon. Please call the clinic to schedule.', 'info');
   };
 
   return (
@@ -234,8 +256,7 @@ function PatientBilling() {
           <div className="text-sm text-slate-500 font-medium mb-1">Next Consultation</div>
           {upcomingPayment ? (
             <>
-              <div className="text-2xl font-black text-slate-800">₹{couponApplied ? Math.round(upcomingPayment.amount * 0.9) : upcomingPayment.amount}</div>
-              {couponApplied && <div className="text-xs text-slate-500 font-bold line-through">₹{upcomingPayment.amount} <span className="no-underline text-emerald-600">(10% off applied!)</span></div>}
+              <div className="text-2xl font-black text-slate-800">₹{upcomingPayment.amount}</div>
               <div className="text-xs text-slate-500 mt-1">{upcomingPayment.doctor} • {upcomingPayment.date}</div>
               <button onClick={() => openPay(upcomingPayment.amount, `Consultation — ${upcomingPayment.doctor}`, upcomingPayment.appointmentId)}
                 className="mt-3 w-full text-center bg-aubergine-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer hover:bg-aubergine-700 transition-colors">
@@ -247,30 +268,15 @@ function PatientBilling() {
           )}
         </div>
 
-        {/* Coupon */}
+        {/* Coupon — not wired to a real discount on the backend yet */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
           <div className="text-sm text-slate-500 font-medium mb-1">Promo / Coupon</div>
-          {couponApplied ? (
-            <div className="mt-2 space-y-2">
-              <div className="flex items-center gap-2">
-                <i className="fas fa-tag text-emerald-500"></i>
-                <span className="text-sm font-bold text-emerald-700">HEALNARI10 Applied!</span>
-              </div>
-              <button onClick={() => { setCouponApplied(false); setCoupon(''); setCouponMsg(''); toast('Coupon removed.', 'info'); }}
-                className="text-xs text-rose-500 hover:underline font-semibold">Remove coupon</button>
-            </div>
-          ) : (
-            <div className="flex gap-2 mt-2">
-              <input value={coupon} onChange={e => setCoupon(e.target.value.toUpperCase())} placeholder="Enter code"
-                onKeyDown={e => e.key === 'Enter' && applyCoupon()}
-                className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
-              <button onClick={applyCoupon} className="bg-aubergine-600 text-white font-bold px-3 py-2 rounded-xl text-xs hover:bg-aubergine-700 transition-colors shrink-0">Apply</button>
-            </div>
-          )}
-          {couponMsg && !couponApplied && (
-            <p className="text-xs mt-2 font-medium text-rose-500">{couponMsg}</p>
-          )}
-          <p className="text-[10px] text-slate-500 mt-3 italic">Hint: Try HEALNARI10</p>
+          <div className="flex gap-2 mt-2">
+            <input disabled placeholder="Coming soon"
+              className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-sm bg-slate-100 text-slate-400 cursor-not-allowed" />
+            <button disabled className="bg-slate-200 text-slate-400 font-bold px-3 py-2 rounded-xl text-xs shrink-0 cursor-not-allowed">Apply</button>
+          </div>
+          <p className="text-[10px] text-slate-500 mt-3 italic">Promo codes aren't available yet — check back soon.</p>
         </div>
       </div>
 
@@ -297,7 +303,7 @@ function PatientBilling() {
               <>
                 <span className="text-xs text-slate-500 font-bold">Estimated Cost: ₹1,499 (Zero-Fee Pick-up)</span>
                 <button onClick={handleBookCollection}
-                  className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-colors flex items-center gap-2">
+                  className="bg-aubergine-100 text-aubergine-700 font-bold px-5 py-2.5 rounded-xl text-xs transition-colors flex items-center gap-2 hover:bg-aubergine-200">
                   <i className="fas fa-truck-droplet"></i> Book Home Blood Collection
                 </button>
               </>
@@ -348,7 +354,7 @@ function PatientBilling() {
                     </span>
                   </td>
                   <td className="px-5 py-4 text-right">
-                    <button onClick={() => toast(`Downloading invoice ${txn.id}...`, 'info')}
+                    <button onClick={() => downloadReceipt(txn)}
                       className="text-aubergine-600 hover:text-aubergine-800 text-xs font-bold flex items-center gap-1 ml-auto hover:underline">
                       <i className="fas fa-file-invoice"></i> Download
                     </button>

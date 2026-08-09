@@ -7,10 +7,10 @@ import { todayLocalStr } from '../../lib/dateUtils.js';
 
 /* ─── Config ─────────────────────────────────── */
 const HIRSUTISM_GRADES = [
-  { grade: 0, label: 'None', desc: 'No terminal hair growth.' },
-  { grade: 1, label: 'Minimal', desc: 'Few scattered hairs on upper lip/chin.' },
-  { grade: 2, label: 'Mild', desc: 'Definite hair lines on lip and chin.' },
-  { grade: 3, label: 'Moderate', desc: 'Dense beard-pattern hair growth.' },
+  { grade: 0, label: 'No extra hair', dots: 0, desc: 'You do not see any extra hair growth.' },
+  { grade: 1, label: 'A little hair', dots: 1, desc: 'A few hairs on the upper lip or chin.' },
+  { grade: 2, label: 'Noticeable hair', dots: 2, desc: 'Clear hair growth on the lip and chin.' },
+  { grade: 3, label: 'Thick hair growth', dots: 3, desc: 'Thick, beard-like hair growth on the face.' },
 ];
 
 const VITALS_CONFIG = {
@@ -83,9 +83,23 @@ function LogVitalModal({ vitalKey, vital, isOpen, onClose, onSave }) {
 }
 
 /* ─── Cycle Log Modal ────────────────────────── */
-function CycleLogModal({ isOpen, onClose, onSave }) {
+function CycleLogModal({ isOpen, onClose, onSave, existingLog }) {
   const [form, setForm] = useState({ flow: 'Medium', cramps: 2, mood: 'Calm', symptoms: [] });
   const SYMPTOMS_LIST = ['Cramps', 'Bloating', 'Headache', 'Fatigue', 'Back Pain', 'Nausea'];
+
+  // Re-seed the form from today's already-saved log (if any) each time the
+  // modal opens, instead of always resetting to defaults and silently
+  // overwriting what the patient logged earlier today.
+  useEffect(() => {
+    if (isOpen) {
+      setForm({
+        flow: existingLog?.flow ?? 'Medium',
+        cramps: existingLog?.cramps ?? 2,
+        mood: existingLog?.mood ?? 'Calm',
+        symptoms: existingLog?.symptoms ?? [],
+      });
+    }
+  }, [isOpen, existingLog]);
 
   const toggleSymptom = (s) => setForm(p => ({ ...p, symptoms: p.symptoms.includes(s) ? p.symptoms.filter(x => x !== s) : [...p.symptoms, s] }));
 
@@ -142,7 +156,7 @@ function CycleLogModal({ isOpen, onClose, onSave }) {
 /* ─── Main Component ─────────────────────────── */
 function PatientTracking() {
   const toast = useToast();
-  const { logCycle, vitals, logVital, lifestyleLogs, logLifestyle } = useClinicData();
+  const { cycleLogs, logCycle, vitals, logVital, lifestyleLogs, logLifestyle } = useClinicData();
   const [discreet, setDiscreet] = useState(localStorage.getItem('discreet_mode') === 'true');
   const [hirsutismGrade, setHirsutismGrade] = useState(() => {
     const v = vitals.hirsutism?.value;
@@ -155,7 +169,7 @@ function PatientTracking() {
   const [shareLog, setShareLog] = useState(localStorage.getItem('share_tracking_log') === 'true');
   const [logModal, setLogModal] = useState(null); // { key, vital }
   const [showCycleLog, setShowCycleLog] = useState(false);
-  const [lastCycleLog, setLastCycleLog] = useState(null);
+  const [lastCycleLog, setLastCycleLog] = useState(() => cycleLogs[todayKey()] || null);
   const [logSaved, setLogSaved] = useState(false);
   const [savingLog, setSavingLog] = useState(false);
 
@@ -212,9 +226,9 @@ function PatientTracking() {
   };
 
   const handleCycleLogSave = async (form) => {
-    setLastCycleLog(form);
     try {
       await logCycle(todayKey(), form);
+      setLastCycleLog(form);
       toast('Cycle log saved! Your doctor can see this in real-time.', 'success');
     } catch {
       toast('Failed to save cycle log. Please try again.', 'error');
@@ -289,22 +303,26 @@ function PatientTracking() {
         {/* Androgen Tracker */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
           <div>
-            <h3 className="font-extrabold text-slate-800 text-base">Androgen Excess Tracker</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Ferriman-Gallwey scale visual grading for hirsutism tracking.</p>
+            <h3 className="font-extrabold text-slate-800 text-base">Facial & Body Hair Tracker</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Once a month, pick the option closest to what you see.</p>
           </div>
           <div className="grid grid-cols-4 gap-2">
             {HIRSUTISM_GRADES.map(g => (
               <button key={g.grade} onClick={() => handleHirsutismSelect(g.grade)}
                 className={`p-3 rounded-xl border text-center transition-all ${hirsutismGrade === g.grade ? 'border-aubergine-500 bg-aubergine-50 shadow-sm' : 'border-slate-200 hover:bg-slate-50'}`}>
-                <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-2 text-xs font-black ${hirsutismGrade === g.grade ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-100 text-slate-500'}`}>
-                  FG {g.grade}
+                <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center gap-0.5 mb-2 ${hirsutismGrade === g.grade ? 'bg-aubergine-100' : 'bg-slate-100'}`}>
+                  {g.dots === 0
+                    ? <i className={`fas fa-check text-sm ${hirsutismGrade === g.grade ? 'text-aubergine-700' : 'text-slate-400'}`}></i>
+                    : Array.from({ length: g.dots }).map((_, i) => (
+                        <span key={i} className={`w-1.5 h-1.5 rounded-full ${hirsutismGrade === g.grade ? 'bg-aubergine-700' : 'bg-slate-400'}`}></span>
+                      ))}
                 </div>
                 <div className="text-xs font-bold text-slate-700">{g.label}</div>
               </button>
             ))}
           </div>
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs text-slate-600 leading-relaxed">
-            <strong>Selected:</strong> {HIRSUTISM_GRADES[hirsutismGrade].desc} Monthly tracking helps evaluate anti-androgenic therapy response.
+            <strong>You selected:</strong> {HIRSUTISM_GRADES[hirsutismGrade].desc} Checking this every month helps your doctor see if your treatment is working.
           </div>
         </div>
 
@@ -312,8 +330,8 @@ function PatientTracking() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-extrabold text-slate-800 text-base">Daily PCOS Lifestyle Log</h3>
-              <p className="text-xs text-slate-500 mt-0.5">Today's healthy habits tracker</p>
+              <h3 className="font-extrabold text-slate-800 text-base">Today's Health Checklist</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Mark the healthy habits you completed today</p>
             </div>
             <div className="text-right">
               <div className="text-2xl font-black text-aubergine-600">{completedCount}<span className="text-sm text-slate-500">/{LIFESTYLE_ITEMS.length}</span></div>
@@ -365,7 +383,7 @@ function PatientTracking() {
           onSave={handleVitalSave}
         />
       )}
-      <CycleLogModal isOpen={showCycleLog} onClose={() => setShowCycleLog(false)} onSave={handleCycleLogSave} />
+      <CycleLogModal isOpen={showCycleLog} onClose={() => setShowCycleLog(false)} onSave={handleCycleLogSave} existingLog={lastCycleLog} />
     </div>
   );
 }

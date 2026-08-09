@@ -26,16 +26,19 @@ function PatientProfile() {
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     if (!own || hydrated) return;
+    // Server/auth data only fills a field the user hasn't already typed into
+    // (form value wins) — otherwise this would clobber in-progress input the
+    // moment the async patient record resolves.
     setForm(p => ({
       ...p,
-      name: user?.name || p.name,
-      email: user?.email || p.email,
-      phone: user?.phone || p.phone,
-      dob: own.dob || p.dob,
-      bloodGroup: own.blood && own.blood !== '—' ? own.blood : p.bloodGroup,
-      height: own.height && own.height !== '—' ? String(own.height) : p.height,
-      weight: own.weight && own.weight !== '—' ? String(own.weight) : p.weight,
-      city: own.city || p.city,
+      name: p.name || user?.name || '',
+      email: p.email || user?.email || '',
+      phone: p.phone || user?.phone || '',
+      dob: p.dob || own.dob || '',
+      bloodGroup: p.bloodGroup || (own.blood && own.blood !== '—' ? own.blood : ''),
+      height: p.height || (own.height && own.height !== '—' ? String(own.height) : ''),
+      weight: p.weight || (own.weight && own.weight !== '—' ? String(own.weight) : ''),
+      city: p.city || own.city || '',
     }));
     setHydrated(true);
   }, [own, hydrated, user]);
@@ -51,13 +54,29 @@ function PatientProfile() {
   const [emailNotif, setEmailNotif] = useState(user?.emailNotifications ?? true);
   const [smsNotif, setSmsNotif] = useState(user?.smsNotifications ?? true);
 
+  const validateForm = () => {
+    if (!form.name.trim()) return 'Name is required.';
+    const phoneDigits = form.phone.replace(/\D/g, '');
+    if (form.phone && (phoneDigits.length < 7 || phoneDigits.length > 15)) return 'Enter a valid phone number.';
+    if (form.dob && new Date(form.dob) > new Date()) return 'Date of birth cannot be in the future.';
+    if (form.height && (Number(form.height) <= 0 || Number(form.height) > 300)) return 'Enter a valid height in cm.';
+    if (form.weight && (Number(form.weight) <= 0 || Number(form.weight) > 500)) return 'Enter a valid weight in kg.';
+    return null;
+  };
+
   const handleSave = async () => {
+    const validationError = validateForm();
+    if (validationError) { toast(validationError, 'error'); return; }
     setSaving(true);
     try {
-      await updateUser?.(form);
+      // email is intentionally excluded — the account email can't be changed
+      // from here; it's not accepted by either the auth or patient-record API.
+      await updateUser?.({ name: form.name, phone: form.phone });
       if (own) {
         await updatePatient({
           ...own,
+          name: form.name,
+          phone: form.phone,
           dob: form.dob,
           blood: form.bloodGroup,
           height: form.height,
@@ -198,7 +217,7 @@ function PatientProfile() {
               <div className="grid md:grid-cols-2 gap-5">
                 {[
                   { label: 'Full Name', key: 'name', icon: 'fa-user' },
-                  { label: 'Email Address', key: 'email', icon: 'fa-envelope', type: 'email' },
+                  { label: 'Email Address', key: 'email', icon: 'fa-envelope', type: 'email', readOnly: true },
                   { label: 'Phone Number', key: 'phone', icon: 'fa-phone' },
                   { label: 'Date of Birth', key: 'dob', icon: 'fa-cake-candles', type: 'date' },
                   { label: 'City / Location', key: 'city', icon: 'fa-location-dot' },
@@ -206,12 +225,14 @@ function PatientProfile() {
                   <div key={field.key}>
                     <label className="text-xs font-bold text-slate-500 mb-1.5 block">
                       <i className={`fas ${field.icon} mr-1.5 text-aubergine-400`}></i>{field.label}
+                      {field.readOnly && <span className="ml-1.5 font-normal text-slate-400 normal-case">(cannot be changed)</span>}
                     </label>
                     <input
                       type={field.type || 'text'}
                       value={form[field.key]}
-                      onChange={e => setForm(p => ({ ...p, [field.key]: e.target.value }))}
-                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50 transition-colors"
+                      readOnly={field.readOnly}
+                      onChange={e => !field.readOnly && setForm(p => ({ ...p, [field.key]: e.target.value }))}
+                      className={`w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 transition-colors ${field.readOnly ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-slate-50/50'}`}
                     />
                   </div>
                 ))}

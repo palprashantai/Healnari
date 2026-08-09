@@ -120,37 +120,6 @@ function AddVaccineModal({ isOpen, onClose, onAdd }) {
   );
 }
 
-/* ─── Insurance Modal ────────────────────────── */
-function InsuranceModal({ isOpen, onClose, onSave }) {
-  const [form, setForm] = useState({ provider: 'Star Health Comprehensive', policy: 'SH-9823-1102', validity: '2026-12' });
-  const handle = (k, v) => setForm(p => ({ ...p, [k]: v }));
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Update Insurance Policy" size="sm">
-      <div className="space-y-4">
-        <div>
-          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Insurance Provider</label>
-          <input value={form.provider} onChange={e => handle('provider', e.target.value)}
-            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Policy Number</label>
-          <input value={form.policy} onChange={e => handle('policy', e.target.value)}
-            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
-        </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Valid Till</label>
-          <input type="month" value={form.validity} onChange={e => handle('validity', e.target.value)}
-            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
-        </div>
-        <div className="flex gap-3 pt-2">
-          <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-sm hover:bg-slate-50 transition-colors">Cancel</button>
-          <button onClick={() => onSave(form)} className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors">Save</button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
 /* ─── Main Component ─────────────────────────── */
 function PatientRecords() {
   const toast = useToast();
@@ -197,8 +166,7 @@ function PatientRecords() {
   // Insurance — no backend table yet; this section stays local-only until one exists.
   const [rawContacts, setRawContacts] = useState([]);
   const [showContactModal, setShowContactModal] = useState(false);
-  const [showInsuranceModal, setShowInsuranceModal] = useState(false);
-  const [insurance, setInsurance] = useState({ provider: 'Star Health Comprehensive', policy: 'SH-9823-1102', validity: 'Dec 2026' });
+  const [insurance] = useState({ provider: 'Star Health Comprehensive', policy: 'SH-9823-1102', validity: 'Dec 2026' });
   const [deleteContactTarget, setDeleteContactTarget] = useState(null);
   const contacts = rawContacts.map(c => ({ id: c.id, name: c.name, relation: c.relation, phone: c.phone }));
 
@@ -207,21 +175,25 @@ function PatientRecords() {
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-    try {
-      await Promise.all(files.map(f => apiFetch('/records/documents', {
-        method: 'POST',
-        body: {
-          patientId: user.id,
-          fileName: f.name,
-          fileType: f.type.includes('pdf') ? 'pdf' : 'image',
-          sizeBytes: f.size,
-          labName: 'Uploaded by Patient',
-        },
-      })));
-      await loadDocs();
-      toast(`${files.length} file${files.length > 1 ? 's' : ''} uploaded successfully!`, 'success');
-    } catch (err) {
-      toast(err.message || 'Upload failed', 'error');
+    const results = await Promise.allSettled(files.map(f => apiFetch('/records/documents', {
+      method: 'POST',
+      body: {
+        patientId: user.id,
+        fileName: f.name,
+        fileType: f.type.includes('pdf') ? 'pdf' : 'image',
+        sizeBytes: f.size,
+        labName: 'Uploaded by Patient',
+      },
+    })));
+    await loadDocs(); // always reload — some files may have succeeded even if others failed
+    const succeeded = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.length - succeeded;
+    if (failed === 0) {
+      toast(`${succeeded} file${succeeded > 1 ? 's' : ''} uploaded successfully!`, 'success');
+    } else if (succeeded === 0) {
+      toast(`Upload failed for all ${failed} file${failed > 1 ? 's' : ''}.`, 'error');
+    } else {
+      toast(`${succeeded} uploaded, ${failed} failed. Please retry the failed file(s).`, 'error');
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -240,7 +212,7 @@ function PatientRecords() {
 
   const addAllergy = async () => {
     const value = newAllergy.trim();
-    if (!value) return;
+    if (!value || !myPatient) return;
     try {
       await updatePatient({ ...myPatient, allergies: [...allergies, value] });
       toast(`Allergy "${value}" added to your profile.`, 'success');
@@ -253,7 +225,7 @@ function PatientRecords() {
 
   const addCondition = async () => {
     const value = newCondition.trim();
-    if (!value) return;
+    if (!value || !myPatient) return;
     try {
       await updatePatient({ ...myPatient, medicalHistory: { ...myPatient.medicalHistory, chronicConditions: [...conditions, value] } });
       toast(`Added "${value}" to conditions.`, 'success');
@@ -348,7 +320,7 @@ function PatientRecords() {
                       <button onClick={() => setPreviewFile(doc)} className="w-8 h-8 rounded-lg bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-600 flex items-center justify-center text-xs transition-colors" title="Preview">
                         <i className="fas fa-eye"></i>
                       </button>
-                      <button onClick={() => toast(`Downloading ${doc.name}...`, 'info')} className="w-8 h-8 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-600 flex items-center justify-center text-xs transition-colors" title="Download">
+                      <button onClick={() => toast('File download is coming soon.', 'info')} className="w-8 h-8 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-600 flex items-center justify-center text-xs transition-colors" title="Download">
                         <i className="fas fa-download"></i>
                       </button>
                       <button onClick={() => setDeleteTarget(doc)} className="w-8 h-8 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-500 flex items-center justify-center text-xs transition-colors" title="Delete">
@@ -365,9 +337,8 @@ function PatientRecords() {
           {tab === 'profile' && (
             <div className="grid md:grid-cols-2 gap-8">
               <div>
-                <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4 flex items-center justify-between">
+                <h3 className="font-bold text-slate-800 border-b border-slate-200 pb-2 mb-4">
                   Medical History
-                  <button onClick={() => toast('Medical history saved', 'success')} className="text-xs text-aubergine-600 font-semibold hover:underline">Save</button>
                 </h3>
                 <div className="space-y-4">
                   {/* Allergies */}
@@ -389,7 +360,8 @@ function PatientRecords() {
                         <button onClick={() => setShowAllergyInput(false)} className="text-slate-500 hover:text-slate-600 px-2"><i className="fas fa-xmark"></i></button>
                       </div>
                     ) : (
-                      <button onClick={() => setShowAllergyInput(true)} className="text-xs text-aubergine-600 hover:text-aubergine-700 font-bold flex items-center gap-1">
+                      <button onClick={() => setShowAllergyInput(true)} disabled={!myPatient}
+                        className="text-xs text-aubergine-600 hover:text-aubergine-700 font-bold flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                         <i className="fas fa-plus"></i> Add Allergy
                       </button>
                     )}
@@ -421,7 +393,8 @@ function PatientRecords() {
                         <button onClick={() => setShowConditionInput(false)} className="text-slate-500 hover:text-slate-600 px-2"><i className="fas fa-xmark"></i></button>
                       </div>
                     ) : (
-                      <button onClick={() => setShowConditionInput(true)} className="mt-2 text-xs text-aubergine-600 hover:text-aubergine-700 font-bold flex items-center gap-1">
+                      <button onClick={() => setShowConditionInput(true)} disabled={!myPatient}
+                        className="mt-2 text-xs text-aubergine-600 hover:text-aubergine-700 font-bold flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                         <i className="fas fa-plus"></i> Add
                       </button>
                     )}
@@ -478,11 +451,11 @@ function PatientRecords() {
                   </div>
                 </div>
                 <div className="flex gap-2 mt-5">
-                  <button onClick={() => setShowInsuranceModal(true)}
+                  <button onClick={() => toast('Editing insurance details online is coming soon. Please contact the clinic to update your policy.', 'info')}
                     className="flex-1 bg-white text-indigo-600 font-bold px-4 py-2 rounded-xl text-sm shadow-sm border border-indigo-100 hover:bg-indigo-50 transition-colors">
                     <i className="fas fa-pen mr-1.5"></i> Update Policy
                   </button>
-                  <button onClick={() => toast('Insurance card downloaded!', 'success')}
+                  <button onClick={() => toast('Insurance card download is coming soon.', 'info')}
                     className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold px-4 py-2 rounded-xl text-sm border border-indigo-200 transition-colors">
                     <i className="fas fa-download"></i>
                   </button>
@@ -524,7 +497,7 @@ function PatientRecords() {
       </div>
 
       {/* Modals */}
-      <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} onDownload={name => toast(`Downloading ${name}...`, 'info')} />
+      <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} onDownload={() => toast('File download is coming soon.', 'info')} />
       <ConfirmModal
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
@@ -552,12 +525,6 @@ function PatientRecords() {
           toast(err.message || 'Failed to add vaccination', 'error');
         }
       }} />
-      <InsuranceModal isOpen={showInsuranceModal} onClose={() => setShowInsuranceModal(false)}
-        onSave={data => {
-          setInsurance({ provider: data.provider, policy: data.policy, validity: data.validity });
-          setShowInsuranceModal(false);
-          toast('Insurance details updated.', 'success');
-        }} />
       <ConfirmModal
         isOpen={!!deleteContactTarget}
         onClose={() => setDeleteContactTarget(null)}

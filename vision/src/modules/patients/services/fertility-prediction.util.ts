@@ -15,10 +15,18 @@ export const addDays = (dateStr: string, days: number): string => {
 
 const daysBetween = (a: string, b: string): number => Math.round((new Date(b + 'T00:00:00Z').getTime() - new Date(a + 'T00:00:00Z').getTime()) / MS_PER_DAY);
 
-/** Groups consecutive flow-logged days into periods (start date + how many days the
- * streak ran). Reuses the existing cycle_logs.flow field instead of a separate
- * "period start" input, so this works with whatever the patient has already logged
- * via Tracking/Dashboard. */
+/** A single day the patient forgot to log mid-period shouldn't split one real period
+ * into two — bridge gaps of up to this many days when grouping flow-logged dates. */
+const PERIOD_GAP_TOLERANCE_DAYS = 2;
+
+/** Shortest cycle length treated as real (matches the manual-estimate form's floor) —
+ * anything below this is logging noise, not an actual cycle. */
+const MIN_PLAUSIBLE_CYCLE_LENGTH_DAYS = 15;
+
+/** Groups consecutive (gap-tolerant) flow-logged days into periods (start date + how
+ * many days were actually logged). Reuses the existing cycle_logs.flow field instead
+ * of a separate "period start" input, so this works with whatever the patient has
+ * already logged via Tracking/Dashboard. */
 function derivePeriodStreaks(logs: CycleLogRow[]): { start: string; length: number }[] {
   const flowDates = Array.from(new Set(
     logs.filter(l => l.flow && l.flow.toLowerCase() !== 'none').map(l => l.log_date),
@@ -27,7 +35,7 @@ function derivePeriodStreaks(logs: CycleLogRow[]): { start: string; length: numb
   const streaks: { start: string; length: number }[] = [];
   let prev: string | null = null;
   for (const date of flowDates) {
-    if (!prev || daysBetween(prev, date) > 1) {
+    if (!prev || daysBetween(prev, date) > PERIOD_GAP_TOLERANCE_DAYS) {
       streaks.push({ start: date, length: 1 });
     } else {
       streaks[streaks.length - 1].length++;
@@ -142,7 +150,9 @@ export function computeFertilityPrediction(logs: CycleLogRow[], pcosFlag: boolea
   const cycleLengths: number[] = [];
   for (let i = 1; i < periodStarts.length; i++) {
     const len = daysBetween(periodStarts[i - 1], periodStarts[i]);
-    if (len > 0 && len < 90) cycleLengths.push(len); // discard obviously bad data (e.g. a single skipped log)
+    // Below MIN_PLAUSIBLE_CYCLE_LENGTH_DAYS isn't a real cycle — discard obviously bad
+    // data (e.g. a logging gap that still slipped past the period-streak gap tolerance).
+    if (len >= MIN_PLAUSIBLE_CYCLE_LENGTH_DAYS && len < 90) cycleLengths.push(len);
   }
   if (cycleLengths.length === 0) return insufficientData(periodStarts[periodStarts.length - 1]);
 
