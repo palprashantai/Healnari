@@ -98,7 +98,10 @@ export function Modal({ isOpen, onClose, title, ariaLabel, children, size = 'md'
       ref={overlayRef}
       onClick={handleOverlayClick}
       className="modal-overlay fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9000] flex items-center justify-center p-4"
-      style={{ animation: closing ? `overlayFadeOut ${CLOSE_ANIM_MS}ms ease-in both` : 'fadeIn 0.15s ease-out' }}
+      style={{
+        animation: closing ? `overlayFadeOut ${CLOSE_ANIM_MS}ms ease-in both` : 'fadeIn 0.15s ease-out',
+        pointerEvents: closing ? 'none' : 'auto',
+      }}
     >
       <div
         ref={boxRef}

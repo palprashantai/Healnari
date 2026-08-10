@@ -25,6 +25,7 @@ export class AuthService {
       specialty: p.specialty || '',
       regNo: p.registration_no || '',
       kycVerified: p.kyc_verified,
+      kycSubmittedAt: p.kyc_submitted_at || null,
       emailNotifications: p.email_notifications,
       smsNotifications: p.sms_notifications,
     };

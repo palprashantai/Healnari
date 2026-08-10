@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsIn, IsNumber, IsOptional, IsPositive, IsString, IsUUID } from 'class-validator';
 import { BillingService } from '@/modules/billing/services/billing.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
@@ -15,6 +15,15 @@ export class PayDto {
 export class RequestPayoutDto {
   @ApiProperty() @IsString() amount: string;
   @ApiProperty({ enum: ['Bank Account', 'UPI', 'Wallet'] }) @IsIn(['Bank Account', 'UPI', 'Wallet']) method: string;
+}
+
+export class RecordChargeDto {
+  @ApiProperty() @IsUUID() patientId: string;
+  @ApiProperty({ example: 'Follow-up Consultation Fee' }) @IsString() service: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() category?: string;
+  @ApiProperty() @IsNumber() @IsPositive() amount: number;
+  @ApiProperty() @IsString() method: string;
+  @ApiProperty({ enum: ['Paid', 'Pending', 'Insurance Claimed'] }) @IsIn(['Paid', 'Pending', 'Insurance Claimed']) status: string;
 }
 
 @ApiTags('Billing')
@@ -40,6 +49,13 @@ export class BillingController {
   @Post('pay')
   async pay(@CurrentUser() user: AuthUser, @Body() body: PayDto) {
     const data = await this.billingService.pay(user, body);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.PAYMENT_RECORDED);
+  }
+
+  @ApiOperation({ summary: 'Record a manual charge/payment for a patient — e.g. cash collected in-clinic (doctor only)' })
+  @Post('charges')
+  async recordCharge(@CurrentUser() user: AuthUser, @Body() body: RecordChargeDto) {
+    const data = await this.billingService.recordCharge(user, body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.PAYMENT_RECORDED);
   }
 

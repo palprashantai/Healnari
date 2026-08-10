@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
@@ -51,14 +52,54 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
 }
 
 /* ─── Active Call UI (Dual-Pane Split Screen Layout) ─────────────────────────── */
+const LAB_OPTIONS = ['Hormonal Panel (LH, FSH, AMH)', 'Full Thyroid Profile (TSH, FT3, FT4)', 'Fasting Glucose & HbA1c'];
+
 function ActiveCallUI({ session, onEnd }) {
   const toast = useToast();
+  const { addRx, orderLabTest } = useClinicData();
   const [muted, setMuted] = useState(false);
   const [vidOff, setVidOff] = useState(false);
   const [screen, setScreen] = useState(false);
   const [clinicalNotes, setClinicalNotes] = useState('');
   const [activeTab, setActiveTab] = useState('notes'); // notes | rx | lab
   const [elapsed, setElapsed] = useState(0);
+
+  const [rxName, setRxName] = useState('');
+  const [rxDosage, setRxDosage] = useState('');
+  const [rxSchedule, setRxSchedule] = useState('1-0-1');
+  const [rxDuration, setRxDuration] = useState('30 Days');
+  const [savingRx, setSavingRx] = useState(false);
+
+  const [selectedLabs, setSelectedLabs] = useState([]);
+  const [orderingLabs, setOrderingLabs] = useState(false);
+
+  const attachRx = async () => {
+    if (!rxName.trim()) { toast('Enter a medication name.', 'error'); return; }
+    setSavingRx(true);
+    try {
+      await addRx(session.patientId, { name: rxName.trim(), dosage: rxDosage, frequency: rxSchedule, duration: rxDuration, instructions: '' });
+      toast('Rx attached to consult session.', 'success');
+      setRxName(''); setRxDosage('');
+    } catch (err) {
+      toast(err.message || 'Failed to attach prescription', 'error');
+    } finally {
+      setSavingRx(false);
+    }
+  };
+
+  const submitLabOrder = async () => {
+    if (selectedLabs.length === 0) { toast('Select at least one test.', 'error'); return; }
+    setOrderingLabs(true);
+    try {
+      await Promise.all(selectedLabs.map(testName => orderLabTest(session.patientId, { testName, testCategory: 'Hormonal' })));
+      toast(`${selectedLabs.length} test(s) ordered.`, 'success');
+      setSelectedLabs([]);
+    } catch (err) {
+      toast(err.message || 'Failed to order lab tests', 'error');
+    } finally {
+      setOrderingLabs(false);
+    }
+  };
 
   React.useEffect(() => {
     const t = setInterval(() => setElapsed(e => e + 1), 1000);
@@ -164,12 +205,25 @@ function ActiveCallUI({ session, onEnd }) {
         {activeTab === 'rx' && (
           <div className="flex-1 space-y-3 text-xs">
             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
-              <p className="font-bold text-aubergine-300">Prescription Draft</p>
-              <p className="text-slate-300">• Metformin 500mg (1-0-1 After Meals)</p>
-              <p className="text-slate-300">• Myo-Inositol 2g (1-0-0 Empty Stomach)</p>
+              <input value={rxName} onChange={e => setRxName(e.target.value)} placeholder="Medication name"
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-aubergine-500" />
+              <div className="grid grid-cols-2 gap-2">
+                <input value={rxDosage} onChange={e => setRxDosage(e.target.value)} placeholder="Dosage (e.g. 500mg)"
+                  className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-aubergine-500" />
+                <select value={rxSchedule} onChange={e => setRxSchedule(e.target.value)}
+                  className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-aubergine-500">
+                  <option value="1-0-1">1-0-1</option>
+                  <option value="1-0-0">1-0-0</option>
+                  <option value="0-0-1">0-0-1</option>
+                  <option value="1-1-1">1-1-1</option>
+                  <option value="PRN">PRN</option>
+                </select>
+              </div>
+              <input value={rxDuration} onChange={e => setRxDuration(e.target.value)} placeholder="Duration (e.g. 30 Days)"
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-aubergine-500" />
             </div>
-            <button onClick={() => toast('Rx attached to consult session.', 'success')} className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors">
-              Attach & Sign E-Prescription
+            <button onClick={attachRx} disabled={savingRx} className="w-full bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs transition-colors">
+              {savingRx ? 'Attaching…' : 'Attach & Sign E-Prescription'}
             </button>
           </div>
         )}
@@ -178,13 +232,17 @@ function ActiveCallUI({ session, onEnd }) {
           <div className="flex-1 space-y-3 text-xs">
             <p className="text-slate-500">Order Diagnostic Tests:</p>
             <div className="space-y-1.5">
-              {['Hormonal Panel (LH, FSH, AMH)', 'Full Thyroid Profile (TSH, FT3, FT4)', 'Fasting Glucose & HbA1c'].map(lab => (
+              {LAB_OPTIONS.map(lab => (
                 <label key={lab} className="flex items-center gap-2 p-2 bg-slate-950 rounded-lg border border-slate-800 cursor-pointer text-slate-300">
-                  <input type="checkbox" defaultChecked className="accent-aubergine-600" />
+                  <input type="checkbox" checked={selectedLabs.includes(lab)} className="accent-aubergine-600"
+                    onChange={() => setSelectedLabs(prev => prev.includes(lab) ? prev.filter(l => l !== lab) : [...prev, lab])} />
                   <span>{lab}</span>
                 </label>
               ))}
             </div>
+            <button onClick={submitLabOrder} disabled={orderingLabs} className="w-full bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs transition-colors">
+              {orderingLabs ? 'Ordering…' : 'Order Selected Tests'}
+            </button>
           </div>
         )}
 
@@ -202,6 +260,7 @@ function ActiveCallUI({ session, onEnd }) {
 /* ─── Main Component ─────────────────────────── */
 function DoctorTelemedicine() {
   const toast = useToast();
+  const { updateAppointmentStatus } = useClinicData();
   const [activeCall, setActiveCall] = useState(null);
   const [showNotes, setShowNotes] = useState(false);
   const [noteTarget, setNoteTarget] = useState(null);
@@ -218,6 +277,7 @@ function DoctorTelemedicine() {
 
   const sessions = rawSessions.map(s => ({
     id: s.id,
+    patientId: s.patient_id,
     patient: s.patientName,
     age: s.patientAge != null ? `${s.patientAge}F` : '—',
     type: s.reason || 'Consultation',
@@ -251,11 +311,31 @@ function DoctorTelemedicine() {
   };
   const toggleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-  const setStatus = (id, status) => apiFetch(`/appointments/${id}/status`, { method: 'PUT', body: { status } });
+  const sendBulkMessage = async (channel, messageText) => {
+    const recipients = sessions.filter(s => selectedIds.includes(s.id));
+    const patientIds = [...new Set(recipients.map(s => s.patientId).filter(Boolean))];
+    try {
+      await apiFetch('/communications/broadcasts', {
+        method: 'POST',
+        body: {
+          subject: channel,
+          body: messageText,
+          audience: `Selected Telemedicine Sessions — ${recipients.length} patient(s)`,
+          channels: [channel],
+          scheduleType: 'immediate',
+          patientIds,
+        },
+      });
+      toast(`${channel} sent to ${recipients.length} patient(s).`, 'success');
+    } catch (err) {
+      toast(err.message || `Failed to send ${channel}`, 'error');
+    }
+    setSelectedIds([]);
+  };
 
   const handleAccept = async (id) => {
     try {
-      await setStatus(id, 'Upcoming');
+      await updateAppointmentStatus(id, 'Upcoming');
       await loadQueue();
       toast('Appointment accepted', 'success');
     } catch (err) {
@@ -265,7 +345,7 @@ function DoctorTelemedicine() {
 
   const handleReject = async (id) => {
     try {
-      await setStatus(id, 'Cancelled');
+      await updateAppointmentStatus(id, 'Cancelled');
       await loadQueue();
       toast('Appointment rejected and refunded', 'info');
     } catch (err) {
@@ -275,7 +355,7 @@ function DoctorTelemedicine() {
 
   const joinCall = async (session) => {
     try {
-      await setStatus(session.id, 'In Progress');
+      await updateAppointmentStatus(session.id, 'In Progress');
       setActiveCall(session);
       toast(`Joining call with ${session.patient}...`, 'success');
     } catch (err) {
@@ -286,7 +366,7 @@ function DoctorTelemedicine() {
   const endCall = async (notes) => {
     try {
       if (notes) await apiFetch(`/telemedicine/${activeCall.id}/notes`, { method: 'POST', body: { note: notes } });
-      await setStatus(activeCall.id, 'Done');
+      await updateAppointmentStatus(activeCall.id, 'Done');
       await loadQueue();
       toast('Call ended. Summary saved.', 'info');
     } catch (err) {
@@ -339,7 +419,7 @@ function DoctorTelemedicine() {
             <h2 className="font-bold text-slate-800 flex items-center gap-2">
               <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Live: {activeCall.patient}
             </h2>
-            <button onClick={endCall} className="text-rose-600 font-bold text-sm hover:underline flex items-center gap-1.5">
+            <button onClick={() => endCall()} className="text-rose-600 font-bold text-sm hover:underline flex items-center gap-1.5">
               <i className="fas fa-phone-slash"></i> End Call
             </button>
           </div>
@@ -482,10 +562,7 @@ function DoctorTelemedicine() {
         onClose={() => setBulkModalParams({ isOpen: false, channel: '' })}
         channel={bulkModalParams.channel}
         selectedCount={selectedIds.length}
-        onSend={(msg) => {
-          toast(`Successfully sent ${bulkModalParams.channel} to ${selectedIds.length} patients!`, 'success');
-          setSelectedIds([]);
-        }}
+        onSend={(msg) => sendBulkMessage(bulkModalParams.channel, msg)}
       />
     </div>
   );

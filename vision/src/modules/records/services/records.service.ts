@@ -7,6 +7,8 @@ import {
   AddDocumentDto,
   AddEmergencyContactDto,
   AddVaccinationDto,
+  CreateClinicalNoteDto,
+  CreateLabReportDto,
   CreatePrescriptionDto,
   ReviewLabReportDto,
 } from '@/modules/records/controllers/records.controller';
@@ -92,9 +94,45 @@ export class RecordsService {
       query.eq('patient_id', user.id);
     } else {
       this.requireVerifiedDoctor(user);
+      // Same ownership rule as reviewLabReport: a doctor sees reports they
+      // ordered, plus legacy unassigned ones — never another doctor's.
+      query.or(`ordered_by.eq.${user.id},ordered_by.is.null`);
     }
     const { data } = await query;
     return data || [];
+  }
+
+  async createLabReport(user: AuthUser, body: CreateLabReportDto) {
+    this.requireVerifiedDoctor(user);
+
+    const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
+    if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
+
+    const { data } = await this.supabase.admin.from('lab_reports').insert({
+      patient_id: body.patientId,
+      ordered_by: user.id,
+      test_category: body.testCategory,
+      test_name: body.testName,
+      lab_name: body.labName,
+      status: 'Pending',
+      urgent: body.urgent ?? false,
+      results: {},
+    }).select().single();
+    return data;
+  }
+
+  async addClinicalNote(user: AuthUser, body: CreateClinicalNoteDto) {
+    this.requireVerifiedDoctor(user);
+
+    const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
+    if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
+
+    const { data } = await this.supabase.admin.from('clinical_notes').insert({
+      patient_id: body.patientId,
+      doctor_id: user.id,
+      note: body.note,
+    }).select().single();
+    return data;
   }
 
   async reviewLabReport(user: AuthUser, id: string, body: ReviewLabReportDto) {

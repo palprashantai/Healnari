@@ -52,6 +52,9 @@ export const ERROR_MESSAGES = {
   STAFF_NOT_FOUND: 'Staff member not found.',
   LEAVE_NOT_FOUND: 'Leave request not found.',
 
+  // Notifications
+  NOTIFICATION_NOT_FOUND: 'Notification not found.',
+
   // Generic
   BAD_REQUEST: 'Bad request. Please check your parameters.',
   INTERNAL_SERVER_ERROR: 'Internal server error occurred.',

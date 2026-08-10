@@ -55,6 +55,7 @@ export const SUCCESS_MESSAGES = {
 
   // Records vault
   LAB_REPORT_REVIEWED: 'Lab report reviewed.',
+  LAB_TEST_ORDERED: 'Lab test ordered.',
   DOCUMENT_UPLOADED: 'Document added to records vault.',
   DOCUMENT_DELETED: 'Document removed from records vault.',
   VACCINATION_ADDED: 'Vaccination record added.',
@@ -77,4 +78,7 @@ export const SUCCESS_MESSAGES = {
   // Communications
   BROADCAST_SENT: 'Broadcast sent successfully.',
   BROADCAST_SCHEDULED: 'Broadcast scheduled successfully.',
+
+  // Notifications
+  NOTIFICATION_READ: 'Notification marked as read.',
 };

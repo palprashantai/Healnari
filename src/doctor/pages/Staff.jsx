@@ -145,6 +145,29 @@ function DoctorStaff() {
   };
   const toggleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
+  // Staff aren't patients, so there's no live push channel for them the way
+  // there is for the patient-facing bulk actions elsewhere — this just logs
+  // a real broadcast record via the same endpoint rather than faking a toast.
+  const sendBulkMessage = async (channel, messageText) => {
+    const recipients = staff.filter(s => selectedIds.includes(s.id));
+    try {
+      await apiFetch('/communications/broadcasts', {
+        method: 'POST',
+        body: {
+          subject: channel,
+          body: messageText,
+          audience: `Selected Staff — ${recipients.length} member(s)`,
+          channels: [channel],
+          scheduleType: 'immediate',
+        },
+      });
+      toast(`${channel} logged for ${recipients.length} staff member(s).`, 'success');
+    } catch (err) {
+      toast(err.message || `Failed to send ${channel}`, 'error');
+    }
+    setSelectedIds([]);
+  };
+
   const toggleStatus = async (id) => {
     const member = staff.find(s => s.id === id);
     const nextStatus = member?.status === 'On Duty' ? 'Off Duty' : 'On Duty';
@@ -367,10 +390,7 @@ function DoctorStaff() {
         onClose={() => setBulkModalParams({ isOpen: false, channel: '' })}
         channel={bulkModalParams.channel}
         selectedCount={selectedIds.length}
-        onSend={(msg) => {
-          toast(`Successfully sent ${bulkModalParams.channel} to ${selectedIds.length} staff members!`, 'success');
-          setSelectedIds([]);
-        }}
+        onSend={(msg) => sendBulkMessage(bulkModalParams.channel, msg)}
       />
     </div>
   );

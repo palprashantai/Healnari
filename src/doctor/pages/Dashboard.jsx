@@ -571,14 +571,14 @@ function DoctorDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
-  const { patients, appointments, refillRequests, approveRefill: ctxApproveRefill, rejectRefill: ctxRejectRefill, callNextForDoctor, kycVerified, verifyKyc } = useClinicData();
+  const { patients, appointments, refillRequests, approveRefill: ctxApproveRefill, rejectRefill: ctxRejectRefill, callNextForDoctor, kycVerified, kycSubmitted, verifyKyc } = useClinicData();
 
   const doctorName = user?.name || 'Dr. Sarah Mitchell';
   const todayIso = todayLocalStr();
 
   const queue = useMemo(() => {
     return appointments
-      .filter(a => a.doctorName === doctorName && a.date === todayIso)
+      .filter(a => a.doctorId === user?.id && a.date === todayIso)
       .sort((a, b) => a.time.localeCompare(b.time))
       .map((a, i) => {
         const patient = patients.find(p => p.id === a.patientId);
@@ -595,7 +595,7 @@ function DoctorDashboard() {
           patient,
         };
       });
-  }, [appointments, patients, doctorName, todayIso]);
+  }, [appointments, patients, user?.id, todayIso]);
 
   const labs = useMemo(() => {
     return patients.flatMap(p => p.reports.slice(0, 1).map(r => ({
@@ -620,19 +620,31 @@ function DoctorDashboard() {
   const currentPatient = queue.find(q => q.status === 'In Progress');
   const nextPatient = queue.find(q => q.status === 'Waiting');
 
-  const callNext = () => {
-    callNextForDoctor(doctorName);
-    toast(`Calling ${nextPatient?.name || 'next patient'} — ${nextPatient?.token}`, 'success');
+  const callNext = async () => {
+    try {
+      await callNextForDoctor(doctorName);
+      toast(`Calling ${nextPatient?.name || 'next patient'} — ${nextPatient?.token}`, 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to call next patient', 'error');
+    }
   };
 
-  const approveRefill = (patientId, medId, patientName) => {
-    ctxApproveRefill(patientId, medId);
-    toast(`Refill approved for ${patientName}.`, 'success');
+  const approveRefill = async (patientId, medId, patientName) => {
+    try {
+      await ctxApproveRefill(patientId, medId);
+      toast(`Refill approved for ${patientName}.`, 'success');
+    } catch (err) {
+      toast(err.message || `Failed to approve refill for ${patientName}`, 'error');
+    }
   };
 
-  const rejectRefill = (patientId, medId, patientName) => {
-    ctxRejectRefill(patientId, medId);
-    toast(`Refill request from ${patientName} rejected.`, 'info');
+  const rejectRefill = async (patientId, medId, patientName) => {
+    try {
+      await ctxRejectRefill(patientId, medId);
+      toast(`Refill request from ${patientName} rejected.`, 'info');
+    } catch (err) {
+      toast(err.message || `Failed to reject refill for ${patientName}`, 'error');
+    }
   };
 
   const reviewLab = (lab) => {
@@ -737,17 +749,23 @@ function DoctorDashboard() {
         <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-lg flex-shrink-0">
-              <i className="fas fa-file-shield"></i>
+              <i className={`fas ${kycSubmitted ? 'fa-hourglass-half' : 'fa-file-shield'}`}></i>
             </div>
             <div>
-              <p className="font-bold text-amber-800 text-sm">Complete your KYC Verification</p>
-              <p className="text-xs text-amber-700">Upload your Medical License and Identity Proof to receive payouts.</p>
+              <p className="font-bold text-amber-800 text-sm">{kycSubmitted ? 'KYC Pending Admin Review' : 'Complete your KYC Verification'}</p>
+              <p className="text-xs text-amber-700">
+                {kycSubmitted
+                  ? "Your documents were submitted. Payouts and verified-only features unlock once an admin approves your account."
+                  : 'Upload your Medical License and Identity Proof to receive payouts.'}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowKycModal(true)} className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors whitespace-nowrap">
-              Upload Documents
-            </button>
+            {!kycSubmitted && (
+              <button onClick={() => setShowKycModal(true)} className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors whitespace-nowrap">
+                Upload Documents
+              </button>
+            )}
             <button onClick={() => { sessionStorage.setItem('kyc_banner_dismissed', 'true'); setKycBannerDismissed(true); }}
               className="w-9 h-9 rounded-xl border border-amber-200 text-amber-700 hover:bg-amber-100 transition-colors flex items-center justify-center">
               <i className="fas fa-xmark"></i>

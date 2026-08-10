@@ -1,16 +1,26 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
-import { Appointment, AppointmentStatus } from '@/shared/interfaces/appointment.interface';
+import { Appointment, AppointmentStatus, AppointmentType } from '@/shared/interfaces/appointment.interface';
 import { Profile, ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 import { CreateAppointmentDto } from '@/modules/appointments/controllers/appointments.controller';
+import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 
 @Injectable()
 export class AppointmentsService {
   constructor(
     private readonly supabase: SupabaseService,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  private appointmentWhen(a: Appointment) {
+    return `${a.scheduled_date} at ${a.scheduled_time}`;
+  }
+
+  private typeLabel(type: AppointmentType | string) {
+    return type === AppointmentType.VIDEO ? 'video consultation' : 'clinic visit';
+  }
 
   private async withNames(appointments: Appointment[]) {
     if (!appointments.length) return [];
@@ -58,19 +68,64 @@ export class AppointmentsService {
       status: AppointmentStatus.REQUESTED,
     }).select().single();
 
-    return (await this.withNames([saved]))[0];
+    const [withNames] = await this.withNames([saved]);
+
+    await this.notifications.create(body.doctorId, {
+      type: 'appointment_requested',
+      title: 'New Appointment Request',
+      message: `${withNames.patientName} requested a ${this.typeLabel(withNames.type)} on ${this.appointmentWhen(withNames)}.`,
+      data: { appointmentId: withNames.id },
+    });
+
+    return withNames;
   }
 
   async updateStatus(user: AuthUser, id: string, status: AppointmentStatus) {
     const { data: appointment } = await this.supabase.admin.from('appointments').select().eq('id', id).single();
     if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
-    
+
     if (appointment.patient_id !== user.id && appointment.doctor_id !== user.id) {
       throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     }
 
     const { data: saved } = await this.supabase.admin.from('appointments').update({ status }).eq('id', id).select().single();
-    return (await this.withNames([saved]))[0];
+    const [withNames] = await this.withNames([saved]);
+
+    await this.notifyStatusChange(user, withNames);
+
+    return withNames;
+  }
+
+  private async notifyStatusChange(
+    actor: AuthUser,
+    appointment: Appointment & { patientName: string; doctorName: string },
+  ) {
+    const isDoctorActing = actor.id === appointment.doctor_id;
+    const when = this.appointmentWhen(appointment);
+    const label = this.typeLabel(appointment.type);
+
+    if (isDoctorActing && appointment.status === AppointmentStatus.UPCOMING) {
+      await this.notifications.create(appointment.patient_id, {
+        type: 'appointment_approved',
+        title: 'Appointment Confirmed',
+        message: `Dr. ${appointment.doctorName} confirmed your ${label} on ${when}.`,
+        data: { appointmentId: appointment.id },
+      });
+    } else if (isDoctorActing && appointment.status === AppointmentStatus.CANCELLED) {
+      await this.notifications.create(appointment.patient_id, {
+        type: 'appointment_cancelled',
+        title: 'Appointment Cancelled',
+        message: `Dr. ${appointment.doctorName} cancelled your ${label} on ${when}.`,
+        data: { appointmentId: appointment.id },
+      });
+    } else if (!isDoctorActing && appointment.status === AppointmentStatus.CANCELLED) {
+      await this.notifications.create(appointment.doctor_id, {
+        type: 'appointment_cancelled',
+        title: 'Appointment Cancelled',
+        message: `${appointment.patientName} cancelled their ${label} on ${when}.`,
+        data: { appointmentId: appointment.id },
+      });
+    }
   }
 
   /** Advances the calling doctor's today queue: current In Progress -> Done,
@@ -96,6 +151,12 @@ export class AppointmentsService {
     const waiting = todays.find(a => a.status === AppointmentStatus.WAITING);
     if (waiting) {
       await this.supabase.admin.from('appointments').update({ status: AppointmentStatus.IN_PROGRESS }).eq('id', waiting.id);
+      await this.notifications.create(waiting.patient_id, {
+        type: 'appointment_called',
+        title: "It's Your Turn",
+        message: `Dr. ${user.profile.full_name} is ready to see you now.`,
+        data: { appointmentId: waiting.id },
+      });
     }
 
     const nextUpcoming = todays.find(a => a.status === AppointmentStatus.UPCOMING);

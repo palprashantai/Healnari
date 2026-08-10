@@ -264,7 +264,6 @@ function DoctorCommunications() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col mt-6">
         <div className="px-6 py-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
           <h2 className="font-bold text-slate-800">Recent Messages</h2>
-          <button className="text-xs font-bold text-sky-600 hover:underline">View All</button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">

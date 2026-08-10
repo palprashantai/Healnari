@@ -25,6 +25,19 @@ export class ReviewLabReportDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() doctorAction?: string;
 }
 
+export class CreateLabReportDto {
+  @ApiProperty() @IsUUID() patientId: string;
+  @ApiProperty({ example: 'Serum AMH' }) @IsString() testName: string;
+  @ApiProperty({ required: false, example: 'Hormonal' }) @IsOptional() @IsString() testCategory?: string;
+  @ApiProperty({ required: false, example: 'Dr. Lal PathLabs' }) @IsOptional() @IsString() labName?: string;
+  @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean() urgent?: boolean;
+}
+
+export class CreateClinicalNoteDto {
+  @ApiProperty() @IsUUID() patientId: string;
+  @ApiProperty() @IsString() note: string;
+}
+
 export class AddDocumentDto {
   @ApiProperty() @IsUUID() patientId: string;
   @ApiProperty() @IsString() fileName: string;
@@ -84,11 +97,18 @@ export class RecordsController {
     return ResponseHelper.success(data, msg);
   }
 
-  @ApiOperation({ summary: "List lab reports (patient: own; doctor: all patients')" })
+  @ApiOperation({ summary: "List lab reports (patient: own; doctor: ones they ordered)" })
   @Get('lab-reports')
   async getLabReports(@CurrentUser() user: AuthUser) {
     const data = await this.recordsService.getLabReports(user);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({ summary: 'Order a lab test for a patient (doctor only)' })
+  @Post('lab-reports')
+  async createLabReport(@CurrentUser() user: AuthUser, @Body() body: CreateLabReportDto) {
+    const data = await this.recordsService.createLabReport(user, body);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.LAB_TEST_ORDERED);
   }
 
   @ApiOperation({ summary: 'Doctor records interpretation/action and marks a lab report Completed' })
@@ -97,6 +117,13 @@ export class RecordsController {
   async reviewLabReport(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: ReviewLabReportDto) {
     const data = await this.recordsService.reviewLabReport(user, id, body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.LAB_REPORT_REVIEWED);
+  }
+
+  @ApiOperation({ summary: "Add a general clinical/chart note for a patient (doctor only, not tied to a specific appointment)" })
+  @Post('notes')
+  async addClinicalNote(@CurrentUser() user: AuthUser, @Body() body: CreateClinicalNoteDto) {
+    const data = await this.recordsService.addClinicalNote(user, body);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.NOTE_SAVED);
   }
 
   @ApiOperation({ summary: "List a patient's records-vault documents (patient: own; doctor: any)" })

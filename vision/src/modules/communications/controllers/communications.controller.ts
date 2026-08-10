@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsIn, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
 import { CommunicationsService } from '@/modules/communications/services/communications.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
@@ -14,6 +14,8 @@ export class CreateBroadcastDto {
   @ApiProperty({ type: [String] }) @IsArray() channels: string[];
   @ApiProperty({ required: false, enum: ['immediate', 'scheduled'] }) @IsOptional() @IsIn(['immediate', 'scheduled']) scheduleType?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() scheduledFor?: string;
+  @ApiProperty({ required: false, type: [String], description: 'Specific patient ids to target (e.g. a selection from the Appointments page). When channels includes "push", each gets a real in-app/socket notification.' })
+  @IsOptional() @IsArray() @IsUUID(undefined, { each: true }) patientIds?: string[];
 }
 
 @ApiTags('Communications')

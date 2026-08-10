@@ -18,6 +18,7 @@ import { BillingModule } from '@/modules/billing/billing.module';
 import { TelemedicineModule } from '@/modules/telemedicine/telemedicine.module';
 import { StaffModule } from '@/modules/staff/staff.module';
 import { CommunicationsModule } from '@/modules/communications/communications.module';
+import { NotificationsModule } from '@/modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { CommunicationsModule } from '@/modules/communications/communications.mo
     TelemedicineModule,
     StaffModule,
     CommunicationsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

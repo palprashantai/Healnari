@@ -4,6 +4,7 @@ import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { DoseSchedule } from '../../components/DoseSchedule.jsx';
 import { RxStatusBadge } from '../../components/RxStatus.jsx';
+import { apiFetch } from '../../lib/apiClient.js';
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -660,6 +661,7 @@ function ViewLabDocModal({ report, patient, isOpen, onClose }) {
 
 /* ─── FULL PAGE EMR COMPONENT ───────────────────────── */
 function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
+  const { addRx, orderLabTest, addClinicalNote, recordCharge } = useClinicData();
   const [tab, setTab] = useState('overview');
   const [labFilter, setLabFilter] = useState('all');
   const [newNote, setNewNote] = useState('');
@@ -674,47 +676,59 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
   if (!patient) return null;
 
-  const handleAddRx = (patientId, newRx) => {
-    const updated = {
-      ...patient,
-      meds: [newRx, ...patient.meds],
-    };
-    onUpdatePatient(updated);
-    toast(`Prescription added for ${patient.name}.`, 'success');
+  const handleAddRx = async (patientId, newRx) => {
+    try {
+      await addRx(patientId, {
+        name: newRx.medName,
+        dosage: newRx.dosage,
+        frequency: newRx.schedule,
+        duration: newRx.duration,
+        instructions: newRx.instructions,
+      });
+      toast(`Prescription added for ${patient.name}.`, 'success');
+    } catch (err) {
+      toast(err.message || `Failed to add prescription for ${patient.name}`, 'error');
+    }
   };
 
-  const handleAddLab = (patientId, newReport) => {
-    const updated = {
-      ...patient,
-      reports: [newReport, ...patient.reports],
-    };
-    onUpdatePatient(updated);
-    toast(`Lab test requested for ${patient.name}.`, 'success');
+  const handleAddLab = async (patientId, newReport) => {
+    try {
+      await orderLabTest(patientId, {
+        testName: newReport.testName,
+        testCategory: newReport.testCategory,
+        labName: newReport.labName,
+        urgent: newReport.urgent,
+      });
+      toast(`Lab test requested for ${patient.name}.`, 'success');
+    } catch (err) {
+      toast(err.message || `Failed to order lab test for ${patient.name}`, 'error');
+    }
   };
 
-  const handleAddPayment = (patientId, newPayment) => {
-    const updated = {
-      ...patient,
-      payments: [newPayment, ...(patient.payments || [])],
-    };
-    onUpdatePatient(updated);
-    toast(`Payment transaction invoice recorded for ${patient.name}.`, 'success');
+  const handleAddPayment = async (patientId, newPayment) => {
+    try {
+      await recordCharge(patientId, {
+        service: newPayment.service,
+        category: newPayment.category,
+        amount: newPayment.amount,
+        method: newPayment.method,
+        status: newPayment.status,
+      });
+      toast(`Payment transaction invoice recorded for ${patient.name}.`, 'success');
+    } catch (err) {
+      toast(err.message || `Failed to record payment for ${patient.name}`, 'error');
+    }
   };
 
-  const handleAddNote = () => {
+  const handleAddNote = async () => {
     if (!newNote.trim()) return;
-    const noteObj = {
-      text: newNote.trim(),
-      date: new Date().toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-      author: 'Dr. Sarah Mitchell',
-    };
-    const updated = {
-      ...patient,
-      clinicalNotes: [noteObj, ...patient.clinicalNotes],
-    };
-    onUpdatePatient(updated);
-    setNewNote('');
-    toast('Clinical note saved to EMR.', 'success');
+    try {
+      await addClinicalNote(patient.id, newNote.trim());
+      setNewNote('');
+      toast('Clinical note saved to EMR.', 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to save clinical note', 'error');
+    }
   };
 
   const filteredReports = patient.reports.filter((r) => {
@@ -1471,10 +1485,14 @@ function DoctorPatients() {
     updatePatient(updatedPatient);
   };
 
-  const handleAddPatient = (form) => {
-    const created = addPatient(form);
-    setShowAddPatient(false);
-    toast(`${created.name} added to the patient registry.`, 'success');
+  const handleAddPatient = async (form) => {
+    try {
+      const created = await addPatient(form);
+      setShowAddPatient(false);
+      toast(`${created.name} added to the patient registry.`, 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to add patient', 'error');
+    }
   };
 
   // If a patient is selected, render the FULL PAGE EMR view!
@@ -1515,6 +1533,42 @@ function DoctorPatients() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const exportPatientsCsv = () => {
+    const selected = filtered.filter(p => selectedIds.includes(p.id));
+    const header = ['Name', 'Phone', 'Email', 'Age', 'Blood Group', 'MRN', 'Diagnosis', 'City'];
+    const csvRows = selected.map(p => [p.name, p.phone, p.email, p.age, p.blood, p.mrn, p.diagnosis, p.city]);
+    const csv = [header, ...csvRows].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `patients-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast(`Exported ${selected.length} patients.`, 'success');
+  };
+
+  const sendBulkMessage = async (channel, messageText) => {
+    const recipients = filtered.filter(p => selectedIds.includes(p.id));
+    try {
+      await apiFetch('/communications/broadcasts', {
+        method: 'POST',
+        body: {
+          subject: channel,
+          body: messageText,
+          audience: `Selected Patients — ${recipients.length} patient(s)`,
+          channels: [channel],
+          scheduleType: 'immediate',
+          patientIds: recipients.map(p => p.id),
+        },
+      });
+      toast(`${channel} sent to ${recipients.length} patient(s).`, 'success');
+    } catch (err) {
+      toast(err.message || `Failed to send ${channel}`, 'error');
+    }
+    setSelectedIds([]);
+  };
+
   const handleBulkAction = (action) => {
     setShowActionsMenu(false);
     if (selectedIds.length === 0) {
@@ -1522,7 +1576,7 @@ function DoctorPatients() {
       return;
     }
     if (action === 'Export CSV') {
-      toast(`Exporting ${selectedIds.length} patients...`, 'info');
+      exportPatientsCsv();
     } else {
       setBulkModalParams({ isOpen: true, channel: action });
     }
@@ -1732,10 +1786,7 @@ function DoctorPatients() {
         onClose={() => setBulkModalParams({ isOpen: false, channel: '' })}
         channel={bulkModalParams.channel}
         selectedCount={selectedIds.length}
-        onSend={(template) => {
-          toast(`Successfully sent ${bulkModalParams.channel} to ${selectedIds.length} patients!`, 'success');
-          setSelectedIds([]);
-        }}
+        onSend={(msg) => sendBulkMessage(bulkModalParams.channel, msg)}
       />
     </div>
   );

@@ -46,10 +46,12 @@ export class PatientsService {
       this.supabase.admin.from('payments').select().eq('patient_id', profile.id).order('created_at', { ascending: false }),
     ]);
     const prescriptions = medsRes.data || [];
+    const notes = notesRes.data || [];
 
-    // Attach the real prescribing doctor's name — some legacy rows have no
-    // doctor_id (see records.service.ts), so those fall back to a generic label.
-    const doctorIds = [...new Set(prescriptions.map(p => p.doctor_id).filter(Boolean))];
+    // Attach the real prescribing/authoring doctor's name — some legacy rows
+    // have no doctor_id (see records.service.ts), so those fall back to a
+    // generic label.
+    const doctorIds = [...new Set([...prescriptions.map(p => p.doctor_id), ...notes.map(n => n.doctor_id)].filter(Boolean))];
     let doctorNameById = new Map<string, string>();
     if (doctorIds.length) {
       const { data: doctors } = await this.supabase.admin.from('profiles').select('id, full_name').in('id', doctorIds);
@@ -61,7 +63,7 @@ export class PatientsService {
       record,
       prescriptions: prescriptions.map(p => ({ ...p, doctor_name: (p.doctor_id && doctorNameById.get(p.doctor_id)) || 'Your Doctor' })),
       lab_reports: reportsRes.data || [],
-      clinical_notes: notesRes.data || [],
+      clinical_notes: notes.map(n => ({ ...n, doctor_name: (n.doctor_id && doctorNameById.get(n.doctor_id)) || 'Your Doctor' })),
       payments: paymentsRes.data || [],
     };
   }

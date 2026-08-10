@@ -73,6 +73,37 @@ function PayoutModal({ isOpen, onClose, onRequest, available, toast }) {
 }
 
 /* ─── Invoice Modal ──────────────────────────── */
+// No PDF-generation service on the backend — "download" opens a print-formatted
+// window and triggers the browser's native print dialog, where "Save as PDF"
+// is a standard destination. That's a real download, not a decorative button.
+function downloadInvoicePdf(txn) {
+  const win = window.open('', '_blank', 'width=480,height=640');
+  if (!win) return;
+  win.document.write(`
+    <!doctype html><html><head><title>Invoice ${txn.txn_ref || txn.id}</title>
+    <style>
+      body { font-family: Georgia, serif; padding: 32px; color: #1e293b; }
+      h1 { font-size: 20px; margin: 0; }
+      .muted { color: #64748b; font-size: 12px; }
+      .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+      .total { border-top: 1px solid #cbd5e1; margin-top: 8px; padding-top: 10px; font-weight: bold; font-size: 16px; }
+      .header { display: flex; justify-content: space-between; border-bottom: 1px solid #cbd5e1; padding-bottom: 12px; margin-bottom: 12px; }
+    </style></head><body>
+    <div class="header">
+      <div><h1>HealNari</h1><p class="muted">Invoice</p></div>
+      <div class="muted" style="text-align:right"><strong>${txn.txn_ref || txn.id}</strong><br/>${txn.date}</div>
+    </div>
+    <div class="row"><span class="muted">Patient</span><strong>${txn.patient}</strong></div>
+    <div class="row"><span class="muted">Service</span><strong>${txn.type}</strong></div>
+    <div class="row"><span class="muted">Payment</span><strong>${txn.method}</strong></div>
+    <div class="row total"><span>Total</span><span>₹${txn.amount}</span></div>
+    </body></html>
+  `);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+
 function InvoiceModal({ txn, isOpen, onClose }) {
   if (!txn) return null;
   return (
@@ -94,7 +125,7 @@ function InvoiceModal({ txn, isOpen, onClose }) {
           <div className="flex justify-between"><span className="text-slate-500">Payment</span><span className="font-bold text-slate-800">{txn.method}</span></div>
           <div className="flex justify-between border-t border-slate-200 pt-2 mt-2"><span className="font-bold text-slate-600">Total</span><span className="font-black text-slate-800 text-base">₹{txn.amount}</span></div>
         </div>
-        <button className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+        <button onClick={() => downloadInvoicePdf(txn)} className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
           <i className="fas fa-download"></i> Download PDF
         </button>
       </div>
@@ -146,6 +177,21 @@ function DoctorBilling() {
   });
 
   const total = filtered.reduce((s, t) => s + (t.status === 'settled' ? t.amount : 0), 0);
+
+  const exportEarnings = () => {
+    if (filtered.length === 0) { toast('No transactions to export.', 'error'); return; }
+    const header = ['ID', 'Patient', 'Date', 'Type', 'Method', 'Amount', 'Status'];
+    const csvRows = filtered.map(t => [t.txn_ref || t.id, t.patient, t.date, t.type, t.method, t.amount, t.status]);
+    const csv = [header, ...csvRows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `earnings-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast(`Exported ${filtered.length} transactions.`, 'success');
+  };
 
   const requestPayout = async (method, amount) => {
     try {
@@ -207,7 +253,7 @@ function DoctorBilling() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-slate-500 font-medium">Showing: <strong className="text-emerald-700">₹{total.toLocaleString()}</strong> settled</span>
-            <button onClick={() => toast('Exporting earnings report...', 'info')} className="text-xs font-bold text-aubergine-600 hover:text-aubergine-800 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-aubergine-50 transition-colors">
+            <button onClick={exportEarnings} className="text-xs font-bold text-aubergine-600 hover:text-aubergine-800 flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-aubergine-50 transition-colors">
               <i className="fas fa-download"></i> Export
             </button>
           </div>

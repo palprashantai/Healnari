@@ -72,10 +72,40 @@ const STATUS_BADGE = {
 };
 
 /* ─── Notes Modal ────────────────────────────── */
+// Parses the "Subjective: …\nAssessment: …\nPlan: …" format saveNotes()
+// writes back out, so re-opening a saved note prefills the form instead of
+// showing blank fields for an already-documented visit.
+function parseNote(text) {
+  const grab = (label) => {
+    const m = text.match(new RegExp(`${label}: ([\\s\\S]*?)(?:\\n(?:Subjective|Assessment|Plan):|$)`));
+    return m ? m[1].trim() : '';
+  };
+  return { notes: grab('Subjective'), diagnosis: grab('Assessment'), followUp: grab('Plan') };
+}
+
 function NotesModal({ patient, isOpen, onClose, onSave }) {
   const [notes, setNotes] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
   const [followUp, setFollowUp] = useState('');
+  const [priorNotes, setPriorNotes] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !patient) return;
+    setNotes(''); setDiagnosis(''); setFollowUp(''); setPriorNotes([]);
+    setLoading(true);
+    apiFetch(`/telemedicine/${patient.id}/notes`)
+      .then(list => {
+        setPriorNotes(list);
+        if (list.length) {
+          const { notes, diagnosis, followUp } = parseNote(list[0].note);
+          setNotes(notes); setDiagnosis(diagnosis); setFollowUp(followUp);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [isOpen, patient]);
+
   if (!patient) return null;
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`SOAP Notes — ${patient.name}`} size="md">
@@ -84,6 +114,7 @@ function NotesModal({ patient, isOpen, onClose, onSave }) {
           <div className="flex gap-3"><span className="font-bold text-slate-500 w-16">Patient</span><span className="font-bold text-slate-800">{patient.name} ({patient.age})</span></div>
           <div className="flex gap-3"><span className="font-bold text-slate-500 w-16">Visit Type</span><span>{patient.type}</span></div>
         </div>
+        {loading && <p className="text-xs text-slate-500 text-center py-1">Loading existing notes…</p>}
         <div>
           <label className="text-xs font-bold text-slate-500 mb-1.5 block">Subjective / Chief Complaint</label>
           <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Patient reported..."
@@ -99,6 +130,19 @@ function NotesModal({ patient, isOpen, onClose, onSave }) {
           <input value={followUp} onChange={e => setFollowUp(e.target.value)} placeholder="e.g. Repeat labs in 6 weeks, follow-up call"
             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
         </div>
+        {priorNotes.length > 1 && (
+          <div>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Earlier Notes</p>
+            <div className="max-h-32 overflow-y-auto space-y-2">
+              {priorNotes.slice(1).map(n => (
+                <div key={n.id} className="bg-slate-50 border border-slate-100 rounded-lg p-2 text-xs text-slate-600 whitespace-pre-wrap">
+                  <p className="text-[10px] text-slate-500 font-bold mb-0.5">{new Date(n.created_at).toLocaleString('en-IN')}</p>
+                  {n.note}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="flex gap-3 pt-2 border-t border-slate-100">
           <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-sm hover:bg-slate-50">Cancel</button>
           <button onClick={() => { onSave({ notes, diagnosis, followUp }); onClose(); }}
@@ -187,6 +231,7 @@ function DoctorAppointments() {
 
   const toRow = (a) => ({
     id: a.id,
+    patientId: a.patientId,
     token: null,
     name: a.patientName,
     age: ageByPatientId.get(a.patientId) ? `${ageByPatientId.get(a.patientId)}F` : '—',
@@ -262,6 +307,28 @@ function DoctorAppointments() {
     }
   };
 
+  const sendBulkMessage = async (channel, messageText) => {
+    const recipients = filteredData.filter(r => selectedIds.includes(r.id));
+    const patientIds = [...new Set(recipients.map(r => r.patientId).filter(Boolean))];
+    try {
+      await apiFetch('/communications/broadcasts', {
+        method: 'POST',
+        body: {
+          subject: channel,
+          body: messageText,
+          audience: `Selected Appointments — ${recipients.length} patient(s)`,
+          channels: [channel],
+          scheduleType: 'immediate',
+          patientIds,
+        },
+      });
+      toast(`${channel} sent to ${recipients.length} patient(s).`, 'success');
+    } catch (err) {
+      toast(err.message || `Failed to send ${channel}`, 'error');
+    }
+    setSelectedIds([]);
+  };
+
   const toggleSelectAll = () => {
     if (selectedIds.length === filteredData.length && filteredData.length > 0) {
       setSelectedIds([]);
@@ -276,25 +343,43 @@ function DoctorAppointments() {
 
   const callNext = async () => {
     const nxt = queue.find(p => p.status === 'Waiting');
-    await callNextForDoctor();
-    toast(nxt ? `Called ${nxt.name} (${nxt.token})` : 'Queue advanced', 'success');
+    try {
+      await callNextForDoctor();
+      toast(nxt ? `Called ${nxt.name} (${nxt.token})` : 'Queue advanced', 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to advance the queue', 'error');
+    }
   };
 
   const approveRequest = async (req) => {
-    await approveRequestApi(req.id);
-    toast(`Appointment approved for ${req.name}`, 'success');
+    try {
+      await approveRequestApi(req.id);
+      toast(`Appointment approved for ${req.name}`, 'success');
+    } catch (err) {
+      toast(err.message || `Failed to approve ${req.name}'s request`, 'error');
+    }
   };
 
   const rejectRequest = async (req) => {
-    await rejectRequestApi(req.id);
-    toast(`Request from ${req.name} rejected`, 'info');
+    try {
+      await rejectRequestApi(req.id);
+      toast(`Request from ${req.name} rejected`, 'info');
+    } catch (err) {
+      toast(err.message || `Failed to reject ${req.name}'s request`, 'error');
+    }
   };
 
   const handleCancel = async () => {
     const name = cancelTarget.name;
-    await cancelAppointment(cancelTarget.id);
-    toast(`Appointment with ${name} cancelled`, 'info');
-    setCancelTarget(null);
+    const id = cancelTarget.id;
+    try {
+      await cancelAppointment(id);
+      toast(`Appointment with ${name} cancelled`, 'info');
+    } catch (err) {
+      toast(err.message || `Failed to cancel appointment with ${name}`, 'error');
+    } finally {
+      setCancelTarget(null);
+    }
   };
 
   const saveNotes = async ({ notes, diagnosis, followUp }) => {
@@ -526,7 +611,7 @@ function DoctorAppointments() {
                     </span>
                   </td>
                   <td className="px-5 py-4 text-right">
-                    <button onClick={() => toast(`Notes: ${p.notes}`, 'info')} className="text-aubergine-600 font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-aubergine-50 transition-colors border border-aubergine-100">
+                    <button onClick={() => setNotesTarget(p)} className="text-aubergine-600 font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-aubergine-50 transition-colors border border-aubergine-100">
                       View Summary
                     </button>
                   </td>
@@ -551,10 +636,7 @@ function DoctorAppointments() {
         onClose={() => setBulkModalParams({ isOpen: false, channel: '' })}
         channel={bulkModalParams.channel}
         selectedCount={selectedIds.length}
-        onSend={(template) => {
-          toast(`Successfully sent ${bulkModalParams.channel} to ${selectedIds.length} appointments!`, 'success');
-          setSelectedIds([]);
-        }}
+        onSend={(messageText) => sendBulkMessage(bulkModalParams.channel, messageText)}
       />
     </div>
   );

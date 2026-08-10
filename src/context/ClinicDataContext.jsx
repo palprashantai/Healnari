@@ -21,12 +21,19 @@ export function ClinicDataProvider({ children }) {
   const [waitlist, setWaitlist] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [kycVerified, setKycVerified] = useState(false);
+  const [kycSubmitted, setKycSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Backend is the source of truth for KYC status — reflect it whenever the
   // logged-in user changes (login, or a fresh /auth/me after a refresh).
+  // kycVerified only ever becomes true via admin approval; kycSubmitted just
+  // means the doctor sent documents in and is waiting on that review — the
+  // two must stay distinguishable or the UI ends up claiming "Verified"
+  // for someone who's still pending, and every verified-only endpoint they
+  // then hit 403s with no explanation.
   useEffect(() => {
     setKycVerified(!!user?.kycVerified);
+    setKycSubmitted(!!user?.kycSubmittedAt);
   }, [user]);
 
   // Adapts backend patient format to frontend expectations
@@ -72,11 +79,36 @@ export function ClinicDataProvider({ children }) {
       bmi: '—', bp: '—', pulse: '—', spo2: '—', temp: '—', bloodSugar: '—',
       allergies: record?.allergies || [],
       meds,
-      reports: lab_reports.map(r => ({ id: r.id, testName: r.test_name, date: new Date(r.created_at).toLocaleDateString(), results: r.results, urgent: r.is_urgent })),
+      reports: lab_reports.map(r => ({
+        id: r.id,
+        testName: r.test_name,
+        testCategory: r.test_category || 'General',
+        labName: r.lab_name || '',
+        date: new Date(r.created_at).toLocaleDateString(),
+        status: r.status,
+        results: r.results,
+        urgent: r.urgent,
+        interpretation: r.interpretation,
+        doctorAction: r.doctor_action,
+      })),
       consultations: [],
       medicalHistory: { chronicConditions: record?.chronic_conditions || [], surgeries: [], familyHistory: [], lifestyle: '' },
-      clinicalNotes: clinical_notes,
-      payments: payments,
+      clinicalNotes: clinical_notes.map(n => ({
+        id: n.id,
+        text: n.note,
+        date: n.created_at ? new Date(n.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+        author: n.doctor_name || 'Your Doctor',
+      })),
+      payments: payments.map(p => ({
+        id: p.id,
+        date: new Date(p.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        service: p.service,
+        category: p.category || 'General',
+        amount: Number(p.amount),
+        status: p.status,
+        method: p.method || '—',
+        txnRef: p.txn_ref || '',
+      })),
     };
   };
 
@@ -184,6 +216,7 @@ export function ClinicDataProvider({ children }) {
     } catch (err) {
       console.error(err);
       fetchData(); // rollback on error
+      throw err;
     }
   };
 
@@ -223,6 +256,59 @@ export function ClinicDataProvider({ children }) {
     }
   };
 
+  const orderLabTest = async (patientId, test) => {
+    try {
+      const res = await apiFetch('/records/lab-reports', {
+        method: 'POST',
+        body: {
+          patientId,
+          testName: test.testName,
+          testCategory: test.testCategory,
+          labName: test.labName,
+          urgent: test.urgent,
+        }
+      });
+      fetchData(); // Reload patients to get the new lab report
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const addClinicalNote = async (patientId, note) => {
+    try {
+      const res = await apiFetch('/records/notes', { method: 'POST', body: { patientId, note } });
+      fetchData(); // Reload patients to get the new note
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const recordCharge = async (patientId, charge) => {
+    try {
+      const res = await apiFetch('/billing/charges', {
+        method: 'POST',
+        body: {
+          patientId,
+          service: charge.service,
+          category: charge.category,
+          amount: charge.amount,
+          method: charge.method,
+          status: charge.status,
+        }
+      });
+      setTransactions(prev => [res, ...prev]);
+      fetchData(); // Reload patients so their EMR payment history reflects the new charge
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
   const handleRefillAction = async (patientId, medId, action) => {
     // Optimistic update
     setPatients(prev => prev.map(p => {
@@ -245,6 +331,7 @@ export function ClinicDataProvider({ children }) {
     } catch (err) {
       console.error(err);
       fetchData(); // Rollback on error
+      throw err;
     }
   };
 
@@ -333,6 +420,7 @@ export function ClinicDataProvider({ children }) {
       setAppointments(res.map(adaptAppointment));
     } catch (err) {
       console.error(err);
+      throw err;
     }
   };
 
@@ -467,7 +555,9 @@ export function ClinicDataProvider({ children }) {
   const verifyKyc = async () => {
     try {
       await apiFetch('/doctors/me/kyc', { method: 'PUT' });
-      setKycVerified(true);
+      // Submitting only queues the doctor for admin review — it does NOT
+      // grant kyc_verified. See DoctorsService.verifyKyc on the backend.
+      setKycSubmitted(true);
     } catch (err) {
       console.error('Failed to submit KYC', err);
       throw err;
@@ -475,7 +565,7 @@ export function ClinicDataProvider({ children }) {
   };
 
   const value = {
-    patients, updatePatient, addPatient, addRx, approveRefill, rejectRefill, requestRefill, refillRequests,
+    patients, updatePatient, addPatient, addRx, orderLabTest, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment,
     approveRequest, rejectRequest, callNextForDoctor,
     transactions, payAppointment,
@@ -485,7 +575,7 @@ export function ClinicDataProvider({ children }) {
     careConnections, inviteConnection, updateConnectionPermissions, removeConnection,
     favorites, toggleFavorite,
     waitlist, joinWaitlist, leaveWaitlist,
-    kycVerified, verifyKyc,
+    kycVerified, kycSubmitted, verifyKyc,
   };
 
   return <ClinicDataContext.Provider value={value}>{loading ? null : children}</ClinicDataContext.Provider>;

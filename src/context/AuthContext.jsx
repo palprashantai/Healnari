@@ -77,6 +77,7 @@ export function AuthProvider({ children }) {
       await apiFetch('/auth/me', { method: 'PUT', body: patch });
     } catch (error) {
       console.error('Failed to save profile', error);
+      throw error;
     }
   };
 
