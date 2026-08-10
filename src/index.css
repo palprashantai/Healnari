@@ -86,7 +86,7 @@
 
 @layer components {
   .glass-panel {
-    @apply bg-white/80 backdrop-blur-md border border-[#EDE7FF] shadow-sm;
+    @apply bg-white/80 backdrop-blur-md border border-[#EDE7FF] shadow-soft;
   }
   .glass-panel-dark {
     @apply bg-[#2A1647]/90 backdrop-blur-md border border-[#6B46C1]/30 shadow-xl;
@@ -94,7 +94,7 @@
 
   /* Premium card hover lift */
   .card-premium {
-    @apply transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-xl hover:shadow-[#6B46C1]/15 hover:border-[#A78BFA];
+    @apply transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-card-hover hover:border-[#A78BFA];
   }
 
   /* Button press effect */
@@ -187,4 +187,18 @@ body.discreet-blur main:focus-within {
 
 @keyframes shimmer {
   100% { transform: translateX(100%); }
+}
+/* ─── Doctor Dashboard EKG Animation ─── */
+@keyframes ekg-draw {
+  0% { stroke-dashoffset: 1000; }
+  100% { stroke-dashoffset: 0; }
+}
+@keyframes ekg-loop {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.ekg-animate {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 0;
+  animation: ekg-loop 3s ease-in-out infinite;
 }

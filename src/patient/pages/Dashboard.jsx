@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
@@ -7,6 +7,7 @@ import { Modal } from '../../components/Modal.jsx';
 import { StepIndicator } from '../../components/StepIndicator.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
+import { LIFESTYLE_ITEMS } from '../lifestyleConfig.js';
 
 /* ─── Reference config (not user data) ───────── */
 const CYCLE_PHASES = [
@@ -117,16 +118,37 @@ function VideoCallModal({ isOpen, onClose, toast, appointment }) {
   );
 }
 
+// Previously this made no API call at all — "Submit" just flipped to a
+// success screen claiming "Symptom report sent to Dr. Sarah Mitchell" (a
+// hardcoded name with no relation to the patient's real doctor), reviewed
+// "within 2 hours". Nothing was ever sent anywhere. There's no patient-facing
+// messaging/report backend to route this through for real, but cycle_logs
+// already has a working `symptoms` array column — reusing it gives this
+// real persistence (visible later on Tracking/Fertility) instead of a lie.
 function SymptomCheckerModal({ isOpen, onClose, toast }) {
+  const { logCycle, cycleLogs } = useClinicData();
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [selected, setSelected] = useState([]);
   const [severity, setSeverity] = useState(3);
+  const [saving, setSaving] = useState(false);
 
   const toggleSymptom = (s) => setSelected(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
 
-  const handleSubmit = () => {
-    setStep(3);
-    toast('Symptom report sent to Dr. Sarah Mitchell', 'success');
+  const handleSubmit = async () => {
+    setSaving(true);
+    try {
+      // Merge with whatever's already logged today (e.g. via Tracking)
+      // instead of overwriting it — logCycle's PUT replaces the whole array.
+      const existing = cycleLogs[todayLocalStr()]?.symptoms || [];
+      const merged = Array.from(new Set([...existing, ...selected]));
+      await logCycle(todayLocalStr(), { symptoms: merged });
+      setStep(3);
+    } catch {
+      toast('Could not save your symptom log. Please try again.', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const reset = () => { setStep(1); setSelected([]); setSeverity(3); onClose(); };
@@ -161,24 +183,33 @@ function SymptomCheckerModal({ isOpen, onClose, toast }) {
           </div>
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 font-medium">
             <i className="fas fa-circle-info mr-1.5"></i>
-            {severity >= 8 ? 'High severity detected. Recommending urgent consult.' : 'We will send your report to your care team for review.'}
+            {severity >= 8
+              ? 'High severity — consider booking an appointment or contacting your doctor directly.'
+              : "This will be saved to today's cycle log as a personal record — it isn't automatically sent to your care team."}
           </div>
           <div className="flex gap-3">
-            <button onClick={() => setStep(1)} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors">← Back</button>
-            <button onClick={handleSubmit} className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">Submit Report</button>
+            <button onClick={() => setStep(1)} disabled={saving} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors disabled:opacity-40">← Back</button>
+            <button onClick={handleSubmit} disabled={saving} className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-colors">{saving ? 'Saving…' : 'Save Symptom Log'}</button>
           </div>
         </div>
       )}
       {step === 3 && (
         <div className="text-center space-y-4 py-4">
           <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 text-3xl flex items-center justify-center mx-auto"><i className="fas fa-circle-check"></i></div>
-          <h4 className="font-black text-slate-800 text-lg">Report Submitted!</h4>
-          <p className="text-sm text-slate-500">Dr. Sarah Mitchell will review your symptoms and respond within 2 hours.</p>
+          <h4 className="font-black text-slate-800 text-lg">Symptoms Logged</h4>
+          <p className="text-sm text-slate-500">
+            Saved to today's cycle log.{' '}
+            {severity >= 8 ? 'Given the severity you reported, consider booking an appointment.' : 'You can review this anytime on the Tracking or Fertility pages.'}
+          </p>
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 text-left space-y-1">
             <p className="font-bold">Logged Symptoms: <span className="font-normal text-aubergine-700">{selected.join(', ')}</span></p>
             <p className="font-bold">Severity: <span className="font-normal">{severity}/10</span></p>
           </div>
-          <button onClick={reset} className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">Done</button>
+          {severity >= 8 ? (
+            <button onClick={() => { reset(); navigate('/patient-dashboard/appointments'); }} className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">Book an Appointment</button>
+          ) : (
+            <button onClick={reset} className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">Done</button>
+          )}
         </div>
       )}
     </Modal>
@@ -271,7 +302,7 @@ function QuickBookModal({ isOpen, onClose, toast, addAppointment }) {
         reason: '',
       });
       onClose();
-      toast('Appointment booked! Confirmation SMS sent.', 'success');
+      toast('Appointment booked!', 'success');
       setStep(1); setForm({ doctorId: '', type: 'Video', date: '', slot: '' });
     } catch (err) {
       toast(err.message || 'Failed to book appointment.', 'error');
@@ -456,192 +487,164 @@ function OnboardingModal({ isOpen, onClose, toast }) {
   );
 }
 
-/* ─── Cycle & Fertility widget — folds the phase-tip tracker together with a
-   live teaser pulled from the real fertility-prediction endpoint, so the
-   dashboard surfaces the same real numbers as the Fertility page. ─── */
-function CycleFertilityWidget({ toast }) {
-  const { logCycle, cycleLogs } = useClinicData();
-  const navigate = useNavigate();
-  const [fertility, setFertility] = useState(null);
-  const [loadingFertility, setLoadingFertility] = useState(true);
+/* ─── Wellness Score ─── */
+function WellnessScoreWidget({ vitals, lifestyle, waterCount, moodLogged, discreet }) {
+  // Score out of 100
+  let score = 50; // base score
+  if (vitals && Object.keys(vitals).length > 0) score += 10;
+  if (waterCount >= 4) score += 10;
+  if (waterCount >= 8) score += 10;
+  if (moodLogged) score += 10;
+  // Count only real checklist habits (LIFESTYLE_ITEMS keys) — `lifestyle.items`
+  // also carries the raw `waterGlasses` counter (any non-zero value is truthy),
+  // which isn't a habit itself and would otherwise double-count hydration
+  // progress that's already scored above via `waterCount`.
+  const completedHabits = lifestyle?.items ? LIFESTYLE_ITEMS.filter(item => lifestyle.items[item.key]).length : 0;
+  if (completedHabits > 0) score += (completedHabits * 5);
+  score = Math.min(100, score);
 
-  useEffect(() => {
-    apiFetch('/patients/me/fertility-prediction')
-      .then(setFertility)
-      .catch(() => setFertility(null))
-      .finally(() => setLoadingFertility(false));
-  }, []);
+  const circumference = 2 * Math.PI * 40;
+  const strokeDashoffset = circumference - (score / 100) * circumference;
 
-  // Default to whatever phase was most recently logged; only fall back to a
-  // neutral phase when there's no cycle history to read from yet.
-  const [currentPhase, setCurrentPhase] = useState(() => {
-    const dates = Object.keys(cycleLogs).sort().reverse();
-    for (const d of dates) {
-      if (cycleLogs[d]?.phase) return cycleLogs[d].phase;
-    }
-    return 'follicular';
-  });
-  const dateKey = todayLocalStr();
-  const todayFlagKey = `cycle_logged_${dateKey}`;
-  const [loggedToday, setLoggedToday] = useState(() => localStorage.getItem(todayFlagKey) === 'true');
+  return (
+    <div className={`glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col items-center justify-center text-center ${discreet ? 'discreet-blur' : ''}`}>
+      <div className="absolute -top-10 -right-10 w-32 h-32 bg-aubergine-300 rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-pulse"></div>
+      <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-magenta-200 rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-pulse" style={{ animationDelay: '2s' }}></div>
 
-  const phase = CYCLE_PHASES.find(p => p.id === currentPhase);
+      <h3 className="font-bold text-slate-800 text-sm mb-4 relative z-10">Today's Wellness</h3>
 
-  const logToday = async () => {
-    try {
-      await logCycle(dateKey, { phase: phase.id });
-      localStorage.setItem(todayFlagKey, 'true');
-      setLoggedToday(true);
-      toast(`Logged today as ${phase.label} phase.`, 'success');
-    } catch {
-      toast('Failed to save today\'s log. Please try again.', 'error');
-    }
+      <div className="relative w-28 h-28 flex items-center justify-center z-10 mb-2">
+        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="40" stroke="#EDE7FF" strokeWidth="8" fill="transparent" />
+          <circle cx="50" cy="50" r="40" stroke="url(#score-gradient)" strokeWidth="8" fill="transparent"
+            strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round"
+            className="transition-all duration-1000 ease-out" />
+          <defs>
+            <linearGradient id="score-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#6B46C1" />
+              <stop offset="100%" stopColor="#E23E8C" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-aubergine-700 to-magenta-600">{score}</span>
+        </div>
+      </div>
+      <p className="text-xs text-slate-500 font-medium relative z-10">
+        {score >= 80 ? "You're doing amazing today!" : score >= 50 ? "Keep up the good habits!" : "Let's log some healthy actions."}
+      </p>
+    </div>
+  );
+}
+
+/* ─── Interactive Hydration Tracker ─── */
+function HydrationTracker({ waterCount, setWaterCount, toast, discreet }) {
+  const goal = 8;
+  const pct = Math.min(100, (waterCount / goal) * 100);
+
+  const handleAdd = () => {
+    setWaterCount(prev => prev + 1);
+    if (waterCount + 1 === goal) toast("Hydration goal reached! 💧", "success");
   };
 
-  const hasFertility = fertility && fertility.classification !== 'insufficient_data';
-  const cycleDay = hasFertility ? daysBetweenLocal(fertility.lastPeriodStart, dateKey) + 1 : null;
-
   return (
-    <div className="p-6 md:p-8">
-      <div className="flex items-center justify-between mb-5">
+    <div className={`glass-panel rounded-3xl p-6 relative overflow-hidden group ${discreet ? 'discreet-blur' : ''}`}>
+      {/* Animated water background */}
+      <div className="absolute bottom-0 left-0 right-0 bg-sky-100/50 transition-all duration-700 ease-out z-0"
+        style={{ height: `${pct}%` }}>
+        <div className="absolute -top-3 left-0 right-0 h-3 bg-sky-200/40 rounded-t-[50%] animate-pulse"></div>
+      </div>
+
+      <div className="relative z-10 flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-bold text-slate-800">Cycle & Fertility</h3>
-          <p className="text-sm text-slate-500">{cycleDay ? `Day ${cycleDay} of your cycle` : 'Tap a phase to see insights'}</p>
+          <div className="flex items-center gap-2 mb-1">
+            <i className="fas fa-droplet text-sky-500"></i>
+            <h3 className="font-bold text-slate-800 text-sm">Water Intake</h3>
+          </div>
+          <p className="text-xs text-slate-500">{waterCount} of {goal} glasses</p>
         </div>
-        <button onClick={() => navigate('/patient-dashboard/fertility')}
-          className="text-xs font-bold text-aubergine-600 hover:underline flex items-center gap-1 flex-shrink-0">
-          Full Calendar <i className="fas fa-arrow-right text-[10px]"></i>
+        <button onClick={handleAdd} className="w-10 h-10 rounded-full bg-white shadow-md text-sky-500 hover:bg-sky-50 flex items-center justify-center text-lg transition-transform active:scale-90">
+          <i className="fas fa-plus"></i>
         </button>
       </div>
 
-      {!loadingFertility && hasFertility && (
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
-            <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide mb-0.5">Fertile Window</p>
-            <p className="font-black text-emerald-800 text-sm">{formatShort(fertility.fertileWindow[0])} – {formatShort(fertility.fertileWindow[1])}</p>
-          </div>
-          <div className="bg-sky-50 border border-sky-100 rounded-xl p-3">
-            <p className="text-[10px] font-bold text-sky-700 uppercase tracking-wide mb-0.5">Next Period</p>
-            <p className="font-black text-sky-800 text-sm">{formatShort(fertility.nextPeriodEstimate)}</p>
-          </div>
-        </div>
-      )}
-      {!loadingFertility && !hasFertility && (
-        <button onClick={() => navigate('/patient-dashboard/fertility')}
-          className="w-full bg-slate-50 border border-dashed border-slate-200 hover:border-aubergine-300 rounded-xl p-3 mb-5 text-left transition-colors">
-          <p className="text-xs font-bold text-slate-600"><i className="fas fa-circle-info text-aubergine-400 mr-1.5"></i>Log a couple of cycles to unlock fertile-window predictions here.</p>
-        </button>
-      )}
-
-      {/* Phase Selector */}
-      <div className="grid grid-cols-4 gap-2 mb-5">
-        {CYCLE_PHASES.map(p => (
-          <button key={p.id} onClick={() => { setCurrentPhase(p.id); toast(`Viewing ${p.label} phase`, 'info'); }}
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${currentPhase === p.id ? 'border-aubergine-500 bg-aubergine-50' : 'border-slate-200 hover:border-slate-300 bg-white'}`}>
-            <div className={`w-4 h-4 rounded-full ${p.color} ${currentPhase === p.id ? 'animate-pulse' : ''}`}></div>
-            <span className={`text-[10px] font-black ${currentPhase === p.id ? 'text-aubergine-700' : 'text-slate-500'}`}>{p.label}</span>
-            <span className="text-[9px] text-slate-500">{p.day}</span>
-          </button>
+      <div className="relative z-10 mt-4 flex gap-1 justify-between">
+        {Array.from({ length: goal }).map((_, i) => (
+          <div key={i} className={`h-8 flex-1 rounded-md transition-all duration-300 ${i < waterCount ? 'bg-sky-400' : 'bg-slate-100'}`}></div>
         ))}
       </div>
-
-      <div className="bg-sand-50 rounded-xl p-4 flex items-start gap-3 border border-sand-200 mb-4">
-        <i className="fas fa-lightbulb text-amber-500 mt-0.5 flex-shrink-0"></i>
-        <p className="text-sm text-slate-600">{phase.tip}</p>
-      </div>
-
-      {/* One real write action on the most-viewed screen, not only on the Tracking page */}
-      <button onClick={logToday} disabled={loggedToday}
-        className={`w-full py-3 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
-          loggedToday
-            ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default'
-            : 'bg-aubergine-600 hover:bg-aubergine-700 text-white'
-        }`}>
-        <i className={`fas ${loggedToday ? 'fa-circle-check' : 'fa-plus'}`}></i>
-        {loggedToday ? "Today's phase logged" : `Log Today as ${phase.label}`}
-      </button>
     </div>
   );
 }
 
-/* ─── Vitals snapshot — real readings from the Tracking page, not decoration. ─── */
-function VitalsSnapshot({ vitals, discreet }) {
+/* ─── Daily Medication Checklist ─── */
+function DailyMedicationChecklist({ meds, requestRefill, toast, discreet }) {
   const navigate = useNavigate();
-  const hasAny = Object.keys(vitals || {}).length > 0;
+  const [taken, setTaken] = useState(() => {
+    const saved = localStorage.getItem(`meds_taken_${todayLocalStr()}`);
+    return saved ? JSON.parse(saved) : {};
+  });
+  const [refillingId, setRefillingId] = useState(null);
 
-  if (!hasAny) {
-    return (
-      <button onClick={() => navigate('/patient-dashboard/tracking')}
-        className="w-full bg-white rounded-2xl border-2 border-dashed border-slate-200 hover:border-aubergine-300 p-6 text-center transition-all">
-        <i className="fas fa-heart-pulse text-slate-400 text-2xl mb-2 block"></i>
-        <p className="font-bold text-slate-600 text-sm">Start tracking your vitals</p>
-        <p className="text-xs text-slate-500 mt-0.5">Log weight, BP, sugar & sleep to see them here.</p>
-      </button>
-    );
-  }
+  const toggleMed = (id) => {
+    const next = { ...taken, [id]: !taken[id] };
+    setTaken(next);
+    localStorage.setItem(`meds_taken_${todayLocalStr()}`, JSON.stringify(next));
+    if (next[id]) toast("Medication marked as taken", "success");
+  };
 
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {Object.entries(VITALS_CONFIG).map(([key, cfg]) => {
-        const reading = vitals[key];
-        return (
-          <button key={key} onClick={() => navigate('/patient-dashboard/tracking')}
-            className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-aubergine-200 transition-all text-left group">
-            <div className={`w-9 h-9 rounded-xl ${cfg.color} flex items-center justify-center mb-2 text-sm group-hover:scale-110 transition-transform`}>
-              <i className={`fas ${cfg.icon}`}></i>
-            </div>
-            <div className={`font-black text-slate-800 text-lg ${discreet ? 'discreet-blur' : ''}`}>
-              {reading ? reading.value : '—'} <span className="text-xs font-bold text-slate-400">{cfg.unit}</span>
-            </div>
-            <div className="text-xs text-slate-500 font-medium">{cfg.label}</div>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ─── Medications — real prescriptions, with a working refill request. ─── */
-function MedicationsWidget({ meds, requestRefill, toast }) {
-  const navigate = useNavigate();
-  const list = (meds || []).slice(0, 3);
-
-  const handleRefill = async (med) => {
+  // Out-of-refills is safety-relevant (a lapse in medication) — this needs to
+  // surface here too, not only on the Prescriptions page a patient might not
+  // visit for days.
+  const handleRefill = async (e, med) => {
+    e.stopPropagation();
+    setRefillingId(med.id);
     try {
       await requestRefill(med.id);
       toast('Refill requested — your doctor will review it.', 'success');
     } catch {
       toast('Failed to request refill. Please try again.', 'error');
+    } finally {
+      setRefillingId(null);
     }
   };
 
+  const list = (meds || []).slice(0, 3);
+
   return (
-    <div className="rounded-2xl p-6 border border-slate-200 shadow-sm bg-white">
-      <h3 className="font-bold text-slate-800 mb-4 flex items-center justify-between">
-        Medications
-        <button onClick={() => navigate('/patient-dashboard/prescriptions')} className="text-xs text-aubergine-600 font-semibold hover:underline">View All</button>
-      </h3>
+    <div className={`glass-panel rounded-3xl p-6 ${discreet ? 'discreet-blur' : ''}`}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <i className="fas fa-pills text-aubergine-500"></i>
+          <h3 className="font-bold text-slate-800 text-sm">Today's Meds</h3>
+        </div>
+        <button onClick={() => navigate('/patient-dashboard/prescriptions')} className="text-[10px] font-bold text-aubergine-600 hover:underline uppercase tracking-wide">All</button>
+      </div>
+
       {list.length === 0 ? (
-        <p className="text-xs text-slate-500 text-center py-6">No active prescriptions yet.</p>
+        <p className="text-xs text-slate-500 text-center py-4 bg-slate-50 rounded-xl">No active prescriptions.</p>
       ) : (
         <div className="space-y-3">
           {list.map(med => (
-            <div key={med.id} className="p-3 rounded-xl border border-slate-100 bg-slate-50/50">
-              <div className="flex items-center justify-between mb-1">
-                <p className="font-bold text-sm text-slate-800">{med.name}</p>
-                <span className="text-[10px] font-bold text-slate-500">{med.frequency}</span>
+            <div key={med.id} onClick={() => toggleMed(med.id)}
+              className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${taken[med.id] ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-100 hover:border-aubergine-200 shadow-sm'}`}>
+              <div>
+                <p className={`font-bold text-sm ${taken[med.id] ? 'text-emerald-800 line-through opacity-70' : 'text-slate-800'}`}>{med.name}</p>
+                <p className="text-xs text-slate-500">{med.dosage} • {med.frequency}</p>
+                {med.refillsLeft <= 0 && (
+                  med.refillRequested ? (
+                    <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full"><i className="fas fa-clock"></i>Refill requested</span>
+                  ) : (
+                    <button onClick={(e) => handleRefill(e, med)} disabled={refillingId === med.id}
+                      className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-white bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-60 px-2 py-0.5 rounded-full transition-colors">
+                      <i className={`fas ${refillingId === med.id ? 'fa-spinner fa-spin' : 'fa-rotate'}`}></i>{refillingId === med.id ? 'Requesting…' : 'Out of refills — Request'}
+                    </button>
+                  )
+                )}
               </div>
-              <p className="text-xs text-slate-500 mb-2">{med.dosage}{med.duration ? ` • ${med.duration}` : ''}</p>
-              {med.refillRequested ? (
-                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full inline-flex items-center gap-1"><i className="fas fa-clock"></i>Refill requested</span>
-              ) : med.refillsLeft <= 0 ? (
-                <button onClick={() => handleRefill(med)}
-                  className="text-[10px] font-bold text-white bg-aubergine-600 hover:bg-aubergine-700 px-3 py-1.5 rounded-full transition-colors inline-flex items-center gap-1">
-                  <i className="fas fa-rotate"></i>Request Refill
-                </button>
-              ) : (
-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">{med.refillsLeft} refill{med.refillsLeft === 1 ? '' : 's'} left</span>
-              )}
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs transition-colors shrink-0 ${taken[med.id] ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 text-transparent'}`}>
+                <i className="fas fa-check"></i>
+              </div>
             </div>
           ))}
         </div>
@@ -650,17 +653,170 @@ function MedicationsWidget({ meds, requestRefill, toast }) {
   );
 }
 
-/* ─── Health tip — deterministic daily rotation, no backend needed. ─── */
-function HealthTipWidget() {
-  const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
-  const tip = HEALTH_TIPS[dayOfYear % HEALTH_TIPS.length];
+/* ─── Mood & Energy Logger ─── */
+function MoodEnergyLogger({ logCycle, cycleLogs, toast }) {
+  const dateKey = todayLocalStr();
+  const currentMood = cycleLogs[dateKey]?.mood;
+  const [logging, setLogging] = useState(false);
+
+  const MOODS = [
+    { id: 'Joyful', icon: '😊', color: 'bg-amber-100 text-amber-700 border-amber-200', msg: "Glad you're feeling great! Keep that positive energy flowing." },
+    { id: 'Calm', icon: '😌', color: 'bg-sky-100 text-sky-700 border-sky-200', msg: "A calm mind is a powerful tool. Enjoy the peace." },
+    { id: 'Tired', icon: '🥱', color: 'bg-slate-100 text-slate-700 border-slate-200', msg: "Listen to your body. Rest is productive too." },
+    { id: 'Anxious', icon: '😟', color: 'bg-rose-100 text-rose-700 border-rose-200', msg: "Take a deep breath. Hormonal fluctuations can trigger this. Be kind to yourself." },
+  ];
+
+  const handleMood = async (m) => {
+    if (m.id === currentMood) return;
+    setLogging(true);
+    try {
+      await logCycle(dateKey, { mood: m.id });
+      toast(m.msg, 'info');
+    } catch {
+      toast("Failed to log mood", "error");
+    } finally {
+      setLogging(false);
+    }
+  };
+
   return (
-    <div className="rounded-2xl p-5 border border-amber-100 shadow-sm bg-amber-50">
-      <div className="flex items-center gap-2 mb-2">
-        <i className="fas fa-lightbulb text-amber-500"></i>
-        <p className="text-xs font-bold text-amber-700 uppercase tracking-wide">Health Tip of the Day</p>
+    <div className="glass-panel rounded-3xl p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <i className="fas fa-face-smile-beam text-magenta-500"></i>
+        <h3 className="font-bold text-slate-800 text-sm">How are you feeling?</h3>
       </div>
-      <p className="text-sm text-amber-900 leading-relaxed"><i className={`fas ${tip.icon} mr-1.5 opacity-60`}></i>{tip.text}</p>
+      <div className="grid grid-cols-4 gap-2">
+        {MOODS.map(m => {
+          const isSelected = currentMood === m.id;
+          return (
+            <button key={m.id} onClick={() => handleMood(m)} disabled={logging}
+              className={`flex flex-col items-center p-3 rounded-2xl border transition-all duration-300 ${isSelected ? `${m.color} scale-105 shadow-md` : 'bg-white border-slate-100 hover:border-slate-300 hover:bg-slate-50 grayscale opacity-70 hover:grayscale-0 hover:opacity-100'}`}>
+              <span className="text-2xl mb-1">{m.icon}</span>
+              <span className={`text-[10px] font-bold ${isSelected ? '' : 'text-slate-500'}`}>{m.id}</span>
+            </button>
+          )
+        })}
+      </div>
+      {currentMood && (
+        <p className="text-xs text-center mt-4 text-slate-500 font-medium italic animate-fade-in">
+          "{MOODS.find(m => m.id === currentMood)?.msg}"
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ─── Enhanced Cycle Ribbon ─── */
+function WeeklyCycleRibbon({ toast }) {
+  const { logCycle, cycleLogs } = useClinicData();
+  const navigate = useNavigate();
+
+  const dateKey = todayLocalStr();
+  const [currentPhase, setCurrentPhase] = useState(() => {
+    const dates = Object.keys(cycleLogs).sort().reverse();
+    for (const d of dates) { if (cycleLogs[d]?.phase) return cycleLogs[d].phase; }
+    return 'follicular';
+  });
+
+  const phase = CYCLE_PHASES.find(p => p.id === currentPhase);
+  const loggedToday = !!cycleLogs[dateKey]?.phase;
+
+  const logToday = async (id) => {
+    try {
+      await logCycle(dateKey, { phase: id });
+      setCurrentPhase(id);
+      toast(`Logged today as ${CYCLE_PHASES.find(p => p.id === id).label} phase.`, 'success');
+    } catch {
+      toast('Failed to save log.', 'error');
+    }
+  };
+
+  // Generate 7 days timeline
+  const timeline = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - 3 + i);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const isToday = i === 3;
+    const isFuture = i > 3;
+    return { date: d, dateStr, isToday, isFuture, label: d.toLocaleDateString('en-IN', { weekday: 'narrow' }), dayNum: d.getDate() };
+  });
+
+  return (
+    <div className="glass-panel rounded-3xl p-6 lg:col-span-2">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+            <i className="fas fa-moon text-aubergine-500"></i> Cycle & Fertility
+          </h3>
+          <p className="text-xs text-slate-500 mt-1">{phase.label} Phase • {phase.day}</p>
+        </div>
+        <button onClick={() => navigate('/patient-dashboard/fertility')}
+          className="text-[10px] font-bold text-aubergine-600 hover:underline uppercase tracking-wide">
+          Calendar
+        </button>
+      </div>
+
+      {/* Week Timeline */}
+      <div className="flex justify-between items-center mb-6 relative">
+        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-slate-100 -z-10"></div>
+        {timeline.map(t => (
+          <div key={t.dateStr} className="flex flex-col items-center gap-2 bg-white px-1 relative">
+            <span className={`text-[10px] font-bold ${t.isToday ? 'text-aubergine-600' : 'text-slate-400'}`}>{t.label}</span>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${t.isToday ? 'bg-gradient-to-br from-aubergine-500 to-magenta-500 text-white shadow-lg shadow-aubergine-500/30 ring-4 ring-aubergine-50' : t.isFuture ? 'bg-slate-50 text-slate-400 border border-slate-200' : 'bg-slate-100 text-slate-600'}`}>
+              {t.dayNum}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-gradient-to-r from-aubergine-50 to-magenta-50 rounded-2xl p-4 flex items-start gap-3 border border-aubergine-100/50 mb-4">
+        <i className="fas fa-lightbulb text-magenta-500 mt-0.5"></i>
+        <p className="text-xs text-aubergine-900 font-medium leading-relaxed">{phase.tip}</p>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
+        {CYCLE_PHASES.map(p => (
+          <button key={p.id} onClick={() => logToday(p.id)}
+            className={`py-2 rounded-xl border text-[10px] font-bold transition-all ${currentPhase === p.id ? `${p.color} text-white border-transparent shadow-md` : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Vitals Widget (Mini) ─── */
+function VitalsSnapshot({ vitals, discreet, navigate }) {
+  const hasAny = Object.keys(vitals || {}).length > 0;
+  return (
+    <div className={`glass-panel rounded-3xl p-6 flex flex-col justify-between ${discreet ? 'discreet-blur' : ''}`}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <i className="fas fa-heart-pulse text-rose-500"></i>
+          <h3 className="font-bold text-slate-800 text-sm">Vitals</h3>
+        </div>
+        <button onClick={() => navigate('/patient-dashboard/tracking')} className="text-[10px] font-bold text-rose-600 hover:underline uppercase tracking-wide">Update</button>
+      </div>
+
+      {!hasAny ? (
+        <div className="text-center py-4 bg-slate-50 rounded-xl">
+          <p className="text-xs text-slate-500 font-medium">Log vitals to see them here.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {Object.entries(VITALS_CONFIG).map(([key, cfg]) => {
+            const reading = vitals[key];
+            if (!reading) return null;
+            return (
+              <div key={key} className={`p-3 rounded-xl border border-slate-100 bg-white shadow-sm flex flex-col`}>
+                <span className="text-[10px] font-bold text-slate-500 mb-1 flex items-center gap-1"><i className={`fas ${cfg.icon} text-slate-400`}></i> {cfg.label}</span>
+                <span className="font-black text-slate-800 text-base">{reading.value} <span className="text-[10px] font-bold text-slate-400">{cfg.unit}</span></span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -668,7 +824,7 @@ function HealthTipWidget() {
 /* ─── Main Dashboard ─────────────────────────── */
 function PatientDashboard() {
   const { user } = useAuth();
-  const { appointments, patients, addAppointment, lifestyleLogs, vitals, requestRefill } = useClinicData();
+  const { appointments, patients, addAppointment, vitals, logLifestyle, lifestyleLogs, logCycle, cycleLogs, requestRefill } = useClinicData();
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -678,50 +834,48 @@ function PatientDashboard() {
   const [showQuickBook, setShowQuickBook] = useState(false);
   const [pendingReportCount, setPendingReportCount] = useState(0);
 
+  // Water tracking integration
+  const dateKey = todayLocalStr();
+  const todayLifestyle = lifestyleLogs[dateKey]?.items || {};
+  // Tracked under its own `waterGlasses` count, not the shared `water` key —
+  // Tracking.jsx's daily checklist reads `items.water` as a plain boolean
+  // ("did you hit your 2.5L goal today"), so writing the raw 0-8 glass count
+  // there would flip that checkbox true after the very first glass instead
+  // of only once the goal is actually met. `water` below is still kept in
+  // sync as the derived boolean so the checklist reflects the real goal.
+  const savedWaterGlasses = todayLifestyle.waterGlasses || 0;
+  const [waterCount, setWaterCount] = useState(savedWaterGlasses);
+
+  // logLifestyle/todayLifestyle come from context and aren't stable references
+  // across renders — kept in a ref instead of the effect's dependency array so
+  // an unrelated re-render (e.g. logging a mood elsewhere on this page) can't
+  // cancel and reschedule the pending debounced water save from zero.
+  const latestSaveRef = useRef({ logLifestyle, todayLifestyle });
+  latestSaveRef.current = { logLifestyle, todayLifestyle };
+
+  // Sync water count locally then to backend efficiently
   useEffect(() => {
-    apiFetch('/records/lab-reports')
-      .then(reports => setPendingReportCount(reports.filter(r => r.status === 'Pending').length))
-      .catch(() => setPendingReportCount(0));
+    if (waterCount !== savedWaterGlasses) {
+      const timeoutId = setTimeout(() => {
+        const { logLifestyle: save, todayLifestyle: current } = latestSaveRef.current;
+        save(dateKey, { ...current, waterGlasses: waterCount, water: waterCount >= 8 }).catch(() => { });
+      }, 1000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [waterCount, savedWaterGlasses, dateKey]);
+
+  useEffect(() => {
+    apiFetch('/records/lab-reports').then(r => setPendingReportCount(r.filter(x => x.status === 'Pending').length)).catch(() => setPendingReportCount(0));
   }, []);
 
   const own = patients?.[0];
-  const upcomingAppointments = (appointments || [])
-    .filter(a => !['Done', 'Cancelled', 'No Show'].includes(a.status))
-    .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || ''));
+  const upcomingAppointments = (appointments || []).filter(a => !['Done', 'Cancelled', 'No Show'].includes(a.status)).sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || ''));
   const nextAppointment = upcomingAppointments[0];
   const daysToNext = nextAppointment ? Math.max(0, daysUntil(nextAppointment.date)) : null;
 
-  // The profile ask no longer blocks the very first paint — it waits for the dashboard
-  // itself to render, then offers an inline, dismissible invite instead of a forced modal.
   const [onboardingDone, setOnboardingDone] = useState(() => localStorage.getItem('healnari_onboarding_done') === 'true');
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [alertDismissed, setAlertDismissed] = useState(false);
   const [discreet, setDiscreet] = useState(localStorage.getItem('discreet_mode') === 'true');
-
-  const dismissOnboarding = () => {
-    localStorage.setItem('healnari_onboarding_done', 'true');
-    setOnboardingDone(true);
-    setShowOnboarding(false);
-  };
-
-  // Real 7-day rolling completion, read from the same daily lifestyle
-  // checklist the Tracking page writes to — no more hardcoded percentages.
-  const goals = useMemo(() => {
-    const GOAL_CONFIG = [
-      { key: 'lowGI', label: 'PCOS Diet Plan', color: 'bg-emerald-500' },
-      { key: 'exercise', label: 'Resistance Exercise', color: 'bg-sky-500' },
-      { key: 'sleep', label: 'Sleep 8h / night', color: 'bg-aubergine-500' },
-    ];
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    });
-    return GOAL_CONFIG.map((g, i) => {
-      const completedDays = last7Days.filter(d => lifestyleLogs[d]?.items?.[g.key]).length;
-      return { id: i + 1, label: g.label, pct: Math.round((completedDays / last7Days.length) * 100), color: g.color };
-    });
-  }, [lifestyleLogs]);
 
   useEffect(() => {
     const handler = () => setDiscreet(localStorage.getItem('discreet_mode') === 'true');
@@ -729,248 +883,129 @@ function PatientDashboard() {
     return () => window.removeEventListener('discreet_mode_changed', handler);
   }, []);
 
-  // A single, real, data-driven alert instead of a permanently-fake banner —
-  // whichever is most time-sensitive right now, or nothing at all.
-  const smartAlert = useMemo(() => {
-    if (nextAppointment && nextAppointment.type === 'Video Consult' && daysToNext !== null && daysToNext <= 1) {
-      return {
-        icon: 'fa-video', label: daysToNext === 0 ? 'Today' : 'Tomorrow',
-        title: `Video consultation with Dr. ${nextAppointment.doctorName}`,
-        detail: `${daysToNext === 0 ? 'Today' : 'Tomorrow'} at ${nextAppointment.time}`,
-        actionLabel: daysToNext === 0 ? 'Join Call' : 'View Details',
-        onAction: () => (daysToNext === 0 ? setShowVideoCall(true) : navigate('/patient-dashboard/appointments')),
-      };
-    }
-    if (pendingReportCount > 0) {
-      return {
-        icon: 'fa-flask', label: 'New',
-        title: `${pendingReportCount} lab report${pendingReportCount > 1 ? 's' : ''} ready to review`,
-        detail: 'Your latest results are in.',
-        actionLabel: 'View Reports', onAction: () => setShowLabReports(true),
-      };
-    }
-    const needsRefill = (own?.meds || []).find(m => m.refillsLeft <= 0 && !m.refillRequested);
-    if (needsRefill) {
-      return {
-        icon: 'fa-pills', label: 'Action Needed',
-        title: `${needsRefill.name} is out of refills`,
-        detail: 'Request a refill so you don\'t run out.',
-        actionLabel: 'Go to Prescriptions', onAction: () => navigate('/patient-dashboard/prescriptions'),
-      };
-    }
-    return null;
-  }, [nextAppointment, daysToNext, pendingReportCount, own, navigate]);
-
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const todayLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-12">
+      {/* Dynamic Header */}
+      <div className="relative rounded-3xl overflow-hidden shadow-soft border border-aubergine-100 p-8 md:p-10 bg-gradient-to-br from-white via-white to-aubergine-50/60">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-magenta-100 via-aubergine-50 to-transparent rounded-full mix-blend-multiply opacity-70 transform translate-x-1/4 -translate-y-1/4 pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-sky-50 via-emerald-50 to-transparent rounded-full mix-blend-multiply opacity-60 transform -translate-x-1/4 translate-y-1/4 pointer-events-none"></div>
 
-      {/* Header — informative, not decorative: greeting, real date, one-line status. */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 md:p-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <p className="text-xs font-bold text-aubergine-600 uppercase tracking-widest mb-1">{todayLabel}</p>
-            <h1 className="text-2xl md:text-3xl font-black text-slate-800">
-              {greeting}, {user?.name?.split(' ')[0] || 'there'} 👋
+            <p className="text-[10px] font-black text-aubergine-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><i className="fas fa-calendar-day"></i> {todayLabel}</p>
+            <h1 className="text-3xl md:text-4xl font-serif-brand font-black text-slate-800 mb-2 tracking-tight">
+              {greeting}, {user?.name?.split(' ')[0] || 'there'}.
             </h1>
-            <p className="text-slate-500 mt-1">
+            <p className="text-slate-500 text-sm max-w-md leading-relaxed">
               {nextAppointment
-                ? <>Your next visit with Dr. {nextAppointment.doctorName} is <strong className="text-aubergine-700">{daysToNext === 0 ? 'today' : `in ${daysToNext} day${daysToNext === 1 ? '' : 's'}`}</strong>.</>
-                : "No upcoming visits booked — ready when you are."}
+                ? <>Your next visit with Dr. {nextAppointment.doctorName} is <strong className="text-aubergine-700">{daysToNext === 0 ? 'today' : `in ${daysToNext} day${daysToNext === 1 ? '' : 's'}`}</strong>. Rest and recharge.</>
+                : "Welcome to your daily health command center."}
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <button onClick={() => setShowVideoCall(true)} disabled={!nextAppointment || nextAppointment.type !== 'Video Consult'}
-              className="bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold px-5 py-3 rounded-xl transition-all text-sm flex items-center gap-2">
+          <div className="flex gap-3">
+            <button onClick={() => setShowVideoCall(true)} disabled={!nextAppointment || nextAppointment.type !== 'Video Consult' || daysToNext !== 0}
+              className="bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:from-aubergine-700 hover:to-magenta-700 disabled:opacity-40 disabled:grayscale text-white font-bold px-6 py-3 rounded-2xl transition-all shadow-lg shadow-aubergine-500/20 text-sm flex items-center gap-2 btn-interactive">
               <i className="fas fa-video"></i> Join Call
-            </button>
-            <button onClick={() => setShowQuickBook(true)}
-              className="bg-white border-2 border-aubergine-200 text-aubergine-700 hover:bg-aubergine-50 font-bold px-5 py-3 rounded-xl transition-all text-sm flex items-center gap-2">
-              <i className="fas fa-calendar-plus"></i> Book Visit
             </button>
           </div>
         </div>
       </div>
 
-      {/* Smart alert — only appears when there's something real and time-sensitive. */}
-      {!alertDismissed && smartAlert && (
-        <div className="bg-gradient-to-r from-aubergine-700 to-aubergine-900 text-white rounded-2xl p-4 shadow-lg flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white text-lg shrink-0">
-              <i className={`fas ${smartAlert.icon}`}></i>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="bg-white/20 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded tracking-wider">{smartAlert.label}</span>
-                <p className="font-black text-sm">{smartAlert.title}</p>
-              </div>
-              <p className="text-xs text-aubergine-100 mt-0.5">{smartAlert.detail}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={smartAlert.onAction} className="bg-white text-aubergine-900 hover:bg-slate-100 font-bold px-4 py-2 rounded-xl text-xs transition-colors">
-              {smartAlert.actionLabel}
-            </button>
-            <button onClick={() => setAlertDismissed(true)} className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-xs transition-colors">
-              Dismiss
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Vitals snapshot — real numbers from Tracking, front and center. */}
-      <VitalsSnapshot vitals={vitals} discreet={discreet} />
-
-      {/* Inline profile-completion invite — replaces a modal that used to block first
-          paint. Same destination (OnboardingModal), just earned rather than forced. */}
+      {/* Profile Completion Alert */}
       {!onboardingDone && (
-        <div className="bg-aubergine-50 border border-aubergine-100 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center text-lg flex-shrink-0">
-              <i className="fas fa-clipboard-user"></i>
-            </div>
+            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-lg shrink-0"><i className="fas fa-star"></i></div>
             <div>
-              <p className="font-bold text-aubergine-900">Complete your health profile</p>
-              <p className="text-xs text-aubergine-700">Two quick steps — helps your care team personalize what you see here.</p>
+              <p className="font-bold text-amber-900 text-sm">Personalize your HealNari experience</p>
+              <p className="text-xs text-amber-700">Complete your profile to get tailored insights.</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button onClick={() => setShowOnboarding(true)} className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors whitespace-nowrap">
-              Complete Profile
-            </button>
-            <button onClick={dismissOnboarding} aria-label="Dismiss profile prompt" title="Not now"
-              className="w-9 h-9 rounded-xl border border-aubergine-200 text-aubergine-700 hover:bg-aubergine-100 transition-colors flex items-center justify-center">
-              <i className="fas fa-xmark"></i>
-            </button>
-          </div>
+          <button onClick={() => setShowOnboarding(true)} className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors whitespace-nowrap btn-interactive">
+            Complete Profile
+          </button>
         </div>
       )}
 
-      <div className="grid lg:grid-cols-3 gap-8">
-        {/* Main Column */}
-        <div className="lg:col-span-2 space-y-8">
+      {/* Bento Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-          {/* Cycle & Fertility */}
-          <div className={`rounded-3xl border border-sand-200 shadow-sm overflow-hidden bg-white ${discreet ? 'discreet-blur' : ''}`}>
-            <CycleFertilityWidget toast={toast} />
-          </div>
+        {/* Row 1 */}
+        <WellnessScoreWidget vitals={vitals} lifestyle={lifestyleLogs[dateKey]} waterCount={waterCount} moodLogged={!!(cycleLogs[dateKey]?.mood)} discreet={discreet} />
+        <HydrationTracker waterCount={waterCount} setWaterCount={setWaterCount} toast={toast} discreet={discreet} />
+        <DailyMedicationChecklist meds={own?.meds} requestRefill={requestRefill} toast={toast} discreet={discreet} />
 
-          {/* Daily Wellness */}
-          <div className="rounded-2xl p-6 border border-slate-200 shadow-sm bg-white">
-            <h3 className="font-bold text-slate-800 mb-1 flex items-center justify-between">
-              This Week's Wellness
-              <button onClick={() => navigate('/patient-dashboard/tracking')} className="text-xs text-aubergine-600 font-semibold hover:underline">Log Today</button>
-            </h3>
-            <p className="text-xs text-slate-500 mb-4">Rolling 7-day completion for your key habits.</p>
-            <div className="space-y-4">
-              {goals.map(g => (
-                <div key={g.id}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-slate-700">{g.label}</span>
-                    <span className="text-xs font-black text-slate-600">{g.pct}%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 rounded-full h-2">
-                    <div className={`${g.color} h-2 rounded-full transition-all duration-700`} style={{ width: `${g.pct}%` }}></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div onClick={() => setShowSymptomChecker(true)}
-              className="rounded-2xl p-6 border border-sand-200 shadow-sm hover:shadow-md hover:border-aubergine-200 transition-all group cursor-pointer bg-white">
-              <div className="w-12 h-12 bg-rose-50 rounded-xl flex items-center justify-center text-rose-50 mb-4 group-hover:scale-110 transition-transform">
-                <i className="fas fa-heart-pulse text-xl text-rose-500"></i>
-              </div>
-              <h3 className="font-bold text-slate-800 mb-1">Symptom Checker</h3>
-              <p className="text-sm text-slate-500">Run a quick AI-powered health assessment based on your symptoms.</p>
-              <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-rose-600">Start Check <i className="fas fa-arrow-right text-[10px]"></i></span>
-            </div>
-
-            <div onClick={() => setShowLabReports(true)}
-              className="rounded-2xl p-6 border border-sand-200 shadow-sm hover:shadow-md hover:border-sky-200 transition-all group cursor-pointer bg-white">
-              <div className="w-12 h-12 bg-sky-50 rounded-xl flex items-center justify-center text-sky-500 mb-4 group-hover:scale-110 transition-transform">
-                <i className="fas fa-flask text-xl text-sky-500"></i>
-              </div>
-              <h3 className="font-bold text-slate-800 mb-1">Lab Reports</h3>
-              <p className="text-sm text-slate-500">View your latest blood work and hormonal panel results.</p>
-              <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-sky-600">View Results <i className="fas fa-arrow-right text-[10px]"></i></span>
-            </div>
-          </div>
+        {/* Row 2 */}
+        <WeeklyCycleRibbon toast={toast} />
+        <div className="grid grid-rows-2 gap-6 lg:col-span-1">
+          <VitalsSnapshot vitals={vitals} discreet={discreet} navigate={navigate} />
+          <MoodEnergyLogger logCycle={logCycle} cycleLogs={cycleLogs} toast={toast} />
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
+        {/* Row 3 - Quick Actions & Appointments */}
+        <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 grid sm:grid-cols-2 gap-6">
+            <div onClick={() => setShowSymptomChecker(true)} className="glass-panel card-premium rounded-3xl p-6 group cursor-pointer flex flex-col justify-between">
+              <div className="w-12 h-12 bg-gradient-to-br from-rose-400 to-rose-600 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-rose-500/30 group-hover:scale-110 transition-transform"><i className="fas fa-heart-pulse text-xl"></i></div>
+              <div>
+                <h3 className="font-bold text-slate-800 mb-1">Symptom Checker</h3>
+                <p className="text-xs text-slate-500">Log your symptoms to your cycle record.</p>
+                <span className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold text-rose-600 uppercase tracking-wide group-hover:gap-2 transition-all">Start Check <i className="fas fa-arrow-right"></i></span>
+              </div>
+            </div>
 
-          {/* Upcoming Appointments */}
-          <div className="rounded-2xl p-6 border border-slate-200 shadow-sm bg-white">
-            <h3 className="font-bold text-slate-800 mb-4 flex items-center justify-between">
-              Upcoming Visits
-              <button onClick={() => navigate('/patient-dashboard/appointments')}
-                className="text-xs text-aubergine-600 font-semibold hover:underline">View All</button>
+            <div onClick={() => setShowLabReports(true)} className="glass-panel card-premium rounded-3xl p-6 group cursor-pointer flex flex-col justify-between relative overflow-hidden">
+              {pendingReportCount > 0 && <span className="absolute top-4 right-4 bg-rose-500 text-white text-[10px] font-black px-2 py-1 rounded-full animate-bounce">{pendingReportCount} New</span>}
+              <div className="w-12 h-12 bg-gradient-to-br from-sky-400 to-sky-600 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-sky-500/30 group-hover:scale-110 transition-transform"><i className="fas fa-flask text-xl"></i></div>
+              <div>
+                <h3 className="font-bold text-slate-800 mb-1">Lab Reports</h3>
+                <p className="text-xs text-slate-500">View latest hormonal panels.</p>
+                <span className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold text-sky-600 uppercase tracking-wide group-hover:gap-2 transition-all">View Results <i className="fas fa-arrow-right"></i></span>
+              </div>
+            </div>
+          </div>
+
+          <div className="glass-panel rounded-3xl p-6">
+            <h3 className="font-bold text-slate-800 text-sm mb-4 flex items-center justify-between">
+              <span className="flex items-center gap-2"><i className="fas fa-calendar-check text-emerald-500"></i> Upcoming Visits</span>
+              <button onClick={() => setShowQuickBook(true)} className="text-[10px] font-bold bg-aubergine-50 text-aubergine-700 hover:bg-aubergine-100 px-3 py-1.5 rounded-full transition-colors">+ Book</button>
             </h3>
             <div className="space-y-3">
               {upcomingAppointments.slice(0, 2).map(apt => (
-                <div key={apt.id} className="p-3.5 rounded-xl border border-aubergine-100 bg-aubergine-50/40 hover:bg-aubergine-50 transition-colors cursor-pointer"
+                <div key={apt.id} className="p-3 rounded-xl border border-slate-100 bg-white hover:border-aubergine-200 transition-colors cursor-pointer shadow-sm group"
                   onClick={() => navigate('/patient-dashboard/appointments')}>
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-9 h-9 rounded-full bg-aubergine-200 overflow-hidden flex-shrink-0 flex items-center justify-center font-black text-aubergine-700 text-sm">
-                      {apt.doctorName.split(' ').filter(w => w).map(w => w[0]).join('').slice(0, 2).toUpperCase()}
-                    </div>
+                  <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h4 className="font-bold text-sm text-slate-800">Dr. {apt.doctorName}</h4>
-                      <p className="text-xs text-aubergine-600 font-medium">{apt.reason || 'Consultation'}</p>
+                      <h4 className="font-bold text-sm text-slate-800 group-hover:text-aubergine-700 transition-colors">Dr. {apt.doctorName}</h4>
+                      <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">{apt.reason || 'Consultation'}</p>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-slate-600 font-medium">
-                    <span className="flex items-center gap-1"><i className="fas fa-calendar text-aubergine-400"></i>{apt.date ? new Date(apt.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) : '—'}</span>
-                    <span className="flex items-center gap-1"><i className="fas fa-clock text-aubergine-400"></i>{apt.time}</span>
-                    <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold ${apt.type === 'Video Consult' ? 'bg-sky-50 text-sky-600 border border-sky-100' : 'bg-slate-100 text-slate-600'}`}>
-                      <i className={`fas ${apt.type === 'Video Consult' ? 'fa-video' : 'fa-hospital'} mr-1`}></i>{apt.type === 'Video Consult' ? 'Video' : 'Clinic'}
+                    <span className={`px-2 py-1 rounded-full text-[9px] font-black tracking-wide ${apt.type === 'Video Consult' ? 'bg-sky-50 text-sky-600' : 'bg-slate-100 text-slate-600'}`}>
+                      {apt.type === 'Video Consult' ? 'VIDEO' : 'CLINIC'}
                     </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] text-slate-600 font-medium">
+                    <span className="flex items-center gap-1.5"><i className="fas fa-calendar text-aubergine-400"></i>{apt.date ? new Date(apt.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : '—'}</span>
+                    <span className="flex items-center gap-1.5"><i className="fas fa-clock text-aubergine-400"></i>{apt.time}</span>
                   </div>
                 </div>
               ))}
               {upcomingAppointments.length === 0 && (
-                <p className="text-xs text-slate-500 text-center py-6">No upcoming visits. <button onClick={() => setShowQuickBook(true)} className="text-aubergine-600 font-bold hover:underline">Book one now</button></p>
+                <div className="text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  <p className="text-xs text-slate-500 font-medium">No upcoming visits.</p>
+                </div>
               )}
             </div>
           </div>
-
-          {/* Medications */}
-          <MedicationsWidget meds={own?.meds} requestRefill={requestRefill} toast={toast} />
-
-          {/* Health Tip */}
-          <HealthTipWidget />
-
-          {/* Quick Links */}
-          <div className="rounded-2xl p-4 border border-slate-200 shadow-sm bg-gradient-to-br from-aubergine-900 to-aubergine-700 text-white">
-            <p className="text-xs font-bold text-aubergine-200 mb-3 uppercase tracking-widest">Quick Access</p>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { label: 'My Records', icon: 'fa-folder-open', path: '/patient-dashboard/records' },
-                { label: 'Prescriptions', icon: 'fa-pills', path: '/patient-dashboard/prescriptions' },
-                { label: 'Billing', icon: 'fa-receipt', path: '/patient-dashboard/billing' },
-                { label: 'Find Doctor', icon: 'fa-user-doctor', path: '/patient-dashboard/find-doctor' },
-                { label: 'Fertility Insights', icon: 'fa-circle-dot', path: '/patient-dashboard/fertility' },
-              ].map(link => (
-                <button key={link.label} onClick={() => navigate(link.path)}
-                  className="flex items-center gap-2 p-3 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-xs font-bold transition-all">
-                  <i className={`fas ${link.icon} text-aubergine-200`}></i> {link.label}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
+
       </div>
 
       {/* Modals */}
-      {showOnboarding && <OnboardingModal isOpen={showOnboarding} onClose={dismissOnboarding} toast={toast} />}
+      {showOnboarding && <OnboardingModal isOpen={showOnboarding} onClose={() => { localStorage.setItem('healnari_onboarding_done', 'true'); setOnboardingDone(true); setShowOnboarding(false); }} toast={toast} />}
       <VideoCallModal isOpen={showVideoCall} onClose={() => setShowVideoCall(false)} toast={toast} appointment={nextAppointment} />
       <SymptomCheckerModal isOpen={showSymptomChecker} onClose={() => setShowSymptomChecker(false)} toast={toast} />
       <LabReportsModal isOpen={showLabReports} onClose={() => setShowLabReports(false)} />

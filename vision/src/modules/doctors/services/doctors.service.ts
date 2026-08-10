@@ -12,9 +12,16 @@ export class DoctorsService {
     private readonly supabase: SupabaseService,
   ) {}
 
+  private requireVerifiedDoctor(user: AuthUser) {
+    if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    if (!user.profile.kyc_verified) throw new ForbiddenException(ERROR_MESSAGES.DOCTOR_NOT_VERIFIED);
+  }
+
   async search(q?: string, specialty?: string) {
-    let query = this.supabase.admin.from('profiles').select().eq('role', ProfileRole.DOCTOR);
-    
+    // Public directory — only ever surface admin-verified doctors, matching
+    // what patients are told they're browsing.
+    let query = this.supabase.admin.from('profiles').select().eq('role', ProfileRole.DOCTOR).eq('kyc_verified', true);
+
     if (specialty) {
       query = query.eq('specialty', specialty);
     }
@@ -27,20 +34,25 @@ export class DoctorsService {
     return data || [];
   }
 
+  /** Records that the doctor has submitted KYC for admin review. Does NOT
+   * grant verified status itself — only an admin approval via
+   * AdminService.updateDoctorVerification() can set kyc_verified = true.
+   * (Previously this flipped kyc_verified straight to true, letting any
+   * self-registered account grant itself full doctor access on demand.) */
   async verifyKyc(user: AuthUser) {
     if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
-    
+    if (user.profile.kyc_verified) return user.profile;
+
     const { data: updated } = await this.supabase.admin.from('profiles').update({
-      kyc_verified: true,
       kyc_submitted_at: new Date().toISOString(),
     }).eq('id', user.id).select().single();
-    
+
     if (!updated) throw new NotFoundException();
     return updated;
   }
 
   async getAnalytics(user: AuthUser) {
-    if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    this.requireVerifiedDoctor(user);
     const doctorId = user.id;
 
     const [{ data: appointments }, { data: payments }] = await Promise.all([

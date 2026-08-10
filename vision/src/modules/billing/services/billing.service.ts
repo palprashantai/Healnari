@@ -70,6 +70,13 @@ export class BillingService {
     const { data: doctor } = await this.supabase.admin.from('profiles').select('consultation_fee').eq('id', appointment.doctor_id).single();
     const amount = Number(doctor?.consultation_fee || 0);
 
+    // Idempotency guard: a stale client (or a second tab) can call pay() for
+    // an appointment that's already settled — without this, we'd insert a
+    // duplicate 'Paid' row and double-charge instead of just returning the
+    // existing receipt.
+    const { data: alreadyPaid } = await this.supabase.admin.from('payments').select().eq('appointment_id', appointment.id).eq('status', 'Paid').single();
+    if (alreadyPaid) return (await this.withNames([alreadyPaid]))[0];
+
     const { data: existing } = await this.supabase.admin.from('payments').select().eq('appointment_id', appointment.id).eq('status', 'Pending').single();
 
     const txnRef = `TXN-${Math.floor(Math.random() * 900000 + 100000)}`;

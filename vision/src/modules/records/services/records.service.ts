@@ -17,9 +17,17 @@ export class RecordsService {
     private readonly supabase: SupabaseService,
   ) {}
 
+  /** Doctor role alone isn't enough to read/write other people's PHI — the
+   * account must also be admin-verified (see DoctorsService.verifyKyc). */
+  private requireVerifiedDoctor(user: AuthUser) {
+    if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    if (!user.profile.kyc_verified) throw new ForbiddenException(ERROR_MESSAGES.DOCTOR_NOT_VERIFIED);
+  }
+
   async getPrescriptions(user: AuthUser) {
     const query = this.supabase.admin.from('prescriptions').select().order('created_at', { ascending: false });
     if (user.profile.role === ProfileRole.DOCTOR) {
+      this.requireVerifiedDoctor(user);
       query.eq('doctor_id', user.id);
     } else {
       query.eq('patient_id', user.id);
@@ -29,8 +37,8 @@ export class RecordsService {
   }
 
   async createPrescription(user: AuthUser, body: CreatePrescriptionDto) {
-    if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
-    
+    this.requireVerifiedDoctor(user);
+
     const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
 
@@ -57,10 +65,14 @@ export class RecordsService {
   }
 
   async handleRefill(user: AuthUser, id: string, action: 'approve' | 'reject') {
-    if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
-    
+    this.requireVerifiedDoctor(user);
+
     const { data: rx } = await this.supabase.admin.from('prescriptions').select().eq('id', id).single();
     if (!rx) throw new NotFoundException(ERROR_MESSAGES.PRESCRIPTION_NOT_FOUND);
+    // Only the prescribing doctor may action a refill on their own line —
+    // unassigned (legacy) prescriptions with no doctor_id remain open to any
+    // verified doctor, matching prior behavior for those rows.
+    if (rx.doctor_id && rx.doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
     const patch: any = { refill_requested: false };
     if (action === 'approve') {
@@ -78,16 +90,21 @@ export class RecordsService {
     const query = this.supabase.admin.from('lab_reports').select().order('created_at', { ascending: false });
     if (user.profile.role === ProfileRole.PATIENT) {
       query.eq('patient_id', user.id);
+    } else {
+      this.requireVerifiedDoctor(user);
     }
     const { data } = await query;
     return data || [];
   }
 
   async reviewLabReport(user: AuthUser, id: string, body: ReviewLabReportDto) {
-    if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    this.requireVerifiedDoctor(user);
 
     const { data: report } = await this.supabase.admin.from('lab_reports').select().eq('id', id).single();
     if (!report) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
+    // Only the ordering doctor may review their own order — unassigned
+    // (legacy) reports with no ordered_by remain open to any verified doctor.
+    if (report.ordered_by && report.ordered_by !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
     const { data: updated } = await this.supabase.admin.from('lab_reports').update({
       interpretation: body.interpretation ?? report.interpretation,
@@ -97,11 +114,13 @@ export class RecordsService {
     return updated;
   }
 
-  /** Patients may only reach their own patientId; doctors may reach any. */
+  /** Patients may only reach their own patientId; verified doctors may reach any. */
   private guardPatientAccess(user: AuthUser, patientId: string) {
-    if (user.profile.role === ProfileRole.PATIENT && user.id !== patientId) {
-      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    if (user.profile.role === ProfileRole.PATIENT) {
+      if (user.id !== patientId) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+      return;
     }
+    this.requireVerifiedDoctor(user);
   }
 
   async getDocuments(user: AuthUser, patientId: string) {

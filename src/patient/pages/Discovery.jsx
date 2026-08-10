@@ -32,20 +32,27 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment }) {
 
   const confirm = async () => {
     setBooking(true);
+    // Booking and payment are two separate calls — if payment fails after the
+    // appointment was already created, the appointment still exists (status
+    // Requested). Treating that as one failure would tell the patient
+    // "booking failed" when retrying would actually create a duplicate.
+    let apt;
     try {
-      const apt = await addAppointment({
-        doctorId: doc.id,
-        type,
-        date,
-        time: slot,
-        reason: notes,
-      });
+      apt = await addAppointment({ doctorId: doc.id, type, date, time: slot, reason: notes });
+    } catch (err) {
+      toast(err.message || 'Failed to book appointment. Please try again.', 'error');
+      setBooking(false);
+      return;
+    }
+    try {
       await apiFetch('/billing/pay', { method: 'POST', body: { appointmentId: apt.id, method } });
       setBookedApt(apt);
       setStep(3);
       toast(`Appointment booked with ${doc?.name}!`, 'success');
     } catch (err) {
-      toast(err.message || 'Failed to book appointment. Please try again.', 'error');
+      setBookedApt(apt);
+      setStep(3);
+      toast('Appointment booked, but payment could not be processed. You can pay from My Appointments.', 'error');
     } finally {
       setBooking(false);
     }
@@ -55,7 +62,7 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment }) {
 
   if (!doc) return null;
   return (
-    <Modal isOpen={isOpen} onClose={reset} size="md">
+    <Modal isOpen={isOpen} onClose={reset} size="md" hideClose ariaLabel={`Book appointment with ${doc.name}`}>
       {/* Custom Header */}
       <div className="-mx-6 -mt-6 px-6 py-5 bg-gradient-to-r from-aubergine-900 to-aubergine-700 text-white mb-5 rounded-t-3xl">
         <div className="flex items-center gap-4">

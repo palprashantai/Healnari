@@ -226,12 +226,18 @@ function PatientFamily() {
 
             {/* Actions */}
             <div className="flex gap-2">
-              <button onClick={() => toast(`Resending invitation to ${c.name}...`, 'info')}
-                className="flex-1 bg-aubergine-50 hover:bg-aubergine-100 border border-aubergine-200 text-aubergine-700 font-bold py-2 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5">
-                <i className="fas fa-envelope"></i> Resend
-              </button>
+              {c.status !== 'Connected' && (
+                // There's no email/notification backend to actually "resend"
+                // anything — but the connection's real invite token is
+                // already in hand, so regenerating the shareable link is a
+                // genuine action instead of a fake "email sent" toast.
+                <button onClick={() => { setShareLink(`${window.location.origin}/invite/${c.inviteToken}`); toast(`Invite link for ${c.name} ready to share.`, 'info'); }}
+                  className="flex-1 bg-aubergine-50 hover:bg-aubergine-100 border border-aubergine-200 text-aubergine-700 font-bold py-2 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5">
+                  <i className="fas fa-link"></i> Get Invite Link
+                </button>
+              )}
               <button onClick={() => setDisconnectTarget(c)}
-                className="flex-1 bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 font-bold py-2 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5">
+                className={`${c.status !== 'Connected' ? 'flex-1' : 'w-full'} bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 font-bold py-2 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5`}>
                 <i className="fas fa-user-xmark"></i> Disconnect
               </button>
             </div>

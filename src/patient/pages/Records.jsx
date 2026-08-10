@@ -19,15 +19,12 @@ function FilePreviewModal({ file, onClose, onDownload }) {
         {/* Document Header Metadata Bar */}
         <div className="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs font-mono">
           <span className="flex items-center gap-2 text-emerald-400 font-bold">
-            <i className="fas fa-shield-check"></i> Verified Clinical Document
+            <i className="fas fa-shield-check"></i> Stored in Your Vault
           </span>
-          <span className="text-slate-500">LOINC: 2986-8 (Endocrine Panel)</span>
+          <span className="text-slate-500">{file.type?.toUpperCase() || 'FILE'}</span>
         </div>
 
         <div className="bg-slate-100 rounded-2xl aspect-video flex flex-col items-center justify-center gap-3 border border-slate-200 relative overflow-hidden group">
-          <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-xs px-3 py-1 rounded-lg text-xs font-bold text-slate-700 shadow-xs border border-slate-200">
-            <i className="fas fa-microscope text-aubergine-600 mr-1.5"></i> Pathology & Clinical Diagnostics
-          </div>
           <i className={`fas ${file.icon} text-6xl ${file.color.split(' ')[1]}`}></i>
           <p className="text-sm text-slate-700 font-bold">{file.name}</p>
           <p className="text-xs text-slate-500">{file.size} • Uploaded {file.date}</p>
@@ -163,10 +160,12 @@ function PatientRecords() {
   const [showVaccineModal, setShowVaccineModal] = useState(false);
   const vaccines = rawVaccines.map(v => ({ name: v.name, doses: v.doses, done: v.completed }));
 
-  // Insurance — no backend table yet; this section stays local-only until one exists.
+  // Insurance — no backend table yet, so there is no real per-patient policy
+  // to show. Previously this rendered the same fabricated provider/policy
+  // number/expiry for every patient with an "Active" badge, which could be
+  // mistaken for real data instead of a not-yet-built feature.
   const [rawContacts, setRawContacts] = useState([]);
   const [showContactModal, setShowContactModal] = useState(false);
-  const [insurance] = useState({ provider: 'Star Health Comprehensive', policy: 'SH-9823-1102', validity: 'Dec 2026' });
   const [deleteContactTarget, setDeleteContactTarget] = useState(null);
   const contacts = rawContacts.map(c => ({ id: c.id, name: c.name, relation: c.relation, phone: c.phone }));
 
@@ -427,39 +426,21 @@ function PatientRecords() {
           {/* ── INSURANCE TAB ── */}
           {tab === 'insurance' && (
             <div className="grid md:grid-cols-2 gap-8">
-              {/* Insurance Card */}
+              {/* Insurance Card — no backend table yet, so this is an honest
+                  empty state rather than a fabricated policy. */}
               <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-6 relative overflow-hidden">
                 <i className="fas fa-shield-heart absolute -right-4 -bottom-4 text-8xl text-indigo-500/10"></i>
                 <div className="flex justify-between items-start mb-5">
                   <h3 className="font-black text-indigo-900 text-lg">Health Insurance</h3>
-                  <span className="bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Active</span>
+                  <span className="bg-slate-400 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Not on File</span>
                 </div>
-                <div className="space-y-3 relative z-10">
-                  <div>
-                    <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Provider</div>
-                    <div className="font-bold text-slate-800">{insurance.provider}</div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Policy Number</div>
-                      <div className="font-mono font-bold text-slate-800">{insurance.policy}</div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Valid Till</div>
-                      <div className="font-bold text-slate-800">{insurance.validity}</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-5">
-                  <button onClick={() => toast('Editing insurance details online is coming soon. Please contact the clinic to update your policy.', 'info')}
-                    className="flex-1 bg-white text-indigo-600 font-bold px-4 py-2 rounded-xl text-sm shadow-sm border border-indigo-100 hover:bg-indigo-50 transition-colors">
-                    <i className="fas fa-pen mr-1.5"></i> Update Policy
-                  </button>
-                  <button onClick={() => toast('Insurance card download is coming soon.', 'info')}
-                    className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold px-4 py-2 rounded-xl text-sm border border-indigo-200 transition-colors">
-                    <i className="fas fa-download"></i>
-                  </button>
-                </div>
+                <p className="text-sm text-slate-600 relative z-10 mb-5">
+                  No insurance policy is on file yet. This feature is coming soon — for now, please share your policy details with the clinic directly.
+                </p>
+                <button onClick={() => toast('Adding insurance details online is coming soon. Please contact the clinic to add your policy.', 'info')}
+                  className="w-full bg-white text-indigo-600 font-bold px-4 py-2 rounded-xl text-sm shadow-sm border border-indigo-100 hover:bg-indigo-50 transition-colors">
+                  <i className="fas fa-plus mr-1.5"></i> Add Insurance Details
+                </button>
               </div>
 
               {/* Emergency Contacts */}

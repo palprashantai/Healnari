@@ -3,6 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { ClinicDataProvider } from './context/ClinicDataContext.jsx';
 import { ToastProvider } from './components/Toast.jsx';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
 
 const LandingPage = lazy(() => import('./landing/pages/LandingPage.jsx'));
 const GuidePage = lazy(() => import('./landing/pages/GuidePage.jsx'));
@@ -113,7 +116,8 @@ function App() {
   }, []);
 
   return (
-    <AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
       <ClinicDataProvider>
       <ToastProvider>
         <Router>
@@ -200,6 +204,7 @@ function App() {
       </ToastProvider>
       </ClinicDataProvider>
     </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

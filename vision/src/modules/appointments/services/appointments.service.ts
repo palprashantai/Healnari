@@ -43,7 +43,9 @@ export class AppointmentsService {
       throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     }
     const { data: doctor } = await this.supabase.admin.from('profiles').select().eq('id', body.doctorId).eq('role', ProfileRole.DOCTOR).single();
-    if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
+    // DOCTOR_NOT_FOUND doubles as the message here rather than leaking which
+    // doctor IDs exist but aren't verified yet.
+    if (!doctor || !doctor.kyc_verified) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
 
     const { data: saved } = await this.supabase.admin.from('appointments').insert({
       patient_id: user.id,

@@ -67,16 +67,16 @@ const DAY_TYPE_INFO = {
 };
 const REGULAR_DAY_INFO = { icon: 'fa-calendar', iconBg: 'bg-slate-100', iconColor: 'text-slate-400', label: 'Regular Day', description: 'Nothing predicted for this day yet.' };
 
-function DayCell({ day, type, dateStr, isToday, isActive, onSelect }) {
+function DayCell({ day, type, dateStr, isToday, isActive, onHover, onPin }) {
   const style = DAY_TYPE_STYLE[type];
   const base = style ? style.cell : 'text-slate-600 hover:bg-slate-100/80';
   return (
     <div className="flex items-center justify-center p-0.5">
       <button
         type="button"
-        onMouseEnter={() => onSelect(dateStr)}
-        onFocus={() => onSelect(dateStr)}
-        onClick={() => onSelect(dateStr)}
+        onMouseEnter={() => onHover(dateStr)}
+        onFocus={() => onHover(dateStr)}
+        onClick={() => onPin(dateStr)}
         aria-label={`${dateStr}${type ? `, ${DAY_TYPE_INFO[type]?.label || ''}` : ''}`}
         className={`relative w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 hover:shadow-lg focus:outline-none
           ${base}
@@ -94,7 +94,7 @@ function DayCell({ day, type, dateStr, isToday, isActive, onSelect }) {
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-function MonthCalendar({ year, month, getDayType, activeDay, onDaySelect, onPrev, onNext, prevHasMarks, nextHasMarks }) {
+function MonthCalendar({ year, month, getDayType, activeDay, onDayHover, onDayPin, onPrev, onNext, prevHasMarks, nextHasMarks }) {
   const firstOfMonth = new Date(year, month, 1);
   const startWeekday = firstOfMonth.getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -125,13 +125,13 @@ function MonthCalendar({ year, month, getDayType, activeDay, onDaySelect, onPrev
           <div key={i} className="text-center text-[10px] font-black text-slate-400 uppercase tracking-wider">{w.slice(0, 3)}</div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-y-2 gap-x-1" onMouseLeave={() => onDaySelect(null)}>
+      <div className="grid grid-cols-7 gap-y-2 gap-x-1" onMouseLeave={() => onDayHover(null)}>
         {cells.map((d, i) => {
           if (d === null) return <div key={i} />;
           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
           return (
             <DayCell key={i} day={d} dateStr={dateStr} type={getDayType(dateStr)}
-              isToday={dateStr === todayStr} isActive={dateStr === activeDay} onSelect={onDaySelect} />
+              isToday={dateStr === todayStr} isActive={dateStr === activeDay} onHover={onDayHover} onPin={onDayPin} />
           );
         })}
       </div>
@@ -217,7 +217,7 @@ function SetupWizard({ defaultLastPeriodStart, onComplete }) {
   };
 
   return (
-    <div className="bg-white/90 backdrop-blur-xl border border-slate-200/60 rounded-3xl p-5 sm:p-8 shadow-xl shadow-slate-200/40 max-w-md mx-auto transform transition-all">
+    <div className="relative bg-white/90 backdrop-blur-xl border border-slate-200/60 rounded-3xl p-5 sm:p-8 shadow-xl shadow-slate-200/40 max-w-md mx-auto transform transition-all">
       {step === 'source' && (
         <div className="animate-fade-in text-center space-y-6">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-aubergine-400 to-aubergine-600 text-white text-2xl flex items-center justify-center mx-auto shadow-lg shadow-aubergine-200">
@@ -527,8 +527,18 @@ function PatientFertility() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [setupMode, setSetupMode] = useState(true);
-  const [selectedDay, setSelectedDay] = useState(todayLocalStr());
+  // Starts false — a returning patient with an already-established prediction
+  // should land straight on their calendar. The effect below flips this to
+  // true only if the initial load comes back empty/insufficient, instead of
+  // unconditionally forcing every visit through the setup wizard first.
+  const [setupMode, setSetupMode] = useState(false);
+  // pinnedDay is the day a click deliberately selected (persists); hoveredDay
+  // is a transient mouse/focus preview that falls back to pinnedDay once the
+  // cursor leaves the grid — kept separate so moving the mouse from a clicked
+  // day down to the "Mark as period day" button doesn't discard the click.
+  const [pinnedDay, setPinnedDay] = useState(todayLocalStr());
+  const [hoveredDay, setHoveredDay] = useState(null);
+  const selectedDay = hoveredDay ?? pinnedDay;
   const [loggingDay, setLoggingDay] = useState(false);
 
   const lastKnownFlowDate = Object.keys(cycleLogs).filter(d => cycleLogs[d]?.flow).sort().pop() || '';
@@ -542,7 +552,19 @@ function PatientFertility() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load().then(res => {
+      // res is null only when load() failed (network/server error, already
+      // surfaced via the error state) — that's a different case from a
+      // successful response reporting 'insufficient_data'. Forcing the setup
+      // wizard on both used to hide real load failures behind "let's set up
+      // your calendar" instead of the error banner.
+      if (res && res.classification === 'insufficient_data') setSetupMode(true);
+    });
+    // Only ever gate on the very first load — later manual "Refresh" clicks
+    // must not re-trigger this and yank the user back into the wizard.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const hasResult = prediction && prediction.classification !== 'insufficient_data';
 
@@ -586,9 +608,12 @@ function PatientFertility() {
     });
   };
   const goToDate = (dateStr) => {
-    const d = new Date(dateStr + 'T00:00:00');
-    setViewMonth({ year: d.getFullYear(), month: d.getMonth() });
-    setSelectedDay(dateStr);
+    // Parse the y/m components directly instead of going through Date — every
+    // other date computation in this file anchors to UTC ('T00:00:00Z') to
+    // avoid local-timezone drift, and this was the one spot that didn't.
+    const [y, m] = dateStr.split('-').map(Number);
+    setViewMonth({ year: y, month: m - 1 });
+    setPinnedDay(dateStr);
   };
 
   const monthHasMarks = (year, month) => {
@@ -599,8 +624,6 @@ function PatientFertility() {
   const nextMonthDate = new Date(viewMonth.year, viewMonth.month + 1, 1);
   const prevHasMarks = monthHasMarks(prevMonthDate.getFullYear(), prevMonthDate.getMonth());
   const nextHasMarks = monthHasMarks(nextMonthDate.getFullYear(), nextMonthDate.getMonth());
-
-  const selectDay = (dateStr) => setSelectedDay(dateStr || todayLocalStr());
 
   const selectedDayCycleDay = selectedDay && hasResult && prediction.lastPeriodStart ? daysBetweenLocal(prediction.lastPeriodStart, selectedDay) + 1 : null;
   const todayCycleDay = hasResult && prediction.lastPeriodStart ? daysBetweenLocal(prediction.lastPeriodStart, todayLocalStr()) + 1 : null;
@@ -710,7 +733,7 @@ function PatientFertility() {
                  </p>
               </div>
               <MonthCalendar year={viewMonth.year} month={viewMonth.month} getDayType={d => dayTypes[d]}
-                activeDay={selectedDay} onDaySelect={selectDay}
+                activeDay={selectedDay} onDayHover={setHoveredDay} onDayPin={setPinnedDay}
                 onPrev={() => goToMonth(-1)} onNext={() => goToMonth(1)}
                 prevHasMarks={prevHasMarks} nextHasMarks={nextHasMarks} />
 

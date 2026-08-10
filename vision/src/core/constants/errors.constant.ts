@@ -23,6 +23,7 @@ export const ERROR_MESSAGES = {
   // Doctors
   DOCTOR_NOT_FOUND: 'Doctor not found or not verified.',
   KYC_ALREADY_SUBMITTED: 'KYC documents have already been submitted.',
+  DOCTOR_NOT_VERIFIED: 'Your account is pending admin verification. You will get access to patient data once approved.',
 
   // Appointments
   APPOINTMENT_NOT_FOUND: 'Appointment not found.',

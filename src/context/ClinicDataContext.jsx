@@ -19,6 +19,7 @@ export function ClinicDataProvider({ children }) {
   const [careConnections, setCareConnections] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [waitlist, setWaitlist] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [kycVerified, setKycVerified] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -41,6 +42,7 @@ export function ClinicDataProvider({ children }) {
       frequency: p.schedule,
       duration: p.duration,
       instructions: p.instructions,
+      doctor: p.doctor_name || 'Your Doctor',
       prescribedOn: p.created_at ? new Date(p.created_at).toLocaleDateString() : '',
       refillsLeft: p.refills_left || 0,
       validTill: p.valid_till || '',
@@ -144,6 +146,9 @@ export function ClinicDataProvider({ children }) {
 
         const wait = await apiFetch('/patients/me/waitlist');
         setWaitlist(wait);
+
+        const txns = await apiFetch('/billing/transactions');
+        setTransactions(txns);
       }
 
       if (user.role === 'doctor' || user.role === 'patient') {
@@ -302,6 +307,22 @@ export function ClinicDataProvider({ children }) {
     }
   };
 
+  /** Single source of truth for "is this appointment paid" — both Billing.jsx
+   * and Appointments.jsx read `transactions` from here instead of each
+   * fetching their own copy, so a payment made on one page is immediately
+   * reflected on the other. */
+  const payAppointment = async (appointmentId, method) => {
+    const res = await apiFetch('/billing/pay', { method: 'POST', body: { appointmentId, method } });
+    setTransactions(prev => {
+      const idx = prev.findIndex(t => t.id === res.id);
+      if (idx === -1) return [res, ...prev];
+      const next = [...prev];
+      next[idx] = res;
+      return next;
+    });
+    return res;
+  };
+
   const cancelAppointment = (id) => updateAppointmentStatus(id, 'Cancelled');
   const approveRequest = (id) => updateAppointmentStatus(id, 'Upcoming');
   const rejectRequest = (id) => updateAppointmentStatus(id, 'Cancelled');
@@ -457,6 +478,7 @@ export function ClinicDataProvider({ children }) {
     patients, updatePatient, addPatient, addRx, approveRefill, rejectRefill, requestRefill, refillRequests,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment,
     approveRequest, rejectRequest, callNextForDoctor,
+    transactions, payAppointment,
     cycleLogs, logCycle,
     vitals, logVital,
     lifestyleLogs, logLifestyle,

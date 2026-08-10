@@ -50,7 +50,6 @@ function PatientProfile() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
   const [photoSaving, setPhotoSaving] = useState(false);
-  const [twoFA, setTwoFA] = useState(false);
   const [emailNotif, setEmailNotif] = useState(user?.emailNotifications ?? true);
   const [smsNotif, setSmsNotif] = useState(user?.smsNotifications ?? true);
 
@@ -297,12 +296,16 @@ function PatientProfile() {
                 {(() => {
                   const h = parseFloat(form.height) / 100;
                   const w = parseFloat(form.weight);
-                  const bmi = h > 0 ? (w / (h * h)).toFixed(1) : '—';
-                  const category = isNaN(bmi) ? '' : bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Overweight' : 'Obese';
+                  // Previously computed height-only-valid inputs as (NaN /
+                  // x).toFixed(1), which is the *string* "NaN" — isNaN("NaN")
+                  // is true so the category still fell back correctly, but
+                  // the literal text "NaN" was displayed as the BMI value.
+                  const bmi = h > 0 && w > 0 ? (w / (h * h)).toFixed(1) : null;
+                  const category = bmi === null ? '' : bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Overweight' : 'Obese';
                   const catColor = category === 'Normal' ? 'text-emerald-600' : category === 'Underweight' ? 'text-sky-600' : 'text-rose-600';
                   return (
                     <div className="flex items-center gap-4">
-                      <div className="text-3xl font-black text-slate-800">{bmi}</div>
+                      <div className="text-3xl font-black text-slate-800">{bmi ?? '—'}</div>
                       <div>
                         <p className={`text-sm font-bold ${catColor}`}>{category}</p>
                         <p className="text-xs text-slate-500">BMI Index</p>
@@ -344,40 +347,32 @@ function PatientProfile() {
                 </button>
               </div>
 
-              {/* 2FA */}
+              {/* 2FA — no OTP/verification backend exists yet, so this can't
+                  actually be turned on. Previously this was a fully working
+                  toggle that flipped to "enabled" and told the user their
+                  account was more secure, with nothing behind it. */}
               <div className="border-t border-slate-100 pt-5">
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="font-bold text-slate-700">Two-Factor Authentication</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">Adds an extra layer of security via OTP</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Adds an extra layer of security via OTP — coming soon</p>
                   </div>
-                  <button onClick={() => { setTwoFA(!twoFA); toast(`2FA ${!twoFA ? 'enabled' : 'disabled'}.`, !twoFA ? 'success' : 'info'); }}
-                    className={`w-12 h-6 rounded-full relative transition-all border ${twoFA ? 'bg-aubergine-600 border-aubergine-600' : 'bg-slate-200 border-slate-300'}`}>
-                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${twoFA ? 'right-1' : 'left-1'}`}></div>
+                  <button disabled title="Coming soon"
+                    className="w-12 h-6 rounded-full relative border bg-slate-200 border-slate-300 opacity-50 cursor-not-allowed">
+                    <div className="w-4 h-4 bg-white rounded-full absolute top-1 left-1"></div>
                   </button>
                 </div>
               </div>
 
-              {/* Active Sessions */}
+              {/* Active Sessions — no session/device tracking exists on the
+                  backend. Previously this showed the same two fabricated
+                  devices ("Chrome on Windows 11", "HealNari iOS App") to
+                  every user with a working-looking "Revoke" button. */}
               <div className="border-t border-slate-100 pt-5">
                 <h4 className="font-bold text-slate-700 mb-3">Active Sessions</h4>
-                {[
-                  { device: 'Chrome on Windows 11', location: 'Mumbai, IN', current: true },
-                  { device: 'HealNari iOS App', location: 'Mumbai, IN', current: false },
-                ].map((s, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 mb-2">
-                    <div>
-                      <p className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                        {s.device}
-                        {s.current && <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded">Current</span>}
-                      </p>
-                      <p className="text-xs text-slate-500">{s.location}</p>
-                    </div>
-                    {!s.current && (
-                      <button onClick={() => toast('Session terminated.', 'success')} className="text-rose-500 hover:text-rose-700 text-xs font-bold">Revoke</button>
-                    )}
-                  </div>
-                ))}
+                <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  Viewing and managing individual sign-in sessions isn't available yet.
+                </p>
               </div>
 
               {/* Danger Zone */}
@@ -386,7 +381,7 @@ function PatientProfile() {
                 <div className="space-y-2">
                   <button onClick={() => setShowLogoutConfirm(true)}
                     className="flex items-center gap-2 text-sm font-bold text-rose-600 border border-rose-200 bg-rose-50 hover:bg-rose-100 px-5 py-2.5 rounded-xl transition-colors w-full justify-start">
-                    <i className="fas fa-right-from-bracket"></i> Sign Out of All Devices
+                    <i className="fas fa-right-from-bracket"></i> Sign Out
                   </button>
                   <button onClick={() => setShowDeleteConfirm(true)}
                     className="flex items-center gap-2 text-sm font-bold text-rose-700 border border-rose-300 bg-rose-50 hover:bg-rose-100 px-5 py-2.5 rounded-xl transition-colors w-full justify-start">
@@ -421,19 +416,28 @@ function PatientProfile() {
         </div>
       </Modal>
 
+      {/* logout() only clears this device's local tokens — it doesn't call
+          Supabase to revoke the refresh token, so it never actually signed
+          out other devices/sessions despite the previous "of All Devices"
+          label and message claiming otherwise. */}
       <ConfirmModal
         isOpen={showLogoutConfirm}
         onClose={() => setShowLogoutConfirm(false)}
         onConfirm={() => { logout(); toast('Signed out successfully.', 'info'); }}
         title="Sign Out?"
-        message="You will be signed out from all devices. You can log back in anytime."
+        message="You will be signed out of this device. You can log back in anytime."
         confirmLabel="Sign Out"
         confirmStyle="danger"
       />
+      {/* No account-deletion endpoint exists yet — this used to claim "request
+          submitted, confirmation email sent" when neither happened. For an
+          app that advertises DPDP Act compliance elsewhere, falsely
+          confirming a data-deletion request is a real problem, not just a
+          cosmetic stub. */}
       <ConfirmModal
         isOpen={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={() => toast('Account deletion request submitted. You will receive a confirmation email.', 'info')}
+        onConfirm={() => toast('Self-serve account deletion isn\'t available yet. Please contact the clinic directly to request deletion of your account and data.', 'info')}
         title="Delete Account?"
         message="This action is permanent. All your medical records, prescriptions, and data will be deleted. This cannot be undone."
         confirmLabel="Delete My Account"
