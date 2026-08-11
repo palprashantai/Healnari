@@ -7,6 +7,7 @@ import {
   OnGatewayDisconnect,
   WebSocketServer,
 } from '@nestjs/websockets';
+import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { AppointmentStatus, AppointmentType } from '@/shared/interfaces/appointment.interface';
@@ -26,6 +27,8 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
+  private readonly logger = new Logger(CallGateway.name);
+
   constructor(private readonly supabase: SupabaseService) {}
 
   async handleConnection(client: Socket) {
@@ -44,6 +47,7 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(@ConnectedSocket() client: Socket) {
     const appointmentId = client.data.appointmentId as string | undefined;
     if (appointmentId) {
+      this.logger.log(`disconnect: user=${client.data.userId} left call:${appointmentId} (socket disconnected)`);
       client.to(`call:${appointmentId}`).emit('call:peer-left', { userId: client.data.userId });
     }
   }
@@ -93,22 +97,38 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const roomSockets = await this.server.in(room).fetchSockets();
     const peerAlreadyPresent = roomSockets.some((s) => s.id !== client.id);
 
+    this.logger.log(
+      `call:join user=${userId} appointment=${appointmentId} room="${room}" ` +
+        `roomSize=${roomSockets.length} peerAlreadyPresent=${peerAlreadyPresent} ` +
+        `(this client will ${peerAlreadyPresent ? 'CREATE the SDP offer' : 'wait for an offer'})`,
+    );
+
     client.emit('call:room-info', { peerPresent: peerAlreadyPresent });
     client.to(room).emit('call:peer-joined', { userId });
   }
 
   @SubscribeMessage('call:offer')
   handleOffer(@MessageBody() body: { appointmentId: string; sdp: unknown }, @ConnectedSocket() client: Socket) {
+    this.logger.log(`call:offer relayed appointment=${body.appointmentId} from=${client.data.userId}`);
     client.to(`call:${body.appointmentId}`).emit('call:offer', { sdp: body.sdp, from: client.data.userId });
   }
 
   @SubscribeMessage('call:answer')
   handleAnswer(@MessageBody() body: { appointmentId: string; sdp: unknown }, @ConnectedSocket() client: Socket) {
+    this.logger.log(`call:answer relayed appointment=${body.appointmentId} from=${client.data.userId}`);
     client.to(`call:${body.appointmentId}`).emit('call:answer', { sdp: body.sdp, from: client.data.userId });
   }
 
   @SubscribeMessage('call:ice-candidate')
   handleIceCandidate(@MessageBody() body: { appointmentId: string; candidate: unknown }, @ConnectedSocket() client: Socket) {
+    // Candidate type (host/srflx/relay) is embedded in the SDP candidate
+    // string itself — logging it is the fastest way to see, from server
+    // logs alone, whether a relay (TURN) candidate ever got gathered at all.
+    const candidateStr = (body.candidate as { candidate?: string })?.candidate || '';
+    const typeMatch = candidateStr.match(/typ (\w+)/);
+    this.logger.log(
+      `call:ice-candidate relayed appointment=${body.appointmentId} from=${client.data.userId} type=${typeMatch?.[1] || 'unknown'}`,
+    );
     client.to(`call:${body.appointmentId}`).emit('call:ice-candidate', { candidate: body.candidate });
   }
 
@@ -126,6 +146,7 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('call:leave')
   handleLeave(@MessageBody() body: { appointmentId: string }, @ConnectedSocket() client: Socket) {
     const room = `call:${body.appointmentId}`;
+    this.logger.log(`call:leave user=${client.data.userId} appointment=${body.appointmentId}`);
     client.to(room).emit('call:peer-left', { userId: client.data.userId });
     client.leave(room);
     client.data.appointmentId = undefined;

@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
@@ -6,6 +6,8 @@ import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 
 @Injectable()
 export class TelemedicineService {
+  private readonly logger = new Logger(TelemedicineService.name);
+
   constructor(
     private readonly supabase: SupabaseService,
   ) {}
@@ -88,14 +90,26 @@ export class TelemedicineService {
 
     const domain = process.env.METERED_TURN_DOMAIN;
     const apiKey = process.env.METERED_TURN_API_KEY;
-    if (!domain || !apiKey) return stunServers;
+    if (!domain || !apiKey) {
+      this.logger.warn('No METERED_TURN_DOMAIN/METERED_TURN_API_KEY configured — calls will rely on STUN alone, which cannot punch through symmetric NATs or routers without NAT hairpinning (a common cause of same-network call failures).');
+      return stunServers;
+    }
 
     try {
       const res = await fetch(`https://${domain}/api/v1/turn/credentials?apiKey=${apiKey}`);
-      if (!res.ok) return stunServers;
+      if (!res.ok) {
+        // Swallowed as a fallback-to-STUN by design, but silently — this is
+        // exactly the failure mode that let an expired/invalid TURN API key
+        // go unnoticed while calls quietly ran STUN-only. Always log it.
+        const body = await res.text().catch(() => '');
+        this.logger.error(`TURN credential fetch failed (${res.status}): ${body || res.statusText} — falling back to STUN-only. Calls between peers whose routers don't support NAT hairpinning (e.g. often the same-WiFi case) or who are behind symmetric NATs will likely fail to connect until this is fixed.`);
+        return stunServers;
+      }
       const turnServers = await res.json();
+      this.logger.log(`TURN credentials fetched OK (${Array.isArray(turnServers) ? turnServers.length : 0} server(s))`);
       return [...stunServers, ...turnServers];
-    } catch {
+    } catch (err) {
+      this.logger.error(`TURN credential fetch threw: ${err.message} — falling back to STUN-only.`);
       return stunServers;
     }
   }
