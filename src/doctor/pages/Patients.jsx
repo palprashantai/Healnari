@@ -769,155 +769,146 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
   const totalPending = (patient.payments || []).reduce((acc, curr) => (curr.status === 'Pending' ? acc + curr.amount : acc), 0);
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
+    <div className="space-y-4 animate-fade-in pb-12">
       {/* Navigation Breadcrumb Bar */}
-      <div className="flex items-center justify-between gap-4">
-        <button
-          onClick={onBack}
-          className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-xs transition-all"
-        >
-          <i className="fas fa-arrow-left text-aubergine-600"></i> Back to Patient Registry
-        </button>
-        <p className="text-xs text-slate-500 font-medium hidden sm:block">
-          Doctor Portal &gt; Patients &amp; EMR &gt; <span className="text-slate-700 font-bold">{patient.name}</span>
-        </p>
-      </div>
+      <button
+        onClick={onBack}
+        className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-xs transition-all"
+      >
+        <i className="fas fa-arrow-left text-aubergine-600"></i> Back to Patients
+      </button>
 
       {/* Main Full Page EMR Banner */}
-      <div className="rounded-3xl p-6 text-white shadow-lg space-y-6 bg-gradient-to-br from-aubergine-900 via-aubergine-600 to-magenta-500">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className="w-20 h-20 rounded-3xl bg-white/15 text-white font-black text-3xl flex items-center justify-center border-2 border-white/20 shadow-inner flex-shrink-0 font-serif">
+      <div className="rounded-2xl p-5 text-white shadow-lg space-y-5 bg-gradient-to-br from-aubergine-900 via-aubergine-600 to-magenta-500">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-white/15 text-white font-black text-xl flex items-center justify-center border-2 border-white/20 shadow-inner flex-shrink-0">
               {patient.name.split(' ').map((n) => n[0]).join('')}
             </div>
             <div className="space-y-1">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-white font-black text-2xl tracking-tight font-serif">{patient.name}</h1>
-                <span className="bg-white/20 text-white text-xs font-mono font-bold px-3 py-1 rounded-full border border-white/20">
-                  ID: #{patient.id * 1042}
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-white font-black text-xl tracking-tight">{patient.name}</h1>
+                <span className="bg-white/20 text-white text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border border-white/20" title={patient.id}>
+                  #{String(patient.id).slice(0, 8).toUpperCase()}
                 </span>
                 {patient.status === 'active' && (
-                  <span className="bg-emerald-500/90 text-white text-xs font-bold px-3 py-1 rounded-full border border-emerald-400/50 shadow-xs">
-                    ● Active Patient
+                  <span className="bg-emerald-500/90 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-400/50">
+                    ● Active
                   </span>
                 )}
               </div>
-              <p className="text-aubergine-100 text-sm">
-                {patient.age} Years Female • Blood Group: <strong className="text-white font-black">{patient.blood}</strong> • Phone: {patient.phone}
+              <p className="text-aubergine-100 text-xs">
+                {patient.age} Yrs • Blood Group <strong className="text-white font-black">{patient.blood}</strong> • {patient.phone}
               </p>
-              <div className="flex items-center gap-3 flex-wrap pt-0.5">
-                <p className="text-aubergine-200 text-xs font-semibold flex items-center gap-1.5">
-                  <i className="fas fa-stethoscope text-magenta-200"></i> Primary Diagnosis: <span className="text-amber-300 font-bold">{patient.diagnosis}</span>
-                </p>
-                <span className="text-white/40 text-xs">•</span>
-                <span className="text-magenta-200 text-[11px] font-medium italic tracking-wide">
-                  — AI Care, Every Woman, Every Stage —
-                </span>
-              </div>
+              <p className="text-aubergine-200 text-xs font-semibold flex items-center gap-1.5">
+                <i className="fas fa-stethoscope text-magenta-200"></i> {patient.diagnosis}
+              </p>
             </div>
           </div>
 
           {/* Quick Header Actions */}
-          <div className="flex items-center gap-3 flex-wrap self-stretch md:self-center justify-end">
+          <div className="flex items-center gap-2 flex-wrap self-stretch md:self-center justify-end">
             <button
               onClick={() => setShowWriteRx(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-3 rounded-2xl transition-all flex items-center gap-2 shadow-md hover:shadow-emerald-900/30"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
             >
-              <i className="fas fa-file-prescription text-sm"></i> Write Prescription
+              <i className="fas fa-file-prescription"></i> Rx
             </button>
             <button
               onClick={() => setShowOrderLab(true)}
-              className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-4 py-3 rounded-2xl transition-all flex items-center gap-2 shadow-md hover:shadow-sky-900/30"
+              className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
             >
-              <i className="fas fa-vial text-sm"></i> Order Lab Test
+              <i className="fas fa-vial"></i> Lab
             </button>
             <button
               onClick={() => setShowRecordPayment(true)}
-              className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-3 rounded-2xl transition-all flex items-center gap-2 shadow-md hover:shadow-amber-900/30"
+              className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
             >
-              <i className="fas fa-receipt text-sm"></i> Record Payment
+              <i className="fas fa-receipt"></i> Payment
             </button>
             <button
               onClick={() => window.print()}
-              className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-4 py-3 rounded-2xl border border-white/20 transition-all flex items-center gap-2"
+              title="Print EMR"
+              aria-label="Print EMR"
+              className="w-9 h-9 bg-white/10 hover:bg-white/20 text-white rounded-xl border border-white/20 transition-all flex items-center justify-center"
             >
-              <i className="fas fa-print"></i> Print EMR
+              <i className="fas fa-print text-xs"></i>
             </button>
           </div>
         </div>
 
         {/* Quick EMR Metrics Grid inside Header */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-5 border-t border-white/10 text-xs">
-          <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10 backdrop-blur-xs">
-            <span className="text-white/60 text-[11px] block font-medium">Consultations</span>
-            <span className="font-black text-white text-lg">{patient.visits} Visits</span>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-4 border-t border-white/10 text-xs">
+          <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
+            <span className="text-white/60 text-[10px] block font-medium">Visits</span>
+            <span className="font-black text-white text-base">{patient.visits}</span>
           </div>
-          <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10 backdrop-blur-xs">
-            <span className="text-white/60 text-[11px] block font-medium">Active Rx</span>
-            <span className="font-black text-white text-lg">{patient.meds.filter((m) => m.status === 'Active').length} Active</span>
+          <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
+            <span className="text-white/60 text-[10px] block font-medium">Active Rx</span>
+            <span className="font-black text-white text-base">{patient.meds.filter((m) => m.status === 'Active').length}</span>
           </div>
-          <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10 backdrop-blur-xs">
-            <span className="text-white/60 text-[11px] block font-medium">Lab &amp; Scans</span>
-            <span className="font-black text-white text-lg">{patient.reports.length} Reports</span>
+          <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
+            <span className="text-white/60 text-[10px] block font-medium">Reports</span>
+            <span className="font-black text-white text-base">{patient.reports.length}</span>
           </div>
-          <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10 backdrop-blur-xs">
-            <span className="text-white/60 text-[11px] block font-medium">Total Billed</span>
-            <span className="font-black text-white text-lg">₹{(totalPaid + totalPending).toLocaleString('en-IN')}</span>
+          <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
+            <span className="text-white/60 text-[10px] block font-medium">Billed</span>
+            <span className="font-black text-white text-base">₹{(totalPaid + totalPending).toLocaleString('en-IN')}</span>
           </div>
-          <div className="bg-white/10 rounded-2xl p-3.5 border border-white/10 backdrop-blur-xs">
-            <span className="text-white/60 text-[11px] block font-medium">Last Visit Date</span>
-            <span className="font-black text-white text-lg">{patient.lastVisit}</span>
+          <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
+            <span className="text-white/60 text-[10px] block font-medium">Last Visit</span>
+            <span className="font-black text-white text-base">{patient.lastVisit}</span>
           </div>
         </div>
       </div>
 
       {/* Clinical Alert Banner */}
       {patient.alert && (
-        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-3 text-xs shadow-xs">
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-start gap-3 text-xs shadow-xs">
           <i className="fas fa-triangle-exclamation text-rose-500 text-lg mt-0.5 flex-shrink-0"></i>
           <div>
-            <p className="font-black text-rose-900 text-sm">Critical Clinical Alert</p>
+            <p className="font-black text-rose-900 text-sm">Clinical Alert</p>
             <p className="text-rose-800 mt-0.5">{patient.alert}</p>
           </div>
         </div>
       )}
 
       {/* Main Full Page Tabs Navigation */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-sm">
-        <div className="flex gap-2 text-xs font-bold overflow-x-auto">
+      <div className="bg-white rounded-xl border border-slate-200 p-1.5 shadow-sm">
+        <div className="flex gap-1 text-xs font-bold overflow-x-auto">
           {[
-            { key: 'overview', label: '📋 Patient Overview & Vitals' },
-            { key: 'prescriptions', label: `💊 Prescriptions (${patient.meds.length})` },
-            { key: 'reports', label: `🧪 Lab & Reports (${patient.reports.length})` },
-            { key: 'payments', label: `💳 Payments & Billing (${(patient.payments || []).length})` },
-            { key: 'consultations', label: `📅 Consultations (${patient.consultations.length})` },
-            { key: 'history', label: '🩸 Medical History' },
-            { key: 'notes', label: `📝 Clinical Notes (${patient.clinicalNotes.length})` },
+            { key: 'overview', label: 'Overview', icon: 'fa-clipboard-list' },
+            { key: 'prescriptions', label: `Prescriptions (${patient.meds.length})`, icon: 'fa-pills' },
+            { key: 'reports', label: `Lab & Reports (${patient.reports.length})`, icon: 'fa-vial' },
+            { key: 'payments', label: `Billing (${(patient.payments || []).length})`, icon: 'fa-receipt' },
+            { key: 'consultations', label: `Consultations (${patient.consultations.length})`, icon: 'fa-calendar-days' },
+            { key: 'history', label: 'History', icon: 'fa-notes-medical' },
+            { key: 'notes', label: `Notes (${patient.clinicalNotes.length})`, icon: 'fa-note-sticky' },
           ].map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`px-4 py-3 rounded-xl whitespace-nowrap transition-all ${
+              className={`px-3 py-2 rounded-lg whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 tab === t.key
                   ? 'bg-aubergine-700 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
-              {t.label}
+              <i className={`fas ${t.icon} text-[11px]`}></i> {t.label}
             </button>
           ))}
         </div>
       </div>
 
       {/* TAB CONTENT AREAS */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm min-h-[400px]">
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm min-h-[400px]">
         {/* Tab 1: OVERVIEW */}
         {tab === 'overview' && (
-          <div className="space-y-6">
+          <div className="space-y-5">
             {/* Vitals Cards */}
             <div>
-              <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider mb-3">Recorded Patient Vitals</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+              <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider mb-2.5">Vitals</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
                   <p className="text-slate-500 font-bold text-[10px] uppercase">Blood Pressure</p>
                   <p className="font-black text-slate-900 text-lg mt-1">{patient.bp}</p>
@@ -946,10 +937,10 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
             </div>
 
             {/* Allergies & Key Diagnostics */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200">
-                <h4 className="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
-                  <i className="fas fa-hand-dots text-rose-500"></i> Known Allergies &amp; Adverse Reactions
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                <h4 className="font-bold text-slate-800 text-sm mb-2.5 flex items-center gap-2">
+                  <i className="fas fa-hand-dots text-rose-500"></i> Allergies
                 </h4>
                 {patient.allergies.length > 0 ? (
                   <div className="flex gap-2 flex-wrap">
@@ -964,9 +955,9 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                 )}
               </div>
 
-              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200">
-                <h4 className="font-bold text-slate-800 text-sm mb-3 flex items-center gap-2">
-                  <i className="fas fa-wallet text-emerald-600"></i> Payment &amp; Financial Summary
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                <h4 className="font-bold text-slate-800 text-sm mb-2.5 flex items-center gap-2">
+                  <i className="fas fa-wallet text-emerald-600"></i> Payments
                 </h4>
                 <div className="grid grid-cols-2 gap-3 bg-white p-3 rounded-xl border border-slate-200">
                   <div>
@@ -985,10 +976,10 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
             {/* Active Prescriptions Preview */}
             <div>
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Active Prescriptions Snapshot</h3>
+              <div className="flex justify-between items-center mb-2.5">
+                <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Active Prescriptions</h3>
                 <button onClick={() => setTab('prescriptions')} className="text-xs text-aubergine-700 font-bold hover:underline">
-                  View Full Rx Registry ({patient.meds.length}) →
+                  View all ({patient.meds.length}) →
                 </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1011,21 +1002,21 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
             {/* Recent Lab Findings Snapshot */}
             <div>
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Latest Diagnostic Report</h3>
+              <div className="flex justify-between items-center mb-2.5">
+                <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Latest Lab Report</h3>
                 <button onClick={() => setTab('reports')} className="text-xs text-sky-700 font-bold hover:underline">
-                  View All Lab Reports ({patient.reports.length}) →
+                  View all ({patient.reports.length}) →
                 </button>
               </div>
               {patient.reports.length > 0 && (
-                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-xs space-y-3">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="font-black text-slate-900 text-sm">{patient.reports[0].testName}</span>
-                    <span className="text-slate-500 font-medium">Date: {patient.reports[0].date}</span>
+                    <span className="text-slate-500 font-medium">{patient.reports[0].date}</span>
                   </div>
-                  <div className="bg-slate-900 rounded-xl p-4 text-slate-200">
+                  <div className="bg-slate-900 rounded-xl p-3.5 text-slate-200">
                     <p className="font-bold text-aubergine-300 mb-1 flex items-center gap-1.5">
-                      <i className="fas fa-brain"></i> AI Interpretation Summary:
+                      <i className="fas fa-brain"></i> AI Summary
                     </p>
                     <p className="leading-relaxed text-slate-300">{patient.reports[0].interpretation}</p>
                   </div>
@@ -1037,12 +1028,9 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
         {/* Tab 2: PRESCRIPTIONS */}
         {tab === 'prescriptions' && (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <div>
-                <h3 className="font-black text-slate-800 text-base">Medication &amp; Prescription Records</h3>
-                <p className="text-xs text-slate-500">History of active and completed medication courses</p>
-              </div>
+              <h3 className="font-black text-slate-800 text-base">Prescriptions</h3>
               <button
                 onClick={() => setShowWriteRx(true)}
                 className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-sm"
@@ -1073,9 +1061,9 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
                     <button
                       onClick={() => setSelectedRxDoc(m)}
-                      className="bg-white hover:bg-slate-100 text-slate-700 font-bold px-4 py-2 rounded-xl border border-slate-200 text-xs transition-colors flex items-center gap-1.5 shadow-xs"
+                      className="bg-white hover:bg-slate-100 text-slate-700 font-bold px-3.5 py-2 rounded-xl border border-slate-200 text-xs transition-colors flex items-center gap-1.5 shadow-xs"
                     >
-                      <i className="fas fa-file-prescription text-aubergine-600"></i> View Digital Rx Document
+                      <i className="fas fa-file-prescription text-aubergine-600"></i> View Rx
                     </button>
                   </div>
 
@@ -1111,12 +1099,9 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
         {/* Tab 3: LAB & REPORTS */}
         {tab === 'reports' && (
-          <div className="space-y-5">
+          <div className="space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <div>
-                <h3 className="font-black text-slate-800 text-base">Diagnostic Lab &amp; Imaging Reports</h3>
-                <p className="text-xs text-slate-500">Pathology scans, ultrasound imaging and hormonal analysis</p>
-              </div>
+              <h3 className="font-black text-slate-800 text-base">Lab &amp; Imaging Reports</h3>
 
               <div className="flex items-center gap-3">
                 <div className="flex gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
@@ -1137,30 +1122,30 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                   onClick={() => setShowOrderLab(true)}
                   className="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-sm"
                 >
-                  <i className="fas fa-plus"></i> Order New Lab
+                  <i className="fas fa-plus"></i> Order Lab
                 </button>
               </div>
             </div>
 
-            <div className="space-y-5 text-xs">
+            <div className="space-y-4 text-xs">
               {filteredReports.map((r) => (
-                <div key={r.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-xs hover:border-sky-300 transition-all space-y-4">
+                <div key={r.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-xs hover:border-sky-300 transition-all space-y-3">
                   <div className="flex justify-between items-start flex-wrap gap-2 pb-3 border-b border-slate-200">
                     <div>
                       <div className="flex items-center gap-3">
                         <span className="font-black text-slate-900 text-base">{r.testName}</span>
-                        {r.urgent && <span className="bg-rose-100 text-rose-700 font-bold px-3 py-0.5 rounded-full text-[11px]">⚡ Priority Urgent</span>}
+                        {r.urgent && <span className="bg-rose-100 text-rose-700 font-bold px-3 py-0.5 rounded-full text-[11px]">⚡ Urgent</span>}
                       </div>
                       <p className="text-slate-500 text-xs mt-1">
-                        Category: <strong className="text-slate-700">{r.testCategory}</strong> • Lab: {r.labName} • Date: {r.date}
+                        {r.testCategory} • {r.labName} • {r.date}
                       </p>
                     </div>
 
                     <button
                       onClick={() => setSelectedLabDoc(r)}
-                      className="bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold px-4 py-2 rounded-xl border border-sky-200 transition-colors flex items-center gap-2 shadow-xs"
+                      className="bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold px-3.5 py-2 rounded-xl border border-sky-200 transition-colors flex items-center gap-2 shadow-xs"
                     >
-                      <i className="fas fa-file-pdf"></i> Full Diagnostic Report PDF
+                      <i className="fas fa-file-pdf"></i> View Report
                     </button>
                   </div>
 
@@ -1216,48 +1201,41 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
         {/* Tab 4: PAYMENTS & BILLING */}
         {tab === 'payments' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <div>
-                <h3 className="font-black text-slate-800 text-base">Payment &amp; Billing History</h3>
-                <p className="text-xs text-slate-500">Invoices, consultation fees, diagnostic charges &amp; payment receipts</p>
-              </div>
+              <h3 className="font-black text-slate-800 text-base">Billing History</h3>
 
               <button
                 onClick={() => setShowRecordPayment(true)}
                 className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-sm"
               >
-                <i className="fas fa-receipt"></i> Record Payment / Charge
+                <i className="fas fa-receipt"></i> Record Payment
               </button>
             </div>
 
             {/* Financial Summary Metric Bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <span className="text-slate-500 font-bold text-[10px] uppercase">Total Amount Billed</span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                <span className="text-slate-500 font-bold text-[10px] uppercase">Total Billed</span>
                 <p className="font-black text-slate-900 text-xl mt-1">₹{(totalPaid + totalPending).toLocaleString('en-IN')}</p>
-                <span className="text-[10px] text-slate-500 font-medium">Cumulative consultations &amp; lab orders</span>
               </div>
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                 <span className="text-slate-500 font-bold text-[10px] uppercase">Total Settled Payments</span>
                 <p className="font-black text-emerald-700 text-xl mt-1">₹{totalPaid.toLocaleString('en-IN')}</p>
                 <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
                   <i className="fas fa-check-circle"></i> Successfully Received
                 </span>
               </div>
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <span className="text-slate-500 font-bold text-[10px] uppercase">Outstanding Pending Due</span>
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                <span className="text-slate-500 font-bold text-[10px] uppercase">Outstanding Due</span>
                 <p className={`font-black text-xl mt-1 ${totalPending > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
                   ₹{totalPending.toLocaleString('en-IN')}
                 </p>
-                <span className="text-[10px] text-slate-500 font-medium">
-                  {totalPending > 0 ? 'Payment reminder pending' : 'Zero pending dues'}
-                </span>
               </div>
             </div>
 
             {/* Transactions Table */}
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs text-xs">
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs text-xs">
               <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
@@ -1321,13 +1299,13 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
         {/* Tab 5: CONSULTATIONS */}
         {tab === 'consultations' && (
-          <div className="space-y-4 text-xs">
-            <h3 className="font-black text-slate-800 text-base mb-2">Chronological Consultation Logs</h3>
+          <div className="space-y-3 text-xs">
+            <h3 className="font-black text-slate-800 text-base mb-1">Consultation History</h3>
             {patient.consultations.map((c, i) => (
-              <div key={i} className="bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-xs hover:border-aubergine-200 transition-all space-y-3">
+              <div key={i} className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-xs hover:border-aubergine-200 transition-all space-y-3">
                 <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                   <span className="font-black text-slate-900 text-base">{c.type}</span>
-                  <span className="text-slate-500 font-medium">📅 Consultation Date: {c.date}</span>
+                  <span className="text-slate-500 font-medium">{c.date}</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="bg-white p-3.5 rounded-xl border border-slate-200">
@@ -1350,41 +1328,41 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
         {/* Tab 6: MEDICAL HISTORY */}
         {tab === 'history' && (
-          <div className="space-y-5 text-xs">
-            <h3 className="font-black text-slate-800 text-base mb-2">Patient Medical Profile &amp; History</h3>
+          <div className="space-y-4 text-xs">
+            <h3 className="font-black text-slate-800 text-base mb-1">Medical History</h3>
 
-            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-2">
-              <h4 className="font-bold text-slate-800 text-sm mb-2 flex items-center gap-2">
-                <i className="fas fa-notes-medical text-aubergine-600"></i> Chronic Medical Conditions
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
+              <h4 className="font-bold text-slate-800 text-sm mb-1.5 flex items-center gap-2">
+                <i className="fas fa-notes-medical text-aubergine-600"></i> Chronic Conditions
               </h4>
               <div className="flex gap-2 flex-wrap">
                 {patient.medicalHistory.chronicConditions.map((cond, i) => (
-                  <span key={i} className="bg-aubergine-100 text-aubergine-800 font-bold px-4 py-1.5 rounded-xl text-xs border border-aubergine-200">
+                  <span key={i} className="bg-aubergine-100 text-aubergine-800 font-bold px-3 py-1 rounded-lg text-xs border border-aubergine-200">
                     {cond}
                   </span>
                 ))}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
                 <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
                   <i className="fas fa-scissors text-slate-500"></i> Surgical History
                 </h4>
                 <p className="text-slate-700 font-medium text-xs">{patient.medicalHistory.surgeries.join(', ') || 'None reported'}</p>
               </div>
 
-              <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-2">
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
                 <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                  <i className="fas fa-users text-slate-500"></i> Family Medical History
+                  <i className="fas fa-users text-slate-500"></i> Family History
                 </h4>
                 <p className="text-slate-700 font-medium text-xs">{patient.medicalHistory.familyHistory.join(', ') || 'None reported'}</p>
               </div>
             </div>
 
-            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-2">
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
               <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                <i className="fas fa-heart-pulse text-slate-500"></i> Lifestyle, Habits &amp; Diet
+                <i className="fas fa-heart-pulse text-slate-500"></i> Lifestyle &amp; Diet
               </h4>
               <p className="text-slate-700 font-medium text-xs">{patient.medicalHistory.lifestyle}</p>
             </div>
@@ -1393,38 +1371,35 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
         {/* Tab 7: CLINICAL NOTES */}
         {tab === 'notes' && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="font-black text-slate-800 text-base mb-1">Clinical Progress Notes</h3>
-              <p className="text-xs text-slate-500">Record timestamped clinical observations into the patient EMR file</p>
-            </div>
+          <div className="space-y-4">
+            <h3 className="font-black text-slate-800 text-base mb-1">Clinical Notes</h3>
 
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
-              <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">Add New Progress Note</h4>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+              <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">Add a Progress Note</h4>
               <textarea
                 rows={3}
                 value={newNote}
                 onChange={(e) => setNewNote(e.target.value)}
-                placeholder="Type clinical observations, treatment modifications, or patient updates here..."
-                className="w-full border border-slate-200 rounded-xl p-4 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white shadow-xs"
+                placeholder="Clinical observations, treatment changes, or updates..."
+                className="w-full border border-slate-200 rounded-xl p-3.5 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white shadow-xs"
               />
               <div className="flex justify-end">
                 <button
                   onClick={handleAddNote}
-                  className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-colors flex items-center gap-2 shadow-sm"
+                  className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors flex items-center gap-2 shadow-sm"
                 >
-                  <i className="fas fa-save"></i> Save Clinical Note
+                  <i className="fas fa-save"></i> Save Note
                 </button>
               </div>
             </div>
 
-            <div className="space-y-4 text-xs">
+            <div className="space-y-3 text-xs">
               {patient.clinicalNotes.map((note, i) => (
-                <div key={i} className="bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-xs space-y-2">
+                <div key={i} className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-xs space-y-2">
                   <p className="text-slate-800 leading-relaxed font-medium text-xs">{note.text}</p>
                   <div className="flex justify-between items-center text-[11px] text-slate-500 pt-2 border-t border-slate-200">
-                    <span>Recorded by {note.author}</span>
-                    <span>🕒 {note.date}</span>
+                    <span>{note.author}</span>
+                    <span>{note.date}</span>
                   </div>
                 </div>
               ))}
