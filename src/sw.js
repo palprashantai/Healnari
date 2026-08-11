@@ -30,8 +30,17 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(payload.title || 'HealNari', {
       body: payload.body || '',
       icon: '/brand/logo-icon.jpg',
+      badge: '/brand/logo-icon.jpg',
       tag: appointmentId ? `call-${appointmentId}` : `notif-${Date.now()}`,
       requireInteraction: isIncomingCall,
+      // Buzz-buzz-pause, like a phone ring, not a flat single-buzz ping.
+      vibrate: isIncomingCall ? [300, 150, 300, 150, 300] : [150],
+      actions: isIncomingCall
+        ? [
+            { action: 'accept', title: 'Accept' },
+            { action: 'decline', title: 'Decline' },
+          ]
+        : [],
       data: payload.data || {},
     }),
   );
@@ -39,6 +48,8 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+
+  if (event.action === 'decline') return; // just dismiss — no need to open/focus the app
 
   const appointmentId = event.notification.data?.appointmentId;
   const url = appointmentId ? `/patient-dashboard/appointments?joinCall=${appointmentId}` : '/';
