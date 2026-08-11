@@ -212,13 +212,13 @@ function AdminLayout() {
           <div className="flex items-center gap-3">
             {/* Multi-Facility Tenant Scope Switcher */}
             <div className="relative">
-              <button onClick={() => setFacilityMenuOpen(!facilityMenuOpen)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 border border-slate-200 transition-colors">
+              <button onClick={() => setFacilityMenuOpen(!facilityMenuOpen)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 sm:px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 border border-slate-200 transition-colors">
                 <i className="fas fa-building-circle-check text-slate-500"></i>
-                <span className="max-w-[200px] truncate">{selectedFacility}</span>
+                <span className="hidden sm:block max-w-[140px] md:max-w-[200px] truncate">{selectedFacility}</span>
                 <i className="fas fa-chevron-down text-[10px] text-slate-400"></i>
               </button>
               {facilityMenuOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-72 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-fade-in">
+                <div className="absolute right-0 top-full mt-1.5 w-64 sm:w-72 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-fade-in">
                   <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     Select Facility Domain Scope
                   </div>

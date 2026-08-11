@@ -30,7 +30,7 @@ function FilePreviewModal({ file, onClose, onDownload }) {
           <p className="text-xs text-slate-500">{file.size} • Uploaded {file.date}</p>
         </div>
 
-        <div className="grid grid-cols-3 gap-3 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
             <p className="text-slate-500 font-bold mb-0.5">Laboratory Provider</p>
             <p className="font-bold text-slate-800">{file.lab}</p>

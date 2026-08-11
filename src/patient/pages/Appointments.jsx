@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
@@ -6,6 +6,26 @@ import { PaymentModal } from '../../components/PaymentModal.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
+import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
+
+/** Binds a MediaStream to a <video> element — React has no declarative prop
+ * for srcObject, so this stays a thin imperative wrapper. */
+function VideoTile({ stream, muted = false, mirrored = false, className = '' }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current) ref.current.srcObject = stream || null;
+  }, [stream]);
+  if (!stream) return null;
+  return (
+    <video
+      ref={ref}
+      autoPlay
+      playsInline
+      muted={muted}
+      className={`w-full h-full object-cover ${mirrored ? 'scale-x-[-1]' : ''} ${className}`}
+    />
+  );
+}
 
 const SLOTS = ['9:00 AM', '10:30 AM', '12:00 PM', '2:00 PM', '4:00 PM', '5:30 PM'];
 
@@ -168,25 +188,47 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
 }
 
 /* ─── Video Call Modal ───────────────────────── */
-function VideoCallModal({ isOpen, onClose, doctor, toast }) {
-  const [active, setActive] = useState(false);
-  const [muted, setMuted] = useState(false);
-  const [vidOff, setVidOff] = useState(false);
+const CALL_STATUS_COPY = {
+  'requesting-media': 'Requesting camera & microphone access…',
+  connecting: 'Connecting you to the doctor…',
+  'peer-left': 'The doctor left the call',
+  ended: 'Call ended',
+};
 
-  const join = () => { setActive(true); toast('Connected to video consultation!', 'success'); };
-  const end = () => { setActive(false); onClose(); toast('Call ended. Summary emailed to you.', 'info'); };
+function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast }) {
+  const [joined, setJoined] = useState(false);
+  const call = useWebRTCCall({ appointmentId, active: joined });
+
+  const join = () => setJoined(true);
+  const end = () => {
+    call.hangUp();
+    setJoined(false);
+    onClose();
+    toast('Call ended.', 'info');
+  };
+
+  useEffect(() => {
+    if (call.connectionState === 'connected') toast('Connected to your doctor.', 'success');
+  }, [call.connectionState, toast]);
+
+  useEffect(() => {
+    if (call.error) toast(call.error, 'error');
+  }, [call.error, toast]);
+
+  const initials = doctor?.split(' ').slice(1).map(n => n[0]).join('') || 'DR';
+  const failedOrEnded = call.connectionState === 'failed' || call.connectionState === 'ended';
 
   return (
-    <Modal isOpen={isOpen} onClose={() => { setActive(false); onClose(); }} title="Video Consultation" size="lg">
-      {!active ? (
+    <Modal isOpen={isOpen} onClose={() => { if (joined) end(); else onClose(); }} title="Video Consultation" size="lg">
+      {!joined ? (
         <div className="text-center space-y-5 py-2">
           <div className="w-20 h-20 rounded-3xl bg-aubergine-50 mx-auto flex items-center justify-center text-3xl font-black text-aubergine-700">
-            {doctor?.split(' ').slice(1).map(n => n[0]).join('')}
+            {initials}
           </div>
           <div>
             <h4 className="font-black text-slate-800 text-xl">{doctor}</h4>
             <p className="text-sm text-emerald-600 font-semibold mt-1 flex items-center justify-center gap-1.5">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Online & Ready
+              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Ready to connect
             </p>
           </div>
           <div className="bg-slate-50 rounded-xl p-4 text-xs space-y-1.5 text-left">
@@ -200,26 +242,46 @@ function VideoCallModal({ isOpen, onClose, doctor, toast }) {
       ) : (
         <div className="space-y-4">
           <div className="bg-slate-900 rounded-2xl aspect-video flex items-center justify-center relative overflow-hidden">
-            <div className="text-center text-white">
-              <div className="w-20 h-20 rounded-full bg-aubergine-700 mx-auto mb-3 flex items-center justify-center text-2xl font-black">
-                {doctor?.split(' ').slice(1).map(n => n[0]).join('')}
+            {call.remoteStream ? (
+              <VideoTile stream={call.remoteStream} className="absolute inset-0" />
+            ) : (
+              <div className="text-center text-white px-6">
+                <div className="w-20 h-20 rounded-full bg-aubergine-700 mx-auto mb-3 flex items-center justify-center text-2xl font-black">
+                  {initials}
+                </div>
+                <p className="font-bold">{doctor}</p>
+                <p className={`text-xs mt-1.5 flex items-center justify-center gap-1.5 ${call.connectionState === 'failed' ? 'text-rose-400' : 'text-slate-400'}`}>
+                  {!failedOrEnded && call.connectionState !== 'peer-left' && <i className="fas fa-circle-notch fa-spin"></i>}
+                  {CALL_STATUS_COPY[call.connectionState] || '● Live'}
+                </p>
               </div>
-              <p className="font-bold">{doctor}</p>
-              <p className="text-slate-500 text-xs mt-1">● Live</p>
-            </div>
-            <div className="absolute bottom-3 right-3 w-24 h-16 bg-slate-700 rounded-xl border border-white/10 flex items-center justify-center text-white text-xs font-bold">
-              {vidOff ? <i className="fas fa-video-slash text-slate-500 text-xl"></i> : 'You'}
+            )}
+
+            {call.peerMuted && call.remoteStream && (
+              <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-xs text-white text-[11px] px-2.5 py-1 rounded-full border border-white/10 flex items-center gap-1.5">
+                <i className="fas fa-microphone-slash text-rose-400"></i> Doctor is muted
+              </div>
+            )}
+
+            <div className="absolute bottom-3 right-3 w-24 h-16 bg-slate-700 rounded-xl border border-white/10 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
+              {call.isVideoOff || !call.localStream ? (
+                <i className="fas fa-video-slash text-slate-500 text-xl"></i>
+              ) : (
+                <VideoTile stream={call.localStream} muted mirrored />
+              )}
             </div>
           </div>
           <div className="flex items-center justify-center gap-4">
-            <button onClick={() => setMuted(!muted)} className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all ${muted ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
-              <i className={`fas ${muted ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
+            <button onClick={call.toggleMute} disabled={!call.localStream}
+              className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all disabled:opacity-40 ${call.isMuted ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
+              <i className={`fas ${call.isMuted ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
             </button>
             <button onClick={end} className="w-14 h-14 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center text-xl shadow-lg">
               <i className="fas fa-phone-slash"></i>
             </button>
-            <button onClick={() => setVidOff(!vidOff)} className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all ${vidOff ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
-              <i className={`fas ${vidOff ? 'fa-video-slash' : 'fa-video'}`}></i>
+            <button onClick={call.toggleVideo} disabled={!call.localStream}
+              className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all disabled:opacity-40 ${call.isVideoOff ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
+              <i className={`fas ${call.isVideoOff ? 'fa-video-slash' : 'fa-video'}`}></i>
             </button>
           </div>
         </div>
@@ -595,7 +657,7 @@ function PatientAppointments() {
         confirmStyle="danger"
       />
       {videoTarget && (
-        <VideoCallModal isOpen={!!videoTarget} onClose={() => setVideoTarget(null)} doctor={videoTarget?.doctor} toast={toast} />
+        <VideoCallModal isOpen={!!videoTarget} onClose={() => setVideoTarget(null)} doctor={videoTarget?.doctor} appointmentId={videoTarget?.id} toast={toast} />
       )}
       <PaymentModal
         isOpen={showPayModal}

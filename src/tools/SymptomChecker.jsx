@@ -289,7 +289,7 @@ function SymptomChecker({ onClose, onBook }) {
 
                 <div>
                   <label className="text-xs font-bold text-slate-500 mb-2 block">Cycle Regularity (Over last 6 months)</label>
-                  <div className="grid grid-cols-3 gap-2 text-xs font-bold">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-bold">
                     {[
                       { label: 'Regular (21-35 days)', value: 'regular' },
                       { label: 'Irregular (>35 days)', value: 'irregular' },

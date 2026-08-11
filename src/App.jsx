@@ -1,4 +1,4 @@
-import React, { useEffect, Suspense, lazy } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { ClinicDataProvider } from './context/ClinicDataContext.jsx';
@@ -81,41 +81,6 @@ function ProtectedRoute({ children, allowedRole }) {
 import CookieBanner from './landing/components/CookieBanner.jsx';
 
 function App() {
-  // Subtle aubergine cursor — elegant 10px circle that follows the mouse
-  useEffect(() => {
-    const cursor = document.createElement('div');
-    cursor.id = 'healnari-cursor';
-    Object.assign(cursor.style, {
-      position: 'fixed',
-      width: '10px',
-      height: '10px',
-      borderRadius: '50%',
-      backgroundColor: '#7a3e65',
-      pointerEvents: 'none',
-      zIndex: '9999',
-      transform: 'translate(-50%, -50%)',
-      transition: 'transform 0.08s ease, opacity 0.2s ease',
-      opacity: '0',
-      mixBlendMode: 'multiply',
-    });
-    document.body.appendChild(cursor);
-
-    const move = (e) => {
-      cursor.style.left = e.clientX + 'px';
-      cursor.style.top = e.clientY + 'px';
-      cursor.style.opacity = '0.6';
-    };
-    const hide = () => { cursor.style.opacity = '0'; };
-    window.addEventListener('mousemove', move);
-    document.addEventListener('mouseleave', hide);
-
-    return () => {
-      window.removeEventListener('mousemove', move);
-      document.removeEventListener('mouseleave', hide);
-      cursor.remove();
-    };
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

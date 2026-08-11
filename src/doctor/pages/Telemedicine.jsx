@@ -1,9 +1,30 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
+import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
+
+/** Binds a MediaStream to a <video> element — React has no declarative prop
+ * for srcObject, so this stays a thin imperative wrapper. */
+function VideoTile({ stream, muted = false, mirrored = false, className = '' }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current) ref.current.srcObject = stream || null;
+  }, [stream]);
+  if (!stream) return null;
+  return (
+    <video
+      ref={ref}
+      autoPlay
+      playsInline
+      muted={muted}
+      className={`w-full h-full object-cover ${mirrored ? 'scale-x-[-1]' : ''} ${className}`}
+    />
+  );
+}
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -57,9 +78,8 @@ const LAB_OPTIONS = ['Hormonal Panel (LH, FSH, AMH)', 'Full Thyroid Profile (TSH
 function ActiveCallUI({ session, onEnd }) {
   const toast = useToast();
   const { addRx, orderLabTest } = useClinicData();
-  const [muted, setMuted] = useState(false);
-  const [vidOff, setVidOff] = useState(false);
-  const [screen, setScreen] = useState(false);
+  const { user } = useAuth();
+  const call = useWebRTCCall({ appointmentId: session.id, active: true });
   const [clinicalNotes, setClinicalNotes] = useState('');
   const [activeTab, setActiveTab] = useState('notes'); // notes | rx | lab
   const [elapsed, setElapsed] = useState(0);
@@ -101,33 +121,70 @@ function ActiveCallUI({ session, onEnd }) {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
+    if (call.connectionState !== 'connected') return;
     const t = setInterval(() => setElapsed(e => e + 1), 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [call.connectionState]);
+
+  useEffect(() => {
+    if (call.error) toast(call.error, 'error');
+  }, [call.error, toast]);
 
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
+  const endConsultation = () => {
+    call.hangUp();
+    onEnd(clinicalNotes);
+  };
+
+  const STATUS_COPY = {
+    'requesting-media': 'Requesting camera & microphone access…',
+    connecting: `Waiting for ${session.patient} to join…`,
+    'peer-left': `${session.patient} left the call`,
+    failed: call.error || 'Connection failed',
+    ended: 'Call ended',
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-slate-950 rounded-3xl p-4 shadow-2xl border border-slate-800">
-      
+
       {/* Left 50% / 7 Cols: Video Call & Stream */}
       <div className="lg:col-span-7 flex flex-col space-y-3">
         <div className="relative aspect-video bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
-          {/* Patient Video (main) */}
-          <div className="text-center text-white">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-aubergine-600 to-aubergine-800 mx-auto mb-3 flex items-center justify-center text-3xl font-black shadow-lg">
-              {session.patient.split(' ').map(n => n[0]).join('')}
+          {/* Remote (patient) video — falls back to an avatar + status line until connected */}
+          {call.remoteStream ? (
+            <VideoTile stream={call.remoteStream} className="absolute inset-0" />
+          ) : (
+            <div className="text-center text-white px-6">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-aubergine-600 to-aubergine-800 mx-auto mb-3 flex items-center justify-center text-3xl font-black shadow-lg">
+                {session.patient.split(' ').map(n => n[0]).join('')}
+              </div>
+              <p className="font-bold text-lg">{session.patient}</p>
+              {call.connectionState === 'connected' ? (
+                <p className="text-emerald-400 text-xs mt-1 font-semibold flex items-center justify-center gap-1">
+                  <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span> Camera off
+                </p>
+              ) : (
+                <p className={`text-xs mt-1 font-semibold flex items-center justify-center gap-1.5 ${call.connectionState === 'failed' ? 'text-rose-400' : 'text-slate-400'}`}>
+                  {call.connectionState !== 'failed' && call.connectionState !== 'peer-left' && call.connectionState !== 'ended' && (
+                    <i className="fas fa-circle-notch fa-spin"></i>
+                  )}
+                  {STATUS_COPY[call.connectionState] || 'Encrypted Audio/Video'}
+                </p>
+              )}
             </div>
-            <p className="font-bold text-lg">{session.patient}</p>
-            <p className="text-emerald-400 text-xs mt-1 font-semibold flex items-center justify-center gap-1">
-              <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span> Encrypted Audio/Video
-            </p>
-          </div>
+          )}
+
+          {call.peerMuted && call.remoteStream && (
+            <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-xs text-white text-xs px-2.5 py-1 rounded-full border border-white/10 flex items-center gap-1.5">
+              <i className="fas fa-microphone-slash text-rose-400"></i> Patient is muted
+            </div>
+          )}
 
           {/* Timer */}
           <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-xs text-white text-xs font-mono font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5">
-            <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse"></span> {fmt(elapsed)}
+            <span className={`w-2 h-2 rounded-full ${call.connectionState === 'connected' ? 'bg-rose-500 animate-pulse' : 'bg-slate-500'}`}></span> {fmt(elapsed)}
           </div>
 
           {/* Patient info overlay */}
@@ -135,30 +192,39 @@ function ActiveCallUI({ session, onEnd }) {
             {session.type} ({session.age})
           </div>
 
-          {/* Doctor PiP */}
+          {/* Doctor PiP — local self-view */}
           <div className="absolute bottom-4 right-4 w-32 h-24 bg-slate-800 rounded-xl border border-white/20 flex items-center justify-center text-white text-xs font-bold shadow-xl overflow-hidden">
-            {vidOff ? <i className="fas fa-video-slash text-slate-500 text-xl"></i> : <span className="bg-aubergine-900/80 px-2 py-1 rounded text-[10px]">Dr. Sarah Mitchell</span>}
+            {call.isVideoOff || !call.localStream ? (
+              <i className="fas fa-video-slash text-slate-500 text-xl"></i>
+            ) : (
+              <VideoTile stream={call.localStream} muted mirrored={!call.isScreenSharing} />
+            )}
+            {!call.isVideoOff && call.localStream && (
+              <span className="absolute bottom-1 left-1 bg-black/70 px-1.5 py-0.5 rounded text-[9px]">
+                {user?.name ? `Dr. ${user.name.split(' ').slice(-1)[0]}` : 'You'}
+              </span>
+            )}
           </div>
         </div>
 
         {/* Call Controls Toolbar */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <button onClick={() => setMuted(!muted)} title={muted ? 'Unmute' : 'Mute'}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center text-base transition-all ${muted ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
-              <i className={`fas ${muted ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
+            <button onClick={call.toggleMute} disabled={!call.localStream} title={call.isMuted ? 'Unmute' : 'Mute'}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center text-base transition-all disabled:opacity-40 ${call.isMuted ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
+              <i className={`fas ${call.isMuted ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
             </button>
-            <button onClick={() => setVidOff(!vidOff)} title={vidOff ? 'Turn on camera' : 'Turn off camera'}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center text-base transition-all ${vidOff ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
-              <i className={`fas ${vidOff ? 'fa-video-slash' : 'fa-video'}`}></i>
+            <button onClick={call.toggleVideo} disabled={!call.localStream} title={call.isVideoOff ? 'Turn on camera' : 'Turn off camera'}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center text-base transition-all disabled:opacity-40 ${call.isVideoOff ? 'bg-rose-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
+              <i className={`fas ${call.isVideoOff ? 'fa-video-slash' : 'fa-video'}`}></i>
             </button>
-            <button onClick={() => setScreen(!screen)} title="Share screen"
-              className={`w-10 h-10 rounded-xl flex items-center justify-center text-base transition-all ${screen ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
+            <button onClick={call.toggleScreenShare} disabled={call.connectionState !== 'connected'} title="Share screen"
+              className={`w-10 h-10 rounded-xl flex items-center justify-center text-base transition-all disabled:opacity-40 ${call.isScreenSharing ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}`}>
               <i className="fas fa-desktop"></i>
             </button>
           </div>
 
-          <button onClick={() => onEnd(clinicalNotes)} className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-lg">
+          <button onClick={endConsultation} className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-lg">
             <i className="fas fa-phone-slash"></i> End Consultation
           </button>
         </div>
@@ -257,6 +323,48 @@ function ActiveCallUI({ session, onEnd }) {
 }
 
 
+/** Short two-tone chime for incoming-call/request alerts — synthesized via
+ * WebAudio so there's no audio asset to ship or fail to load. */
+function playChime() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    [880, 1108.73].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const start = ctx.currentTime + i * 0.15;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.18, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.36);
+    });
+    setTimeout(() => ctx.close(), 800);
+  } catch {
+    // Best-effort — autoplay policies or missing WebAudio just mean no sound.
+  }
+}
+
+/** "Updated 12s ago" label that ticks on its own so the doctor can trust
+ * the queue is actually live without watching the network tab. */
+function LastUpdated({ at }) {
+  const [, forceTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => forceTick(n => n + 1), 5000);
+    return () => clearInterval(t);
+  }, []);
+  if (!at) return null;
+  const secs = Math.max(0, Math.round((Date.now() - at) / 1000));
+  const label = secs < 5 ? 'Updated just now' : secs < 60 ? `Updated ${secs}s ago` : `Updated ${Math.round(secs / 60)}m ago`;
+  return <span className="text-[10px] text-slate-500 font-medium">{label}</span>;
+}
+
+const QUEUE_POLL_MS = 20000;
+
 /* ─── Main Component ─────────────────────────── */
 function DoctorTelemedicine() {
   const toast = useToast();
@@ -267,13 +375,41 @@ function DoctorTelemedicine() {
   const [noteDraft, setNoteDraft] = useState('');
   const [rawSessions, setRawSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const knownSessionsRef = useRef(new Map()); // id -> last-seen status, for diffing new/changed sessions
 
   const todayStr = todayLocalStr();
-  const loadQueue = () => apiFetch('/telemedicine/queue')
-    .then(setRawSessions)
-    .catch(err => toast(err.message || 'Failed to load queue', 'error'))
-    .finally(() => setLoading(false));
+
+  const loadQueue = ({ silent = false, alertChanges = false } = {}) => {
+    if (silent) setRefreshing(true);
+    return apiFetch('/telemedicine/queue')
+      .then(data => {
+        if (alertChanges) {
+          const known = knownSessionsRef.current;
+          const newRequests = data.filter(s => !known.has(s.id) && s.status === 'Requested');
+          const nowWaiting = data.filter(s => known.has(s.id) && known.get(s.id) !== 'Waiting' && s.status === 'Waiting');
+          if (newRequests.length || nowWaiting.length) playChime();
+          newRequests.forEach(s => toast(`New video request from ${s.patientName}`, 'info'));
+          nowWaiting.forEach(s => toast(`${s.patientName} is waiting for their video call`, 'success'));
+        }
+        knownSessionsRef.current = new Map(data.map(s => [s.id, s.status]));
+        setRawSessions(data);
+        setLastUpdated(Date.now());
+      })
+      .catch(err => { if (!silent) toast(err.message || 'Failed to load queue', 'error'); })
+      .finally(() => { setLoading(false); setRefreshing(false); });
+  };
+
   useEffect(() => { loadQueue(); }, []);
+
+  // Keep the queue live without the doctor having to reload the page — paused
+  // while a call is active since there's nothing new to surface mid-consult.
+  useEffect(() => {
+    if (activeCall) return;
+    const t = setInterval(() => loadQueue({ silent: true, alertChanges: true }), QUEUE_POLL_MS);
+    return () => clearInterval(t);
+  }, [activeCall]);
 
   const sessions = rawSessions.map(s => ({
     id: s.id,
@@ -288,6 +424,9 @@ function DoctorTelemedicine() {
     accepted: s.status !== 'Requested',
     status: s.status,
   }));
+
+  const waitingSessions = sessions.filter(s => s.status === 'Waiting');
+  const newRequestSessions = sessions.filter(s => !s.accepted);
 
   const [selectedIds, setSelectedIds] = useState([]);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -406,8 +545,13 @@ function DoctorTelemedicine() {
               </div>
             )}
           </div>
+          <button onClick={() => loadQueue({ silent: true })} disabled={refreshing}
+            title="Refresh queue"
+            className="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-aubergine-600 hover:border-aubergine-200 flex items-center justify-center transition-colors disabled:opacity-50">
+            <i className={`fas fa-rotate text-sm ${refreshing ? 'fa-spin' : ''}`}></i>
+          </button>
           <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl text-emerald-700 text-xs font-bold">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> System Online
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Live — auto-refreshes every 20s
           </div>
         </div>
       </div>
@@ -415,22 +559,55 @@ function DoctorTelemedicine() {
       {/* Active Call */}
       {activeCall ? (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-bold text-slate-800 flex items-center gap-2">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Live: {activeCall.patient}
-            </h2>
-            <button onClick={() => endCall()} className="text-rose-600 font-bold text-sm hover:underline flex items-center gap-1.5">
-              <i className="fas fa-phone-slash"></i> End Call
-            </button>
-          </div>
+          <h2 className="font-bold text-slate-800 flex items-center gap-2">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Live: {activeCall.patient}
+            <span className="text-xs text-slate-500 font-medium">— use "End Consultation" below to save your notes and finish</span>
+          </h2>
           <ActiveCallUI session={activeCall} onEnd={endCall} />
         </div>
       ) : (
         <>
+          {/* Waiting-patient alert — stays visible until handled, unlike a toast */}
+          {waitingSessions.length > 0 && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center gap-4">
+              <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <i className="fas fa-video animate-pulse"></i>
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-emerald-900">
+                  {waitingSessions.length === 1 ? `${waitingSessions[0].patient} is waiting for you` : `${waitingSessions.length} patients are waiting for you`}
+                </p>
+                <p className="text-xs text-emerald-700">Join now to avoid keeping them waiting.</p>
+              </div>
+              <button onClick={() => joinCall(waitingSessions[0])}
+                className="bg-emerald-600 text-white font-bold px-4 py-2 rounded-xl text-xs hover:bg-emerald-700 transition-colors flex-shrink-0 flex items-center gap-1.5">
+                <i className="fas fa-video"></i> Join Now
+              </button>
+            </div>
+          )}
+
+          {/* New request alert */}
+          {newRequestSessions.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4">
+              <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <i className="fas fa-calendar-plus"></i>
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-amber-900">
+                  {newRequestSessions.length === 1 ? '1 new video consultation request' : `${newRequestSessions.length} new video consultation requests`}
+                </p>
+                <p className="text-xs text-amber-700">Accept or reject below to confirm the patient's slot.</p>
+              </div>
+            </div>
+          )}
+
           {/* Sessions Queue */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="font-bold text-slate-800">Video Consultation Queue</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-slate-800">Video Consultation Queue</h2>
+                <LastUpdated at={lastUpdated} />
+              </div>
               <div className="flex items-center gap-3">
                 {selectedIds.length > 0 && <span className="text-xs text-slate-500 font-bold">{selectedIds.length} selected</span>}
                 <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-500 hover:text-aubergine-600 transition-colors">

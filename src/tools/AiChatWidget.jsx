@@ -22,7 +22,6 @@ const THEMES = {
     tint: '#E4F4F3',
     ring: 'rgba(14,124,123,0.28)',
     label: 'Care Assistant',
-    greeting: "Welcome to HealNari. Ask me about our care programs, our providers, or how the platform works.",
   },
   patient: {
     primary: '#E0604A',
@@ -30,7 +29,6 @@ const THEMES = {
     tint: '#FBEAE6',
     ring: 'rgba(224,96,74,0.28)',
     label: 'Your Care Companion',
-    greeting: "Hi, I'm here to help. Ask about your tracking data, your next steps, or finding the right doctor.",
   },
   doctor: {
     primary: '#6B46C1',
@@ -56,36 +54,14 @@ function PulseLine({ color, opacity = 0.32 }) {
   );
 }
 
-function TypingWave({ color }) {
-  return (
-    <div className="flex items-end gap-[3px] h-3.5 px-1">
-      {[0, 1, 2, 3].map((i) => (
-        <span
-          key={i}
-          className="hn-bar w-1 rounded-full"
-          style={{ backgroundColor: color, animationDelay: `${i * 0.14}s` }}
-        />
-      ))}
-    </div>
-  );
-}
-
 export default function AiChatWidget({ context = 'landing' }) {
   const theme = THEMES[context] || THEMES.landing;
 
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([{ role: 'ai', content: theme.greeting }]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
-  const messagesEndRef = useRef(null);
   const socketRef = useRef(null);
-
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, isOpen]);
 
   // Connects once for the life of the widget — see vision/src/modules/ai/gateways/chat.gateway.ts
   // for the 'chat_message' -> 'chat_reply' contract this mirrors. The access
@@ -99,12 +75,8 @@ export default function AiChatWidget({ context = 'landing' }) {
     });
     socketRef.current = socket;
 
-    socket.on('chat_reply', (payload) => {
+    socket.on('chat_reply', () => {
       setIsLoading(false);
-      const content = payload?.status === 'error'
-        ? (payload.message || 'Something went wrong. Please try again.')
-        : (payload?.data || "Sorry, I didn't catch that.");
-      setMessages((prev) => [...prev, { role: 'ai', content }]);
     });
 
     return () => socket.disconnect();
@@ -115,7 +87,6 @@ export default function AiChatWidget({ context = 'landing' }) {
     if (!input.trim() || isLoading) return;
 
     const userMessage = input.trim();
-    setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
     setInput('');
     setIsLoading(true);
 
@@ -144,40 +115,24 @@ export default function AiChatWidget({ context = 'landing' }) {
         @keyframes hn-ring { 0% { transform: scale(0.85); opacity: 0.55; } 75% { transform: scale(1.55); opacity: 0; } 100% { opacity: 0; } }
         .hn-ring-pulse { animation: hn-ring 2.6s cubic-bezier(0.4,0,0.2,1) infinite; border: 1.5px solid var(--primary); }
 
-        @keyframes hn-bar { 0%, 100% { height: 4px; } 50% { height: 13px; } }
-        .hn-bar { animation: hn-bar 0.9s ease-in-out infinite; height: 4px; }
-
-        @keyframes hn-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-        .hn-fade { animation: hn-fade 0.25s ease-out; }
-
         @keyframes hn-panel-in { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
         .hn-panel-open { animation: hn-panel-in 0.32s cubic-bezier(0.34,1.4,0.64,1) both; }
-
-        .hn-messages {
-          background-color: #F6F9F9;
-          background-image: repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(15,45,45,0.04) 23px, rgba(15,45,45,0.04) 24px);
-        }
-        .hn-scroll::-webkit-scrollbar { width: 6px; }
-        .hn-scroll::-webkit-scrollbar-thumb { background: #CBD8D9; border-radius: 999px; }
-        .hn-scroll::-webkit-scrollbar-track { background: transparent; }
 
         .hn-toggle { background-color: var(--primary); }
         .hn-toggle:hover { background-color: var(--primary-deep); }
         .hn-header { background-color: var(--primary); }
-        .hn-avatar { background-color: var(--primary); }
-        .hn-user-bubble { background-color: var(--primary); }
         .hn-send { background-color: var(--primary); }
         .hn-send:hover:not(:disabled) { background-color: var(--primary-deep); }
         .hn-input-wrap:focus-within { box-shadow: 0 0 0 3px var(--ring-color); border-color: var(--primary); }
 
         @media (prefers-reduced-motion: reduce) {
-          .hn-scan, .hn-ring-pulse, .hn-bar, .hn-fade, .hn-panel-open { animation: none !important; }
+          .hn-scan, .hn-ring-pulse, .hn-panel-open { animation: none !important; }
         }
       `}</style>
 
       {/* CHAT PANEL */}
       <div
-        className={`pointer-events-auto transition-all duration-300 origin-bottom-right ${isOpen ? 'mb-4 opacity-100' : 'opacity-0 absolute bottom-0 right-0 pointer-events-none scale-95'
+        className={`transition-all duration-300 origin-bottom-right ${isOpen ? 'pointer-events-auto mb-4 opacity-100' : 'pointer-events-none opacity-0 absolute bottom-0 right-0 scale-95'
           }`}
       >
         <div
@@ -210,39 +165,6 @@ export default function AiChatWidget({ context = 'landing' }) {
               </button>
             </div>
             <PulseLine color="#ffffff" />
-          </div>
-
-          {/* Messages */}
-          <div className="hn-scroll hn-messages flex-1 overflow-y-auto px-4 py-5 space-y-4">
-            {messages.map((msg, idx) => (
-              <div key={idx} className={`flex hn-fade ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                {msg.role === 'ai' && (
-                  <div className="hn-avatar w-7 h-7 rounded-full flex items-center justify-center shrink-0 mr-2 self-end mb-0.5">
-                    <Activity size={12} className="text-white" strokeWidth={2.5} />
-                  </div>
-                )}
-                <div
-                  className={`hn-body max-w-[76%] px-4 py-2.5 text-[13.5px] leading-relaxed ${msg.role === 'user'
-                      ? 'hn-user-bubble text-white rounded-2xl rounded-br-md'
-                      : 'bg-white text-slate-700 border border-slate-200 rounded-2xl rounded-bl-md'
-                    }`}
-                >
-                  {msg.content}
-                </div>
-              </div>
-            ))}
-
-            {isLoading && (
-              <div className="flex justify-start items-end hn-fade">
-                <div className="hn-avatar w-7 h-7 rounded-full flex items-center justify-center shrink-0 mr-2 mb-0.5">
-                  <Activity size={12} className="text-white" strokeWidth={2.5} />
-                </div>
-                <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-md px-4 py-3.5 flex items-center">
-                  <TypingWave color={theme.primary} />
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
           </div>
 
           {/* Input */}

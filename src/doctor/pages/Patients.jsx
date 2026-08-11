@@ -67,15 +67,13 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
 }
 
 
-/* ─── Write Rx Modal ─────────────────────────── */
-function InlineWriteRxModal({ isOpen, onClose, patient, onSaveRx }) {
+/* ─── Write Rx — full-page view (same takeover pattern as PatientEMRFullPage) ─── */
+function WriteRxPage({ patient, onBack, onSaveRx }) {
   const [medName, setMedName] = useState('');
   const [dosage, setDosage] = useState('');
   const [schedule, setSchedule] = useState('1-0-1');
   const [duration, setDuration] = useState('30 Days');
   const [instructions, setInstructions] = useState('');
-
-  if (!isOpen || !patient) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -93,88 +91,108 @@ function InlineWriteRxModal({ isOpen, onClose, patient, onSaveRx }) {
       prescribedBy: 'Dr. Sarah Mitchell',
     };
     onSaveRx(patient.id, newRx);
-    setMedName('');
-    setDosage('');
-    setSchedule('1-0-1');
-    setDuration('30 Days');
-    setInstructions('');
-    onClose();
+    onBack();
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Write Prescription for ${patient.name}`} size="md">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="text-xs font-bold text-slate-500 mb-1 block">Medication Name *</label>
-          <input
-            type="text"
-            required
-            value={medName}
-            onChange={(e) => setMedName(e.target.value)}
-            placeholder="e.g. Metformin, Myo-Inositol, Norethisterone"
-            className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300"
-          />
+    <div className="space-y-6 animate-fade-in pb-12">
+      {/* Navigation Breadcrumb Bar */}
+      <div className="flex items-center justify-between gap-4">
+        <button
+          onClick={onBack}
+          className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-xs transition-all"
+        >
+          <i className="fas fa-arrow-left text-aubergine-600"></i> Back to EMR
+        </button>
+        <p className="text-xs text-slate-500 font-medium hidden sm:block">
+          Doctor Portal &gt; Patients &amp; EMR &gt; {patient.name} &gt; <span className="text-slate-700 font-bold">Write Prescription</span>
+        </p>
+      </div>
+
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm max-w-2xl">
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-black text-lg flex-shrink-0">
+            {patient.name.split(' ').map((n) => n[0]).join('')}
+          </div>
+          <div>
+            <h1 className="font-black text-slate-800 text-lg">Write Prescription</h1>
+            <p className="text-xs text-slate-500">For {patient.name} • {patient.age} Yrs • {patient.blood}</p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="text-xs font-bold text-slate-500 mb-1 block">Strength / Dosage</label>
+            <label className="text-xs font-bold text-slate-500 mb-1 block">Medication Name *</label>
             <input
               type="text"
-              value={dosage}
-              onChange={(e) => setDosage(e.target.value)}
-              placeholder="e.g. 500mg, 2g, 5mg"
+              required
+              value={medName}
+              onChange={(e) => setMedName(e.target.value)}
+              placeholder="e.g. Metformin, Myo-Inositol, Norethisterone"
               className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300"
             />
           </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 mb-1 block">Dose Frequency</label>
-            <select
-              value={schedule}
-              onChange={(e) => setSchedule(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white"
-            >
-              <option value="1-0-1">1-0-1 (Morning & Night)</option>
-              <option value="1-0-0">1-0-0 (Morning Only)</option>
-              <option value="0-0-1">0-0-1 (Night Only)</option>
-              <option value="1-1-1">1-1-1 (Thrice Daily)</option>
-              <option value="PRN">PRN (As Needed / SOS)</option>
-            </select>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1 block">Strength / Dosage</label>
+              <input
+                type="text"
+                value={dosage}
+                onChange={(e) => setDosage(e.target.value)}
+                placeholder="e.g. 500mg, 2g, 5mg"
+                className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1 block">Dose Frequency</label>
+              <select
+                value={schedule}
+                onChange={(e) => setSchedule(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white"
+              >
+                <option value="1-0-1">1-0-1 (Morning & Night)</option>
+                <option value="1-0-0">1-0-0 (Morning Only)</option>
+                <option value="0-0-1">0-0-1 (Night Only)</option>
+                <option value="1-1-1">1-1-1 (Thrice Daily)</option>
+                <option value="PRN">PRN (As Needed / SOS)</option>
+              </select>
+            </div>
           </div>
-        </div>
 
-        <div>
-          <label className="text-xs font-bold text-slate-500 mb-1 block">Duration</label>
-          <input
-            type="text"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-            placeholder="e.g. 10 Days, 30 Days, 3 Months"
-            className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300"
-          />
-        </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 mb-1 block">Duration</label>
+            <input
+              type="text"
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              placeholder="e.g. 10 Days, 30 Days, 3 Months"
+              className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300"
+            />
+          </div>
 
-        <div>
-          <label className="text-xs font-bold text-slate-500 mb-1 block">Doctor Instructions</label>
-          <textarea
-            rows={2}
-            value={instructions}
-            onChange={(e) => setInstructions(e.target.value)}
-            placeholder="e.g. Take after meals with plenty of water. Avoid alcohol."
-            className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-aubergine-300"
-          />
-        </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 mb-1 block">Doctor Instructions</label>
+            <textarea
+              rows={3}
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              placeholder="e.g. Take after meals with plenty of water. Avoid alcohol."
+              className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-aubergine-300"
+            />
+          </div>
 
-        <div className="flex gap-3 pt-3 border-t border-slate-100">
-          <button type="button" onClick={onClose} className="flex-1 border border-slate-200 text-slate-600 font-bold py-2 rounded-xl text-sm hover:bg-slate-50">
-            Cancel
-          </button>
-          <button type="submit" className="flex-1 bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold py-2 rounded-xl text-sm transition-colors flex items-center justify-center gap-1.5">
-            <i className="fas fa-check"></i> Add to EMR Rx
-          </button>
-        </div>
-      </form>
-    </Modal>
+          <div className="flex gap-3 pt-3 border-t border-slate-100">
+            <button type="button" onClick={onBack} className="flex-1 border border-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-sm hover:bg-slate-50">
+              Cancel
+            </button>
+            <button type="submit" className="flex-1 bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-1.5">
+              <i className="fas fa-check"></i> Add to EMR Rx
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 
@@ -434,22 +452,24 @@ function ViewInvoiceModal({ invoice, patient, isOpen, onClose }) {
 
         {/* Table */}
         <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-          <table className="w-full text-left">
-            <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
-              <tr>
-                <th className="p-3">Service Description</th>
-                <th className="p-3">Category</th>
-                <th className="p-3 text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td className="p-3 font-bold text-slate-800">{invoice.service}</td>
-                <td className="p-3 text-slate-600">{invoice.category}</td>
-                <td className="p-3 text-right font-black text-slate-900 text-sm">₹{invoice.amount.toLocaleString('en-IN')}</td>
-              </tr>
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                <tr>
+                  <th className="p-3">Service Description</th>
+                  <th className="p-3">Category</th>
+                  <th className="p-3 text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="p-3 font-bold text-slate-800">{invoice.service}</td>
+                  <td className="p-3 text-slate-600">{invoice.category}</td>
+                  <td className="p-3 text-right font-black text-slate-900 text-sm">₹{invoice.amount.toLocaleString('en-IN')}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <div className="bg-slate-50 p-3 border-t border-slate-200 flex justify-between items-center text-xs">
             <span className="font-bold text-slate-700">Total Billed Amount Paid</span>
             <span className="font-black text-aubergine-900 text-base">₹{invoice.amount.toLocaleString('en-IN')}</span>
@@ -511,28 +531,30 @@ function ViewRxDocModal({ rx, patient, isOpen, onClose }) {
         <div>
           <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-2">Prescribed Medications</h4>
           <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-            <table className="w-full text-left">
-              <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
-                <tr>
-                  <th className="p-3">Medication</th>
-                  <th className="p-3">Dosage</th>
-                  <th className="p-3">Schedule</th>
-                  <th className="p-3">Duration</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                <tr>
-                  <td className="p-3 font-black text-slate-800">{rx.medName}</td>
-                  <td className="p-3 font-semibold text-slate-700">{rx.dosage}</td>
-                  <td className="p-3">
-                    <span className="bg-aubergine-50 text-aubergine-700 border border-aubergine-200 font-bold px-2 py-0.5 rounded text-[11px]">
-                      {rx.schedule}
-                    </span>
-                  </td>
-                  <td className="p-3 text-slate-600">{rx.duration}</td>
-                </tr>
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                  <tr>
+                    <th className="p-3">Medication</th>
+                    <th className="p-3">Dosage</th>
+                    <th className="p-3">Schedule</th>
+                    <th className="p-3">Duration</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  <tr>
+                    <td className="p-3 font-black text-slate-800">{rx.medName}</td>
+                    <td className="p-3 font-semibold text-slate-700">{rx.dosage}</td>
+                    <td className="p-3">
+                      <span className="bg-aubergine-50 text-aubergine-700 border border-aubergine-200 font-bold px-2 py-0.5 rounded text-[11px]">
+                        {rx.schedule}
+                      </span>
+                    </td>
+                    <td className="p-3 text-slate-600">{rx.duration}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -610,30 +632,32 @@ function ViewLabDocModal({ report, patient, isOpen, onClose }) {
             <i className="fas fa-vial text-sky-600"></i> {report.testName}
           </h3>
           <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-            <table className="w-full text-left">
-              <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
-                <tr>
-                  <th className="p-3">Test Parameter</th>
-                  <th className="p-3">Observed Value</th>
-                  <th className="p-3">Reference Range</th>
-                  <th className="p-3">Flag</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {Object.entries(report.results).map(([param, data]) => (
-                  <tr key={param} className={data.status === 'high' || data.status === 'low' ? 'bg-rose-50/50' : ''}>
-                    <td className="p-3 font-bold text-slate-800">{param}</td>
-                    <td className="p-3 font-black text-slate-900">{data.value}</td>
-                    <td className="p-3 text-slate-500 font-mono text-[11px]">{data.ref}</td>
-                    <td className="p-3">
-                      {data.status === 'high' && <span className="bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded text-[10px]">HIGH ↑</span>}
-                      {data.status === 'low' && <span className="bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded text-[10px]">LOW ↓</span>}
-                      {data.status === 'normal' && <span className="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded text-[10px]">NORMAL</span>}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                  <tr>
+                    <th className="p-3">Test Parameter</th>
+                    <th className="p-3">Observed Value</th>
+                    <th className="p-3">Reference Range</th>
+                    <th className="p-3">Flag</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {Object.entries(report.results).map(([param, data]) => (
+                    <tr key={param} className={data.status === 'high' || data.status === 'low' ? 'bg-rose-50/50' : ''}>
+                      <td className="p-3 font-bold text-slate-800">{param}</td>
+                      <td className="p-3 font-black text-slate-900">{data.value}</td>
+                      <td className="p-3 text-slate-500 font-mono text-[11px]">{data.ref}</td>
+                      <td className="p-3">
+                        {data.status === 'high' && <span className="bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded text-[10px]">HIGH ↑</span>}
+                        {data.status === 'low' && <span className="bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded text-[10px]">LOW ↓</span>}
+                        {data.status === 'normal' && <span className="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded text-[10px]">NORMAL</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
@@ -690,6 +714,10 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
       toast(err.message || `Failed to add prescription for ${patient.name}`, 'error');
     }
   };
+
+  if (showWriteRx) {
+    return <WriteRxPage patient={patient} onBack={() => setShowWriteRx(false)} onSaveRx={handleAddRx} />;
+  }
 
   const handleAddLab = async (patientId, newReport) => {
     try {
@@ -1050,7 +1078,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4 bg-white rounded-xl p-4 border border-slate-100 text-slate-700">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white rounded-xl p-4 border border-slate-100 text-slate-700">
                     <div>
                       <span className="text-slate-500 text-[10px] font-bold block uppercase">Dose Frequency</span>
                       <span className="font-black text-aubergine-800 text-sm">{m.schedule}</span>
@@ -1137,32 +1165,34 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
                   {/* Results preview table */}
                   <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-                    <table className="w-full text-left">
-                      <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                        <tr>
-                          <th className="p-3">Test Parameter</th>
-                          <th className="p-3">Observed Value</th>
-                          <th className="p-3">Reference Range</th>
-                          <th className="p-3">Status Flag</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {Object.entries(r.results).map(([k, v]) => (
-                          <tr key={k} className={v.status === 'high' || v.status === 'low' ? 'bg-rose-50/40' : ''}>
-                            <td className="p-3 font-bold text-slate-800">{k}</td>
-                            <td className={`p-3 font-black text-sm ${v.status === 'high' ? 'text-rose-600' : v.status === 'low' ? 'text-amber-600' : 'text-emerald-700'}`}>
-                              {v.value}
-                            </td>
-                            <td className="p-3 text-slate-500 font-mono text-xs">{v.ref}</td>
-                            <td className="p-3">
-                              {v.status === 'high' && <span className="bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded text-[10px]">HIGH ↑</span>}
-                              {v.status === 'low' && <span className="bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded text-[10px]">LOW ↓</span>}
-                              {v.status === 'normal' && <span className="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded text-[10px]">NORMAL</span>}
-                            </td>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left">
+                        <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                          <tr>
+                            <th className="p-3">Test Parameter</th>
+                            <th className="p-3">Observed Value</th>
+                            <th className="p-3">Reference Range</th>
+                            <th className="p-3">Status Flag</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {Object.entries(r.results).map(([k, v]) => (
+                            <tr key={k} className={v.status === 'high' || v.status === 'low' ? 'bg-rose-50/40' : ''}>
+                              <td className="p-3 font-bold text-slate-800">{k}</td>
+                              <td className={`p-3 font-black text-sm ${v.status === 'high' ? 'text-rose-600' : v.status === 'low' ? 'text-amber-600' : 'text-emerald-700'}`}>
+                                {v.value}
+                              </td>
+                              <td className="p-3 text-slate-500 font-mono text-xs">{v.ref}</td>
+                              <td className="p-3">
+                                {v.status === 'high' && <span className="bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded text-[10px]">HIGH ↑</span>}
+                                {v.status === 'low' && <span className="bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded text-[10px]">LOW ↓</span>}
+                                {v.status === 'normal' && <span className="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded text-[10px]">NORMAL</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
 
                   <div className="bg-slate-900 rounded-xl p-4 text-slate-200">
@@ -1227,6 +1257,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
             {/* Transactions Table */}
             <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs text-xs">
+              <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
                   <tr>
@@ -1278,6 +1309,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                   ))}
                 </tbody>
               </table>
+              </div>
 
               {(patient.payments || []).length === 0 && (
                 <div className="text-center py-12 text-slate-500">No payment transaction records found.</div>
@@ -1401,7 +1433,6 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
       </div>
 
       {/* Sub Modals */}
-      <InlineWriteRxModal isOpen={showWriteRx} onClose={() => setShowWriteRx(false)} patient={patient} onSaveRx={handleAddRx} />
       <InlineOrderLabModal isOpen={showOrderLab} onClose={() => setShowOrderLab(false)} patient={patient} onSaveLab={handleAddLab} />
       <InlineRecordPaymentModal isOpen={showRecordPayment} onClose={() => setShowRecordPayment(false)} patient={patient} onSavePayment={handleAddPayment} />
       <ViewRxDocModal rx={selectedRxDoc} patient={patient} isOpen={!!selectedRxDoc} onClose={() => setSelectedRxDoc(null)} />
@@ -1479,7 +1510,25 @@ function DoctorPatients() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedPatientId, setSelectedPatientId] = useState(null);
   const [showAddPatient, setShowAddPatient] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [bulkModalParams, setBulkModalParams] = useState({ isOpen: false, channel: '' });
+  const actionsMenuRef = useRef(null);
   const selectedPatient = patients.find((p) => p.id === selectedPatientId) || null;
+
+  // Hooks must run unconditionally on every render, so the outside-click listener is
+  // wired up here regardless of whether the full-page EMR view is about to short-circuit
+  // the rest of this render — moving it below the early return caused a hook-count
+  // mismatch (and a hard crash) whenever selectedPatient toggled between renders.
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target)) {
+        setShowActionsMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleUpdatePatient = (updatedPatient) => {
     updatePatient(updatedPatient);
@@ -1517,21 +1566,6 @@ function DoctorPatients() {
     const matchStatus = filterStatus === 'all' || p.status === filterStatus;
     return matchSearch && matchStatus;
   });
-
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [showActionsMenu, setShowActionsMenu] = useState(false);
-  const [bulkModalParams, setBulkModalParams] = useState({ isOpen: false, channel: '' });
-  const actionsMenuRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target)) {
-        setShowActionsMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const exportPatientsCsv = () => {
     const selected = filtered.filter(p => selectedIds.includes(p.id));
