@@ -13,7 +13,7 @@ async function bootstrap() {
   app.use(helmet());
 
   // Allow the frontend dev/prod origin to make requests
-  app.enableCors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' });
+  app.enableCors({ origin: process.env.FRONTEND_URL || 'https://healnari.vercel.app' || 'http://localhost:5173' });
 
   // Apply Global Validation Pipe
   app.useGlobalPipes(
