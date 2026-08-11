@@ -92,7 +92,13 @@ export function useWebRTCCall({ appointmentId, active }) {
         pc.onconnectionstatechange = () => {
           if (!pcRef.current) return; // torn down already — ignore late events
           if (pc.connectionState === 'connected') setConnectionState('connected');
-          else if (pc.connectionState === 'failed') setConnectionState('failed');
+          else if (pc.connectionState === 'failed') {
+            // Most often two peers on different networks (e.g. patient on
+            // mobile data, doctor on WiFi) with no usable TURN relay — pure
+            // STUN can't punch through that combination of NATs.
+            setConnectionState('failed');
+            setError('Could not establish a stable connection. Please check your internet and try again.');
+          }
         };
 
         const socket = io(SOCKET_URL, {

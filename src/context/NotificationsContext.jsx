@@ -34,6 +34,11 @@ export function NotificationsProvider({ children }) {
   const toast = useToast();
   const [notifications, setNotifications] = useState([]);
   const [incomingCall, setIncomingCall] = useState(null); // { appointmentId, title, message } | null
+  // Set whenever a `call_cancelled' arrives, independent of `incomingCall` —
+  // this is what an *active* call screen (the caller, still waiting for the
+  // other side to pick up) watches to hang itself up when declined, not just
+  // the ring screen.
+  const [callDeclinedId, setCallDeclinedId] = useState(null);
   const socketRef = useRef(null);
   const callChannelRef = useRef(null);
 
@@ -75,6 +80,7 @@ export function NotificationsProvider({ children }) {
       }
       if (notif.type === 'call_cancelled' && appointmentId) {
         setIncomingCall(prev => (prev?.appointmentId === appointmentId ? null : prev));
+        setCallDeclinedId(appointmentId);
       }
 
       toast(notif.title, notif.type === 'appointment_cancelled' ? 'warning' : 'success');
@@ -93,8 +99,15 @@ export function NotificationsProvider({ children }) {
   }, [clearIncomingCall]);
 
   const declineCall = useCallback(() => {
-    if (incomingCall) clearIncomingCall(incomingCall.appointmentId);
+    if (!incomingCall) return;
+    const { appointmentId } = incomingCall;
+    clearIncomingCall(appointmentId);
+    // Tell the backend so it can ring off the caller's side too — otherwise
+    // they're left staring at a "ringing…" screen that never resolves.
+    apiFetch(`/appointments/${appointmentId}/decline-call`, { method: 'POST' }).catch(() => {});
   }, [incomingCall, clearIncomingCall]);
+
+  const clearCallDeclined = useCallback(() => setCallDeclinedId(null), []);
 
   const markAllRead = useCallback(async () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
@@ -112,6 +125,6 @@ export function NotificationsProvider({ children }) {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const value = { notifications, unreadCount, markAllRead, markRead, incomingCall, acceptCall, declineCall };
+  const value = { notifications, unreadCount, markAllRead, markRead, incomingCall, acceptCall, declineCall, callDeclinedId, clearCallDeclined };
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
 }

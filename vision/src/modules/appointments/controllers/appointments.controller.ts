@@ -65,4 +65,12 @@ export class AppointmentsController {
     const data = await this.appointmentsService.updateStatus(user, id, body.status);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.APPOINTMENT_UPDATED);
   }
+
+  @ApiOperation({ summary: "Decline an incoming call — ends it on the caller's side too, like a real phone call" })
+  @ApiParam({ name: 'id' })
+  @Post(':id/decline-call')
+  async declineCall(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const data = await this.appointmentsService.declineCall(user, id);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.APPOINTMENT_UPDATED);
+  }
 }

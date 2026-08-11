@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useNotifications } from '../../context/NotificationsContext.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
@@ -76,11 +77,22 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
 /* ─── Active Call UI (Dual-Pane Split Screen Layout) ─────────────────────────── */
 const LAB_OPTIONS = ['Hormonal Panel (LH, FSH, AMH)', 'Full Thyroid Profile (TSH, FT3, FT4)', 'Fasting Glucose & HbA1c'];
 
-function ActiveCallUI({ session, onEnd }) {
+function ActiveCallUI({ session, onEnd, onDeclined }) {
   const toast = useToast();
   const { addRx, orderLabTest } = useClinicData();
   const { user } = useAuth();
+  const { callDeclinedId, clearCallDeclined } = useNotifications() || {};
   const call = useWebRTCCall({ appointmentId: session.id, active: true });
+
+  // The patient declined this call (they were rung when we joined) — hang up
+  // on our side too, like a real phone call, instead of sitting on a
+  // "Waiting for X to join…" screen that never resolves.
+  useEffect(() => {
+    if (callDeclinedId !== session.id) return;
+    call.hangUp();
+    onDeclined?.();
+    clearCallDeclined?.();
+  }, [callDeclinedId, session.id]);
   const [clinicalNotes, setClinicalNotes] = useState('');
   const [activeTab, setActiveTab] = useState('notes'); // notes | rx | lab
   const [elapsed, setElapsed] = useState(0);
@@ -460,16 +472,17 @@ function DoctorTelemedicine() {
         const raw = fresh.find(s => s.id === startCallId);
         session = raw ? toSession(raw) : null;
       }
-      if (cancelled || !session) return;
-      setActiveCall(session);
+      if (cancelled) return;
       setSearchParams(prev => {
         const next = new URLSearchParams(prev);
         next.delete('startCall');
         return next;
       }, { replace: true });
+      if (session) setActiveCall(session);
+      else toast("Couldn't open that call — it may have already ended.", 'error');
     })();
     return () => { cancelled = true; };
-  }, [searchParams, sessions, setSearchParams]);
+  }, [searchParams, sessions, setSearchParams, toast]);
 
   const [selectedIds, setSelectedIds] = useState([]);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -558,6 +571,15 @@ function DoctorTelemedicine() {
     }
   };
 
+  // Patient declined — the backend already reverted the appointment out of
+  // In Progress, so this just closes the call view (no "Done" status, no
+  // notes prompt — the consult never actually happened).
+  const handleDeclined = () => {
+    toast(`${activeCall?.patient || 'The patient'} declined the call.`, 'info');
+    setActiveCall(null);
+    loadQueue();
+  };
+
   if (loading) return <div className="p-10 text-center text-sm text-slate-500">Loading queue...</div>;
 
   return (
@@ -606,7 +628,7 @@ function DoctorTelemedicine() {
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Live: {activeCall.patient}
             <span className="text-xs text-slate-500 font-medium">— use "End Consultation" below to save your notes and finish</span>
           </h2>
-          <ActiveCallUI session={activeCall} onEnd={endCall} />
+          <ActiveCallUI session={activeCall} onEnd={endCall} onDeclined={handleDeclined} />
         </div>
       ) : (
         <>

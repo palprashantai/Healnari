@@ -114,6 +114,38 @@ export class AppointmentsService {
     return withNames;
   }
 
+  /** Declining an incoming call must end it on the caller's side too — like
+   * hanging up a real phone call, not leaving them staring at a "ringing"
+   * screen that never resolves. Reverts an In-Progress call back to Waiting
+   * (not Cancelled/Done — declining one call attempt isn't the same as
+   * cancelling the whole appointment) and notifies whoever was calling. */
+  async declineCall(user: AuthUser, id: string) {
+    const { data: appointment } = await this.supabase.admin.from('appointments').select().eq('id', id).single();
+    if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
+    if (appointment.patient_id !== user.id && appointment.doctor_id !== user.id) {
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    }
+
+    const isDoctorDeclining = user.id === appointment.doctor_id;
+    const callerId = isDoctorDeclining ? appointment.patient_id : appointment.doctor_id;
+    const callerRole = isDoctorDeclining ? ProfileRole.PATIENT : ProfileRole.DOCTOR;
+
+    if (appointment.status === AppointmentStatus.IN_PROGRESS) {
+      await this.supabase.admin.from('appointments').update({ status: AppointmentStatus.WAITING }).eq('id', id);
+    }
+
+    await this.notifications.create(callerId, {
+      type: 'call_cancelled',
+      title: 'Call Declined',
+      message: `${isDoctorDeclining ? 'The doctor' : 'The patient'} declined the call.`,
+      data: { appointmentId: id, calleeRole: callerRole },
+    });
+
+    const { data: saved } = await this.supabase.admin.from('appointments').select().eq('id', id).single();
+    const [withNames] = await this.withNames([saved]);
+    return withNames;
+  }
+
   private async notifyStatusChange(
     actor: AuthUser,
     appointment: Appointment & { patientName: string; doctorName: string },

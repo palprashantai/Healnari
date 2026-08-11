@@ -4,6 +4,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { PaymentModal } from '../../components/PaymentModal.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
+import { useNotifications } from '../../context/NotificationsContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
 import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
@@ -195,9 +196,15 @@ const CALL_STATUS_COPY = {
   ended: 'Call ended',
 };
 
+function callStatusCopy(call) {
+  if (call.connectionState === 'failed') return call.error || 'Connection failed';
+  return CALL_STATUS_COPY[call.connectionState] || '● Live';
+}
+
 function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoin = false }) {
   const [joined, setJoined] = useState(false);
   const call = useWebRTCCall({ appointmentId, active: joined });
+  const { callDeclinedId, clearCallDeclined } = useNotifications() || {};
 
   // Manual "Join Now" tap — the doctor may not have started this call yet
   // (this appointment could still be Upcoming/Confirmed), so ring them too.
@@ -222,6 +229,18 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
     onClose();
     toast('Call ended.', 'info');
   };
+
+  // The doctor declined this call (they were rung by our join()) — hang up
+  // on our side too, like a real phone call, instead of leaving this modal
+  // "ringing" forever.
+  useEffect(() => {
+    if (!joined || callDeclinedId !== appointmentId) return;
+    call.hangUp();
+    setJoined(false);
+    onClose();
+    toast('The doctor declined the call.', 'info');
+    clearCallDeclined?.();
+  }, [callDeclinedId, joined, appointmentId]);
 
   useEffect(() => {
     if (call.connectionState === 'connected') toast('Connected to your doctor.', 'success');
@@ -268,7 +287,7 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
                 <p className="font-bold">{doctor}</p>
                 <p className={`text-xs mt-1.5 flex items-center justify-center gap-1.5 ${call.connectionState === 'failed' ? 'text-rose-400' : 'text-slate-400'}`}>
                   {!failedOrEnded && call.connectionState !== 'peer-left' && <i className="fas fa-circle-notch fa-spin"></i>}
-                  {CALL_STATUS_COPY[call.connectionState] || '● Live'}
+                  {callStatusCopy(call)}
                 </p>
               </div>
             )}
@@ -394,9 +413,13 @@ function PatientAppointments() {
       // started after the initial fetch (e.g. the doctor's instant-call
       // feature creates a brand-new appointment). Pull fresh data instead
       // of waiting on a re-render that may never come.
-      const fresh = await refreshAppointments();
-      const raw = fresh.find(a => a.id === appointmentId && !['Done', 'Cancelled', 'No Show'].includes(a.status));
-      match = raw ? toRow(raw) : null;
+      try {
+        const fresh = await refreshAppointments();
+        const raw = fresh.find(a => a.id === appointmentId && !['Done', 'Cancelled', 'No Show'].includes(a.status));
+        match = raw ? toRow(raw) : null;
+      } catch {
+        match = null; // network hiccup — fall through to the "couldn't open" toast below rather than failing silently
+      }
     }
     if (!match) return false;
     setVideoTarget(match);
@@ -409,15 +432,19 @@ function PatientAppointments() {
     if (!joinCallId) return;
     let cancelled = false;
     openCallFor(joinCallId).then((opened) => {
-      if (cancelled || !opened) return;
+      if (cancelled) return;
+      // Clear the param either way — openCallFor already did its own
+      // fetch-fresh fallback, so a miss here means the call genuinely isn't
+      // reachable (already ended, wrong id), not that we should keep retrying.
       setSearchParams(prev => {
         const next = new URLSearchParams(prev);
         next.delete('joinCall');
         return next;
       }, { replace: true });
+      if (!opened) toast("Couldn't open that call — it may have already ended.", 'error');
     });
     return () => { cancelled = true; };
-  }, [searchParams, openCallFor, setSearchParams]);
+  }, [searchParams, openCallFor, setSearchParams, toast]);
 
   const getFilteredData = () => {
     let data = tab === 'upcoming' ? upcoming : past;

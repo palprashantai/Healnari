@@ -56,27 +56,53 @@ const AdminDoctorDetails = lazy(() => import('./admin/pages/DoctorDetails.jsx'))
 const AdminPatientDetails = lazy(() => import('./admin/pages/PatientDetails.jsx'));
 const AdminTemplates = lazy(() => import('./admin/pages/TemplatesManager.jsx'));
 
+function dashboardPathFor(role) {
+  if (role === 'doctor') return '/doctor-dashboard';
+  if (role === 'admin') return '/admin-dashboard';
+  return '/patient-dashboard';
+}
+
+const AuthLoadingScreen = () => (
+  <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="text-center">
+      <div className="w-10 h-10 border-4 border-aubergine-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+      <p className="text-sm text-slate-500 font-medium">Loading HealNari...</p>
+    </div>
+  </div>
+);
+
 // Protected Route Wrapper — demo mode: always allow access
 function ProtectedRoute({ children, allowedRole }) {
   const { user, loading } = useAuth();
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="text-center">
-        <div className="w-10 h-10 border-4 border-aubergine-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-        <p className="text-sm text-slate-500 font-medium">Loading HealNari...</p>
-      </div>
-    </div>
-  );
+  if (loading) return <AuthLoadingScreen />;
 
   if (!user) return <Navigate to="/" replace />;
-  
+
   // Enforce role-based access control
   if (allowedRole && user.role !== allowedRole) {
     return <Navigate to="/" replace />;
   }
 
   return children;
+}
+
+// AuthContext restores a valid session from localStorage on every load (see
+// AuthContext.loadMe) — but the "/" route rendered the marketing landing
+// page unconditionally, with no check of that restored session at all. That
+// meant a returning, still-logged-in user launching the installed PWA (whose
+// start_url is "/") always landed back on the landing page and had to log
+// in again, even though their token was still valid. Wait out the same
+// `loading` window ProtectedRoute does (avoids a landing-page flash before
+// the redirect) and send an already-authenticated visitor straight to their
+// dashboard instead.
+function RootRoute() {
+  const { user, loading } = useAuth();
+
+  if (loading) return <AuthLoadingScreen />;
+  if (user) return <Navigate to={dashboardPathFor(user.role)} replace />;
+
+  return <LandingPage />;
 }
 
 import CookieBanner from './landing/components/CookieBanner.jsx';
@@ -99,7 +125,7 @@ function App() {
             </div>
           }>
             <Routes>
-              <Route path="/" element={<LandingPage />} />
+              <Route path="/" element={<RootRoute />} />
               <Route path="/guide/:guideId" element={<GuidePage />} />
 
               <Route
