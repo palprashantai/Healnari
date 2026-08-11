@@ -6,7 +6,7 @@ import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 
 /* ─── Main Component ─────────────────────────── */
 function DoctorProfile() {
-  const { user, updateUser, logout } = useAuth();
+  const { user, updateUser, updatePassword, uploadAvatar, removeAvatar, logout } = useAuth();
   const { kycVerified } = useClinicData();
   const toast = useToast();
   const doc = user || {};
@@ -39,19 +39,50 @@ function DoctorProfile() {
   });
   const [leaveMode, setLeaveMode] = useState(false);
 
-  const handleSave = () => {
-    updateUser?.(form);
-    setSaved(true);
-    toast('Profile updated successfully!', 'success');
-    setTimeout(() => setSaved(false), 2500);
+  const handleSave = async () => {
+    try {
+      await updateUser?.({ ...form, emailNotifications: emailNotif, smsNotifications: smsNotif });
+      setSaved(true);
+      toast('Profile updated successfully!', 'success');
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      toast(err.message || 'Failed to update profile', 'error');
+    }
   };
 
-  const handlePasswordUpdate = () => {
+  const handlePasswordUpdate = async () => {
     if (!pwdForm.current) { toast('Enter current password.', 'error'); return; }
     if (pwdForm.newPwd.length < 8) { toast('Password must be at least 8 characters.', 'error'); return; }
     if (pwdForm.newPwd !== pwdForm.confirm) { toast('Passwords do not match.', 'error'); return; }
-    toast('Password updated!', 'success');
-    setPwdForm({ current: '', newPwd: '', confirm: '' });
+    try {
+      await updatePassword(pwdForm.current, pwdForm.newPwd);
+      toast('Password updated!', 'success');
+      setPwdForm({ current: '', newPwd: '', confirm: '' });
+    } catch (err) {
+      toast(err.message || 'Failed to update password', 'error');
+    }
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      await uploadAvatar(file);
+      toast('Profile photo updated!', 'success');
+      setShowPhotoModal(false);
+    } catch (err) {
+      toast(err.message || 'Failed to upload photo', 'error');
+    }
+  };
+
+  const handlePhotoRemove = async () => {
+    try {
+      await removeAvatar();
+      toast('Photo removed.', 'info');
+      setShowPhotoModal(false);
+    } catch (err) {
+      toast(err.message || 'Failed to remove photo', 'error');
+    }
   };
 
   const initials = form.name.split(' ').filter(w => w).map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -64,8 +95,8 @@ function DoctorProfile() {
       <div className="bg-gradient-to-r from-aubergine-900 to-aubergine-800 rounded-3xl p-8 text-white flex flex-col sm:flex-row items-center sm:items-start gap-6 relative overflow-hidden">
         <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
         <div className="relative flex-shrink-0">
-          <div className="w-24 h-24 rounded-3xl bg-white/20 border-4 border-white/30 flex items-center justify-center text-3xl font-black shadow-xl">
-            {initials}
+          <div className="w-24 h-24 rounded-3xl bg-white/20 border-4 border-white/30 flex items-center justify-center text-3xl font-black shadow-xl overflow-hidden">
+            {user?.avatarUrl ? <img src={user.avatarUrl} alt={form.name} className="w-full h-full object-cover" /> : initials}
           </div>
           <button onClick={() => setShowPhotoModal(true)}
             className="absolute -bottom-2 -right-2 w-8 h-8 bg-white text-aubergine-700 rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform">
@@ -307,12 +338,14 @@ function DoctorProfile() {
       {/* Photo Modal */}
       <Modal isOpen={showPhotoModal} onClose={() => setShowPhotoModal(false)} title="Change Profile Photo" size="sm">
         <div className="text-center space-y-4">
-          <div className="w-24 h-24 rounded-3xl bg-aubergine-100 text-aubergine-700 text-3xl font-black flex items-center justify-center mx-auto">{initials}</div>
-          <input type="file" accept="image/*" className="hidden" id="doctor-photo-upload" onChange={() => { toast('Profile photo updated!', 'success'); setShowPhotoModal(false); }} />
+          <div className="w-24 h-24 rounded-3xl bg-aubergine-100 text-aubergine-700 text-3xl font-black flex items-center justify-center mx-auto overflow-hidden">
+            {user?.avatarUrl ? <img src={user.avatarUrl} alt={form.name} className="w-full h-full object-cover" /> : initials}
+          </div>
+          <input type="file" accept="image/*" className="hidden" id="doctor-photo-upload" onChange={handlePhotoUpload} />
           <label htmlFor="doctor-photo-upload" className="block w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm cursor-pointer transition-colors">
             <i className="fas fa-upload mr-2"></i> Upload Photo
           </label>
-          <button onClick={() => { toast('Photo removed.', 'info'); setShowPhotoModal(false); }}
+          <button onClick={handlePhotoRemove}
             className="w-full border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold py-2.5 rounded-xl text-sm transition-colors">
             Remove Photo
           </button>

@@ -23,6 +23,7 @@ export const ERROR_MESSAGES = {
   // Doctors
   DOCTOR_NOT_FOUND: 'Doctor not found or not verified.',
   KYC_ALREADY_SUBMITTED: 'KYC documents have already been submitted.',
+  DOCTOR_NOT_VERIFIED: 'Your account is pending admin verification. You will get access to patient data once approved.',
 
   // Appointments
   APPOINTMENT_NOT_FOUND: 'Appointment not found.',
@@ -50,6 +51,9 @@ export const ERROR_MESSAGES = {
   // Staff
   STAFF_NOT_FOUND: 'Staff member not found.',
   LEAVE_NOT_FOUND: 'Leave request not found.',
+
+  // Notifications
+  NOTIFICATION_NOT_FOUND: 'Notification not found.',
 
   // Generic
   BAD_REQUEST: 'Bad request. Please check your parameters.',

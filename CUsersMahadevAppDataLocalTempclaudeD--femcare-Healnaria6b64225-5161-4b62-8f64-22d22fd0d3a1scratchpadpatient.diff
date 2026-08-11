@@ -1,0 +1,2370 @@
+diff --git a/src/patient/pages/Appointments.jsx b/src/patient/pages/Appointments.jsx
+index 7f85481..c45a017 100644
+--- a/src/patient/pages/Appointments.jsx
++++ b/src/patient/pages/Appointments.jsx
+@@ -18,10 +18,15 @@ function JoinWaitlistModal({ isOpen, onClose, doctors, onJoin }) {
+     if (!doctorId || !preferredWindow) return;
+     setJoining(true);
+     try {
++      // onJoin rethrows on failure (after toasting) — without this catch, a
++      // failed join used to reset the form and close the modal anyway,
++      // looking identical to success.
+       await onJoin(doctorId, preferredWindow);
+       setDoctorId('');
+       setPreferredWindow('');
+       onClose();
++    } catch {
++      // already toasted by the caller — keep the modal open so the user can retry
+     } finally {
+       setJoining(false);
+     }
+@@ -72,9 +77,22 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
+ 
+   const reset = () => { setStep(1); setForm({ doctorId: '', type: 'Video Consult', date: '', slot: '', notes: '' }); onClose(); };
+ 
+-  const confirm = () => {
+-    onBook({ ...form, doctorName: selectedDoctor?.full_name, fee: selectedDoctor?.consultation_fee });
+-    reset();
++  const [booking, setBooking] = useState(false);
++
++  const confirm = async () => {
++    setBooking(true);
++    try {
++      // onBook rethrows on failure (after showing its own error toast) so we
++      // know not to reset/close here — previously this fired the request
++      // and closed immediately regardless of outcome, making a failed
++      // booking look identical to a successful one.
++      await onBook({ ...form, doctorName: selectedDoctor?.full_name, fee: selectedDoctor?.consultation_fee });
++      reset();
++    } catch {
++      // already toasted by the caller — keep the modal open so the user can retry
++    } finally {
++      setBooking(false);
++    }
+   };
+ 
+   return (
+@@ -136,10 +154,10 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
+             <div className="flex justify-between"><span className="font-bold text-slate-600">Consult Fee</span><span className="text-aubergine-700 font-black">₹{selectedDoctor?.consultation_fee ?? 799}</span></div>
+           </div>
+           <div className="flex gap-3">
+-            <button onClick={() => setStep(1)} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors">← Back</button>
+-            <button disabled={!form.slot} onClick={confirm}
++            <button onClick={() => setStep(1)} disabled={booking} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors disabled:opacity-40">← Back</button>
++            <button disabled={!form.slot || booking} onClick={confirm}
+               className="flex-1 bg-emerald-600 disabled:opacity-40 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+-              <i className="fas fa-circle-check"></i> Confirm
++              <i className={`fas ${booking ? 'fa-spinner fa-spin' : 'fa-circle-check'}`}></i> {booking ? 'Booking…' : 'Confirm'}
+             </button>
+           </div>
+         </div>
+@@ -235,6 +253,18 @@ function PatientAppointments() {
+   const doctorById = useMemo(() => new Map(doctors.map(d => [d.id, d])), [doctors]);
+   const todayStr = todayLocalStr();
+ 
++  const [transactions, setTransactions] = useState([]);
++  useEffect(() => {
++    apiFetch('/billing/transactions').then(setTransactions).catch(() => setTransactions([]));
++  }, []);
++  // Appointment status and payment status are tracked independently on the
++  // backend (booking never implies paid) — this is the only way the UI can
++  // tell whether a given appointment still needs payment.
++  const paidAppointmentIds = useMemo(
++    () => new Set(transactions.filter(t => t.status === 'Paid').map(t => t.appointment_id)),
++    [transactions]
++  );
++
+   const toRow = (a) => {
+     const doc = doctorById.get(a.doctorId);
+     return {
+@@ -248,6 +278,7 @@ function PatientAppointments() {
+       status: STATUS_LABEL[a.status] || a.status,
+       type: a.type,
+       fee: doc?.consultation_fee ?? 799,
++      isPaid: paidAppointmentIds.has(a.id),
+     };
+   };
+ 
+@@ -255,13 +286,13 @@ function PatientAppointments() {
+     .filter(a => !['Done', 'Cancelled', 'No Show'].includes(a.status))
+     .map(toRow)
+     .sort((a, b) => (a.date || '').localeCompare(b.date || '')),
+-    [appointments, doctorById]);
++    [appointments, doctorById, paidAppointmentIds]);
+ 
+   const past = useMemo(() => appointments
+     .filter(a => ['Done', 'Cancelled', 'No Show'].includes(a.status))
+     .map(toRow)
+     .sort((a, b) => (b.date || '').localeCompare(a.date || '')),
+-    [appointments, doctorById]);
++    [appointments, doctorById, paidAppointmentIds]);
+ 
+   // Modals
+   const [showBook, setShowBook] = useState(false);
+@@ -297,14 +328,23 @@ function PatientAppointments() {
+       toast('Appointment requested! We\'ll confirm it shortly.', 'success');
+     } catch (err) {
+       toast(err.message || 'Failed to book appointment', 'error');
++      throw err; // let BookingModal know booking failed so it doesn't reset/close
+     }
+   };
+ 
+   const handleCancel = async () => {
+-    const doctorName = cancelTarget.doctor;
+-    await cancelAppointment(cancelTarget.id);
+-    toast(`Appointment with ${doctorName} cancelled. Refund initiated.`, 'info');
+-    setCancelTarget(null);
++    // Read before the await — ConfirmModal calls onClose() right after this
++    // regardless of outcome, so cancelTarget may already be null by the time
++    // a rejected promise unwinds here.
++    const { id, doctor: doctorName } = cancelTarget;
++    try {
++      await cancelAppointment(id);
++      toast(`Appointment with ${doctorName} cancelled. Refund initiated.`, 'info');
++    } catch (err) {
++      // ConfirmModal doesn't await onConfirm, so without this catch a failed
++      // cancellation silently rolled the row back with zero feedback.
++      toast(err.message || 'Failed to cancel appointment. Please try again.', 'error');
++    }
+   };
+ 
+   const handleJoinWaitlist = async (doctorId, preferredWindow) => {
+@@ -313,6 +353,23 @@ function PatientAppointments() {
+       toast('Added to the waitlist. We\'ll notify you when a slot opens.', 'success');
+     } catch (err) {
+       toast(err.message || 'Failed to join waitlist.', 'error');
++      throw err; // let JoinWaitlistModal know it failed so it doesn't reset/close
++    }
++  };
++
++  const [payingId, setPayingId] = useState(null);
++
++  const handlePayNow = async (apt) => {
++    setPayingId(apt.id);
++    try {
++      await apiFetch('/billing/pay', { method: 'POST', body: { appointmentId: apt.id, method: 'UPI' } });
++      const refreshed = await apiFetch('/billing/transactions');
++      setTransactions(refreshed);
++      toast('Payment successful!', 'success');
++    } catch (err) {
++      toast(err.message || 'Payment failed. Please try again.', 'error');
++    } finally {
++      setPayingId(null);
+     }
+   };
+ 
+@@ -440,16 +497,16 @@ function PatientAppointments() {
+                             <i className="fas fa-video"></i> Join Call
+                           </button>
+                         )}
+-                        {apt.status === 'Pending' && (
+-                          <button onClick={() => toast('Reminder: Payment due before appointment', 'warning')}
+-                            className="bg-amber-500 text-white font-bold hover:bg-amber-600 shadow-sm px-4 py-1.5 rounded-lg transition-colors text-xs flex items-center gap-1.5">
+-                            <i className="fas fa-clock"></i> Pending
++                        {!apt.isPaid && (
++                          <button onClick={() => handlePayNow(apt)} disabled={payingId === apt.id}
++                            className="bg-amber-500 text-white font-bold hover:bg-amber-600 shadow-sm px-4 py-1.5 rounded-lg transition-colors text-xs flex items-center gap-1.5 disabled:opacity-60">
++                            <i className={`fas ${payingId === apt.id ? 'fa-spinner fa-spin' : 'fa-credit-card'}`}></i> {payingId === apt.id ? 'Paying…' : 'Pay Now'}
+                           </button>
+                         )}
+                       </div>
+                     ) : (
+                       <div className="flex justify-end gap-2">
+-                        <button onClick={() => toast('Downloading appointment summary...', 'info')}
++                        <button onClick={() => toast('Appointment summaries are coming soon.', 'info')}
+                           className="text-slate-500 hover:text-slate-700 font-bold px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors text-xs flex items-center gap-1.5">
+                           <i className="fas fa-download"></i> Summary
+                         </button>
+diff --git a/src/patient/pages/Billing.jsx b/src/patient/pages/Billing.jsx
+index 775f743..8f532ca 100644
+--- a/src/patient/pages/Billing.jsx
++++ b/src/patient/pages/Billing.jsx
+@@ -24,6 +24,19 @@ function PaymentModal({ isOpen, onClose, amount, description, onSuccess }) {
+   const [upiId, setUpiId] = useState('');
+   const [processing, setProcessing] = useState(false);
+ 
++  // This modal stays mounted across opens (only `isOpen` toggles) — without
++  // this, abandoning a payment mid-flow (e.g. closing on step 2) and later
++  // opening it again for a different appointment resumed on the stale step
++  // with leftover method/UPI-ID data instead of starting clean.
++  useEffect(() => {
++    if (isOpen) {
++      setStep(1);
++      setMethod('UPI');
++      setUpiId('');
++      setProcessing(false);
++    }
++  }, [isOpen]);
++
+   const METHODS = [
+     { id: 'UPI', label: 'UPI / GPay', icon: 'fa-mobile-screen-button', color: 'text-aubergine-600' },
+     { id: 'Card', label: 'Credit / Debit Card', icon: 'fa-credit-card', color: 'text-sky-600' },
+@@ -49,7 +62,12 @@ function PaymentModal({ isOpen, onClose, amount, description, onSuccess }) {
+   };
+ 
+   return (
+-    <Modal isOpen={isOpen} onClose={step < 3 ? onClose : undefined} title={step < 3 ? 'Make Payment' : undefined} size="sm">
++    // Step 3 used to pass onClose={undefined} to block dismissal — but Modal's
++    // overlay-click and Escape handlers call onClose() unconditionally, so
++    // either one crashed with "onClose is not a function" on the success
++    // screen. Routing through done() instead lets those still close the
++    // modal, while also resetting local state the same way the Done button does.
++    <Modal isOpen={isOpen} onClose={step < 3 ? onClose : done} title={step < 3 ? 'Make Payment' : undefined} size="sm">
+       {step === 1 && (
+         <div className="space-y-4">
+           <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-4 text-center">
+@@ -133,10 +151,6 @@ function PatientBilling() {
+   const [payTarget, setPayTarget] = useState(null);
+   const [showPayModal, setShowPayModal] = useState(false);
+   const [payFor, setPayFor] = useState({ amount: 0, description: '' });
+-  const [labsData, setLabsData] = useState(() => {
+-    const raw = localStorage.getItem('prescribed_labs');
+-    return raw ? JSON.parse(raw) : null;
+-  });
+ 
+   const loadTransactions = () => apiFetch('/billing/transactions').then(setRawTransactions).catch(err => toast(err.message || 'Failed to load transactions', 'error'));
+   useEffect(() => { loadTransactions(); }, []);
+@@ -155,9 +169,19 @@ function PatientBilling() {
+ 
+   const doctorById = useMemo(() => new Map(doctors.map(d => [d.id, d])), [doctors]);
+ 
++  // billing.service.ts::pay() creates a brand-new payment row whenever it
++  // doesn't find an existing 'Pending' one for the appointment — it does not
++  // reject an appointment that's already 'Paid'. Without excluding paid
++  // appointments here, "Pay Now" would stay clickable after a successful
++  // payment and create a duplicate payment record on a second click.
++  const paidAppointmentIds = useMemo(
++    () => new Set(rawTransactions.filter(t => t.status === 'Paid').map(t => t.appointment_id)),
++    [rawTransactions]
++  );
++
+   const upcomingPayment = useMemo(() => {
+     const next = appointments
+-      .filter(a => !['Done', 'Cancelled', 'No Show', 'Requested'].includes(a.status))
++      .filter(a => !['Done', 'Cancelled', 'No Show', 'Requested'].includes(a.status) && !paidAppointmentIds.has(a.id))
+       .sort((a, b) => (a.date || '').localeCompare(b.date || ''))[0];
+     if (!next) return null;
+     const doc = doctorById.get(next.doctorId);
+@@ -167,7 +191,7 @@ function PatientBilling() {
+       date: next.date,
+       amount: doc?.consultation_fee ?? 799,
+     };
+-  }, [appointments, doctorById]);
++  }, [appointments, doctorById, paidAppointmentIds]);
+ 
+   const totalPaid = transactions.filter(t => t.status === 'paid').reduce((s, t) => s + t.amount, 0);
+ 
+@@ -228,12 +252,6 @@ function PatientBilling() {
+     URL.revokeObjectURL(url);
+   };
+ 
+-  // No home-collection booking endpoint exists yet — be upfront about that
+-  // instead of "booking" it purely in localStorage.
+-  const handleBookCollection = () => {
+-    toast('Online booking for home collection is coming soon. Please call the clinic to schedule.', 'info');
+-  };
+-
+   return (
+     <div className="space-y-6 animate-fade-in">
+       <div>
+@@ -264,7 +282,7 @@ function PatientBilling() {
+               </button>
+             </>
+           ) : (
+-            <div className="text-sm text-slate-500 mt-2">No upcoming consultation due.</div>
++            <div className="text-sm text-slate-500 mt-2">No payment due right now.</div>
+           )}
+         </div>
+ 
+@@ -280,38 +298,6 @@ function PatientBilling() {
+         </div>
+       </div>
+ 
+-      {/* Prescribed Labs */}
+-      {labsData && (
+-        <div className="bg-indigo-50 border border-aubergine-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fade-in">
+-          <div className="space-y-1">
+-            <span className="bg-aubergine-100 text-aubergine-700 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded border border-aubergine-200">
+-              Prescribed Diagnostic Lab Panel
+-            </span>
+-            <h3 className="font-extrabold text-slate-800 text-base pt-1">
+-              Required blood work ordered by {labsData.prescribedBy} ({labsData.date})
+-            </h3>
+-            <ul className="text-xs text-slate-600 space-y-1 list-disc pl-4 pt-1 font-semibold">
+-              {labsData.labs.map(lab => <li key={lab}>{lab}</li>)}
+-            </ul>
+-          </div>
+-          <div className="flex flex-col items-end shrink-0 gap-2 w-full md:w-auto">
+-            {labsData.status === 'booked' ? (
+-              <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-sm">
+-                <i className="fas fa-circle-check"></i> Collection Booked: Tomorrow (7:00 AM)
+-              </div>
+-            ) : (
+-              <>
+-                <span className="text-xs text-slate-500 font-bold">Estimated Cost: ₹1,499 (Zero-Fee Pick-up)</span>
+-                <button onClick={handleBookCollection}
+-                  className="bg-aubergine-100 text-aubergine-700 font-bold px-5 py-2.5 rounded-xl text-xs transition-colors flex items-center gap-2 hover:bg-aubergine-200">
+-                  <i className="fas fa-truck-droplet"></i> Book Home Blood Collection
+-                </button>
+-              </>
+-            )}
+-          </div>
+-        </div>
+-      )}
+-
+       {/* Transaction History */}
+       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+         <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+diff --git a/src/patient/pages/Dashboard.jsx b/src/patient/pages/Dashboard.jsx
+index 25e8f60..1a6d880 100644
+--- a/src/patient/pages/Dashboard.jsx
++++ b/src/patient/pages/Dashboard.jsx
+@@ -117,16 +117,37 @@ function VideoCallModal({ isOpen, onClose, toast, appointment }) {
+   );
+ }
+ 
++// Previously this made no API call at all — "Submit" just flipped to a
++// success screen claiming "Symptom report sent to Dr. Sarah Mitchell" (a
++// hardcoded name with no relation to the patient's real doctor), reviewed
++// "within 2 hours". Nothing was ever sent anywhere. There's no patient-facing
++// messaging/report backend to route this through for real, but cycle_logs
++// already has a working `symptoms` array column — reusing it gives this
++// real persistence (visible later on Tracking/Fertility) instead of a lie.
+ function SymptomCheckerModal({ isOpen, onClose, toast }) {
++  const { logCycle, cycleLogs } = useClinicData();
++  const navigate = useNavigate();
+   const [step, setStep] = useState(1);
+   const [selected, setSelected] = useState([]);
+   const [severity, setSeverity] = useState(3);
++  const [saving, setSaving] = useState(false);
+ 
+   const toggleSymptom = (s) => setSelected(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
+ 
+-  const handleSubmit = () => {
+-    setStep(3);
+-    toast('Symptom report sent to Dr. Sarah Mitchell', 'success');
++  const handleSubmit = async () => {
++    setSaving(true);
++    try {
++      // Merge with whatever's already logged today (e.g. via Tracking)
++      // instead of overwriting it — logCycle's PUT replaces the whole array.
++      const existing = cycleLogs[todayLocalStr()]?.symptoms || [];
++      const merged = Array.from(new Set([...existing, ...selected]));
++      await logCycle(todayLocalStr(), { symptoms: merged });
++      setStep(3);
++    } catch {
++      toast('Could not save your symptom log. Please try again.', 'error');
++    } finally {
++      setSaving(false);
++    }
+   };
+ 
+   const reset = () => { setStep(1); setSelected([]); setSeverity(3); onClose(); };
+@@ -161,24 +182,33 @@ function SymptomCheckerModal({ isOpen, onClose, toast }) {
+           </div>
+           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 font-medium">
+             <i className="fas fa-circle-info mr-1.5"></i>
+-            {severity >= 8 ? 'High severity detected. Recommending urgent consult.' : 'We will send your report to your care team for review.'}
++            {severity >= 8
++              ? 'High severity — consider booking an appointment or contacting your doctor directly.'
++              : "This will be saved to today's cycle log as a personal record — it isn't automatically sent to your care team."}
+           </div>
+           <div className="flex gap-3">
+-            <button onClick={() => setStep(1)} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors">← Back</button>
+-            <button onClick={handleSubmit} className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">Submit Report</button>
++            <button onClick={() => setStep(1)} disabled={saving} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors disabled:opacity-40">← Back</button>
++            <button onClick={handleSubmit} disabled={saving} className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-colors">{saving ? 'Saving…' : 'Save Symptom Log'}</button>
+           </div>
+         </div>
+       )}
+       {step === 3 && (
+         <div className="text-center space-y-4 py-4">
+           <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 text-3xl flex items-center justify-center mx-auto"><i className="fas fa-circle-check"></i></div>
+-          <h4 className="font-black text-slate-800 text-lg">Report Submitted!</h4>
+-          <p className="text-sm text-slate-500">Dr. Sarah Mitchell will review your symptoms and respond within 2 hours.</p>
++          <h4 className="font-black text-slate-800 text-lg">Symptoms Logged</h4>
++          <p className="text-sm text-slate-500">
++            Saved to today's cycle log.{' '}
++            {severity >= 8 ? 'Given the severity you reported, consider booking an appointment.' : 'You can review this anytime on the Tracking or Fertility pages.'}
++          </p>
+           <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 text-left space-y-1">
+             <p className="font-bold">Logged Symptoms: <span className="font-normal text-aubergine-700">{selected.join(', ')}</span></p>
+             <p className="font-bold">Severity: <span className="font-normal">{severity}/10</span></p>
+           </div>
+-          <button onClick={reset} className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">Done</button>
++          {severity >= 8 ? (
++            <button onClick={() => { reset(); navigate('/patient-dashboard/appointments'); }} className="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">Book an Appointment</button>
++          ) : (
++            <button onClick={reset} className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">Done</button>
++          )}
+         </div>
+       )}
+     </Modal>
+@@ -271,7 +301,7 @@ function QuickBookModal({ isOpen, onClose, toast, addAppointment }) {
+         reason: '',
+       });
+       onClose();
+-      toast('Appointment booked! Confirmation SMS sent.', 'success');
++      toast('Appointment booked!', 'success');
+       setStep(1); setForm({ doctorId: '', type: 'Video', date: '', slot: '' });
+     } catch (err) {
+       toast(err.message || 'Failed to book appointment.', 'error');
+@@ -456,219 +486,317 @@ function OnboardingModal({ isOpen, onClose, toast }) {
+   );
+ }
+ 
+-/* ─── Cycle & Fertility widget — folds the phase-tip tracker together with a
+-   live teaser pulled from the real fertility-prediction endpoint, so the
+-   dashboard surfaces the same real numbers as the Fertility page. ─── */
+-function CycleFertilityWidget({ toast }) {
++/* ─── Wellness Score ─── */
++function WellnessScoreWidget({ vitals, lifestyle, waterCount, moodLogged, discreet }) {
++  // Score out of 100
++  let score = 50; // base score
++  if (vitals && Object.keys(vitals).length > 0) score += 10;
++  if (waterCount >= 4) score += 10;
++  if (waterCount >= 8) score += 10;
++  if (moodLogged) score += 10;
++  if (lifestyle && lifestyle.completedCount > 0) score += (lifestyle.completedCount * 5);
++  score = Math.min(100, score);
++
++  const circumference = 2 * Math.PI * 40;
++  const strokeDashoffset = circumference - (score / 100) * circumference;
++
++  return (
++    <div className={`glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col items-center justify-center text-center ${discreet ? 'discreet-blur' : ''}`}>
++      <div className="absolute -top-10 -right-10 w-32 h-32 bg-aubergine-300 rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-pulse"></div>
++      <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-magenta-200 rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-pulse" style={{ animationDelay: '2s' }}></div>
++
++      <h3 className="font-bold text-slate-800 text-sm mb-4 relative z-10">Today's Wellness</h3>
++
++      <div className="relative w-28 h-28 flex items-center justify-center z-10 mb-2">
++        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
++          <circle cx="50" cy="50" r="40" stroke="#EDE7FF" strokeWidth="8" fill="transparent" />
++          <circle cx="50" cy="50" r="40" stroke="url(#score-gradient)" strokeWidth="8" fill="transparent"
++            strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round"
++            className="transition-all duration-1000 ease-out" />
++          <defs>
++            <linearGradient id="score-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
++              <stop offset="0%" stopColor="#6B46C1" />
++              <stop offset="100%" stopColor="#E23E8C" />
++            </linearGradient>
++          </defs>
++        </svg>
++        <div className="absolute inset-0 flex flex-col items-center justify-center">
++          <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-aubergine-700 to-magenta-600">{score}</span>
++        </div>
++      </div>
++      <p className="text-xs text-slate-500 font-medium relative z-10">
++        {score >= 80 ? "You're doing amazing today!" : score >= 50 ? "Keep up the good habits!" : "Let's log some healthy actions."}
++      </p>
++    </div>
++  );
++}
++
++/* ─── Interactive Hydration Tracker ─── */
++function HydrationTracker({ waterCount, setWaterCount, toast, discreet }) {
++  const goal = 8;
++  const pct = Math.min(100, (waterCount / goal) * 100);
++
++  const handleAdd = () => {
++    setWaterCount(prev => prev + 1);
++    if (waterCount + 1 === goal) toast("Hydration goal reached! 💧", "success");
++  };
++
++  return (
++    <div className={`glass-panel rounded-3xl p-6 relative overflow-hidden group ${discreet ? 'discreet-blur' : ''}`}>
++      {/* Animated water background */}
++      <div className="absolute bottom-0 left-0 right-0 bg-sky-100/50 transition-all duration-700 ease-out z-0"
++        style={{ height: `${pct}%` }}>
++        <div className="absolute -top-3 left-0 right-0 h-3 bg-sky-200/40 rounded-t-[50%] animate-pulse"></div>
++      </div>
++
++      <div className="relative z-10 flex items-center justify-between">
++        <div>
++          <div className="flex items-center gap-2 mb-1">
++            <i className="fas fa-droplet text-sky-500"></i>
++            <h3 className="font-bold text-slate-800 text-sm">Water Intake</h3>
++          </div>
++          <p className="text-xs text-slate-500">{waterCount} of {goal} glasses</p>
++        </div>
++        <button onClick={handleAdd} className="w-10 h-10 rounded-full bg-white shadow-md text-sky-500 hover:bg-sky-50 flex items-center justify-center text-lg transition-transform active:scale-90">
++          <i className="fas fa-plus"></i>
++        </button>
++      </div>
++
++      <div className="relative z-10 mt-4 flex gap-1 justify-between">
++        {Array.from({ length: goal }).map((_, i) => (
++          <div key={i} className={`h-8 flex-1 rounded-md transition-all duration-300 ${i < waterCount ? 'bg-sky-400' : 'bg-slate-100'}`}></div>
++        ))}
++      </div>
++    </div>
++  );
++}
++
++/* ─── Daily Medication Checklist ─── */
++function DailyMedicationChecklist({ meds, toast, discreet }) {
++  const navigate = useNavigate();
++  const [taken, setTaken] = useState(() => {
++    const saved = localStorage.getItem(`meds_taken_${todayLocalStr()}`);
++    return saved ? JSON.parse(saved) : {};
++  });
++
++  const toggleMed = (id) => {
++    const next = { ...taken, [id]: !taken[id] };
++    setTaken(next);
++    localStorage.setItem(`meds_taken_${todayLocalStr()}`, JSON.stringify(next));
++    if (next[id]) toast("Medication marked as taken", "success");
++  };
++
++  const list = (meds || []).slice(0, 3);
++
++  return (
++    <div className={`glass-panel rounded-3xl p-6 ${discreet ? 'discreet-blur' : ''}`}>
++      <div className="flex items-center justify-between mb-4">
++        <div className="flex items-center gap-2">
++          <i className="fas fa-pills text-aubergine-500"></i>
++          <h3 className="font-bold text-slate-800 text-sm">Today's Meds</h3>
++        </div>
++        <button onClick={() => navigate('/patient-dashboard/prescriptions')} className="text-[10px] font-bold text-aubergine-600 hover:underline uppercase tracking-wide">All</button>
++      </div>
++
++      {list.length === 0 ? (
++        <p className="text-xs text-slate-500 text-center py-4 bg-slate-50 rounded-xl">No active prescriptions.</p>
++      ) : (
++        <div className="space-y-3">
++          {list.map(med => (
++            <div key={med.id} onClick={() => toggleMed(med.id)}
++              className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${taken[med.id] ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-100 hover:border-aubergine-200 shadow-sm'}`}>
++              <div>
++                <p className={`font-bold text-sm ${taken[med.id] ? 'text-emerald-800 line-through opacity-70' : 'text-slate-800'}`}>{med.name}</p>
++                <p className="text-xs text-slate-500">{med.dosage} • {med.frequency}</p>
++              </div>
++              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs transition-colors ${taken[med.id] ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 text-transparent'}`}>
++                <i className="fas fa-check"></i>
++              </div>
++            </div>
++          ))}
++        </div>
++      )}
++    </div>
++  );
++}
++
++/* ─── Mood & Energy Logger ─── */
++function MoodEnergyLogger({ logCycle, cycleLogs, toast }) {
++  const dateKey = todayLocalStr();
++  const currentMood = cycleLogs[dateKey]?.mood;
++  const [logging, setLogging] = useState(false);
++
++  const MOODS = [
++    { id: 'Joyful', icon: '😊', color: 'bg-amber-100 text-amber-700 border-amber-200', msg: "Glad you're feeling great! Keep that positive energy flowing." },
++    { id: 'Calm', icon: '😌', color: 'bg-sky-100 text-sky-700 border-sky-200', msg: "A calm mind is a powerful tool. Enjoy the peace." },
++    { id: 'Tired', icon: '🥱', color: 'bg-slate-100 text-slate-700 border-slate-200', msg: "Listen to your body. Rest is productive too." },
++    { id: 'Anxious', icon: '😟', color: 'bg-rose-100 text-rose-700 border-rose-200', msg: "Take a deep breath. Hormonal fluctuations can trigger this. Be kind to yourself." },
++  ];
++
++  const handleMood = async (m) => {
++    if (m.id === currentMood) return;
++    setLogging(true);
++    try {
++      await logCycle(dateKey, { mood: m.id });
++      toast(m.msg, 'info');
++    } catch {
++      toast("Failed to log mood", "error");
++    } finally {
++      setLogging(false);
++    }
++  };
++
++  return (
++    <div className="glass-panel rounded-3xl p-6">
++      <div className="flex items-center gap-2 mb-4">
++        <i className="fas fa-face-smile-beam text-magenta-500"></i>
++        <h3 className="font-bold text-slate-800 text-sm">How are you feeling?</h3>
++      </div>
++      <div className="grid grid-cols-4 gap-2">
++        {MOODS.map(m => {
++          const isSelected = currentMood === m.id;
++          return (
++            <button key={m.id} onClick={() => handleMood(m)} disabled={logging}
++              className={`flex flex-col items-center p-3 rounded-2xl border transition-all duration-300 ${isSelected ? `${m.color} scale-105 shadow-md` : 'bg-white border-slate-100 hover:border-slate-300 hover:bg-slate-50 grayscale opacity-70 hover:grayscale-0 hover:opacity-100'}`}>
++              <span className="text-2xl mb-1">{m.icon}</span>
++              <span className={`text-[10px] font-bold ${isSelected ? '' : 'text-slate-500'}`}>{m.id}</span>
++            </button>
++          )
++        })}
++      </div>
++      {currentMood && (
++        <p className="text-xs text-center mt-4 text-slate-500 font-medium italic animate-fade-in">
++          "{MOODS.find(m => m.id === currentMood)?.msg}"
++        </p>
++      )}
++    </div>
++  );
++}
++
++/* ─── Enhanced Cycle Ribbon ─── */
++function WeeklyCycleRibbon({ toast }) {
+   const { logCycle, cycleLogs } = useClinicData();
+   const navigate = useNavigate();
+   const [fertility, setFertility] = useState(null);
+-  const [loadingFertility, setLoadingFertility] = useState(true);
+ 
+   useEffect(() => {
+-    apiFetch('/patients/me/fertility-prediction')
+-      .then(setFertility)
+-      .catch(() => setFertility(null))
+-      .finally(() => setLoadingFertility(false));
++    apiFetch('/patients/me/fertility-prediction').then(setFertility).catch(() => setFertility(null));
+   }, []);
+ 
+-  // Default to whatever phase was most recently logged; only fall back to a
+-  // neutral phase when there's no cycle history to read from yet.
++  const dateKey = todayLocalStr();
+   const [currentPhase, setCurrentPhase] = useState(() => {
+     const dates = Object.keys(cycleLogs).sort().reverse();
+-    for (const d of dates) {
+-      if (cycleLogs[d]?.phase) return cycleLogs[d].phase;
+-    }
++    for (const d of dates) { if (cycleLogs[d]?.phase) return cycleLogs[d].phase; }
+     return 'follicular';
+   });
+-  const dateKey = todayLocalStr();
+-  const todayFlagKey = `cycle_logged_${dateKey}`;
+-  const [loggedToday, setLoggedToday] = useState(() => localStorage.getItem(todayFlagKey) === 'true');
+ 
+   const phase = CYCLE_PHASES.find(p => p.id === currentPhase);
++  const loggedToday = !!cycleLogs[dateKey]?.phase;
+ 
+-  const logToday = async () => {
++  const logToday = async (id) => {
+     try {
+-      await logCycle(dateKey, { phase: phase.id });
+-      localStorage.setItem(todayFlagKey, 'true');
+-      setLoggedToday(true);
+-      toast(`Logged today as ${phase.label} phase.`, 'success');
++      await logCycle(dateKey, { phase: id });
++      setCurrentPhase(id);
++      toast(`Logged today as ${CYCLE_PHASES.find(p => p.id === id).label} phase.`, 'success');
+     } catch {
+-      toast('Failed to save today\'s log. Please try again.', 'error');
++      toast('Failed to save log.', 'error');
+     }
+   };
+ 
+-  const hasFertility = fertility && fertility.classification !== 'insufficient_data';
+-  const cycleDay = hasFertility ? daysBetweenLocal(fertility.lastPeriodStart, dateKey) + 1 : null;
++  // Generate 7 days timeline
++  const timeline = Array.from({ length: 7 }, (_, i) => {
++    const d = new Date();
++    d.setDate(d.getDate() - 3 + i);
++    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
++    const isToday = i === 3;
++    const isFuture = i > 3;
++    return { date: d, dateStr, isToday, isFuture, label: d.toLocaleDateString('en-IN', { weekday: 'narrow' }), dayNum: d.getDate() };
++  });
+ 
+   return (
+-    <div className="p-6 md:p-8">
++    <div className="glass-panel rounded-3xl p-6 lg:col-span-2">
+       <div className="flex items-center justify-between mb-5">
+         <div>
+-          <h3 className="text-xl font-bold text-slate-800">Cycle & Fertility</h3>
+-          <p className="text-sm text-slate-500">{cycleDay ? `Day ${cycleDay} of your cycle` : 'Tap a phase to see insights'}</p>
++          <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
++            <i className="fas fa-moon text-aubergine-500"></i> Cycle & Fertility
++          </h3>
++          <p className="text-xs text-slate-500 mt-1">{phase.label} Phase • {phase.day}</p>
+         </div>
+         <button onClick={() => navigate('/patient-dashboard/fertility')}
+-          className="text-xs font-bold text-aubergine-600 hover:underline flex items-center gap-1 flex-shrink-0">
+-          Full Calendar <i className="fas fa-arrow-right text-[10px]"></i>
++          className="text-[10px] font-bold text-aubergine-600 hover:underline uppercase tracking-wide">
++          Calendar
+         </button>
+       </div>
+ 
+-      {!loadingFertility && hasFertility && (
+-        <div className="grid grid-cols-2 gap-3 mb-5">
+-          <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+-            <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide mb-0.5">Fertile Window</p>
+-            <p className="font-black text-emerald-800 text-sm">{formatShort(fertility.fertileWindow[0])} – {formatShort(fertility.fertileWindow[1])}</p>
+-          </div>
+-          <div className="bg-sky-50 border border-sky-100 rounded-xl p-3">
+-            <p className="text-[10px] font-bold text-sky-700 uppercase tracking-wide mb-0.5">Next Period</p>
+-            <p className="font-black text-sky-800 text-sm">{formatShort(fertility.nextPeriodEstimate)}</p>
++      {/* Week Timeline */}
++      <div className="flex justify-between items-center mb-6 relative">
++        <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-slate-100 -z-10"></div>
++        {timeline.map(t => (
++          <div key={t.dateStr} className="flex flex-col items-center gap-2 bg-white px-1 relative">
++            <span className={`text-[10px] font-bold ${t.isToday ? 'text-aubergine-600' : 'text-slate-400'}`}>{t.label}</span>
++            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${t.isToday ? 'bg-gradient-to-br from-aubergine-500 to-magenta-500 text-white shadow-lg shadow-aubergine-500/30 ring-4 ring-aubergine-50' : t.isFuture ? 'bg-slate-50 text-slate-400 border border-slate-200' : 'bg-slate-100 text-slate-600'}`}>
++              {t.dayNum}
++            </div>
+           </div>
+-        </div>
+-      )}
+-      {!loadingFertility && !hasFertility && (
+-        <button onClick={() => navigate('/patient-dashboard/fertility')}
+-          className="w-full bg-slate-50 border border-dashed border-slate-200 hover:border-aubergine-300 rounded-xl p-3 mb-5 text-left transition-colors">
+-          <p className="text-xs font-bold text-slate-600"><i className="fas fa-circle-info text-aubergine-400 mr-1.5"></i>Log a couple of cycles to unlock fertile-window predictions here.</p>
+-        </button>
+-      )}
+-
+-      {/* Phase Selector */}
+-      <div className="grid grid-cols-4 gap-2 mb-5">
+-        {CYCLE_PHASES.map(p => (
+-          <button key={p.id} onClick={() => { setCurrentPhase(p.id); toast(`Viewing ${p.label} phase`, 'info'); }}
+-            className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${currentPhase === p.id ? 'border-aubergine-500 bg-aubergine-50' : 'border-slate-200 hover:border-slate-300 bg-white'}`}>
+-            <div className={`w-4 h-4 rounded-full ${p.color} ${currentPhase === p.id ? 'animate-pulse' : ''}`}></div>
+-            <span className={`text-[10px] font-black ${currentPhase === p.id ? 'text-aubergine-700' : 'text-slate-500'}`}>{p.label}</span>
+-            <span className="text-[9px] text-slate-500">{p.day}</span>
+-          </button>
+         ))}
+       </div>
+ 
+-      <div className="bg-sand-50 rounded-xl p-4 flex items-start gap-3 border border-sand-200 mb-4">
+-        <i className="fas fa-lightbulb text-amber-500 mt-0.5 flex-shrink-0"></i>
+-        <p className="text-sm text-slate-600">{phase.tip}</p>
++      <div className="bg-gradient-to-r from-aubergine-50 to-magenta-50 rounded-2xl p-4 flex items-start gap-3 border border-aubergine-100/50 mb-4">
++        <i className="fas fa-lightbulb text-magenta-500 mt-0.5"></i>
++        <p className="text-xs text-aubergine-900 font-medium leading-relaxed">{phase.tip}</p>
+       </div>
+ 
+-      {/* One real write action on the most-viewed screen, not only on the Tracking page */}
+-      <button onClick={logToday} disabled={loggedToday}
+-        className={`w-full py-3 rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
+-          loggedToday
+-            ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default'
+-            : 'bg-aubergine-600 hover:bg-aubergine-700 text-white'
+-        }`}>
+-        <i className={`fas ${loggedToday ? 'fa-circle-check' : 'fa-plus'}`}></i>
+-        {loggedToday ? "Today's phase logged" : `Log Today as ${phase.label}`}
+-      </button>
++      <div className="grid grid-cols-4 gap-2">
++        {CYCLE_PHASES.map(p => (
++          <button key={p.id} onClick={() => logToday(p.id)}
++            className={`py-2 rounded-xl border text-[10px] font-bold transition-all ${currentPhase === p.id ? `${p.color} text-white border-transparent shadow-md` : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>
++            {p.label}
++          </button>
++        ))}
++      </div>
+     </div>
+   );
+ }
+ 
+-/* ─── Vitals snapshot — real readings from the Tracking page, not decoration. ─── */
+-function VitalsSnapshot({ vitals, discreet }) {
+-  const navigate = useNavigate();
++/* ─── Vitals Widget (Mini) ─── */
++function VitalsSnapshot({ vitals, discreet, navigate }) {
+   const hasAny = Object.keys(vitals || {}).length > 0;
+-
+-  if (!hasAny) {
+-    return (
+-      <button onClick={() => navigate('/patient-dashboard/tracking')}
+-        className="w-full bg-white rounded-2xl border-2 border-dashed border-slate-200 hover:border-aubergine-300 p-6 text-center transition-all">
+-        <i className="fas fa-heart-pulse text-slate-400 text-2xl mb-2 block"></i>
+-        <p className="font-bold text-slate-600 text-sm">Start tracking your vitals</p>
+-        <p className="text-xs text-slate-500 mt-0.5">Log weight, BP, sugar & sleep to see them here.</p>
+-      </button>
+-    );
+-  }
+-
+   return (
+-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+-      {Object.entries(VITALS_CONFIG).map(([key, cfg]) => {
+-        const reading = vitals[key];
+-        return (
+-          <button key={key} onClick={() => navigate('/patient-dashboard/tracking')}
+-            className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-aubergine-200 transition-all text-left group">
+-            <div className={`w-9 h-9 rounded-xl ${cfg.color} flex items-center justify-center mb-2 text-sm group-hover:scale-110 transition-transform`}>
+-              <i className={`fas ${cfg.icon}`}></i>
+-            </div>
+-            <div className={`font-black text-slate-800 text-lg ${discreet ? 'discreet-blur' : ''}`}>
+-              {reading ? reading.value : '—'} <span className="text-xs font-bold text-slate-400">{cfg.unit}</span>
+-            </div>
+-            <div className="text-xs text-slate-500 font-medium">{cfg.label}</div>
+-          </button>
+-        );
+-      })}
+-    </div>
+-  );
+-}
+-
+-/* ─── Medications — real prescriptions, with a working refill request. ─── */
+-function MedicationsWidget({ meds, requestRefill, toast }) {
+-  const navigate = useNavigate();
+-  const list = (meds || []).slice(0, 3);
+-
+-  const handleRefill = async (med) => {
+-    try {
+-      await requestRefill(med.id);
+-      toast('Refill requested — your doctor will review it.', 'success');
+-    } catch {
+-      toast('Failed to request refill. Please try again.', 'error');
+-    }
+-  };
++    <div className={`glass-panel rounded-3xl p-6 flex flex-col justify-between ${discreet ? 'discreet-blur' : ''}`}>
++      <div className="flex items-center justify-between mb-4">
++        <div className="flex items-center gap-2">
++          <i className="fas fa-heart-pulse text-rose-500"></i>
++          <h3 className="font-bold text-slate-800 text-sm">Vitals</h3>
++        </div>
++        <button onClick={() => navigate('/patient-dashboard/tracking')} className="text-[10px] font-bold text-rose-600 hover:underline uppercase tracking-wide">Update</button>
++      </div>
+ 
+-  return (
+-    <div className="rounded-2xl p-6 border border-slate-200 shadow-sm bg-white">
+-      <h3 className="font-bold text-slate-800 mb-4 flex items-center justify-between">
+-        Medications
+-        <button onClick={() => navigate('/patient-dashboard/prescriptions')} className="text-xs text-aubergine-600 font-semibold hover:underline">View All</button>
+-      </h3>
+-      {list.length === 0 ? (
+-        <p className="text-xs text-slate-500 text-center py-6">No active prescriptions yet.</p>
++      {!hasAny ? (
++        <div className="text-center py-4 bg-slate-50 rounded-xl">
++          <p className="text-xs text-slate-500 font-medium">Log vitals to see them here.</p>
++        </div>
+       ) : (
+-        <div className="space-y-3">
+-          {list.map(med => (
+-            <div key={med.id} className="p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+-              <div className="flex items-center justify-between mb-1">
+-                <p className="font-bold text-sm text-slate-800">{med.name}</p>
+-                <span className="text-[10px] font-bold text-slate-500">{med.frequency}</span>
++        <div className="grid grid-cols-2 gap-2">
++          {Object.entries(VITALS_CONFIG).map(([key, cfg]) => {
++            const reading = vitals[key];
++            if (!reading) return null;
++            return (
++              <div key={key} className={`p-3 rounded-xl border border-slate-100 bg-white shadow-sm flex flex-col`}>
++                <span className="text-[10px] font-bold text-slate-500 mb-1 flex items-center gap-1"><i className={`fas ${cfg.icon} text-slate-400`}></i> {cfg.label}</span>
++                <span className="font-black text-slate-800 text-base">{reading.value} <span className="text-[10px] font-bold text-slate-400">{cfg.unit}</span></span>
+               </div>
+-              <p className="text-xs text-slate-500 mb-2">{med.dosage}{med.duration ? ` • ${med.duration}` : ''}</p>
+-              {med.refillRequested ? (
+-                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-full inline-flex items-center gap-1"><i className="fas fa-clock"></i>Refill requested</span>
+-              ) : med.refillsLeft <= 0 ? (
+-                <button onClick={() => handleRefill(med)}
+-                  className="text-[10px] font-bold text-white bg-aubergine-600 hover:bg-aubergine-700 px-3 py-1.5 rounded-full transition-colors inline-flex items-center gap-1">
+-                  <i className="fas fa-rotate"></i>Request Refill
+-                </button>
+-              ) : (
+-                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">{med.refillsLeft} refill{med.refillsLeft === 1 ? '' : 's'} left</span>
+-              )}
+-            </div>
+-          ))}
++            );
++          })}
+         </div>
+       )}
+     </div>
+   );
+ }
+ 
+-/* ─── Health tip — deterministic daily rotation, no backend needed. ─── */
+-function HealthTipWidget() {
+-  const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+-  const tip = HEALTH_TIPS[dayOfYear % HEALTH_TIPS.length];
+-  return (
+-    <div className="rounded-2xl p-5 border border-amber-100 shadow-sm bg-amber-50">
+-      <div className="flex items-center gap-2 mb-2">
+-        <i className="fas fa-lightbulb text-amber-500"></i>
+-        <p className="text-xs font-bold text-amber-700 uppercase tracking-wide">Health Tip of the Day</p>
+-      </div>
+-      <p className="text-sm text-amber-900 leading-relaxed"><i className={`fas ${tip.icon} mr-1.5 opacity-60`}></i>{tip.text}</p>
+-    </div>
+-  );
+-}
+-
+ /* ─── Main Dashboard ─────────────────────────── */
+ function PatientDashboard() {
+   const { user } = useAuth();
+-  const { appointments, patients, addAppointment, lifestyleLogs, vitals, requestRefill } = useClinicData();
++  const { appointments, patients, addAppointment, vitals, logLifestyle, lifestyleLogs, logCycle, cycleLogs } = useClinicData();
+   const navigate = useNavigate();
+   const toast = useToast();
+ 
+@@ -678,299 +806,174 @@ function PatientDashboard() {
+   const [showQuickBook, setShowQuickBook] = useState(false);
+   const [pendingReportCount, setPendingReportCount] = useState(0);
+ 
++  // Water tracking integration
++  const dateKey = todayLocalStr();
++  const todayLifestyle = lifestyleLogs[dateKey]?.items || {};
++  // Tracked under its own `waterGlasses` count, not the shared `water` key —
++  // Tracking.jsx's daily checklist reads `items.water` as a plain boolean
++  // ("did you hit your 2.5L goal today"), so writing the raw 0-8 glass count
++  // there would flip that checkbox true after the very first glass instead
++  // of only once the goal is actually met. `water` below is still kept in
++  // sync as the derived boolean so the checklist reflects the real goal.
++  const savedWaterGlasses = todayLifestyle.waterGlasses || 0;
++  const [waterCount, setWaterCount] = useState(savedWaterGlasses);
++
++  // Sync water count locally then to backend efficiently
+   useEffect(() => {
+-    apiFetch('/records/lab-reports')
+-      .then(reports => setPendingReportCount(reports.filter(r => r.status === 'Pending').length))
+-      .catch(() => setPendingReportCount(0));
++    if (waterCount !== savedWaterGlasses) {
++      const timeoutId = setTimeout(() => {
++        logLifestyle(dateKey, { ...todayLifestyle, waterGlasses: waterCount, water: waterCount >= 8 }).catch(() => { });
++      }, 1000);
++      return () => clearTimeout(timeoutId);
++    }
++    // todayLifestyle is intentionally not a dependency — it's a fresh object
++    // every render, which would restart this debounce timer on every
++    // unrelated re-render instead of only when the water count itself changes.
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [waterCount, savedWaterGlasses, dateKey, logLifestyle]);
++
++  useEffect(() => {
++    apiFetch('/records/lab-reports').then(r => setPendingReportCount(r.filter(x => x.status === 'Pending').length)).catch(() => setPendingReportCount(0));
+   }, []);
+ 
+   const own = patients?.[0];
+-  const upcomingAppointments = (appointments || [])
+-    .filter(a => !['Done', 'Cancelled', 'No Show'].includes(a.status))
+-    .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || ''));
++  const upcomingAppointments = (appointments || []).filter(a => !['Done', 'Cancelled', 'No Show'].includes(a.status)).sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || ''));
+   const nextAppointment = upcomingAppointments[0];
+   const daysToNext = nextAppointment ? Math.max(0, daysUntil(nextAppointment.date)) : null;
+ 
+-  // The profile ask no longer blocks the very first paint — it waits for the dashboard
+-  // itself to render, then offers an inline, dismissible invite instead of a forced modal.
+   const [onboardingDone, setOnboardingDone] = useState(() => localStorage.getItem('healnari_onboarding_done') === 'true');
+   const [showOnboarding, setShowOnboarding] = useState(false);
+-  const [alertDismissed, setAlertDismissed] = useState(false);
+   const [discreet, setDiscreet] = useState(localStorage.getItem('discreet_mode') === 'true');
+ 
+-  const dismissOnboarding = () => {
+-    localStorage.setItem('healnari_onboarding_done', 'true');
+-    setOnboardingDone(true);
+-    setShowOnboarding(false);
+-  };
+-
+-  // Real 7-day rolling completion, read from the same daily lifestyle
+-  // checklist the Tracking page writes to — no more hardcoded percentages.
+-  const goals = useMemo(() => {
+-    const GOAL_CONFIG = [
+-      { key: 'lowGI', label: 'PCOS Diet Plan', color: 'bg-emerald-500' },
+-      { key: 'exercise', label: 'Resistance Exercise', color: 'bg-sky-500' },
+-      { key: 'sleep', label: 'Sleep 8h / night', color: 'bg-aubergine-500' },
+-    ];
+-    const last7Days = Array.from({ length: 7 }, (_, i) => {
+-      const d = new Date();
+-      d.setDate(d.getDate() - i);
+-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+-    });
+-    return GOAL_CONFIG.map((g, i) => {
+-      const completedDays = last7Days.filter(d => lifestyleLogs[d]?.items?.[g.key]).length;
+-      return { id: i + 1, label: g.label, pct: Math.round((completedDays / last7Days.length) * 100), color: g.color };
+-    });
+-  }, [lifestyleLogs]);
+-
+   useEffect(() => {
+     const handler = () => setDiscreet(localStorage.getItem('discreet_mode') === 'true');
+     window.addEventListener('discreet_mode_changed', handler);
+     return () => window.removeEventListener('discreet_mode_changed', handler);
+   }, []);
+ 
+-  // A single, real, data-driven alert instead of a permanently-fake banner —
+-  // whichever is most time-sensitive right now, or nothing at all.
+-  const smartAlert = useMemo(() => {
+-    if (nextAppointment && nextAppointment.type === 'Video Consult' && daysToNext !== null && daysToNext <= 1) {
+-      return {
+-        icon: 'fa-video', label: daysToNext === 0 ? 'Today' : 'Tomorrow',
+-        title: `Video consultation with Dr. ${nextAppointment.doctorName}`,
+-        detail: `${daysToNext === 0 ? 'Today' : 'Tomorrow'} at ${nextAppointment.time}`,
+-        actionLabel: daysToNext === 0 ? 'Join Call' : 'View Details',
+-        onAction: () => (daysToNext === 0 ? setShowVideoCall(true) : navigate('/patient-dashboard/appointments')),
+-      };
+-    }
+-    if (pendingReportCount > 0) {
+-      return {
+-        icon: 'fa-flask', label: 'New',
+-        title: `${pendingReportCount} lab report${pendingReportCount > 1 ? 's' : ''} ready to review`,
+-        detail: 'Your latest results are in.',
+-        actionLabel: 'View Reports', onAction: () => setShowLabReports(true),
+-      };
+-    }
+-    const needsRefill = (own?.meds || []).find(m => m.refillsLeft <= 0 && !m.refillRequested);
+-    if (needsRefill) {
+-      return {
+-        icon: 'fa-pills', label: 'Action Needed',
+-        title: `${needsRefill.name} is out of refills`,
+-        detail: 'Request a refill so you don\'t run out.',
+-        actionLabel: 'Go to Prescriptions', onAction: () => navigate('/patient-dashboard/prescriptions'),
+-      };
+-    }
+-    return null;
+-  }, [nextAppointment, daysToNext, pendingReportCount, own, navigate]);
+-
+   const hour = new Date().getHours();
+   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+   const todayLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+ 
+   return (
+-    <div className="space-y-6 animate-fade-in">
++    <div className="space-y-6 animate-fade-in pb-12">
++      {/* Dynamic Header */}
++      <div className="relative rounded-3xl overflow-hidden shadow-soft border border-aubergine-100 p-8 md:p-10 bg-gradient-to-br from-white via-white to-aubergine-50/60">
++        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-magenta-100 via-aubergine-50 to-transparent rounded-full mix-blend-multiply opacity-70 transform translate-x-1/4 -translate-y-1/4 pointer-events-none"></div>
++        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-sky-50 via-emerald-50 to-transparent rounded-full mix-blend-multiply opacity-60 transform -translate-x-1/4 translate-y-1/4 pointer-events-none"></div>
+ 
+-      {/* Header — informative, not decorative: greeting, real date, one-line status. */}
+-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 md:p-8">
+-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
++        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+           <div>
+-            <p className="text-xs font-bold text-aubergine-600 uppercase tracking-widest mb-1">{todayLabel}</p>
+-            <h1 className="text-2xl md:text-3xl font-black text-slate-800">
+-              {greeting}, {user?.name?.split(' ')[0] || 'there'} 👋
++            <p className="text-[10px] font-black text-aubergine-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><i className="fas fa-calendar-day"></i> {todayLabel}</p>
++            <h1 className="text-3xl md:text-4xl font-serif-brand font-black text-slate-800 mb-2 tracking-tight">
++              {greeting}, {user?.name?.split(' ')[0] || 'there'}.
+             </h1>
+-            <p className="text-slate-500 mt-1">
++            <p className="text-slate-500 text-sm max-w-md leading-relaxed">
+               {nextAppointment
+-                ? <>Your next visit with Dr. {nextAppointment.doctorName} is <strong className="text-aubergine-700">{daysToNext === 0 ? 'today' : `in ${daysToNext} day${daysToNext === 1 ? '' : 's'}`}</strong>.</>
+-                : "No upcoming visits booked — ready when you are."}
++                ? <>Your next visit with Dr. {nextAppointment.doctorName} is <strong className="text-aubergine-700">{daysToNext === 0 ? 'today' : `in ${daysToNext} day${daysToNext === 1 ? '' : 's'}`}</strong>. Rest and recharge.</>
++                : "Welcome to your daily health command center."}
+             </p>
+           </div>
+-          <div className="flex flex-wrap gap-3">
+-            <button onClick={() => setShowVideoCall(true)} disabled={!nextAppointment || nextAppointment.type !== 'Video Consult'}
+-              className="bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold px-5 py-3 rounded-xl transition-all text-sm flex items-center gap-2">
++          <div className="flex gap-3">
++            <button onClick={() => setShowVideoCall(true)} disabled={!nextAppointment || nextAppointment.type !== 'Video Consult' || daysToNext !== 0}
++              className="bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:from-aubergine-700 hover:to-magenta-700 disabled:opacity-40 disabled:grayscale text-white font-bold px-6 py-3 rounded-2xl transition-all shadow-lg shadow-aubergine-500/20 text-sm flex items-center gap-2 btn-interactive">
+               <i className="fas fa-video"></i> Join Call
+             </button>
+-            <button onClick={() => setShowQuickBook(true)}
+-              className="bg-white border-2 border-aubergine-200 text-aubergine-700 hover:bg-aubergine-50 font-bold px-5 py-3 rounded-xl transition-all text-sm flex items-center gap-2">
+-              <i className="fas fa-calendar-plus"></i> Book Visit
+-            </button>
+           </div>
+         </div>
+       </div>
+ 
+-      {/* Smart alert — only appears when there's something real and time-sensitive. */}
+-      {!alertDismissed && smartAlert && (
+-        <div className="bg-gradient-to-r from-aubergine-700 to-aubergine-900 text-white rounded-2xl p-4 shadow-lg flex flex-wrap items-center justify-between gap-3">
+-          <div className="flex items-center gap-3">
+-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white text-lg shrink-0">
+-              <i className={`fas ${smartAlert.icon}`}></i>
+-            </div>
+-            <div>
+-              <div className="flex items-center gap-2">
+-                <span className="bg-white/20 text-white text-[10px] font-black uppercase px-2 py-0.5 rounded tracking-wider">{smartAlert.label}</span>
+-                <p className="font-black text-sm">{smartAlert.title}</p>
+-              </div>
+-              <p className="text-xs text-aubergine-100 mt-0.5">{smartAlert.detail}</p>
+-            </div>
+-          </div>
+-          <div className="flex items-center gap-2">
+-            <button onClick={smartAlert.onAction} className="bg-white text-aubergine-900 hover:bg-slate-100 font-bold px-4 py-2 rounded-xl text-xs transition-colors">
+-              {smartAlert.actionLabel}
+-            </button>
+-            <button onClick={() => setAlertDismissed(true)} className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-xl text-xs transition-colors">
+-              Dismiss
+-            </button>
+-          </div>
+-        </div>
+-      )}
+-
+-      {/* Vitals snapshot — real numbers from Tracking, front and center. */}
+-      <VitalsSnapshot vitals={vitals} discreet={discreet} />
+-
+-      {/* Inline profile-completion invite — replaces a modal that used to block first
+-          paint. Same destination (OnboardingModal), just earned rather than forced. */}
++      {/* Profile Completion Alert */}
+       {!onboardingDone && (
+-        <div className="bg-aubergine-50 border border-aubergine-100 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
++        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+           <div className="flex items-center gap-3">
+-            <div className="w-10 h-10 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center text-lg flex-shrink-0">
+-              <i className="fas fa-clipboard-user"></i>
+-            </div>
++            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-lg shrink-0"><i className="fas fa-star"></i></div>
+             <div>
+-              <p className="font-bold text-aubergine-900">Complete your health profile</p>
+-              <p className="text-xs text-aubergine-700">Two quick steps — helps your care team personalize what you see here.</p>
++              <p className="font-bold text-amber-900 text-sm">Personalize your HealNari experience</p>
++              <p className="text-xs text-amber-700">Complete your profile to get tailored insights.</p>
+             </div>
+           </div>
+-          <div className="flex items-center gap-2 flex-shrink-0">
+-            <button onClick={() => setShowOnboarding(true)} className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors whitespace-nowrap">
+-              Complete Profile
+-            </button>
+-            <button onClick={dismissOnboarding} aria-label="Dismiss profile prompt" title="Not now"
+-              className="w-9 h-9 rounded-xl border border-aubergine-200 text-aubergine-700 hover:bg-aubergine-100 transition-colors flex items-center justify-center">
+-              <i className="fas fa-xmark"></i>
+-            </button>
+-          </div>
++          <button onClick={() => setShowOnboarding(true)} className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors whitespace-nowrap btn-interactive">
++            Complete Profile
++          </button>
+         </div>
+       )}
+ 
+-      <div className="grid lg:grid-cols-3 gap-8">
+-        {/* Main Column */}
+-        <div className="lg:col-span-2 space-y-8">
++      {/* Bento Grid */}
++      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+ 
+-          {/* Cycle & Fertility */}
+-          <div className={`rounded-3xl border border-sand-200 shadow-sm overflow-hidden bg-white ${discreet ? 'discreet-blur' : ''}`}>
+-            <CycleFertilityWidget toast={toast} />
+-          </div>
++        {/* Row 1 */}
++        <WellnessScoreWidget vitals={vitals} lifestyle={lifestyleLogs[dateKey]} waterCount={waterCount} moodLogged={!!(cycleLogs[dateKey]?.mood)} discreet={discreet} />
++        <HydrationTracker waterCount={waterCount} setWaterCount={setWaterCount} toast={toast} discreet={discreet} />
++        <DailyMedicationChecklist meds={own?.meds} toast={toast} discreet={discreet} />
+ 
+-          {/* Daily Wellness */}
+-          <div className="rounded-2xl p-6 border border-slate-200 shadow-sm bg-white">
+-            <h3 className="font-bold text-slate-800 mb-1 flex items-center justify-between">
+-              This Week's Wellness
+-              <button onClick={() => navigate('/patient-dashboard/tracking')} className="text-xs text-aubergine-600 font-semibold hover:underline">Log Today</button>
+-            </h3>
+-            <p className="text-xs text-slate-500 mb-4">Rolling 7-day completion for your key habits.</p>
+-            <div className="space-y-4">
+-              {goals.map(g => (
+-                <div key={g.id}>
+-                  <div className="flex items-center justify-between mb-1">
+-                    <span className="text-sm font-medium text-slate-700">{g.label}</span>
+-                    <span className="text-xs font-black text-slate-600">{g.pct}%</span>
+-                  </div>
+-                  <div className="w-full bg-slate-100 rounded-full h-2">
+-                    <div className={`${g.color} h-2 rounded-full transition-all duration-700`} style={{ width: `${g.pct}%` }}></div>
+-                  </div>
+-                </div>
+-              ))}
+-            </div>
+-          </div>
++        {/* Row 2 */}
++        <WeeklyCycleRibbon toast={toast} />
++        <div className="grid grid-rows-2 gap-6 lg:col-span-1">
++          <VitalsSnapshot vitals={vitals} discreet={discreet} navigate={navigate} />
++          <MoodEnergyLogger logCycle={logCycle} cycleLogs={cycleLogs} toast={toast} />
++        </div>
+ 
+-          {/* Quick Actions */}
+-          <div className="grid sm:grid-cols-2 gap-4">
+-            <div onClick={() => setShowSymptomChecker(true)}
+-              className="rounded-2xl p-6 border border-sand-200 shadow-sm hover:shadow-md hover:border-aubergine-200 transition-all group cursor-pointer bg-white">
+-              <div className="w-12 h-12 bg-rose-50 rounded-xl flex items-center justify-center text-rose-50 mb-4 group-hover:scale-110 transition-transform">
+-                <i className="fas fa-heart-pulse text-xl text-rose-500"></i>
++        {/* Row 3 - Quick Actions & Appointments */}
++        <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-6">
++          <div className="lg:col-span-2 grid sm:grid-cols-2 gap-6">
++            <div onClick={() => setShowSymptomChecker(true)} className="glass-panel card-premium rounded-3xl p-6 group cursor-pointer flex flex-col justify-between">
++              <div className="w-12 h-12 bg-gradient-to-br from-rose-400 to-rose-600 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-rose-500/30 group-hover:scale-110 transition-transform"><i className="fas fa-heart-pulse text-xl"></i></div>
++              <div>
++                <h3 className="font-bold text-slate-800 mb-1">Symptom Checker</h3>
++                <p className="text-xs text-slate-500">Log your symptoms to your cycle record.</p>
++                <span className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold text-rose-600 uppercase tracking-wide group-hover:gap-2 transition-all">Start Check <i className="fas fa-arrow-right"></i></span>
+               </div>
+-              <h3 className="font-bold text-slate-800 mb-1">Symptom Checker</h3>
+-              <p className="text-sm text-slate-500">Run a quick AI-powered health assessment based on your symptoms.</p>
+-              <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-rose-600">Start Check <i className="fas fa-arrow-right text-[10px]"></i></span>
+             </div>
+ 
+-            <div onClick={() => setShowLabReports(true)}
+-              className="rounded-2xl p-6 border border-sand-200 shadow-sm hover:shadow-md hover:border-sky-200 transition-all group cursor-pointer bg-white">
+-              <div className="w-12 h-12 bg-sky-50 rounded-xl flex items-center justify-center text-sky-500 mb-4 group-hover:scale-110 transition-transform">
+-                <i className="fas fa-flask text-xl text-sky-500"></i>
++            <div onClick={() => setShowLabReports(true)} className="glass-panel card-premium rounded-3xl p-6 group cursor-pointer flex flex-col justify-between relative overflow-hidden">
++              {pendingReportCount > 0 && <span className="absolute top-4 right-4 bg-rose-500 text-white text-[10px] font-black px-2 py-1 rounded-full animate-bounce">{pendingReportCount} New</span>}
++              <div className="w-12 h-12 bg-gradient-to-br from-sky-400 to-sky-600 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-sky-500/30 group-hover:scale-110 transition-transform"><i className="fas fa-flask text-xl"></i></div>
++              <div>
++                <h3 className="font-bold text-slate-800 mb-1">Lab Reports</h3>
++                <p className="text-xs text-slate-500">View latest hormonal panels.</p>
++                <span className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold text-sky-600 uppercase tracking-wide group-hover:gap-2 transition-all">View Results <i className="fas fa-arrow-right"></i></span>
+               </div>
+-              <h3 className="font-bold text-slate-800 mb-1">Lab Reports</h3>
+-              <p className="text-sm text-slate-500">View your latest blood work and hormonal panel results.</p>
+-              <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-sky-600">View Results <i className="fas fa-arrow-right text-[10px]"></i></span>
+             </div>
+           </div>
+-        </div>
+ 
+-        {/* Sidebar */}
+-        <div className="space-y-6">
+-
+-          {/* Upcoming Appointments */}
+-          <div className="rounded-2xl p-6 border border-slate-200 shadow-sm bg-white">
+-            <h3 className="font-bold text-slate-800 mb-4 flex items-center justify-between">
+-              Upcoming Visits
+-              <button onClick={() => navigate('/patient-dashboard/appointments')}
+-                className="text-xs text-aubergine-600 font-semibold hover:underline">View All</button>
++          <div className="glass-panel rounded-3xl p-6">
++            <h3 className="font-bold text-slate-800 text-sm mb-4 flex items-center justify-between">
++              <span className="flex items-center gap-2"><i className="fas fa-calendar-check text-emerald-500"></i> Upcoming Visits</span>
++              <button onClick={() => setShowQuickBook(true)} className="text-[10px] font-bold bg-aubergine-50 text-aubergine-700 hover:bg-aubergine-100 px-3 py-1.5 rounded-full transition-colors">+ Book</button>
+             </h3>
+             <div className="space-y-3">
+               {upcomingAppointments.slice(0, 2).map(apt => (
+-                <div key={apt.id} className="p-3.5 rounded-xl border border-aubergine-100 bg-aubergine-50/40 hover:bg-aubergine-50 transition-colors cursor-pointer"
++                <div key={apt.id} className="p-3 rounded-xl border border-slate-100 bg-white hover:border-aubergine-200 transition-colors cursor-pointer shadow-sm group"
+                   onClick={() => navigate('/patient-dashboard/appointments')}>
+-                  <div className="flex items-center gap-3 mb-2">
+-                    <div className="w-9 h-9 rounded-full bg-aubergine-200 overflow-hidden flex-shrink-0 flex items-center justify-center font-black text-aubergine-700 text-sm">
+-                      {apt.doctorName.split(' ').filter(w => w).map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+-                    </div>
++                  <div className="flex justify-between items-start mb-2">
+                     <div>
+-                      <h4 className="font-bold text-sm text-slate-800">Dr. {apt.doctorName}</h4>
+-                      <p className="text-xs text-aubergine-600 font-medium">{apt.reason || 'Consultation'}</p>
++                      <h4 className="font-bold text-sm text-slate-800 group-hover:text-aubergine-700 transition-colors">Dr. {apt.doctorName}</h4>
++                      <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">{apt.reason || 'Consultation'}</p>
+                     </div>
+-                  </div>
+-                  <div className="flex items-center gap-3 text-xs text-slate-600 font-medium">
+-                    <span className="flex items-center gap-1"><i className="fas fa-calendar text-aubergine-400"></i>{apt.date ? new Date(apt.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) : '—'}</span>
+-                    <span className="flex items-center gap-1"><i className="fas fa-clock text-aubergine-400"></i>{apt.time}</span>
+-                    <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold ${apt.type === 'Video Consult' ? 'bg-sky-50 text-sky-600 border border-sky-100' : 'bg-slate-100 text-slate-600'}`}>
+-                      <i className={`fas ${apt.type === 'Video Consult' ? 'fa-video' : 'fa-hospital'} mr-1`}></i>{apt.type === 'Video Consult' ? 'Video' : 'Clinic'}
++                    <span className={`px-2 py-1 rounded-full text-[9px] font-black tracking-wide ${apt.type === 'Video Consult' ? 'bg-sky-50 text-sky-600' : 'bg-slate-100 text-slate-600'}`}>
++                      {apt.type === 'Video Consult' ? 'VIDEO' : 'CLINIC'}
+                     </span>
+                   </div>
++                  <div className="flex items-center gap-3 text-[11px] text-slate-600 font-medium">
++                    <span className="flex items-center gap-1.5"><i className="fas fa-calendar text-aubergine-400"></i>{apt.date ? new Date(apt.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : '—'}</span>
++                    <span className="flex items-center gap-1.5"><i className="fas fa-clock text-aubergine-400"></i>{apt.time}</span>
++                  </div>
+                 </div>
+               ))}
+               {upcomingAppointments.length === 0 && (
+-                <p className="text-xs text-slate-500 text-center py-6">No upcoming visits. <button onClick={() => setShowQuickBook(true)} className="text-aubergine-600 font-bold hover:underline">Book one now</button></p>
++                <div className="text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">
++                  <p className="text-xs text-slate-500 font-medium">No upcoming visits.</p>
++                </div>
+               )}
+             </div>
+           </div>
+-
+-          {/* Medications */}
+-          <MedicationsWidget meds={own?.meds} requestRefill={requestRefill} toast={toast} />
+-
+-          {/* Health Tip */}
+-          <HealthTipWidget />
+-
+-          {/* Quick Links */}
+-          <div className="rounded-2xl p-4 border border-slate-200 shadow-sm bg-gradient-to-br from-aubergine-900 to-aubergine-700 text-white">
+-            <p className="text-xs font-bold text-aubergine-200 mb-3 uppercase tracking-widest">Quick Access</p>
+-            <div className="grid grid-cols-2 gap-2">
+-              {[
+-                { label: 'My Records', icon: 'fa-folder-open', path: '/patient-dashboard/records' },
+-                { label: 'Prescriptions', icon: 'fa-pills', path: '/patient-dashboard/prescriptions' },
+-                { label: 'Billing', icon: 'fa-receipt', path: '/patient-dashboard/billing' },
+-                { label: 'Find Doctor', icon: 'fa-user-doctor', path: '/patient-dashboard/find-doctor' },
+-                { label: 'Fertility Insights', icon: 'fa-circle-dot', path: '/patient-dashboard/fertility' },
+-              ].map(link => (
+-                <button key={link.label} onClick={() => navigate(link.path)}
+-                  className="flex items-center gap-2 p-3 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-xs font-bold transition-all">
+-                  <i className={`fas ${link.icon} text-aubergine-200`}></i> {link.label}
+-                </button>
+-              ))}
+-            </div>
+-          </div>
+         </div>
++
+       </div>
+ 
+       {/* Modals */}
+-      {showOnboarding && <OnboardingModal isOpen={showOnboarding} onClose={dismissOnboarding} toast={toast} />}
++      {showOnboarding && <OnboardingModal isOpen={showOnboarding} onClose={() => { localStorage.setItem('healnari_onboarding_done', 'true'); setOnboardingDone(true); setShowOnboarding(false); }} toast={toast} />}
+       <VideoCallModal isOpen={showVideoCall} onClose={() => setShowVideoCall(false)} toast={toast} appointment={nextAppointment} />
+       <SymptomCheckerModal isOpen={showSymptomChecker} onClose={() => setShowSymptomChecker(false)} toast={toast} />
+       <LabReportsModal isOpen={showLabReports} onClose={() => setShowLabReports(false)} />
+diff --git a/src/patient/pages/Discovery.jsx b/src/patient/pages/Discovery.jsx
+index 3fcd8f9..05fcc9c 100644
+--- a/src/patient/pages/Discovery.jsx
++++ b/src/patient/pages/Discovery.jsx
+@@ -32,20 +32,27 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment }) {
+ 
+   const confirm = async () => {
+     setBooking(true);
++    // Booking and payment are two separate calls — if payment fails after the
++    // appointment was already created, the appointment still exists (status
++    // Requested). Treating that as one failure would tell the patient
++    // "booking failed" when retrying would actually create a duplicate.
++    let apt;
++    try {
++      apt = await addAppointment({ doctorId: doc.id, type, date, time: slot, reason: notes });
++    } catch (err) {
++      toast(err.message || 'Failed to book appointment. Please try again.', 'error');
++      setBooking(false);
++      return;
++    }
+     try {
+-      const apt = await addAppointment({
+-        doctorId: doc.id,
+-        type,
+-        date,
+-        time: slot,
+-        reason: notes,
+-      });
+       await apiFetch('/billing/pay', { method: 'POST', body: { appointmentId: apt.id, method } });
+       setBookedApt(apt);
+       setStep(3);
+       toast(`Appointment booked with ${doc?.name}!`, 'success');
+     } catch (err) {
+-      toast(err.message || 'Failed to book appointment. Please try again.', 'error');
++      setBookedApt(apt);
++      setStep(3);
++      toast('Appointment booked, but payment could not be processed. You can pay from My Appointments.', 'error');
+     } finally {
+       setBooking(false);
+     }
+@@ -55,7 +62,7 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment }) {
+ 
+   if (!doc) return null;
+   return (
+-    <Modal isOpen={isOpen} onClose={reset} size="md">
++    <Modal isOpen={isOpen} onClose={reset} size="md" hideClose ariaLabel={`Book appointment with ${doc.name}`}>
+       {/* Custom Header */}
+       <div className="-mx-6 -mt-6 px-6 py-5 bg-gradient-to-r from-aubergine-900 to-aubergine-700 text-white mb-5 rounded-t-3xl">
+         <div className="flex items-center gap-4">
+diff --git a/src/patient/pages/Family.jsx b/src/patient/pages/Family.jsx
+index 03cf294..567c044 100644
+--- a/src/patient/pages/Family.jsx
++++ b/src/patient/pages/Family.jsx
+@@ -226,12 +226,18 @@ function PatientFamily() {
+ 
+             {/* Actions */}
+             <div className="flex gap-2">
+-              <button onClick={() => toast(`Resending invitation to ${c.name}...`, 'info')}
+-                className="flex-1 bg-aubergine-50 hover:bg-aubergine-100 border border-aubergine-200 text-aubergine-700 font-bold py-2 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5">
+-                <i className="fas fa-envelope"></i> Resend
+-              </button>
++              {c.status !== 'Connected' && (
++                // There's no email/notification backend to actually "resend"
++                // anything — but the connection's real invite token is
++                // already in hand, so regenerating the shareable link is a
++                // genuine action instead of a fake "email sent" toast.
++                <button onClick={() => { setShareLink(`${window.location.origin}/invite/${c.inviteToken}`); toast(`Invite link for ${c.name} ready to share.`, 'info'); }}
++                  className="flex-1 bg-aubergine-50 hover:bg-aubergine-100 border border-aubergine-200 text-aubergine-700 font-bold py-2 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5">
++                  <i className="fas fa-link"></i> Get Invite Link
++                </button>
++              )}
+               <button onClick={() => setDisconnectTarget(c)}
+-                className="flex-1 bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 font-bold py-2 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5">
++                className={`${c.status !== 'Connected' ? 'flex-1' : 'w-full'} bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 font-bold py-2 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5`}>
+                 <i className="fas fa-user-xmark"></i> Disconnect
+               </button>
+             </div>
+diff --git a/src/patient/pages/Fertility.jsx b/src/patient/pages/Fertility.jsx
+index 472fc16..3c17d16 100644
+--- a/src/patient/pages/Fertility.jsx
++++ b/src/patient/pages/Fertility.jsx
+@@ -67,16 +67,16 @@ const DAY_TYPE_INFO = {
+ };
+ const REGULAR_DAY_INFO = { icon: 'fa-calendar', iconBg: 'bg-slate-100', iconColor: 'text-slate-400', label: 'Regular Day', description: 'Nothing predicted for this day yet.' };
+ 
+-function DayCell({ day, type, dateStr, isToday, isActive, onSelect }) {
++function DayCell({ day, type, dateStr, isToday, isActive, onHover, onPin }) {
+   const style = DAY_TYPE_STYLE[type];
+   const base = style ? style.cell : 'text-slate-600 hover:bg-slate-100/80';
+   return (
+     <div className="flex items-center justify-center p-0.5">
+       <button
+         type="button"
+-        onMouseEnter={() => onSelect(dateStr)}
+-        onFocus={() => onSelect(dateStr)}
+-        onClick={() => onSelect(dateStr)}
++        onMouseEnter={() => onHover(dateStr)}
++        onFocus={() => onHover(dateStr)}
++        onClick={() => onPin(dateStr)}
+         aria-label={`${dateStr}${type ? `, ${DAY_TYPE_INFO[type]?.label || ''}` : ''}`}
+         className={`relative w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 hover:shadow-lg focus:outline-none
+           ${base}
+@@ -94,7 +94,7 @@ function DayCell({ day, type, dateStr, isToday, isActive, onSelect }) {
+ 
+ const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+ 
+-function MonthCalendar({ year, month, getDayType, activeDay, onDaySelect, onPrev, onNext, prevHasMarks, nextHasMarks }) {
++function MonthCalendar({ year, month, getDayType, activeDay, onDayHover, onDayPin, onPrev, onNext, prevHasMarks, nextHasMarks }) {
+   const firstOfMonth = new Date(year, month, 1);
+   const startWeekday = firstOfMonth.getDay();
+   const daysInMonth = new Date(year, month + 1, 0).getDate();
+@@ -125,13 +125,13 @@ function MonthCalendar({ year, month, getDayType, activeDay, onDaySelect, onPrev
+           <div key={i} className="text-center text-[10px] font-black text-slate-400 uppercase tracking-wider">{w.slice(0, 3)}</div>
+         ))}
+       </div>
+-      <div className="grid grid-cols-7 gap-y-2 gap-x-1" onMouseLeave={() => onDaySelect(null)}>
++      <div className="grid grid-cols-7 gap-y-2 gap-x-1" onMouseLeave={() => onDayHover(null)}>
+         {cells.map((d, i) => {
+           if (d === null) return <div key={i} />;
+           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+           return (
+             <DayCell key={i} day={d} dateStr={dateStr} type={getDayType(dateStr)}
+-              isToday={dateStr === todayStr} isActive={dateStr === activeDay} onSelect={onDaySelect} />
++              isToday={dateStr === todayStr} isActive={dateStr === activeDay} onHover={onDayHover} onPin={onDayPin} />
+           );
+         })}
+       </div>
+@@ -217,7 +217,7 @@ function SetupWizard({ defaultLastPeriodStart, onComplete }) {
+   };
+ 
+   return (
+-    <div className="bg-white/90 backdrop-blur-xl border border-slate-200/60 rounded-3xl p-5 sm:p-8 shadow-xl shadow-slate-200/40 max-w-md mx-auto transform transition-all">
++    <div className="relative bg-white/90 backdrop-blur-xl border border-slate-200/60 rounded-3xl p-5 sm:p-8 shadow-xl shadow-slate-200/40 max-w-md mx-auto transform transition-all">
+       {step === 'source' && (
+         <div className="animate-fade-in text-center space-y-6">
+           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-aubergine-400 to-aubergine-600 text-white text-2xl flex items-center justify-center mx-auto shadow-lg shadow-aubergine-200">
+@@ -527,8 +527,18 @@ function PatientFertility() {
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState(null);
+   const [showDetails, setShowDetails] = useState(false);
+-  const [setupMode, setSetupMode] = useState(true);
+-  const [selectedDay, setSelectedDay] = useState(todayLocalStr());
++  // Starts false — a returning patient with an already-established prediction
++  // should land straight on their calendar. The effect below flips this to
++  // true only if the initial load comes back empty/insufficient, instead of
++  // unconditionally forcing every visit through the setup wizard first.
++  const [setupMode, setSetupMode] = useState(false);
++  // pinnedDay is the day a click deliberately selected (persists); hoveredDay
++  // is a transient mouse/focus preview that falls back to pinnedDay once the
++  // cursor leaves the grid — kept separate so moving the mouse from a clicked
++  // day down to the "Mark as period day" button doesn't discard the click.
++  const [pinnedDay, setPinnedDay] = useState(todayLocalStr());
++  const [hoveredDay, setHoveredDay] = useState(null);
++  const selectedDay = hoveredDay ?? pinnedDay;
+   const [loggingDay, setLoggingDay] = useState(false);
+ 
+   const lastKnownFlowDate = Object.keys(cycleLogs).filter(d => cycleLogs[d]?.flow).sort().pop() || '';
+@@ -542,7 +552,19 @@ function PatientFertility() {
+       .finally(() => setLoading(false));
+   }, []);
+ 
+-  useEffect(() => { load(); }, [load]);
++  useEffect(() => {
++    load().then(res => {
++      // res is null only when load() failed (network/server error, already
++      // surfaced via the error state) — that's a different case from a
++      // successful response reporting 'insufficient_data'. Forcing the setup
++      // wizard on both used to hide real load failures behind "let's set up
++      // your calendar" instead of the error banner.
++      if (res && res.classification === 'insufficient_data') setSetupMode(true);
++    });
++    // Only ever gate on the very first load — later manual "Refresh" clicks
++    // must not re-trigger this and yank the user back into the wizard.
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, []);
+ 
+   const hasResult = prediction && prediction.classification !== 'insufficient_data';
+ 
+@@ -586,9 +608,12 @@ function PatientFertility() {
+     });
+   };
+   const goToDate = (dateStr) => {
+-    const d = new Date(dateStr + 'T00:00:00');
+-    setViewMonth({ year: d.getFullYear(), month: d.getMonth() });
+-    setSelectedDay(dateStr);
++    // Parse the y/m components directly instead of going through Date — every
++    // other date computation in this file anchors to UTC ('T00:00:00Z') to
++    // avoid local-timezone drift, and this was the one spot that didn't.
++    const [y, m] = dateStr.split('-').map(Number);
++    setViewMonth({ year: y, month: m - 1 });
++    setPinnedDay(dateStr);
+   };
+ 
+   const monthHasMarks = (year, month) => {
+@@ -600,8 +625,6 @@ function PatientFertility() {
+   const prevHasMarks = monthHasMarks(prevMonthDate.getFullYear(), prevMonthDate.getMonth());
+   const nextHasMarks = monthHasMarks(nextMonthDate.getFullYear(), nextMonthDate.getMonth());
+ 
+-  const selectDay = (dateStr) => setSelectedDay(dateStr || todayLocalStr());
+-
+   const selectedDayCycleDay = selectedDay && hasResult && prediction.lastPeriodStart ? daysBetweenLocal(prediction.lastPeriodStart, selectedDay) + 1 : null;
+   const todayCycleDay = hasResult && prediction.lastPeriodStart ? daysBetweenLocal(prediction.lastPeriodStart, todayLocalStr()) + 1 : null;
+ 
+@@ -710,7 +733,7 @@ function PatientFertility() {
+                  </p>
+               </div>
+               <MonthCalendar year={viewMonth.year} month={viewMonth.month} getDayType={d => dayTypes[d]}
+-                activeDay={selectedDay} onDaySelect={selectDay}
++                activeDay={selectedDay} onDayHover={setHoveredDay} onDayPin={setPinnedDay}
+                 onPrev={() => goToMonth(-1)} onNext={() => goToMonth(1)}
+                 prevHasMarks={prevHasMarks} nextHasMarks={nextHasMarks} />
+ 
+diff --git a/src/patient/pages/Prescriptions.jsx b/src/patient/pages/Prescriptions.jsx
+index 994d7b0..9763f17 100644
+--- a/src/patient/pages/Prescriptions.jsx
++++ b/src/patient/pages/Prescriptions.jsx
+@@ -1,19 +1,30 @@
+ import React, { useState, useMemo } from 'react';
+ import { useToast } from '../../components/Toast.jsx';
+ import { Modal } from '../../components/Modal.jsx';
+-import { DoseSchedule } from '../../components/DoseSchedule.jsx';
+-import { RxStatusBadge, resolveRxStatus } from '../../components/RxStatus.jsx';
++import { DoseSchedule, parseDoseSchedule } from '../../components/DoseSchedule.jsx';
++import { RxStatusBadge, resolveRxStatus, daysUntil } from '../../components/RxStatus.jsx';
+ import { useClinicData } from '../../context/ClinicDataContext.jsx';
+ 
+ const STATUS_TABS = ['All', 'Active', 'Expiring Soon', 'Completed', 'Expired'];
+ 
++// Attention-worthy statuses surface first so the list is actually scannable
++// once a patient has more than a couple of prescriptions on file.
++const STATUS_PRIORITY = { 'Expiring Soon': 0, Active: 1, Completed: 2, Expired: 3 };
++
++const STATUS_CARD_STYLE = {
++  Active:          'bg-aubergine-100 text-aubergine-700',
++  'Expiring Soon': 'bg-amber-100 text-amber-700',
++  Expired:         'bg-slate-200 text-slate-500',
++  Completed:       'bg-slate-200 text-slate-500',
++};
++
+ /** The backend stores one row per medication line — each becomes its own
+  * card here (medicines is a 1-item array) rather than a fabricated bundle. */
+ function toRxCards(myPatient) {
+   if (!myPatient) return [];
+   return myPatient.meds.map(m => ({
+     id: m.id,
+-    doctor: 'Your Doctor',
++    doctor: m.doctor || 'Your Doctor',
+     date: m.prescribedOn,
+     diagnosis: myPatient.diagnosis && myPatient.diagnosis !== 'Pending' ? myPatient.diagnosis : 'General',
+     status: m.refillsLeft > 0 ? 'Active' : 'Expired',
+@@ -24,16 +35,19 @@ function toRxCards(myPatient) {
+   }));
+ }
+ 
+-const REMINDER_SLOTS = [
+-  { id: 'morning', label: 'Morning Meds', time: '8:00 AM', meds: ['Myo-Inositol Sachet'] },
+-  { id: 'evening', label: 'Evening Meds', time: '8:00 PM', meds: ['Metformin 500mg (Night)'] },
++const DOSE_SLOT_DEFS = [
++  { key: 'morning', label: 'Morning' },
++  { key: 'afternoon', label: 'Afternoon' },
++  { key: 'night', label: 'Night' },
+ ];
+ 
+ /* ─── Prescription Detail Modal ─────────────── */
+ function PrescriptionModal({ rx, onClose }) {
+   if (!rx) return null;
++  const daysLeft = daysUntil(rx.validTill);
++  const effectiveStatus = resolveRxStatus(rx);
+   return (
+-    <Modal isOpen={!!rx} onClose={onClose} title={`Prescription — ${rx.id}`} size="lg">
++    <Modal isOpen={!!rx} onClose={onClose} title={`Prescription — ${rx.diagnosis}`} size="lg">
+       <div className="space-y-5">
+         {/* Header info */}
+         <div className="grid grid-cols-2 gap-3 text-sm">
+@@ -44,6 +58,11 @@ function PrescriptionModal({ rx, onClose }) {
+           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+             <p className="text-xs text-slate-500 font-bold mb-1">Date • Valid Till</p>
+             <p className="font-bold text-slate-800">{rx.date} → {rx.validTill}</p>
++            {effectiveStatus === 'Expiring Soon' && daysLeft !== null && (
++              <p className="text-[11px] text-amber-600 font-bold mt-0.5">
++                {daysLeft <= 0 ? 'Expires today' : `Expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`}
++              </p>
++            )}
+           </div>
+         </div>
+ 
+@@ -85,10 +104,12 @@ function PrescriptionModal({ rx, onClose }) {
+ }
+ 
+ /* ─── Refill Modal ────────────────────────────── */
+-function RefillModal({ rx, onClose, onSubmit }) {
+-  const [pharmacy, setPharmacy] = useState('Home Delivery');
+-  const [urgent, setUrgent] = useState(false);
+-
++// Delivery method / urgency were previously collected here but had nowhere
++// to go — prescriptions has no such columns and requestRefill() sends no
++// body at all, so those choices were silently discarded while the success
++// toast falsely confirmed them. Simplified to what the backend actually
++// supports: a plain refill request.
++function RefillModal({ rx, onClose, onSubmit, submitting }) {
+   if (!rx) return null;
+   return (
+     <Modal isOpen={!!rx} onClose={onClose} title="Request Refill" size="sm">
+@@ -97,23 +118,9 @@ function RefillModal({ rx, onClose, onSubmit }) {
+           <p className="font-bold text-slate-800">{rx.diagnosis}</p>
+           <p className="text-xs text-slate-500 mt-0.5">{rx.medicines.map(m => m.name).join(', ')}</p>
+         </div>
+-        <div>
+-          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Delivery Method</label>
+-          <div className="space-y-2">
+-            {['Home Delivery', 'Clinic Pickup', 'Nearby Pharmacy'].map(opt => (
+-              <label key={opt} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${pharmacy === opt ? 'border-aubergine-400 bg-aubergine-50' : 'border-slate-200 hover:border-slate-300'}`}>
+-                <input type="radio" name="pharmacy" checked={pharmacy === opt} onChange={() => setPharmacy(opt)} className="accent-aubergine-600" />
+-                <span className="text-sm font-semibold text-slate-700">{opt}</span>
+-              </label>
+-            ))}
+-          </div>
+-        </div>
+-        <label className="flex items-center gap-3 cursor-pointer">
+-          <input type="checkbox" checked={urgent} onChange={e => setUrgent(e.target.checked)} className="accent-rose-600 w-4 h-4" />
+-          <span className="text-sm font-semibold text-slate-700">Mark as Urgent (24h processing)</span>
+-        </label>
+-        <button onClick={() => onSubmit(pharmacy, urgent)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
+-          Submit Refill Request
++        <p className="text-xs text-slate-500">Your doctor will review this request and approve or decline it from their dashboard.</p>
++        <button onClick={onSubmit} disabled={submitting} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
++          <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i> {submitting ? 'Submitting…' : 'Submit Refill Request'}
+         </button>
+       </div>
+     </Modal>
+@@ -123,37 +130,71 @@ function RefillModal({ rx, onClose, onSubmit }) {
+ /* ─── Main Component ─────────────────────────── */
+ function PatientPrescriptions() {
+   const toast = useToast();
+-  const { patients, requestRefill } = useClinicData();
++  const { patients, requestRefill, lifestyleLogs } = useClinicData();
+   const prescriptions = useMemo(() => toRxCards(patients[0]), [patients]);
+   const [detailRx, setDetailRx] = useState(null);
+   const [refillRx, setRefillRx] = useState(null);
+-  const [reminders, setReminders] = useState({ morning: true, evening: false });
++  const [submittingRefill, setSubmittingRefill] = useState(false);
+   const [tab, setTab] = useState('All');
+ 
+-  const tabFiltered = prescriptions.filter(rx => tab === 'All' || resolveRxStatus(rx) === tab);
++  const tabFiltered = prescriptions
++    .filter(rx => tab === 'All' || resolveRxStatus(rx) === tab)
++    .sort((a, b) => {
++      const diff = (STATUS_PRIORITY[resolveRxStatus(a)] ?? 4) - (STATUS_PRIORITY[resolveRxStatus(b)] ?? 4);
++      return diff !== 0 ? diff : new Date(b.date) - new Date(a.date);
++    });
+   const tabCount = (t) => prescriptions.filter(rx => t === 'All' || resolveRxStatus(rx) === t).length;
+ 
+-  const handleRefillSubmit = async (pharmacy, urgent) => {
++  const handleRefillSubmit = async () => {
++    setSubmittingRefill(true);
+     try {
+       await requestRefill(refillRx.id);
+-      toast(`Refill requested via ${pharmacy}${urgent ? ' (Urgent)' : ''}. Your doctor will review it shortly.`, 'success');
++      toast('Refill requested. Your doctor will review it shortly.', 'success');
++      setRefillRx(null);
+     } catch (err) {
+       toast(err.message || 'Failed to request refill', 'error');
++    } finally {
++      setSubmittingRefill(false);
+     }
+-    setRefillRx(null);
+   };
+ 
+-  const toggleReminder = (id) => {
+-    setReminders(p => {
+-      const next = { ...p, [id]: !p[id] };
+-      toast(next[id] ? `Reminder set for ${REMINDER_SLOTS.find(r => r.id === id)?.time}` : 'Reminder disabled', next[id] ? 'success' : 'info');
+-      return next;
++  // No file storage or PDF generation exists on the backend for
++  // prescriptions — being upfront about that instead of pretending a
++  // download is happening.
++  const handleDownload = () => toast('Prescription downloads are coming soon.', 'info');
++  const handleShare = () => toast('Sharing prescriptions is coming soon.', 'info');
++
++  // Real per-medicine dosing times, parsed from each active prescription's
++  // schedule — replaces a previous card that showed two fixed medicine names
++  // ("Myo-Inositol", "Metformin") that had nothing to do with this patient's
++  // actual prescriptions.
++  const doseSlots = useMemo(() => {
++    const bySlot = { morning: [], afternoon: [], night: [] };
++    prescriptions.filter(rx => resolveRxStatus(rx) === 'Active').forEach(rx => {
++      rx.medicines.forEach(m => {
++        const parsed = parseDoseSchedule(m.schedule);
++        if (!parsed) return;
++        DOSE_SLOT_DEFS.forEach((slot, i) => {
++          if (parsed.doses[i] > 0) bySlot[slot.key].push(m.name);
++        });
++      });
+     });
+-  };
++    return DOSE_SLOT_DEFS.map(s => ({ ...s, meds: bySlot[s.key] })).filter(s => s.meds.length > 0);
++  }, [prescriptions]);
+ 
+-  const handleDownload = (rx) => {
+-    toast(`Downloading ${rx.id} — ${rx.diagnosis}.pdf...`, 'info');
+-  };
++  // Real rolling 7-day adherence, read from the same daily "Took my
++  // medicines" checkbox the Tracking page writes to — replaces a
++  // permanently-hardcoded "71%" bar chart.
++  const weekAdherence = useMemo(() => {
++    const days = Array.from({ length: 7 }, (_, i) => {
++      const d = new Date();
++      d.setDate(d.getDate() - (6 - i));
++      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
++      return { key, label: d.toLocaleDateString('en-IN', { weekday: 'short' }), taken: !!lifestyleLogs[key]?.items?.meds, logged: !!lifestyleLogs[key] };
++    });
++    const pct = Math.round((days.filter(d => d.taken).length / days.length) * 100);
++    return { days, pct };
++  }, [lifestyleLogs]);
+ 
+   return (
+     <div className="space-y-6 animate-fade-in">
+@@ -161,7 +202,7 @@ function PatientPrescriptions() {
+       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+         <div>
+           <h1 className="text-2xl font-black text-slate-800">My Prescriptions</h1>
+-          <p className="text-sm text-slate-500">Access and download your digital prescriptions.</p>
++          <p className="text-sm text-slate-500">View your prescriptions, track dosing, and request refills.</p>
+         </div>
+         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl text-emerald-700 text-xs font-bold">
+           <i className="fas fa-shield-halved"></i> Digitally Signed
+@@ -184,12 +225,13 @@ function PatientPrescriptions() {
+           {tabFiltered.map(rx => {
+             const effectiveStatus = resolveRxStatus(rx);
+             const canRefill = effectiveStatus === 'Active' || effectiveStatus === 'Expiring Soon';
++            const daysLeft = daysUntil(rx.validTill);
+             return (
+-              <div key={rx.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
++              <div key={rx.id} className="bg-white rounded-2xl shadow-card border border-slate-200 overflow-hidden hover:shadow-card-hover transition-shadow">
+                 {/* Card Header */}
+                 <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                   <div className="flex items-center gap-3">
+-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${effectiveStatus === 'Active' ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-200 text-slate-500'}`}>
++                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${STATUS_CARD_STYLE[effectiveStatus] || STATUS_CARD_STYLE.Expired}`}>
+                       <i className="fas fa-file-prescription text-lg"></i>
+                     </div>
+                     <div>
+@@ -197,7 +239,14 @@ function PatientPrescriptions() {
+                       <p className="text-xs text-slate-500">{rx.doctor} • {rx.date}</p>
+                     </div>
+                   </div>
+-                  <RxStatusBadge rx={rx} />
++                  <div className="text-right">
++                    <RxStatusBadge rx={rx} />
++                    {effectiveStatus === 'Expiring Soon' && daysLeft !== null && (
++                      <p className="text-[10px] text-amber-600 font-bold mt-1">
++                        {daysLeft <= 0 ? 'Expires today' : `Expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`}
++                      </p>
++                    )}
++                  </div>
+                 </div>
+ 
+                 {/* Medicines */}
+@@ -226,15 +275,15 @@ function PatientPrescriptions() {
+                       <i className="fas fa-eye"></i> View Details
+                     </button>
+                     <div className="flex gap-2 flex-wrap">
+-                      <button onClick={() => handleDownload(rx)}
++                      <button onClick={handleDownload}
+                         className="bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-700 font-bold px-4 py-2 rounded-xl text-sm shadow-sm transition-colors border border-aubergine-200 flex items-center gap-1.5">
+                         <i className="fas fa-download"></i> PDF
+                       </button>
+-                      <button onClick={() => handleDownload({ ...rx, id: rx.id + '-SHARE' })}
++                      <button onClick={handleShare}
+                         className="bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold px-4 py-2 rounded-xl text-sm shadow-sm transition-colors border border-sky-200 flex items-center gap-1.5">
+                         <i className="fas fa-share-nodes"></i> Share
+                       </button>
+-                      {canRefill && rx.refillRequested && (
++                      {rx.refillRequested && (
+                         <span className="bg-amber-50 text-amber-700 font-bold px-4 py-2 rounded-xl text-sm border border-amber-200 flex items-center gap-1.5">
+                           <i className="fas fa-clock"></i> Refill Requested
+                         </span>
+@@ -258,7 +307,7 @@ function PatientPrescriptions() {
+           )}
+ 
+           {prescriptions.length === 0 && (
+-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
++            <div className="bg-white rounded-2xl shadow-card border border-slate-200 p-12 text-center">
+               <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100 shadow-sm">
+                 <i className="fas fa-file-prescription text-4xl text-slate-300"></i>
+               </div>
+@@ -270,54 +319,55 @@ function PatientPrescriptions() {
+           )}
+         </div>
+ 
+-        {/* Sidebar — Reminders */}
++        {/* Sidebar — real dosing schedule + adherence, no fabricated data */}
+         <div className="space-y-4">
+           <div className="bg-gradient-to-br from-aubergine-900 to-indigo-900 rounded-2xl shadow-sm border border-aubergine-800 p-6 text-white">
+             <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-xl mb-4">
+-              <i className="fas fa-bell"></i>
++              <i className="fas fa-clock"></i>
+             </div>
+-            <h3 className="font-bold text-lg mb-1.5">Medicine Reminders</h3>
+-            <p className="text-aubergine-200 text-xs mb-5 leading-relaxed">Never miss a dose. Toggle reminders for each scheduled time.</p>
++            <h3 className="font-bold text-lg mb-1.5">Daily Dosing Schedule</h3>
++            <p className="text-aubergine-200 text-xs mb-5 leading-relaxed">When to take your active medications, from your prescriptions.</p>
+ 
+-            <div className="space-y-3">
+-              {REMINDER_SLOTS.map(slot => (
+-                <div key={slot.id} className="bg-white/10 p-3.5 rounded-xl border border-white/10">
+-                  <div className="flex items-center justify-between mb-1">
+-                    <div className="text-sm font-bold">{slot.label}</div>
+-                    <button onClick={() => toggleReminder(slot.id)}
+-                      className={`w-11 h-6 rounded-full relative transition-all border ${reminders[slot.id] ? 'bg-emerald-500 border-emerald-400' : 'bg-white/20 border-white/20'}`}>
+-                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${reminders[slot.id] ? 'right-1' : 'left-1 opacity-50'}`}></div>
+-                    </button>
++            {doseSlots.length === 0 ? (
++              <p className="text-aubergine-200 text-xs">No timed dosing schedule on your active prescriptions yet.</p>
++            ) : (
++              <div className="space-y-3">
++                {doseSlots.map(slot => (
++                  <div key={slot.key} className="bg-white/10 p-3.5 rounded-xl border border-white/10">
++                    <div className="text-sm font-bold mb-1">{slot.label}</div>
++                    <div className="text-aubergine-200 text-xs">{slot.meds.join(', ')}</div>
+                   </div>
+-                  <div className="text-aubergine-200 text-xs">{slot.time} • {slot.meds.join(', ')}</div>
+-                </div>
+-              ))}
+-            </div>
++                ))}
++              </div>
++            )}
+           </div>
+ 
+-          {/* Adherence card */}
+-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+-            <h4 className="font-bold text-slate-800 mb-3">This Week's Adherence</h4>
+-            <div className="flex gap-1 mb-3">
+-              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => (
+-                <div key={d} className="flex-1 flex flex-col items-center gap-1">
+-                  <div className={`w-full aspect-square rounded-md text-[8px] flex items-center justify-center font-bold ${i < 4 ? 'bg-emerald-500 text-white' : i === 4 ? 'bg-amber-400 text-white' : 'bg-slate-100 text-slate-500'}`}>
+-                    {i < 4 ? '✓' : i === 4 ? '~' : '·'}
++          {/* Adherence card — real rolling 7-day data from the daily lifestyle
++              checklist's "Took my medicines" entry (Tracking page). */}
++          {prescriptions.length > 0 && (
++            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-card">
++              <h4 className="font-bold text-slate-800 mb-3">This Week's Medicine Adherence</h4>
++              <div className="flex gap-1 mb-3">
++                {weekAdherence.days.map(d => (
++                  <div key={d.key} className="flex-1 flex flex-col items-center gap-1">
++                    <div className={`w-full aspect-square rounded-md text-[8px] flex items-center justify-center font-bold ${d.taken ? 'bg-emerald-500 text-white' : d.logged ? 'bg-rose-100 text-rose-500' : 'bg-slate-100 text-slate-500'}`}>
++                      {d.taken ? '✓' : d.logged ? '✕' : '·'}
++                    </div>
++                    <span className="text-[9px] text-slate-500">{d.label}</span>
+                   </div>
+-                  <span className="text-[9px] text-slate-500">{d}</span>
+-                </div>
+-              ))}
+-            </div>
+-            <div className="text-xs text-slate-600 font-medium">
+-              <span className="font-black text-emerald-600">71%</span> adherence this week. Keep it up!
++                ))}
++              </div>
++              <div className="text-xs text-slate-600 font-medium">
++                <span className="font-black text-emerald-600">{weekAdherence.pct}%</span> adherence this week, based on your daily health checklist.
++              </div>
+             </div>
+-          </div>
++          )}
+         </div>
+       </div>
+ 
+       {/* Modals */}
+       <PrescriptionModal rx={detailRx} onClose={() => setDetailRx(null)} />
+-      <RefillModal rx={refillRx} onClose={() => setRefillRx(null)} onSubmit={handleRefillSubmit} />
++      <RefillModal rx={refillRx} onClose={() => setRefillRx(null)} onSubmit={handleRefillSubmit} submitting={submittingRefill} />
+     </div>
+   );
+ }
+diff --git a/src/patient/pages/Profile.jsx b/src/patient/pages/Profile.jsx
+index 54f3304..0729755 100644
+--- a/src/patient/pages/Profile.jsx
++++ b/src/patient/pages/Profile.jsx
+@@ -50,7 +50,6 @@ function PatientProfile() {
+   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+   const [showPhotoModal, setShowPhotoModal] = useState(false);
+   const [photoSaving, setPhotoSaving] = useState(false);
+-  const [twoFA, setTwoFA] = useState(false);
+   const [emailNotif, setEmailNotif] = useState(user?.emailNotifications ?? true);
+   const [smsNotif, setSmsNotif] = useState(user?.smsNotifications ?? true);
+ 
+@@ -297,12 +296,16 @@ function PatientProfile() {
+                 {(() => {
+                   const h = parseFloat(form.height) / 100;
+                   const w = parseFloat(form.weight);
+-                  const bmi = h > 0 ? (w / (h * h)).toFixed(1) : '—';
+-                  const category = isNaN(bmi) ? '' : bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Overweight' : 'Obese';
++                  // Previously computed height-only-valid inputs as (NaN /
++                  // x).toFixed(1), which is the *string* "NaN" — isNaN("NaN")
++                  // is true so the category still fell back correctly, but
++                  // the literal text "NaN" was displayed as the BMI value.
++                  const bmi = h > 0 && w > 0 ? (w / (h * h)).toFixed(1) : null;
++                  const category = bmi === null ? '' : bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Overweight' : 'Obese';
+                   const catColor = category === 'Normal' ? 'text-emerald-600' : category === 'Underweight' ? 'text-sky-600' : 'text-rose-600';
+                   return (
+                     <div className="flex items-center gap-4">
+-                      <div className="text-3xl font-black text-slate-800">{bmi}</div>
++                      <div className="text-3xl font-black text-slate-800">{bmi ?? '—'}</div>
+                       <div>
+                         <p className={`text-sm font-bold ${catColor}`}>{category}</p>
+                         <p className="text-xs text-slate-500">BMI Index</p>
+@@ -344,40 +347,32 @@ function PatientProfile() {
+                 </button>
+               </div>
+ 
+-              {/* 2FA */}
++              {/* 2FA — no OTP/verification backend exists yet, so this can't
++                  actually be turned on. Previously this was a fully working
++                  toggle that flipped to "enabled" and told the user their
++                  account was more secure, with nothing behind it. */}
+               <div className="border-t border-slate-100 pt-5">
+                 <div className="flex items-center justify-between">
+                   <div>
+                     <h4 className="font-bold text-slate-700">Two-Factor Authentication</h4>
+-                    <p className="text-xs text-slate-500 mt-0.5">Adds an extra layer of security via OTP</p>
++                    <p className="text-xs text-slate-500 mt-0.5">Adds an extra layer of security via OTP — coming soon</p>
+                   </div>
+-                  <button onClick={() => { setTwoFA(!twoFA); toast(`2FA ${!twoFA ? 'enabled' : 'disabled'}.`, !twoFA ? 'success' : 'info'); }}
+-                    className={`w-12 h-6 rounded-full relative transition-all border ${twoFA ? 'bg-aubergine-600 border-aubergine-600' : 'bg-slate-200 border-slate-300'}`}>
+-                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${twoFA ? 'right-1' : 'left-1'}`}></div>
++                  <button disabled title="Coming soon"
++                    className="w-12 h-6 rounded-full relative border bg-slate-200 border-slate-300 opacity-50 cursor-not-allowed">
++                    <div className="w-4 h-4 bg-white rounded-full absolute top-1 left-1"></div>
+                   </button>
+                 </div>
+               </div>
+ 
+-              {/* Active Sessions */}
++              {/* Active Sessions — no session/device tracking exists on the
++                  backend. Previously this showed the same two fabricated
++                  devices ("Chrome on Windows 11", "HealNari iOS App") to
++                  every user with a working-looking "Revoke" button. */}
+               <div className="border-t border-slate-100 pt-5">
+                 <h4 className="font-bold text-slate-700 mb-3">Active Sessions</h4>
+-                {[
+-                  { device: 'Chrome on Windows 11', location: 'Mumbai, IN', current: true },
+-                  { device: 'HealNari iOS App', location: 'Mumbai, IN', current: false },
+-                ].map((s, i) => (
+-                  <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 mb-2">
+-                    <div>
+-                      <p className="text-sm font-bold text-slate-700 flex items-center gap-2">
+-                        {s.device}
+-                        {s.current && <span className="text-[10px] bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.5 rounded">Current</span>}
+-                      </p>
+-                      <p className="text-xs text-slate-500">{s.location}</p>
+-                    </div>
+-                    {!s.current && (
+-                      <button onClick={() => toast('Session terminated.', 'success')} className="text-rose-500 hover:text-rose-700 text-xs font-bold">Revoke</button>
+-                    )}
+-                  </div>
+-                ))}
++                <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-3">
++                  Viewing and managing individual sign-in sessions isn't available yet.
++                </p>
+               </div>
+ 
+               {/* Danger Zone */}
+@@ -386,7 +381,7 @@ function PatientProfile() {
+                 <div className="space-y-2">
+                   <button onClick={() => setShowLogoutConfirm(true)}
+                     className="flex items-center gap-2 text-sm font-bold text-rose-600 border border-rose-200 bg-rose-50 hover:bg-rose-100 px-5 py-2.5 rounded-xl transition-colors w-full justify-start">
+-                    <i className="fas fa-right-from-bracket"></i> Sign Out of All Devices
++                    <i className="fas fa-right-from-bracket"></i> Sign Out
+                   </button>
+                   <button onClick={() => setShowDeleteConfirm(true)}
+                     className="flex items-center gap-2 text-sm font-bold text-rose-700 border border-rose-300 bg-rose-50 hover:bg-rose-100 px-5 py-2.5 rounded-xl transition-colors w-full justify-start">
+@@ -421,19 +416,28 @@ function PatientProfile() {
+         </div>
+       </Modal>
+ 
++      {/* logout() only clears this device's local tokens — it doesn't call
++          Supabase to revoke the refresh token, so it never actually signed
++          out other devices/sessions despite the previous "of All Devices"
++          label and message claiming otherwise. */}
+       <ConfirmModal
+         isOpen={showLogoutConfirm}
+         onClose={() => setShowLogoutConfirm(false)}
+         onConfirm={() => { logout(); toast('Signed out successfully.', 'info'); }}
+         title="Sign Out?"
+-        message="You will be signed out from all devices. You can log back in anytime."
++        message="You will be signed out of this device. You can log back in anytime."
+         confirmLabel="Sign Out"
+         confirmStyle="danger"
+       />
++      {/* No account-deletion endpoint exists yet — this used to claim "request
++          submitted, confirmation email sent" when neither happened. For an
++          app that advertises DPDP Act compliance elsewhere, falsely
++          confirming a data-deletion request is a real problem, not just a
++          cosmetic stub. */}
+       <ConfirmModal
+         isOpen={showDeleteConfirm}
+         onClose={() => setShowDeleteConfirm(false)}
+-        onConfirm={() => toast('Account deletion request submitted. You will receive a confirmation email.', 'info')}
++        onConfirm={() => toast('Self-serve account deletion isn\'t available yet. Please contact the clinic directly to request deletion of your account and data.', 'info')}
+         title="Delete Account?"
+         message="This action is permanent. All your medical records, prescriptions, and data will be deleted. This cannot be undone."
+         confirmLabel="Delete My Account"
+diff --git a/src/patient/pages/Records.jsx b/src/patient/pages/Records.jsx
+index 9df0f5a..7dc921a 100644
+--- a/src/patient/pages/Records.jsx
++++ b/src/patient/pages/Records.jsx
+@@ -19,15 +19,12 @@ function FilePreviewModal({ file, onClose, onDownload }) {
+         {/* Document Header Metadata Bar */}
+         <div className="flex items-center justify-between bg-slate-900 text-white px-4 py-2.5 rounded-xl text-xs font-mono">
+           <span className="flex items-center gap-2 text-emerald-400 font-bold">
+-            <i className="fas fa-shield-check"></i> Verified Clinical Document
++            <i className="fas fa-shield-check"></i> Stored in Your Vault
+           </span>
+-          <span className="text-slate-500">LOINC: 2986-8 (Endocrine Panel)</span>
++          <span className="text-slate-500">{file.type?.toUpperCase() || 'FILE'}</span>
+         </div>
+ 
+         <div className="bg-slate-100 rounded-2xl aspect-video flex flex-col items-center justify-center gap-3 border border-slate-200 relative overflow-hidden group">
+-          <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-xs px-3 py-1 rounded-lg text-xs font-bold text-slate-700 shadow-xs border border-slate-200">
+-            <i className="fas fa-microscope text-aubergine-600 mr-1.5"></i> Pathology & Clinical Diagnostics
+-          </div>
+           <i className={`fas ${file.icon} text-6xl ${file.color.split(' ')[1]}`}></i>
+           <p className="text-sm text-slate-700 font-bold">{file.name}</p>
+           <p className="text-xs text-slate-500">{file.size} • Uploaded {file.date}</p>
+@@ -163,10 +160,12 @@ function PatientRecords() {
+   const [showVaccineModal, setShowVaccineModal] = useState(false);
+   const vaccines = rawVaccines.map(v => ({ name: v.name, doses: v.doses, done: v.completed }));
+ 
+-  // Insurance — no backend table yet; this section stays local-only until one exists.
++  // Insurance — no backend table yet, so there is no real per-patient policy
++  // to show. Previously this rendered the same fabricated provider/policy
++  // number/expiry for every patient with an "Active" badge, which could be
++  // mistaken for real data instead of a not-yet-built feature.
+   const [rawContacts, setRawContacts] = useState([]);
+   const [showContactModal, setShowContactModal] = useState(false);
+-  const [insurance] = useState({ provider: 'Star Health Comprehensive', policy: 'SH-9823-1102', validity: 'Dec 2026' });
+   const [deleteContactTarget, setDeleteContactTarget] = useState(null);
+   const contacts = rawContacts.map(c => ({ id: c.id, name: c.name, relation: c.relation, phone: c.phone }));
+ 
+@@ -427,39 +426,21 @@ function PatientRecords() {
+           {/* ── INSURANCE TAB ── */}
+           {tab === 'insurance' && (
+             <div className="grid md:grid-cols-2 gap-8">
+-              {/* Insurance Card */}
++              {/* Insurance Card — no backend table yet, so this is an honest
++                  empty state rather than a fabricated policy. */}
+               <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-6 relative overflow-hidden">
+                 <i className="fas fa-shield-heart absolute -right-4 -bottom-4 text-8xl text-indigo-500/10"></i>
+                 <div className="flex justify-between items-start mb-5">
+                   <h3 className="font-black text-indigo-900 text-lg">Health Insurance</h3>
+-                  <span className="bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Active</span>
+-                </div>
+-                <div className="space-y-3 relative z-10">
+-                  <div>
+-                    <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Provider</div>
+-                    <div className="font-bold text-slate-800">{insurance.provider}</div>
+-                  </div>
+-                  <div className="grid grid-cols-2 gap-4">
+-                    <div>
+-                      <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Policy Number</div>
+-                      <div className="font-mono font-bold text-slate-800">{insurance.policy}</div>
+-                    </div>
+-                    <div>
+-                      <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Valid Till</div>
+-                      <div className="font-bold text-slate-800">{insurance.validity}</div>
+-                    </div>
+-                  </div>
+-                </div>
+-                <div className="flex gap-2 mt-5">
+-                  <button onClick={() => toast('Editing insurance details online is coming soon. Please contact the clinic to update your policy.', 'info')}
+-                    className="flex-1 bg-white text-indigo-600 font-bold px-4 py-2 rounded-xl text-sm shadow-sm border border-indigo-100 hover:bg-indigo-50 transition-colors">
+-                    <i className="fas fa-pen mr-1.5"></i> Update Policy
+-                  </button>
+-                  <button onClick={() => toast('Insurance card download is coming soon.', 'info')}
+-                    className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold px-4 py-2 rounded-xl text-sm border border-indigo-200 transition-colors">
+-                    <i className="fas fa-download"></i>
+-                  </button>
++                  <span className="bg-slate-400 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Not on File</span>
+                 </div>
++                <p className="text-sm text-slate-600 relative z-10 mb-5">
++                  No insurance policy is on file yet. This feature is coming soon — for now, please share your policy details with the clinic directly.
++                </p>
++                <button onClick={() => toast('Adding insurance details online is coming soon. Please contact the clinic to add your policy.', 'info')}
++                  className="w-full bg-white text-indigo-600 font-bold px-4 py-2 rounded-xl text-sm shadow-sm border border-indigo-100 hover:bg-indigo-50 transition-colors">
++                  <i className="fas fa-plus mr-1.5"></i> Add Insurance Details
++                </button>
+               </div>
+ 
+               {/* Emergency Contacts */}
+diff --git a/src/patient/pages/Tracking.jsx b/src/patient/pages/Tracking.jsx
+index 869ff5e..d7e58c8 100644
+--- a/src/patient/pages/Tracking.jsx
++++ b/src/patient/pages/Tracking.jsx
+@@ -1,9 +1,12 @@
+-import React, { useState, useEffect } from 'react';
++import React, { useState, useEffect, useRef } from 'react';
+ import { useToast } from '../../components/Toast.jsx';
+ import { Modal } from '../../components/Modal.jsx';
+ import { useClinicData } from '../../context/ClinicDataContext.jsx';
+ import { LIFESTYLE_ITEMS } from '../lifestyleConfig.js';
+ import { todayLocalStr } from '../../lib/dateUtils.js';
++import { z } from 'zod';
++import { useForm } from 'react-hook-form';
++import { zodResolver } from '@hookform/resolvers/zod';
+ 
+ /* ─── Config ─────────────────────────────────── */
+ const HIRSUTISM_GRADES = [
+@@ -22,9 +25,23 @@ const VITALS_CONFIG = {
+ 
+ const todayKey = todayLocalStr;
+ 
++const VITAL_EXAMPLES = { weight: '65', bp: '120/80', sugar: '95', sleep: '7.5' };
++
+ /** Derives a "vs last reading" trend line from the current + previous logged values. */
+ function computeTrend(current, previous, unit) {
+   if (previous == null) return { text: 'First reading logged', color: 'text-slate-500' };
++  if (current === previous) return { text: '✓ No change from last log', color: 'text-slate-500' };
++
++  const curBp = typeof current === 'string' && current.match(/^(\d+)\/(\d+)$/);
++  const prevBp = typeof previous === 'string' && previous.match(/^(\d+)\/(\d+)$/);
++  if (curBp && prevBp) {
++    const sysDiff = +curBp[1] - +prevBp[1];
++    const diaDiff = +curBp[2] - +prevBp[2];
++    if (sysDiff === 0 && diaDiff === 0) return { text: '✓ No change from last log', color: 'text-slate-500' };
++    const worse = sysDiff > 0 || diaDiff > 0;
++    return { text: `${worse ? '↑' : '↓'} ${Math.abs(sysDiff)}/${Math.abs(diaDiff)} ${unit} from last log`, color: worse ? 'text-amber-600' : 'text-emerald-600' };
++  }
++
+   const curNum = parseFloat(current);
+   const prevNum = parseFloat(previous);
+   if (!isNaN(curNum) && !isNaN(prevNum)) {
+@@ -33,51 +50,71 @@ function computeTrend(current, previous, unit) {
+     const arrow = diff > 0 ? '↑' : '↓';
+     return { text: `${arrow} ${Math.abs(diff)} ${unit} from last log`, color: diff > 0 ? 'text-amber-600' : 'text-emerald-600' };
+   }
+-  if (current === previous) return { text: '✓ Same as last log', color: 'text-slate-500' };
+   return { text: `Updated from ${previous}`, color: 'text-slate-500' };
+ }
+ 
++// Zod schemas for validation
++const vitalSchemas = {
++  weight: z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0 && parseFloat(val) < 300, "Weight must be a valid number between 0 and 300"),
++  bp: z.string().regex(/^\d{2,3}\/\d{2,3}$/, "BP must be in format SYS/DIA (e.g., 120/80)"),
++  sugar: z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, "Sugar must be a positive number"),
++  sleep: z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) >= 0 && parseFloat(val) <= 24, "Sleep must be between 0 and 24 hours"),
++};
++
+ /* ─── Log Vital Modal ────────────────────────── */
+-function LogVitalModal({ vitalKey, vital, isOpen, onClose, onSave }) {
+-  const [value, setValue] = useState(vital?.value || '');
++function LogVitalModal({ vitalKey, config, currentValue, isOpen, onClose, onSave }) {
++  const schema = z.object({
++    value: vitalSchemas[vitalKey] || z.string().min(1, "Cannot be empty")
++  });
++
++  const { register, handleSubmit, formState: { errors }, reset } = useForm({
++    resolver: zodResolver(schema),
++    defaultValues: { value: currentValue || '' }
++  });
++
++  useEffect(() => {
++    if (isOpen) {
++      reset({ value: currentValue || '' });
++    }
++  }, [isOpen, currentValue, reset]);
++
+   const [saving, setSaving] = useState(false);
+ 
+-  const handleSave = async () => {
+-    if (!value.trim()) return;
++  const onSubmit = async (data) => {
+     setSaving(true);
+     try {
+-      await onSave(vitalKey, value.trim());
++      await onSave(vitalKey, data.value.trim());
+       onClose();
+     } finally {
+       setSaving(false);
+     }
+   };
+ 
+-  if (!vital) return null;
++  if (!config) return null;
+   return (
+-    <Modal isOpen={isOpen} onClose={onClose} title={`Log ${vital.label}`} size="sm">
+-      <div className="space-y-4">
+-        <div className={`w-14 h-14 ${vital.color} rounded-2xl flex items-center justify-center text-2xl mx-auto`}>
+-          <i className={`fas ${vital.icon}`}></i>
++    <Modal isOpen={isOpen} onClose={onClose} title={`Log ${config.label}`} size="sm">
++      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
++        <div className={`w-14 h-14 ${config.color} rounded-2xl flex items-center justify-center text-2xl mx-auto`}>
++          <i className={`fas ${config.icon}`}></i>
+         </div>
+         <div>
+           <label className="text-xs font-bold text-slate-500 mb-1.5 block">
+-            Enter today's {vital.label} ({vital.unit})
++            Enter today's {config.label} ({config.unit})
+           </label>
+           <input
+-            value={value}
+-            onChange={e => setValue(e.target.value)}
+-            placeholder={`e.g. ${vital.value || ''}`}
+-            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-lg font-black text-center focus:outline-none focus:ring-2 focus:ring-aubergine-300"
++            {...register('value')}
++            placeholder={`e.g. ${VITAL_EXAMPLES[vitalKey] || ''}`}
++            className={`w-full border ${errors.value ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-4 py-3 text-lg font-black text-center focus:outline-none focus:ring-2 focus:ring-aubergine-300`}
+             autoFocus
+           />
+-          <p className="text-xs text-slate-500 text-center mt-1">Unit: {vital.unit}</p>
++          {errors.value && <p className="text-xs text-rose-500 text-center mt-1">{errors.value.message}</p>}
++          <p className="text-xs text-slate-500 text-center mt-1">Unit: {config.unit}</p>
+         </div>
+-        <button onClick={handleSave} disabled={saving}
++        <button type="submit" disabled={saving}
+           className="w-full bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-colors">
+           {saving ? 'Saving…' : 'Save Reading'}
+         </button>
+-      </div>
++      </form>
+     </Modal>
+   );
+ }
+@@ -87,9 +124,6 @@ function CycleLogModal({ isOpen, onClose, onSave, existingLog }) {
+   const [form, setForm] = useState({ flow: 'Medium', cramps: 2, mood: 'Calm', symptoms: [] });
+   const SYMPTOMS_LIST = ['Cramps', 'Bloating', 'Headache', 'Fatigue', 'Back Pain', 'Nausea'];
+ 
+-  // Re-seed the form from today's already-saved log (if any) each time the
+-  // modal opens, instead of always resetting to defaults and silently
+-  // overwriting what the patient logged earlier today.
+   useEffect(() => {
+     if (isOpen) {
+       setForm({
+@@ -156,22 +190,30 @@ function CycleLogModal({ isOpen, onClose, onSave, existingLog }) {
+ /* ─── Main Component ─────────────────────────── */
+ function PatientTracking() {
+   const toast = useToast();
+-  const { cycleLogs, logCycle, vitals, logVital, lifestyleLogs, logLifestyle } = useClinicData();
++
++  // Reads and writes go through ClinicDataContext — the same cache every
++  // other patient page (Dashboard, Fertility, Prescriptions) uses — so a
++  // vital/cycle/lifestyle log saved here shows up there immediately, and
++  // vice versa, instead of living in a second, never-invalidated cache.
++  const { vitals, cycleLogs, lifestyleLogs, logVital, logCycle, logLifestyle } = useClinicData();
++
+   const [discreet, setDiscreet] = useState(localStorage.getItem('discreet_mode') === 'true');
+-  const [hirsutismGrade, setHirsutismGrade] = useState(() => {
+-    const v = vitals.hirsutism?.value;
+-    return v !== undefined ? parseInt(v, 10) || 0 : 0;
+-  });
+-  const [lifestyle, setLifestyle] = useState(() => {
++  const hirsutismGrade = vitals.hirsutism?.value !== undefined ? (parseInt(vitals.hirsutism.value, 10) || 0) : 0;
++
++  const [lifestyle, setLifestyle] = useState({});
++  useEffect(() => {
+     const saved = lifestyleLogs[todayKey()]?.items || {};
+-    return LIFESTYLE_ITEMS.reduce((acc, item) => ({ ...acc, [item.key]: !!saved[item.key] }), {});
+-  });
+-  const [shareLog, setShareLog] = useState(localStorage.getItem('share_tracking_log') === 'true');
+-  const [logModal, setLogModal] = useState(null); // { key, vital }
++    setLifestyle(LIFESTYLE_ITEMS.reduce((acc, item) => ({ ...acc, [item.key]: !!saved[item.key] }), {}));
++  }, [lifestyleLogs]);
++
++  const [logModal, setLogModal] = useState(null); // { key, config, currentValue }
+   const [showCycleLog, setShowCycleLog] = useState(false);
+-  const [lastCycleLog, setLastCycleLog] = useState(() => cycleLogs[todayKey()] || null);
++  
++  const todayCycleLog = cycleLogs[todayKey()] || null;
++  const [cycleBannerDismissed, setCycleBannerDismissed] = useState(false);
+   const [logSaved, setLogSaved] = useState(false);
+   const [savingLog, setSavingLog] = useState(false);
++  const logSavedTimeoutRef = useRef(null);
+ 
+   useEffect(() => {
+     const handler = () => setDiscreet(localStorage.getItem('discreet_mode') === 'true');
+@@ -179,12 +221,7 @@ function PatientTracking() {
+     return () => window.removeEventListener('discreet_mode_changed', handler);
+   }, []);
+ 
+-  const handleShareToggle = () => {
+-    const next = !shareLog;
+-    setShareLog(next);
+-    localStorage.setItem('share_tracking_log', next ? 'true' : 'false');
+-    toast(next ? 'Logs shared with your care team.' : 'Log sharing disabled.', next ? 'success' : 'info');
+-  };
++  useEffect(() => () => { if (logSavedTimeoutRef.current) clearTimeout(logSavedTimeoutRef.current); }, []);
+ 
+   const handleVitalSave = async (key, value) => {
+     const config = VITALS_CONFIG[key];
+@@ -197,7 +234,6 @@ function PatientTracking() {
+   };
+ 
+   const handleHirsutismSelect = async (grade) => {
+-    setHirsutismGrade(grade);
+     try {
+       await logVital('hirsutism', String(grade), '');
+       toast(`Grade ${grade} (${HIRSUTISM_GRADES[grade].label}) selected.`, 'info');
+@@ -217,7 +253,8 @@ function PatientTracking() {
+       const completed = Object.values(lifestyle).filter(Boolean).length;
+       setLogSaved(true);
+       toast(`Daily log saved! ${completed}/${LIFESTYLE_ITEMS.length} habits completed today.`, 'success');
+-      setTimeout(() => setLogSaved(false), 3000);
++      if (logSavedTimeoutRef.current) clearTimeout(logSavedTimeoutRef.current);
++      logSavedTimeoutRef.current = setTimeout(() => setLogSaved(false), 3000);
+     } catch {
+       toast('Failed to save daily log. Please try again.', 'error');
+     } finally {
+@@ -228,7 +265,7 @@ function PatientTracking() {
+   const handleCycleLogSave = async (form) => {
+     try {
+       await logCycle(todayKey(), form);
+-      setLastCycleLog(form);
++      setCycleBannerDismissed(false);
+       toast('Cycle log saved! Your doctor can see this in real-time.', 'success');
+     } catch {
+       toast('Failed to save cycle log. Please try again.', 'error');
+@@ -250,22 +287,18 @@ function PatientTracking() {
+             className="bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm">
+             <i className="fas fa-circle-dot"></i> Log Cycle
+           </button>
+-          <label className="flex items-center gap-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 px-4 py-2 rounded-xl cursor-pointer shadow-sm hover:bg-slate-50">
+-            <input type="checkbox" checked={shareLog} onChange={handleShareToggle} className="accent-aubergine-600 w-4 h-4 rounded" />
+-            Share with Doctor
+-          </label>
+         </div>
+       </div>
+ 
+       {/* Last Cycle Log Banner */}
+-      {lastCycleLog && (
++      {todayCycleLog && !cycleBannerDismissed && (
+         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-center gap-4 animate-fade-in">
+           <div className="w-10 h-10 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center"><i className="fas fa-circle-dot"></i></div>
+           <div>
+             <p className="font-bold text-rose-800 text-sm">Today's Cycle Logged</p>
+-            <p className="text-xs text-rose-700">Flow: {lastCycleLog.flow} • Cramps: {lastCycleLog.cramps}/5 • Mood: {lastCycleLog.mood}</p>
++            <p className="text-xs text-rose-700">Flow: {todayCycleLog.flow} • Cramps: {todayCycleLog.cramps}/5 • Mood: {todayCycleLog.mood}</p>
+           </div>
+-          <button onClick={() => setLastCycleLog(null)} className="ml-auto text-rose-400 hover:text-rose-600"><i className="fas fa-xmark"></i></button>
++          <button onClick={() => setCycleBannerDismissed(true)} className="ml-auto text-rose-400 hover:text-rose-600"><i className="fas fa-xmark"></i></button>
+         </div>
+       )}
+ 
+@@ -274,14 +307,13 @@ function PatientTracking() {
+         {Object.entries(VITALS_CONFIG).map(([key, config]) => {
+           const reading = vitals[key];
+           const trend = reading ? computeTrend(reading.value, reading.previousValue, config.unit) : { text: 'No readings yet', color: 'text-slate-400' };
+-          const vital = { ...config, value: reading?.value ?? '—' };
+           return (
+             <div key={key} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-aubergine-200 hover:shadow-md transition-all group">
+               <div className="flex justify-between items-start mb-3">
+                 <div className={`w-11 h-11 rounded-xl ${config.color} flex items-center justify-center text-lg`}>
+                   <i className={`fas ${config.icon}`}></i>
+                 </div>
+-                <button onClick={() => setLogModal({ key, vital })}
++                <button onClick={() => setLogModal({ key, config, currentValue: reading?.value ?? '' })}
+                   className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-600 w-8 h-8 rounded-lg flex items-center justify-center text-xs border border-aubergine-100"
+                   aria-label="Update reading"
+                   title="Update Reading">
+@@ -290,7 +322,7 @@ function PatientTracking() {
+               </div>
+               <h3 className="text-slate-500 font-semibold text-xs mb-1">{config.label}</h3>
+               <div className={`flex items-end gap-1.5 transition-all ${discreet ? 'discreet-blur' : ''}`}>
+-                <span className="text-3xl font-black text-slate-800">{vital.value}</span>
++                <span className="text-3xl font-black text-slate-800">{reading?.value ?? '—'}</span>
+                 <span className="text-sm font-bold text-slate-500 mb-1">{config.unit}</span>
+               </div>
+               <div className={`mt-3 text-xs font-bold ${trend.color} flex items-center gap-1`}>{trend.text}</div>
+@@ -379,11 +411,12 @@ function PatientTracking() {
+           isOpen={!!logModal}
+           onClose={() => setLogModal(null)}
+           vitalKey={logModal.key}
+-          vital={logModal.vital}
++          config={logModal.config}
++          currentValue={logModal.currentValue}
+           onSave={handleVitalSave}
+         />
+       )}
+-      <CycleLogModal isOpen={showCycleLog} onClose={() => setShowCycleLog(false)} onSave={handleCycleLogSave} existingLog={lastCycleLog} />
++      <CycleLogModal isOpen={showCycleLog} onClose={() => setShowCycleLog(false)} onSave={handleCycleLogSave} existingLog={todayCycleLog} />
+     </div>
+   );
+ }

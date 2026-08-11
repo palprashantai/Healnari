@@ -4,10 +4,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
 
-/* ─── Date helpers — pure UTC calendar-day arithmetic throughout (matches the
-   backend's addDays). Never round-trip a local-parsed Date through
-   toISOString(): in a positive-UTC-offset timezone (e.g. IST) that silently
-   shifts the date by a day and can turn a "+1 day" loop into an infinite one. ─── */
+/* ─── Date helpers ─── */
 const addDaysLocal = (dateStr, days) => {
   const d = new Date(dateStr + 'T00:00:00Z');
   d.setUTCDate(d.getUTCDate() + Math.round(days));
@@ -27,71 +24,68 @@ const relativeDay = (dateStr) => {
   return `${Math.abs(diff)} days ago`;
 };
 
-/* ─── Simple confidence: icon + one short phrase, no percentages up front ─── */
 const CONFIDENCE_LEVELS = [
-  { min: 0.75, icon: 'fa-circle-check', word: "We're fairly sure", color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-200' },
-  { min: 0.45, icon: 'fa-circle-question', word: 'This is our best guess', color: 'text-amber-600', bg: 'bg-amber-50 border-amber-200' },
-  { min: 0, icon: 'fa-triangle-exclamation', word: 'Not very sure yet', color: 'text-rose-600', bg: 'bg-rose-50 border-rose-200' },
+  { min: 0.75, icon: 'fa-circle-check', word: "We're fairly sure", color: 'text-emerald-600', bg: 'bg-emerald-50/80 border-emerald-200/60 backdrop-blur-sm' },
+  { min: 0.45, icon: 'fa-circle-question', word: 'This is our best guess', color: 'text-amber-600', bg: 'bg-amber-50/80 border-amber-200/60 backdrop-blur-sm' },
+  { min: 0, icon: 'fa-triangle-exclamation', word: 'Not very sure yet', color: 'text-rose-600', bg: 'bg-rose-50/80 border-rose-200/60 backdrop-blur-sm' },
 ];
 const confidenceInfo = (score) => CONFIDENCE_LEVELS.find(l => score >= l.min);
 
-/* ─── Number stepper — big tap targets, no typing required ──── */
 function NumberStepper({ value, onChange, min, max, suffix }) {
   const dec = () => onChange(Math.max(min, value - 1));
   const inc = () => onChange(Math.min(max, value + 1));
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-3">
       <button type="button" onClick={dec} aria-label="Decrease"
-        className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-black flex items-center justify-center flex-shrink-0 active:scale-95 transition-all">
+        className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-black flex items-center justify-center flex-shrink-0 active:scale-95 transition-all shadow-sm">
         <i className="fas fa-minus"></i>
       </button>
-      <div className="flex-1 text-center">
-        <div className="text-lg font-black text-slate-800">{value}</div>
-        <div className="text-[9px] text-slate-500 font-bold uppercase tracking-wide">{suffix}</div>
+      <div className="flex-1 text-center bg-white border-2 border-slate-100 rounded-xl py-1.5 shadow-inner">
+        <div className="text-xl font-black text-slate-800">{value}</div>
+        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">{suffix}</div>
       </div>
       <button type="button" onClick={inc} aria-label="Increase"
-        className="w-8 h-8 rounded-lg bg-aubergine-100 hover:bg-aubergine-200 text-aubergine-700 text-sm font-black flex items-center justify-center flex-shrink-0 active:scale-95 transition-all">
+        className="w-10 h-10 rounded-xl bg-aubergine-100 hover:bg-aubergine-200 text-aubergine-700 text-sm font-black flex items-center justify-center flex-shrink-0 active:scale-95 transition-all shadow-sm">
         <i className="fas fa-plus"></i>
       </button>
     </div>
   );
 }
 
-/* ─── Calendar day cell ───────────────────────── */
 const DAY_TYPE_STYLE = {
-  period: { cell: 'bg-rose-500 text-white shadow-sm shadow-rose-200' },
+  period: { cell: 'bg-gradient-to-br from-rose-400 to-rose-500 text-white shadow-md shadow-rose-200 ring-2 ring-white ring-inset' },
   'period-predicted': { cell: 'bg-rose-50 text-rose-500 border-2 border-dashed border-rose-300' },
-  fertile: { cell: 'bg-sky-100 text-sky-700' },
-  peak: { cell: 'bg-amber-400 text-white shadow-sm shadow-amber-200', badge: 'fa-star' },
+  fertile: { cell: 'bg-gradient-to-br from-sky-100 to-sky-200 text-sky-700 shadow-sm border border-sky-300' },
+  peak: { cell: 'bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-md shadow-amber-200 ring-2 ring-white ring-inset', badge: 'fa-star' },
 };
 
-/* Info shown in the panel below the grid for whichever day is hovered/tapped. */
 const DAY_TYPE_INFO = {
   period: { icon: 'fa-droplet', iconBg: 'bg-rose-100', iconColor: 'text-rose-600', label: 'Period Day (Logged)', description: "You've logged this as a period day. Rest, stay hydrated, and go easy on yourself." },
   'period-predicted': { icon: 'fa-droplet', iconBg: 'bg-rose-50', iconColor: 'text-rose-400', label: 'Next Period (Predicted)', description: "Based on your average cycle length, your next period is expected to start around here. Tap below once it actually starts." },
-  fertile: { icon: 'fa-circle', iconBg: 'bg-sky-100', iconColor: 'text-sky-600', label: 'Fertile Day', description: 'Pregnancy is possible from unprotected sex on or near this day — chances rise the closer you get to your most fertile day.' },
+  fertile: { icon: 'fa-circle', iconBg: 'bg-sky-100', iconColor: 'text-sky-600', label: 'Fertile Day', description: 'Pregnancy is possible from unprotected sex on or near this day.' },
   peak: { icon: 'fa-star', iconBg: 'bg-amber-100', iconColor: 'text-amber-600', label: 'Most Fertile Day', description: 'Your single best estimated day for ovulation — the highest-chance day to conceive in this cycle.' },
 };
 const REGULAR_DAY_INFO = { icon: 'fa-calendar', iconBg: 'bg-slate-100', iconColor: 'text-slate-400', label: 'Regular Day', description: 'Nothing predicted for this day yet.' };
 
-function DayCell({ day, type, dateStr, isToday, isActive, onSelect }) {
+function DayCell({ day, type, dateStr, isToday, isActive, onHover, onPin }) {
   const style = DAY_TYPE_STYLE[type];
-  const base = style ? style.cell : 'text-slate-600 hover:bg-slate-100';
+  const base = style ? style.cell : 'text-slate-600 hover:bg-slate-100/80';
   return (
-    <div className="flex items-center justify-center">
+    <div className="flex items-center justify-center p-0.5">
       <button
         type="button"
-        onMouseEnter={() => onSelect(dateStr)}
-        onFocus={() => onSelect(dateStr)}
-        onClick={() => onSelect(dateStr)}
+        onMouseEnter={() => onHover(dateStr)}
+        onFocus={() => onHover(dateStr)}
+        onClick={() => onPin(dateStr)}
         aria-label={`${dateStr}${type ? `, ${DAY_TYPE_INFO[type]?.label || ''}` : ''}`}
-        className={`relative w-7 h-7 rounded-full flex items-center justify-center font-bold text-[11px] transition-all cursor-pointer hover:scale-110 hover:z-10 focus:outline-none focus:ring-2 focus:ring-aubergine-400 focus:ring-offset-1
+        className={`relative w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-300 cursor-pointer hover:scale-110 hover:z-10 hover:shadow-lg focus:outline-none
           ${base}
-          ${isToday ? 'ring-2 ring-slate-800 ring-offset-1' : ''}
-          ${isActive && !isToday ? 'ring-2 ring-aubergine-500 ring-offset-1' : ''}`}>
+          ${isToday && !style ? 'bg-slate-800 text-white shadow-md' : ''}
+          ${isToday && style ? 'ring-2 ring-slate-800 ring-offset-2' : ''}
+          ${isActive && !isToday ? 'ring-2 ring-aubergine-500 ring-offset-2 scale-110 z-10 shadow-md' : ''}`}>
         {day}
         {style?.badge && (
-          <i className={`fas ${style.badge} text-white text-[6px] absolute -top-0.5 -right-0.5 bg-amber-500 rounded-full w-2.5 h-2.5 flex items-center justify-center shadow-sm border border-white`}></i>
+          <i className={`fas ${style.badge} text-white text-[7px] absolute -top-1 -right-1 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full w-3.5 h-3.5 flex items-center justify-center shadow-sm border-2 border-white`}></i>
         )}
       </button>
     </div>
@@ -100,11 +94,7 @@ function DayCell({ day, type, dateStr, isToday, isActive, onSelect }) {
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-/* Small colored dot on a chevron hints that stepping there reveals something
-   marked (a real log, a predicted period, or the fertile window) — so paging
-   forward to see a prediction that landed in another month is discoverable
-   instead of a blind guess. */
-function MonthCalendar({ year, month, getDayType, activeDay, onDaySelect, onPrev, onNext, prevHasMarks, nextHasMarks }) {
+function MonthCalendar({ year, month, getDayType, activeDay, onDayHover, onDayPin, onPrev, onNext, prevHasMarks, nextHasMarks }) {
   const firstOfMonth = new Date(year, month, 1);
   const startWeekday = firstOfMonth.getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -116,32 +106,32 @@ function MonthCalendar({ year, month, getDayType, activeDay, onDaySelect, onPrev
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   return (
-    <div className="max-w-xs mx-auto">
-      <div className="flex items-center justify-between mb-2">
+    <div className="max-w-sm mx-auto">
+      <div className="flex items-center justify-between mb-4 bg-slate-50/50 p-2 rounded-2xl border border-slate-100 backdrop-blur-sm">
         <button onClick={onPrev} aria-label="Previous month"
-          className="relative w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors text-xs">
-          <i className="fas fa-chevron-left"></i>
-          {prevHasMarks && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-rose-400"></span>}
+          className="relative w-8 h-8 rounded-xl hover:bg-white shadow-sm flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all text-sm group">
+          <i className="fas fa-chevron-left group-hover:-translate-x-0.5 transition-transform"></i>
+          {prevHasMarks && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-400 border border-white"></span>}
         </button>
-        <p className="text-sm font-black text-slate-800">{monthLabel}</p>
+        <p className="text-[15px] font-black text-slate-800 tracking-tight">{monthLabel}</p>
         <button onClick={onNext} aria-label="Next month"
-          className="relative w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors text-xs">
-          <i className="fas fa-chevron-right"></i>
-          {nextHasMarks && <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-rose-400"></span>}
+          className="relative w-8 h-8 rounded-xl hover:bg-white shadow-sm flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all text-sm group">
+          <i className="fas fa-chevron-right group-hover:translate-x-0.5 transition-transform"></i>
+          {nextHasMarks && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-400 border border-white"></span>}
         </button>
       </div>
-      <div className="grid grid-cols-7 gap-y-1 mb-1">
+      <div className="grid grid-cols-7 gap-y-2 mb-2">
         {WEEKDAY_LABELS.map((w, i) => (
-          <div key={i} className="text-center text-[9px] font-bold text-slate-400">{w.slice(0, 3)}</div>
+          <div key={i} className="text-center text-[10px] font-black text-slate-400 uppercase tracking-wider">{w.slice(0, 3)}</div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-y-1" onMouseLeave={() => onDaySelect(null)}>
+      <div className="grid grid-cols-7 gap-y-2 gap-x-1" onMouseLeave={() => onDayHover(null)}>
         {cells.map((d, i) => {
           if (d === null) return <div key={i} />;
           const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
           return (
             <DayCell key={i} day={d} dateStr={dateStr} type={getDayType(dateStr)}
-              isToday={dateStr === todayStr} isActive={dateStr === activeDay} onSelect={onDaySelect} />
+              isToday={dateStr === todayStr} isActive={dateStr === activeDay} onHover={onDayHover} onPin={onDayPin} />
           );
         })}
       </div>
@@ -149,105 +139,248 @@ function MonthCalendar({ year, month, getDayType, activeDay, onDaySelect, onPrev
   );
 }
 
-/* Info panel shown below the grid for the hovered/tapped/default-selected day.
-   Any day that isn't already a real logged period can be marked as one right
-   here — this is the "manually select your period date" affordance, folded
-   into the same interaction as browsing, rather than a separate form. */
 function DayInfoPanel({ dateStr, type, cycleDay, onLogPeriod, logging }) {
   if (!dateStr) return null;
   const info = DAY_TYPE_INFO[type] || REGULAR_DAY_INFO;
   const isLogged = type === 'period';
   return (
-    <div className="mt-3 pt-3 border-t border-slate-100 flex items-start gap-2.5 animate-fade-in max-w-xs mx-auto">
-      <div className={`w-8 h-8 rounded-full ${info.iconBg} ${info.iconColor} flex items-center justify-center text-xs flex-shrink-0`}>
-        <i className={`fas ${info.icon}`}></i>
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-          <p className="font-black text-slate-800 text-xs">{formatDate(dateStr)}</p>
-          {cycleDay != null && <span className="text-[10px] font-bold text-slate-400">Day {cycleDay}</span>}
+    <div className="mt-4 animate-fade-in max-w-sm mx-auto">
+      <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-white/50 shadow-lg shadow-slate-200/50 flex items-start gap-3.5 transition-all">
+        <div className={`w-10 h-10 rounded-2xl ${info.iconBg} ${info.iconColor} flex items-center justify-center text-lg flex-shrink-0 shadow-inner`}>
+          <i className={`fas ${info.icon}`}></i>
         </div>
-        <p className={`text-[10px] font-bold uppercase tracking-wide mt-0.5 ${info.iconColor}`}>{info.label}</p>
-        <p className="text-xs text-slate-600 mt-0.5 leading-snug">{info.description}</p>
-        {isLogged ? (
-          <span className="mt-1.5 text-[10px] font-bold text-emerald-600 inline-flex items-center gap-1">
-            <i className="fas fa-circle-check"></i> Logged
-          </span>
-        ) : (
-          <button onClick={() => onLogPeriod(dateStr)} disabled={logging}
-            className="mt-1.5 text-[10px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 disabled:opacity-60 px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1.5 transition-colors">
-            <i className={`fas ${logging ? 'fa-spinner fa-spin' : 'fa-droplet'}`}></i> Mark as period day
-          </button>
-        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <p className="font-black text-slate-800 text-sm">{formatDate(dateStr)}</p>
+            {cycleDay != null && <span className="text-[11px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">Day {cycleDay}</span>}
+          </div>
+          <p className={`text-[11px] font-black uppercase tracking-wider mt-1 ${info.iconColor}`}>{info.label}</p>
+          <p className="text-[13px] text-slate-600 mt-1 leading-snug">{info.description}</p>
+          {isLogged ? (
+            <div className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
+              <i className="fas fa-circle-check"></i> Logged
+            </div>
+          ) : (
+            <button onClick={() => onLogPeriod(dateStr)} disabled={logging}
+              className="mt-2.5 text-xs font-bold text-white bg-rose-500 hover:bg-rose-600 disabled:opacity-60 px-3.5 py-1.5 rounded-xl inline-flex items-center gap-2 transition-all shadow-sm shadow-rose-200 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0">
+              <i className={`fas ${logging ? 'fa-spinner fa-spin' : 'fa-droplet'}`}></i> Mark as period day
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-/* ─── Quick Estimate Form — 3 plain questions, no typing required for numbers ─── */
-function QuickEstimateForm({ defaultLastPeriodStart, onEstimate }) {
+/* ─── Setup Wizard Component ─── */
+function SetupWizard({ defaultLastPeriodStart, onComplete }) {
   const toast = useToast();
+  const [step, setStep] = useState('source'); // 'source' -> 'manual'
+  const [useTrackRecord, setUseTrackRecord] = useState(null);
   const [lastPeriodStart, setLastPeriodStart] = useState(defaultLastPeriodStart || '');
   const [periodDurationDays, setPeriodDurationDays] = useState(5);
   const [cycleLengthDays, setCycleLengthDays] = useState(28);
-  const [calculating, setCalculating] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [checkingTrackRecord, setCheckingTrackRecord] = useState(false);
 
-  const submit = async (e) => {
+  const handleSourceSelection = async (val) => {
+    setUseTrackRecord(val);
+    if (val) {
+      setCheckingTrackRecord(true);
+      try {
+        await onComplete({ source: 'track_record' });
+      } finally {
+        setCheckingTrackRecord(false);
+      }
+    } else {
+      setStep('manual');
+    }
+  };
+
+  const submitManual = async (e) => {
     e.preventDefault();
     if (!lastPeriodStart) { toast('Please pick when your last period started.', 'error'); return; }
-    setCalculating(true);
+    
+    setSubmitting(true);
     try {
       const result = await apiFetch('/patients/me/fertility-prediction/quick-estimate', {
         method: 'POST',
         body: { lastPeriodStart, periodDurationDays, cycleLengthDays },
       });
-      onEstimate(result);
+      onComplete(result);
       toast('Here is your estimate!', 'success');
     } catch (err) {
       toast(err.message || 'Could not calculate. Please try again.', 'error');
     } finally {
-      setCalculating(false);
+      setSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={submit} className="bg-white border-2 border-aubergine-100 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4 max-w-sm mx-auto">
-      <div className="text-center">
-        <div className="w-9 h-9 rounded-xl bg-aubergine-100 text-aubergine-600 text-sm flex items-center justify-center mx-auto mb-1.5">
-          <i className="fas fa-bolt"></i>
+    <div className="relative bg-white/90 backdrop-blur-xl border border-slate-200/60 rounded-3xl p-5 sm:p-8 shadow-xl shadow-slate-200/40 max-w-md mx-auto transform transition-all">
+      {step === 'source' && (
+        <div className="animate-fade-in text-center space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-aubergine-400 to-aubergine-600 text-white text-2xl flex items-center justify-center mx-auto shadow-lg shadow-aubergine-200">
+            <i className="fas fa-wand-magic-sparkles"></i>
+          </div>
+          <div>
+            <h3 className="text-xl font-black text-slate-800">Let's set up your calendar</h3>
+            <p className="text-sm text-slate-500 mt-2">How would you like to calculate your predictions?</p>
+          </div>
+          <div className="space-y-3">
+            <button onClick={() => handleSourceSelection(true)} disabled={checkingTrackRecord}
+              className="w-full flex items-center p-4 border-2 border-slate-100 hover:border-emerald-300 hover:bg-emerald-50 disabled:opacity-60 disabled:hover:border-slate-100 disabled:hover:bg-transparent rounded-2xl transition-all group text-left">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <i className={`fas ${checkingTrackRecord ? 'fa-spinner fa-spin' : 'fa-clock-rotate-left'}`}></i>
+              </div>
+              <div className="ml-4 flex-1">
+                <p className="font-black text-slate-800 text-sm">Use my track record</p>
+                <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">{checkingTrackRecord ? 'Checking your logged cycles…' : "Analyze cycles I've already logged."}</p>
+              </div>
+              <i className="fas fa-chevron-right text-slate-300 group-hover:text-emerald-500"></i>
+            </button>
+            <button onClick={() => handleSourceSelection(false)} disabled={checkingTrackRecord}
+              className="w-full flex items-center p-4 border-2 border-slate-100 hover:border-aubergine-300 hover:bg-aubergine-50 disabled:opacity-60 rounded-2xl transition-all group text-left">
+              <div className="w-10 h-10 rounded-xl bg-aubergine-100 text-aubergine-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                <i className="fas fa-keyboard"></i>
+              </div>
+              <div className="ml-4 flex-1">
+                <p className="font-black text-slate-800 text-sm">Enter details manually</p>
+                <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">Answer 3 quick questions for an estimate.</p>
+              </div>
+              <i className="fas fa-chevron-right text-slate-300 group-hover:text-aubergine-500"></i>
+            </button>
+          </div>
         </div>
-        <h4 className="font-black text-slate-800 text-sm">3 Quick Questions</h4>
-        <p className="text-xs text-slate-500 mt-0.5">No history needed — get an estimate now.</p>
-      </div>
+      )}
 
-      <div>
-        <label className="text-xs font-bold text-slate-700 mb-1.5 block">1. Last period start date?</label>
-        <input type="date" required value={lastPeriodStart} max={todayLocalStr()}
-          onChange={e => setLastPeriodStart(e.target.value)}
-          className="w-full border-2 border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-aubergine-300 focus:border-aubergine-400" />
-      </div>
+      {step === 'manual' && (
+        <form onSubmit={submitManual} className="animate-fade-in space-y-6">
+          <div className="text-center">
+            <button type="button" onClick={() => setStep('source')} className="text-slate-400 hover:text-slate-600 absolute left-5 top-5">
+              <i className="fas fa-arrow-left"></i>
+            </button>
+            <h3 className="text-xl font-black text-slate-800">Your Cycle Details</h3>
+            <p className="text-xs text-slate-500 mt-1">We'll use this to build your calendar.</p>
+          </div>
 
-      <div>
-        <label className="text-xs font-bold text-slate-700 mb-1.5 block">2. Period length (days)?</label>
-        <NumberStepper value={periodDurationDays} onChange={setPeriodDurationDays} min={1} max={15} suffix="days bleeding" />
-      </div>
+          <div className="space-y-5">
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <label className="text-xs font-bold text-slate-700 mb-2 block">1. When did your last period start?</label>
+              <input type="date" required value={lastPeriodStart} max={todayLocalStr()}
+                onChange={e => setLastPeriodStart(e.target.value)}
+                className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-800 text-center focus:outline-none focus:border-aubergine-400 focus:ring-4 focus:ring-aubergine-100 transition-all bg-white" />
+            </div>
 
-      <div>
-        <label className="text-xs font-bold text-slate-700 mb-1.5 block">3. Days between periods?</label>
-        <NumberStepper value={cycleLengthDays} onChange={setCycleLengthDays} min={15} max={90} suffix="days apart" />
-        <p className="text-[10px] text-slate-500 mt-1 text-center">Not sure? 28 is a common average.</p>
-      </div>
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <label className="text-xs font-bold text-slate-700 mb-2 block">2. How many days does your period usually last?</label>
+              <NumberStepper value={periodDurationDays} onChange={setPeriodDurationDays} min={1} max={15} suffix="days bleeding" />
+            </div>
 
-      <button type="submit" disabled={calculating}
-        className="w-full bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-60 text-white font-black py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 shadow-md">
-        <i className={`fas ${calculating ? 'fa-spinner fa-spin' : 'fa-calculator'}`}></i> {calculating ? 'Calculating…' : 'Show My Estimate'}
-      </button>
-    </form>
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <label className="text-xs font-bold text-slate-700 mb-2 block flex items-center justify-between">
+                <span>3. How many days are in your cycle?</span>
+                <span className="text-[10px] font-normal text-slate-400">(Avg is 28)</span>
+              </label>
+              <NumberStepper value={cycleLengthDays} onChange={setCycleLengthDays} min={15} max={90} suffix="days total" />
+            </div>
+          </div>
+
+          <button type="submit" disabled={submitting}
+            className="w-full bg-gradient-to-r from-aubergine-500 to-aubergine-600 hover:from-aubergine-600 hover:to-aubergine-700 text-white font-black py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-aubergine-200 hover:shadow-xl hover:-translate-y-0.5">
+            {submitting ? <i className="fas fa-spinner fa-spin"></i> : <><i className="fas fa-calculator mr-2"></i>Calculate</>}
+          </button>
+        </form>
+      )}
+    </div>
   );
 }
 
-/* ─── Learn section — folded into the same page as a collapsed-by-default
-   card instead of a separate tab, so there's one continuous scroll. ─── */
+/* ─── Cycle Ring Visualization ─── */
+function CycleRing({ prediction, todayCycleDay }) {
+  if (!prediction || !prediction.fertileWindow) return null;
+  
+  const cycleLen = prediction.cycleStats?.meanLength || prediction.cycleLengthDays || 28;
+  const periodLen = prediction.periodDurationDays || 5;
+  const fwStart = daysBetweenLocal(prediction.lastPeriodStart, prediction.fertileWindow[0]) + 1;
+  const fwEnd = daysBetweenLocal(prediction.lastPeriodStart, prediction.fertileWindow[1]) + 1;
+  const ovDay = daysBetweenLocal(prediction.lastPeriodStart, prediction.estimatedOvulationDate) + 1;
+
+  const currentDay = todayCycleDay || 1;
+  const cappedCurrentDay = Math.min(Math.max(1, currentDay), cycleLen);
+
+  const radius = 90;
+  const circumference = 2 * Math.PI * radius;
+  const strokeWidth = 14;
+  
+  const getOffset = (day) => {
+    return circumference - ((day - 1) / cycleLen) * circumference;
+  };
+
+  const getPercentage = (day) => ((day - 1) / cycleLen) * 100;
+
+  return (
+    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 flex flex-col items-center">
+      <h3 className="text-sm font-black text-slate-800 mb-1">Cycle Status</h3>
+      <p className="text-[11px] text-slate-500 mb-6">Day {cappedCurrentDay} of {cycleLen}</p>
+
+      <div className="relative w-48 h-48 flex items-center justify-center">
+        <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 200 200">
+          {/* Background Ring */}
+          <circle cx="100" cy="100" r={radius} fill="none" stroke="#f1f5f9" strokeWidth={strokeWidth} />
+          
+          {/* Period Phase (Red) */}
+          <circle cx="100" cy="100" r={radius} fill="none" stroke="#f43f5e" strokeWidth={strokeWidth} strokeLinecap="round"
+            strokeDasharray={`${(periodLen / cycleLen) * circumference} ${circumference}`}
+            className="drop-shadow-sm" />
+            
+          {/* Fertile Window (Blue to Amber) */}
+          <circle cx="100" cy="100" r={radius} fill="none" stroke="#38bdf8" strokeWidth={strokeWidth} strokeLinecap="round"
+            strokeDasharray={`${((fwEnd - fwStart + 1) / cycleLen) * circumference} ${circumference}`}
+            strokeDashoffset={-((fwStart - 1) / cycleLen) * circumference}
+            className="drop-shadow-sm opacity-80" />
+            
+          {/* Ovulation Peak Dot */}
+          <circle cx={100 + radius * Math.cos((ovDay - 1) / cycleLen * 2 * Math.PI)} 
+                  cy={100 + radius * Math.sin((ovDay - 1) / cycleLen * 2 * Math.PI)} 
+                  r="4" fill="#fbbf24" stroke="#ffffff" strokeWidth="2" />
+          
+          {/* Current Day Indicator */}
+          <circle cx={100 + radius * Math.cos((cappedCurrentDay - 1) / cycleLen * 2 * Math.PI)} 
+                  cy={100 + radius * Math.sin((cappedCurrentDay - 1) / cycleLen * 2 * Math.PI)} 
+                  r="8" fill="#334155" stroke="#ffffff" strokeWidth="3" className="shadow-lg" />
+        </svg>
+
+        {/* Center Text */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center rotate-0">
+          {currentDay <= periodLen ? (
+            <>
+              <i className="fas fa-droplet text-rose-500 text-xl mb-1 drop-shadow-sm"></i>
+              <span className="text-[10px] font-black uppercase text-rose-600 tracking-wider">Period</span>
+            </>
+          ) : currentDay >= fwStart && currentDay <= fwEnd ? (
+             <>
+               <i className="fas fa-egg text-sky-500 text-xl mb-1 drop-shadow-sm"></i>
+               <span className="text-[10px] font-black uppercase text-sky-600 tracking-wider">Fertile</span>
+             </>
+          ) : (
+            <>
+               <i className="fas fa-leaf text-slate-400 text-xl mb-1"></i>
+               <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Follicular/<br/>Luteal</span>
+            </>
+          )}
+        </div>
+      </div>
+      
+      <div className="flex gap-4 mt-6 text-[10px] font-bold text-slate-500">
+        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div>Period</div>
+        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-sky-400"></div>Fertile Window</div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Learn section ─── */
 const TOPIC_STYLES = {
   sky: { chip: 'bg-sky-50 text-sky-600', ring: 'border-sky-100', dot: 'text-sky-500' },
   rose: { chip: 'bg-rose-50 text-rose-600', ring: 'border-rose-100', dot: 'text-rose-500' },
@@ -326,29 +459,29 @@ const FERTILITY_TOPICS = [
 function AccordionCard({ topic, isOpen, onToggle }) {
   const s = TOPIC_STYLES[topic.color];
   return (
-    <div className={`bg-white rounded-xl border ${s.ring} overflow-hidden transition-all`}>
+    <div className={`bg-white rounded-2xl border ${s.ring} overflow-hidden transition-all shadow-sm`}>
       <button onClick={onToggle} aria-expanded={isOpen}
-        className="w-full flex items-center gap-3 p-3 text-left hover:bg-slate-50/60 transition-colors">
-        <div className={`w-8 h-8 rounded-lg ${s.chip} flex items-center justify-center flex-shrink-0 text-sm`}>
+        className="w-full flex items-center gap-3 p-4 text-left hover:bg-slate-50/60 transition-colors">
+        <div className={`w-10 h-10 rounded-xl ${s.chip} flex items-center justify-center flex-shrink-0 text-lg shadow-inner`}>
           <i className={`fas ${topic.icon}`}></i>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-black text-slate-800 text-xs">{topic.title}</p>
-          <p className="text-[10px] text-slate-500 mt-0.5">{topic.summary}</p>
+          <p className="font-black text-slate-800 text-[13px]">{topic.title}</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">{topic.summary}</p>
         </div>
-        <i className={`fas fa-chevron-down text-slate-300 text-xs transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}></i>
+        <i className={`fas fa-chevron-down text-slate-400 text-xs transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}></i>
       </button>
       {isOpen && (
-        <div className="px-3 pb-3">
-          <ul className="space-y-2 pl-11">
+        <div className="px-4 pb-4">
+          <ul className="space-y-3 pl-13">
             {topic.points.map((p, i) => (
-              <li key={i} className="flex gap-2 text-xs text-slate-600 leading-relaxed">
-                <i className={`fas fa-circle text-[3px] ${s.dot} mt-1.5 flex-shrink-0`}></i>
+              <li key={i} className="flex gap-2.5 text-[13px] text-slate-600 leading-relaxed">
+                <i className={`fas fa-circle text-[4px] ${s.dot} mt-2 flex-shrink-0`}></i>
                 <span>{p}</span>
               </li>
             ))}
           </ul>
-          {topic.note && <p className="text-[10px] text-slate-400 mt-2 pl-11 italic">{topic.note}</p>}
+          {topic.note && <p className="text-xs text-slate-400 mt-3 pl-13 italic leading-relaxed">{topic.note}</p>}
         </div>
       )}
     </div>
@@ -366,17 +499,17 @@ function LearnSection() {
     });
   };
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div className="bg-white/80 backdrop-blur-md rounded-3xl border border-slate-200 overflow-hidden shadow-sm mt-8">
       <button onClick={() => setExpanded(!expanded)} aria-expanded={expanded}
-        className="w-full flex items-center justify-between p-3 hover:bg-slate-50 transition-colors">
-        <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+        className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors">
+        <span className="text-sm font-black text-slate-700 flex items-center gap-2">
           <i className="fas fa-book-open text-slate-400"></i> Learn About Your Cycle & Fertility
         </span>
-        <i className={`fas fa-chevron-${expanded ? 'up' : 'down'} text-slate-400 text-xs`}></i>
+        <i className={`fas fa-chevron-${expanded ? 'up' : 'down'} text-slate-400 text-sm`}></i>
       </button>
       {expanded && (
-        <div className="p-3 pt-0 space-y-2 border-t border-slate-100">
-          <p className="text-[11px] text-slate-500 pt-3 pb-1">General information to help you understand your calendar. Not a diagnosis.</p>
+        <div className="p-4 pt-0 space-y-3 border-t border-slate-100 bg-slate-50/50">
+          <p className="text-xs font-bold text-slate-500 pt-2 pb-1 px-1">General information to help you understand your calendar. Not a diagnosis.</p>
           {FERTILITY_TOPICS.map(topic => (
             <AccordionCard key={topic.id} topic={topic} isOpen={openIds.has(topic.id)} onToggle={() => toggleTopic(topic.id)} />
           ))}
@@ -386,7 +519,7 @@ function LearnSection() {
   );
 }
 
-/* ─── Main Component ─────────────────────────── */
+/* ─── Main Component ─── */
 function PatientFertility() {
   const { cycleLogs, logCycle } = useClinicData();
   const toast = useToast();
@@ -394,8 +527,18 @@ function PatientFertility() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [showQuickEstimate, setShowQuickEstimate] = useState(false);
-  const [selectedDay, setSelectedDay] = useState(todayLocalStr());
+  // Starts false — a returning patient with an already-established prediction
+  // should land straight on their calendar. The effect below flips this to
+  // true only if the initial load comes back empty/insufficient, instead of
+  // unconditionally forcing every visit through the setup wizard first.
+  const [setupMode, setSetupMode] = useState(false);
+  // pinnedDay is the day a click deliberately selected (persists); hoveredDay
+  // is a transient mouse/focus preview that falls back to pinnedDay once the
+  // cursor leaves the grid — kept separate so moving the mouse from a clicked
+  // day down to the "Mark as period day" button doesn't discard the click.
+  const [pinnedDay, setPinnedDay] = useState(todayLocalStr());
+  const [hoveredDay, setHoveredDay] = useState(null);
+  const selectedDay = hoveredDay ?? pinnedDay;
   const [loggingDay, setLoggingDay] = useState(false);
 
   const lastKnownFlowDate = Object.keys(cycleLogs).filter(d => cycleLogs[d]?.flow).sort().pop() || '';
@@ -403,18 +546,28 @@ function PatientFertility() {
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
-    apiFetch('/patients/me/fertility-prediction')
-      .then(setPrediction)
-      .catch(err => setError(err.message || 'We could not load your prediction.'))
+    return apiFetch('/patients/me/fertility-prediction')
+      .then(res => { setPrediction(res); return res; })
+      .catch(err => { setError(err.message || 'We could not load your prediction.'); return null; })
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load().then(res => {
+      // res is null only when load() failed (network/server error, already
+      // surfaced via the error state) — that's a different case from a
+      // successful response reporting 'insufficient_data'. Forcing the setup
+      // wizard on both used to hide real load failures behind "let's set up
+      // your calendar" instead of the error banner.
+      if (res && res.classification === 'insufficient_data') setSetupMode(true);
+    });
+    // Only ever gate on the very first load — later manual "Refresh" clicks
+    // must not re-trigger this and yank the user back into the wizard.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const hasResult = prediction && prediction.classification !== 'insufficient_data';
 
-  // Every real logged period day (from full history, not just the latest streak)
-  // always wins; predictions fill in the gaps around it.
   const dayTypes = useMemo(() => {
     const map = {};
     Object.entries(cycleLogs).forEach(([date, log]) => {
@@ -443,9 +596,6 @@ function PatientFertility() {
     return map;
   }, [cycleLogs, prediction, hasResult]);
 
-  // Always opens on today's month, like any normal calendar — predictions for
-  // a future month are reached by paging forward (the dot on the chevron and
-  // the "jump to predicted period" chip below both point the way there).
   const [viewMonth, setViewMonth] = useState(() => {
     const d = new Date();
     return { year: d.getFullYear(), month: d.getMonth() };
@@ -458,9 +608,12 @@ function PatientFertility() {
     });
   };
   const goToDate = (dateStr) => {
-    const d = new Date(dateStr + 'T00:00:00');
-    setViewMonth({ year: d.getFullYear(), month: d.getMonth() });
-    setSelectedDay(dateStr);
+    // Parse the y/m components directly instead of going through Date — every
+    // other date computation in this file anchors to UTC ('T00:00:00Z') to
+    // avoid local-timezone drift, and this was the one spot that didn't.
+    const [y, m] = dateStr.split('-').map(Number);
+    setViewMonth({ year: y, month: m - 1 });
+    setPinnedDay(dateStr);
   };
 
   const monthHasMarks = (year, month) => {
@@ -472,17 +625,17 @@ function PatientFertility() {
   const prevHasMarks = monthHasMarks(prevMonthDate.getFullYear(), prevMonthDate.getMonth());
   const nextHasMarks = monthHasMarks(nextMonthDate.getFullYear(), nextMonthDate.getMonth());
 
-  // Falls back to today rather than leaving the panel blank once the mouse leaves the grid.
-  const selectDay = (dateStr) => setSelectedDay(dateStr || todayLocalStr());
-
-  const selectedDayCycleDay = selectedDay && hasResult ? daysBetweenLocal(prediction.lastPeriodStart, selectedDay) + 1 : null;
+  const selectedDayCycleDay = selectedDay && hasResult && prediction.lastPeriodStart ? daysBetweenLocal(prediction.lastPeriodStart, selectedDay) + 1 : null;
+  const todayCycleDay = hasResult && prediction.lastPeriodStart ? daysBetweenLocal(prediction.lastPeriodStart, todayLocalStr()) + 1 : null;
 
   const handleLogPeriod = async (dateStr) => {
     setLoggingDay(true);
     try {
       await logCycle(dateStr, { flow: 'Medium' });
       toast(`Logged ${formatShort(dateStr)} as a period day.`, 'success');
-      load(); // refresh the prediction now that history changed
+      if (hasResult) {
+          load();
+      }
     } catch {
       toast('Could not log that day. Please try again.', 'error');
     } finally {
@@ -490,186 +643,187 @@ function PatientFertility() {
     }
   };
 
+  const handleSetupComplete = async (data) => {
+    if (data.source === 'track_record') {
+       const res = await load();
+       if (!res) {
+         return; // load() already surfaced the error via the error state; stay on the wizard
+       }
+       if (res.classification === 'insufficient_data') {
+         toast("You don't have 2 full cycles logged yet, so we can't analyze a track record. Try \"Enter details manually\" instead, or log more cycles on the Tracking page.", 'error');
+         return; // keep the wizard open
+       }
+    } else {
+       setPrediction(data);
+    }
+    setSetupMode(false);
+  };
+
   const conf = hasResult ? confidenceInfo(prediction.confidenceScore) : null;
   const nextPeriodMonth = hasResult && prediction.nextPeriodEstimate ? new Date(prediction.nextPeriodEstimate + 'T00:00:00') : null;
   const nextPeriodElsewhere = nextPeriodMonth && (nextPeriodMonth.getFullYear() !== viewMonth.year || nextPeriodMonth.getMonth() !== viewMonth.month);
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-10">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div>
-          <h1 className="text-lg font-black text-slate-800">Your Fertility Calendar</h1>
-          <p className="text-xs text-slate-500">Tap any date to log it, and see your best days to try for a baby.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/50 backdrop-blur-md p-4 rounded-3xl border border-white shadow-sm">
+        <div className="flex items-center gap-4">
+           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-aubergine-500 to-rose-400 text-white flex items-center justify-center text-xl shadow-lg shadow-rose-200">
+             <i className="fas fa-calendar-heart"></i>
+           </div>
+           <div>
+             <h1 className="text-xl font-black text-slate-800 tracking-tight">Your Fertility Calendar</h1>
+             <p className="text-[13px] text-slate-500 font-medium">Track your cycles, predict your best days.</p>
+           </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          {hasResult && (
-            <button onClick={() => window.print()} aria-label="Print"
-              className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm text-xs">
-              <i className="fas fa-print"></i>
+        <div className="flex items-center gap-2">
+          {hasResult && !setupMode && (
+            <button onClick={() => setSetupMode(true)} aria-label="Settings"
+              className="bg-white border-2 border-slate-100 hover:border-slate-300 text-slate-600 w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm text-sm group">
+              <i className="fas fa-cog group-hover:rotate-90 transition-transform duration-300"></i>
             </button>
           )}
           <button onClick={load} disabled={loading}
-            className="bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-60 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-colors shadow-sm">
-            <i className={`fas fa-arrows-rotate ${loading ? 'fa-spin' : ''}`}></i> Refresh
+            className="bg-white border-2 border-slate-100 hover:border-aubergine-200 disabled:opacity-60 text-aubergine-700 font-black px-4 py-2 rounded-xl text-[13px] flex items-center gap-2 transition-all shadow-sm group">
+            <i className={`fas fa-arrows-rotate ${loading ? 'fa-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`}></i> Refresh
           </button>
         </div>
       </div>
 
-      {/* Short, plain disclaimer */}
-      <div className="bg-sky-50 border border-sky-100 rounded-xl p-2.5 flex items-center gap-2.5">
-        <div className="w-6 h-6 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center flex-shrink-0 text-xs">
+      <div className="bg-sky-50/80 backdrop-blur-sm border border-sky-100 rounded-2xl p-3 flex items-center gap-3 max-w-2xl">
+        <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center flex-shrink-0 text-sm">
           <i className="fas fa-user-doctor"></i>
         </div>
-        <p className="text-xs text-sky-800"><strong>A helpful guide, not a medical test.</strong> Always talk to your doctor too.</p>
+        <p className="text-xs text-sky-800 font-medium leading-relaxed"><strong>A helpful guide, not a medical test.</strong> Always consult your doctor for medical advice.</p>
       </div>
 
-      {loading && !prediction && (
-        <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-slate-400">
-          <i className="fas fa-spinner fa-spin text-2xl mb-2 block"></i>
-          <p className="font-bold text-sm">Looking at your cycles…</p>
-        </div>
-      )}
-
-      {!loading && error && (
-        <div className="bg-white rounded-2xl border border-rose-200 p-6 text-center">
-          <i className="fas fa-triangle-exclamation text-rose-400 text-2xl mb-2 block"></i>
-          <p className="text-sm text-rose-700 font-bold">{error}</p>
-        </div>
-      )}
-
-      {(!loading || prediction) && !error && (
-        <>
-          {/* Calendar — always visible and tappable, whether or not a prediction exists yet */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 sm:p-4">
-            <p className="text-[10px] text-slate-400 text-center mb-2">
-              <i className="fas fa-arrow-pointer mr-1"></i>Tap a date to see it, or mark your period
-            </p>
-            <MonthCalendar year={viewMonth.year} month={viewMonth.month} getDayType={d => dayTypes[d]}
-              activeDay={selectedDay} onDaySelect={selectDay}
-              onPrev={() => goToMonth(-1)} onNext={() => goToMonth(1)}
-              prevHasMarks={prevHasMarks} nextHasMarks={nextHasMarks} />
-
-            {nextPeriodElsewhere && (
-              <div className="flex justify-center mt-2">
-                <button onClick={() => goToDate(prediction.nextPeriodEstimate)}
-                  className="text-[10px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-full transition-colors inline-flex items-center gap-1">
-                  Next period: {formatShort(prediction.nextPeriodEstimate)} <i className="fas fa-arrow-right text-[8px]"></i>
-                </button>
-              </div>
-            )}
-
-            {/* Legend */}
-            <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mt-3 pt-3 border-t border-slate-100">
-              {[
-                { swatch: 'bg-rose-500', label: 'Period' },
-                { swatch: 'bg-rose-50 border border-dashed border-rose-300', label: 'Predicted' },
-                { swatch: 'bg-sky-100 border border-sky-200', label: 'Fertile' },
-                { swatch: 'bg-amber-400', label: 'Best Day' },
-              ].map(l => (
-                <div key={l.label} className="flex items-center gap-1.5">
-                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ${l.swatch}`}></div>
-                  <span className="text-[10px] font-bold text-slate-600">{l.label}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Info panel — updates as you hover/tap dates above; lets you log a period day inline */}
-            <DayInfoPanel dateStr={selectedDay} type={dayTypes[selectedDay]} cycleDay={selectedDayCycleDay}
-              onLogPeriod={handleLogPeriod} logging={loggingDay} />
+      {loading && !prediction && !setupMode && (
+        <div className="bg-white/60 backdrop-blur-md rounded-3xl border border-white shadow-xl shadow-slate-200/50 p-12 text-center text-slate-400">
+          <div className="relative w-16 h-16 mx-auto mb-4">
+            <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-aubergine-500 rounded-full border-t-transparent animate-spin"></div>
           </div>
+          <p className="font-black text-base text-slate-700">Analyzing your cycle history…</p>
+        </div>
+      )}
 
-          {!hasResult && (
-            <div className="space-y-3">
-              <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-2.5 flex items-start gap-2.5">
-                <i className="fas fa-circle-info text-aubergine-500 mt-0.5 flex-shrink-0 text-xs"></i>
-                <p className="text-xs text-aubergine-800">{prediction?.message || 'Tap dates above to log your period. After 2 full cycles, your fertile window prediction appears here automatically.'}</p>
+      {!loading && error && !setupMode && (
+        <div className="bg-rose-50/80 backdrop-blur-md rounded-3xl border border-rose-200 p-8 text-center shadow-lg shadow-rose-100/50">
+          <div className="w-16 h-16 bg-rose-100 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-sm">
+             <i className="fas fa-triangle-exclamation"></i>
+          </div>
+          <p className="text-base text-rose-800 font-black">{error}</p>
+        </div>
+      )}
+      
+      {setupMode && (
+         <SetupWizard defaultLastPeriodStart={lastKnownFlowDate} onComplete={handleSetupComplete} />
+      )}
+
+      {(!loading || prediction) && !error && !setupMode && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          {/* Left Column: Calendar */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white shadow-xl shadow-slate-200/40 p-4 sm:p-6 transition-all">
+              <div className="flex justify-between items-center mb-6">
+                 <h2 className="text-base font-black text-slate-800">Your Calendar</h2>
+                 <p className="text-[11px] font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100">
+                   <i className="fas fa-arrow-pointer mr-1.5"></i>Tap to log
+                 </p>
               </div>
-              <button onClick={() => setShowQuickEstimate(!showQuickEstimate)}
-                className="w-full text-center text-[11px] font-bold text-slate-500 hover:text-aubergine-600 py-1 transition-colors">
-                {showQuickEstimate ? 'Hide' : "Prefer to just answer 3 quick questions instead?"} <i className={`fas fa-chevron-${showQuickEstimate ? 'up' : 'down'} ml-1`}></i>
-              </button>
-              {showQuickEstimate && <QuickEstimateForm defaultLastPeriodStart={lastKnownFlowDate} onEstimate={setPrediction} />}
+              <MonthCalendar year={viewMonth.year} month={viewMonth.month} getDayType={d => dayTypes[d]}
+                activeDay={selectedDay} onDayHover={setHoveredDay} onDayPin={setPinnedDay}
+                onPrev={() => goToMonth(-1)} onNext={() => goToMonth(1)}
+                prevHasMarks={prevHasMarks} nextHasMarks={nextHasMarks} />
+
+              {nextPeriodElsewhere && (
+                <div className="flex justify-center mt-4">
+                  <button onClick={() => goToDate(prediction.nextPeriodEstimate)}
+                    className="text-[11px] font-black text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-100 px-4 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-sm hover:shadow-md">
+                    Jump to next period <i className="fas fa-arrow-right"></i>
+                  </button>
+                </div>
+              )}
+
+              {/* Legend */}
+              <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 mt-6 pt-5 border-t border-slate-100">
+                {[
+                  { swatch: 'bg-gradient-to-br from-rose-400 to-rose-500 shadow-sm', label: 'Period' },
+                  { swatch: 'bg-rose-50 border-2 border-dashed border-rose-300', label: 'Predicted' },
+                  { swatch: 'bg-gradient-to-br from-sky-300 to-sky-400 shadow-sm', label: 'Fertile' },
+                  { swatch: 'bg-gradient-to-br from-amber-400 to-amber-500 shadow-sm', label: 'Best Day' },
+                ].map(l => (
+                  <div key={l.label} className="flex items-center gap-2">
+                    <div className={`w-3.5 h-3.5 rounded-full flex-shrink-0 ${l.swatch}`}></div>
+                    <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">{l.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Interactive Info panel */}
+              <DayInfoPanel dateStr={selectedDay} type={dayTypes[selectedDay]} cycleDay={selectedDayCycleDay}
+                onLogPeriod={handleLogPeriod} logging={loggingDay} />
             </div>
-          )}
-
-          {hasResult && (
-            <>
-              {prediction.source === 'manual' && (
-                <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-2.5 flex items-center gap-2.5">
-                  <i className="fas fa-bolt text-aubergine-500 text-sm flex-shrink-0"></i>
-                  <p className="text-xs text-aubergine-800">A quick estimate from what you told us. Tap dates above to log real cycles for a more personal answer.</p>
-                </div>
-              )}
-
-              {/* Big friendly headline */}
-              <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-4 sm:p-5 text-white shadow-lg text-center">
-                <div className="w-9 h-9 rounded-xl bg-white/20 text-sm flex items-center justify-center mx-auto mb-2">
-                  <i className="fas fa-egg"></i>
-                </div>
-                <p className="text-emerald-50 font-bold text-[10px] uppercase tracking-wide mb-0.5">Your Best Days To Try</p>
-                <p className="text-xl sm:text-2xl font-black mb-0.5">{formatShort(prediction.fertileWindow[0])} – {formatShort(prediction.fertileWindow[1])}</p>
-                <p className="text-emerald-100 text-xs">Most likely: <strong className="text-white">{formatDate(prediction.estimatedOvulationDate)}</strong> ({relativeDay(prediction.estimatedOvulationDate)})</p>
-                <p className="text-emerald-50/90 text-[10px] mt-2 max-w-xs mx-auto leading-relaxed">
-                  The "fertile window" is the handful of days around ovulation when pregnancy is possible.
-                </p>
-              </div>
-
-              {/* Simple confidence + next period */}
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div className={`rounded-xl border p-3 flex items-center gap-3 ${conf.bg}`}>
-                  <i className={`fas ${conf.icon} ${conf.color} text-xl flex-shrink-0`}></i>
-                  <div>
-                    <p className={`font-black text-sm ${conf.color}`}>{conf.word}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">How sure we are about this estimate</p>
-                  </div>
-                </div>
-                <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 flex items-center gap-3">
-                  <i className="fas fa-droplet text-sky-500 text-xl flex-shrink-0"></i>
-                  <div>
-                    <p className="font-black text-sky-700 text-sm">{formatDate(prediction.nextPeriodEstimate)}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Next period expected ({relativeDay(prediction.nextPeriodEstimate)})</p>
-                  </div>
-                </div>
-              </div>
-
-              {prediction.pcosFlag && (
-                <div className="bg-amber-50 border border-amber-100 rounded-xl p-2.5 flex items-start gap-2.5">
-                  <i className="fas fa-circle-info text-amber-500 mt-0.5 flex-shrink-0 text-xs"></i>
-                  <p className="text-xs text-amber-800">You've told us about PCOS/PCOD, so calendar guesses can be less exact. LH strips and BBT tracking on the Tracking page give a clearer answer.</p>
-                </div>
-              )}
-
-              {/* Collapsible details for anyone who wants the numbers */}
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                <button onClick={() => setShowDetails(!showDetails)}
-                  className="w-full flex items-center justify-between p-3 hover:bg-slate-50 transition-colors">
-                  <span className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
-                    <i className="fas fa-chart-simple text-slate-400"></i> Numbers & Details
-                  </span>
-                  <i className={`fas fa-chevron-${showDetails ? 'up' : 'down'} text-slate-400 text-xs`}></i>
-                </button>
-                {showDetails && (
-                  <div className="p-3 pt-0 space-y-2 text-xs text-slate-600 border-t border-slate-100">
-                    <p className="pt-3">{prediction.message}</p>
-                    <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-200 text-[11px] space-y-1">
-                      <div className="flex justify-between"><span>Cycles analyzed</span><span className="font-bold text-slate-800">{prediction.cycleStats.count}</span></div>
-                      <div className="flex justify-between"><span>Average cycle length</span><span className="font-bold text-slate-800">{prediction.cycleStats.meanLength} days</span></div>
-                      {prediction.cycleStats.stdDev !== null && (
-                        <div className="flex justify-between"><span>Cycle variability (±)</span><span className="font-bold text-slate-800">{prediction.cycleStats.stdDev} days</span></div>
-                      )}
-                      <div className="flex justify-between"><span>Pattern</span><span className="font-bold text-slate-800">{prediction.classification === 'regular' ? 'Regular' : 'Irregular'}</span></div>
-                      <div className="flex justify-between"><span>Confidence score</span><span className="font-bold text-slate-800">{Math.round(prediction.confidenceScore * 100)}%</span></div>
+          </div>
+          
+          {/* Right Column: Visualization & Stats */}
+          <div className="lg:col-span-5 space-y-6">
+             {hasResult ? (
+                <>
+                  <div className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-emerald-900/20 text-center relative overflow-hidden group hover:scale-[1.01] transition-transform duration-300">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-teal-900/20 rounded-full blur-xl -ml-5 -mb-5 pointer-events-none"></div>
+                    
+                    <div className="relative z-10">
+                        <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md text-xl flex items-center justify-center mx-auto mb-4 shadow-inner ring-1 ring-white/30 group-hover:rotate-12 transition-transform duration-500">
+                        <i className="fas fa-egg"></i>
+                        </div>
+                        <p className="text-emerald-50/80 font-black text-[11px] uppercase tracking-widest mb-1">Your Best Days To Try</p>
+                        <p className="text-2xl sm:text-3xl font-black mb-1 drop-shadow-md">{formatShort(prediction.fertileWindow[0])} – {formatShort(prediction.fertileWindow[1])}</p>
+                        <div className="bg-black/10 inline-block px-3 py-1.5 rounded-xl mt-2 backdrop-blur-sm border border-white/10">
+                           <p className="text-emerald-50 text-[13px] font-medium">Peak day: <strong className="text-white font-black">{formatDate(prediction.estimatedOvulationDate)}</strong></p>
+                        </div>
                     </div>
                   </div>
-                )}
-              </div>
-            </>
-          )}
+                  
+                  <CycleRing prediction={prediction} todayCycleDay={todayCycleDay} />
 
-          {/* Learn — merged into the same page, collapsed by default */}
-          <LearnSection />
-        </>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className={`rounded-2xl border p-4 flex items-center gap-3 ${conf.bg} shadow-sm`}>
+                      <i className={`fas ${conf.icon} ${conf.color} text-2xl flex-shrink-0 drop-shadow-sm`}></i>
+                      <div>
+                        <p className={`font-black text-sm ${conf.color}`}>{conf.word}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5 font-bold uppercase tracking-wide">Confidence</p>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white p-4 flex items-center gap-3 shadow-sm">
+                      <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-500 flex items-center justify-center flex-shrink-0 shadow-inner">
+                         <i className="fas fa-droplet text-xl"></i>
+                      </div>
+                      <div>
+                        <p className="font-black text-sky-800 text-sm">{formatDate(prediction.nextPeriodEstimate)}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5 font-bold uppercase tracking-wide">Next Period</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                </>
+             ) : (
+                <div className="bg-slate-50 rounded-3xl border border-slate-100 p-8 text-center h-full flex flex-col justify-center items-center">
+                   <div className="w-16 h-16 bg-white rounded-2xl shadow-sm text-slate-300 text-2xl flex items-center justify-center mb-4">
+                     <i className="fas fa-chart-pie"></i>
+                   </div>
+                   <p className="text-sm font-bold text-slate-500">Cycle insights will appear here once setup is complete.</p>
+                </div>
+             )}
+          </div>
+        </div>
+      )}
+
+      {/* Learn Section restored for educational resources */}
+      {(!loading || prediction) && !error && !setupMode && (
+         <LearnSection />
       )}
     </div>
   );

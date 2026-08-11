@@ -5,6 +5,7 @@ import { DoseSchedule } from '../../components/DoseSchedule.jsx';
 import { RxStatusBadge, resolveRxStatus } from '../../components/RxStatus.jsx';
 import { StepIndicator } from '../../components/StepIndicator.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
+import { apiFetch } from '../../lib/apiClient.js';
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -287,6 +288,69 @@ function DoctorPrescriptions() {
     if (selectedIds.length === 0) { toast('Please select at least one prescription first.', 'error'); return; }
     setBulkModalParams({ isOpen: true, channel: action });
   };
+
+  const sendBulkMessage = async (channel, messageText) => {
+    const recipients = filtered.filter(rx => selectedIds.includes(rx.id));
+    try {
+      await apiFetch('/communications/broadcasts', {
+        method: 'POST',
+        body: {
+          subject: channel,
+          body: messageText,
+          audience: `Selected Prescriptions — ${recipients.length} patient(s)`,
+          channels: [channel],
+          scheduleType: 'immediate',
+          patientIds: recipients.map(rx => rx.patientId),
+        },
+      });
+      toast(`${channel} sent to ${recipients.length} patient(s).`, 'success');
+    } catch (err) {
+      toast(err.message || `Failed to send ${channel}`, 'error');
+    }
+    setSelectedIds([]);
+  };
+
+  const resendRx = async (rx) => {
+    try {
+      await apiFetch('/communications/broadcasts', {
+        method: 'POST',
+        body: {
+          subject: 'Prescription Reminder',
+          body: `Your prescription (${rx.meds.map(m => m.name).join(', ')}) has been resent by your doctor. Please check your records.`,
+          audience: `Prescription resend — ${rx.patient}`,
+          channels: ['Push Notification'],
+          scheduleType: 'immediate',
+          patientIds: [rx.patientId],
+        },
+      });
+      toast(`Prescription resent to ${rx.patient}.`, 'success');
+    } catch (err) {
+      toast(err.message || `Failed to resend to ${rx.patient}`, 'error');
+    }
+  };
+
+  const downloadRxPdf = (rx) => {
+    const win = window.open('', '_blank', 'width=480,height=640');
+    if (!win) return;
+    const medsHtml = rx.meds.map(m => `<div class="row"><span>${m.name}</span><span class="muted">${m.schedule} — ${m.duration}</span></div>`).join('');
+    win.document.write(`
+      <!doctype html><html><head><title>Prescription — ${rx.patient}</title>
+      <style>
+        body { font-family: Georgia, serif; padding: 32px; color: #1e293b; }
+        h1 { font-size: 20px; margin: 0; }
+        .muted { color: #64748b; font-size: 12px; }
+        .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+        .header { border-bottom: 1px solid #cbd5e1; padding-bottom: 12px; margin-bottom: 12px; }
+      </style></head><body>
+      <div class="header"><h1>HealNari — Prescription</h1><p class="muted">${rx.patient} • ${rx.diagnosis} • ${rx.date}</p></div>
+      ${medsHtml}
+      ${rx.instructions ? `<p class="muted" style="margin-top:16px"><strong>Instructions:</strong> ${rx.instructions}</p>` : ''}
+      </body></html>
+    `);
+    win.document.close();
+    win.focus();
+    win.print();
+  };
   const toggleSelectAll = () => {
     if (selectedIds.length === filtered.length && filtered.length > 0) setSelectedIds([]);
     else setSelectedIds(filtered.map(rx => rx.id));
@@ -308,9 +372,14 @@ function DoctorPrescriptions() {
 
   const approveRefill = async (rx) => {
     const requested = rx.meds.filter(m => m.refillRequested);
-    await Promise.all(requested.map(m => approveRefillApi(rx.patientId, m.id)));
-    toast(`Refill approved for ${rx.patient}. New prescription issued.`, 'success');
-    setRefillTarget(null);
+    try {
+      await Promise.all(requested.map(m => approveRefillApi(rx.patientId, m.id)));
+      toast(`Refill approved for ${rx.patient}. New prescription issued.`, 'success');
+    } catch (err) {
+      toast(err.message || `Failed to approve refill for ${rx.patient}`, 'error');
+    } finally {
+      setRefillTarget(null);
+    }
   };
 
   const handleNewRx = async (form) => {
@@ -458,11 +527,11 @@ function DoctorPrescriptions() {
                 </div>
               )}
               <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-                <button onClick={() => toast(`Downloading ${rx.id} as PDF...`, 'info')}
+                <button onClick={() => downloadRxPdf(rx)}
                   className="text-xs font-bold text-aubergine-600 border border-aubergine-200 px-4 py-2 rounded-xl hover:bg-aubergine-50 transition-colors flex items-center gap-1.5">
                   <i className="fas fa-download"></i> Download PDF
                 </button>
-                <button onClick={() => toast(`${rx.id} sent to ${rx.patient} via SMS.`, 'success')}
+                <button onClick={() => resendRx(rx)}
                   className="text-xs font-bold text-sky-600 border border-sky-200 px-4 py-2 rounded-xl hover:bg-sky-50 transition-colors flex items-center gap-1.5">
                   <i className="fas fa-paper-plane"></i> Resend to Patient
                 </button>
@@ -494,10 +563,7 @@ function DoctorPrescriptions() {
         onClose={() => setBulkModalParams({ isOpen: false, channel: '' })}
         channel={bulkModalParams.channel}
         selectedCount={selectedIds.length}
-        onSend={(msg) => {
-          toast(`Successfully sent ${bulkModalParams.channel} to ${selectedIds.length} patients!`, 'success');
-          setSelectedIds([]);
-        }}
+        onSend={(msg) => sendBulkMessage(bulkModalParams.channel, msg)}
       />
     </div>
   );

@@ -19,13 +19,21 @@ export function ClinicDataProvider({ children }) {
   const [careConnections, setCareConnections] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [waitlist, setWaitlist] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [kycVerified, setKycVerified] = useState(false);
+  const [kycSubmitted, setKycSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Backend is the source of truth for KYC status — reflect it whenever the
   // logged-in user changes (login, or a fresh /auth/me after a refresh).
+  // kycVerified only ever becomes true via admin approval; kycSubmitted just
+  // means the doctor sent documents in and is waiting on that review — the
+  // two must stay distinguishable or the UI ends up claiming "Verified"
+  // for someone who's still pending, and every verified-only endpoint they
+  // then hit 403s with no explanation.
   useEffect(() => {
     setKycVerified(!!user?.kycVerified);
+    setKycSubmitted(!!user?.kycSubmittedAt);
   }, [user]);
 
   // Adapts backend patient format to frontend expectations
@@ -41,6 +49,7 @@ export function ClinicDataProvider({ children }) {
       frequency: p.schedule,
       duration: p.duration,
       instructions: p.instructions,
+      doctor: p.doctor_name || 'Your Doctor',
       prescribedOn: p.created_at ? new Date(p.created_at).toLocaleDateString() : '',
       refillsLeft: p.refills_left || 0,
       validTill: p.valid_till || '',
@@ -70,11 +79,36 @@ export function ClinicDataProvider({ children }) {
       bmi: '—', bp: '—', pulse: '—', spo2: '—', temp: '—', bloodSugar: '—',
       allergies: record?.allergies || [],
       meds,
-      reports: lab_reports.map(r => ({ id: r.id, testName: r.test_name, date: new Date(r.created_at).toLocaleDateString(), results: r.results, urgent: r.is_urgent })),
+      reports: lab_reports.map(r => ({
+        id: r.id,
+        testName: r.test_name,
+        testCategory: r.test_category || 'General',
+        labName: r.lab_name || '',
+        date: new Date(r.created_at).toLocaleDateString(),
+        status: r.status,
+        results: r.results,
+        urgent: r.urgent,
+        interpretation: r.interpretation,
+        doctorAction: r.doctor_action,
+      })),
       consultations: [],
       medicalHistory: { chronicConditions: record?.chronic_conditions || [], surgeries: [], familyHistory: [], lifestyle: '' },
-      clinicalNotes: clinical_notes,
-      payments: payments,
+      clinicalNotes: clinical_notes.map(n => ({
+        id: n.id,
+        text: n.note,
+        date: n.created_at ? new Date(n.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+        author: n.doctor_name || 'Your Doctor',
+      })),
+      payments: payments.map(p => ({
+        id: p.id,
+        date: new Date(p.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        service: p.service,
+        category: p.category || 'General',
+        amount: Number(p.amount),
+        status: p.status,
+        method: p.method || '—',
+        txnRef: p.txn_ref || '',
+      })),
     };
   };
 
@@ -144,6 +178,9 @@ export function ClinicDataProvider({ children }) {
 
         const wait = await apiFetch('/patients/me/waitlist');
         setWaitlist(wait);
+
+        const txns = await apiFetch('/billing/transactions');
+        setTransactions(txns);
       }
 
       if (user.role === 'doctor' || user.role === 'patient') {
@@ -171,6 +208,7 @@ export function ClinicDataProvider({ children }) {
         body: {
           name: updated.name, phone: updated.phone, dob: updated.dob, bloodGroup: updated.blood,
           city: updated.city, allergies: updated.allergies, chronicConditions: updated.medicalHistory?.chronicConditions,
+          heightCm: updated.height, weightKg: updated.weight,
         }
       });
       // Sync back
@@ -178,6 +216,7 @@ export function ClinicDataProvider({ children }) {
     } catch (err) {
       console.error(err);
       fetchData(); // rollback on error
+      throw err;
     }
   };
 
@@ -217,6 +256,59 @@ export function ClinicDataProvider({ children }) {
     }
   };
 
+  const orderLabTest = async (patientId, test) => {
+    try {
+      const res = await apiFetch('/records/lab-reports', {
+        method: 'POST',
+        body: {
+          patientId,
+          testName: test.testName,
+          testCategory: test.testCategory,
+          labName: test.labName,
+          urgent: test.urgent,
+        }
+      });
+      fetchData(); // Reload patients to get the new lab report
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const addClinicalNote = async (patientId, note) => {
+    try {
+      const res = await apiFetch('/records/notes', { method: 'POST', body: { patientId, note } });
+      fetchData(); // Reload patients to get the new note
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const recordCharge = async (patientId, charge) => {
+    try {
+      const res = await apiFetch('/billing/charges', {
+        method: 'POST',
+        body: {
+          patientId,
+          service: charge.service,
+          category: charge.category,
+          amount: charge.amount,
+          method: charge.method,
+          status: charge.status,
+        }
+      });
+      setTransactions(prev => [res, ...prev]);
+      fetchData(); // Reload patients so their EMR payment history reflects the new charge
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
   const handleRefillAction = async (patientId, medId, action) => {
     // Optimistic update
     setPatients(prev => prev.map(p => {
@@ -239,6 +331,7 @@ export function ClinicDataProvider({ children }) {
     } catch (err) {
       console.error(err);
       fetchData(); // Rollback on error
+      throw err;
     }
   };
 
@@ -290,13 +383,31 @@ export function ClinicDataProvider({ children }) {
   };
 
   const updateAppointmentStatus = async (id, status) => {
-    setAppointments(prev => prev.map(a => (a.id === id ? { ...a, status } : a)));
+    const prev = appointments;
+    setAppointments(cur => cur.map(a => (a.id === id ? { ...a, status } : a)));
     try {
       await apiFetch(`/appointments/${id}/status`, { method: 'PUT', body: { status } });
     } catch (err) {
       console.error(err);
-      fetchData(); // Rollback
+      setAppointments(prev); // Rollback
+      throw err;
     }
+  };
+
+  /** Single source of truth for "is this appointment paid" — both Billing.jsx
+   * and Appointments.jsx read `transactions` from here instead of each
+   * fetching their own copy, so a payment made on one page is immediately
+   * reflected on the other. */
+  const payAppointment = async (appointmentId, method) => {
+    const res = await apiFetch('/billing/pay', { method: 'POST', body: { appointmentId, method } });
+    setTransactions(prev => {
+      const idx = prev.findIndex(t => t.id === res.id);
+      if (idx === -1) return [res, ...prev];
+      const next = [...prev];
+      next[idx] = res;
+      return next;
+    });
+    return res;
   };
 
   const cancelAppointment = (id) => updateAppointmentStatus(id, 'Cancelled');
@@ -309,16 +420,23 @@ export function ClinicDataProvider({ children }) {
       setAppointments(res.map(adaptAppointment));
     } catch (err) {
       console.error(err);
+      throw err;
     }
   };
 
   /* ── Cycle logs ────────────────────────────────────────────── */
   const logCycle = async (dateKey, fields) => {
-    setCycleLogs(prev => ({ ...prev, [dateKey]: { ...prev[dateKey], ...fields } }));
+    const prev = cycleLogs[dateKey];
+    setCycleLogs(p => ({ ...p, [dateKey]: { ...p[dateKey], ...fields } }));
     try {
       await apiFetch(`/patients/me/cycle-logs/${dateKey}`, { method: 'PUT', body: fields });
     } catch (err) {
       console.error(err);
+      setCycleLogs(p => {
+        const next = { ...p };
+        if (prev === undefined) delete next[dateKey]; else next[dateKey] = prev;
+        return next;
+      });
       throw err;
     }
   };
@@ -339,14 +457,20 @@ export function ClinicDataProvider({ children }) {
 
   /* ── Lifestyle logs ────────────────────────────────────────── */
   const logLifestyle = async (dateKey, items) => {
+    const prev = lifestyleLogs[dateKey];
     const completedCount = Object.values(items).filter(Boolean).length;
-    setLifestyleLogs(prev => ({ ...prev, [dateKey]: { items, completedCount } }));
+    setLifestyleLogs(p => ({ ...p, [dateKey]: { items, completedCount } }));
     try {
       const res = await apiFetch(`/patients/me/lifestyle-logs/${dateKey}`, { method: 'PUT', body: { items } });
-      setLifestyleLogs(prev => ({ ...prev, [dateKey]: { items: res.items, completedCount: res.completed_count } }));
+      setLifestyleLogs(p => ({ ...p, [dateKey]: { items: res.items, completedCount: res.completed_count } }));
       return res;
     } catch (err) {
       console.error(err);
+      setLifestyleLogs(p => {
+        const next = { ...p };
+        if (prev === undefined) delete next[dateKey]; else next[dateKey] = prev;
+        return next;
+      });
       throw err;
     }
   };
@@ -404,9 +528,12 @@ export function ClinicDataProvider({ children }) {
   /* ── Appointment waitlist ─────────────────────────────────── */
   const joinWaitlist = async (doctorId, preferredWindow) => {
     try {
-      const res = await apiFetch('/patients/me/waitlist', { method: 'POST', body: { doctorId, preferredWindow } });
-      setWaitlist(prev => [{ ...res, position: prev.filter(w => w.doctor_id === doctorId).length + 1 }, ...prev]);
-      return res;
+      await apiFetch('/patients/me/waitlist', { method: 'POST', body: { doctorId, preferredWindow } });
+      // Re-fetch rather than fabricate a position client-side — the backend
+      // computes real queue position across all patients waiting for this doctor.
+      const refreshed = await apiFetch('/patients/me/waitlist');
+      setWaitlist(refreshed);
+      return refreshed[0];
     } catch (err) {
       console.error(err);
       throw err;
@@ -428,7 +555,9 @@ export function ClinicDataProvider({ children }) {
   const verifyKyc = async () => {
     try {
       await apiFetch('/doctors/me/kyc', { method: 'PUT' });
-      setKycVerified(true);
+      // Submitting only queues the doctor for admin review — it does NOT
+      // grant kyc_verified. See DoctorsService.verifyKyc on the backend.
+      setKycSubmitted(true);
     } catch (err) {
       console.error('Failed to submit KYC', err);
       throw err;
@@ -436,16 +565,17 @@ export function ClinicDataProvider({ children }) {
   };
 
   const value = {
-    patients, updatePatient, addPatient, addRx, approveRefill, rejectRefill, requestRefill, refillRequests,
+    patients, updatePatient, addPatient, addRx, orderLabTest, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment,
     approveRequest, rejectRequest, callNextForDoctor,
+    transactions, payAppointment,
     cycleLogs, logCycle,
     vitals, logVital,
     lifestyleLogs, logLifestyle,
     careConnections, inviteConnection, updateConnectionPermissions, removeConnection,
     favorites, toggleFavorite,
     waitlist, joinWaitlist, leaveWaitlist,
-    kycVerified, verifyKyc,
+    kycVerified, kycSubmitted, verifyKyc,
   };
 
   return <ClinicDataContext.Provider value={value}>{loading ? null : children}</ClinicDataContext.Provider>;

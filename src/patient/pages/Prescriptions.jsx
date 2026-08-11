@@ -1,11 +1,22 @@
 import React, { useState, useMemo } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
-import { DoseSchedule } from '../../components/DoseSchedule.jsx';
-import { RxStatusBadge, resolveRxStatus } from '../../components/RxStatus.jsx';
+import { DoseSchedule, parseDoseSchedule } from '../../components/DoseSchedule.jsx';
+import { RxStatusBadge, resolveRxStatus, daysUntil } from '../../components/RxStatus.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 
 const STATUS_TABS = ['All', 'Active', 'Expiring Soon', 'Completed', 'Expired'];
+
+// Attention-worthy statuses surface first so the list is actually scannable
+// once a patient has more than a couple of prescriptions on file.
+const STATUS_PRIORITY = { 'Expiring Soon': 0, Active: 1, Completed: 2, Expired: 3 };
+
+const STATUS_CARD_STYLE = {
+  Active:          'bg-aubergine-100 text-aubergine-700',
+  'Expiring Soon': 'bg-amber-100 text-amber-700',
+  Expired:         'bg-slate-200 text-slate-500',
+  Completed:       'bg-slate-200 text-slate-500',
+};
 
 /** The backend stores one row per medication line — each becomes its own
  * card here (medicines is a 1-item array) rather than a fabricated bundle. */
@@ -13,7 +24,7 @@ function toRxCards(myPatient) {
   if (!myPatient) return [];
   return myPatient.meds.map(m => ({
     id: m.id,
-    doctor: 'Your Doctor',
+    doctor: m.doctor || 'Your Doctor',
     date: m.prescribedOn,
     diagnosis: myPatient.diagnosis && myPatient.diagnosis !== 'Pending' ? myPatient.diagnosis : 'General',
     status: m.refillsLeft > 0 ? 'Active' : 'Expired',
@@ -24,16 +35,19 @@ function toRxCards(myPatient) {
   }));
 }
 
-const REMINDER_SLOTS = [
-  { id: 'morning', label: 'Morning Meds', time: '8:00 AM', meds: ['Myo-Inositol Sachet'] },
-  { id: 'evening', label: 'Evening Meds', time: '8:00 PM', meds: ['Metformin 500mg (Night)'] },
+const DOSE_SLOT_DEFS = [
+  { key: 'morning', label: 'Morning' },
+  { key: 'afternoon', label: 'Afternoon' },
+  { key: 'night', label: 'Night' },
 ];
 
 /* ─── Prescription Detail Modal ─────────────── */
 function PrescriptionModal({ rx, onClose }) {
   if (!rx) return null;
+  const daysLeft = daysUntil(rx.validTill);
+  const effectiveStatus = resolveRxStatus(rx);
   return (
-    <Modal isOpen={!!rx} onClose={onClose} title={`Prescription — ${rx.id}`} size="lg">
+    <Modal isOpen={!!rx} onClose={onClose} title={`Prescription — ${rx.diagnosis}`} size="lg">
       <div className="space-y-5">
         {/* Header info */}
         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -44,6 +58,11 @@ function PrescriptionModal({ rx, onClose }) {
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
             <p className="text-xs text-slate-500 font-bold mb-1">Date • Valid Till</p>
             <p className="font-bold text-slate-800">{rx.date} → {rx.validTill}</p>
+            {effectiveStatus === 'Expiring Soon' && daysLeft !== null && (
+              <p className="text-[11px] text-amber-600 font-bold mt-0.5">
+                {daysLeft <= 0 ? 'Expires today' : `Expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`}
+              </p>
+            )}
           </div>
         </div>
 
@@ -85,10 +104,12 @@ function PrescriptionModal({ rx, onClose }) {
 }
 
 /* ─── Refill Modal ────────────────────────────── */
-function RefillModal({ rx, onClose, onSubmit }) {
-  const [pharmacy, setPharmacy] = useState('Home Delivery');
-  const [urgent, setUrgent] = useState(false);
-
+// Delivery method / urgency were previously collected here but had nowhere
+// to go — prescriptions has no such columns and requestRefill() sends no
+// body at all, so those choices were silently discarded while the success
+// toast falsely confirmed them. Simplified to what the backend actually
+// supports: a plain refill request.
+function RefillModal({ rx, onClose, onSubmit, submitting }) {
   if (!rx) return null;
   return (
     <Modal isOpen={!!rx} onClose={onClose} title="Request Refill" size="sm">
@@ -97,23 +118,9 @@ function RefillModal({ rx, onClose, onSubmit }) {
           <p className="font-bold text-slate-800">{rx.diagnosis}</p>
           <p className="text-xs text-slate-500 mt-0.5">{rx.medicines.map(m => m.name).join(', ')}</p>
         </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Delivery Method</label>
-          <div className="space-y-2">
-            {['Home Delivery', 'Clinic Pickup', 'Nearby Pharmacy'].map(opt => (
-              <label key={opt} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${pharmacy === opt ? 'border-aubergine-400 bg-aubergine-50' : 'border-slate-200 hover:border-slate-300'}`}>
-                <input type="radio" name="pharmacy" checked={pharmacy === opt} onChange={() => setPharmacy(opt)} className="accent-aubergine-600" />
-                <span className="text-sm font-semibold text-slate-700">{opt}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input type="checkbox" checked={urgent} onChange={e => setUrgent(e.target.checked)} className="accent-rose-600 w-4 h-4" />
-          <span className="text-sm font-semibold text-slate-700">Mark as Urgent (24h processing)</span>
-        </label>
-        <button onClick={() => onSubmit(pharmacy, urgent)} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
-          Submit Refill Request
+        <p className="text-xs text-slate-500">Your doctor will review this request and approve or decline it from their dashboard.</p>
+        <button onClick={onSubmit} disabled={submitting} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+          <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i> {submitting ? 'Submitting…' : 'Submit Refill Request'}
         </button>
       </div>
     </Modal>
@@ -123,37 +130,71 @@ function RefillModal({ rx, onClose, onSubmit }) {
 /* ─── Main Component ─────────────────────────── */
 function PatientPrescriptions() {
   const toast = useToast();
-  const { patients, requestRefill } = useClinicData();
+  const { patients, requestRefill, lifestyleLogs } = useClinicData();
   const prescriptions = useMemo(() => toRxCards(patients[0]), [patients]);
   const [detailRx, setDetailRx] = useState(null);
   const [refillRx, setRefillRx] = useState(null);
-  const [reminders, setReminders] = useState({ morning: true, evening: false });
+  const [submittingRefill, setSubmittingRefill] = useState(false);
   const [tab, setTab] = useState('All');
 
-  const tabFiltered = prescriptions.filter(rx => tab === 'All' || resolveRxStatus(rx) === tab);
+  const tabFiltered = prescriptions
+    .filter(rx => tab === 'All' || resolveRxStatus(rx) === tab)
+    .sort((a, b) => {
+      const diff = (STATUS_PRIORITY[resolveRxStatus(a)] ?? 4) - (STATUS_PRIORITY[resolveRxStatus(b)] ?? 4);
+      return diff !== 0 ? diff : new Date(b.date) - new Date(a.date);
+    });
   const tabCount = (t) => prescriptions.filter(rx => t === 'All' || resolveRxStatus(rx) === t).length;
 
-  const handleRefillSubmit = async (pharmacy, urgent) => {
+  const handleRefillSubmit = async () => {
+    setSubmittingRefill(true);
     try {
       await requestRefill(refillRx.id);
-      toast(`Refill requested via ${pharmacy}${urgent ? ' (Urgent)' : ''}. Your doctor will review it shortly.`, 'success');
+      toast('Refill requested. Your doctor will review it shortly.', 'success');
+      setRefillRx(null);
     } catch (err) {
       toast(err.message || 'Failed to request refill', 'error');
+    } finally {
+      setSubmittingRefill(false);
     }
-    setRefillRx(null);
   };
 
-  const toggleReminder = (id) => {
-    setReminders(p => {
-      const next = { ...p, [id]: !p[id] };
-      toast(next[id] ? `Reminder set for ${REMINDER_SLOTS.find(r => r.id === id)?.time}` : 'Reminder disabled', next[id] ? 'success' : 'info');
-      return next;
+  // No file storage or PDF generation exists on the backend for
+  // prescriptions — being upfront about that instead of pretending a
+  // download is happening.
+  const handleDownload = () => toast('Prescription downloads are coming soon.', 'info');
+  const handleShare = () => toast('Sharing prescriptions is coming soon.', 'info');
+
+  // Real per-medicine dosing times, parsed from each active prescription's
+  // schedule — replaces a previous card that showed two fixed medicine names
+  // ("Myo-Inositol", "Metformin") that had nothing to do with this patient's
+  // actual prescriptions.
+  const doseSlots = useMemo(() => {
+    const bySlot = { morning: [], afternoon: [], night: [] };
+    prescriptions.filter(rx => resolveRxStatus(rx) === 'Active').forEach(rx => {
+      rx.medicines.forEach(m => {
+        const parsed = parseDoseSchedule(m.schedule);
+        if (!parsed) return;
+        DOSE_SLOT_DEFS.forEach((slot, i) => {
+          if (parsed.doses[i] > 0) bySlot[slot.key].push(m.name);
+        });
+      });
     });
-  };
+    return DOSE_SLOT_DEFS.map(s => ({ ...s, meds: bySlot[s.key] })).filter(s => s.meds.length > 0);
+  }, [prescriptions]);
 
-  const handleDownload = (rx) => {
-    toast(`Downloading ${rx.id} — ${rx.diagnosis}.pdf...`, 'info');
-  };
+  // Real rolling 7-day adherence, read from the same daily "Took my
+  // medicines" checkbox the Tracking page writes to — replaces a
+  // permanently-hardcoded "71%" bar chart.
+  const weekAdherence = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - (6 - i));
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return { key, label: d.toLocaleDateString('en-IN', { weekday: 'short' }), taken: !!lifestyleLogs[key]?.items?.meds, logged: !!lifestyleLogs[key] };
+    });
+    const pct = Math.round((days.filter(d => d.taken).length / days.length) * 100);
+    return { days, pct };
+  }, [lifestyleLogs]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -161,7 +202,7 @@ function PatientPrescriptions() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800">My Prescriptions</h1>
-          <p className="text-sm text-slate-500">Access and download your digital prescriptions.</p>
+          <p className="text-sm text-slate-500">View your prescriptions, track dosing, and request refills.</p>
         </div>
         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl text-emerald-700 text-xs font-bold">
           <i className="fas fa-shield-halved"></i> Digitally Signed
@@ -184,12 +225,13 @@ function PatientPrescriptions() {
           {tabFiltered.map(rx => {
             const effectiveStatus = resolveRxStatus(rx);
             const canRefill = effectiveStatus === 'Active' || effectiveStatus === 'Expiring Soon';
+            const daysLeft = daysUntil(rx.validTill);
             return (
-              <div key={rx.id} className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow">
+              <div key={rx.id} className="bg-white rounded-2xl shadow-card border border-slate-200 overflow-hidden hover:shadow-card-hover transition-shadow">
                 {/* Card Header */}
                 <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                   <div className="flex items-center gap-3">
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${effectiveStatus === 'Active' ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-200 text-slate-500'}`}>
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${STATUS_CARD_STYLE[effectiveStatus] || STATUS_CARD_STYLE.Expired}`}>
                       <i className="fas fa-file-prescription text-lg"></i>
                     </div>
                     <div>
@@ -197,7 +239,14 @@ function PatientPrescriptions() {
                       <p className="text-xs text-slate-500">{rx.doctor} • {rx.date}</p>
                     </div>
                   </div>
-                  <RxStatusBadge rx={rx} />
+                  <div className="text-right">
+                    <RxStatusBadge rx={rx} />
+                    {effectiveStatus === 'Expiring Soon' && daysLeft !== null && (
+                      <p className="text-[10px] text-amber-600 font-bold mt-1">
+                        {daysLeft <= 0 ? 'Expires today' : `Expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Medicines */}
@@ -226,11 +275,11 @@ function PatientPrescriptions() {
                       <i className="fas fa-eye"></i> View Details
                     </button>
                     <div className="flex gap-2 flex-wrap">
-                      <button onClick={() => handleDownload(rx)}
+                      <button onClick={handleDownload}
                         className="bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-700 font-bold px-4 py-2 rounded-xl text-sm shadow-sm transition-colors border border-aubergine-200 flex items-center gap-1.5">
                         <i className="fas fa-download"></i> PDF
                       </button>
-                      <button onClick={() => handleDownload({ ...rx, id: rx.id + '-SHARE' })}
+                      <button onClick={handleShare}
                         className="bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold px-4 py-2 rounded-xl text-sm shadow-sm transition-colors border border-sky-200 flex items-center gap-1.5">
                         <i className="fas fa-share-nodes"></i> Share
                       </button>
@@ -258,7 +307,7 @@ function PatientPrescriptions() {
           )}
 
           {prescriptions.length === 0 && (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
+            <div className="bg-white rounded-2xl shadow-card border border-slate-200 p-12 text-center">
               <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100 shadow-sm">
                 <i className="fas fa-file-prescription text-4xl text-slate-300"></i>
               </div>
@@ -270,54 +319,55 @@ function PatientPrescriptions() {
           )}
         </div>
 
-        {/* Sidebar — Reminders */}
+        {/* Sidebar — real dosing schedule + adherence, no fabricated data */}
         <div className="space-y-4">
           <div className="bg-gradient-to-br from-aubergine-900 to-indigo-900 rounded-2xl shadow-sm border border-aubergine-800 p-6 text-white">
             <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-xl mb-4">
-              <i className="fas fa-bell"></i>
+              <i className="fas fa-clock"></i>
             </div>
-            <h3 className="font-bold text-lg mb-1.5">Medicine Reminders</h3>
-            <p className="text-aubergine-200 text-xs mb-5 leading-relaxed">Never miss a dose. Toggle reminders for each scheduled time.</p>
+            <h3 className="font-bold text-lg mb-1.5">Daily Dosing Schedule</h3>
+            <p className="text-aubergine-200 text-xs mb-5 leading-relaxed">When to take your active medications, from your prescriptions.</p>
 
-            <div className="space-y-3">
-              {REMINDER_SLOTS.map(slot => (
-                <div key={slot.id} className="bg-white/10 p-3.5 rounded-xl border border-white/10">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="text-sm font-bold">{slot.label}</div>
-                    <button onClick={() => toggleReminder(slot.id)}
-                      className={`w-11 h-6 rounded-full relative transition-all border ${reminders[slot.id] ? 'bg-emerald-500 border-emerald-400' : 'bg-white/20 border-white/20'}`}>
-                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${reminders[slot.id] ? 'right-1' : 'left-1 opacity-50'}`}></div>
-                    </button>
+            {doseSlots.length === 0 ? (
+              <p className="text-aubergine-200 text-xs">No timed dosing schedule on your active prescriptions yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {doseSlots.map(slot => (
+                  <div key={slot.key} className="bg-white/10 p-3.5 rounded-xl border border-white/10">
+                    <div className="text-sm font-bold mb-1">{slot.label}</div>
+                    <div className="text-aubergine-200 text-xs">{slot.meds.join(', ')}</div>
                   </div>
-                  <div className="text-aubergine-200 text-xs">{slot.time} • {slot.meds.join(', ')}</div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Adherence card */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-            <h4 className="font-bold text-slate-800 mb-3">This Week's Adherence</h4>
-            <div className="flex gap-1 mb-3">
-              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d, i) => (
-                <div key={d} className="flex-1 flex flex-col items-center gap-1">
-                  <div className={`w-full aspect-square rounded-md text-[8px] flex items-center justify-center font-bold ${i < 4 ? 'bg-emerald-500 text-white' : i === 4 ? 'bg-amber-400 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                    {i < 4 ? '✓' : i === 4 ? '~' : '·'}
+          {/* Adherence card — real rolling 7-day data from the daily lifestyle
+              checklist's "Took my medicines" entry (Tracking page). */}
+          {prescriptions.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-card">
+              <h4 className="font-bold text-slate-800 mb-3">This Week's Medicine Adherence</h4>
+              <div className="flex gap-1 mb-3">
+                {weekAdherence.days.map(d => (
+                  <div key={d.key} className="flex-1 flex flex-col items-center gap-1">
+                    <div className={`w-full aspect-square rounded-md text-[8px] flex items-center justify-center font-bold ${d.taken ? 'bg-emerald-500 text-white' : d.logged ? 'bg-rose-100 text-rose-500' : 'bg-slate-100 text-slate-500'}`}>
+                      {d.taken ? '✓' : d.logged ? '✕' : '·'}
+                    </div>
+                    <span className="text-[9px] text-slate-500">{d.label}</span>
                   </div>
-                  <span className="text-[9px] text-slate-500">{d}</span>
-                </div>
-              ))}
+                ))}
+              </div>
+              <div className="text-xs text-slate-600 font-medium">
+                <span className="font-black text-emerald-600">{weekAdherence.pct}%</span> adherence this week, based on your daily health checklist.
+              </div>
             </div>
-            <div className="text-xs text-slate-600 font-medium">
-              <span className="font-black text-emerald-600">71%</span> adherence this week. Keep it up!
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
       {/* Modals */}
       <PrescriptionModal rx={detailRx} onClose={() => setDetailRx(null)} />
-      <RefillModal rx={refillRx} onClose={() => setRefillRx(null)} onSubmit={handleRefillSubmit} />
+      <RefillModal rx={refillRx} onClose={() => setRefillRx(null)} onSubmit={handleRefillSubmit} submitting={submittingRefill} />
     </div>
   );
 }

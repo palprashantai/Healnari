@@ -2,7 +2,11 @@ import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { ClinicDataProvider } from './context/ClinicDataContext.jsx';
+import { NotificationsProvider } from './context/NotificationsContext.jsx';
 import { ToastProvider } from './components/Toast.jsx';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
 
 const LandingPage = lazy(() => import('./landing/pages/LandingPage.jsx'));
 const GuidePage = lazy(() => import('./landing/pages/GuidePage.jsx'));
@@ -113,9 +117,11 @@ function App() {
   }, []);
 
   return (
-    <AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
       <ClinicDataProvider>
       <ToastProvider>
+      <NotificationsProvider>
         <Router>
           <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -197,9 +203,11 @@ function App() {
             <CookieBanner />
           </Suspense>
         </Router>
+      </NotificationsProvider>
       </ToastProvider>
       </ClinicDataProvider>
     </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

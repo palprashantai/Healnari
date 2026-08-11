@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
+import { useNotifications, NOTIFICATION_STYLE, DEFAULT_NOTIFICATION_STYLE } from '../../context/NotificationsContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { HealNariLogo } from '../../components/HealNariLogo.jsx';
@@ -26,48 +27,55 @@ const NAV_ITEMS = [
   { name: 'My Profile',       icon: 'fa-circle-user',         path: '/doctor-dashboard/profile',      end: false, color: '#64748b' },
 ];
 
-// System / informational feed only — urgent clinical items (labs needing a decision)
-// live exclusively in the Clinical Alerts drawer so the same event isn't triaged twice.
-const NOTIFICATIONS = [
-  { id: 1, icon: 'fa-user-plus',        color: 'text-sky-500',   title: 'New Patient Registered',  body: 'Divya Menon completed onboarding and profile setup.', time: '10 min ago',  read: false },
-  { id: 2, icon: 'fa-calendar-check',   color: 'text-sky-500',   title: 'New Booking Request',     body: 'Riya Patel has requested a video consult.',        time: '32 min ago',  read: false },
-  { id: 3, icon: 'fa-pills',            color: 'text-rose-500',  title: 'Refill Request',          body: 'Kavita Patel needs Norethisterone 5mg refill.',    time: '1 hr ago',    read: false },
-  { id: 4, icon: 'fa-video',            color: 'text-emerald-500',title: 'Call Starting Soon',     body: 'Video call with Anita Desai at 10:00 AM.',        time: '2 hr ago',    read: true  },
-  { id: 5, icon: 'fa-indian-rupee-sign',color: 'text-aubergine-400',title: 'Payment Settled',     body: '₹799 settled for TXN-9821.',                       time: 'Yesterday',   read: true  },
-];
+/** "10 min ago" style relative timestamp for a notification's created_at. */
+function timeAgo(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins} min${mins === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hr${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? 'Yesterday' : `${days} days ago`;
+}
 
 /* ─── Notification Panel ─────────────────────── */
-function NotificationPanel({ isOpen, onClose, notifications, setNotifications }) {
+// System / informational feed only — urgent clinical items (labs needing a decision)
+// live exclusively in the Clinical Alerts drawer so the same event isn't triaged twice.
+function NotificationPanel({ isOpen, onClose, notifications, onMarkAll, onMarkOne }) {
   const unread = notifications.filter(n => !n.read).length;
-
-  const markAll = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  const markOne = (id) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
 
   if (!isOpen) return null;
   return (
     <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 animate-fade-in overflow-hidden">
       <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
         <h3 className="font-bold text-slate-800 text-sm">Notifications {unread > 0 && <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ml-1">{unread}</span>}</h3>
-        {unread > 0 && <button onClick={markAll} className="text-xs text-aubergine-600 font-bold hover:underline">Mark all read</button>}
+        {unread > 0 && <button onClick={onMarkAll} className="text-xs text-aubergine-600 font-bold hover:underline">Mark all read</button>}
       </div>
       <div className="divide-y divide-slate-50 max-h-80 overflow-y-auto">
-        {notifications.map(n => (
-          <div key={n.id} onClick={() => markOne(n.id)} className={`px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors ${!n.read ? 'bg-aubergine-50/30' : ''}`}>
-            <div className="flex gap-3">
-              <div className={`w-8 h-8 rounded-full ${!n.read ? 'bg-aubergine-100' : 'bg-slate-100'} flex items-center justify-center flex-shrink-0`}>
-                <i className={`fas ${n.icon} text-xs ${n.color}`}></i>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start gap-2">
-                  <p className={`text-xs font-bold ${!n.read ? 'text-slate-800' : 'text-slate-600'}`}>{n.title}</p>
-                  {!n.read && <div className="w-2 h-2 bg-aubergine-600 rounded-full flex-shrink-0 mt-0.5"></div>}
+        {notifications.length === 0 && (
+          <p className="text-xs text-slate-500 text-center py-8">You're all caught up.</p>
+        )}
+        {notifications.map(n => {
+          const style = NOTIFICATION_STYLE[n.type] || DEFAULT_NOTIFICATION_STYLE;
+          return (
+            <div key={n.id} onClick={() => !n.read && onMarkOne(n.id)} className={`px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors ${!n.read ? 'bg-aubergine-50/30' : ''}`}>
+              <div className="flex gap-3">
+                <div className={`w-8 h-8 rounded-full ${style.color} flex items-center justify-center flex-shrink-0`}>
+                  <i className={`fas ${style.icon} text-xs`}></i>
                 </div>
-                <p className="text-xs text-slate-500 leading-relaxed mt-0.5">{n.body}</p>
-                <p className="text-[10px] text-slate-500 mt-1">{n.time}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start gap-2">
+                    <p className={`text-xs font-bold ${!n.read ? 'text-slate-800' : 'text-slate-600'}`}>{n.title}</p>
+                    {!n.read && <div className="w-2 h-2 bg-aubergine-600 rounded-full flex-shrink-0 mt-0.5"></div>}
+                  </div>
+                  <p className="text-xs text-slate-500 leading-relaxed mt-0.5">{n.message}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">{timeAgo(n.created_at)}</p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="px-5 py-3 border-t border-slate-100">
         <button onClick={onClose} className="w-full text-xs text-center text-slate-500 hover:text-aubergine-600 font-medium transition-colors">Close</button>
@@ -152,15 +160,13 @@ function DoctorLayout() {
   const location  = useLocation();
   const toast     = useToast();
   const { patients } = useClinicData();
+  const { notifications, unreadCount, markAllRead, markRead } = useNotifications();
 
   const [drawerOpen, setDrawerOpen]       = useState(false);
   const [notifOpen, setNotifOpen]         = useState(false);
-  const [notifications, setNotifications] = useState(NOTIFICATIONS);
   const [search, setSearch]               = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [hoveredColor, setHoveredColor]   = useState(null);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
 
   // Patients actually opened this session, most-recent first — feeds the "Switch Patient"
   // shortcut so it's a real recency list rather than a second copy of the full directory
@@ -335,7 +341,7 @@ function DoctorLayout() {
                   </span>
                 )}
               </button>
-              <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} notifications={notifications} setNotifications={setNotifications} />
+              <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} notifications={notifications} onMarkAll={markAllRead} onMarkOne={markRead} />
             </div>
 
             {/* Doctor Avatar */}

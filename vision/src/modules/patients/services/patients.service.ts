@@ -31,6 +31,13 @@ export class PatientsService {
     if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
   }
 
+  /** Doctor role alone isn't enough to read/write other people's PHI — the
+   * account must also be admin-verified (see DoctorsService.verifyKyc). */
+  private requireVerifiedDoctor(user: AuthUser) {
+    this.requireDoctor(user);
+    if (!user.profile.kyc_verified) throw new ForbiddenException(ERROR_MESSAGES.DOCTOR_NOT_VERIFIED);
+  }
+
   private async assemble(profile: Profile, record: PatientRecord | null) {
     const [medsRes, reportsRes, notesRes, paymentsRes] = await Promise.all([
       this.supabase.admin.from('prescriptions').select().eq('patient_id', profile.id).order('created_at', { ascending: false }),
@@ -38,18 +45,31 @@ export class PatientsService {
       this.supabase.admin.from('clinical_notes').select().eq('patient_id', profile.id).order('created_at', { ascending: false }),
       this.supabase.admin.from('payments').select().eq('patient_id', profile.id).order('created_at', { ascending: false }),
     ]);
+    const prescriptions = medsRes.data || [];
+    const notes = notesRes.data || [];
+
+    // Attach the real prescribing/authoring doctor's name — some legacy rows
+    // have no doctor_id (see records.service.ts), so those fall back to a
+    // generic label.
+    const doctorIds = [...new Set([...prescriptions.map(p => p.doctor_id), ...notes.map(n => n.doctor_id)].filter(Boolean))];
+    let doctorNameById = new Map<string, string>();
+    if (doctorIds.length) {
+      const { data: doctors } = await this.supabase.admin.from('profiles').select('id, full_name').in('id', doctorIds);
+      doctorNameById = new Map((doctors || []).map(d => [d.id, d.full_name]));
+    }
+
     return {
       profile,
       record,
-      prescriptions: medsRes.data || [],
+      prescriptions: prescriptions.map(p => ({ ...p, doctor_name: (p.doctor_id && doctorNameById.get(p.doctor_id)) || 'Your Doctor' })),
       lab_reports: reportsRes.data || [],
-      clinical_notes: notesRes.data || [],
+      clinical_notes: notes.map(n => ({ ...n, doctor_name: (n.doctor_id && doctorNameById.get(n.doctor_id)) || 'Your Doctor' })),
       payments: paymentsRes.data || [],
     };
   }
 
   async list(user: AuthUser) {
-    this.requireDoctor(user);
+    this.requireVerifiedDoctor(user);
     const { data: patients } = await this.supabase.admin.from('profiles').select().eq('role', ProfileRole.PATIENT);
     if (!patients || !patients.length) return [];
 
@@ -60,7 +80,7 @@ export class PatientsService {
   }
 
   async create(user: AuthUser, body: CreatePatientDto) {
-    this.requireDoctor(user);
+    this.requireVerifiedDoctor(user);
 
     const email = body.email || `patient.${Date.now()}@healnari.local`;
     const password = Math.random().toString(36).slice(2) + 'A1!';
@@ -92,9 +112,7 @@ export class PatientsService {
   }
 
   async update(user: AuthUser, patientId: string, body: UpdatePatientDto) {
-    if (user.profile.role !== ProfileRole.DOCTOR && user.id !== patientId) {
-      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
-    }
+    if (user.id !== patientId) this.requireVerifiedDoctor(user);
 
     const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', patientId).eq('role', ProfileRole.PATIENT).single();
     if (!profile) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);

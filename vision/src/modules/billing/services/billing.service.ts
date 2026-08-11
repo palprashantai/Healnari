@@ -3,7 +3,7 @@ import { SupabaseService } from '@/core/supabase/supabase.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
-import { PayDto, RequestPayoutDto } from '@/modules/billing/controllers/billing.controller';
+import { PayDto, RecordChargeDto, RequestPayoutDto } from '@/modules/billing/controllers/billing.controller';
 
 @Injectable()
 export class BillingService {
@@ -70,6 +70,13 @@ export class BillingService {
     const { data: doctor } = await this.supabase.admin.from('profiles').select('consultation_fee').eq('id', appointment.doctor_id).single();
     const amount = Number(doctor?.consultation_fee || 0);
 
+    // Idempotency guard: a stale client (or a second tab) can call pay() for
+    // an appointment that's already settled — without this, we'd insert a
+    // duplicate 'Paid' row and double-charge instead of just returning the
+    // existing receipt.
+    const { data: alreadyPaid } = await this.supabase.admin.from('payments').select().eq('appointment_id', appointment.id).eq('status', 'Paid').single();
+    if (alreadyPaid) return (await this.withNames([alreadyPaid]))[0];
+
     const { data: existing } = await this.supabase.admin.from('payments').select().eq('appointment_id', appointment.id).eq('status', 'Pending').single();
 
     const txnRef = `TXN-${Math.floor(Math.random() * 900000 + 100000)}`;
@@ -86,6 +93,29 @@ export class BillingService {
       category: appointment.specialty,
       amount,
       status: 'Paid',
+      method: body.method,
+      txn_ref: txnRef,
+    }).select().single();
+    return (await this.withNames([created]))[0];
+  }
+
+  /** Doctor-initiated charge — e.g. cash collected in-clinic for a service
+   * with no linked appointment. Distinct from pay(), which is the
+   * patient settling an existing appointment-linked payment. */
+  async recordCharge(user: AuthUser, body: RecordChargeDto) {
+    if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+
+    const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
+    if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
+
+    const txnRef = body.status === 'Paid' ? `TXN-${Math.floor(Math.random() * 900000 + 100000)}` : null;
+    const { data: created } = await this.supabase.admin.from('payments').insert({
+      patient_id: body.patientId,
+      doctor_id: user.id,
+      service: body.service,
+      category: body.category,
+      amount: body.amount,
+      status: body.status,
       method: body.method,
       txn_ref: txnRef,
     }).select().single();

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
+import { PaymentModal } from '../../components/PaymentModal.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
@@ -18,10 +19,15 @@ function JoinWaitlistModal({ isOpen, onClose, doctors, onJoin }) {
     if (!doctorId || !preferredWindow) return;
     setJoining(true);
     try {
+      // onJoin rethrows on failure (after toasting) — without this catch, a
+      // failed join used to reset the form and close the modal anyway,
+      // looking identical to success.
       await onJoin(doctorId, preferredWindow);
       setDoctorId('');
       setPreferredWindow('');
       onClose();
+    } catch {
+      // already toasted by the caller — keep the modal open so the user can retry
     } finally {
       setJoining(false);
     }
@@ -72,9 +78,22 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
 
   const reset = () => { setStep(1); setForm({ doctorId: '', type: 'Video Consult', date: '', slot: '', notes: '' }); onClose(); };
 
-  const confirm = () => {
-    onBook({ ...form, doctorName: selectedDoctor?.full_name, fee: selectedDoctor?.consultation_fee });
-    reset();
+  const [booking, setBooking] = useState(false);
+
+  const confirm = async () => {
+    setBooking(true);
+    try {
+      // onBook rethrows on failure (after showing its own error toast) so we
+      // know not to reset/close here — previously this fired the request
+      // and closed immediately regardless of outcome, making a failed
+      // booking look identical to a successful one.
+      await onBook({ ...form, doctorName: selectedDoctor?.full_name, fee: selectedDoctor?.consultation_fee });
+      reset();
+    } catch {
+      // already toasted by the caller — keep the modal open so the user can retry
+    } finally {
+      setBooking(false);
+    }
   };
 
   return (
@@ -136,10 +155,10 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
             <div className="flex justify-between"><span className="font-bold text-slate-600">Consult Fee</span><span className="text-aubergine-700 font-black">₹{selectedDoctor?.consultation_fee ?? 799}</span></div>
           </div>
           <div className="flex gap-3">
-            <button onClick={() => setStep(1)} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors">← Back</button>
-            <button disabled={!form.slot} onClick={confirm}
+            <button onClick={() => setStep(1)} disabled={booking} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors disabled:opacity-40">← Back</button>
+            <button disabled={!form.slot || booking} onClick={confirm}
               className="flex-1 bg-emerald-600 disabled:opacity-40 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-              <i className="fas fa-circle-check"></i> Confirm
+              <i className={`fas ${booking ? 'fa-spinner fa-spin' : 'fa-circle-check'}`}></i> {booking ? 'Booking…' : 'Confirm'}
             </button>
           </div>
         </div>
@@ -223,7 +242,10 @@ const STATUS_LABEL = {
 function PatientAppointments() {
   const toast = useToast();
   const navigate = useNavigate();
-  const { appointments, addAppointment, cancelAppointment, waitlist, joinWaitlist, leaveWaitlist } = useClinicData();
+  // transactions/payAppointment come from ClinicDataContext (not fetched
+  // locally) — the same cache Billing.jsx reads, so a payment made on
+  // either page is immediately reflected on both.
+  const { appointments, addAppointment, cancelAppointment, waitlist, joinWaitlist, leaveWaitlist, transactions, payAppointment } = useClinicData();
   const [doctors, setDoctors] = useState([]);
   const [tab, setTab] = useState('upcoming');
   const [showJoinWaitlist, setShowJoinWaitlist] = useState(false);
@@ -234,6 +256,14 @@ function PatientAppointments() {
 
   const doctorById = useMemo(() => new Map(doctors.map(d => [d.id, d])), [doctors]);
   const todayStr = todayLocalStr();
+
+  // Appointment status and payment status are tracked independently on the
+  // backend (booking never implies paid) — this is the only way the UI can
+  // tell whether a given appointment still needs payment.
+  const paidAppointmentIds = useMemo(
+    () => new Set(transactions.filter(t => t.status === 'Paid').map(t => t.appointment_id)),
+    [transactions]
+  );
 
   const toRow = (a) => {
     const doc = doctorById.get(a.doctorId);
@@ -248,6 +278,7 @@ function PatientAppointments() {
       status: STATUS_LABEL[a.status] || a.status,
       type: a.type,
       fee: doc?.consultation_fee ?? 799,
+      isPaid: paidAppointmentIds.has(a.id),
     };
   };
 
@@ -255,13 +286,13 @@ function PatientAppointments() {
     .filter(a => !['Done', 'Cancelled', 'No Show'].includes(a.status))
     .map(toRow)
     .sort((a, b) => (a.date || '').localeCompare(b.date || '')),
-    [appointments, doctorById]);
+    [appointments, doctorById, paidAppointmentIds]);
 
   const past = useMemo(() => appointments
     .filter(a => ['Done', 'Cancelled', 'No Show'].includes(a.status))
     .map(toRow)
     .sort((a, b) => (b.date || '').localeCompare(a.date || '')),
-    [appointments, doctorById]);
+    [appointments, doctorById, paidAppointmentIds]);
 
   // Modals
   const [showBook, setShowBook] = useState(false);
@@ -297,14 +328,23 @@ function PatientAppointments() {
       toast('Appointment requested! We\'ll confirm it shortly.', 'success');
     } catch (err) {
       toast(err.message || 'Failed to book appointment', 'error');
+      throw err; // let BookingModal know booking failed so it doesn't reset/close
     }
   };
 
   const handleCancel = async () => {
-    const doctorName = cancelTarget.doctor;
-    await cancelAppointment(cancelTarget.id);
-    toast(`Appointment with ${doctorName} cancelled. Refund initiated.`, 'info');
-    setCancelTarget(null);
+    // Read before the await — ConfirmModal calls onClose() right after this
+    // regardless of outcome, so cancelTarget may already be null by the time
+    // a rejected promise unwinds here.
+    const { id, doctor: doctorName } = cancelTarget;
+    try {
+      await cancelAppointment(id);
+      toast(`Appointment with ${doctorName} cancelled. Refund initiated.`, 'info');
+    } catch (err) {
+      // ConfirmModal doesn't await onConfirm, so without this catch a failed
+      // cancellation silently rolled the row back with zero feedback.
+      toast(err.message || 'Failed to cancel appointment. Please try again.', 'error');
+    }
   };
 
   const handleJoinWaitlist = async (doctorId, preferredWindow) => {
@@ -313,6 +353,27 @@ function PatientAppointments() {
       toast('Added to the waitlist. We\'ll notify you when a slot opens.', 'success');
     } catch (err) {
       toast(err.message || 'Failed to join waitlist.', 'error');
+      throw err; // let JoinWaitlistModal know it failed so it doesn't reset/close
+    }
+  };
+
+  // "Pay Now" opens the same method-selection/confirmation modal Billing.jsx
+  // uses, instead of silently charging a hardcoded UPI payment on a single click.
+  const [payTarget, setPayTarget] = useState(null);
+  const [showPayModal, setShowPayModal] = useState(false);
+
+  const openPayFor = (apt) => {
+    setPayTarget(apt);
+    setShowPayModal(true);
+  };
+
+  const handlePaySuccess = async (method) => {
+    try {
+      await payAppointment(payTarget.id, method);
+      toast('Payment successful!', 'success');
+    } catch (err) {
+      toast(err.message || 'Payment failed. Please try again.', 'error');
+      throw err;
     }
   };
 
@@ -440,16 +501,16 @@ function PatientAppointments() {
                             <i className="fas fa-video"></i> Join Call
                           </button>
                         )}
-                        {apt.status === 'Pending' && (
-                          <button onClick={() => toast('Reminder: Payment due before appointment', 'warning')}
+                        {!apt.isPaid && (
+                          <button onClick={() => openPayFor(apt)}
                             className="bg-amber-500 text-white font-bold hover:bg-amber-600 shadow-sm px-4 py-1.5 rounded-lg transition-colors text-xs flex items-center gap-1.5">
-                            <i className="fas fa-clock"></i> Pending
+                            <i className="fas fa-credit-card"></i> Pay Now
                           </button>
                         )}
                       </div>
                     ) : (
                       <div className="flex justify-end gap-2">
-                        <button onClick={() => toast('Downloading appointment summary...', 'info')}
+                        <button onClick={() => toast('Appointment summaries are coming soon.', 'info')}
                           className="text-slate-500 hover:text-slate-700 font-bold px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors text-xs flex items-center gap-1.5">
                           <i className="fas fa-download"></i> Summary
                         </button>
@@ -536,6 +597,13 @@ function PatientAppointments() {
       {videoTarget && (
         <VideoCallModal isOpen={!!videoTarget} onClose={() => setVideoTarget(null)} doctor={videoTarget?.doctor} toast={toast} />
       )}
+      <PaymentModal
+        isOpen={showPayModal}
+        onClose={() => setShowPayModal(false)}
+        amount={payTarget?.fee ?? 0}
+        description={payTarget ? `Consultation — ${payTarget.doctor}` : ''}
+        onSuccess={handlePaySuccess}
+      />
     </div>
   );
 }

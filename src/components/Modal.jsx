@@ -13,8 +13,12 @@ const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), textarea:not([disab
  *   children   - JSX
  *   size       - 'sm' | 'md' | 'lg' | 'xl'  (default: 'md')
  *   noPadding  - skip inner padding (for custom layouts)
+ *   hideClose  - suppress the default floating close button, for callers
+ *                that render their own close control inside a custom header
+ *                (without this, omitting `title` produces two overlapping
+ *                close buttons)
  */
-export function Modal({ isOpen, onClose, title, ariaLabel, children, size = 'md', noPadding = false }) {
+export function Modal({ isOpen, onClose, title, ariaLabel, children, size = 'md', noPadding = false, hideClose = false }) {
   const overlayRef = useRef(null);
   const boxRef = useRef(null);
   const lastFocusedRef = useRef(null);
@@ -94,7 +98,10 @@ export function Modal({ isOpen, onClose, title, ariaLabel, children, size = 'md'
       ref={overlayRef}
       onClick={handleOverlayClick}
       className="modal-overlay fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9000] flex items-center justify-center p-4"
-      style={{ animation: closing ? `overlayFadeOut ${CLOSE_ANIM_MS}ms ease-in both` : 'fadeIn 0.15s ease-out' }}
+      style={{
+        animation: closing ? `overlayFadeOut ${CLOSE_ANIM_MS}ms ease-in both` : 'fadeIn 0.15s ease-out',
+        pointerEvents: closing ? 'none' : 'auto',
+      }}
     >
       <div
         ref={boxRef}
@@ -118,7 +125,7 @@ export function Modal({ isOpen, onClose, title, ariaLabel, children, size = 'md'
             </button>
           </div>
         )}
-        {!title && (
+        {!title && !hideClose && (
           <button
             onClick={onClose}
             aria-label="Close dialog"

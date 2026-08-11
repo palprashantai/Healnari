@@ -970,6 +970,91 @@ grant select, insert, update, delete on public.care_connections to authenticated
 
 
 -- ==========================================
+-- MIGRATION: 0009_admin_tables.sql
+-- ==========================================
+
+-- ─────────────────────────────────────────────────────────────
+-- Admin Portal Tables: CMS, Templates, Broadcasts, Reports
+-- ─────────────────────────────────────────────────────────────
+
+create table public.message_templates (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  content text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create trigger message_templates_set_updated_at
+  before update on public.message_templates
+  for each row execute function public.set_updated_at();
+
+-- ─────────────────────────────────────────────────────────────
+-- broadcast_history
+-- ─────────────────────────────────────────────────────────────
+create table public.broadcast_history (
+  id uuid primary key default gen_random_uuid(),
+  display_id text not null,
+  subject text not null,
+  audience text not null,
+  status text not null default 'Sent' check (status in ('Sent', 'Scheduled', 'Draft', 'Failed')),
+  opens text default '-',
+  clicks text default '-',
+  created_at timestamptz not null default now()
+);
+
+-- ─────────────────────────────────────────────────────────────
+-- reports_history
+-- ─────────────────────────────────────────────────────────────
+create table public.reports_history (
+  id uuid primary key default gen_random_uuid(),
+  report_id text not null unique,
+  name text not null,
+  type text not null,
+  date timestamptz not null default now(),
+  size text not null default '0 KB',
+  status text not null default 'Generated' check (status in ('Generated', 'Failed', 'Processing')),
+  created_at timestamptz not null default now()
+);
+
+-- ─────────────────────────────────────────────────────────────
+-- cms_articles (articles/banners/faqs)
+-- ─────────────────────────────────────────────────────────────
+create table public.cms_articles (
+  id uuid primary key default gen_random_uuid(),
+  display_id text not null unique,
+  title text not null,
+  author text not null,
+  category text not null,
+  status text not null default 'Draft' check (status in ('Draft', 'Published', 'Archived')),
+  views text default '0',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create trigger cms_articles_set_updated_at
+  before update on public.cms_articles
+  for each row execute function public.set_updated_at();
+
+-- RLS Policies
+alter table public.message_templates enable row level security;
+alter table public.broadcast_history enable row level security;
+alter table public.reports_history enable row level security;
+alter table public.cms_articles enable row level security;
+
+-- Admins get full access
+create policy "admin_all_message_templates" on public.message_templates for all to authenticated using (public.current_app_role() = 'admin') with check (public.current_app_role() = 'admin');
+create policy "admin_all_broadcast_history" on public.broadcast_history for all to authenticated using (public.current_app_role() = 'admin') with check (public.current_app_role() = 'admin');
+create policy "admin_all_reports_history" on public.reports_history for all to authenticated using (public.current_app_role() = 'admin') with check (public.current_app_role() = 'admin');
+create policy "admin_all_cms_articles" on public.cms_articles for all to authenticated using (public.current_app_role() = 'admin') with check (public.current_app_role() = 'admin');
+
+-- Everyone can read published CMS articles
+create policy "public_read_published_cms" on public.cms_articles for select to authenticated using (status = 'Published');
+
+grant select, insert, update, delete on public.message_templates, public.broadcast_history, public.reports_history, public.cms_articles to authenticated;
+
+
+-- ==========================================
 -- MIGRATION: 0010_avatar_storage.sql
 -- ==========================================
 
@@ -1073,6 +1158,46 @@ alter table public.profiles add column if not exists sms_notifications boolean n
 -- City — Profile page field that previously had no backing column at all.
 -- ─────────────────────────────────────────────────────────────
 alter table public.patient_records add column if not exists city text;
+
+
+-- ==========================================
+-- MIGRATION: 0012_notifications.sql
+-- ==========================================
+
+-- In-app notifications — backs the bell dropdown on both the patient and
+-- doctor dashboards, which previously rendered a hardcoded local array.
+-- Rows are written by the backend (service-role client) whenever something
+-- notification-worthy happens (appointment approved/rejected/cancelled,
+-- a new request comes in, a doctor sends a push broadcast); the same write
+-- also fans out over the notifications socket gateway for a live toast, so
+-- this table is the durable record a client (re)reads on load/reconnect.
+
+create table public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  type text not null,
+  title text not null,
+  message text not null,
+  data jsonb not null default '{}'::jsonb,
+  read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index notifications_user_idx on public.notifications (user_id, created_at desc);
+
+alter table public.notifications enable row level security;
+
+-- Only the backend's service-role client inserts (it resolves the recipient
+-- itself, e.g. "the other party on this appointment") — no insert policy
+-- for authenticated users. Owners can read and mark their own as read.
+create policy "notifications_owner_select" on public.notifications
+  for select using (user_id = auth.uid());
+
+create policy "notifications_owner_update" on public.notifications
+  for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+grant usage on schema public to authenticated;
+grant select, update on public.notifications to authenticated;
 
 
 -- ==========================================

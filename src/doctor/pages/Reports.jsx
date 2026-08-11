@@ -140,6 +140,7 @@ function DoctorReports() {
 
   const toRow = (r) => ({
     id: r.id,
+    patientId: r.patient_id,
     patient: nameByPatientId.get(r.patient_id) || 'Patient',
     tests: [r.test_name],
     lab: r.lab_name || '—',
@@ -170,6 +171,50 @@ function DoctorReports() {
     setShowActionsMenu(false);
     if (selectedIds.length === 0) { toast('Please select at least one report first.', 'error'); return; }
     setBulkModalParams({ isOpen: true, channel: action });
+  };
+
+  const sendBulkMessage = async (channel, messageText) => {
+    const recipients = currentList.filter(r => selectedIds.includes(r.id));
+    const patientIds = [...new Set(recipients.map(r => r.patientId).filter(Boolean))];
+    try {
+      await apiFetch('/communications/broadcasts', {
+        method: 'POST',
+        body: {
+          subject: channel,
+          body: messageText,
+          audience: `Selected Lab Reports — ${recipients.length} patient(s)`,
+          channels: [channel],
+          scheduleType: 'immediate',
+          patientIds,
+        },
+      });
+      toast(`${channel} sent to ${recipients.length} patient(s).`, 'success');
+    } catch (err) {
+      toast(err.message || `Failed to send ${channel}`, 'error');
+    }
+    setSelectedIds([]);
+  };
+
+  const downloadReportPdf = (r) => {
+    const win = window.open('', '_blank', 'width=480,height=640');
+    if (!win) return;
+    win.document.write(`
+      <!doctype html><html><head><title>Lab Report — ${r.patient}</title>
+      <style>
+        body { font-family: Georgia, serif; padding: 32px; color: #1e293b; }
+        h1 { font-size: 20px; margin: 0; }
+        .muted { color: #64748b; font-size: 12px; }
+        .header { border-bottom: 1px solid #cbd5e1; padding-bottom: 12px; margin-bottom: 12px; }
+      </style></head><body>
+      <div class="header"><h1>HealNari — Lab Report</h1><p class="muted">${r.patient} • ${r.lab} • ${r.received}</p></div>
+      <p><strong>Test(s):</strong> ${Array.isArray(r.tests) ? r.tests.join(', ') : r.tests}</p>
+      <p style="margin-top:12px"><strong>Interpretation:</strong> ${r.interpretation}</p>
+      ${r.action ? `<p style="margin-top:12px"><strong>Doctor's Action:</strong> ${r.action}</p>` : ''}
+      </body></html>
+    `);
+    win.document.close();
+    win.focus();
+    win.print();
   };
   const toggleSelectAll = () => {
     if (selectedIds.length === currentList.length && currentList.length > 0) setSelectedIds([]);
@@ -330,7 +375,7 @@ function DoctorReports() {
                 <p className="text-xs text-slate-500 mb-1">{r.tests} • {r.lab} • {r.date}</p>
                 <p className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">{r.action}</p>
               </div>
-              <button onClick={() => toast(`Downloading report for ${r.patient}...`, 'info')}
+              <button onClick={() => downloadReportPdf(r)}
                 className="flex items-center gap-2 font-bold px-4 py-2.5 rounded-xl text-sm text-aubergine-600 border border-aubergine-200 hover:bg-aubergine-50 transition-colors flex-shrink-0 h-max">
                 <i className="fas fa-download"></i> Download
               </button>
@@ -353,10 +398,7 @@ function DoctorReports() {
         onClose={() => setBulkModalParams({ isOpen: false, channel: '' })}
         channel={bulkModalParams.channel}
         selectedCount={selectedIds.length}
-        onSend={(msg) => {
-          toast(`Successfully sent ${bulkModalParams.channel} to ${selectedIds.length} patients!`, 'success');
-          setSelectedIds([]);
-        }}
+        onSend={(msg) => sendBulkMessage(bulkModalParams.channel, msg)}
       />
     </div>
   );

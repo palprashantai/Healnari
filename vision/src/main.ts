@@ -4,8 +4,13 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { AllExceptionsFilter } from '@/core/filters/http-exception.filter';
 
+import helmet from 'helmet';
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Use Helmet for security headers
+  app.use(helmet());
 
   // Allow the frontend dev/prod origin to make requests
   app.enableCors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' });

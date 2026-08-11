@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useNotifications, NOTIFICATION_STYLE, DEFAULT_NOTIFICATION_STYLE } from '../../context/NotificationsContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { HealNariLogo } from '../../components/HealNariLogo.jsx';
 import { PageTransition } from '../../components/PageTransition.jsx';
@@ -23,12 +24,17 @@ const MENU_ITEMS = [
   { name: 'My Profile',         icon: 'fa-circle-user',    path: '/patient-dashboard/profile',       color: '#64748b' },
 ];
 
-const NOTIFICATIONS = [
-  { id: 1, icon: 'fa-calendar-check', color: 'text-aubergine-600 bg-aubergine-50', title: 'Appointment Confirmed', msg: 'Dr. Sarah Mitchell — Thu 5 Jul 10:30 AM', time: '2 hours ago', read: false },
-  { id: 2, icon: 'fa-flask',          color: 'text-sky-600 bg-sky-50',             title: 'Lab Results Ready',    msg: 'Hormonal Panel report is available.', time: '1 day ago', read: false },
-  { id: 3, icon: 'fa-pills',          color: 'text-emerald-600 bg-emerald-50',     title: 'Medication Reminder', msg: 'Myo-Inositol — Take this morning', time: '3 hours ago', read: true },
-  { id: 4, icon: 'fa-heart-pulse',    color: 'text-rose-600 bg-rose-50',           title: 'Log Your Vitals',     msg: 'You haven\'t logged BP today.', time: '5 hours ago', read: true },
-];
+/** "2 hours ago" style relative timestamp for a notification's created_at. */
+function timeAgo(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins} min${mins === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
 
 function Sidebar({ onClose, onItemHover }) {
   const { user, logout } = useAuth();
@@ -122,7 +128,7 @@ function Sidebar({ onClose, onItemHover }) {
   );
 }
 
-function NotificationsPanel({ notifications, onMarkAllRead, onClose, panelRef }) {
+function NotificationsPanel({ notifications, onMarkAllRead, onMarkRead, onClose, panelRef }) {
   const unread = notifications.filter(n => !n.read).length;
 
   return (
@@ -140,22 +146,26 @@ function NotificationsPanel({ notifications, onMarkAllRead, onClose, panelRef })
         </div>
       </div>
       <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
-        {notifications.map(n => (
-          <div key={n.id} className={`flex gap-3 p-4 hover:bg-slate-50 transition-colors cursor-pointer ${!n.read ? 'bg-aubergine-50/30' : ''}`}>
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm flex-shrink-0 ${n.color}`}>
-              <i className={`fas ${n.icon}`}></i>
+        {notifications.length === 0 && (
+          <p className="text-sm text-slate-500 text-center py-8">You're all caught up.</p>
+        )}
+        {notifications.map(n => {
+          const style = NOTIFICATION_STYLE[n.type] || DEFAULT_NOTIFICATION_STYLE;
+          return (
+            <div key={n.id} onClick={() => !n.read && onMarkRead(n.id)}
+              className={`flex gap-3 p-4 hover:bg-slate-50 transition-colors cursor-pointer ${!n.read ? 'bg-aubergine-50/30' : ''}`}>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm flex-shrink-0 ${style.color}`}>
+                <i className={`fas ${style.icon}`}></i>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-bold text-slate-800 ${!n.read ? '' : 'text-slate-600'}`}>{n.title}</p>
+                <p className="text-xs text-slate-500 truncate">{n.message}</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">{timeAgo(n.created_at)}</p>
+              </div>
+              {!n.read && <div className="w-2 h-2 bg-aubergine-500 rounded-full mt-2 flex-shrink-0"></div>}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className={`text-sm font-bold text-slate-800 ${!n.read ? '' : 'text-slate-600'}`}>{n.title}</p>
-              <p className="text-xs text-slate-500 truncate">{n.msg}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">{n.time}</p>
-            </div>
-            {!n.read && <div className="w-2 h-2 bg-aubergine-500 rounded-full mt-2 flex-shrink-0"></div>}
-          </div>
-        ))}
-      </div>
-      <div className="px-4 py-3 border-t border-slate-100 bg-slate-50">
-        <button className="text-xs text-aubergine-600 font-bold hover:underline w-full text-center">View All Notifications</button>
+          );
+        })}
       </div>
     </div>
   );
@@ -166,15 +176,13 @@ function PatientLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
+  const { notifications, unreadCount, markAllRead: markAllReadRemote, markRead } = useNotifications();
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState(NOTIFICATIONS);
   const [hoveredColor, setHoveredColor] = useState(null);
   const notifRef = useRef(null);
   const notifBtnRef = useRef(null);
-
-  const unreadCount = notifications.filter(n => !n.read).length;
 
   // Close notification panel on outside click
   useEffect(() => {
@@ -191,7 +199,7 @@ function PatientLayout() {
   useEffect(() => { setMobileSidebarOpen(false); }, [location.pathname]);
 
   const markAllRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    markAllReadRemote();
     toast('All notifications marked as read.', 'success');
   };
 
@@ -273,6 +281,7 @@ function PatientLayout() {
                 <NotificationsPanel
                   notifications={notifications}
                   onMarkAllRead={markAllRead}
+                  onMarkRead={markRead}
                   onClose={() => setNotifOpen(false)}
                   panelRef={notifRef}
                 />
