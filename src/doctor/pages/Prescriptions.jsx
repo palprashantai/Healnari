@@ -3,7 +3,6 @@ import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { DoseSchedule } from '../../components/DoseSchedule.jsx';
 import { RxStatusBadge, resolveRxStatus } from '../../components/RxStatus.jsx';
-import { StepIndicator } from '../../components/StepIndicator.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 
@@ -72,11 +71,18 @@ const TEMPLATES = [
   { name: 'Fertility — Clomiphene Cycle',  meds: ['Clomiphene Citrate 50mg (Day 2–6)', 'Progesterone 400mg (Day 15–25)'] },
 ];
 
-/* ─── Write Rx Modal ─────────────────────────── */
-function WriteRxModal({ isOpen, onClose, onSave, patients }) {
-  const [step, setStep] = useState(1);
+/* ─── Write Rx — full page, form + live prescription-pad preview ─── */
+const RX_ID_SEED = Math.floor(Math.random() * 9000) + 1000;
+
+function WriteRxPage({ onBack, onSave, patients }) {
   const [form, setForm] = useState({ patientId: '', patient: '', diagnosis: '', meds: [{ name: '', schedule: '', duration: '' }], instructions: '' });
   const [template, setTemplate] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const selectedPatient = patients.find(p => p.id === form.patientId) || null;
+  const hasPenicillinAllergy = selectedPatient?.allergies?.some(a => a.toLowerCase().includes('penicillin'));
+  const filledMeds = form.meds.filter(m => m.name.trim());
+  const isValid = form.patient && form.diagnosis.trim() && filledMeds.length > 0;
 
   const applyTemplate = (tmpl) => {
     const found = TEMPLATES.find(t => t.name === tmpl);
@@ -90,50 +96,90 @@ function WriteRxModal({ isOpen, onClose, onSave, patients }) {
   const removeMed = (i) => setForm(p => ({ ...p, meds: p.meds.filter((_, idx) => idx !== i) }));
   const updateMed = (i, k, v) => setForm(p => ({ ...p, meds: p.meds.map((m, idx) => idx === i ? { ...m, [k]: v } : m) }));
 
-  const reset = () => { setStep(1); setForm({ patientId: '', patient: '', diagnosis: '', meds: [{ name: '', schedule: '', duration: '' }], instructions: '' }); setTemplate(''); onClose(); };
+  const handleIssue = async () => {
+    if (!isValid || submitting) return;
+    setSubmitting(true);
+    try {
+      await onSave(form);
+      onBack();
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <Modal isOpen={isOpen} onClose={reset} title="Write Prescription" size="lg">
-      <StepIndicator step={step} total={2} labels={['Details', 'Preview & Issue']} />
-      {step === 1 && (
-        <div className="space-y-4 mt-3">
+    <div className="space-y-6 animate-fade-in pb-12">
+      {/* Breadcrumb bar */}
+      <div className="flex items-center justify-between gap-4">
+        <button onClick={onBack}
+          className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-xs transition-all">
+          <i className="fas fa-arrow-left text-aubergine-600"></i> Back to Prescriptions
+        </button>
+        <p className="text-xs text-slate-500 font-medium hidden sm:block">
+          Doctor Portal &gt; Prescriptions &gt; <span className="text-slate-700 font-bold">Write New Rx</span>
+        </p>
+      </div>
+
+      {/* Page header */}
+      <div className="rounded-3xl p-6 text-white shadow-lg bg-gradient-to-br from-aubergine-900 via-aubergine-600 to-magenta-500 flex items-center gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-white/15 border-2 border-white/20 flex items-center justify-center text-2xl flex-shrink-0">
+          <i className="fas fa-file-prescription"></i>
+        </div>
+        <div>
+          <h1 className="font-black text-xl tracking-tight">Write New Prescription</h1>
+          <p className="text-aubergine-100 text-sm mt-0.5">Fill in the details on the left — the prescription pad on the right updates live.</p>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-5 gap-6 items-start">
+        {/* ── Form column ── */}
+        <div className="lg:col-span-3 space-y-5">
           {/* Template */}
-          <div>
-            <label className="text-xs font-bold text-slate-500 mb-1.5 block">Quick Template</label>
-            <select value={template} onChange={e => applyTemplate(e.target.value)} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <label className="text-xs font-black text-slate-500 uppercase tracking-wide mb-2 block">Quick Template</label>
+            <select value={template} onChange={e => applyTemplate(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
               <option value="">— Start from scratch or choose a template —</option>
               {TEMPLATES.map(t => <option key={t.name}>{t.name}</option>)}
             </select>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-bold text-slate-500 mb-1.5 block">Patient *</label>
-              <select value={form.patientId} onChange={e => {
-                const pt = patients.find(p => p.id === e.target.value);
-                setForm(p => ({ ...p, patientId: e.target.value, patient: pt?.name || '' }));
-              }} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
-                <option value="">Select patient</option>
-                {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-500 mb-1.5 block">Diagnosis *</label>
-              <input value={form.diagnosis} onChange={e => setForm(p => ({ ...p, diagnosis: e.target.value }))} placeholder="e.g. PCOS — IR Subtype"
-                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+          {/* Patient & Diagnosis */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
+            <h2 className="text-xs font-black text-slate-500 uppercase tracking-wide flex items-center gap-2">
+              <i className="fas fa-user text-aubergine-600"></i> Patient &amp; Diagnosis
+            </h2>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1.5 block">Patient *</label>
+                <select value={form.patientId} onChange={e => {
+                  const pt = patients.find(p => p.id === e.target.value);
+                  setForm(p => ({ ...p, patientId: e.target.value, patient: pt?.name || '' }));
+                }} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
+                  <option value="">Select patient</option>
+                  {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1.5 block">Diagnosis *</label>
+                <input value={form.diagnosis} onChange={e => setForm(p => ({ ...p, diagnosis: e.target.value }))} placeholder="e.g. PCOS — IR Subtype"
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+              </div>
             </div>
           </div>
 
           {/* Medicines */}
-          <div>
-            <label className="text-xs font-bold text-slate-500 mb-2 block">Medicines & Dosage</label>
-            
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
+            <h2 className="text-xs font-black text-slate-500 uppercase tracking-wide flex items-center gap-2">
+              <i className="fas fa-pills text-aubergine-600"></i> Medicines &amp; Dosage
+            </h2>
+
             {/* CDSS Safety Checker Banner */}
-            <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2.5">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2.5">
               <i className="fas fa-shield-virus text-amber-600 text-sm mt-0.5 shrink-0"></i>
               <div>
                 <p className="font-bold">CDSS Safety Check Active</p>
-                <p className="text-[11px] text-amber-700 mt-0.5">Automated Allergy (Penicillin) & Drug-Drug Interaction (DDI) validation enabled for patient: <span className="font-bold">{form.patient || 'Not Selected'}</span></p>
+                <p className="text-[11px] text-amber-700 mt-0.5">Automated allergy &amp; drug-drug interaction (DDI) validation enabled for patient: <span className="font-bold">{form.patient || 'Not Selected'}</span></p>
               </div>
             </div>
 
@@ -143,7 +189,7 @@ function WriteRxModal({ isOpen, onClose, onSave, patients }) {
 
             <div className="space-y-3">
               {form.meds.map((med, i) => (
-                <div key={i} className="border border-slate-100 rounded-xl p-2.5 bg-slate-50/60 space-y-1.5">
+                <div key={i} className="border border-slate-100 rounded-xl p-3 bg-slate-50/60 space-y-2">
                   <div className="grid grid-cols-12 gap-2 items-start">
                     <input list="med-library" value={med.name} onChange={e => updateMed(i, 'name', e.target.value)} placeholder="Medicine name + dose"
                       className="col-span-5 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
@@ -151,7 +197,8 @@ function WriteRxModal({ isOpen, onClose, onSave, patients }) {
                       className="col-span-4 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
                     <input value={med.duration} onChange={e => updateMed(i, 'duration', e.target.value)} placeholder="Duration"
                       className="col-span-2 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
-                    <button onClick={() => removeMed(i)} className="col-span-1 h-8 rounded-xl bg-rose-50 text-rose-500 text-xs flex items-center justify-center hover:bg-rose-100 transition-colors border border-rose-100">
+                    <button onClick={() => removeMed(i)} disabled={form.meds.length === 1}
+                      className="col-span-1 h-8 rounded-xl bg-rose-50 text-rose-500 text-xs flex items-center justify-center hover:bg-rose-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-rose-100">
                       <i className="fas fa-trash-can"></i>
                     </button>
                   </div>
@@ -168,78 +215,100 @@ function WriteRxModal({ isOpen, onClose, onSave, patients }) {
                   </div>
 
                   {/* Real-time Interaction Warning Badge */}
-                  {med.name.toLowerCase().includes('penicillin') && (
+                  {hasPenicillinAllergy && med.name.toLowerCase().includes('penicillin') && (
                     <div className="px-3 py-1 bg-rose-100 border border-rose-300 text-rose-800 text-[11px] rounded-lg font-bold flex items-center gap-1.5">
                       <i className="fas fa-triangle-exclamation text-rose-600"></i>
-                      <span>CRITICAL ALLERGY ALERT: Patient Priya Sharma is allergic to Penicillin.</span>
+                      <span>CRITICAL ALLERGY ALERT: {form.patient} is allergic to Penicillin.</span>
                     </div>
                   )}
                 </div>
               ))}
             </div>
-            <button onClick={addMed} className="mt-2 text-xs text-aubergine-600 font-bold flex items-center gap-1 hover:underline">
+            <button onClick={addMed} className="text-xs text-aubergine-600 font-bold flex items-center gap-1 hover:underline">
               <i className="fas fa-plus"></i> Add Medicine
             </button>
           </div>
 
-          <div>
-            <label className="text-xs font-bold text-slate-500 mb-1.5 block">Special Instructions</label>
-            <textarea rows={2} value={form.instructions} onChange={e => setForm(p => ({ ...p, instructions: e.target.value }))} placeholder="Dietary advice, follow-up, warnings..."
+          {/* Instructions */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <label className="text-xs font-black text-slate-500 uppercase tracking-wide mb-2 block">Special Instructions</label>
+            <textarea rows={3} value={form.instructions} onChange={e => setForm(p => ({ ...p, instructions: e.target.value }))} placeholder="Dietary advice, follow-up, warnings..."
               className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
           </div>
 
-          <button disabled={!form.patient || !form.diagnosis} onClick={() => setStep(2)}
-            className="w-full bg-aubergine-600 disabled:opacity-40 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-            <span>Preview Prescription</span>
-            <i className="fas fa-arrow-right"></i>
-          </button>
-        </div>
-      )}
-
-      {step === 2 && (
-        <div className="space-y-4 mt-3">
-          <div className="border border-slate-200 rounded-2xl p-5 space-y-4 text-sm" style={{ fontFamily: 'Georgia, serif' }}>
-            <div className="flex justify-between items-start border-b border-slate-200 pb-3">
-              <div>
-                <h3 className="font-black text-slate-800 text-lg">HealNari Rx</h3>
-                <p className="text-xs text-slate-500">Dr. Sarah Mitchell • MCI-29402</p>
-              </div>
-              <div className="text-right text-xs text-slate-500">
-                <p>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
-                <p className="font-mono text-slate-500">RX-{Math.floor(Math.random() * 9000) + 1000}</p>
-              </div>
-            </div>
-            <div className="text-xs space-y-1">
-              <p><strong>Patient:</strong> {form.patient}</p>
-              <p><strong>Diagnosis:</strong> {form.diagnosis}</p>
-            </div>
-            <div className="space-y-2">
-              {form.meds.filter(m => m.name).map((m, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs">
-                  <span className="font-bold text-slate-500 mt-0.5">Rx{i + 1}.</span>
-                  <div>
-                    <p className="font-bold text-slate-800">{m.name}</p>
-                    <p className="text-slate-500">{m.schedule} • {m.duration}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {form.instructions && (
-              <div className="text-xs text-slate-600 border-t border-slate-100 pt-3">
-                <strong>Instructions:</strong> {form.instructions}
-              </div>
-            )}
-          </div>
+          {/* Actions */}
           <div className="flex gap-3">
-            <button onClick={() => setStep(1)} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50">← Edit</button>
-            <button onClick={() => { onSave(form); reset(); }}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-              <i className="fas fa-paper-plane"></i> Issue & Send to Patient
+            <button onClick={onBack} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors">
+              Cancel
+            </button>
+            <button onClick={handleIssue} disabled={!isValid || submitting}
+              className="flex-[2] bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+              <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i>
+              {submitting ? 'Issuing…' : 'Issue & Send to Patient'}
             </button>
           </div>
         </div>
-      )}
-    </Modal>
+
+        {/* ── Live prescription-pad preview ── */}
+        <div className="lg:col-span-2 lg:sticky lg:top-5">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden">
+            <div className="bg-slate-800 px-4 py-2.5 flex items-center gap-2">
+              <i className="fas fa-eye text-slate-400 text-xs"></i>
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Live Preview</span>
+            </div>
+            <div className="p-6 space-y-4 text-sm" style={{ fontFamily: 'Georgia, serif' }}>
+              <div className="flex justify-between items-start border-b border-slate-200 pb-3">
+                <div>
+                  <h3 className="font-black text-slate-800 text-lg">HealNari Rx</h3>
+                  <p className="text-xs text-slate-500">Dr. Sarah Mitchell • MCI-29402</p>
+                </div>
+                <div className="text-right text-xs text-slate-500">
+                  <p>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                  <p className="font-mono text-slate-500">RX-{RX_ID_SEED}</p>
+                </div>
+              </div>
+
+              {form.patient || form.diagnosis ? (
+                <div className="text-xs space-y-1">
+                  <p><strong>Patient:</strong> {form.patient || <span className="text-slate-300 italic">— not selected —</span>}</p>
+                  <p><strong>Diagnosis:</strong> {form.diagnosis || <span className="text-slate-300 italic">— pending —</span>}</p>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-300 italic">Select a patient to begin…</p>
+              )}
+
+              {filledMeds.length > 0 ? (
+                <div className="space-y-3">
+                  {filledMeds.map((m, i) => (
+                    <div key={i} className="flex items-start gap-2 text-xs">
+                      <span className="font-bold text-slate-500 mt-0.5">Rx{i + 1}.</span>
+                      <div className="flex-1">
+                        <p className="font-bold text-slate-800">{m.name}</p>
+                        {m.schedule ? <DoseSchedule schedule={`${m.schedule}${m.duration ? ` (${m.duration})` : ''}`} className="mt-1" /> : (
+                          <p className="text-slate-400">{m.duration || 'schedule & duration pending'}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-300 italic">No medicines added yet.</p>
+              )}
+
+              {form.instructions && (
+                <div className="text-xs text-slate-600 border-t border-slate-100 pt-3">
+                  <strong>Instructions:</strong> {form.instructions}
+                </div>
+              )}
+
+              <div className="border-t border-dashed border-slate-200 pt-3 text-[10px] text-slate-400 text-center">
+                Digitally issued via HealNari • Not valid without doctor signature
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -392,6 +461,10 @@ function DoctorPrescriptions() {
       toast(err.message || 'Failed to issue prescription', 'error');
     }
   };
+
+  if (showWrite) {
+    return <WriteRxPage onBack={() => setShowWrite(false)} onSave={handleNewRx} patients={patients} />;
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -548,7 +621,6 @@ function DoctorPrescriptions() {
       </div>
 
       {/* Modals */}
-      <WriteRxModal isOpen={showWrite} onClose={() => setShowWrite(false)} onSave={handleNewRx} patients={patients} />
       <ConfirmModal
         isOpen={!!refillTarget}
         onClose={() => setRefillTarget(null)}

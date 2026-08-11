@@ -264,7 +264,7 @@ function DoctorStaff() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { label: 'Total Staff', value: staff.length, color: 'text-slate-800' },
           { label: 'On Duty', value: onDuty, color: 'text-emerald-700' },

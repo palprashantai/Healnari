@@ -23,6 +23,13 @@ export class TelemedicineController {
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
+  @ApiOperation({ summary: 'STUN/TURN ICE server list for establishing a WebRTC video call (either participant)' })
+  @Get('ice-servers')
+  async iceServers() {
+    const data = await this.telemedicineService.getIceServers();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
   @ApiOperation({ summary: "List a session's clinical notes (owner doctor or the patient on the appointment)" })
   @ApiParam({ name: 'appointmentId' })
   @Get(':appointmentId/notes')

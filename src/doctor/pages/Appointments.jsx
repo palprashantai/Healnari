@@ -26,7 +26,6 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
     }
   };
 
-  if (!isOpen) return null;
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Send ${channel}`} size="sm">
       <div className="space-y-4">
@@ -106,9 +105,9 @@ function NotesModal({ patient, isOpen, onClose, onSave }) {
       .finally(() => setLoading(false));
   }, [isOpen, patient]);
 
-  if (!patient) return null;
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`SOAP Notes — ${patient.name}`} size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={patient ? `SOAP Notes — ${patient.name}` : 'SOAP Notes'} size="md">
+      {patient && (
       <div className="space-y-4">
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 space-y-1">
           <div className="flex gap-3"><span className="font-bold text-slate-500 w-16">Patient</span><span className="font-bold text-slate-800">{patient.name} ({patient.age})</span></div>
@@ -151,6 +150,7 @@ function NotesModal({ patient, isOpen, onClose, onSave }) {
           </button>
         </div>
       </div>
+      )}
     </Modal>
   );
 }
@@ -407,7 +407,7 @@ function DoctorAppointments() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
           { label: 'In Queue', value: queue.filter(q => q.status !== 'Done').length, color: 'text-aubergine-700' },
           { label: 'Waiting', value: queue.filter(q => q.status === 'Waiting').length, color: 'text-amber-600' },

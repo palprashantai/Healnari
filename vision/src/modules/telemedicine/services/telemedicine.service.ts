@@ -75,4 +75,28 @@ export class TelemedicineService {
     }).select().single();
     return data;
   }
+
+  /** ICE server list for the WebRTC video call — always includes public STUN,
+   * and adds a short-lived TURN credential from Metered if configured. TURN
+   * is only a fallback for peers on restrictive/symmetric NATs, so a missing
+   * key just means calls rely on STUN alone rather than failing outright. */
+  async getIceServers() {
+    const stunServers = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ];
+
+    const domain = process.env.METERED_TURN_DOMAIN;
+    const apiKey = process.env.METERED_TURN_API_KEY;
+    if (!domain || !apiKey) return stunServers;
+
+    try {
+      const res = await fetch(`https://${domain}/api/v1/turn/credentials?apiKey=${apiKey}`);
+      if (!res.ok) return stunServers;
+      const turnServers = await res.json();
+      return [...stunServers, ...turnServers];
+    } catch {
+      return stunServers;
+    }
+  }
 }

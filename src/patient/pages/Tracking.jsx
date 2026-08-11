@@ -352,7 +352,7 @@ function PatientTracking() {
             <h3 className="font-extrabold text-slate-800 text-base">Facial & Body Hair Tracker</h3>
             <p className="text-xs text-slate-500 mt-0.5">Once a month, pick the option closest to what you see.</p>
           </div>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {HIRSUTISM_GRADES.map(g => (
               <button key={g.grade} onClick={() => handleHirsutismSelect(g.grade)}
                 className={`p-3 rounded-xl border text-center transition-all ${hirsutismGrade === g.grade ? 'border-aubergine-500 bg-aubergine-50 shadow-sm' : 'border-slate-200 hover:bg-slate-50'}`}>

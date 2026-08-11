@@ -322,9 +322,9 @@ function DoctorLayout() {
 
             {/* Non-modal Clinical Alerts Toggle */}
             <button onClick={() => setAlertDrawerOpen(!alertDrawerOpen)}
-              className={`relative px-3 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 border ${alertDrawerOpen ? 'bg-rose-600 text-white border-rose-600' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'}`}>
+              className={`relative px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-2 border ${alertDrawerOpen ? 'bg-rose-600 text-white border-rose-600' : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'}`}>
               <i className="fas fa-triangle-exclamation"></i>
-              <span>Clinical Alerts</span>
+              <span className="hidden sm:inline">Clinical Alerts</span>
               {urgentAlerts.length > 0 && (
                 <span className="bg-rose-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-black">{urgentAlerts.length}</span>
               )}
@@ -433,7 +433,7 @@ function DoctorLayout() {
         {/* Expandable Clinical Alert Drawer (Non-Modal for Zero Interruptive Context Switching) —
             urgent items only; routine pending labs live in the dashboard's own card. */}
         {alertDrawerOpen && (
-          <div style={{ top: chromeHeight }} className="absolute right-0 bottom-0 w-96 bg-white border-l border-slate-200 shadow-2xl z-40 flex flex-col animate-fade-in">
+          <div style={{ top: chromeHeight }} className="absolute right-0 bottom-0 w-full sm:w-96 max-w-full bg-white border-l border-slate-200 shadow-2xl z-40 flex flex-col animate-fade-in">
             <div className="p-4 bg-rose-900 text-white flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <i className="fas fa-triangle-exclamation text-rose-300"></i>

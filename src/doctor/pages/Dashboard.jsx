@@ -153,7 +153,7 @@ function PatientFileModal({ row, onClose, onWriteRx }) {
             </div>
           </div>
         )}
-        <div className="grid grid-cols-3 gap-3 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
           {[
             { label: 'Last Visit', value: p?.lastVisit || '—' },
             { label: 'Diagnosis', value: p?.diagnosis || '—' },
