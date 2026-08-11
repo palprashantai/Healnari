@@ -8,6 +8,7 @@ import { Modal } from '../../components/Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
 import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
+import { useFullscreen } from '../../hooks/useFullscreen.js';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
  * for srcObject, so this stays a thin imperative wrapper. */
@@ -83,6 +84,8 @@ function ActiveCallUI({ session, onEnd, onDeclined }) {
   const { user } = useAuth();
   const { callDeclinedId, clearCallDeclined } = useNotifications() || {};
   const call = useWebRTCCall({ appointmentId: session.id, active: true });
+  const videoAreaRef = useRef(null);
+  const { isFullscreen, toggle: toggleFullscreen, supported: fullscreenSupported } = useFullscreen(videoAreaRef);
 
   // The patient declined this call (they were rung when we joined) — hang up
   // on our side too, like a real phone call, instead of sitting on a
@@ -164,7 +167,7 @@ function ActiveCallUI({ session, onEnd, onDeclined }) {
 
       {/* Left 50% / 7 Cols: Video Call & Stream */}
       <div className="lg:col-span-7 flex flex-col space-y-3">
-        <div className="relative aspect-video bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
+        <div ref={videoAreaRef} className="relative aspect-video bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
           {/* Remote (patient) video — falls back to an avatar + status line until connected */}
           {call.remoteStream ? (
             <VideoTile stream={call.remoteStream} className="absolute inset-0" />
@@ -200,9 +203,21 @@ function ActiveCallUI({ session, onEnd, onDeclined }) {
             <span className={`w-2 h-2 rounded-full ${call.connectionState === 'connected' ? 'bg-rose-500 animate-pulse' : 'bg-slate-500'}`}></span> {fmt(elapsed)}
           </div>
 
-          {/* Patient info overlay */}
-          <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-xs text-white text-xs px-3 py-1.5 rounded-xl border border-white/10 font-medium">
-            {session.type} ({session.age})
+          {/* Patient info overlay + fullscreen toggle */}
+          <div className="absolute top-4 right-4 flex items-center gap-2">
+            <div className="bg-black/60 backdrop-blur-xs text-white text-xs px-3 py-1.5 rounded-xl border border-white/10 font-medium">
+              {session.type} ({session.age})
+            </div>
+            {fullscreenSupported && (
+              <button
+                onClick={toggleFullscreen}
+                aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                className="w-8 h-8 rounded-lg bg-black/60 hover:bg-black/80 backdrop-blur-xs text-white border border-white/10 flex items-center justify-center text-xs transition-colors"
+              >
+                <i className={`fas ${isFullscreen ? 'fa-compress' : 'fa-expand'}`}></i>
+              </button>
+            )}
           </div>
 
           {/* Doctor PiP — local self-view */}

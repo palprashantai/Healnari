@@ -9,6 +9,7 @@ import { useNotifications } from '../../context/NotificationsContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
 import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
+import { useFullscreen } from '../../hooks/useFullscreen.js';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
  * for srcObject, so this stays a thin imperative wrapper. */
@@ -211,6 +212,8 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
   const call = useWebRTCCall({ appointmentId, active: joined });
   const { callDeclinedId, clearCallDeclined } = useNotifications() || {};
   const [elapsed, setElapsed] = useState(0);
+  const callViewRef = useRef(null);
+  const { isFullscreen, toggle: toggleFullscreen, supported: fullscreenSupported } = useFullscreen(callViewRef);
 
   // Manual "Join Now" tap — the doctor may not have started this call yet
   // (this appointment could still be Upcoming/Confirmed), so ring them too.
@@ -255,6 +258,12 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
   useEffect(() => {
     if (call.error) toast(call.error, 'error');
   }, [call.error, toast]);
+
+  // Whichever way the call ends, don't leave the browser stuck in
+  // fullscreen showing nothing once this view unmounts.
+  useEffect(() => {
+    if (!joined && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  }, [joined]);
 
   useEffect(() => {
     if (call.connectionState !== 'connected') return undefined;
@@ -312,14 +321,26 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
   // Joined — full-screen immersive call, matching a real video-call app
   // instead of being squeezed into a small dialog box.
   return createPortal(
-    <div className="fixed inset-0 z-[9200] flex flex-col bg-slate-950">
+    <div ref={callViewRef} className="fixed inset-0 z-[9200] flex flex-col bg-slate-950">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 sm:px-6 text-white/90 bg-slate-950/90 backdrop-blur-sm border-b border-white/10">
         <div className="flex items-center gap-2 text-xs font-bold">
           <span className={`w-2 h-2 rounded-full ${call.connectionState === 'connected' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
           <span className="font-mono tabular-nums">{call.connectionState === 'connected' ? fmtDuration(elapsed) : callStatusCopy(call)}</span>
         </div>
-        <span className="text-xs font-bold text-white/70 truncate max-w-[50%]">{doctor}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold text-white/70 truncate max-w-[40vw]">{doctor}</span>
+          {fullscreenSupported && (
+            <button
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-sm transition-colors"
+            >
+              <i className={`fas ${isFullscreen ? 'fa-compress' : 'fa-expand'}`}></i>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Video area */}

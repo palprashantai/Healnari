@@ -18,6 +18,33 @@ export class AppointmentsService {
     return `${a.scheduled_date} at ${a.scheduled_time}`;
   }
 
+  /** Cancelling a paid appointment must actually put the money back on the
+   * radar — mark the payment `Refunded` (payments.status already supports
+   * this value; the frontend's Billing pages already render it) and file a
+   * refund_requests row so it shows up for admin processing. Previously
+   * neither of those ever happened: the "Refund initiated" toast the
+   * frontend shows on cancel was pure copy with nothing behind it — no
+   * code anywhere ever inserted into refund_requests, so a cancelled,
+   * already-paid appointment just silently kept its money in limbo. */
+  private async initiateRefundIfPaid(appointment: Appointment & { patientName: string }) {
+    const { data: payment } = await this.supabase.admin
+      .from('payments')
+      .select()
+      .eq('appointment_id', appointment.id)
+      .eq('status', 'Paid')
+      .maybeSingle();
+
+    if (!payment) return;
+
+    await this.supabase.admin.from('payments').update({ status: 'Refunded' }).eq('id', payment.id);
+    await this.supabase.admin.from('refund_requests').insert({
+      patient_id: appointment.patient_id,
+      patient_name: appointment.patientName,
+      amount: payment.amount,
+      reason: `Appointment cancelled — ${this.appointmentWhen(appointment)}`,
+    });
+  }
+
   /** Shared "ring the other party" notify — works in both directions
    * (doctor calling patient, or patient calling doctor), used by every path
    * that puts a video appointment into `In Progress`: direct Join Call
@@ -178,6 +205,7 @@ export class AppointmentsService {
         message: `Dr. ${appointment.doctorName} cancelled your ${label} on ${when}.`,
         data: { appointmentId: appointment.id },
       });
+      await this.initiateRefundIfPaid(appointment);
     } else if (!isDoctorActing && appointment.status === AppointmentStatus.CANCELLED) {
       await this.notifications.create(appointment.doctor_id, {
         type: 'appointment_cancelled',
@@ -185,6 +213,7 @@ export class AppointmentsService {
         message: `${appointment.patientName} cancelled their ${label} on ${when}.`,
         data: { appointmentId: appointment.id },
       });
+      await this.initiateRefundIfPaid(appointment);
     } else if (
       appointment.status === AppointmentStatus.IN_PROGRESS &&
       previousStatus !== AppointmentStatus.IN_PROGRESS &&
