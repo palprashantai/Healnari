@@ -6,14 +6,34 @@ import { AllExceptionsFilter } from '@/core/filters/http-exception.filter';
 
 import helmet from 'helmet';
 
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://healnari.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://healnari-api.onrender.com/api'
+];
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Use Helmet for security headers
   app.use(helmet());
 
-  // Allow the frontend dev/prod origin to make requests
-  app.enableCors({ origin: process.env.FRONTEND_URL || 'https://healnari.vercel.app' || 'http://localhost:5173' });
+  // Allow the frontend dev/prod origin(s) to make requests.
+  // FRONTEND_URL may hold a single origin or a comma-separated list; it is
+  // merged with the known defaults so a misconfigured/missing env var on the
+  // host (e.g. Render) never silently locks out the deployed frontend.
+  const envOrigins = (process.env.FRONTEND_URL || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  const allowedOrigins = Array.from(new Set([...envOrigins, ...DEFAULT_ALLOWED_ORIGINS]));
+
+  app.enableCors({
+    origin: allowedOrigins,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    credentials: true,
+  });
 
   // Apply Global Validation Pipe
   app.useGlobalPipes(
