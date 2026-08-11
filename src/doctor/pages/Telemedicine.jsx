@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -368,6 +369,8 @@ const QUEUE_POLL_MS = 20000;
 /* ─── Main Component ─────────────────────────── */
 function DoctorTelemedicine() {
   const toast = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { updateAppointmentStatus } = useClinicData();
   const [activeCall, setActiveCall] = useState(null);
   const [showNotes, setShowNotes] = useState(false);
@@ -402,6 +405,17 @@ function DoctorTelemedicine() {
   };
 
   useEffect(() => { loadQueue(); }, []);
+
+  // Arrived here via the Patients page's instant-call button — the
+  // appointment (In Progress, already rung) was created by that click, so
+  // jump straight into the call instead of waiting for it to show up in the
+  // queue. Clear the router state so a refresh doesn't restart the call.
+  useEffect(() => {
+    const session = location.state?.instantCallSession;
+    if (!session) return;
+    setActiveCall(session);
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.state, location.pathname, navigate]);
 
   // Keep the queue live without the doctor having to reload the page — paused
   // while a call is active since there's nothing new to surface mid-consult.

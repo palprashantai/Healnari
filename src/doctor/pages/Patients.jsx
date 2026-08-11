@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { Modal } from '../../components/Modal.jsx';
@@ -1505,8 +1506,10 @@ function AddPatientModal({ isOpen, onClose, onAdd }) {
 /* ─── Main Component ─────────────────────────── */
 function DoctorPatients() {
   const toast = useToast();
+  const navigate = useNavigate();
   const { patients, updatePatient, addPatient } = useClinicData();
   const [search, setSearch] = useState('');
+  const [callingPatientId, setCallingPatientId] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedPatientId, setSelectedPatientId] = useState(null);
   const [showAddPatient, setShowAddPatient] = useState(false);
@@ -1532,6 +1535,35 @@ function DoctorPatients() {
 
   const handleUpdatePatient = (updatedPatient) => {
     updatePatient(updatedPatient);
+  };
+
+  const startInstantCall = async (patient) => {
+    if (callingPatientId) return; // one call attempt at a time
+    setCallingPatientId(patient.id);
+    try {
+      const appt = await apiFetch('/appointments/instant-call', { method: 'POST', body: { patientId: patient.id } });
+      navigate('/doctor-dashboard/telemedicine', {
+        state: {
+          instantCallSession: {
+            id: appt.id,
+            patientId: appt.patient_id,
+            patient: appt.patientName,
+            age: patient.age ? `${patient.age}F` : '—',
+            type: 'Instant Video Consultation',
+            time: appt.scheduled_time,
+            date: 'Today',
+            phone: patient.phone || '—',
+            waiting: true,
+            accepted: true,
+            status: appt.status,
+          },
+        },
+      });
+    } catch (err) {
+      toast(err.message || `Failed to start a video call with ${patient.name}`, 'error');
+    } finally {
+      setCallingPatientId(null);
+    }
   };
 
   const handleAddPatient = async (form) => {
@@ -1779,11 +1811,16 @@ function DoctorPatients() {
             {/* Quick Actions */}
             <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-center">
               <button
-                onClick={() => toast(`Calling ${p.name} at ${p.phone}...`, 'info')}
-                className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 flex items-center justify-center transition-colors shadow-xs"
-                title={`Call ${p.phone}`}
+                onClick={() => startInstantCall(p)}
+                disabled={callingPatientId === p.id}
+                className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-50 flex items-center justify-center transition-colors shadow-xs"
+                title={`Start a video call with ${p.name}`}
               >
-                <i className="fas fa-phone text-sm"></i>
+                {callingPatientId === p.id ? (
+                  <i className="fas fa-circle-notch fa-spin text-sm"></i>
+                ) : (
+                  <i className="fas fa-video text-sm"></i>
+                )}
               </button>
               <button
                 onClick={() => setSelectedPatientId(p.id)}

@@ -21,6 +21,10 @@ export class UpdateStatusDto {
   @ApiProperty({ enum: AppointmentStatus }) @IsEnum(AppointmentStatus) status: AppointmentStatus;
 }
 
+export class InstantCallDto {
+  @ApiProperty() @IsUUID() patientId: string;
+}
+
 @ApiTags('Appointments')
 @Controller('api/appointments')
 export class AppointmentsController {
@@ -45,6 +49,13 @@ export class AppointmentsController {
   async callNext(@CurrentUser() user: AuthUser) {
     const data = await this.appointmentsService.callNext(user);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.QUEUE_TOKEN_UPDATED);
+  }
+
+  @ApiOperation({ summary: "Doctor starts an ad-hoc video call with one of their patients, right now, with no pre-booked appointment" })
+  @Post('instant-call')
+  async instantCall(@CurrentUser() user: AuthUser, @Body() body: InstantCallDto) {
+    const data = await this.appointmentsService.startInstantCall(user, body.patientId);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.APPOINTMENT_UPDATED);
   }
 
   @ApiOperation({ summary: 'Update an appointment status (owner patient or doctor only)' })

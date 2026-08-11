@@ -18,6 +18,19 @@ export class AppointmentsService {
     return `${a.scheduled_date} at ${a.scheduled_time}`;
   }
 
+  /** Shared "ring the patient" notify, used by every path that puts a video
+   * appointment into `In Progress` under the doctor's action: direct Join
+   * Call and instant calls (queue advance in callNext() has its own,
+   * differently-worded "It's Your Turn" notification). */
+  private async notifyIncomingCall(patientId: string, doctorName: string, appointmentId: string) {
+    await this.notifications.create(patientId, {
+      type: 'appointment_called',
+      title: 'Incoming Video Call',
+      message: `Dr. ${doctorName} is calling you now.`,
+      data: { appointmentId },
+    });
+  }
+
   private typeLabel(type: AppointmentType | string) {
     return type === AppointmentType.VIDEO ? 'video consultation' : 'clinic visit';
   }
@@ -131,12 +144,7 @@ export class AppointmentsService {
       // as opposed to callNext()'s queue-advance path below — both funnel
       // through this same 'appointment_called' type so the frontend rings
       // either way.
-      await this.notifications.create(appointment.patient_id, {
-        type: 'appointment_called',
-        title: 'Incoming Video Call',
-        message: `Dr. ${appointment.doctorName} is calling you now.`,
-        data: { appointmentId: appointment.id },
-      });
+      await this.notifyIncomingCall(appointment.patient_id, appointment.doctorName, appointment.id);
     } else if (
       isDoctorActing &&
       previousStatus === AppointmentStatus.IN_PROGRESS &&
@@ -152,6 +160,38 @@ export class AppointmentsService {
         data: { appointmentId: appointment.id },
       });
     }
+  }
+
+  /** Doctor starts an ad-hoc video call with one of their patients right
+   * now — no pre-booked slot. Creates the appointment already `In Progress`
+   * and rings the patient exactly like a direct "Join Call" would. */
+  async startInstantCall(user: AuthUser, patientId: string) {
+    if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+
+    const { data: patient } = await this.supabase.admin
+      .from('profiles')
+      .select()
+      .eq('id', patientId)
+      .eq('role', ProfileRole.PATIENT)
+      .single();
+    if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
+
+    const now = new Date();
+    const { data: saved } = await this.supabase.admin.from('appointments').insert({
+      patient_id: patientId,
+      doctor_id: user.id,
+      specialty: user.profile.specialty,
+      type: AppointmentType.VIDEO,
+      scheduled_date: now.toISOString().slice(0, 10),
+      scheduled_time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+      reason: 'Instant video consultation',
+      status: AppointmentStatus.IN_PROGRESS,
+    }).select().single();
+
+    const [withNames] = await this.withNames([saved]);
+    await this.notifyIncomingCall(patientId, withNames.doctorName, withNames.id);
+
+    return withNames;
   }
 
   /** Advances the calling doctor's today queue: current In Progress -> Done,
