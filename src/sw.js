@@ -1,5 +1,16 @@
-import { precacheAndRoute } from 'workbox-precaching';
+import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { clientsClaim } from 'workbox-core';
 
+// `generateSW` mode injects these automatically for registerType:'autoUpdate';
+// a custom `injectManifest` service worker (this file) has to do it itself.
+// Without them the new SW sits in "waiting" forever behind the old one (an
+// installed/standalone PWA never closes all its tabs to let it through),
+// so it keeps serving a stale cached shell alongside newly-built, differently
+// hashed JS/CSS chunks — the exact "sometimes errors, sometimes hangs" bug.
+self.skipWaiting();
+clientsClaim();
+
+cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
 self.addEventListener('push', (event) => {
