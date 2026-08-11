@@ -315,7 +315,7 @@ function PatientAppointments() {
   // transactions/payAppointment come from ClinicDataContext (not fetched
   // locally) — the same cache Billing.jsx reads, so a payment made on
   // either page is immediately reflected on both.
-  const { appointments, addAppointment, cancelAppointment, waitlist, joinWaitlist, leaveWaitlist, transactions, payAppointment } = useClinicData();
+  const { appointments, addAppointment, cancelAppointment, waitlist, joinWaitlist, leaveWaitlist, transactions, payAppointment, refreshAppointments } = useClinicData();
   const [doctors, setDoctors] = useState([]);
   const [tab, setTab] = useState('upcoming');
   const [showJoinWaitlist, setShowJoinWaitlist] = useState(false);
@@ -379,33 +379,43 @@ function PatientAppointments() {
   // by clicking an OS push notification while the app is already open (the
   // service worker's notificationclick handler postMessages the same intent
   // to an existing tab instead of opening a new one).
-  const openCallFor = useCallback((appointmentId) => {
-    const match = upcoming.find(a => a.id === appointmentId);
+  const openCallFor = useCallback(async (appointmentId) => {
+    let match = upcoming.find(a => a.id === appointmentId);
+    if (!match) {
+      // Not in this session's cached appointments — likely a call that
+      // started after the initial fetch (e.g. the doctor's instant-call
+      // feature creates a brand-new appointment). Pull fresh data instead
+      // of waiting on a re-render that may never come.
+      const fresh = await refreshAppointments();
+      const raw = fresh.find(a => a.id === appointmentId && !['Done', 'Cancelled', 'No Show'].includes(a.status));
+      match = raw ? toRow(raw) : null;
+    }
     if (!match) return false;
     setVideoTarget(match);
     setAutoJoinTarget(true);
     return true;
-  }, [upcoming]);
+  }, [upcoming, refreshAppointments]);
 
   useEffect(() => {
     const joinCallId = searchParams.get('joinCall');
     if (!joinCallId) return;
-    // `upcoming` may still be loading on first render — leave the param in
-    // place so this retries once ClinicDataContext populates it (openCallFor's
-    // identity changes with `upcoming`, re-running this effect).
-    if (!openCallFor(joinCallId)) return;
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      next.delete('joinCall');
-      return next;
-    }, { replace: true });
+    let cancelled = false;
+    openCallFor(joinCallId).then((opened) => {
+      if (cancelled || !opened) return;
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete('joinCall');
+        return next;
+      }, { replace: true });
+    });
+    return () => { cancelled = true; };
   }, [searchParams, openCallFor, setSearchParams]);
 
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return undefined;
     const handleMessage = (event) => {
       if (event.data?.type === 'JOIN_CALL' && event.data.appointmentId) {
-        openCallFor(event.data.appointmentId);
+        openCallFor(event.data.appointmentId).catch(() => {});
       }
     };
     navigator.serviceWorker.addEventListener('message', handleMessage);

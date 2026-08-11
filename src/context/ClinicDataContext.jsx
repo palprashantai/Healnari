@@ -198,6 +198,22 @@ export function ClinicDataProvider({ children }) {
     if (!authLoading) fetchData();
   }, [authLoading, fetchData]);
 
+  // `appointments` is only ever populated by the fetchData() above (once, on
+  // login) — there's no polling or socket-driven refresh. That's normally
+  // fine, but a call the other party started *after* this session's initial
+  // fetch (an instant call, or any brand-new appointment) won't be in this
+  // list yet. Callers that need to react to a specific incoming appointmentId
+  // right now (the incoming-call accept flow) use this to pull fresh data
+  // and get the answer back immediately, instead of waiting on next render's
+  // stale closure over `appointments`.
+  const refreshAppointments = useCallback(async () => {
+    if (!user || (user.role !== 'doctor' && user.role !== 'patient')) return appointments;
+    const apts = await apiFetch('/appointments');
+    const adapted = apts.map(adaptAppointment);
+    setAppointments(adapted);
+    return adapted;
+  }, [user]);
+
   /* ── Patients ──────────────────────────────────────────────── */
   const updatePatient = async (updated) => {
     // Optimistic
@@ -566,7 +582,7 @@ export function ClinicDataProvider({ children }) {
 
   const value = {
     patients, updatePatient, addPatient, addRx, orderLabTest, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
-    appointments, addAppointment, updateAppointmentStatus, cancelAppointment,
+    appointments, addAppointment, updateAppointmentStatus, cancelAppointment, refreshAppointments,
     approveRequest, rejectRequest, callNextForDoctor,
     transactions, payAppointment,
     cycleLogs, logCycle,

@@ -17,22 +17,44 @@ export function clearTokens() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+// Supabase refresh tokens are single-use/rotating. AuthContext, ClinicDataContext,
+// NotificationsContext and various page-level fetches each make their own
+// apiFetch() calls independently — if the access token has expired (e.g. the
+// app was closed for a while), several of them hit 401 at nearly the same
+// moment and would each try to refresh with the SAME (still-old) refresh
+// token. Only the first actually succeeds; the rest get rejected as reusing
+// an already-rotated token and call clearTokens(), wiping out the good pair
+// the winner just stored — forcing a spurious logout. Sharing one in-flight
+// promise across all callers means only one network call to /auth/refresh
+// ever happens per expiry, and every caller gets the same result.
+let refreshPromise = null;
+
 async function refreshTokens() {
+  if (refreshPromise) return refreshPromise;
+
   const tokens = getTokens();
   if (!tokens?.refreshToken) return null;
 
-  const res = await fetch(`${API_URL}/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken: tokens.refreshToken }),
-  });
-  if (!res.ok) {
-    clearTokens();
-    return null;
-  }
-  const body = await res.json();
-  setTokens(body.data);
-  return body.data;
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: tokens.refreshToken }),
+      });
+      if (!res.ok) {
+        clearTokens();
+        return null;
+      }
+      const body = await res.json();
+      setTokens(body.data);
+      return body.data;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 /**
