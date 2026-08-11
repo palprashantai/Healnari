@@ -81,4 +81,8 @@ export const SUCCESS_MESSAGES = {
 
   // Notifications
   NOTIFICATION_READ: 'Notification marked as read.',
+
+  // Push notifications
+  PUSH_SUBSCRIBED: 'Push notifications enabled.',
+  PUSH_UNSUBSCRIBED: 'Push notifications disabled.',
 };

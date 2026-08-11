@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { ClinicDataProvider } from './context/ClinicDataContext.jsx';
 import { NotificationsProvider } from './context/NotificationsContext.jsx';
 import { ToastProvider } from './components/Toast.jsx';
+import { IncomingCallModal } from './components/IncomingCallModal.jsx';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const queryClient = new QueryClient();
@@ -88,6 +89,7 @@ function App() {
       <ToastProvider>
       <NotificationsProvider>
         <Router>
+          <IncomingCallModal />
           <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
               <div className="text-center">

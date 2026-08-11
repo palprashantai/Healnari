@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { apiFetch, getTokens, setTokens, clearTokens } from '../lib/apiClient.js';
+import { apiFetch, getTokens, setTokens, clearTokens, API_URL } from '../lib/apiClient.js';
+import { usePushSubscription } from '../hooks/usePushSubscription.js';
 
 const AuthContext = createContext();
 
@@ -10,6 +11,8 @@ export function useAuth() {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  usePushSubscription(user);
 
   const loadMe = useCallback(async () => {
     if (!getTokens()?.accessToken) {
@@ -56,6 +59,27 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    // Best-effort — a shared/kiosk device shouldn't keep ringing for a user
+    // who signed out. The access token is captured now (not read inside the
+    // async chain) because clearTokens() below runs before
+    // pushManager.getSubscription() resolves.
+    if ('serviceWorker' in navigator) {
+      const accessToken = getTokens()?.accessToken;
+      navigator.serviceWorker.ready
+        .then((registration) => registration.pushManager.getSubscription())
+        .then((subscription) => {
+          if (!subscription) return;
+          if (accessToken) {
+            fetch(`${API_URL}/push-subscriptions?endpoint=${encodeURIComponent(subscription.endpoint)}`, {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${accessToken}` },
+            }).catch(() => {});
+          }
+          subscription.unsubscribe().catch(() => {});
+        })
+        .catch(() => {});
+    }
+
     clearTokens();
     setUser(null);
   };

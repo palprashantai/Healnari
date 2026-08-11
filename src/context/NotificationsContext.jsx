@@ -25,11 +25,17 @@ export const NOTIFICATION_STYLE = {
 };
 export const DEFAULT_NOTIFICATION_STYLE = { icon: 'fa-bell', color: 'text-slate-600 bg-slate-100' };
 
+// Cross-tab sync: accepting/declining a ringing call in one tab must silence
+// it in every other open tab for the same login (same browser, same user).
+const CALL_CHANNEL_NAME = 'healnari-call';
+
 export function NotificationsProvider({ children }) {
   const { user } = useAuth();
   const toast = useToast();
   const [notifications, setNotifications] = useState([]);
+  const [incomingCall, setIncomingCall] = useState(null); // { appointmentId, title, message } | null
   const socketRef = useRef(null);
+  const callChannelRef = useRef(null);
 
   useEffect(() => {
     if (!user) {
@@ -38,6 +44,18 @@ export function NotificationsProvider({ children }) {
     }
     apiFetch('/notifications').then(setNotifications).catch(() => {});
   }, [user]);
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return undefined;
+    const channel = new BroadcastChannel(CALL_CHANNEL_NAME);
+    callChannelRef.current = channel;
+    channel.onmessage = (event) => {
+      if (event.data?.type === 'clear') {
+        setIncomingCall(prev => (prev?.appointmentId === event.data.appointmentId ? null : prev));
+      }
+    };
+    return () => channel.close();
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -49,11 +67,34 @@ export function NotificationsProvider({ children }) {
 
     socket.on('notification', (notif) => {
       setNotifications(prev => [notif, ...prev]);
+
+      const appointmentId = notif.data?.appointmentId;
+      if (notif.type === 'appointment_called' && user.role === 'patient' && appointmentId) {
+        setIncomingCall(prev => (prev?.appointmentId === appointmentId ? prev : { appointmentId, title: notif.title, message: notif.message }));
+        return; // ring screen covers this — skip the toast, it'd just be noise underneath it
+      }
+      if (notif.type === 'call_cancelled' && appointmentId) {
+        setIncomingCall(prev => (prev?.appointmentId === appointmentId ? null : prev));
+      }
+
       toast(notif.title, notif.type === 'appointment_cancelled' ? 'warning' : 'success');
     });
 
     return () => socket.disconnect();
   }, [user]);
+
+  const clearIncomingCall = useCallback((appointmentId) => {
+    setIncomingCall(null);
+    callChannelRef.current?.postMessage({ type: 'clear', appointmentId });
+  }, []);
+
+  const acceptCall = useCallback((appointmentId) => {
+    clearIncomingCall(appointmentId);
+  }, [clearIncomingCall]);
+
+  const declineCall = useCallback(() => {
+    if (incomingCall) clearIncomingCall(incomingCall.appointmentId);
+  }, [incomingCall, clearIncomingCall]);
 
   const markAllRead = useCallback(async () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
@@ -71,6 +112,6 @@ export function NotificationsProvider({ children }) {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const value = { notifications, unreadCount, markAllRead, markRead };
+  const value = { notifications, unreadCount, markAllRead, markRead, incomingCall, acceptCall, declineCall };
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
 }

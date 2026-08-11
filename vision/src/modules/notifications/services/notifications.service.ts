@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { NotificationsGateway } from '@/modules/notifications/gateways/notifications.gateway';
+import { PushSubscriptionsService } from '@/modules/push-subscriptions/services/push-subscriptions.service';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 
@@ -18,6 +19,7 @@ export class NotificationsService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly gateway: NotificationsGateway,
+    private readonly push: PushSubscriptionsService,
   ) {}
 
   /** Persists a notification for `userId` and pushes it live if they're connected.
@@ -37,6 +39,7 @@ export class NotificationsService {
       if (error) throw error;
 
       this.gateway.emitToUser(userId, data);
+      this.push.sendToUser(userId, { title: input.title, body: input.message, data: { ...input.data, type: input.type } }).catch(() => {});
       return data;
     } catch (err) {
       this.logger.warn(`Failed to create notification for user ${userId}: ${err.message}`);

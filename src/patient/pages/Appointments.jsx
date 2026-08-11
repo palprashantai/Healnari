@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { PaymentModal } from '../../components/PaymentModal.jsx';
@@ -195,11 +195,18 @@ const CALL_STATUS_COPY = {
   ended: 'Call ended',
 };
 
-function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast }) {
+function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoin = false }) {
   const [joined, setJoined] = useState(false);
   const call = useWebRTCCall({ appointmentId, active: joined });
 
   const join = () => setJoined(true);
+
+  // Accepted from the incoming-call ring screen — skip the "Join Now" tap,
+  // the user already answered.
+  useEffect(() => {
+    if (isOpen && autoJoin) setJoined(true);
+  }, [isOpen, autoJoin]);
+
   const end = () => {
     call.hangUp();
     setJoined(false);
@@ -304,6 +311,7 @@ const STATUS_LABEL = {
 function PatientAppointments() {
   const toast = useToast();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   // transactions/payAppointment come from ClinicDataContext (not fetched
   // locally) — the same cache Billing.jsx reads, so a payment made on
   // either page is immediately reflected on both.
@@ -361,10 +369,48 @@ function PatientAppointments() {
   const [bookPrefill, setBookPrefill] = useState({});
   const [cancelTarget, setCancelTarget] = useState(null);
   const [videoTarget, setVideoTarget] = useState(null);
+  const [autoJoinTarget, setAutoJoinTarget] = useState(false);
   const [successApt, setSuccessApt] = useState(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('All Types');
   const [statusFilter, setStatusFilter] = useState('All Status');
+
+  // Reached via the incoming-call ring screen's "Accept" (?joinCall=<id>) or
+  // by clicking an OS push notification while the app is already open (the
+  // service worker's notificationclick handler postMessages the same intent
+  // to an existing tab instead of opening a new one).
+  const openCallFor = useCallback((appointmentId) => {
+    const match = upcoming.find(a => a.id === appointmentId);
+    if (!match) return false;
+    setVideoTarget(match);
+    setAutoJoinTarget(true);
+    return true;
+  }, [upcoming]);
+
+  useEffect(() => {
+    const joinCallId = searchParams.get('joinCall');
+    if (!joinCallId) return;
+    // `upcoming` may still be loading on first render — leave the param in
+    // place so this retries once ClinicDataContext populates it (openCallFor's
+    // identity changes with `upcoming`, re-running this effect).
+    if (!openCallFor(joinCallId)) return;
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete('joinCall');
+      return next;
+    }, { replace: true });
+  }, [searchParams, openCallFor, setSearchParams]);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+    const handleMessage = (event) => {
+      if (event.data?.type === 'JOIN_CALL' && event.data.appointmentId) {
+        openCallFor(event.data.appointmentId);
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handleMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
+  }, [openCallFor]);
 
   const getFilteredData = () => {
     let data = tab === 'upcoming' ? upcoming : past;
@@ -657,7 +703,14 @@ function PatientAppointments() {
         confirmStyle="danger"
       />
       {videoTarget && (
-        <VideoCallModal isOpen={!!videoTarget} onClose={() => setVideoTarget(null)} doctor={videoTarget?.doctor} appointmentId={videoTarget?.id} toast={toast} />
+        <VideoCallModal
+          isOpen={!!videoTarget}
+          onClose={() => { setVideoTarget(null); setAutoJoinTarget(false); }}
+          doctor={videoTarget?.doctor}
+          appointmentId={videoTarget?.id}
+          toast={toast}
+          autoJoin={autoJoinTarget}
+        />
       )}
       <PaymentModal
         isOpen={showPayModal}

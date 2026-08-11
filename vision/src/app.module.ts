@@ -19,6 +19,7 @@ import { TelemedicineModule } from '@/modules/telemedicine/telemedicine.module';
 import { StaffModule } from '@/modules/staff/staff.module';
 import { CommunicationsModule } from '@/modules/communications/communications.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
+import { PushSubscriptionsModule } from '@/modules/push-subscriptions/push-subscriptions.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { NotificationsModule } from '@/modules/notifications/notifications.modul
     StaffModule,
     CommunicationsModule,
     NotificationsModule,
+    PushSubscriptionsModule,
   ],
   controllers: [AppController],
   providers: [

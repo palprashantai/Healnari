@@ -91,7 +91,7 @@ export class AppointmentsService {
     const { data: saved } = await this.supabase.admin.from('appointments').update({ status }).eq('id', id).select().single();
     const [withNames] = await this.withNames([saved]);
 
-    await this.notifyStatusChange(user, withNames);
+    await this.notifyStatusChange(user, withNames, appointment.status);
 
     return withNames;
   }
@@ -99,6 +99,7 @@ export class AppointmentsService {
   private async notifyStatusChange(
     actor: AuthUser,
     appointment: Appointment & { patientName: string; doctorName: string },
+    previousStatus: AppointmentStatus,
   ) {
     const isDoctorActing = actor.id === appointment.doctor_id;
     const when = this.appointmentWhen(appointment);
@@ -125,6 +126,31 @@ export class AppointmentsService {
         message: `${appointment.patientName} cancelled their ${label} on ${when}.`,
         data: { appointmentId: appointment.id },
       });
+    } else if (isDoctorActing && appointment.status === AppointmentStatus.IN_PROGRESS && appointment.type === AppointmentType.VIDEO) {
+      // Doctor started a video consult directly (Telemedicine "Join Call"),
+      // as opposed to callNext()'s queue-advance path below — both funnel
+      // through this same 'appointment_called' type so the frontend rings
+      // either way.
+      await this.notifications.create(appointment.patient_id, {
+        type: 'appointment_called',
+        title: 'Incoming Video Call',
+        message: `Dr. ${appointment.doctorName} is calling you now.`,
+        data: { appointmentId: appointment.id },
+      });
+    } else if (
+      isDoctorActing &&
+      previousStatus === AppointmentStatus.IN_PROGRESS &&
+      appointment.type === AppointmentType.VIDEO &&
+      (appointment.status === AppointmentStatus.DONE || appointment.status === AppointmentStatus.CANCELLED)
+    ) {
+      // Doctor ended/cancelled a call that was ringing or in progress — let
+      // the patient's ring screen (if still showing) dismiss itself.
+      await this.notifications.create(appointment.patient_id, {
+        type: 'call_cancelled',
+        title: 'Call Ended',
+        message: 'The doctor ended the call.',
+        data: { appointmentId: appointment.id },
+      });
     }
   }
 
@@ -146,6 +172,16 @@ export class AppointmentsService {
     const inProgress = todays.find(a => a.status === AppointmentStatus.IN_PROGRESS);
     if (inProgress) {
       await this.supabase.admin.from('appointments').update({ status: AppointmentStatus.DONE }).eq('id', inProgress.id);
+      if (inProgress.type === AppointmentType.VIDEO) {
+        // Advancing the queue while the previous patient's ring/call was
+        // still active — let their ring screen dismiss itself.
+        await this.notifications.create(inProgress.patient_id, {
+          type: 'call_cancelled',
+          title: 'Call Ended',
+          message: 'The doctor ended the call.',
+          data: { appointmentId: inProgress.id },
+        });
+      }
     }
 
     const waiting = todays.find(a => a.status === AppointmentStatus.WAITING);

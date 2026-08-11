@@ -14,6 +14,7 @@ import BookingModal from '../../tools/BookingModal.jsx';
 import SuccessModal from '../../tools/SuccessModal.jsx';
 import AuthModal from '../../tools/AuthModal.jsx';
 import ExitIntentModal from '../components/ExitIntentModal.jsx';
+import AppInstallToast from '../components/AppInstallToast.jsx';
 import SymptomChecker from '../../tools/SymptomChecker.jsx';
 import FloatingCTA from '../../tools/FloatingCTA.jsx';
 import HealthTips from '../../tools/HealthTips.jsx';
@@ -177,6 +178,9 @@ function LandingPage() {
 
       {/* Exit Intent Lead Capture */}
       <ExitIntentModal />
+
+      {/* Install-the-app prompt */}
+      <AppInstallToast />
 
       {/* AI Assistant */}
       <AiChatWidget context="landing" />

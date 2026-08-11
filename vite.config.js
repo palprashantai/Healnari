@@ -9,6 +9,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
+      injectManifest: {},
       includeAssets: ['brand/logo-icon.jpg', 'brand/logo-full.jpg'],
       manifest: {
         name: 'HealNari | Women\'s Health',
