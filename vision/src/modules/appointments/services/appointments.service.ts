@@ -26,13 +26,20 @@ export class AppointmentsService {
    * routes through this for the `calleeRole` tagging). `calleeRole` rides
    * along in `data` so a background push notification's click handler
    * (which has no app state to check) knows which dashboard to deep-link
-   * into. */
-  private async notifyIncomingCall(calleeId: string, calleeRole: ProfileRole, callerLabel: string, appointmentId: string) {
+   * into; `callerAvatarUrl` lets the ring screen (and the OS push
+   * notification icon) show the actual caller instead of just initials. */
+  private async notifyIncomingCall(
+    calleeId: string,
+    calleeRole: ProfileRole,
+    callerLabel: string,
+    appointmentId: string,
+    callerAvatarUrl: string | null,
+  ) {
     await this.notifications.create(calleeId, {
       type: 'appointment_called',
       title: 'Incoming Video Call',
       message: `${callerLabel} is calling you now.`,
-      data: { appointmentId, calleeRole },
+      data: { appointmentId, calleeRole, callerAvatarUrl: callerAvatarUrl || undefined },
     });
   }
 
@@ -42,15 +49,17 @@ export class AppointmentsService {
 
   private async withNames(appointments: Appointment[]) {
     if (!appointments.length) return [];
-    
+
     const ids = [...new Set(appointments.flatMap(a => [a.patient_id, a.doctor_id]))];
-    const { data: profiles } = await this.supabase.admin.from('profiles').select('id, full_name').in('id', ids);
-    const nameById = new Map((profiles || []).map(p => [p.id, p.full_name]));
-    
+    const { data: profiles } = await this.supabase.admin.from('profiles').select('id, full_name, avatar_url').in('id', ids);
+    const profileById = new Map((profiles || []).map(p => [p.id, p]));
+
     return appointments.map(a => ({
       ...a,
-      patientName: nameById.get(a.patient_id) || 'Patient',
-      doctorName: nameById.get(a.doctor_id) || 'Doctor',
+      patientName: profileById.get(a.patient_id)?.full_name || 'Patient',
+      doctorName: profileById.get(a.doctor_id)?.full_name || 'Doctor',
+      patientAvatarUrl: profileById.get(a.patient_id)?.avatar_url || null,
+      doctorAvatarUrl: profileById.get(a.doctor_id)?.avatar_url || null,
     }));
   }
 
@@ -148,7 +157,7 @@ export class AppointmentsService {
 
   private async notifyStatusChange(
     actor: AuthUser,
-    appointment: Appointment & { patientName: string; doctorName: string },
+    appointment: Appointment & { patientName: string; doctorName: string; patientAvatarUrl: string | null; doctorAvatarUrl: string | null },
     previousStatus: AppointmentStatus,
   ) {
     const isDoctorActing = actor.id === appointment.doctor_id;
@@ -187,9 +196,9 @@ export class AppointmentsService {
       // In Progress") so joining a call the other side already started
       // doesn't re-ring them a second time.
       if (isDoctorActing) {
-        await this.notifyIncomingCall(appointment.patient_id, ProfileRole.PATIENT, `Dr. ${appointment.doctorName}`, appointment.id);
+        await this.notifyIncomingCall(appointment.patient_id, ProfileRole.PATIENT, `Dr. ${appointment.doctorName}`, appointment.id, appointment.doctorAvatarUrl);
       } else {
-        await this.notifyIncomingCall(appointment.doctor_id, ProfileRole.DOCTOR, appointment.patientName, appointment.id);
+        await this.notifyIncomingCall(appointment.doctor_id, ProfileRole.DOCTOR, appointment.patientName, appointment.id, appointment.patientAvatarUrl);
       }
     } else if (
       isDoctorActing &&
@@ -235,7 +244,7 @@ export class AppointmentsService {
     }).select().single();
 
     const [withNames] = await this.withNames([saved]);
-    await this.notifyIncomingCall(patientId, ProfileRole.PATIENT, `Dr. ${withNames.doctorName}`, withNames.id);
+    await this.notifyIncomingCall(patientId, ProfileRole.PATIENT, `Dr. ${withNames.doctorName}`, withNames.id, user.profile.avatar_url);
 
     return withNames;
   }
@@ -277,7 +286,7 @@ export class AppointmentsService {
         type: 'appointment_called',
         title: "It's Your Turn",
         message: `Dr. ${user.profile.full_name} is ready to see you now.`,
-        data: { appointmentId: waiting.id, calleeRole: ProfileRole.PATIENT },
+        data: { appointmentId: waiting.id, calleeRole: ProfileRole.PATIENT, callerAvatarUrl: user.profile.avatar_url || undefined },
       });
     }
 

@@ -1,3 +1,5 @@
+import { saveTokensToIndexedDb, clearTokensFromIndexedDb } from './tokenStore.js';
+
 export const API_URL = import.meta.env.VITE_API_URL || '/api';
 const STORAGE_KEY = 'healnari_tokens';
 
@@ -11,10 +13,15 @@ export function getTokens() {
 
 export function setTokens(tokens) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tokens));
+  // Best-effort mirror into IndexedDB, which (unlike localStorage) the
+  // service worker can read — needed so the OS push notification's
+  // "Decline" action can call decline-call directly without an app tab open.
+  saveTokensToIndexedDb(tokens);
 }
 
 export function clearTokens() {
   localStorage.removeItem(STORAGE_KEY);
+  clearTokensFromIndexedDb();
 }
 
 // Supabase refresh tokens are single-use/rotating. AuthContext, ClinicDataContext,

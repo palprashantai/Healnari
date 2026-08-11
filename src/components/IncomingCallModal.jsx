@@ -79,8 +79,14 @@ export function IncomingCallModal() {
   const navigate = useNavigate();
   const dialogRef = useRef(null);
   const isOpen = !!incomingCall;
+  const [avatarFailed, setAvatarFailed] = useState(false);
   useRingtone(isOpen);
   const elapsed = useElapsedTime(isOpen);
+
+  // Reset the broken-image fallback whenever a new call comes in — a
+  // previous caller's dead avatar URL shouldn't stick around and hide the
+  // next caller's perfectly good one.
+  useEffect(() => setAvatarFailed(false), [incomingCall?.appointmentId]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -116,6 +122,7 @@ export function IncomingCallModal() {
   // callNext) — pull just the name back out for the avatar initials.
   const callerName = incomingCall.message?.match(/^(?:Dr\.\s*)?(.+?)\s+is\s/)?.[1]?.trim();
   const initials = callerName ? callerName.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase() : 'HN';
+  const showPhoto = !!incomingCall.avatarUrl && !avatarFailed;
 
   return createPortal(
     <div
@@ -140,9 +147,18 @@ export function IncomingCallModal() {
       <div className="relative z-10 flex flex-col items-center gap-5 px-6 text-center">
         <div className="relative w-28 h-28">
           <div className="absolute inset-0 rounded-full bg-white/15 animate-ping-slow"></div>
-          <div className="relative w-28 h-28 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-4xl font-black text-white shadow-2xl">
-            {initials}
-          </div>
+          {showPhoto ? (
+            <img
+              src={incomingCall.avatarUrl}
+              alt={callerName || 'Caller'}
+              onError={() => setAvatarFailed(true)}
+              className="relative w-28 h-28 rounded-full object-cover border border-white/20 shadow-2xl"
+            />
+          ) : (
+            <div className="relative w-28 h-28 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-4xl font-black text-white shadow-2xl">
+              {initials}
+            </div>
+          )}
         </div>
         <div className="space-y-1.5">
           <p className="text-white/60 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5">

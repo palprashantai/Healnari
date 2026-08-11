@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
@@ -201,10 +202,15 @@ function callStatusCopy(call) {
   return CALL_STATUS_COPY[call.connectionState] || '● Live';
 }
 
+function fmtDuration(s) {
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
 function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoin = false }) {
   const [joined, setJoined] = useState(false);
   const call = useWebRTCCall({ appointmentId, active: joined });
   const { callDeclinedId, clearCallDeclined } = useNotifications() || {};
+  const [elapsed, setElapsed] = useState(0);
 
   // Manual "Join Now" tap — the doctor may not have started this call yet
   // (this appointment could still be Upcoming/Confirmed), so ring them too.
@@ -250,12 +256,37 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
     if (call.error) toast(call.error, 'error');
   }, [call.error, toast]);
 
+  useEffect(() => {
+    if (call.connectionState !== 'connected') return undefined;
+    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(t);
+  }, [call.connectionState]);
+
+  // Once joined, the call takes over the whole screen (see the portal
+  // render below) rather than sitting in a small dialog — lock background
+  // scroll and let Escape hang up, matching how the ring screen behaves.
+  useEffect(() => {
+    if (!joined) return undefined;
+    const handleKey = (e) => { if (e.key === 'Escape') end(); };
+    document.addEventListener('keydown', handleKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      document.body.style.overflow = '';
+    };
+  }, [joined]);
+
   const initials = doctor?.split(' ').slice(1).map(n => n[0]).join('') || 'DR';
   const failedOrEnded = call.connectionState === 'failed' || call.connectionState === 'ended';
 
-  return (
-    <Modal isOpen={isOpen} onClose={() => { if (joined) end(); else onClose(); }} title="Video Consultation" size="lg">
-      {!joined ? (
+  if (!isOpen) return null;
+
+  // Still on the "ready to connect?" prompt — a small dialog is the right
+  // scale for a yes/no decision. The full call view (below) only takes over
+  // once actually joined.
+  if (!joined) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Video Consultation" size="lg">
         <div className="text-center space-y-5 py-2">
           <div className="w-20 h-20 rounded-3xl bg-aubergine-50 mx-auto flex items-center justify-center text-3xl font-black text-aubergine-700">
             {initials}
@@ -274,54 +305,83 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
             <i className="fas fa-video"></i> Join Now
           </button>
         </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="bg-slate-900 rounded-2xl aspect-video flex items-center justify-center relative overflow-hidden">
-            {call.remoteStream ? (
-              <VideoTile stream={call.remoteStream} className="absolute inset-0" />
-            ) : (
-              <div className="text-center text-white px-6">
-                <div className="w-20 h-20 rounded-full bg-aubergine-700 mx-auto mb-3 flex items-center justify-center text-2xl font-black">
-                  {initials}
-                </div>
-                <p className="font-bold">{doctor}</p>
-                <p className={`text-xs mt-1.5 flex items-center justify-center gap-1.5 ${call.connectionState === 'failed' ? 'text-rose-400' : 'text-slate-400'}`}>
-                  {!failedOrEnded && call.connectionState !== 'peer-left' && <i className="fas fa-circle-notch fa-spin"></i>}
-                  {callStatusCopy(call)}
-                </p>
-              </div>
-            )}
+      </Modal>
+    );
+  }
 
-            {call.peerMuted && call.remoteStream && (
-              <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-xs text-white text-[11px] px-2.5 py-1 rounded-full border border-white/10 flex items-center gap-1.5">
-                <i className="fas fa-microphone-slash text-rose-400"></i> Doctor is muted
-              </div>
-            )}
+  // Joined — full-screen immersive call, matching a real video-call app
+  // instead of being squeezed into a small dialog box.
+  return createPortal(
+    <div className="fixed inset-0 z-[9200] flex flex-col bg-slate-950">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 sm:px-6 text-white/90 bg-slate-950/90 backdrop-blur-sm border-b border-white/10">
+        <div className="flex items-center gap-2 text-xs font-bold">
+          <span className={`w-2 h-2 rounded-full ${call.connectionState === 'connected' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
+          <span className="font-mono tabular-nums">{call.connectionState === 'connected' ? fmtDuration(elapsed) : callStatusCopy(call)}</span>
+        </div>
+        <span className="text-xs font-bold text-white/70 truncate max-w-[50%]">{doctor}</span>
+      </div>
 
-            <div className="absolute bottom-3 right-3 w-24 h-16 bg-slate-700 rounded-xl border border-white/10 flex items-center justify-center text-white text-xs font-bold overflow-hidden">
-              {call.isVideoOff || !call.localStream ? (
-                <i className="fas fa-video-slash text-slate-500 text-xl"></i>
-              ) : (
-                <VideoTile stream={call.localStream} muted mirrored />
-              )}
+      {/* Video area */}
+      <div className="flex-1 relative overflow-hidden">
+        {call.remoteStream ? (
+          <VideoTile stream={call.remoteStream} className="absolute inset-0" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-aubergine-950 via-slate-950 to-slate-950">
+            <div className="text-center text-white px-6">
+              <div className="w-24 h-24 rounded-full bg-aubergine-700/80 mx-auto mb-4 flex items-center justify-center text-3xl font-black shadow-2xl">
+                {initials}
+              </div>
+              <p className="font-bold text-lg">{doctor}</p>
+              <p className={`text-sm mt-2 flex items-center justify-center gap-2 ${call.connectionState === 'failed' ? 'text-rose-400' : 'text-slate-400'}`}>
+                {!failedOrEnded && call.connectionState !== 'peer-left' && <i className="fas fa-circle-notch fa-spin"></i>}
+                {callStatusCopy(call)}
+              </p>
             </div>
           </div>
-          <div className="flex items-center justify-center gap-4">
-            <button onClick={call.toggleMute} disabled={!call.localStream}
-              className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all disabled:opacity-40 ${call.isMuted ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
-              <i className={`fas ${call.isMuted ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
-            </button>
-            <button onClick={end} className="w-14 h-14 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center text-xl shadow-lg">
-              <i className="fas fa-phone-slash"></i>
-            </button>
-            <button onClick={call.toggleVideo} disabled={!call.localStream}
-              className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all disabled:opacity-40 ${call.isVideoOff ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
-              <i className={`fas ${call.isVideoOff ? 'fa-video-slash' : 'fa-video'}`}></i>
-            </button>
+        )}
+
+        {call.peerMuted && call.remoteStream && (
+          <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-xs text-white text-xs px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5">
+            <i className="fas fa-microphone-slash text-rose-400"></i> Doctor is muted
           </div>
+        )}
+
+        {/* Local self-view (PiP) */}
+        <div className="absolute bottom-4 right-4 w-28 h-40 sm:w-36 sm:h-48 bg-slate-800 rounded-2xl border border-white/20 flex items-center justify-center text-white text-xs font-bold overflow-hidden shadow-2xl">
+          {call.isVideoOff || !call.localStream ? (
+            <i className="fas fa-video-slash text-slate-500 text-2xl"></i>
+          ) : (
+            <VideoTile stream={call.localStream} muted mirrored />
+          )}
         </div>
-      )}
-    </Modal>
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center justify-center gap-8 py-6 bg-slate-950/90 backdrop-blur-sm border-t border-white/10">
+        <div className="flex flex-col items-center gap-2">
+          <button onClick={call.toggleMute} disabled={!call.localStream}
+            className={`w-14 h-14 rounded-full flex items-center justify-center text-lg transition-all disabled:opacity-40 ${call.isMuted ? 'bg-rose-600 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+            <i className={`fas ${call.isMuted ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
+          </button>
+          <span className="text-white/60 text-[10px] font-bold uppercase tracking-wide">{call.isMuted ? 'Unmute' : 'Mute'}</span>
+        </div>
+        <div className="flex flex-col items-center gap-2">
+          <button onClick={end} className="w-16 h-16 rounded-full bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center text-2xl shadow-xl shadow-rose-900/40 transition-all hover:scale-105 active:scale-95">
+            <i className="fas fa-phone-slash"></i>
+          </button>
+          <span className="text-white/60 text-[10px] font-bold uppercase tracking-wide">End</span>
+        </div>
+        <div className="flex flex-col items-center gap-2">
+          <button onClick={call.toggleVideo} disabled={!call.localStream}
+            className={`w-14 h-14 rounded-full flex items-center justify-center text-lg transition-all disabled:opacity-40 ${call.isVideoOff ? 'bg-rose-600 text-white' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+            <i className={`fas ${call.isVideoOff ? 'fa-video-slash' : 'fa-video'}`}></i>
+          </button>
+          <span className="text-white/60 text-[10px] font-bold uppercase tracking-wide">{call.isVideoOff ? 'Start Video' : 'Stop Video'}</span>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

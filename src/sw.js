@@ -1,5 +1,8 @@
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { clientsClaim } from 'workbox-core';
+import { readTokensFromIndexedDb } from './lib/tokenStore.js';
+
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // `generateSW` mode injects these automatically for registerType:'autoUpdate';
 // a custom `injectManifest` service worker (this file) has to do it itself.
@@ -29,7 +32,9 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title || 'HealNari', {
       body: payload.body || '',
-      icon: '/brand/logo-icon.jpg',
+      // Show the caller's actual photo, like a real phone call, falling
+      // back to the app logo when there isn't one (or it fails to load).
+      icon: payload.data?.callerAvatarUrl || '/brand/logo-icon.jpg',
       badge: '/brand/logo-icon.jpg',
       tag: appointmentId ? `call-${appointmentId}` : `notif-${Date.now()}`,
       requireInteraction: isIncomingCall,
@@ -49,9 +54,27 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  if (event.action === 'decline') return; // just dismiss — no need to open/focus the app
-
   const appointmentId = event.notification.data?.appointmentId;
+
+  if (event.action === 'decline') {
+    // Must actually tell the backend, not just dismiss the notification —
+    // otherwise the caller's side keeps ringing until it times out on its
+    // own (45s) instead of hanging up immediately, like a real phone call.
+    // No app tab needs to be open for this: the access token is mirrored
+    // into IndexedDB (see lib/tokenStore.js) specifically so this works.
+    if (appointmentId) {
+      event.waitUntil(
+        readTokensFromIndexedDb().then((tokens) => {
+          if (!tokens?.accessToken) return undefined;
+          return fetch(`${API_URL}/appointments/${appointmentId}/decline-call`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${tokens.accessToken}` },
+          }).catch(() => {});
+        }),
+      );
+    }
+    return;
+  }
   // The service worker has no access to app state (no localStorage, no
   // React context) to know who's logged in, so the backend tags every
   // call notification with which dashboard the callee belongs on.

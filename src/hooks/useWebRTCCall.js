@@ -228,9 +228,33 @@ export function useWebRTCCall({ appointmentId, active }) {
         });
 
         socket.on('call:peer-left', () => {
+          // The server fires this on ANY socket disconnect, not just an
+          // intentional hangup — a brief WiFi drop or a mobile network
+          // handoff (WiFi<->cellular) disconnects the *signaling* socket
+          // (Socket.IO auto-reconnects it a moment later) without
+          // necessarily touching the underlying WebRTC media connection at
+          // all. If our own pc still reports "connected", trust that over
+          // the signaling blip instead of falsely declaring the call over —
+          // and don't leave the UI stuck on "peer left" forever once they
+          // reconnect (call:peer-joined below clears it).
+          if (pcRef.current?.connectionState === 'connected') {
+            log('call:peer-left received but our RTCPeerConnection is still connected — treating as a transient signaling blip, not a real hangup');
+            return;
+          }
           log('Peer left the call');
           setRemoteStream(null);
           setConnectionState('peer-left');
+        });
+
+        socket.on('call:peer-joined', () => {
+          log('Peer (re)joined the room');
+          // Recovers from the transient-disconnect case above: if we'd
+          // shown "peer-left" but the underlying connection is fine, or
+          // recovers shortly after, reflect that instead of staying stuck.
+          setConnectionState((prev) => {
+            if (prev !== 'peer-left') return prev;
+            return pcRef.current?.connectionState === 'connected' ? 'connected' : 'connecting';
+          });
         });
 
         socket.on('call:peer-media-state', ({ muted, videoOff }) => {

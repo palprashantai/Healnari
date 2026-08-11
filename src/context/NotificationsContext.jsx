@@ -75,7 +75,12 @@ export function NotificationsProvider({ children }) {
 
       const appointmentId = notif.data?.appointmentId;
       if (notif.type === 'appointment_called' && appointmentId) {
-        setIncomingCall(prev => (prev?.appointmentId === appointmentId ? prev : { appointmentId, title: notif.title, message: notif.message }));
+        setIncomingCall(prev => (prev?.appointmentId === appointmentId ? prev : {
+          appointmentId,
+          title: notif.title,
+          message: notif.message,
+          avatarUrl: notif.data?.callerAvatarUrl || null,
+        }));
         return; // ring screen covers this — skip the toast, it'd just be noise underneath it
       }
       if (notif.type === 'call_cancelled' && appointmentId) {
@@ -83,7 +88,8 @@ export function NotificationsProvider({ children }) {
         setCallDeclinedId(appointmentId);
       }
 
-      toast(notif.title, notif.type === 'appointment_cancelled' ? 'warning' : 'success');
+      const isNegative = notif.type === 'appointment_cancelled' || notif.type === 'call_cancelled';
+      toast(notif.title, isNegative ? 'warning' : 'success');
     });
 
     return () => socket.disconnect();

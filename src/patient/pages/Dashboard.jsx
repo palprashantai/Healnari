@@ -42,82 +42,6 @@ const formatShort = (dateStr) => dateStr ? new Date(dateStr + 'T00:00:00Z').toLo
 const daysUntil = (dateStr) => dateStr ? daysBetweenLocal(todayLocalStr(), dateStr.slice(0, 10)) : null;
 
 /* ─── Sub-components ─────────────────────────── */
-function VideoCallModal({ isOpen, onClose, toast, appointment }) {
-  const [callActive, setCallActive] = useState(false);
-  const [muted, setMuted] = useState(false);
-  const [videoOff, setVideoOff] = useState(false);
-  const doctorName = appointment ? `Dr. ${appointment.doctorName}` : 'your doctor';
-  const initials = appointment ? appointment.doctorName.split(' ').filter(w => w).map(w => w[0]).join('').slice(0, 2).toUpperCase() : '—';
-
-  const handleJoin = () => {
-    setCallActive(true);
-    toast(`Connected to video call with ${doctorName}`, 'success');
-  };
-
-  const handleEnd = () => {
-    setCallActive(false);
-    onClose();
-    toast('Call ended. Have a great day!', 'info');
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Video Consultation" size="lg">
-      {!callActive ? (
-        <div className="text-center space-y-6 py-4">
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-aubergine-100 to-aubergine-200 mx-auto flex items-center justify-center">
-            <i className="fas fa-video text-aubergine-700 text-3xl"></i>
-          </div>
-          <div>
-            <h4 className="font-black text-slate-800 text-xl">{doctorName}</h4>
-            <p className="text-sm text-aubergine-600 font-semibold">{appointment?.reason || 'Consultation'}</p>
-            <p className="text-xs text-slate-500 mt-1">Scheduled: {appointment ? `${appointment.date} ${appointment.time}` : '—'} • 30 min consult</p>
-          </div>
-          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-xs text-slate-600 space-y-2 text-left">
-            <div className="flex items-center gap-2"><i className="fas fa-shield-halved text-emerald-500"></i> Private, doctor-only session</div>
-            <div className="flex items-center gap-2"><i className="fas fa-lock text-emerald-500"></i> DPDP Act, 2023 compliant</div>
-            <div className="flex items-center gap-2"><i className="fas fa-clock text-emerald-500"></i> Session recording disabled for privacy</div>
-          </div>
-          <button onClick={handleJoin} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl text-base transition-all shadow-lg flex items-center justify-center gap-3">
-            <i className="fas fa-video"></i> Join Consultation
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {/* Fake video feed */}
-          <div className="relative bg-slate-900 rounded-2xl overflow-hidden aspect-video flex items-center justify-center">
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-20 h-20 rounded-full bg-aubergine-700 flex items-center justify-center text-3xl font-black text-white mx-auto mb-3">{initials}</div>
-                <p className="text-white font-bold">{doctorName}</p>
-                <p className="text-slate-500 text-xs mt-1">● Live • 00:01:24</p>
-              </div>
-            </div>
-            {/* Self-cam */}
-            <div className="absolute bottom-3 right-3 w-24 h-16 bg-slate-700 rounded-xl border-2 border-white/20 flex items-center justify-center text-xs text-slate-500">
-              {videoOff ? <i className="fas fa-video-slash text-slate-500 text-xl"></i> : <span className="font-bold text-white">You</span>}
-            </div>
-          </div>
-          {/* Controls */}
-          <div className="flex items-center justify-center gap-4">
-            <button onClick={() => setMuted(!muted)} className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all ${muted ? 'bg-rose-100 text-rose-600 border-2 border-rose-200' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
-              <i className={`fas ${muted ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
-            </button>
-            <button onClick={() => setVideoOff(!videoOff)} className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all ${videoOff ? 'bg-rose-100 text-rose-600 border-2 border-rose-200' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
-              <i className={`fas ${videoOff ? 'fa-video-slash' : 'fa-video'}`}></i>
-            </button>
-            <button onClick={handleEnd} className="w-14 h-14 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center text-xl transition-all shadow-lg">
-              <i className="fas fa-phone-slash"></i>
-            </button>
-            <button className="w-12 h-12 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-lg transition-all">
-              <i className="fas fa-comment"></i>
-            </button>
-          </div>
-        </div>
-      )}
-    </Modal>
-  );
-}
-
 // Previously this made no API call at all — "Submit" just flipped to a
 // success screen claiming "Symptom report sent to Dr. Sarah Mitchell" (a
 // hardcoded name with no relation to the patient's real doctor), reviewed
@@ -828,7 +752,6 @@ function PatientDashboard() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [showVideoCall, setShowVideoCall] = useState(false);
   const [showSymptomChecker, setShowSymptomChecker] = useState(false);
   const [showLabReports, setShowLabReports] = useState(false);
   const [showQuickBook, setShowQuickBook] = useState(false);
@@ -907,7 +830,7 @@ function PatientDashboard() {
             </p>
           </div>
           <div className="flex gap-3">
-            <button onClick={() => setShowVideoCall(true)} disabled={!nextAppointment || nextAppointment.type !== 'Video Consult' || daysToNext !== 0}
+            <button onClick={() => navigate(`/patient-dashboard/appointments?joinCall=${nextAppointment.id}`)} disabled={!nextAppointment || nextAppointment.type !== 'Video Consult' || daysToNext !== 0}
               className="bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:from-aubergine-700 hover:to-magenta-700 disabled:opacity-40 disabled:grayscale text-white font-bold px-6 py-3 rounded-2xl transition-all shadow-lg shadow-aubergine-500/20 text-sm flex items-center gap-2 btn-interactive">
               <i className="fas fa-video"></i> Join Call
             </button>
@@ -1006,7 +929,6 @@ function PatientDashboard() {
 
       {/* Modals */}
       {showOnboarding && <OnboardingModal isOpen={showOnboarding} onClose={() => { localStorage.setItem('healnari_onboarding_done', 'true'); setOnboardingDone(true); setShowOnboarding(false); }} toast={toast} />}
-      <VideoCallModal isOpen={showVideoCall} onClose={() => setShowVideoCall(false)} toast={toast} appointment={nextAppointment} />
       <SymptomCheckerModal isOpen={showSymptomChecker} onClose={() => setShowSymptomChecker(false)} toast={toast} />
       <LabReportsModal isOpen={showLabReports} onClose={() => setShowLabReports(false)} />
       <QuickBookModal isOpen={showQuickBook} onClose={() => setShowQuickBook(false)} toast={toast} addAppointment={addAppointment} />
