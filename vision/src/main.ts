@@ -8,7 +8,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'https://healnari.vercel.app',
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://healnari-api.onrender.com/api'
+  'https://healnari-api.onrender.com'
 ];
 
 async function bootstrap() {
