@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -371,6 +371,7 @@ function DoctorTelemedicine() {
   const toast = useToast();
   const location = useLocation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { updateAppointmentStatus } = useClinicData();
   const [activeCall, setActiveCall] = useState(null);
   const [showNotes, setShowNotes] = useState(false);
@@ -425,7 +426,7 @@ function DoctorTelemedicine() {
     return () => clearInterval(t);
   }, [activeCall]);
 
-  const sessions = rawSessions.map(s => ({
+  const toSession = (s) => ({
     id: s.id,
     patientId: s.patient_id,
     patient: s.patientName,
@@ -437,10 +438,38 @@ function DoctorTelemedicine() {
     waiting: s.status === 'Waiting' || s.status === 'In Progress',
     accepted: s.status !== 'Requested',
     status: s.status,
-  }));
+  });
+
+  const sessions = rawSessions.map(toSession);
 
   const waitingSessions = sessions.filter(s => s.status === 'Waiting');
   const newRequestSessions = sessions.filter(s => !s.accepted);
+
+  // Arrived here via the incoming-call ring screen's "Accept" — a patient
+  // called us. The queue may not have picked up this appointment yet (it's
+  // either brand new or just changed status), so fall back to a fresh fetch
+  // rather than waiting on the next poll cycle.
+  useEffect(() => {
+    const startCallId = searchParams.get('startCall');
+    if (!startCallId) return;
+    let cancelled = false;
+    (async () => {
+      let session = sessions.find(s => s.id === startCallId);
+      if (!session) {
+        const fresh = await apiFetch('/telemedicine/queue').catch(() => []);
+        const raw = fresh.find(s => s.id === startCallId);
+        session = raw ? toSession(raw) : null;
+      }
+      if (cancelled || !session) return;
+      setActiveCall(session);
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete('startCall');
+        return next;
+      }, { replace: true });
+    })();
+    return () => { cancelled = true; };
+  }, [searchParams, sessions, setSearchParams]);
 
   const [selectedIds, setSelectedIds] = useState([]);
   const [showActionsMenu, setShowActionsMenu] = useState(false);

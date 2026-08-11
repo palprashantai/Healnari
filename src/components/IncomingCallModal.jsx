@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationsContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const RING_TIMEOUT_MS = 45000; // auto-decline if nobody answers, like a real phone
 
@@ -74,6 +75,7 @@ function useElapsedTime(active) {
 
 export function IncomingCallModal() {
   const { incomingCall, acceptCall, declineCall } = useNotifications() || {};
+  const { user } = useAuth();
   const navigate = useNavigate();
   const dialogRef = useRef(null);
   const isOpen = !!incomingCall;
@@ -102,14 +104,17 @@ export function IncomingCallModal() {
 
   const handleAccept = () => {
     acceptCall(incomingCall.appointmentId);
-    navigate(`/patient-dashboard/appointments?joinCall=${incomingCall.appointmentId}`);
+    const path = user?.role === 'doctor'
+      ? `/doctor-dashboard/telemedicine?startCall=${incomingCall.appointmentId}`
+      : `/patient-dashboard/appointments?joinCall=${incomingCall.appointmentId}`;
+    navigate(path);
   };
 
-  // Doctor's display name lives inside `message` from the backend — matches
-  // both "Dr. X is calling you now." (direct join / instant call) and
-  // "Dr. X is ready to see you now." (queue callNext) — pull just the name
-  // back out for the avatar initials.
-  const callerName = incomingCall.message?.match(/Dr\.\s*(.+?)\s+is\s/)?.[1]?.trim();
+  // Caller's display name lives inside `message` from the backend — matches
+  // "Dr. X is calling you now." (doctor calling), "X is calling you now."
+  // (patient calling), and "Dr. X is ready to see you now." (queue
+  // callNext) — pull just the name back out for the avatar initials.
+  const callerName = incomingCall.message?.match(/^(?:Dr\.\s*)?(.+?)\s+is\s/)?.[1]?.trim();
   const initials = callerName ? callerName.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase() : 'HN';
 
   return createPortal(

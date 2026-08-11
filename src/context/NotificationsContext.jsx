@@ -69,7 +69,7 @@ export function NotificationsProvider({ children }) {
       setNotifications(prev => [notif, ...prev]);
 
       const appointmentId = notif.data?.appointmentId;
-      if (notif.type === 'appointment_called' && user.role === 'patient' && appointmentId) {
+      if (notif.type === 'appointment_called' && appointmentId) {
         setIncomingCall(prev => (prev?.appointmentId === appointmentId ? prev : { appointmentId, title: notif.title, message: notif.message }));
         return; // ring screen covers this — skip the toast, it'd just be noise underneath it
       }

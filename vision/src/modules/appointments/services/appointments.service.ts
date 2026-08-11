@@ -18,16 +18,21 @@ export class AppointmentsService {
     return `${a.scheduled_date} at ${a.scheduled_time}`;
   }
 
-  /** Shared "ring the patient" notify, used by every path that puts a video
-   * appointment into `In Progress` under the doctor's action: direct Join
-   * Call and instant calls (queue advance in callNext() has its own,
-   * differently-worded "It's Your Turn" notification). */
-  private async notifyIncomingCall(patientId: string, doctorName: string, appointmentId: string) {
-    await this.notifications.create(patientId, {
+  /** Shared "ring the other party" notify — works in both directions
+   * (doctor calling patient, or patient calling doctor), used by every path
+   * that puts a video appointment into `In Progress`: direct Join Call
+   * (either side), instant calls, and callNext()'s queue advance (which
+   * has its own, differently-worded "It's Your Turn" message but still
+   * routes through this for the `calleeRole` tagging). `calleeRole` rides
+   * along in `data` so a background push notification's click handler
+   * (which has no app state to check) knows which dashboard to deep-link
+   * into. */
+  private async notifyIncomingCall(calleeId: string, calleeRole: ProfileRole, callerLabel: string, appointmentId: string) {
+    await this.notifications.create(calleeId, {
       type: 'appointment_called',
       title: 'Incoming Video Call',
-      message: `Dr. ${doctorName} is calling you now.`,
-      data: { appointmentId },
+      message: `${callerLabel} is calling you now.`,
+      data: { appointmentId, calleeRole },
     });
   }
 
@@ -139,12 +144,21 @@ export class AppointmentsService {
         message: `${appointment.patientName} cancelled their ${label} on ${when}.`,
         data: { appointmentId: appointment.id },
       });
-    } else if (isDoctorActing && appointment.status === AppointmentStatus.IN_PROGRESS && appointment.type === AppointmentType.VIDEO) {
-      // Doctor started a video consult directly (Telemedicine "Join Call"),
-      // as opposed to callNext()'s queue-advance path below — both funnel
-      // through this same 'appointment_called' type so the frontend rings
-      // either way.
-      await this.notifyIncomingCall(appointment.patient_id, appointment.doctorName, appointment.id);
+    } else if (
+      appointment.status === AppointmentStatus.IN_PROGRESS &&
+      previousStatus !== AppointmentStatus.IN_PROGRESS &&
+      appointment.type === AppointmentType.VIDEO
+    ) {
+      // A video consult just started (direct "Join Call" from either side,
+      // or an instant call) — ring whichever party didn't start it.
+      // Guarded on the actual transition (not just "status happens to be
+      // In Progress") so joining a call the other side already started
+      // doesn't re-ring them a second time.
+      if (isDoctorActing) {
+        await this.notifyIncomingCall(appointment.patient_id, ProfileRole.PATIENT, `Dr. ${appointment.doctorName}`, appointment.id);
+      } else {
+        await this.notifyIncomingCall(appointment.doctor_id, ProfileRole.DOCTOR, appointment.patientName, appointment.id);
+      }
     } else if (
       isDoctorActing &&
       previousStatus === AppointmentStatus.IN_PROGRESS &&
@@ -157,7 +171,7 @@ export class AppointmentsService {
         type: 'call_cancelled',
         title: 'Call Ended',
         message: 'The doctor ended the call.',
-        data: { appointmentId: appointment.id },
+        data: { appointmentId: appointment.id, calleeRole: ProfileRole.PATIENT },
       });
     }
   }
@@ -189,7 +203,7 @@ export class AppointmentsService {
     }).select().single();
 
     const [withNames] = await this.withNames([saved]);
-    await this.notifyIncomingCall(patientId, withNames.doctorName, withNames.id);
+    await this.notifyIncomingCall(patientId, ProfileRole.PATIENT, `Dr. ${withNames.doctorName}`, withNames.id);
 
     return withNames;
   }
@@ -219,7 +233,7 @@ export class AppointmentsService {
           type: 'call_cancelled',
           title: 'Call Ended',
           message: 'The doctor ended the call.',
-          data: { appointmentId: inProgress.id },
+          data: { appointmentId: inProgress.id, calleeRole: ProfileRole.PATIENT },
         });
       }
     }
@@ -231,7 +245,7 @@ export class AppointmentsService {
         type: 'appointment_called',
         title: "It's Your Turn",
         message: `Dr. ${user.profile.full_name} is ready to see you now.`,
-        data: { appointmentId: waiting.id },
+        data: { appointmentId: waiting.id, calleeRole: ProfileRole.PATIENT },
       });
     }
 

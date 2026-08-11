@@ -52,15 +52,21 @@ self.addEventListener('notificationclick', (event) => {
   if (event.action === 'decline') return; // just dismiss — no need to open/focus the app
 
   const appointmentId = event.notification.data?.appointmentId;
-  const url = appointmentId ? `/patient-dashboard/appointments?joinCall=${appointmentId}` : '/';
+  // The service worker has no access to app state (no localStorage, no
+  // React context) to know who's logged in, so the backend tags every
+  // call notification with which dashboard the callee belongs on.
+  const calleeRole = event.notification.data?.calleeRole;
+  const url = !appointmentId
+    ? '/'
+    : calleeRole === 'doctor'
+      ? `/doctor-dashboard/telemedicine?startCall=${appointmentId}`
+      : `/patient-dashboard/appointments?joinCall=${appointmentId}`;
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       const existing = list.find((c) => c.url.includes(self.location.origin));
       if (existing) {
-        existing.focus();
-        existing.postMessage({ type: 'JOIN_CALL', appointmentId });
-        return undefined;
+        return existing.focus().then(() => existing.navigate(url)).catch(() => self.clients.openWindow(url));
       }
       return self.clients.openWindow(url);
     }),

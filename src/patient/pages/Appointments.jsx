@@ -199,10 +199,19 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
   const [joined, setJoined] = useState(false);
   const call = useWebRTCCall({ appointmentId, active: joined });
 
-  const join = () => setJoined(true);
+  // Manual "Join Now" tap — the doctor may not have started this call yet
+  // (this appointment could still be Upcoming/Confirmed), so ring them too.
+  // Best-effort and a no-op notification-wise if the doctor already has
+  // (backend only rings on an actual not-In-Progress -> In Progress
+  // transition), so this is safe to always fire.
+  const join = () => {
+    setJoined(true);
+    apiFetch(`/appointments/${appointmentId}/status`, { method: 'PUT', body: { status: 'In Progress' } }).catch(() => {});
+  };
 
   // Accepted from the incoming-call ring screen — skip the "Join Now" tap,
-  // the user already answered.
+  // the user already answered. The doctor was the caller here, so no need
+  // to ring them back.
   useEffect(() => {
     if (isOpen && autoJoin) setJoined(true);
   }, [isOpen, autoJoin]);
@@ -375,10 +384,9 @@ function PatientAppointments() {
   const [typeFilter, setTypeFilter] = useState('All Types');
   const [statusFilter, setStatusFilter] = useState('All Status');
 
-  // Reached via the incoming-call ring screen's "Accept" (?joinCall=<id>) or
-  // by clicking an OS push notification while the app is already open (the
-  // service worker's notificationclick handler postMessages the same intent
-  // to an existing tab instead of opening a new one).
+  // Reached via the incoming-call ring screen's "Accept", or the service
+  // worker navigating this tab to ?joinCall=<id> when an OS push
+  // notification is tapped.
   const openCallFor = useCallback(async (appointmentId) => {
     let match = upcoming.find(a => a.id === appointmentId);
     if (!match) {
@@ -410,17 +418,6 @@ function PatientAppointments() {
     });
     return () => { cancelled = true; };
   }, [searchParams, openCallFor, setSearchParams]);
-
-  useEffect(() => {
-    if (!('serviceWorker' in navigator)) return undefined;
-    const handleMessage = (event) => {
-      if (event.data?.type === 'JOIN_CALL' && event.data.appointmentId) {
-        openCallFor(event.data.appointmentId).catch(() => {});
-      }
-    };
-    navigator.serviceWorker.addEventListener('message', handleMessage);
-    return () => navigator.serviceWorker.removeEventListener('message', handleMessage);
-  }, [openCallFor]);
 
   const getFilteredData = () => {
     let data = tab === 'upcoming' ? upcoming : past;
