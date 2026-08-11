@@ -35,6 +35,11 @@ export const ERROR_MESSAGES = {
   PRESCRIPTION_NOT_FOUND: 'Prescription not found.',
   LAB_RESULT_NOT_FOUND: 'Lab result not found.',
   REFILL_NOT_FOUND: 'Refill request not found.',
+  LAB_REPORT_REQUEST_NOT_FOUND: 'Lab report request not found.',
+  LAB_REPORT_ALREADY_REVIEWED: 'This report has already been reviewed and can no longer be removed.',
+  INVALID_FILE_TYPE: 'Unsupported file type. Please upload a PDF, JPG, or PNG.',
+  FILE_TOO_LARGE: 'File is too large. Maximum size is 15MB.',
+  FILE_REQUIRED: 'Please attach a file.',
 
   // Admin
   VERIFICATION_NOT_FOUND: 'Verification request not found.',

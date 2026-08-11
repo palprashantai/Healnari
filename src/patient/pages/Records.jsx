@@ -10,6 +10,122 @@ const FILE_STYLE = {
   image: { icon: 'fa-image', color: 'bg-indigo-50 text-indigo-500' },
 };
 
+const LAB_REPORT_CATEGORIES = [
+  'Blood Test', 'Urine Test', 'Stool Test', 'Hormone Test', 'Diabetes', 'Lipid Profile',
+  'Vitamin Test', 'Thyroid', 'Pregnancy', 'PCOS', 'PCOD', 'Ultrasound', 'MRI', 'CT Scan',
+  'X-Ray', 'ECG', 'ECHO', 'Biopsy', 'Histopathology', 'Genetic Test', 'Others',
+];
+
+/* ─── Upload Lab Report Modal ─────────────────── */
+function UploadLabReportModal({ isOpen, onClose, onUpload, presetRequest }) {
+  const [file, setFile] = useState(null);
+  const [testName, setTestName] = useState('');
+  const [testCategory, setTestCategory] = useState(LAB_REPORT_CATEGORIES[0]);
+  const [labName, setLabName] = useState('');
+  const [reportDate, setReportDate] = useState('');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const toast = useToast();
+
+  useEffect(() => {
+    if (isOpen) {
+      setFile(null);
+      setTestName(presetRequest ? presetRequest.requested_tests : '');
+      setTestCategory(LAB_REPORT_CATEGORIES[0]);
+      setLabName('');
+      setReportDate('');
+      setNotes('');
+    }
+  }, [isOpen, presetRequest]);
+
+  const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+  const MAX_SIZE = 15 * 1024 * 1024;
+
+  const handleFile = (f) => {
+    if (!f) return;
+    if (!ALLOWED_TYPES.includes(f.type)) { toast('Only PDF, JPG, or PNG files are supported.', 'error'); return; }
+    if (f.size > MAX_SIZE) { toast('File is too large. Maximum size is 15MB.', 'error'); return; }
+    setFile(f);
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!file) { toast('Please attach your report file.', 'error'); return; }
+    if (!presetRequest && !testName.trim()) { toast('Enter the report/test name.', 'error'); return; }
+    setSubmitting(true);
+    try {
+      await onUpload(file, {
+        testName: testName.trim() || undefined,
+        testCategory,
+        labName: labName.trim() || undefined,
+        reportDate: reportDate || undefined,
+        notes: notes.trim() || undefined,
+        requestId: presetRequest?.id,
+      });
+      onClose();
+    } catch (err) {
+      toast(err.message || 'Failed to upload report', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={presetRequest ? `Upload: ${presetRequest.requested_tests}` : 'Upload Lab Report'} size="md">
+      <form onSubmit={submit} className="space-y-4">
+        <div
+          onClick={() => document.getElementById('lab-report-file-input')?.click()}
+          className="border-2 border-dashed border-aubergine-200 rounded-2xl p-5 bg-aubergine-50/30 hover:bg-aubergine-50 hover:border-aubergine-400 transition-all cursor-pointer text-center">
+          <i className="fas fa-cloud-arrow-up text-2xl text-aubergine-600 mb-2"></i>
+          <p className="text-sm font-bold text-aubergine-800">{file ? file.name : 'Click to select PDF, JPG, or PNG'}</p>
+          <p className="text-xs text-aubergine-600/80 mt-0.5">Max 15MB</p>
+          <input id="lab-report-file-input" type="file" accept="application/pdf,image/jpeg,image/png" className="hidden"
+            onChange={e => handleFile(e.target.files?.[0])} />
+        </div>
+
+        {!presetRequest && (
+          <div>
+            <label className="text-xs font-bold text-slate-500 mb-1.5 block">Report / Test Name *</label>
+            <input required value={testName} onChange={e => setTestName(e.target.value)} placeholder="e.g. Complete Blood Count"
+              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-bold text-slate-500 mb-1.5 block">Category</label>
+            <select value={testCategory} onChange={e => setTestCategory(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
+              {LAB_REPORT_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 mb-1.5 block">Test Date</label>
+            <input type="date" value={reportDate} onChange={e => setReportDate(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Lab Name</label>
+          <input value={labName} onChange={e => setLabName(e.target.value)} placeholder="e.g. Dr. Lal PathLabs"
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Notes (optional)</label>
+          <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Anything your doctor should know..."
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-none" />
+        </div>
+
+        <button type="submit" disabled={submitting} className="w-full bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition-colors">
+          {submitting ? 'Uploading…' : 'Upload Report'}
+        </button>
+      </form>
+    </Modal>
+  );
+}
+
 /* ─── File Preview Modal ─────────────────────── */
 function FilePreviewModal({ file, onClose, onDownload }) {
   if (!file) return null;
@@ -121,10 +237,39 @@ function AddVaccineModal({ isOpen, onClose, onAdd }) {
 function PatientRecords() {
   const toast = useToast();
   const { user } = useAuth();
-  const { patients, updatePatient } = useClinicData();
+  const { patients, updatePatient, uploadLabReport, deleteLabReport, getLabReportUrl, listLabReportRequests } = useClinicData();
   const myPatient = patients[0];
   const fileInputRef = useRef(null);
   const [tab, setTab] = useState('documents');
+
+  // Lab Reports
+  const [rawLabReports, setRawLabReports] = useState([]);
+  const [labRequests, setLabRequests] = useState([]);
+  const [uploadModalRequest, setUploadModalRequest] = useState(undefined); // undefined = closed, null = free upload, object = fulfilling a request
+  const [deleteLabTarget, setDeleteLabTarget] = useState(null);
+
+  const loadLabReports = () => apiFetch('/records/lab-reports').then(setRawLabReports).catch(err => toast(err.message || 'Failed to load lab reports', 'error'));
+  const loadLabRequests = () => listLabReportRequests().then(r => setLabRequests(r.filter(x => x.status === 'Pending'))).catch(() => setLabRequests([]));
+
+  const viewLabReport = async (report) => {
+    try {
+      const { url } = await getLabReportUrl(report.id);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      toast(err.message || 'Failed to open report', 'error');
+    }
+  };
+
+  const handleDeleteLabReport = async () => {
+    try {
+      await deleteLabReport(deleteLabTarget.id);
+      await Promise.all([loadLabReports(), loadLabRequests()]);
+      toast('Report removed.', 'info');
+    } catch (err) {
+      toast(err.message || 'Failed to delete report', 'error');
+    }
+    setDeleteLabTarget(null);
+  };
 
   // Documents
   const [rawDocs, setRawDocs] = useState([]);
@@ -169,7 +314,7 @@ function PatientRecords() {
   const [deleteContactTarget, setDeleteContactTarget] = useState(null);
   const contacts = rawContacts.map(c => ({ id: c.id, name: c.name, relation: c.relation, phone: c.phone }));
 
-  useEffect(() => { if (user?.id) { loadDocs(); loadVaccines(); loadContacts(); } }, [user?.id]);
+  useEffect(() => { if (user?.id) { loadDocs(); loadVaccines(); loadContacts(); loadLabReports(); loadLabRequests(); } }, [user?.id]);
 
   const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -263,11 +408,13 @@ function PatientRecords() {
           {[
             ['profile', 'Health Profile', 'fa-notes-medical'],
             ['documents', 'Digital Records', 'fa-folder-open'],
+            ['labReports', 'Lab Reports', 'fa-flask', labRequests.length],
             ['insurance', 'Insurance & Emergency', 'fa-shield-heart'],
-          ].map(([key, label, icon]) => (
+          ].map(([key, label, icon, badge]) => (
             <button key={key} onClick={() => setTab(key)}
               className={`px-6 py-4 text-sm font-bold whitespace-nowrap transition-all flex items-center gap-2 ${tab === key ? 'bg-white text-aubergine-700 border-t-2 border-t-aubergine-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
               <i className={`fas ${icon} text-xs`}></i> {label}
+              {!!badge && <span className="bg-amber-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{badge}</span>}
             </button>
           ))}
         </div>
@@ -329,6 +476,81 @@ function PatientRecords() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* ── LAB REPORTS TAB ── */}
+          {tab === 'labReports' && (
+            <div className="space-y-5">
+              {labRequests.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="font-bold text-slate-800 text-sm">Requested by your doctor</h3>
+                  {labRequests.map(r => (
+                    <div key={r.id} className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3.5">
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-800 text-sm truncate">{r.requested_tests}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Requested by Dr. {r.doctor_name}{r.due_date ? ` • Due ${new Date(r.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}
+                        </p>
+                        {r.notes && <p className="text-xs text-slate-500 mt-0.5">{r.notes}</p>}
+                      </div>
+                      <button onClick={() => setUploadModalRequest(r)}
+                        className="shrink-0 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors">
+                        Upload
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-slate-800 text-sm">Your Reports</h3>
+                <button onClick={() => setUploadModalRequest(null)}
+                  className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors flex items-center gap-1.5">
+                  <i className="fas fa-plus"></i> Upload Report
+                </button>
+              </div>
+
+              {rawLabReports.length === 0 ? (
+                <div className="text-center py-10 text-slate-500 text-sm border border-slate-200 rounded-xl bg-slate-50">
+                  No lab reports uploaded yet.
+                </div>
+              ) : (
+                <div className="grid md:grid-cols-2 gap-3">
+                  {rawLabReports.map(r => (
+                    <div key={r.id} className="border border-slate-200 rounded-xl p-4 flex gap-4 hover:shadow-md hover:border-aubergine-200 transition-all group">
+                      <div className={`w-12 h-12 ${r.file_type === 'application/pdf' ? FILE_STYLE.pdf.color : FILE_STYLE.image.color} rounded-xl flex items-center justify-center text-2xl shrink-0 border border-slate-100`}>
+                        <i className={`fas ${r.file_type === 'application/pdf' ? FILE_STYLE.pdf.icon : FILE_STYLE.image.icon}`}></i>
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-slate-800 truncate text-sm">{r.test_name}</h4>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${r.status === 'Reviewed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                            {r.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">{r.test_category || 'General'} • {r.lab_name || 'Lab not specified'}</p>
+                        <p className="text-xs text-slate-500">Uploaded {new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                        {r.status === 'Reviewed' && r.interpretation && (
+                          <p className="text-xs text-slate-700 mt-1.5 bg-emerald-50 border border-emerald-100 rounded-lg p-2">
+                            <span className="font-bold">Doctor's note: </span>{r.interpretation}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity">
+                        <button onClick={() => viewLabReport(r)} className="w-8 h-8 rounded-lg bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-600 flex items-center justify-center text-xs transition-colors" title="View">
+                          <i className="fas fa-eye"></i>
+                        </button>
+                        {r.status === 'Uploaded' && (
+                          <button onClick={() => setDeleteLabTarget(r)} className="w-8 h-8 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-500 flex items-center justify-center text-xs transition-colors" title="Delete">
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -479,6 +701,25 @@ function PatientRecords() {
 
       {/* Modals */}
       <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} onDownload={() => toast('File download is coming soon.', 'info')} />
+      <UploadLabReportModal
+        isOpen={uploadModalRequest !== undefined}
+        onClose={() => setUploadModalRequest(undefined)}
+        presetRequest={uploadModalRequest}
+        onUpload={async (file, meta) => {
+          await uploadLabReport(user.id, file, meta);
+          await Promise.all([loadLabReports(), loadLabRequests()]);
+          toast('Lab report uploaded successfully.', 'success');
+        }}
+      />
+      <ConfirmModal
+        isOpen={!!deleteLabTarget}
+        onClose={() => setDeleteLabTarget(null)}
+        onConfirm={handleDeleteLabReport}
+        title="Delete Lab Report?"
+        message={`"${deleteLabTarget?.test_name}" will be permanently removed.`}
+        confirmLabel="Delete"
+        confirmStyle="danger"
+      />
       <ConfirmModal
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}

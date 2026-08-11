@@ -63,10 +63,27 @@ const LAB_TRENDS = [
 
 /* ─── Lab Review Modal ───────────────────────── */
 function LabReviewModal({ lab, isOpen, onClose, onAction }) {
+  const { getLabReportUrl } = useClinicData();
+  const toast = useToast();
   const [action, setAction] = useState('');
-  const [orderMore, setOrderMore] = useState('');
+  const [opening, setOpening] = useState(false);
+
+  useEffect(() => { setAction(lab?.action || ''); }, [lab?.id]);
 
   if (!lab) return null;
+
+  const openFile = async () => {
+    setOpening(true);
+    try {
+      const { url } = await getLabReportUrl(lab.id);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      toast(err.message || 'Failed to open report file', 'error');
+    } finally {
+      setOpening(false);
+    }
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Lab Report — ${lab.patient}`} size="lg">
       <div className="space-y-5">
@@ -77,41 +94,27 @@ function LabReviewModal({ lab, isOpen, onClose, onAction }) {
           </div>
         )}
 
-        {/* Result Values */}
-        <div>
-          <h4 className="font-bold text-slate-700 text-sm mb-2">Test Results</h4>
-          <div className="space-y-2">
-            {Object.entries(lab.results).map(([test, value]) => (
-              <div key={test} className={`flex justify-between items-center px-4 py-3 rounded-xl border text-sm ${value.includes('↑') ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-200'}`}>
-                <span className="font-bold text-slate-700">{test}</span>
-                <span className={`font-bold ${value.includes('↑') ? 'text-rose-700' : 'text-emerald-700'}`}>{value}</span>
-              </div>
-            ))}
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Uploaded File</p>
+            <p className="text-sm font-bold text-slate-800">{Array.isArray(lab.tests) ? lab.tests.join(', ') : lab.tests}</p>
           </div>
-        </div>
-
-        {/* AI Interpretation */}
-        <div className="bg-slate-900 rounded-2xl p-4">
-          <p className="text-xs text-aubergine-300 font-bold mb-2 flex items-center gap-1.5"><i className="fas fa-sparkles"></i> AI Clinical Interpretation</p>
-          <p className="text-sm text-slate-200 leading-relaxed">{lab.interpretation}</p>
+          <button onClick={openFile} disabled={opening}
+            className="bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2">
+            <i className="fas fa-file-arrow-up"></i> {opening ? 'Opening…' : 'Open Report'}
+          </button>
         </div>
 
         {/* Doctor Action */}
         <div>
-          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Your Clinical Action</label>
-          <textarea rows={2} value={action} onChange={e => setAction(e.target.value)} placeholder="e.g. Start Levothyroxine 25mcg OD. Repeat TSH in 6 weeks..."
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Clinical Interpretation & Action</label>
+          <textarea rows={3} value={action} onChange={e => setAction(e.target.value)} placeholder="e.g. TSH mildly elevated. Start Levothyroxine 25mcg OD. Repeat TSH in 6 weeks..."
             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
-        </div>
-
-        <div>
-          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Order Additional Tests (optional)</label>
-          <input value={orderMore} onChange={e => setOrderMore(e.target.value)} placeholder="e.g. Serum Cortisol, OGTT"
-            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
         </div>
 
         <div className="flex gap-3 pt-2 border-t border-slate-100">
           <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-sm hover:bg-slate-50">Cancel</button>
-          <button onClick={() => { onAction(lab, action, orderMore); onClose(); }}
+          <button onClick={() => { onAction(lab, action); onClose(); }}
             className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors">
             <i className="fas fa-check-circle"></i> Mark Reviewed & Save
           </button>
@@ -121,14 +124,75 @@ function LabReviewModal({ lab, isOpen, onClose, onAction }) {
   );
 }
 
+/* ─── Request Report Modal ───────────────────── */
+function RequestReportModal({ isOpen, onClose, patients, onRequest }) {
+  const [patientId, setPatientId] = useState('');
+  const [requestedTests, setRequestedTests] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) { setPatientId(''); setRequestedTests(''); setDueDate(''); setNotes(''); }
+  }, [isOpen]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!patientId || !requestedTests.trim()) return;
+    setSubmitting(true);
+    try {
+      await onRequest(patientId, { requestedTests: requestedTests.trim(), dueDate: dueDate || undefined, notes: notes.trim() || undefined });
+      onClose();
+    } catch {
+      // already surfaced via toast in the caller
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Request Lab Report" size="md">
+      <form onSubmit={submit} className="space-y-4">
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Patient *</label>
+          <select required value={patientId} onChange={e => setPatientId(e.target.value)}
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
+            <option value="">-- Select patient --</option>
+            {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Test(s) / Panel *</label>
+          <input required value={requestedTests} onChange={e => setRequestedTests(e.target.value)} placeholder="e.g. Serum AMH, TSH & Free T4"
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Due Date</label>
+          <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+        </div>
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Notes for Patient</label>
+          <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Fasting required before the blood draw"
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-none" />
+        </div>
+        <button type="submit" disabled={submitting} className="w-full bg-aubergine-700 hover:bg-aubergine-800 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+          <i className="fas fa-paper-plane"></i> {submitting ? 'Sending…' : 'Send Request'}
+        </button>
+      </form>
+    </Modal>
+  );
+}
+
 /* ─── Main Component ─────────────────────────── */
 function DoctorReports() {
   const toast = useToast();
-  const { patients } = useClinicData();
+  const { patients, requestLabReport } = useClinicData();
   const [rawReports, setRawReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('pending');
   const [selectedLab, setSelectedLab] = useState(null);
+  const [showRequestModal, setShowRequestModal] = useState(false);
 
   const loadReports = () => apiFetch('/records/lab-reports')
     .then(setRawReports)
@@ -146,13 +210,22 @@ function DoctorReports() {
     lab: r.lab_name || '—',
     received: new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
     urgent: r.urgent,
-    results: r.results || {},
-    interpretation: r.interpretation || 'No AI interpretation available for this report.',
+    interpretation: r.interpretation,
     action: r.doctor_action,
   });
 
-  const pending = rawReports.filter(r => r.status === 'Pending').map(toRow);
-  const reviewed = rawReports.filter(r => r.status === 'Completed').map(r => ({ ...toRow(r), tests: r.test_name, date: toRow(r).received }));
+  const pending = rawReports.filter(r => r.status === 'Uploaded').map(toRow);
+  const reviewed = rawReports.filter(r => r.status === 'Reviewed').map(r => ({ ...toRow(r), tests: r.test_name, date: toRow(r).received }));
+
+  const handleRequestReport = async (patientId, request) => {
+    try {
+      await requestLabReport(patientId, request);
+      toast('Report request sent to patient.', 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to send request', 'error');
+      throw err;
+    }
+  };
 
   const [selectedIds, setSelectedIds] = useState([]);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -222,14 +295,13 @@ function DoctorReports() {
   };
   const toggleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-  const handleAction = async (lab, action, orderMore) => {
+  const handleAction = async (lab, action) => {
     try {
       await apiFetch(`/records/lab-reports/${lab.id}/review`, {
         method: 'PUT',
-        body: { doctorAction: action || 'Reviewed. No immediate action required.' },
+        body: { interpretation: action || 'Reviewed. No immediate action required.', doctorAction: action },
       });
       await loadReports();
-      if (orderMore) toast(`Additional labs noted for ${lab.patient}: ${orderMore} (order manually via Order Labs)`, 'info');
       toast(`Report for ${lab.patient} reviewed and action saved.`, 'success');
     } catch (err) {
       toast(err.message || 'Failed to save review', 'error');
@@ -271,9 +343,9 @@ function DoctorReports() {
               <i className="fas fa-circle-exclamation"></i> {pending.filter(l => l.urgent).length} Urgent
             </span>
           )}
-          <button onClick={() => toast('Lab order form opened.', 'info')}
+          <button onClick={() => setShowRequestModal(true)}
             className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm">
-            <i className="fas fa-flask"></i> Order Labs
+            <i className="fas fa-flask"></i> Request Report
           </button>
         </div>
       </div>
@@ -392,6 +464,8 @@ function DoctorReports() {
       </div>
 
       <LabReviewModal lab={selectedLab} isOpen={!!selectedLab} onClose={() => setSelectedLab(null)} onAction={handleAction} />
+
+      <RequestReportModal isOpen={showRequestModal} onClose={() => setShowRequestModal(false)} patients={patients} onRequest={handleRequestReport} />
 
       <BulkMessageModal
         isOpen={bulkModalParams.isOpen}

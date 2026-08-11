@@ -197,100 +197,73 @@ function WriteRxPage({ patient, onBack, onSaveRx }) {
   );
 }
 
-/* ─── Order Lab Modal ─────────────────────────── */
-function InlineOrderLabModal({ isOpen, onClose, patient, onSaveLab }) {
-  const [testName, setTestName] = useState('');
-  const [category, setCategory] = useState('Pathology');
-  const [labName, setLabName] = useState('Dr. Lal PathLabs');
-  const [urgent, setUrgent] = useState(false);
+/* ─── Request Lab Report Modal ─────────────────────────── */
+function RequestLabReportModal({ isOpen, onClose, patient, onRequest }) {
+  const [requestedTests, setRequestedTests] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   if (!isOpen || !patient) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!testName.trim()) return;
-    const newReport = {
-      id: `REP-${Math.floor(100 + Math.random() * 900)}`,
-      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      testCategory: category,
-      testName: testName.trim(),
-      labName: labName,
-      status: 'Pending',
-      urgent: urgent,
-      results: {
-        'Status Note': { value: 'Sample Sent / Order Placed', ref: 'Pending', status: 'normal' },
-      },
-      interpretation: 'Sample under processing at lab. Results will be uploaded automatically once received.',
-      doctorAction: 'Order placed by Dr. Sarah Mitchell.',
-    };
-    onSaveLab(patient.id, newReport);
-    setTestName('');
-    setUrgent(false);
-    onClose();
+    if (!requestedTests.trim()) return;
+    setSubmitting(true);
+    try {
+      await onRequest(patient.id, { requestedTests: requestedTests.trim(), dueDate: dueDate || undefined, notes: notes.trim() || undefined });
+      setRequestedTests(''); setDueDate(''); setNotes('');
+      onClose();
+    } catch {
+      // already surfaced to the user via toast in the caller
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Order Lab Test for ${patient.name}`} size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={`Request Lab Report for ${patient.name}`} size="md">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="text-xs font-bold text-slate-500 mb-1 block">Test Name / Panel *</label>
+          <label className="text-xs font-bold text-slate-500 mb-1 block">Test(s) / Panel *</label>
           <input
             type="text"
             required
-            value={testName}
-            onChange={(e) => setTestName(e.target.value)}
+            value={requestedTests}
+            onChange={(e) => setRequestedTests(e.target.value)}
             placeholder="e.g. Serum AMH, TSH & Free T4, TVS Ultrasound Scan"
             className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300"
           />
+          <p className="text-[11px] text-slate-500 mt-1">The patient will be notified to get this done externally and upload the report here.</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-bold text-slate-500 mb-1 block">Category</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white"
-            >
-              <option value="Pathology">Pathology (Blood/Urine)</option>
-              <option value="Imaging">Imaging (Ultrasound/MRI)</option>
-              <option value="Hormonal">Hormonal Profile</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-bold text-slate-500 mb-1 block">Diagnostic Partner</label>
-            <select
-              value={labName}
-              onChange={(e) => setLabName(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white"
-            >
-              <option value="Dr. Lal PathLabs">Dr. Lal PathLabs</option>
-              <option value="Apollo Diagnostics">Apollo Diagnostics</option>
-              <option value="SRL Diagnostics">SRL Diagnostics</option>
-              <option value="City Scans & Diagnostics">City Scans & Diagnostics</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 pt-1">
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1 block">Due Date</label>
           <input
-            type="checkbox"
-            id="urgentOrder"
-            checked={urgent}
-            onChange={(e) => setUrgent(e.target.checked)}
-            className="w-4 h-4 text-aubergine-600 rounded border-slate-300 focus:ring-aubergine-300"
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300"
           />
-          <label htmlFor="urgentOrder" className="text-xs font-bold text-amber-700 cursor-pointer">
-            Mark as Urgent / Priority Processing ⚡
-          </label>
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1 block">Notes for Patient</label>
+          <textarea
+            rows={2}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="e.g. Fasting required before the blood draw"
+            className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-none"
+          />
         </div>
 
         <div className="flex gap-3 pt-3 border-t border-slate-100">
           <button type="button" onClick={onClose} className="flex-1 border border-slate-200 text-slate-600 font-bold py-2 rounded-xl text-sm hover:bg-slate-50">
             Cancel
           </button>
-          <button type="submit" className="flex-1 bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold py-2 rounded-xl text-sm transition-colors flex items-center justify-center gap-1.5">
-            <i className="fas fa-paper-plane"></i> Send Order
+          <button type="submit" disabled={submitting} className="flex-1 bg-aubergine-700 hover:bg-aubergine-800 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-sm transition-colors flex items-center justify-center gap-1.5">
+            <i className="fas fa-paper-plane"></i> {submitting ? 'Sending…' : 'Send Request'}
           </button>
         </div>
       </form>
@@ -593,90 +566,99 @@ function ViewRxDocModal({ rx, patient, isOpen, onClose }) {
 
 /* ─── View Lab Document Modal ─────────────────────────── */
 function ViewLabDocModal({ report, patient, isOpen, onClose }) {
+  const { getLabReportUrl, refreshPatients } = useClinicData();
+  const toast = useToast();
+  const [interpretation, setInterpretation] = useState('');
+  const [doctorAction, setDoctorAction] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [opening, setOpening] = useState(false);
+
+  useEffect(() => {
+    setInterpretation(report?.interpretation || '');
+    setDoctorAction(report?.doctorAction || '');
+  }, [report?.id]);
+
   if (!isOpen || !report || !patient) return null;
 
+  const openFile = async () => {
+    setOpening(true);
+    try {
+      const { url } = await getLabReportUrl(report.id);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      toast(err.message || 'Failed to open report file', 'error');
+    } finally {
+      setOpening(false);
+    }
+  };
+
+  const submitReview = async () => {
+    setSaving(true);
+    try {
+      await apiFetch(`/records/lab-reports/${report.id}/review`, { method: 'PUT', body: { interpretation, doctorAction } });
+      toast('Report reviewed.', 'success');
+      await refreshPatients();
+      onClose();
+    } catch (err) {
+      toast(err.message || 'Failed to save review', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Diagnostic Lab Report Document" size="lg">
-      <div className="bg-white p-6 border border-slate-200 rounded-2xl space-y-6 text-slate-800 font-sans shadow-sm">
-        {/* Lab Header */}
+    <Modal isOpen={isOpen} onClose={onClose} title="Lab Report" size="lg">
+      <div className="bg-white p-6 border border-slate-200 rounded-2xl space-y-5 text-slate-800 font-sans shadow-sm">
+        {/* Header */}
         <div className="flex justify-between items-start border-b border-slate-200 pb-4">
           <div>
-            <h2 className="text-xl font-black text-sky-900 tracking-tight">{report.labName}</h2>
-            <p className="text-xs text-slate-500">NABL & CAP Accredited Diagnostic Laboratory</p>
-            <p className="text-[11px] text-slate-500 mt-0.5">Report ID: <span className="font-mono font-bold text-slate-700">{report.id}</span></p>
+            <h2 className="text-lg font-black text-sky-900 tracking-tight">{report.testName}</h2>
+            <p className="text-xs text-slate-500">{report.testCategory} • {report.labName || 'Lab not specified'}</p>
           </div>
           <div className="text-right">
-            <span className={`text-xs font-bold px-3 py-1 rounded-full border ${report.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+            <span className={`text-xs font-bold px-3 py-1 rounded-full border ${report.status === 'Reviewed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
               {report.status}
             </span>
-            <p className="text-xs text-slate-500 mt-1">{report.date}</p>
+            <p className="text-xs text-slate-500 mt-1">Uploaded {report.date}</p>
           </div>
         </div>
 
-        {/* Patient Bar */}
         <div className="grid grid-cols-2 gap-4 bg-slate-50 rounded-xl p-4 border border-slate-100 text-xs">
           <div>
-            <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Patient Name</p>
+            <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Patient</p>
             <p className="font-black text-slate-800 text-sm">{patient.name}</p>
             <p className="text-slate-600">{patient.age}Y / {patient.blood} • {patient.phone}</p>
           </div>
           <div>
-            <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Referred By</p>
-            <p className="font-black text-slate-800 text-sm">Dr. Sarah Mitchell</p>
-            <p className="text-slate-600">HealNari Women's Health Clinic</p>
+            <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">File</p>
+            <button onClick={openFile} disabled={opening} className="font-black text-sky-700 text-sm hover:underline disabled:opacity-50 flex items-center gap-1.5">
+              <i className="fas fa-file-arrow-up"></i> {opening ? 'Opening…' : 'Open Uploaded Report'}
+            </button>
           </div>
         </div>
 
-        {/* Test Name & Values */}
-        <div>
-          <h3 className="font-black text-slate-800 text-sm mb-3 flex items-center gap-2">
-            <i className="fas fa-vial text-sky-600"></i> {report.testName}
-          </h3>
-          <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
-                  <tr>
-                    <th className="p-3">Test Parameter</th>
-                    <th className="p-3">Observed Value</th>
-                    <th className="p-3">Reference Range</th>
-                    <th className="p-3">Flag</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {Object.entries(report.results).map(([param, data]) => (
-                    <tr key={param} className={data.status === 'high' || data.status === 'low' ? 'bg-rose-50/50' : ''}>
-                      <td className="p-3 font-bold text-slate-800">{param}</td>
-                      <td className="p-3 font-black text-slate-900">{data.value}</td>
-                      <td className="p-3 text-slate-500 font-mono text-[11px]">{data.ref}</td>
-                      <td className="p-3">
-                        {data.status === 'high' && <span className="bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded text-[10px]">HIGH ↑</span>}
-                        {data.status === 'low' && <span className="bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded text-[10px]">LOW ↓</span>}
-                        {data.status === 'normal' && <span className="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded text-[10px]">NORMAL</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        {/* Review form */}
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-bold text-slate-500 mb-1 block">Clinical Interpretation</label>
+            <textarea rows={3} value={interpretation} onChange={e => setInterpretation(e.target.value)}
+              placeholder="Your reading of this report..."
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-none" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 mb-1 block">Action / Next Steps</label>
+            <textarea rows={2} value={doctorAction} onChange={e => setDoctorAction(e.target.value)}
+              placeholder="e.g. Start supplementation, repeat in 3 months..."
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-none" />
           </div>
         </div>
 
-        {/* Clinical Summary */}
-        <div className="bg-slate-900 rounded-xl p-4 text-xs text-slate-200 space-y-2">
-          <p className="font-bold text-aubergine-300 flex items-center gap-1.5">
-            <i className="fas fa-brain"></i> AI Clinical Interpretation & Findings:
-          </p>
-          <p className="leading-relaxed text-slate-300">{report.interpretation}</p>
-        </div>
-
-        {/* Actions */}
         <div className="flex gap-3 pt-2">
-          <button onClick={() => window.print()} className="flex-1 bg-sky-700 hover:bg-sky-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2">
-            <i className="fas fa-file-pdf"></i> Download PDF Report
-          </button>
           <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs hover:bg-slate-50">
-            Close Report
+            Close
+          </button>
+          <button onClick={submitReview} disabled={saving} className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2">
+            <i className="fas fa-check"></i> {saving ? 'Saving…' : report.status === 'Reviewed' ? 'Update Review' : 'Mark Reviewed'}
           </button>
         </div>
       </div>
@@ -686,10 +668,11 @@ function ViewLabDocModal({ report, patient, isOpen, onClose }) {
 
 /* ─── FULL PAGE EMR COMPONENT ───────────────────────── */
 function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
-  const { addRx, orderLabTest, addClinicalNote, recordCharge } = useClinicData();
+  const { addRx, requestLabReport, addClinicalNote, recordCharge, listLabReportRequests, cancelLabReportRequest } = useClinicData();
   const [tab, setTab] = useState('overview');
   const [labFilter, setLabFilter] = useState('all');
   const [newNote, setNewNote] = useState('');
+  const [labRequests, setLabRequests] = useState([]);
 
   // Sub-modals state
   const [showWriteRx, setShowWriteRx] = useState(false);
@@ -698,6 +681,12 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
   const [selectedRxDoc, setSelectedRxDoc] = useState(null);
   const [selectedLabDoc, setSelectedLabDoc] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+
+  const loadLabRequests = () => {
+    if (!patient) return;
+    listLabReportRequests(patient.id).then(r => setLabRequests(r.filter(x => x.status === 'Pending'))).catch(() => setLabRequests([]));
+  };
+  useEffect(() => { loadLabRequests(); }, [patient?.id]);
 
   if (!patient) return null;
 
@@ -720,17 +709,24 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
     return <WriteRxPage patient={patient} onBack={() => setShowWriteRx(false)} onSaveRx={handleAddRx} />;
   }
 
-  const handleAddLab = async (patientId, newReport) => {
+  const handleRequestLab = async (patientId, request) => {
     try {
-      await orderLabTest(patientId, {
-        testName: newReport.testName,
-        testCategory: newReport.testCategory,
-        labName: newReport.labName,
-        urgent: newReport.urgent,
-      });
-      toast(`Lab test requested for ${patient.name}.`, 'success');
+      await requestLabReport(patientId, request);
+      toast(`Report request sent to ${patient.name}.`, 'success');
+      loadLabRequests();
     } catch (err) {
-      toast(err.message || `Failed to order lab test for ${patient.name}`, 'error');
+      toast(err.message || `Failed to request lab report for ${patient.name}`, 'error');
+      throw err;
+    }
+  };
+
+  const handleCancelLabRequest = async (id) => {
+    try {
+      await cancelLabReportRequest(id);
+      toast('Request cancelled.', 'info');
+      loadLabRequests();
+    } catch (err) {
+      toast(err.message || 'Failed to cancel request', 'error');
     }
   };
 
@@ -762,7 +758,8 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
   const filteredReports = patient.reports.filter((r) => {
     if (labFilter === 'all') return true;
-    return r.testCategory.toLowerCase() === labFilter.toLowerCase();
+    if (labFilter === 'awaiting') return r.status === 'Uploaded';
+    return r.status === 'Reviewed';
   });
 
   const totalPaid = (patient.payments || []).reduce((acc, curr) => (curr.status === 'Paid' ? acc + curr.amount : acc), 0);
@@ -1008,18 +1005,27 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                   View all ({patient.reports.length}) →
                 </button>
               </div>
-              {patient.reports.length > 0 && (
+              {patient.reports.length > 0 ? (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="font-black text-slate-900 text-sm">{patient.reports[0].testName}</span>
-                    <span className="text-slate-500 font-medium">{patient.reports[0].date}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${patient.reports[0].status === 'Reviewed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{patient.reports[0].status}</span>
+                      <span className="text-slate-500 font-medium">{patient.reports[0].date}</span>
+                    </div>
                   </div>
-                  <div className="bg-slate-900 rounded-xl p-3.5 text-slate-200">
-                    <p className="font-bold text-aubergine-300 mb-1 flex items-center gap-1.5">
-                      <i className="fas fa-brain"></i> AI Summary
-                    </p>
-                    <p className="leading-relaxed text-slate-300">{patient.reports[0].interpretation}</p>
-                  </div>
+                  {patient.reports[0].interpretation && (
+                    <div className="bg-slate-900 rounded-xl p-3.5 text-slate-200">
+                      <p className="font-bold text-aubergine-300 mb-1 flex items-center gap-1.5">
+                        <i className="fas fa-notes-medical"></i> Doctor's Note
+                      </p>
+                      <p className="leading-relaxed text-slate-300">{patient.reports[0].interpretation}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-500 text-center">
+                  No reports uploaded yet.
                 </div>
               )}
             </div>
@@ -1101,19 +1107,19 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
         {tab === 'reports' && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <h3 className="font-black text-slate-800 text-base">Lab &amp; Imaging Reports</h3>
+              <h3 className="font-black text-slate-800 text-base">Lab Reports</h3>
 
               <div className="flex items-center gap-3">
                 <div className="flex gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
-                  {['all', 'pathology', 'imaging'].map((cat) => (
+                  {[['all', 'All'], ['awaiting', 'Awaiting Review'], ['reviewed', 'Reviewed']].map(([key, label]) => (
                     <button
-                      key={cat}
-                      onClick={() => setLabFilter(cat)}
-                      className={`px-3.5 py-1.5 rounded-lg capitalize transition-all ${
-                        labFilter === cat ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                      key={key}
+                      onClick={() => setLabFilter(key)}
+                      className={`px-3.5 py-1.5 rounded-lg transition-all ${
+                        labFilter === key ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500 hover:text-slate-800'
                       }`}
                     >
-                      {cat}
+                      {label}
                     </button>
                   ))}
                 </div>
@@ -1122,77 +1128,62 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                   onClick={() => setShowOrderLab(true)}
                   className="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-sm"
                 >
-                  <i className="fas fa-plus"></i> Order Lab
+                  <i className="fas fa-plus"></i> Request Report
                 </button>
               </div>
             </div>
 
-            <div className="space-y-4 text-xs">
+            {labRequests.length > 0 && (
+              <div className="space-y-2">
+                {labRequests.map(r => (
+                  <div key={r.id} className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs">
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-800 text-sm truncate">{r.requested_tests}</p>
+                      <p className="text-slate-500 mt-0.5">
+                        Awaiting patient upload{r.due_date ? ` • Due ${new Date(r.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}
+                      </p>
+                    </div>
+                    <button onClick={() => handleCancelLabRequest(r.id)} className="shrink-0 text-slate-500 hover:text-rose-600 font-bold px-2 py-1">
+                      Cancel
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-3 text-xs">
               {filteredReports.map((r) => (
-                <div key={r.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-xs hover:border-sky-300 transition-all space-y-3">
-                  <div className="flex justify-between items-start flex-wrap gap-2 pb-3 border-b border-slate-200">
+                <div key={r.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-xs hover:border-sky-300 transition-all">
+                  <div className="flex justify-between items-start flex-wrap gap-2">
                     <div>
                       <div className="flex items-center gap-3">
                         <span className="font-black text-slate-900 text-base">{r.testName}</span>
                         {r.urgent && <span className="bg-rose-100 text-rose-700 font-bold px-3 py-0.5 rounded-full text-[11px]">⚡ Urgent</span>}
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.status === 'Reviewed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{r.status}</span>
                       </div>
                       <p className="text-slate-500 text-xs mt-1">
-                        {r.testCategory} • {r.labName} • {r.date}
+                        {r.testCategory} • {r.labName || 'Lab not specified'} • {r.date}
                       </p>
+                      {r.status === 'Reviewed' && r.interpretation && (
+                        <p className="text-slate-700 mt-2 bg-white border border-slate-200 rounded-lg p-2.5">
+                          <span className="font-bold">Note: </span>{r.interpretation}
+                        </p>
+                      )}
                     </div>
 
                     <button
                       onClick={() => setSelectedLabDoc(r)}
-                      className="bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold px-3.5 py-2 rounded-xl border border-sky-200 transition-colors flex items-center gap-2 shadow-xs"
+                      className="bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold px-3.5 py-2 rounded-xl border border-sky-200 transition-colors flex items-center gap-2 shadow-xs shrink-0"
                     >
-                      <i className="fas fa-file-pdf"></i> View Report
+                      <i className="fas fa-file-arrow-up"></i> {r.status === 'Reviewed' ? 'View / Edit' : 'Review'}
                     </button>
-                  </div>
-
-                  {/* Results preview table */}
-                  <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left">
-                        <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                          <tr>
-                            <th className="p-3">Test Parameter</th>
-                            <th className="p-3">Observed Value</th>
-                            <th className="p-3">Reference Range</th>
-                            <th className="p-3">Status Flag</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {Object.entries(r.results).map(([k, v]) => (
-                            <tr key={k} className={v.status === 'high' || v.status === 'low' ? 'bg-rose-50/40' : ''}>
-                              <td className="p-3 font-bold text-slate-800">{k}</td>
-                              <td className={`p-3 font-black text-sm ${v.status === 'high' ? 'text-rose-600' : v.status === 'low' ? 'text-amber-600' : 'text-emerald-700'}`}>
-                                {v.value}
-                              </td>
-                              <td className="p-3 text-slate-500 font-mono text-xs">{v.ref}</td>
-                              <td className="p-3">
-                                {v.status === 'high' && <span className="bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded text-[10px]">HIGH ↑</span>}
-                                {v.status === 'low' && <span className="bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded text-[10px]">LOW ↓</span>}
-                                {v.status === 'normal' && <span className="bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded text-[10px]">NORMAL</span>}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-900 rounded-xl p-4 text-slate-200">
-                    <p className="font-bold text-aubergine-300 text-xs mb-1 flex items-center gap-1.5">
-                      <i className="fas fa-brain"></i> AI Clinical Interpretation:
-                    </p>
-                    <p className="text-slate-300 leading-relaxed">{r.interpretation}</p>
                   </div>
                 </div>
               ))}
 
               {filteredReports.length === 0 && (
                 <div className="text-center py-12 bg-slate-50 rounded-2xl border border-slate-200">
-                  <p className="text-slate-500">No lab reports found in this category.</p>
+                  <p className="text-slate-500">No lab reports in this view.</p>
                 </div>
               )}
             </div>
@@ -1409,7 +1400,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
       </div>
 
       {/* Sub Modals */}
-      <InlineOrderLabModal isOpen={showOrderLab} onClose={() => setShowOrderLab(false)} patient={patient} onSaveLab={handleAddLab} />
+      <RequestLabReportModal isOpen={showOrderLab} onClose={() => setShowOrderLab(false)} patient={patient} onRequest={handleRequestLab} />
       <InlineRecordPaymentModal isOpen={showRecordPayment} onClose={() => setShowRecordPayment(false)} patient={patient} onSavePayment={handleAddPayment} />
       <ViewRxDocModal rx={selectedRxDoc} patient={patient} isOpen={!!selectedRxDoc} onClose={() => setSelectedRxDoc(null)} />
       <ViewLabDocModal report={selectedLabDoc} patient={patient} isOpen={!!selectedLabDoc} onClose={() => setSelectedLabDoc(null)} />

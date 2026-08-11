@@ -1,5 +1,7 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { SupabaseService } from '@/core/supabase/supabase.service';
+import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
@@ -8,15 +10,20 @@ import {
   AddEmergencyContactDto,
   AddVaccinationDto,
   CreateClinicalNoteDto,
-  CreateLabReportDto,
   CreatePrescriptionDto,
+  RequestLabReportDto,
   ReviewLabReportDto,
+  UploadLabReportDto,
 } from '@/modules/records/controllers/records.controller';
+
+const LAB_REPORTS_BUCKET = 'lab-reports';
+const ALLOWED_LAB_REPORT_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 
 @Injectable()
 export class RecordsService {
   constructor(
     private readonly supabase: SupabaseService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Doctor role alone isn't enough to read/write other people's PHI — the
@@ -88,37 +95,160 @@ export class RecordsService {
     return updated;
   }
 
-  async getLabReports(user: AuthUser) {
+  async getLabReports(user: AuthUser, patientId?: string) {
+    // Patients are always scoped to themselves. A doctor may either scope to
+    // one patient (the EMR tab's use case) or, same rule as PatientsService's
+    // "any verified doctor sees every patient" — omit patientId to get their
+    // full cross-patient review queue (Reports.jsx's use case).
+    const scopedPatientId = user.profile.role === ProfileRole.PATIENT ? user.id : patientId;
+    if (scopedPatientId) this.guardPatientAccess(user, scopedPatientId);
+    else this.requireVerifiedDoctor(user);
+
     const query = this.supabase.admin.from('lab_reports').select().order('created_at', { ascending: false });
-    if (user.profile.role === ProfileRole.PATIENT) {
-      query.eq('patient_id', user.id);
-    } else {
-      this.requireVerifiedDoctor(user);
-      // Same ownership rule as reviewLabReport: a doctor sees reports they
-      // ordered, plus legacy unassigned ones — never another doctor's.
-      query.or(`ordered_by.eq.${user.id},ordered_by.is.null`);
-    }
+    if (scopedPatientId) query.eq('patient_id', scopedPatientId);
     const { data } = await query;
     return data || [];
   }
 
-  async createLabReport(user: AuthUser, body: CreateLabReportDto) {
+  async uploadLabReport(user: AuthUser, file: Express.Multer.File, body: UploadLabReportDto) {
+    this.guardPatientAccess(user, body.patientId);
+
+    if (!ALLOWED_LAB_REPORT_TYPES.includes(file.mimetype)) {
+      throw new BadRequestException(ERROR_MESSAGES.INVALID_FILE_TYPE);
+    }
+
+    let request: any = null;
+    if (body.requestId) {
+      const { data } = await this.supabase.admin.from('lab_report_requests').select().eq('id', body.requestId).single();
+      if (!data || data.patient_id !== body.patientId) throw new NotFoundException(ERROR_MESSAGES.LAB_REPORT_REQUEST_NOT_FOUND);
+      request = data;
+    }
+
+    const testName = body.testName || request?.requested_tests;
+    if (!testName) throw new BadRequestException(ERROR_MESSAGES.BAD_REQUEST);
+
+    const ext = (file.originalname.split('.').pop() || 'pdf').toLowerCase();
+    const sanitizedBase = file.originalname.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9-_]/g, '_').slice(0, 60);
+    const path = `${body.patientId}/${randomUUID()}-${sanitizedBase}.${ext}`;
+
+    const { error: uploadError } = await this.supabase.admin.storage
+      .from(LAB_REPORTS_BUCKET)
+      .upload(path, file.buffer, { contentType: file.mimetype });
+    if (uploadError) throw new BadRequestException(uploadError.message);
+
+    const { data: report } = await this.supabase.admin.from('lab_reports').insert({
+      patient_id: body.patientId,
+      uploaded_by: user.id,
+      test_category: body.testCategory || request?.requested_tests || null,
+      test_name: testName,
+      lab_name: body.labName,
+      urgent: body.urgent ?? false,
+      status: 'Uploaded',
+      results: {},
+      file_path: path,
+      original_filename: file.originalname,
+      file_type: file.mimetype,
+      report_date: body.reportDate || null,
+      notes: body.notes || null,
+      request_id: body.requestId || null,
+    }).select().single();
+
+    if (request) {
+      await this.supabase.admin.from('lab_report_requests').update({ status: 'Fulfilled' }).eq('id', request.id);
+      this.notifications.create(request.doctor_id, {
+        type: 'lab_report_uploaded',
+        title: 'Lab report uploaded',
+        message: `A new report for "${testName}" was uploaded.`,
+        data: { labReportId: report.id, requestId: request.id },
+      }).catch(() => {});
+    }
+
+    return report;
+  }
+
+  async getSignedUrl(user: AuthUser, id: string) {
+    const { data: report } = await this.supabase.admin.from('lab_reports').select().eq('id', id).single();
+    if (!report) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
+    this.guardPatientAccess(user, report.patient_id);
+    if (!report.file_path) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
+
+    const { data, error } = await this.supabase.admin.storage.from(LAB_REPORTS_BUCKET).createSignedUrl(report.file_path, 3600);
+    if (error || !data) throw new BadRequestException(error?.message || ERROR_MESSAGES.BAD_REQUEST);
+    return { url: data.signedUrl, fileType: report.file_type, originalFilename: report.original_filename };
+  }
+
+  async deleteLabReport(user: AuthUser, id: string) {
+    const { data: report } = await this.supabase.admin.from('lab_reports').select().eq('id', id).single();
+    if (!report) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
+    if (user.profile.role !== ProfileRole.PATIENT || report.patient_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    if (report.status !== 'Uploaded') throw new ForbiddenException(ERROR_MESSAGES.LAB_REPORT_ALREADY_REVIEWED);
+
+    if (report.file_path) await this.supabase.admin.storage.from(LAB_REPORTS_BUCKET).remove([report.file_path]);
+    await this.supabase.admin.from('lab_reports').delete().eq('id', id);
+
+    if (report.request_id) {
+      await this.supabase.admin.from('lab_report_requests').update({ status: 'Pending' }).eq('id', report.request_id);
+    }
+    return { id };
+  }
+
+  async requestLabReport(user: AuthUser, body: RequestLabReportDto) {
     this.requireVerifiedDoctor(user);
 
     const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
 
-    const { data } = await this.supabase.admin.from('lab_reports').insert({
+    const { data: request } = await this.supabase.admin.from('lab_report_requests').insert({
+      doctor_id: user.id,
       patient_id: body.patientId,
-      ordered_by: user.id,
-      test_category: body.testCategory,
-      test_name: body.testName,
-      lab_name: body.labName,
+      requested_tests: body.requestedTests,
+      due_date: body.dueDate || null,
+      notes: body.notes || null,
       status: 'Pending',
-      urgent: body.urgent ?? false,
-      results: {},
     }).select().single();
-    return data;
+
+    this.notifications.create(body.patientId, {
+      type: 'lab_report_requested',
+      title: 'New report requested',
+      message: `Dr. ${user.profile.full_name} requested: ${body.requestedTests}${body.dueDate ? ` (by ${body.dueDate})` : ''}`,
+      data: { requestId: request.id },
+    }).catch(() => {});
+
+    return request;
+  }
+
+  async listLabReportRequests(user: AuthUser, patientId?: string) {
+    const query = this.supabase.admin.from('lab_report_requests').select().order('created_at', { ascending: false });
+    if (user.profile.role === ProfileRole.PATIENT) {
+      query.eq('patient_id', user.id);
+    } else {
+      this.requireVerifiedDoctor(user);
+      query.eq('doctor_id', user.id);
+      if (patientId) query.eq('patient_id', patientId);
+    }
+    const { data: requests } = await query;
+    if (!requests?.length) return [];
+
+    // Patients see who asked — resolve doctor names the same way
+    // PatientsService does for prescriptions/notes (no FK-embed join in use
+    // elsewhere in this codebase, so stay consistent with the id->name map pattern).
+    if (user.profile.role === ProfileRole.PATIENT) {
+      const doctorIds = [...new Set(requests.map(r => r.doctor_id))];
+      const { data: doctors } = await this.supabase.admin.from('profiles').select('id, full_name').in('id', doctorIds);
+      const nameById = new Map((doctors || []).map(d => [d.id, d.full_name]));
+      return requests.map(r => ({ ...r, doctor_name: nameById.get(r.doctor_id) || 'Your Doctor' }));
+    }
+    return requests;
+  }
+
+  async cancelLabReportRequest(user: AuthUser, id: string) {
+    this.requireVerifiedDoctor(user);
+    const { data: request } = await this.supabase.admin.from('lab_report_requests').select().eq('id', id).single();
+    if (!request) throw new NotFoundException(ERROR_MESSAGES.LAB_REPORT_REQUEST_NOT_FOUND);
+    if (request.doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+
+    const { data: updated } = await this.supabase.admin.from('lab_report_requests').update({ status: 'Cancelled' }).eq('id', id).select().single();
+    return updated;
   }
 
   async addClinicalNote(user: AuthUser, body: CreateClinicalNoteDto) {
@@ -136,19 +266,29 @@ export class RecordsService {
   }
 
   async reviewLabReport(user: AuthUser, id: string, body: ReviewLabReportDto) {
+    // Reports are now patient-uploaded, not doctor-ordered — there is no
+    // single "owning" doctor to restrict this to, so any verified doctor
+    // (same rule guardPatientAccess applies for every other patient) may
+    // review. Matches how getLabReports/uploadLabReport already scope access.
     this.requireVerifiedDoctor(user);
 
     const { data: report } = await this.supabase.admin.from('lab_reports').select().eq('id', id).single();
     if (!report) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
-    // Only the ordering doctor may review their own order — unassigned
-    // (legacy) reports with no ordered_by remain open to any verified doctor.
-    if (report.ordered_by && report.ordered_by !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
     const { data: updated } = await this.supabase.admin.from('lab_reports').update({
       interpretation: body.interpretation ?? report.interpretation,
       doctor_action: body.doctorAction ?? report.doctor_action,
-      status: 'Completed',
+      status: 'Reviewed',
+      reviewed_at: new Date().toISOString(),
     }).eq('id', id).select().single();
+
+    this.notifications.create(report.patient_id, {
+      type: 'lab_report_reviewed',
+      title: 'Lab report reviewed',
+      message: `Dr. ${user.profile.full_name} reviewed your "${report.test_name}" report.`,
+      data: { labReportId: report.id },
+    }).catch(() => {});
+
     return updated;
   }
 

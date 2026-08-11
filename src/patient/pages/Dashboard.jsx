@@ -142,49 +142,65 @@ function SymptomCheckerModal({ isOpen, onClose, toast }) {
 
 function LabReportsModal({ isOpen, onClose }) {
   const [reports, setReports] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!isOpen) return;
     setLoading(true);
-    apiFetch('/records/lab-reports').then(setReports).catch(() => setReports([])).finally(() => setLoading(false));
+    Promise.all([
+      apiFetch('/records/lab-reports').catch(() => []),
+      apiFetch('/records/lab-report-requests').catch(() => []),
+    ]).then(([r, req]) => {
+      setReports(r);
+      setRequests(req.filter(x => x.status === 'Pending'));
+    }).finally(() => setLoading(false));
   }, [isOpen]);
 
   const latest = reports[0];
-  const results = latest?.results && typeof latest.results === 'object' ? Object.entries(latest.results) : [];
+  const goToVault = () => { onClose(); navigate('/patient-dashboard/records'); };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={latest ? latest.test_name : 'Lab Reports'} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title="Lab Reports" size="lg">
       {loading ? (
         <p className="text-sm text-slate-400 text-center py-8"><i className="fas fa-spinner fa-spin mr-2"></i>Loading…</p>
-      ) : !latest ? (
-        <p className="text-sm text-slate-500 text-center py-8">No lab reports on file yet.</p>
       ) : (
-        <div className="space-y-3">
-          <p className="text-xs text-slate-500 mb-4">
-            {latest.lab_name || 'Lab'} • {new Date(latest.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-            {latest.status === 'Pending' && <span className="ml-2 text-amber-600 font-bold">Pending Review</span>}
-          </p>
-          {results.length === 0 ? (
-            <p className="text-xs text-slate-500">Results not uploaded yet.</p>
-          ) : results.map(([param, v]) => (
-            <div key={param} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-              <div className="flex items-center justify-between">
-                <p className="font-bold text-slate-800 text-sm">{param}</p>
-                <div className="text-right">
-                  <p className="font-black text-slate-800">{v.value ?? '—'}</p>
-                  {v.status && (
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${v.status === 'normal' ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'}`}>
-                      {v.status.toUpperCase()}
-                    </span>
-                  )}
+        <div className="space-y-4">
+          {requests.length > 0 && (
+            <div className="space-y-2">
+              {requests.map(r => (
+                <div key={r.id} className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-800 text-sm truncate">{r.requested_tests}</p>
+                    <p className="text-xs text-slate-500">Requested by Dr. {r.doctor_name}{r.due_date ? ` • Due ${new Date(r.due_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}` : ''}</p>
+                  </div>
+                  <button onClick={goToVault} className="shrink-0 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-colors">Upload</button>
                 </div>
-              </div>
+              ))}
             </div>
-          ))}
-          {latest.interpretation && (
-            <p className="text-xs text-slate-600 pt-2 border-t border-slate-100"><i className="fas fa-circle-info text-slate-500 mr-1"></i>{latest.interpretation}</p>
           )}
+
+          {!latest ? (
+            <p className="text-sm text-slate-500 text-center py-6">No lab reports on file yet.</p>
+          ) : (
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="flex items-center gap-2">
+                <p className="font-bold text-slate-800 text-sm">{latest.test_name}</p>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${latest.status === 'Reviewed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{latest.status}</span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {latest.lab_name || 'Lab'} • {new Date(latest.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </p>
+              {latest.interpretation && (
+                <p className="text-xs text-slate-600 pt-2 mt-2 border-t border-slate-100"><i className="fas fa-circle-info text-slate-500 mr-1"></i>{latest.interpretation}</p>
+              )}
+            </div>
+          )}
+
+          <button onClick={goToVault} className="w-full border border-aubergine-200 text-aubergine-700 font-bold py-2.5 rounded-xl text-sm hover:bg-aubergine-50 transition-colors">
+            View & Upload Reports
+          </button>
         </div>
       )}
     </Modal>
@@ -788,7 +804,7 @@ function PatientDashboard() {
   }, [waterCount, savedWaterGlasses, dateKey]);
 
   useEffect(() => {
-    apiFetch('/records/lab-reports').then(r => setPendingReportCount(r.filter(x => x.status === 'Pending').length)).catch(() => setPendingReportCount(0));
+    apiFetch('/records/lab-report-requests').then(r => setPendingReportCount(r.filter(x => x.status === 'Pending').length)).catch(() => setPendingReportCount(0));
   }, []);
 
   const own = patients?.[0];
@@ -886,7 +902,7 @@ function PatientDashboard() {
               <div className="w-12 h-12 bg-gradient-to-br from-sky-400 to-sky-600 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-sky-500/30 group-hover:scale-110 transition-transform"><i className="fas fa-flask text-xl"></i></div>
               <div>
                 <h3 className="font-bold text-slate-800 mb-1">Lab Reports</h3>
-                <p className="text-xs text-slate-500">View latest hormonal panels.</p>
+                <p className="text-xs text-slate-500">Upload & track your reports.</p>
                 <span className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold text-sky-600 uppercase tracking-wide group-hover:gap-2 transition-all">View Results <i className="fas fa-arrow-right"></i></span>
               </div>
             </div>

@@ -272,25 +272,60 @@ export function ClinicDataProvider({ children }) {
     }
   };
 
-  const orderLabTest = async (patientId, test) => {
+  const uploadLabReport = async (patientId, file, meta = {}) => {
     try {
-      const res = await apiFetch('/records/lab-reports', {
-        method: 'POST',
-        body: {
-          patientId,
-          testName: test.testName,
-          testCategory: test.testCategory,
-          labName: test.labName,
-          urgent: test.urgent,
-        }
-      });
-      fetchData(); // Reload patients to get the new lab report
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('patientId', patientId);
+      if (meta.testName) formData.append('testName', meta.testName);
+      if (meta.testCategory) formData.append('testCategory', meta.testCategory);
+      if (meta.labName) formData.append('labName', meta.labName);
+      if (meta.reportDate) formData.append('reportDate', meta.reportDate);
+      if (meta.notes) formData.append('notes', meta.notes);
+      if (meta.urgent) formData.append('urgent', 'true');
+      if (meta.requestId) formData.append('requestId', meta.requestId);
+
+      const res = await apiFetch('/records/lab-reports/upload', { method: 'POST', body: formData });
+      fetchData();
       return res;
     } catch (err) {
       console.error(err);
       throw err;
     }
   };
+
+  const deleteLabReport = async (id) => {
+    try {
+      const res = await apiFetch(`/records/lab-reports/${id}`, { method: 'DELETE' });
+      fetchData();
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const getLabReportUrl = (id) => apiFetch(`/records/lab-reports/${id}/url`);
+
+  const requestLabReport = async (patientId, { requestedTests, dueDate, notes } = {}) => {
+    try {
+      const res = await apiFetch('/records/lab-report-requests', {
+        method: 'POST',
+        body: { patientId, requestedTests, dueDate, notes },
+      });
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const listLabReportRequests = (patientId) => {
+    const query = patientId ? `?patientId=${encodeURIComponent(patientId)}` : '';
+    return apiFetch(`/records/lab-report-requests${query}`);
+  };
+
+  const cancelLabReportRequest = (id) => apiFetch(`/records/lab-report-requests/${id}/cancel`, { method: 'PUT' });
 
   const addClinicalNote = async (patientId, note) => {
     try {
@@ -581,7 +616,8 @@ export function ClinicDataProvider({ children }) {
   };
 
   const value = {
-    patients, updatePatient, addPatient, addRx, orderLabTest, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
+    patients, updatePatient, addPatient, addRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
+    uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, refreshPatients: fetchData,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment, refreshAppointments,
     approveRequest, rejectRequest, callNextForDoctor,
     transactions, payAppointment,

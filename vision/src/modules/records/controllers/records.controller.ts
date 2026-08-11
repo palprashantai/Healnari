@@ -1,9 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiProperty } from '@nestjs/swagger';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { ApiTags, ApiOperation, ApiParam, ApiProperty, ApiConsumes } from '@nestjs/swagger';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import { RecordsService } from '@/modules/records/services/records.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
+import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
 
@@ -25,12 +28,22 @@ export class ReviewLabReportDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() doctorAction?: string;
 }
 
-export class CreateLabReportDto {
+export class UploadLabReportDto {
   @ApiProperty() @IsUUID() patientId: string;
-  @ApiProperty({ example: 'Serum AMH' }) @IsString() testName: string;
+  @ApiProperty({ required: false, example: 'Serum AMH' }) @IsOptional() @IsString() testName?: string;
   @ApiProperty({ required: false, example: 'Hormonal' }) @IsOptional() @IsString() testCategory?: string;
   @ApiProperty({ required: false, example: 'Dr. Lal PathLabs' }) @IsOptional() @IsString() labName?: string;
   @ApiProperty({ required: false, default: false }) @IsOptional() @IsBoolean() urgent?: boolean;
+  @ApiProperty({ required: false, description: 'Date the test was actually taken (YYYY-MM-DD)' }) @IsOptional() @IsString() reportDate?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() notes?: string;
+  @ApiProperty({ required: false, description: 'Fulfills a pending lab_report_requests row' }) @IsOptional() @IsUUID() requestId?: string;
+}
+
+export class RequestLabReportDto {
+  @ApiProperty() @IsUUID() patientId: string;
+  @ApiProperty({ example: 'CBC, TSH' }) @IsString() requestedTests: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() dueDate?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() notes?: string;
 }
 
 export class CreateClinicalNoteDto {
@@ -97,26 +110,67 @@ export class RecordsController {
     return ResponseHelper.success(data, msg);
   }
 
-  @ApiOperation({ summary: "List lab reports (patient: own; doctor: ones they ordered)" })
+  @ApiOperation({ summary: "List lab reports (patient: own; doctor: must pass ?patientId=)" })
   @Get('lab-reports')
-  async getLabReports(@CurrentUser() user: AuthUser) {
-    const data = await this.recordsService.getLabReports(user);
+  async getLabReports(@CurrentUser() user: AuthUser, @Query('patientId') patientId?: string) {
+    const data = await this.recordsService.getLabReports(user, patientId);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  @ApiOperation({ summary: 'Order a lab test for a patient (doctor only)' })
-  @Post('lab-reports')
-  async createLabReport(@CurrentUser() user: AuthUser, @Body() body: CreateLabReportDto) {
-    const data = await this.recordsService.createLabReport(user, body);
-    return ResponseHelper.success(data, SUCCESS_MESSAGES.LAB_TEST_ORDERED);
+  @ApiOperation({ summary: 'Upload a lab report file (patient uploads their own; doctor may upload on a patient\'s behalf)' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } }))
+  @Post('lab-reports/upload')
+  async uploadLabReport(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File, @Body() body: UploadLabReportDto) {
+    if (!file) throw new BadRequestException(ERROR_MESSAGES.FILE_REQUIRED);
+    const data = await this.recordsService.uploadLabReport(user, file, body);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.LAB_REPORT_UPLOADED);
   }
 
-  @ApiOperation({ summary: 'Doctor records interpretation/action and marks a lab report Completed' })
+  @ApiOperation({ summary: 'Get a short-lived signed URL to view/download a lab report file' })
+  @ApiParam({ name: 'id' })
+  @Get('lab-reports/:id/url')
+  async getLabReportUrl(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const data = await this.recordsService.getSignedUrl(user, id);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({ summary: 'Doctor records review notes and marks a lab report Reviewed' })
   @ApiParam({ name: 'id' })
   @Put('lab-reports/:id/review')
   async reviewLabReport(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: ReviewLabReportDto) {
     const data = await this.recordsService.reviewLabReport(user, id, body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.LAB_REPORT_REVIEWED);
+  }
+
+  @ApiOperation({ summary: 'Patient deletes their own report before it has been reviewed' })
+  @ApiParam({ name: 'id' })
+  @Delete('lab-reports/:id')
+  async deleteLabReport(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const data = await this.recordsService.deleteLabReport(user, id);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.LAB_REPORT_DELETED);
+  }
+
+  @ApiOperation({ summary: 'Doctor requests a specific report from a patient' })
+  @Post('lab-report-requests')
+  async requestLabReport(@CurrentUser() user: AuthUser, @Body() body: RequestLabReportDto) {
+    const data = await this.recordsService.requestLabReport(user, body);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.LAB_REPORT_REQUESTED);
+  }
+
+  @ApiOperation({ summary: "List lab report requests (patient: own; doctor: ones they made, optionally ?patientId=)" })
+  @Get('lab-report-requests')
+  async listLabReportRequests(@CurrentUser() user: AuthUser, @Query('patientId') patientId?: string) {
+    const data = await this.recordsService.listLabReportRequests(user, patientId);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({ summary: 'Doctor cancels a report request they made' })
+  @ApiParam({ name: 'id' })
+  @Put('lab-report-requests/:id/cancel')
+  async cancelLabReportRequest(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const data = await this.recordsService.cancelLabReportRequest(user, id);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.LAB_REPORT_REQUEST_CANCELLED);
   }
 
   @ApiOperation({ summary: "Add a general clinical/chart note for a patient (doctor only, not tied to a specific appointment)" })

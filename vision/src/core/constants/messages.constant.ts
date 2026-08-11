@@ -55,7 +55,10 @@ export const SUCCESS_MESSAGES = {
 
   // Records vault
   LAB_REPORT_REVIEWED: 'Lab report reviewed.',
-  LAB_TEST_ORDERED: 'Lab test ordered.',
+  LAB_REPORT_UPLOADED: 'Lab report uploaded successfully.',
+  LAB_REPORT_DELETED: 'Lab report removed.',
+  LAB_REPORT_REQUESTED: 'Report request sent to patient.',
+  LAB_REPORT_REQUEST_CANCELLED: 'Report request cancelled.',
   DOCUMENT_UPLOADED: 'Document added to records vault.',
   DOCUMENT_DELETED: 'Document removed from records vault.',
   VACCINATION_ADDED: 'Vaccination record added.',

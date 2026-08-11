@@ -80,7 +80,7 @@ const LAB_OPTIONS = ['Hormonal Panel (LH, FSH, AMH)', 'Full Thyroid Profile (TSH
 
 function ActiveCallUI({ session, onEnd, onDeclined }) {
   const toast = useToast();
-  const { addRx, orderLabTest } = useClinicData();
+  const { addRx, requestLabReport } = useClinicData();
   const { user } = useAuth();
   const { callDeclinedId, clearCallDeclined } = useNotifications() || {};
   const call = useWebRTCCall({ appointmentId: session.id, active: true });
@@ -127,11 +127,11 @@ function ActiveCallUI({ session, onEnd, onDeclined }) {
     if (selectedLabs.length === 0) { toast('Select at least one test.', 'error'); return; }
     setOrderingLabs(true);
     try {
-      await Promise.all(selectedLabs.map(testName => orderLabTest(session.patientId, { testName, testCategory: 'Hormonal' })));
-      toast(`${selectedLabs.length} test(s) ordered.`, 'success');
+      await requestLabReport(session.patientId, { requestedTests: selectedLabs.join(', ') });
+      toast(`Report request sent — patient will be notified to upload ${selectedLabs.length} test(s).`, 'success');
       setSelectedLabs([]);
     } catch (err) {
-      toast(err.message || 'Failed to order lab tests', 'error');
+      toast(err.message || 'Failed to request lab report', 'error');
     } finally {
       setOrderingLabs(false);
     }
@@ -277,7 +277,7 @@ function ActiveCallUI({ session, onEnd, onDeclined }) {
             Instant E-Rx
           </button>
           <button onClick={() => setActiveTab('lab')} className={`pb-2 text-xs font-bold border-b-2 transition-all ${activeTab === 'lab' ? 'border-aubergine-400 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
-            Order Labs
+            Request Labs
           </button>
         </div>
 
@@ -324,7 +324,7 @@ function ActiveCallUI({ session, onEnd, onDeclined }) {
 
         {activeTab === 'lab' && (
           <div className="flex-1 space-y-3 text-xs">
-            <p className="text-slate-500">Order Diagnostic Tests:</p>
+            <p className="text-slate-500">Request the patient to upload these reports from their lab:</p>
             <div className="space-y-1.5">
               {LAB_OPTIONS.map(lab => (
                 <label key={lab} className="flex items-center gap-2 p-2 bg-slate-950 rounded-lg border border-slate-800 cursor-pointer text-slate-300">
@@ -335,7 +335,7 @@ function ActiveCallUI({ session, onEnd, onDeclined }) {
               ))}
             </div>
             <button onClick={submitLabOrder} disabled={orderingLabs} className="w-full bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs transition-colors">
-              {orderingLabs ? 'Ordering…' : 'Order Selected Tests'}
+              {orderingLabs ? 'Sending…' : 'Request Selected Tests'}
             </button>
           </div>
         )}
