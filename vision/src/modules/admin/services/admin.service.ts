@@ -837,7 +837,15 @@ export class AdminService {
   async getConsultationRequests() {
     try {
       const { data } = await this.supabase.admin.from('consultation_requests').select().order('created_at', { ascending: false });
-      return data || [];
+      const requests = data || [];
+
+      const doctorIds = [...new Set(requests.map(r => r.doctor_id).filter(Boolean))];
+      const { data: doctors } = doctorIds.length
+        ? await this.supabase.admin.from('profiles').select('id, full_name').in('id', doctorIds)
+        : { data: [] as { id: string; full_name: string }[] };
+      const doctorNameById = new Map((doctors || []).map(d => [d.id, d.full_name]));
+
+      return requests.map(r => ({ ...r, doctor_name: r.doctor_id ? doctorNameById.get(r.doctor_id) || null : null }));
     } catch (error) {
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
     }

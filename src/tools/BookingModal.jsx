@@ -5,8 +5,8 @@ import { todayLocalStr } from '../lib/dateUtils.js';
 import { apiFetch } from '../lib/apiClient.js';
 
 const STEP_FIELDS = [
-  ['specialty', 'concern'],
-  ['name', 'age', 'mobile'],
+  ['doctorId', 'concern'],
+  ['name', 'email', 'age', 'mobile'],
   ['date', 'time'],
 ];
 
@@ -14,33 +14,39 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
+    email: '',
     age: '',
     mobile: '',
-    specialty: selectedDoc || '',
+    doctorId: '',
     concern: '',
     date: '',
     time: ''
   });
 
+  const [doctors, setDoctors] = useState([]);
+  const [loadingDoctors, setLoadingDoctors] = useState(true);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
+  // selectedDoc, when set (e.g. from the symptom checker), is a recommended
+  // *specialty* — used only to pre-sort/hint the real doctor list below, not
+  // a specific doctor id (the visitor still picks a real, verified doctor).
   useEffect(() => {
-    if (selectedDoc) {
-      setFormData((prev) => ({ ...prev, specialty: selectedDoc }));
-    }
+    apiFetch('/doctors/search', { skipAuth: true })
+      .then(list => {
+        setDoctors(list || []);
+        if (selectedDoc) {
+          const match = (list || []).find(d => (d.specialty || '').toLowerCase().includes(selectedDoc.toLowerCase()));
+          if (match) setFormData(prev => ({ ...prev, doctorId: match.id }));
+        }
+      })
+      .catch(() => setDoctors([]))
+      .finally(() => setLoadingDoctors(false));
   }, [selectedDoc]);
 
   // Set the minimum selectable date to today's date
   const todayStr = todayLocalStr();
-
-  const specialtyList = [
-    'Gynaecologist',
-    'Endocrinologist',
-    'Dermatologist',
-    'General Physician',
-  ];
 
   const concernsList = [
     'PCOS / PCOD',
@@ -61,9 +67,10 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
 
   const FIELD_VALIDATORS = {
     name: () => (!formData.name.trim() ? 'Full name is required' : null),
+    email: () => (!formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) ? 'Enter a valid email address' : null),
     age: () => (!formData.age || formData.age < 12 || formData.age > 100 ? 'Enter a valid age (12-100)' : null),
     mobile: () => (!formData.mobile.match(/^[0-9]{10}$/) ? 'Enter a valid 10-digit mobile number' : null),
-    specialty: () => (!formData.specialty ? 'Please select a specialty' : null),
+    doctorId: () => (!formData.doctorId ? 'Please select a doctor' : null),
     concern: () => (!formData.concern ? 'Please select your primary concern' : null),
     date: () => (!formData.date ? 'Select an appointment date' : null),
     time: () => (!formData.time ? 'Select an appointment slot' : null),
@@ -87,11 +94,18 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
     }
   };
 
+  const selectDoctor = (id) => {
+    setFormData((prev) => ({ ...prev, doctorId: id }));
+    if (errors.doctorId) setErrors((prev) => ({ ...prev, doctorId: null }));
+  };
+
   const goNext = () => {
     if (validateFields(STEP_FIELDS[step - 1])) setStep((s) => s + 1);
   };
 
   const goBack = () => setStep((s) => s - 1);
+
+  const selectedDoctor = doctors.find(d => d.id === formData.doctorId);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -112,19 +126,21 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
         skipAuth: true,
         body: {
           name: formData.name,
+          email: formData.email,
           age: Number(formData.age),
           mobile: formData.mobile,
           concern: formData.concern,
-          specialtyRecommendation: formData.specialty,
+          doctorId: formData.doctorId,
           preferredDate: formData.date,
           preferredTime: formData.time,
         },
       });
       markLeadCaptured();
       onSuccess({
-        specialty: formData.specialty,
+        doctor: selectedDoctor?.full_name ? `Dr. ${selectedDoctor.full_name}` : 'your doctor',
         slot: `${formattedDate} at ${formData.time}`,
-        name: formData.name
+        name: formData.name,
+        email: formData.email,
       });
     } catch (err) {
       setSubmitError(err.message || 'Something went wrong. Please try again.');
@@ -145,7 +161,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
     };
   }, [onClose]);
 
-  const stepLabels = ['Your Concern', 'Your Details', 'Schedule'];
+  const stepLabels = ['Choose Doctor', 'Your Details', 'Schedule'];
 
   return (
     <div
@@ -192,24 +208,34 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
 
           {step === 1 && (
             <>
-              {/* Preferred Specialty */}
+              {/* Choose Doctor */}
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
-                  Preferred Specialty *
+                  Choose Your Doctor *
                 </label>
-                <select
-                  id="specialty"
-                  required
-                  value={formData.specialty}
-                  onChange={handleInputChange}
-                  className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white ${errors.specialty ? 'border-red-400' : 'border-slate-200'
-                    }`}
-                >
-                  <option value="" disabled>Choose a specialty</option>
-                  {specialtyList.map(s => <option key={s}>{s}</option>)}
-                </select>
-                {errors.specialty && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.specialty}</p>}
-                <p className="text-[10px] text-slate-400 mt-1">Our care team will match you with an available specialist and confirm your appointment by phone.</p>
+                {loadingDoctors ? (
+                  <div className="text-center py-6 text-sm text-slate-400"><i className="fas fa-spinner fa-spin mr-2"></i>Loading doctors…</div>
+                ) : doctors.length === 0 ? (
+                  <p className="text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    No doctors are available for booking right now. Please check back soon.
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-52 overflow-y-auto pr-0.5">
+                    {doctors.map(d => (
+                      <button type="button" key={d.id} onClick={() => selectDoctor(d.id)}
+                        className={`w-full text-left border rounded-xl p-3 flex items-center gap-3 transition-all ${formData.doctorId === d.id ? 'border-brand-500 bg-brand-50/40 ring-1 ring-brand-200' : 'border-slate-200 hover:border-brand-300'}`}>
+                        <div className="w-9 h-9 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-black text-xs flex-shrink-0">
+                          {(d.full_name || 'D').charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-800 text-sm truncate">Dr. {d.full_name}</p>
+                          <p className="text-xs text-slate-500 truncate">{d.specialty || 'General Physician'}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {errors.doctorId && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.doctorId}</p>}
               </div>
 
               {/* Primary Concern */}
@@ -231,8 +257,8 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                 {errors.concern && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.concern}</p>}
               </div>
 
-              <button type="button" onClick={goNext}
-                className="w-full bg-brand-700 hover:bg-brand-800 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-100 transition-all btn-interactive flex items-center justify-center gap-2 text-base">
+              <button type="button" onClick={goNext} disabled={doctors.length === 0}
+                className="w-full bg-brand-700 hover:bg-brand-800 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-100 transition-all btn-interactive flex items-center justify-center gap-2 text-base">
                 Continue <i className="fas fa-arrow-right text-sm"></i>
               </button>
             </>
@@ -256,6 +282,25 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                     }`}
                 />
                 {errors.name && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.name}</p>}
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  required
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="you@example.com"
+                  className={`w-full border rounded-xl p-3 text-sm transition-all focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.email ? 'border-red-400 ring-2 ring-red-100' : 'border-slate-200'
+                    }`}
+                />
+                {errors.email && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.email}</p>}
+                <p className="text-[10px] text-slate-400 mt-1">Once your doctor confirms, we'll create your HealNari account and email your login details here.</p>
               </div>
 
               {/* Age & Mobile */}
@@ -349,6 +394,12 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                   {errors.time && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.time}</p>}
                 </div>
               </div>
+
+              {selectedDoctor && (
+                <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                  This request goes directly to <strong>Dr. {selectedDoctor.full_name}</strong> for approval.
+                </p>
+              )}
 
               {submitError && (
                 <p className="text-red-500 text-xs font-bold text-center">{submitError}</p>

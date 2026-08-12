@@ -36,10 +36,10 @@ function SuccessModal({ details, onClose }) {
         {/* Heading */}
         <div className="space-y-1.5">
           <h3 className="text-2xl font-black text-slate-800 font-display">
-            Request Received!
+            Request Sent!
           </h3>
           <p className="text-slate-400 text-xs md:text-sm font-semibold max-w-xs mx-auto">
-            Our care team will call you shortly to confirm your specialist and appointment slot.
+            {details.doctor} needs to confirm your slot. Once approved, we'll email <strong>{details.email}</strong> with your HealNari account login.
           </p>
         </div>
 
@@ -51,8 +51,8 @@ function SuccessModal({ details, onClose }) {
           </div>
           <div className="h-px bg-slate-200/60"></div>
           <div className="flex justify-between items-center text-xs font-semibold">
-            <span className="text-slate-400 uppercase tracking-wider">Preferred Specialty</span>
-            <span className="text-brand-700 font-bold">{details.specialty}</span>
+            <span className="text-slate-400 uppercase tracking-wider">Doctor</span>
+            <span className="text-brand-700 font-bold">{details.doctor}</span>
           </div>
           <div className="h-px bg-slate-200/60"></div>
           <div className="flex justify-between items-center text-xs font-semibold">
@@ -71,7 +71,7 @@ function SuccessModal({ details, onClose }) {
           </button>
 
           <div className="flex justify-center gap-4 text-[10px] font-bold text-slate-400">
-            <span><i className="fas fa-phone text-brand-500 mr-1"></i> We'll call to confirm</span>
+            <span><i className="fas fa-envelope text-brand-500 mr-1"></i> Login sent by email</span>
             <span><i className="fas fa-lock text-brand-500 mr-1"></i> Private & Confidential</span>
           </div>
         </div>

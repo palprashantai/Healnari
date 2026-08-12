@@ -61,7 +61,7 @@ function AdminLeads() {
                 <tr className="border-b border-slate-100 text-xs text-slate-500 uppercase tracking-wider bg-slate-50">
                   <th className="px-5 py-3 font-semibold">Name &amp; Contact</th>
                   <th className="px-5 py-3 font-semibold">Concern</th>
-                  <th className="px-5 py-3 font-semibold">Recommended</th>
+                  <th className="px-5 py-3 font-semibold">Doctor Selected</th>
                   <th className="px-5 py-3 font-semibold">Preferred</th>
                   <th className="px-5 py-3 font-semibold">Received</th>
                   <th className="px-5 py-3 font-semibold">Status</th>
@@ -77,9 +77,10 @@ function AdminLeads() {
                     <td className="px-5 py-4">
                       <p className="font-bold text-slate-800">{r.name}{r.age ? `, ${r.age}` : ''}</p>
                       <p className="text-xs text-slate-500">{r.mobile}</p>
+                      <p className="text-xs text-slate-400">{r.email}</p>
                     </td>
                     <td className="px-5 py-4 text-slate-600">{r.concern || '—'}</td>
-                    <td className="px-5 py-4 text-slate-600">{r.specialty_recommendation || '—'}</td>
+                    <td className="px-5 py-4 text-slate-600">{r.doctor_name ? `Dr. ${r.doctor_name}` : (r.specialty_recommendation || '—')}</td>
                     <td className="px-5 py-4 text-xs text-slate-500">{r.preferred_date || '—'} {r.preferred_time || ''}</td>
                     <td className="px-5 py-4 text-xs text-slate-500">{r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : ''}</td>
                     <td className="px-5 py-4">

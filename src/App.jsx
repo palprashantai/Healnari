@@ -31,6 +31,7 @@ const PatientProfile = lazy(() => import('./patient/pages/Profile.jsx'));
 const DoctorDashboard = lazy(() => import('./doctor/pages/Dashboard.jsx'));
 const DoctorAnalytics = lazy(() => import('./doctor/pages/Analytics.jsx'));
 const DoctorAppointments = lazy(() => import('./doctor/pages/Appointments.jsx'));
+const DoctorPatientRequests = lazy(() => import('./doctor/pages/PatientRequests.jsx'));
 const DoctorPatients = lazy(() => import('./doctor/pages/Patients.jsx'));
 const DoctorPrescriptions = lazy(() => import('./doctor/pages/Prescriptions.jsx'));
 const DoctorTelemedicine = lazy(() => import('./doctor/pages/Telemedicine.jsx'));
@@ -160,6 +161,7 @@ function App() {
                 <Route index element={<DoctorDashboard />} />
                 <Route path="analytics" element={<DoctorAnalytics />} />
                 <Route path="appointments" element={<DoctorAppointments />} />
+                <Route path="requests" element={<DoctorPatientRequests />} />
                 <Route path="patients" element={<DoctorPatients />} />
                 <Route path="prescriptions" element={<DoctorPrescriptions />} />
                 <Route path="telemedicine" element={<DoctorTelemedicine />} />
