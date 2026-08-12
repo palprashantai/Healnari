@@ -2,6 +2,7 @@ import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logge
 import { Request, Response } from 'express';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
+import { captureException } from '@/core/monitoring/sentry';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -30,11 +31,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
         errorDetails = exception.name;
       }
     } else if (exception instanceof Error) {
-      // Unhandled exceptions (e.g. TypeError, ReferenceError)
+      // Unhandled exceptions (e.g. TypeError, ReferenceError) — the ones
+      // that actually need someone paged, not just logged to stdout.
       this.logger.error(`Unhandled Exception: ${exception.message}`, exception.stack);
+      captureException(exception);
       message = ERROR_MESSAGES.INTERNAL_SERVER_ERROR;
-      // Provide stack trace in dev mode, hide in production
-      errorDetails = process.env.NODE_ENV !== 'production' ? exception.stack : 'Internal server error';
+      // Safe-by-default (AUDIT_REPORT.md OPS-6): only reveal a stack trace
+      // when NODE_ENV is explicitly 'development' — an unset NODE_ENV on a
+      // misconfigured deploy host now hides internals instead of leaking them.
+      errorDetails = process.env.NODE_ENV === 'development' ? exception.stack : 'Internal server error';
     } else {
       this.logger.error('Unknown Exception', exception);
     }

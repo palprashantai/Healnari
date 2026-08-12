@@ -1,14 +1,34 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import { PaymentModal } from '../../components/PaymentModal.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
+import { CONCERN_OPTIONS, findClosestSpecialty } from '../../lib/specialtyMatch.js';
 
-const PAYMENT_METHODS = ['UPI', 'Card', 'Net Banking', 'Wallet'];
+/* ─── "Not sure which specialist?" Modal ─────── */
+function ConcernPickerModal({ isOpen, onClose, specialties, onPick }) {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Not Sure Which Specialist?" size="sm">
+      <div className="space-y-3">
+        <p className="text-sm text-slate-500">Tell us your main concern and we'll point you to the right specialist.</p>
+        <div className="grid gap-2">
+          {CONCERN_OPTIONS.map(c => (
+            <button key={c.label} onClick={() => onPick(c, specialties)}
+              className="w-full text-left border border-slate-200 rounded-xl p-3 hover:border-aubergine-300 hover:bg-aubergine-50/30 transition-colors flex items-center justify-between">
+              <span className="font-bold text-sm text-slate-700">{c.label}</span>
+              <span className="text-[10px] font-bold text-aubergine-600 uppercase tracking-wide">{c.specialty}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 /* ─── Booking Modal ──────────────────────────── */
-function BookingModal({ doc, isOpen, onClose, toast, addAppointment }) {
+function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow }) {
   const [step, setStep] = useState(1);
   const [type, setType] = useState('Video Consult');
   const [date, setDate] = useState(todayLocalStr);
@@ -16,7 +36,6 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment }) {
   const [slots, setSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [notes, setNotes] = useState('');
-  const [method, setMethod] = useState('UPI');
   const [booking, setBooking] = useState(false);
   const [bookedApt, setBookedApt] = useState(null);
 
@@ -32,27 +51,13 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment }) {
 
   const confirm = async () => {
     setBooking(true);
-    // Booking and payment are two separate calls — if payment fails after the
-    // appointment was already created, the appointment still exists (status
-    // Requested). Treating that as one failure would tell the patient
-    // "booking failed" when retrying would actually create a duplicate.
-    let apt;
     try {
-      apt = await addAppointment({ doctorId: doc.id, type, date, time: slot, reason: notes });
-    } catch (err) {
-      toast(err.message || 'Failed to book appointment. Please try again.', 'error');
-      setBooking(false);
-      return;
-    }
-    try {
-      await apiFetch('/billing/pay', { method: 'POST', body: { appointmentId: apt.id, method } });
+      const apt = await addAppointment({ doctorId: doc.id, type, date, time: slot, reason: notes });
       setBookedApt(apt);
       setStep(3);
       toast(`Appointment booked with ${doc?.name}!`, 'success');
     } catch (err) {
-      setBookedApt(apt);
-      setStep(3);
-      toast('Appointment booked, but payment could not be processed. You can pay from My Appointments.', 'error');
+      toast(err.message || 'Failed to book appointment. Please try again.', 'error');
     } finally {
       setBooking(false);
     }
@@ -85,10 +90,12 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment }) {
             <span className="font-black text-aubergine-800">₹{doc.fee}</span>
           </div>
 
-          {/* Type */}
+          {/* Type — a button group, not a single input, so this is a group
+              label (role="group") rather than a <label htmlFor> pointing at
+              nothing (AUDIT_REPORT.md FE-2). */}
           <div>
-            <label className="text-xs font-bold text-slate-500 mb-1.5 block">Consult Type</label>
-            <div className="flex gap-2">
+            <p className="text-xs font-bold text-slate-500 mb-1.5 block" id="consult-type-label">Consult Type</p>
+            <div className="flex gap-2" role="group" aria-labelledby="consult-type-label">
               {['Video Consult', 'Clinic Visit'].map(t => (
                 <button key={t} onClick={() => setType(t)}
                   className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${type === t ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
@@ -100,20 +107,20 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment }) {
 
           {/* Date */}
           <div>
-            <label className="text-xs font-bold text-slate-500 mb-1.5 block">Date</label>
-            <input type="date" value={date} min={todayLocalStr()} onChange={e => setDate(e.target.value)}
+            <label htmlFor="booking-date" className="text-xs font-bold text-slate-500 mb-1.5 block">Date</label>
+            <input id="booking-date" type="date" value={date} min={todayLocalStr()} onChange={e => setDate(e.target.value)}
               className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
           </div>
 
-          {/* Slots */}
+          {/* Slots — same as Consult Type above, a group of buttons. */}
           <div>
-            <label className="text-xs font-bold text-slate-500 mb-1.5 block">Available Slots</label>
+            <p className="text-xs font-bold text-slate-500 mb-1.5 block" id="available-slots-label">Available Slots</p>
             {slotsLoading ? (
               <p className="text-xs text-slate-400 py-2"><i className="fas fa-spinner fa-spin mr-1.5"></i>Loading slots…</p>
             ) : slots.length === 0 ? (
               <p className="text-xs text-slate-500 py-2">No slots left for this date — try another date.</p>
             ) : (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2" role="group" aria-labelledby="available-slots-label">
                 {slots.map(s => (
                   <button key={s} onClick={() => setSlot(s)}
                     className={`py-2.5 px-3 rounded-xl text-xs font-bold border transition-all ${slot === s ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-aubergine-300'}`}>
@@ -126,8 +133,8 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment }) {
 
           {/* Notes */}
           <div>
-            <label className="text-xs font-bold text-slate-500 mb-1.5 block">Consultation Notes (optional)</label>
-            <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)}
+            <label htmlFor="booking-notes" className="text-xs font-bold text-slate-500 mb-1.5 block">Consultation Notes (optional)</label>
+            <textarea id="booking-notes" rows={2} value={notes} onChange={e => setNotes(e.target.value)}
               placeholder="Describe your concerns briefly..."
               className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-none" />
           </div>
@@ -152,22 +159,10 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment }) {
             </p>
           </div>
 
-          <div>
-            <label className="text-xs font-bold text-slate-500 mb-1.5 block">Payment Method</label>
-            <div className="grid grid-cols-2 gap-2">
-              {PAYMENT_METHODS.map(m => (
-                <button key={m} onClick={() => setMethod(m)}
-                  className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${method === m ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
-                  {m}
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className="flex gap-3">
             <button onClick={() => setStep(1)} disabled={booking} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors disabled:opacity-40">← Back</button>
             <button onClick={confirm} disabled={booking} className="flex-1 bg-emerald-600 disabled:opacity-40 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-              {booking ? <i className="fas fa-spinner fa-spin text-xs"></i> : <i className="fas fa-lock text-xs"></i>} {booking ? 'Booking…' : 'Pay & Book'}
+              {booking ? <i className="fas fa-spinner fa-spin text-xs"></i> : <i className="fas fa-calendar-check text-xs"></i>} {booking ? 'Booking…' : 'Confirm Booking'}
             </button>
           </div>
         </div>
@@ -180,15 +175,22 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment }) {
           </div>
           <h4 className="font-black text-slate-800 text-xl">Appointment Booked!</h4>
           <p className="text-sm text-slate-500 leading-relaxed">
-            Your consultation has been confirmed and payment recorded.
+            Your consultation is confirmed. Pay now to secure your slot, or pay later from My Appointments.
           </p>
           <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-xs text-left space-y-1.5">
             <div className="flex justify-between"><span className="text-slate-500">With</span><span className="font-bold">{doc.name}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Date</span><span className="font-bold">{date}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Slot</span><span className="font-bold">{slot}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Type</span><span className="font-bold">{type}</span></div>
+            <div className="flex justify-between border-t border-emerald-100 pt-1.5 mt-1.5"><span className="text-slate-500">Fee</span><span className="font-black text-aubergine-800">₹{doc.fee}</span></div>
           </div>
-          <button onClick={reset} className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">Done</button>
+          <div className="flex gap-3">
+            <button onClick={reset} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors">Pay Later</button>
+            <button onClick={() => { onPayNow({ id: bookedApt.id, fee: doc.fee, doctorName: doc.name }); reset(); }}
+              className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+              <i className="fas fa-lock text-xs"></i> Pay Now
+            </button>
+          </div>
         </div>
       )}
     </Modal>
@@ -248,12 +250,25 @@ function DoctorCard({ doc, onBook, onFavorite, favorites }) {
 /* ─── Main Component ─────────────────────────── */
 function PatientDiscovery() {
   const toast = useToast();
-  const { addAppointment, favorites, toggleFavorite } = useClinicData();
+  const { addAppointment, favorites, toggleFavorite, syncPayment } = useClinicData();
   const [rawDoctors, setRawDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [search, setSearch] = useState('');
   const [specialty, setSpecialty] = useState('All');
+  const [showConcernPicker, setShowConcernPicker] = useState(false);
+  const [payTarget, setPayTarget] = useState(null);
+  const [showPayModal, setShowPayModal] = useState(false);
+
+  const handlePayNow = (apt) => {
+    setPayTarget(apt);
+    setShowPayModal(true);
+  };
+
+  const handlePaid = (payment) => {
+    syncPayment(payment);
+    toast('Payment successful!', 'success');
+  };
 
   useEffect(() => {
     apiFetch('/doctors/search')
@@ -280,6 +295,18 @@ function PatientDiscovery() {
       toast(wasFav ? 'Removed from favourites.' : 'Added to favourites!', 'info');
     } catch (err) {
       toast(err.message || 'Failed to update favourites.', 'error');
+    }
+  };
+
+  const handlePickConcern = (concern, availableSpecialties) => {
+    const match = findClosestSpecialty(concern.specialty, availableSpecialties.filter(s => s !== 'All'));
+    setShowConcernPicker(false);
+    if (match) {
+      setSpecialty(match);
+      toast(`Showing ${match} specialists for "${concern.label}".`, 'success');
+    } else {
+      setSpecialty('All');
+      toast(`We recommend a ${concern.specialty} — none are registered yet, showing all specialists.`, 'info');
     }
   };
 
@@ -310,6 +337,11 @@ function PatientDiscovery() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or specialty..."
             className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50" />
         </div>
+
+        <button onClick={() => setShowConcernPicker(true)}
+          className="px-3.5 py-2.5 rounded-xl text-xs font-bold border border-aubergine-200 bg-aubergine-50 text-aubergine-700 hover:bg-aubergine-100 transition-colors flex items-center gap-1.5 whitespace-nowrap">
+          <i className="fas fa-compass"></i> Not sure which specialist?
+        </button>
 
         <div className="flex gap-1.5 flex-wrap">
           {specialties.map(s => (
@@ -349,7 +381,18 @@ function PatientDiscovery() {
       </div>
 
       {/* Booking Modal */}
-      <BookingModal doc={selectedDoc} isOpen={!!selectedDoc} onClose={() => setSelectedDoc(null)} toast={toast} addAppointment={addAppointment} />
+      <BookingModal doc={selectedDoc} isOpen={!!selectedDoc} onClose={() => setSelectedDoc(null)} toast={toast} addAppointment={addAppointment} onPayNow={handlePayNow} />
+
+      <PaymentModal
+        isOpen={showPayModal}
+        onClose={() => setShowPayModal(false)}
+        appointmentId={payTarget?.id}
+        amount={payTarget?.fee ?? 0}
+        description={payTarget ? `Consultation — ${payTarget.doctorName}` : ''}
+        onPaid={handlePaid}
+      />
+
+      <ConcernPickerModal isOpen={showConcernPicker} onClose={() => setShowConcernPicker(false)} specialties={specialties} onPick={handlePickConcern} />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { EmailService } from '@/core/email/email.service';
@@ -110,7 +111,7 @@ export class LeadsService {
         }
         patientId = existingProfile.id;
       } else {
-        generatedPassword = Math.random().toString(36).slice(2, 10) + 'A1!';
+        generatedPassword = randomBytes(9).toString('base64url') + 'A1!';
         const { data: created, error } = await this.supabase.admin.auth.admin.createUser({
           email: request.email,
           password: generatedPassword,

@@ -21,7 +21,11 @@ export const NOTIFICATION_STYLE = {
   appointment_approved:  { icon: 'fa-calendar-check', color: 'text-aubergine-600 bg-aubergine-50' },
   appointment_cancelled: { icon: 'fa-calendar-xmark', color: 'text-rose-600 bg-rose-50' },
   appointment_called:    { icon: 'fa-bell', color: 'text-emerald-600 bg-emerald-50' },
+  appointment_delayed:   { icon: 'fa-clock', color: 'text-amber-600 bg-amber-50' },
   broadcast:              { icon: 'fa-bullhorn', color: 'text-sky-600 bg-sky-50' },
+  payment_success:        { icon: 'fa-circle-check', color: 'text-emerald-600 bg-emerald-50' },
+  payment_received:       { icon: 'fa-hand-holding-dollar', color: 'text-emerald-600 bg-emerald-50' },
+  refund_processed:       { icon: 'fa-rotate-left', color: 'text-sky-600 bg-sky-50' },
 };
 export const DEFAULT_NOTIFICATION_STYLE = { icon: 'fa-bell', color: 'text-slate-600 bg-slate-100' };
 

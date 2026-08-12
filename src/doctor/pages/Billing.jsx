@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { Modal } from '../../components/Modal.jsx';
-import { apiFetch } from '../../lib/apiClient.js';
+import { apiFetch, API_URL, getTokens } from '../../lib/apiClient.js';
 
 const STATUS_STYLE = {
   settled: 'bg-emerald-50 text-emerald-700 border-emerald-100',
   pending: 'bg-amber-50 text-amber-700 border-amber-100',
   refunded: 'bg-rose-50 text-rose-700 border-rose-100',
+  'refund pending': 'bg-sky-50 text-sky-700 border-sky-100',
 };
 
 const PAYMENT_STATUS_TO_DISPLAY = {
@@ -14,6 +16,8 @@ const PAYMENT_STATUS_TO_DISPLAY = {
   Pending: 'pending',
   Refunded: 'refunded',
   'Insurance Claimed': 'settled',
+  'Refund Pending': 'refund pending',
+  Failed: 'refunded',
 };
 
 /* ─── Payout Modal ───────────────────────────── */
@@ -39,12 +43,12 @@ function PayoutModal({ isOpen, onClose, onRequest, available, toast }) {
       {step === 1 ? (
         <div className="space-y-4">
           <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-4 text-center">
-            <p className="text-xs text-slate-500">Settled this month</p>
+            <p className="text-xs text-slate-500">Available Balance</p>
             <p className="text-3xl font-black text-aubergine-800">₹{Number(available || 0).toLocaleString()}</p>
           </div>
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1.5 block">Payout Amount</label>
-            <input value={amount} onChange={e => setAmount(e.target.value)} type="number"
+            <input value={amount} onChange={e => setAmount(e.target.value)} type="number" min="0" max={available || 0}
               className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
           </div>
           <div>
@@ -73,38 +77,29 @@ function PayoutModal({ isOpen, onClose, onRequest, available, toast }) {
 }
 
 /* ─── Invoice Modal ──────────────────────────── */
-// No PDF-generation service on the backend — "download" opens a print-formatted
-// window and triggers the browser's native print dialog, where "Save as PDF"
-// is a standard destination. That's a real download, not a decorative button.
-function downloadInvoicePdf(txn) {
-  const win = window.open('', '_blank', 'width=480,height=640');
-  if (!win) return;
-  win.document.write(`
-    <!doctype html><html><head><title>Invoice ${txn.txn_ref || txn.id}</title>
-    <style>
-      body { font-family: Georgia, serif; padding: 32px; color: #1e293b; }
-      h1 { font-size: 20px; margin: 0; }
-      .muted { color: #64748b; font-size: 12px; }
-      .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
-      .total { border-top: 1px solid #cbd5e1; margin-top: 8px; padding-top: 10px; font-weight: bold; font-size: 16px; }
-      .header { display: flex; justify-content: space-between; border-bottom: 1px solid #cbd5e1; padding-bottom: 12px; margin-bottom: 12px; }
-    </style></head><body>
-    <div class="header">
-      <div><h1>HealNari</h1><p class="muted">Invoice</p></div>
-      <div class="muted" style="text-align:right"><strong>${txn.txn_ref || txn.id}</strong><br/>${txn.date}</div>
-    </div>
-    <div class="row"><span class="muted">Patient</span><strong>${txn.patient}</strong></div>
-    <div class="row"><span class="muted">Service</span><strong>${txn.type}</strong></div>
-    <div class="row"><span class="muted">Payment</span><strong>${txn.method}</strong></div>
-    <div class="row total"><span>Total</span><span>₹${txn.amount}</span></div>
-    </body></html>
-  `);
-  win.document.close();
-  win.focus();
-  win.print();
+// Real server-generated PDF (same invoice.service.ts the patient-side
+// download and the post-payment receipt email both use) — fetched directly
+// since apiFetch JSON-parses every response body and this one is binary.
+async function downloadInvoicePdf(txn, toast) {
+  try {
+    const tokens = getTokens();
+    const res = await fetch(`${API_URL}/billing/transactions/${txn.id}/invoice`, {
+      headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
+    });
+    if (!res.ok) throw new Error('Could not generate the invoice.');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `invoice-${txn.txn_ref || txn.id}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    toast?.(err.message || 'Failed to download invoice.', 'error');
+  }
 }
 
-function InvoiceModal({ txn, isOpen, onClose }) {
+function InvoiceModal({ txn, isOpen, onClose, doctorName, toast }) {
   if (!txn) return null;
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Invoice" size="sm">
@@ -112,7 +107,7 @@ function InvoiceModal({ txn, isOpen, onClose }) {
         <div className="flex justify-between items-start border-b border-slate-200 pb-3">
           <div>
             <h3 className="font-black text-slate-800 text-lg">HealNari</h3>
-            <p className="text-xs text-slate-500">Dr. Sarah Mitchell</p>
+            <p className="text-xs text-slate-500">{doctorName ? `Dr. ${doctorName}` : ''}</p>
           </div>
           <div className="text-right text-xs text-slate-500 font-mono">
             <p className="font-bold text-slate-800">{txn.txn_ref || txn.id}</p>
@@ -125,7 +120,7 @@ function InvoiceModal({ txn, isOpen, onClose }) {
           <div className="flex justify-between"><span className="text-slate-500">Payment</span><span className="font-bold text-slate-800">{txn.method}</span></div>
           <div className="flex justify-between border-t border-slate-200 pt-2 mt-2"><span className="font-bold text-slate-600">Total</span><span className="font-black text-slate-800 text-base">₹{txn.amount}</span></div>
         </div>
-        <button onClick={() => downloadInvoicePdf(txn)} className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+        <button onClick={() => downloadInvoicePdf(txn, toast)} className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
           <i className="fas fa-download"></i> Download PDF
         </button>
       </div>
@@ -136,8 +131,9 @@ function InvoiceModal({ txn, isOpen, onClose }) {
 /* ─── Main Component ─────────────────────────── */
 function DoctorBilling() {
   const toast = useToast();
+  const { user } = useAuth();
   const [transactions, setTransactions] = useState([]);
-  const [summary, setSummary] = useState({ thisMonth: 0, thisMonthCount: 0, lastMonth: 0, lastMonthCount: 0, pending: 0, pendingCount: 0, totalYtd: 0 });
+  const [summary, setSummary] = useState({ thisMonth: 0, thisMonthCount: 0, lastMonth: 0, lastMonthCount: 0, pending: 0, pendingCount: 0, totalYtd: 0, available: 0 });
   const [loading, setLoading] = useState(true);
   const [showPayout, setShowPayout] = useState(false);
   const [invoiceTxn, setInvoiceTxn] = useState(null);
@@ -300,8 +296,8 @@ function DoctorBilling() {
         </div>
       </div>
 
-      <PayoutModal isOpen={showPayout} onClose={() => setShowPayout(false)} toast={toast} available={summary.thisMonth} onRequest={requestPayout} />
-      <InvoiceModal txn={invoiceTxn} isOpen={!!invoiceTxn} onClose={() => setInvoiceTxn(null)} />
+      <PayoutModal isOpen={showPayout} onClose={() => setShowPayout(false)} toast={toast} available={summary.available} onRequest={requestPayout} />
+      <InvoiceModal txn={invoiceTxn} isOpen={!!invoiceTxn} onClose={() => setInvoiceTxn(null)} doctorName={user?.name} toast={toast} />
     </div>
   );
 }

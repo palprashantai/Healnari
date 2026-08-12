@@ -1,16 +1,37 @@
+import { randomUUID } from 'crypto';
 import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AppointmentStatus } from '@/shared/interfaces/appointment.interface';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { CashfreeService } from '@/core/cashfree/cashfree.service';
+import type { AuthUser } from '@/core/decorators/current-user.decorator';
 
 @Injectable()
 export class AdminService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
+    private readonly cashfree: CashfreeService,
   ) {}
+
+  /** AUDIT_REPORT.md SEC-6 — who did what, when, before → after, for the
+   * admin actions that actually move money or change access. Best-effort:
+   * never blocks or fails the action it's recording. */
+  private writeAudit(actor: AuthUser, action: string, entity: string, entityId: string, before: unknown, after: unknown) {
+    this.supabase.admin.from('audit_log').insert({
+      actor_id: actor.id,
+      actor_name: actor.profile?.full_name || null,
+      action,
+      entity,
+      entity_id: entityId,
+      before: before ?? null,
+      after: after ?? null,
+    }).then(({ error }: any) => {
+      if (error) console.error('Failed to write audit log:', error.message);
+    });
+  }
 
   // ─── Dashboard ───────────────────────────────────────────────────
   async getDashboardStats() {
@@ -439,11 +460,12 @@ export class AdminService {
     }
   }
 
-  async updateDoctorVerification(id: string, status: string) {
+  async updateDoctorVerification(admin: AuthUser, id: string, status: string) {
     try {
       const { data: doctor } = await this.supabase.admin.from('profiles').select().eq('id', id).eq('role', ProfileRole.DOCTOR).single();
       if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
       const { data: updated } = await this.supabase.admin.from('profiles').update({ kyc_verified: status === 'approved' }).eq('id', id).select().single();
+      this.writeAudit(admin, 'verification.update', 'profiles', id, { kyc_verified: doctor.kyc_verified }, { kyc_verified: updated.kyc_verified });
       return { doctorId: updated.id, statusUpdated: status, processedAt: new Date().toISOString() };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
@@ -461,11 +483,12 @@ export class AdminService {
     }
   }
 
-  async resolveTicket(ticketId: number) {
+  async resolveTicket(admin: AuthUser, ticketId: number) {
     try {
       const { data: ticket } = await this.supabase.admin.from('support_tickets').select().eq('id', ticketId).single();
       if (!ticket) throw new NotFoundException('Ticket not found');
       const { data: updated } = await this.supabase.admin.from('support_tickets').update({ status: 'Resolved' }).eq('id', ticketId).select().single();
+      this.writeAudit(admin, 'ticket.resolve', 'support_tickets', String(ticketId), { status: ticket.status }, { status: updated.status });
       return updated;
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
@@ -483,16 +506,54 @@ export class AdminService {
     }
   }
 
-  async processRefund(refundId: number) {
-    try {
-      const { data: refund } = await this.supabase.admin.from('refund_requests').select().eq('id', refundId).single();
-      if (!refund) throw new NotFoundException('Refund not found');
-      const { data: updated } = await this.supabase.admin.from('refund_requests').update({ status: 'Processed' }).eq('id', refundId).select().single();
-      return updated;
-    } catch (error) {
-      if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+  /** Actually calls Cashfree's refund API for gateway-linked payments —
+   * previously this just flipped refund_requests.status to 'Processed' with
+   * no money ever moving. Payments with no cf_order_id (manual/cash charges,
+   * or rows predating the Cashfree integration) fall back to the old
+   * admin-confirms-it-happened-manually behavior, since there's no gateway
+   * transaction to call a refund API against. */
+  async processRefund(admin: AuthUser, refundId: number) {
+    const { data: refund } = await this.supabase.admin.from('refund_requests').select().eq('id', refundId).single();
+    if (!refund) throw new NotFoundException('Refund not found');
+    if (refund.status === 'Processed') return refund; // idempotent — don't double-refund on a retried click
+
+    const payment = refund.payment_id
+      ? (await this.supabase.admin.from('payments').select().eq('id', refund.payment_id).single()).data
+      : null;
+
+    let cfRefundId: string | null = null;
+
+    if (payment?.cf_order_id) {
+      const result = await this.cashfree.createRefund(payment.cf_order_id, Number(refund.amount), `rf-${randomUUID()}`, refund.reason);
+      if (result.refund_status === 'FAILED') {
+        throw new InternalServerErrorException(`Cashfree refund failed: ${result.refund_arn || result.refund_status}`);
+      }
+      cfRefundId = result.cf_refund_id ? String(result.cf_refund_id) : null;
+      await this.supabase.admin.from('payments').update({ status: 'Refunded' }).eq('id', payment.id);
+    } else if (payment) {
+      // No gateway order to refund against (e.g. a doctor-recorded cash
+      // charge) — this confirms the admin handled it out-of-band.
+      await this.supabase.admin.from('payments').update({ status: 'Refunded' }).eq('id', payment.id);
     }
+
+    const { data: updated } = await this.supabase.admin.from('refund_requests').update({
+      status: 'Processed',
+      cf_refund_id: cfRefundId,
+    }).eq('id', refundId).select().single();
+
+    this.writeAudit(admin, 'refund.process', 'refund_requests', String(refundId), { status: refund.status }, { status: updated.status, cf_refund_id: cfRefundId });
+
+    const patientId = refund.patient_id || payment?.patient_id;
+    if (patientId) {
+      this.notifications.create(patientId, {
+        type: 'refund_processed',
+        title: 'Refund Processed',
+        message: `Your refund of ₹${Number(refund.amount).toFixed(0)} has been processed.`,
+        data: { refundId },
+      });
+    }
+
+    return updated;
   }
 
   // ─── Revenue ─────────────────────────────────────────────────────
@@ -569,7 +630,7 @@ export class AdminService {
     }
   }
 
-  async processPayout(id: string, referenceId: string) {
+  async processPayout(admin: AuthUser, id: string, referenceId: string) {
     try {
       const { data: updated, error } = await this.supabase.admin
         .from('payouts')
@@ -578,6 +639,8 @@ export class AdminService {
         .select('id, doctor_id, amount')
         .single();
       if (error || !updated) throw new NotFoundException('Payout not found');
+
+      this.writeAudit(admin, 'payout.process', 'payouts', id, null, { status: 'Paid', reference_id: referenceId });
 
       await this.notifications.create(updated.doctor_id, {
         type: 'payout_processed',
@@ -768,7 +831,7 @@ export class AdminService {
    * provider is wired up) — resolves the audience to real recipients and fans
    * out a real in-app + web-push notification to each of them, same pattern
    * as CommunicationsService (doctor-side broadcasts). */
-  async sendBroadcast(body: { subject: string; audience: string; body: string; scheduleAt?: string; channels?: string[]; userIds?: string[] }) {
+  async sendBroadcast(admin: AuthUser, body: { subject: string; audience: string; body: string; scheduleAt?: string; channels?: string[]; userIds?: string[] }) {
     try {
       const displayId = `BC-${Math.floor(Math.random() * 9000) + 100}`;
       const scheduled = !!body.scheduleAt;
@@ -804,6 +867,7 @@ export class AdminService {
         })
         .select()
         .single();
+      this.writeAudit(admin, 'broadcast.send', 'broadcast_history', data.id, null, { subject: body.subject, audience: body.audience, recipientCount: recipientIds.length, channels });
       return data;
     } catch (error) {
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);

@@ -127,12 +127,13 @@ function AuthModal({ onClose }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-slate-700 block">Full Name</label>
+                <label htmlFor="auth-fullname" className="text-sm font-semibold text-slate-700 block">Full Name</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <i className="fas fa-id-card"></i>
                   </div>
                   <input
+                    id="auth-fullname"
                     type="text"
                     required
                     value={fullName}
@@ -145,12 +146,13 @@ function AuthModal({ onClose }) {
             )}
 
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700 block">Email Address</label>
+              <label htmlFor="auth-email" className="text-sm font-semibold text-slate-700 block">Email Address</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                   <i className="fas fa-envelope"></i>
                 </div>
                 <input
+                  id="auth-email"
                   type="email"
                   required
                   value={email}
@@ -163,7 +165,7 @@ function AuthModal({ onClose }) {
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-semibold text-slate-700 block">Password</label>
+                <label htmlFor="auth-password" className="text-sm font-semibold text-slate-700 block">Password</label>
                 {mode === 'login' && (
                   <a href="#" className="text-xs font-semibold text-brand-600 hover:text-brand-700">Forgot?</a>
                 )}
@@ -173,6 +175,7 @@ function AuthModal({ onClose }) {
                   <i className="fas fa-lock"></i>
                 </div>
                 <input
+                  id="auth-password"
                   type="password"
                   required
                   value={password}
@@ -185,12 +188,13 @@ function AuthModal({ onClose }) {
 
             {role === 'doctor' && mode === 'register' && (
               <div className="space-y-1.5">
-                <label className="text-sm font-semibold text-slate-700 block">Medical Registration Number</label>
+                <label htmlFor="auth-regno" className="text-sm font-semibold text-slate-700 block">Medical Registration Number</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                     <i className="fas fa-stethoscope"></i>
                   </div>
                   <input
+                    id="auth-regno"
                     type="text"
                     required
                     value={regNo}

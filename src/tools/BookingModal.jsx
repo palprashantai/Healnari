@@ -210,9 +210,9 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
             <>
               {/* Choose Doctor */}
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1" id="choose-doctor-label">
                   Choose Your Doctor *
-                </label>
+                </p>
                 {loadingDoctors ? (
                   <div className="text-center py-6 text-sm text-slate-400"><i className="fas fa-spinner fa-spin mr-2"></i>Loading doctors…</div>
                 ) : doctors.length === 0 ? (
@@ -220,7 +220,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                     No doctors are available for booking right now. Please check back soon.
                   </p>
                 ) : (
-                  <div className="space-y-2 max-h-52 overflow-y-auto pr-0.5">
+                  <div className="space-y-2 max-h-52 overflow-y-auto pr-0.5" role="group" aria-labelledby="choose-doctor-label">
                     {doctors.map(d => (
                       <button type="button" key={d.id} onClick={() => selectDoctor(d.id)}
                         className={`w-full text-left border rounded-xl p-3 flex items-center gap-3 transition-all ${formData.doctorId === d.id ? 'border-brand-500 bg-brand-50/40 ring-1 ring-brand-200' : 'border-slate-200 hover:border-brand-300'}`}>
@@ -240,7 +240,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
 
               {/* Primary Concern */}
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                <label htmlFor="concern" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
                   Primary Concern *
                 </label>
                 <select
@@ -268,7 +268,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
             <>
               {/* Full Name */}
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                <label htmlFor="name" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
                   Full Name *
                 </label>
                 <input
@@ -286,7 +286,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
 
               {/* Email */}
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                <label htmlFor="email" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
                   Email Address *
                 </label>
                 <input
@@ -306,7 +306,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
               {/* Age & Mobile */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                  <label htmlFor="age" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
                     Age *
                   </label>
                   <input
@@ -324,7 +324,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                   {errors.age && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.age}</p>}
                 </div>
                 <div className="col-span-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                  <label htmlFor="mobile" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
                     Mobile Number *
                   </label>
                   <input
@@ -360,7 +360,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
               {/* Date & Time Slot */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                  <label htmlFor="date" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
                     Preferred Date *
                   </label>
                   <input
@@ -377,7 +377,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                  <label htmlFor="time" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
                     Time Slot *
                   </label>
                   <select

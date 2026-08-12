@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useNotifications, NOTIFICATION_STYLE, DEFAULT_NOTIFICATION_STYLE } from '../../context/NotificationsContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { HealNariLogo } from '../../components/HealNariLogo.jsx';
 import { PageTransition } from '../../components/PageTransition.jsx';
+import { DataErrorBanner } from '../../components/DataErrorBanner.jsx';
 import { NavHoverRail } from '../../components/NavHoverRail.jsx';
 import { ModuleAccentBar } from '../../components/ModuleAccentBar.jsx';
 import AiChatWidget from '../../tools/AiChatWidget.jsx';
@@ -177,6 +179,7 @@ function PatientLayout() {
   const location = useLocation();
   const toast = useToast();
   const { notifications, unreadCount, markAllRead: markAllReadRemote, markRead } = useNotifications();
+  const { loadError, retryLoad } = useClinicData();
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -306,6 +309,7 @@ function PatientLayout() {
 
         {/* Dynamic Content */}
         <main className={`flex-1 overflow-y-auto p-4 md:p-8 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}>
+          {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
           <PageTransition />
         </main>
       </div>

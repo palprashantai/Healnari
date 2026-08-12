@@ -1,9 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+import { buildPatientTimeline } from '../../lib/patientTimeline.js';
 
 const FILE_STYLE = {
   pdf: { icon: 'fa-file-pdf', color: 'bg-rose-50 text-rose-500' },
@@ -237,10 +238,17 @@ function AddVaccineModal({ isOpen, onClose, onAdd }) {
 function PatientRecords() {
   const toast = useToast();
   const { user } = useAuth();
-  const { patients, updatePatient, uploadLabReport, deleteLabReport, getLabReportUrl, listLabReportRequests } = useClinicData();
+  const { patients, appointments, updatePatient, uploadLabReport, deleteLabReport, getLabReportUrl, listLabReportRequests } = useClinicData();
   const myPatient = patients[0];
   const fileInputRef = useRef(null);
   const [tab, setTab] = useState('documents');
+
+  // Single chronological timeline of everything on file for this patient —
+  // built entirely from data other tabs already fetch (no new backend call),
+  // so a doctor's note, a prescription, a lab report, and the appointment
+  // that prompted them show up as one connected story instead of scattered
+  // across four separate places.
+  const timeline = useMemo(() => buildPatientTimeline(myPatient, appointments), [myPatient, appointments]);
 
   // Lab Reports
   const [rawLabReports, setRawLabReports] = useState([]);
@@ -406,6 +414,7 @@ function PatientRecords() {
         {/* Tabs */}
         <div className="flex border-b border-slate-200 bg-slate-50 overflow-x-auto">
           {[
+            ['timeline', 'Timeline', 'fa-timeline'],
             ['profile', 'Health Profile', 'fa-notes-medical'],
             ['documents', 'Digital Records', 'fa-folder-open'],
             ['labReports', 'Lab Reports', 'fa-flask', labRequests.length],
@@ -420,6 +429,39 @@ function PatientRecords() {
         </div>
 
         <div className="p-6">
+
+          {/* ── TIMELINE TAB ── */}
+          {tab === 'timeline' && (
+            <div>
+              {timeline.length === 0 ? (
+                <div className="text-center py-16 text-slate-400">
+                  <i className="fas fa-timeline text-3xl mb-3 block text-slate-300"></i>
+                  <p className="font-bold text-sm">Nothing on file yet.</p>
+                  <p className="text-xs mt-1">Your appointments, prescriptions, lab reports, and doctor's notes will appear here as one timeline.</p>
+                </div>
+              ) : (
+                <div className="space-y-0">
+                  {timeline.map((e, i) => (
+                    <div key={e.key} className="flex gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-9 h-9 rounded-full border flex items-center justify-center flex-shrink-0 ${e.color}`}>
+                          <i className={`fas ${e.icon} text-xs`}></i>
+                        </div>
+                        {i < timeline.length - 1 && <div className="w-px flex-1 bg-slate-200 my-1"></div>}
+                      </div>
+                      <div className="pb-6 flex-1 min-w-0">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                          {new Date(e.dateRaw).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </p>
+                        <p className="font-bold text-slate-800 text-sm">{e.title}</p>
+                        <p className="text-xs text-slate-500 mt-0.5 break-words">{e.detail}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── DOCUMENTS TAB ── */}
           {tab === 'documents' && (

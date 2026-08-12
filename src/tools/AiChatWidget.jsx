@@ -167,6 +167,14 @@ export default function AiChatWidget({ context = 'landing' }) {
             <PulseLine color="#ffffff" />
           </div>
 
+          {/* AUDIT_REPORT.md FE-4 — AI, not a clinician; visible for the
+              whole conversation. */}
+          <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 shrink-0">
+            <p className="hn-body text-[10.5px] text-amber-800 text-center leading-snug">
+              AI assistant — not a substitute for medical advice. For emergencies, contact local emergency services.
+            </p>
+          </div>
+
           {/* Input */}
           <div className="px-4 py-3.5 bg-white border-t border-slate-100 shrink-0">
             <form

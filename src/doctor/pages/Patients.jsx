@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
@@ -6,6 +6,7 @@ import { Modal } from '../../components/Modal.jsx';
 import { DoseSchedule } from '../../components/DoseSchedule.jsx';
 import { RxStatusBadge } from '../../components/RxStatus.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+import { buildPatientTimeline } from '../../lib/patientTimeline.js';
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -662,8 +663,12 @@ function ViewLabDocModal({ report, patient, isOpen, onClose }) {
 
 /* ─── FULL PAGE EMR COMPONENT ───────────────────────── */
 function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
-  const { addRx, requestLabReport, addClinicalNote, recordCharge, listLabReportRequests, cancelLabReportRequest } = useClinicData();
+  const { addRx, requestLabReport, addClinicalNote, recordCharge, listLabReportRequests, cancelLabReportRequest, appointments } = useClinicData();
   const [tab, setTab] = useState('overview');
+  const patientTimeline = useMemo(
+    () => buildPatientTimeline(patient, (appointments || []).filter(a => a.patientId === patient.id)),
+    [patient, appointments]
+  );
   const [labFilter, setLabFilter] = useState('all');
   const [newNote, setNewNote] = useState('');
   const [labRequests, setLabRequests] = useState([]);
@@ -866,6 +871,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
         <div className="flex gap-1 text-xs font-bold overflow-x-auto">
           {[
             { key: 'overview', label: 'Overview', icon: 'fa-clipboard-list' },
+            { key: 'timeline', label: 'Timeline', icon: 'fa-timeline' },
             { key: 'prescriptions', label: `Prescriptions (${patient.meds.length})`, icon: 'fa-pills' },
             { key: 'reports', label: `Lab & Reports (${patient.reports.length})`, icon: 'fa-vial' },
             { key: 'payments', label: `Billing (${(patient.payments || []).length})`, icon: 'fa-receipt' },
@@ -890,6 +896,38 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
       {/* TAB CONTENT AREAS */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm min-h-[400px]">
+        {/* Tab: TIMELINE */}
+        {tab === 'timeline' && (
+          <div>
+            {patientTimeline.length === 0 ? (
+              <div className="text-center py-16 text-slate-400">
+                <i className="fas fa-timeline text-3xl mb-3 block text-slate-300"></i>
+                <p className="font-bold text-sm">Nothing on file yet for this patient.</p>
+              </div>
+            ) : (
+              <div className="space-y-0">
+                {patientTimeline.map((e, i) => (
+                  <div key={e.key} className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <div className={`w-9 h-9 rounded-full border flex items-center justify-center flex-shrink-0 ${e.color}`}>
+                        <i className={`fas ${e.icon} text-xs`}></i>
+                      </div>
+                      {i < patientTimeline.length - 1 && <div className="w-px flex-1 bg-slate-200 my-1"></div>}
+                    </div>
+                    <div className="pb-6 flex-1 min-w-0">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        {new Date(e.dateRaw).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </p>
+                      <p className="font-bold text-slate-800 text-sm">{e.title}</p>
+                      <p className="text-xs text-slate-500 mt-0.5 break-words">{e.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Tab 1: OVERVIEW */}
         {tab === 'overview' && (
           <div className="space-y-5">

@@ -45,6 +45,8 @@ export function useWebRTCCall({ appointmentId, active }) {
   const [remoteStream, setRemoteStream] = useState(null);
   // idle | requesting-media | connecting | connected | peer-left | ended | failed
   const [connectionState, setConnectionState] = useState('idle');
+  // good | fair | poor | null (null until connected and a first stats sample lands)
+  const [connectionQuality, setConnectionQuality] = useState(null);
   const [error, setError] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
@@ -57,6 +59,7 @@ export function useWebRTCCall({ appointmentId, active }) {
   const localStreamRef = useRef(null);
   const cameraTrackRef = useRef(null); // held aside during screen share so we can revert to it
   const pendingCandidatesRef = useRef([]);
+  const qualityIntervalRef = useRef(null);
 
   useEffect(() => {
     if (!active || !appointmentId) return undefined;
@@ -172,6 +175,48 @@ export function useWebRTCCall({ appointmentId, active }) {
           }
         };
 
+        // Coarse connection-quality signal from getStats(), sampled every 3s
+        // while connected — round-trip time plus the delta packet-loss ratio
+        // since the last sample (packetsLost/packetsReceived are cumulative
+        // counters, so a delta is needed rather than the raw totals) mapped
+        // to a good/fair/poor badge simple enough to act on mid-call.
+        let prevPacketStats = null;
+        qualityIntervalRef.current = setInterval(async () => {
+          if (!pcRef.current || pc.connectionState !== 'connected') {
+            setConnectionQuality(null);
+            return;
+          }
+          try {
+            const stats = await pc.getStats();
+            let rtt = null;
+            let packetsLost = 0;
+            let packetsReceived = 0;
+            stats.forEach((report) => {
+              if (report.type === 'candidate-pair' && report.state === 'succeeded' && typeof report.currentRoundTripTime === 'number') {
+                rtt = report.currentRoundTripTime;
+              }
+              if (report.type === 'inbound-rtp' && !report.isRemote) {
+                packetsLost += report.packetsLost || 0;
+                packetsReceived += report.packetsReceived || 0;
+              }
+            });
+            let lossRatio = 0;
+            if (prevPacketStats) {
+              const dLost = packetsLost - prevPacketStats.packetsLost;
+              const dRecv = packetsReceived - prevPacketStats.packetsReceived;
+              const total = dLost + dRecv;
+              if (total > 0) lossRatio = dLost / total;
+            }
+            prevPacketStats = { packetsLost, packetsReceived };
+            let quality = 'good';
+            if ((rtt !== null && rtt > 0.4) || lossRatio > 0.08) quality = 'poor';
+            else if ((rtt !== null && rtt > 0.15) || lossRatio > 0.02) quality = 'fair';
+            setConnectionQuality(quality);
+          } catch {
+            // getStats can throw if the pc closed mid-call; ignore, next tick retries.
+          }
+        }, 3000);
+
         const socket = io(SOCKET_URL, {
           transports: ['websocket', 'polling'],
           auth: { token: getTokens()?.accessToken || null },
@@ -280,9 +325,12 @@ export function useWebRTCCall({ appointmentId, active }) {
       localStreamRef.current = null;
       cameraTrackRef.current = null;
       pendingCandidatesRef.current = [];
+      clearInterval(qualityIntervalRef.current);
+      qualityIntervalRef.current = null;
       setLocalStream(null);
       setRemoteStream(null);
       setConnectionState('idle');
+      setConnectionQuality(null);
       setIsMuted(false);
       setIsVideoOff(false);
       setIsScreenSharing(false);
@@ -366,7 +414,7 @@ export function useWebRTCCall({ appointmentId, active }) {
   }, [appointmentId]);
 
   return {
-    localStream, remoteStream, connectionState, error,
+    localStream, remoteStream, connectionState, connectionQuality, error,
     isMuted, isVideoOff, isScreenSharing, peerMuted, peerVideoOff,
     toggleMute, toggleVideo, toggleScreenShare, hangUp,
   };

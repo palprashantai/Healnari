@@ -1,4 +1,5 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { Appointment, AppointmentStatus, AppointmentType } from '@/shared/interfaces/appointment.interface';
 import { Profile, ProfileRole } from '@/shared/interfaces/profile.interface';
@@ -6,12 +7,16 @@ import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 import { CreateAppointmentDto } from '@/modules/appointments/controllers/appointments.controller';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { AiService } from '@/modules/ai/services/ai.service';
 
 @Injectable()
 export class AppointmentsService {
+  private readonly logger = new Logger(AppointmentsService.name);
+
   constructor(
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
+    private readonly ai: AiService,
   ) {}
 
   private appointmentWhen(a: Appointment) {
@@ -19,13 +24,11 @@ export class AppointmentsService {
   }
 
   /** Cancelling a paid appointment must actually put the money back on the
-   * radar — mark the payment `Refunded` (payments.status already supports
-   * this value; the frontend's Billing pages already render it) and file a
-   * refund_requests row so it shows up for admin processing. Previously
-   * neither of those ever happened: the "Refund initiated" toast the
-   * frontend shows on cancel was pure copy with nothing behind it — no
-   * code anywhere ever inserted into refund_requests, so a cancelled,
-   * already-paid appointment just silently kept its money in limbo. */
+   * radar — mark the payment `Refund Pending` (not `Refunded` outright: no
+   * money has actually moved yet, only admin.processRefund() actually calls
+   * Cashfree's refund API) and file a refund_requests row linked to the
+   * payment so admin has what it needs to process a real refund instead of
+   * just flipping a status. */
   private async initiateRefundIfPaid(appointment: Appointment & { patientName: string }) {
     const { data: payment } = await this.supabase.admin
       .from('payments')
@@ -36,10 +39,11 @@ export class AppointmentsService {
 
     if (!payment) return;
 
-    await this.supabase.admin.from('payments').update({ status: 'Refunded' }).eq('id', payment.id);
+    await this.supabase.admin.from('payments').update({ status: 'Refund Pending' }).eq('id', payment.id);
     await this.supabase.admin.from('refund_requests').insert({
       patient_id: appointment.patient_id,
       patient_name: appointment.patientName,
+      payment_id: payment.id,
       amount: payment.amount,
       reason: `Appointment cancelled — ${this.appointmentWhen(appointment)}`,
     });
@@ -111,7 +115,14 @@ export class AppointmentsService {
     // doctor IDs exist but aren't verified yet.
     if (!doctor || !doctor.kyc_verified) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
 
-    const { data: saved } = await this.supabase.admin.from('appointments').insert({
+    // The unique index (appointments_no_double_booking, migration 0020) is
+    // what actually prevents two patients booking the same doctor/date/time
+    // under concurrency — the available-slots endpoint filtering is only a
+    // UI nicety, not a guarantee, since two requests can race between
+    // "fetch available slots" and "book". Postgres error 23505 is that
+    // constraint firing; translate it into the clean conflict message
+    // instead of letting a raw DB error reach the client.
+    const { data: saved, error: insertError } = await this.supabase.admin.from('appointments').insert({
       patient_id: user.id,
       doctor_id: body.doctorId,
       specialty: body.specialty || doctor.specialty,
@@ -121,6 +132,11 @@ export class AppointmentsService {
       reason: body.reason,
       status: AppointmentStatus.REQUESTED,
     }).select().single();
+
+    if (insertError) {
+      if (insertError.code === '23505') throw new ConflictException(ERROR_MESSAGES.APPOINTMENT_CONFLICT);
+      throw insertError;
+    }
 
     const [withNames] = await this.withNames([saved]);
 
@@ -325,5 +341,226 @@ export class AppointmentsService {
     }
 
     return this.list(user);
+  }
+
+  /** No real historical call-duration data exists anywhere in this schema
+   * (no call start/end timestamps are recorded) — this is a stated
+   * per-consult estimate, not a measured average. Deliberately conservative
+   * so the ETA under-promises rather than over-promises. */
+  private static readonly AVG_CONSULT_MINUTES: Record<AppointmentType, number> = {
+    [AppointmentType.VIDEO]: 15,
+    [AppointmentType.CLINIC]: 20,
+  };
+
+  /** Real position in today's actual queue (the same order callNext()
+   * advances through), not the originally booked slot time — a doctor
+   * running behind shifts everyone's position and ETA live instead of the
+   * patient just watching their booked 4:00 PM come and go. */
+  async getQueueStatus(user: AuthUser, id: string) {
+    const { data: appointment } = await this.supabase.admin.from('appointments').select().eq('id', id).single();
+    if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
+    if (appointment.patient_id !== user.id && appointment.doctor_id !== user.id) {
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    }
+
+    if (appointment.status === AppointmentStatus.DONE) {
+      return { status: appointment.status, position: null, totalInQueue: 0, peopleAhead: 0, estimatedWaitMinutes: 0 };
+    }
+    if (appointment.status === AppointmentStatus.CANCELLED || appointment.status === AppointmentStatus.NO_SHOW) {
+      return { status: appointment.status, position: null, totalInQueue: 0, peopleAhead: 0, estimatedWaitMinutes: 0 };
+    }
+
+    const { data: todays } = await this.supabase.admin
+      .from('appointments')
+      .select('id, status, scheduled_time, type')
+      .eq('doctor_id', appointment.doctor_id)
+      .eq('scheduled_date', appointment.scheduled_date)
+      .in('status', [AppointmentStatus.UPCOMING, AppointmentStatus.WAITING, AppointmentStatus.IN_PROGRESS])
+      .order('scheduled_time', { ascending: true });
+
+    const activeQueue = todays || [];
+    const index = activeQueue.findIndex((a) => a.id === id);
+    if (index === -1) {
+      return { status: appointment.status, position: null, totalInQueue: activeQueue.length, peopleAhead: 0, estimatedWaitMinutes: 0 };
+    }
+
+    const peopleAhead = index;
+    const avgMinutes = AppointmentsService.AVG_CONSULT_MINUTES[appointment.type as AppointmentType] ?? 15;
+
+    return {
+      status: appointment.status,
+      position: index + 1,
+      totalInQueue: activeQueue.length,
+      peopleAhead,
+      estimatedWaitMinutes: peopleAhead * avgMinutes,
+    };
+  }
+
+  /** Structured facts (reason for visit, chronic conditions, allergies,
+   * current medications, recent lab reports) plus an optional AI-written
+   * plain-language summary of exactly those facts — so a doctor about to
+   * start a consultation isn't spending the first few minutes asking
+   * questions the patient has already answered elsewhere in the app. The
+   * AI summary is best-effort (null when Gemini isn't configured); the
+   * structured facts always come through regardless. */
+  async getConsultBrief(user: AuthUser, id: string) {
+    const { data: appointment } = await this.supabase.admin.from('appointments').select().eq('id', id).single();
+    if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
+    if (appointment.patient_id !== user.id && appointment.doctor_id !== user.id) {
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    }
+
+    const [{ data: profile }, { data: record }, { data: meds }, { data: labs }] = await Promise.all([
+      this.supabase.admin.from('profiles').select('full_name').eq('id', appointment.patient_id).single(),
+      this.supabase.admin.from('patient_records').select('chronic_conditions, allergies').eq('patient_id', appointment.patient_id).maybeSingle(),
+      this.supabase.admin.from('prescriptions').select('med_name').eq('patient_id', appointment.patient_id).eq('status', 'Active'),
+      this.supabase.admin.from('lab_reports').select('test_name, status').eq('patient_id', appointment.patient_id).order('created_at', { ascending: false }).limit(5),
+    ]);
+
+    const facts = {
+      patientName: profile?.full_name || 'Patient',
+      reason: appointment.reason || null,
+      chronicConditions: record?.chronic_conditions || [],
+      allergies: record?.allergies || [],
+      currentMedications: [...new Set((meds || []).map((m) => m.med_name))],
+      recentLabReports: (labs || []).map((l) => ({ name: l.test_name, status: l.status })),
+    };
+
+    const aiSummary = await this.ai.summarizeForConsult(facts);
+
+    return { ...facts, aiSummary, aiConfigured: aiSummary !== null };
+  }
+
+  /** Runs every 5 minutes, pushes a reminder to any patient whose upcoming
+   * appointment starts in the next ~30 minutes and hasn't been reminded yet
+   * (reminder_sent_at is the idempotency guard — without it every run would
+   * re-notify the same patient). Reminders only, no attendance prediction —
+   * there's no historical no-show dataset in this schema to train on. */
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async sendUpcomingReminders() {
+    const now = new Date();
+    const windowEnd = new Date(now.getTime() + 30 * 60 * 1000);
+
+    const { data: due, error } = await this.supabase.admin
+      .from('appointments')
+      .select('id, patient_id, doctor_id, scheduled_date, scheduled_time, type')
+      .in('status', [AppointmentStatus.UPCOMING, AppointmentStatus.WAITING])
+      .is('reminder_sent_at', null)
+      .gte('scheduled_at', now.toISOString())
+      .lte('scheduled_at', windowEnd.toISOString());
+
+    if (error) {
+      this.logger.warn(`Reminder sweep query failed: ${error.message}`);
+      return;
+    }
+    if (!due?.length) return;
+
+    // AUDIT_REPORT.md OPS-4 — claim first, notify second. The previous
+    // notify-then-mark order left a window where two backend instances (once
+    // horizontally scaled) could both read the same "due" appointment before
+    // either wrote reminder_sent_at, double-sending the reminder. This
+    // single UPDATE...WHERE reminder_sent_at IS NULL is atomic per row — a
+    // row already claimed by another instance simply won't be in the
+    // returned set, so only genuinely-unclaimed rows get notified.
+    const { data: claimed, error: claimError } = await this.supabase.admin
+      .from('appointments')
+      .update({ reminder_sent_at: new Date().toISOString() })
+      .in('id', due.map((a) => a.id))
+      .is('reminder_sent_at', null)
+      .select('id, patient_id, doctor_id, scheduled_time, type');
+
+    if (claimError || !claimed?.length) return;
+
+    const doctorIds = [...new Set(claimed.map((a) => a.doctor_id))];
+    const { data: doctors } = await this.supabase.admin.from('profiles').select('id, full_name').in('id', doctorIds);
+    const doctorNameById = new Map((doctors || []).map((d) => [d.id, d.full_name]));
+
+    for (const apt of claimed) {
+      await this.notifications.create(apt.patient_id, {
+        type: 'appointment_reminder',
+        title: 'Upcoming appointment',
+        message: `Your ${apt.type === AppointmentType.VIDEO ? 'video consultation' : 'clinic visit'} with Dr. ${doctorNameById.get(apt.doctor_id) || ''} is at ${apt.scheduled_time} today. Please be ready a few minutes early.`,
+        data: { appointmentId: apt.id },
+      }).catch(() => {});
+    }
+
+    this.logger.log(`Sent ${claimed.length} appointment reminder(s).`);
+  }
+
+  /** Runs every 5 minutes alongside the reminder sweep. Projects each
+   * waiting patient's real start time from today's actual queue (same
+   * position/ETA math as getQueueStatus) and, the first time that drifts
+   * more than 15 minutes past their originally booked slot, pushes a
+   * "running behind" notice — instead of the patient only finding out by
+   * checking the app themselves. delay_notified_at is a one-shot guard, not
+   * a repeating alarm: it fires once per appointment, not every 5 minutes
+   * for as long as the delay persists. */
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async sendDelayNotifications() {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: todaysActive, error } = await this.supabase.admin
+      .from('appointments')
+      .select('id, doctor_id, patient_id, scheduled_time, scheduled_at, status, type, delay_notified_at')
+      .eq('scheduled_date', today)
+      .in('status', [AppointmentStatus.UPCOMING, AppointmentStatus.WAITING, AppointmentStatus.IN_PROGRESS])
+      .order('scheduled_time', { ascending: true });
+
+    if (error || !todaysActive?.length) return;
+
+    const byDoctor = new Map<string, typeof todaysActive>();
+    for (const apt of todaysActive) {
+      if (!byDoctor.has(apt.doctor_id)) byDoctor.set(apt.doctor_id, []);
+      byDoctor.get(apt.doctor_id)!.push(apt);
+    }
+
+    const doctorIds = [...byDoctor.keys()];
+    const { data: doctors } = await this.supabase.admin.from('profiles').select('id, full_name').in('id', doctorIds);
+    const doctorNameById = new Map((doctors || []).map((d) => [d.id, d.full_name]));
+
+    const now = Date.now();
+    const toMark: string[] = [];
+    const candidates = new Map<string, { patientId: string; doctorId: string; scheduledTime: string; delayMinutes: number }>();
+
+    for (const [doctorId, queue] of byDoctor) {
+      queue.forEach((apt, index) => {
+        if (apt.status === AppointmentStatus.IN_PROGRESS || apt.delay_notified_at) return;
+
+        const avgMinutes = AppointmentsService.AVG_CONSULT_MINUTES[apt.type as AppointmentType] ?? 15;
+        const projectedStartMs = now + index * avgMinutes * 60 * 1000;
+        const delayMinutes = (projectedStartMs - new Date(apt.scheduled_at).getTime()) / 60000;
+
+        if (delayMinutes > 15) {
+          toMark.push(apt.id);
+          candidates.set(apt.id, { patientId: apt.patient_id, doctorId, scheduledTime: apt.scheduled_time, delayMinutes });
+        }
+      });
+    }
+
+    if (!toMark.length) return;
+
+    // AUDIT_REPORT.md OPS-4 — claim first (one atomic batch UPDATE guarded
+    // by delay_notified_at IS NULL), notify only what this instance actually
+    // won. Same race as sendUpcomingReminders otherwise: two instances could
+    // both compute the same candidate list and both notify before either
+    // one's mark-as-sent UPDATE lands.
+    const { data: claimed } = await this.supabase.admin
+      .from('appointments')
+      .update({ delay_notified_at: new Date().toISOString() })
+      .in('id', toMark)
+      .is('delay_notified_at', null)
+      .select('id');
+
+    for (const row of claimed || []) {
+      const c = candidates.get(row.id);
+      if (!c) continue;
+      this.notifications.create(c.patientId, {
+        type: 'appointment_delayed',
+        title: 'Running behind schedule',
+        message: `Dr. ${doctorNameById.get(c.doctorId) || ''} is running about ${Math.round(c.delayMinutes)} minutes behind for your ${c.scheduledTime} appointment. We'll let you know when it's your turn.`,
+        data: { appointmentId: row.id },
+      }).catch(() => {});
+    }
+
+    if (claimed?.length) this.logger.log(`Sent ${claimed.length} delay notification(s).`);
   }
 }

@@ -23,6 +23,10 @@ export function ClinicDataProvider({ children }) {
   const [kycVerified, setKycVerified] = useState(false);
   const [kycSubmitted, setKycSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
+  // AUDIT_REPORT.md FE-1 — a failed load used to look identical to a
+  // genuinely empty account (every page just silently rendered its empty
+  // state). Surfaced so the UI can show "couldn't load — retry" instead.
+  const [loadError, setLoadError] = useState(null);
 
   // Backend is the source of truth for KYC status — reflect it whenever the
   // logged-in user changes (login, or a fresh /auth/me after a refresh).
@@ -55,6 +59,7 @@ export function ClinicDataProvider({ children }) {
       doctorSpecialty: p.doctor_specialty || '',
       doctorRegNo: p.doctor_registration_no || '',
       prescribedOn: p.created_at ? new Date(p.created_at).toLocaleDateString() : '',
+      prescribedOnRaw: p.created_at || '',
       refillsLeft: p.refills_left || 0,
       validTill: p.valid_till || '',
       refillRequested: p.refill_requested || false
@@ -89,6 +94,7 @@ export function ClinicDataProvider({ children }) {
         testCategory: r.test_category || 'General',
         labName: r.lab_name || '',
         date: new Date(r.created_at).toLocaleDateString(),
+        dateRaw: r.created_at || '',
         status: r.status,
         results: r.results,
         urgent: r.urgent,
@@ -101,6 +107,7 @@ export function ClinicDataProvider({ children }) {
         id: n.id,
         text: n.note,
         date: n.created_at ? new Date(n.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+        dateRaw: n.created_at || '',
         author: n.doctor_name || 'Your Doctor',
       })),
       payments: payments.map(p => ({
@@ -149,41 +156,45 @@ export function ClinicDataProvider({ children }) {
       return;
     }
 
+    setLoadError(null);
     try {
+      // AUDIT_REPORT.md FE-3 — these don't depend on each other, so run them
+      // together instead of one-by-one; on every page load this used to add
+      // up to 8-9 sequential round trips before the loading spinner cleared.
       if (user.role === 'doctor') {
         const pts = await apiFetch('/patients');
         setPatients(pts.map(adaptPatient).filter(Boolean));
       } else if (user.role === 'patient') {
-        const me = await apiFetch('/patients/me');
+        const [me, logs, vitalsData, lifestyle, connections, favs, wait, txns] = await Promise.all([
+          apiFetch('/patients/me'),
+          apiFetch('/patients/me/cycle-logs'),
+          apiFetch('/patients/me/vitals'),
+          apiFetch('/patients/me/lifestyle-logs'),
+          apiFetch('/patients/me/care-connections'),
+          apiFetch('/patients/me/favorites'),
+          apiFetch('/patients/me/waitlist'),
+          apiFetch('/billing/transactions'),
+        ]);
+
         if (me) setPatients([adaptPatient(me)]);
-        
-        const logs = await apiFetch('/patients/me/cycle-logs');
+
         const logMap = {};
         logs.forEach(l => {
           logMap[l.log_date] = { phase: l.phase, flow: l.flow, cramps: l.cramps, mood: l.mood, symptoms: l.symptoms };
         });
         setCycleLogs(logMap);
 
-        const vitalsData = await apiFetch('/patients/me/vitals');
         setVitals(vitalsData);
 
-        const lifestyle = await apiFetch('/patients/me/lifestyle-logs');
         const lifestyleMap = {};
         lifestyle.forEach(l => {
           lifestyleMap[l.log_date] = { items: l.items, completedCount: l.completed_count };
         });
         setLifestyleLogs(lifestyleMap);
 
-        const connections = await apiFetch('/patients/me/care-connections');
         setCareConnections(connections.map(adaptCareConnection));
-
-        const favs = await apiFetch('/patients/me/favorites');
         setFavorites(favs.map(f => f.doctor_id));
-
-        const wait = await apiFetch('/patients/me/waitlist');
         setWaitlist(wait);
-
-        const txns = await apiFetch('/billing/transactions');
         setTransactions(txns);
       }
 
@@ -193,6 +204,7 @@ export function ClinicDataProvider({ children }) {
       }
     } catch (err) {
       console.error('Failed to fetch clinic data:', err);
+      setLoadError(err.message || "We couldn't load your data. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -457,17 +469,19 @@ export function ClinicDataProvider({ children }) {
   /** Single source of truth for "is this appointment paid" — both Billing.jsx
    * and Appointments.jsx read `transactions` from here instead of each
    * fetching their own copy, so a payment made on one page is immediately
-   * reflected on the other. */
-  const payAppointment = async (appointmentId, method) => {
-    const res = await apiFetch('/billing/pay', { method: 'POST', body: { appointmentId, method } });
+   * reflected on the other. PaymentModal owns the actual Cashfree order
+   * creation/checkout/verification calls itself (it needs fine-grained
+   * control over that multi-step flow); this just merges whatever payment
+   * record it settles on back into the shared list. */
+  const syncPayment = (payment) => {
+    if (!payment?.id) return;
     setTransactions(prev => {
-      const idx = prev.findIndex(t => t.id === res.id);
-      if (idx === -1) return [res, ...prev];
+      const idx = prev.findIndex(t => t.id === payment.id);
+      if (idx === -1) return [payment, ...prev];
       const next = [...prev];
-      next[idx] = res;
+      next[idx] = payment;
       return next;
     });
-    return res;
   };
 
   const cancelAppointment = (id) => updateAppointmentStatus(id, 'Cancelled');
@@ -629,7 +643,7 @@ export function ClinicDataProvider({ children }) {
     uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, refreshPatients: fetchData,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment, refreshAppointments,
     approveRequest, rejectRequest, callNextForDoctor,
-    transactions, payAppointment,
+    transactions, syncPayment,
     cycleLogs, logCycle,
     vitals, logVital,
     lifestyleLogs, logLifestyle,
@@ -637,6 +651,7 @@ export function ClinicDataProvider({ children }) {
     favorites, toggleFavorite,
     waitlist, joinWaitlist, leaveWaitlist,
     kycVerified, kycSubmitted, verifyKyc,
+    loading, loadError, retryLoad: fetchData,
   };
 
   return <ClinicDataContext.Provider value={value}>{loading ? null : children}</ClinicDataContext.Provider>;

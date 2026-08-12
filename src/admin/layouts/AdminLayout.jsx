@@ -1,10 +1,22 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useNotifications, NOTIFICATION_STYLE, DEFAULT_NOTIFICATION_STYLE } from '../../context/NotificationsContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { PageTransition } from '../../components/PageTransition.jsx';
 import { NavHoverRail } from '../../components/NavHoverRail.jsx';
 import { ModuleAccentBar } from '../../components/ModuleAccentBar.jsx';
+
+function timeAgo(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins} min${mins === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
 
 const DEFAULT_ACCENT = '#6B46C1';
 
@@ -23,44 +35,45 @@ const NAV_ITEMS = [
   { name: 'Leads',              icon: 'fa-address-book',      path: '/admin-dashboard/leads',        end: false, color: '#14b8a6' },
 ];
 
-const NOTIFICATIONS = [
-  { id: 1, icon: 'fa-user-doctor',  color: 'text-amber-500', title: 'New Doctor Verification', body: 'Dr. Riya Sen has submitted profile for review.', time: '5 mins ago',  read: false },
-  { id: 2, icon: 'fa-indian-rupee-sign', color: 'text-emerald-500', title: 'Payout Request',    body: 'Dr. Sarah Mitchell requested payout of ₹5,600.', time: '1 hour ago',  read: false },
-  { id: 3, icon: 'fa-triangle-exclamation', color: 'text-rose-500', title: 'High API Usage',   body: 'SMS gateway limit approaching 90%.',              time: '2 hours ago', read: true  },
-];
-
 /* ─── Notification Panel ─────────────────────── */
-function NotificationPanel({ isOpen, onClose, notifications, setNotifications }) {
+// AUDIT_REPORT.md FE-6 — this used to be 3 hardcoded fake alerts (including
+// a fabricated "Dr. Sarah Mitchell requested payout of ₹5,600"), never
+// backed by anything real. Now reads the same real notifications feed
+// (NotificationsContext) every other role's layout uses.
+function NotificationPanel({ isOpen, onClose, notifications, onMarkAllRead, onMarkRead }) {
   const unread = notifications.filter(n => !n.read).length;
-
-  const markAll = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  const markOne = (id) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
 
   if (!isOpen) return null;
   return (
     <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 animate-fade-in overflow-hidden">
       <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
         <h3 className="font-bold text-slate-800 text-sm">Alerts {unread > 0 && <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ml-1">{unread}</span>}</h3>
-        {unread > 0 && <button onClick={markAll} className="text-xs text-aubergine-600 font-bold hover:underline">Mark all read</button>}
+        {unread > 0 && <button onClick={onMarkAllRead} className="text-xs text-aubergine-600 font-bold hover:underline">Mark all read</button>}
       </div>
       <div className="divide-y divide-slate-50 max-h-80 overflow-y-auto">
-        {notifications.map(n => (
-          <div key={n.id} onClick={() => markOne(n.id)} className={`px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors ${!n.read ? 'bg-amber-50/30' : ''}`}>
-            <div className="flex gap-3">
-              <div className={`w-8 h-8 rounded-full ${!n.read ? 'bg-amber-100' : 'bg-slate-100'} flex items-center justify-center flex-shrink-0`}>
-                <i className={`fas ${n.icon} text-xs ${n.color}`}></i>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start gap-2">
-                  <p className={`text-xs font-bold ${!n.read ? 'text-slate-800' : 'text-slate-600'}`}>{n.title}</p>
-                  {!n.read && <div className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0 mt-0.5"></div>}
+        {notifications.length === 0 && (
+          <p className="text-sm text-slate-500 text-center py-8">You're all caught up.</p>
+        )}
+        {notifications.map(n => {
+          const style = NOTIFICATION_STYLE[n.type] || DEFAULT_NOTIFICATION_STYLE;
+          return (
+            <div key={n.id} onClick={() => !n.read && onMarkRead(n.id)} className={`px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors ${!n.read ? 'bg-amber-50/30' : ''}`}>
+              <div className="flex gap-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${style.color}`}>
+                  <i className={`fas ${style.icon} text-xs`}></i>
                 </div>
-                <p className="text-xs text-slate-500 leading-relaxed mt-0.5">{n.body}</p>
-                <p className="text-[10px] text-slate-400 mt-1">{n.time}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start gap-2">
+                    <p className={`text-xs font-bold ${!n.read ? 'text-slate-800' : 'text-slate-600'}`}>{n.title}</p>
+                    {!n.read && <div className="w-2 h-2 bg-amber-500 rounded-full flex-shrink-0 mt-0.5"></div>}
+                  </div>
+                  <p className="text-xs text-slate-500 leading-relaxed mt-0.5">{n.message}</p>
+                  <p className="text-[10px] text-slate-400 mt-1">{timeAgo(n.created_at)}</p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="px-5 py-3 border-t border-slate-100">
         <button onClick={onClose} className="w-full text-xs text-center text-slate-400 hover:text-aubergine-600 font-medium transition-colors">Close</button>
@@ -146,13 +159,16 @@ function AdminLayout() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const toast     = useToast();
+  const { notifications, unreadCount, markAllRead: markAllReadRemote, markRead } = useNotifications();
 
   const [drawerOpen, setDrawerOpen]       = useState(false);
   const [notifOpen, setNotifOpen]         = useState(false);
-  const [notifications, setNotifications] = useState(NOTIFICATIONS);
   const [hoveredColor, setHoveredColor]   = useState(null);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const markAllRead = () => {
+    markAllReadRemote();
+    toast('All notifications marked as read.', 'success');
+  };
 
   const [selectedFacility, setSelectedFacility] = useState('All Enterprise Facilities (Global)');
   const [facilityMenuOpen, setFacilityMenuOpen]   = useState(false);
@@ -249,7 +265,7 @@ function AdminLayout() {
                   </span>
                 )}
               </button>
-              <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} notifications={notifications} setNotifications={setNotifications} />
+              <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} notifications={notifications} onMarkAllRead={markAllRead} onMarkRead={markRead} />
             </div>
 
             {/* Admin Avatar */}

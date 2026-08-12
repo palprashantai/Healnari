@@ -222,11 +222,12 @@ function PatientProfile() {
                   { label: 'City / Location', key: 'city', icon: 'fa-location-dot' },
                 ].map(field => (
                   <div key={field.key}>
-                    <label className="text-xs font-bold text-slate-500 mb-1.5 block">
+                    <label htmlFor={`profile-${field.key}`} className="text-xs font-bold text-slate-500 mb-1.5 block">
                       <i className={`fas ${field.icon} mr-1.5 text-aubergine-400`}></i>{field.label}
                       {field.readOnly && <span className="ml-1.5 font-normal text-slate-400 normal-case">(cannot be changed)</span>}
                     </label>
                     <input
+                      id={`profile-${field.key}`}
                       type={field.type || 'text'}
                       value={form[field.key]}
                       readOnly={field.readOnly}
@@ -272,20 +273,20 @@ function PatientProfile() {
             <div className="space-y-5">
               <div className="grid md:grid-cols-3 gap-5">
                 <div>
-                  <label className="text-xs font-bold text-slate-500 mb-1.5 block">Blood Group</label>
-                  <select value={form.bloodGroup} onChange={e => setForm(p => ({ ...p, bloodGroup: e.target.value }))}
+                  <label htmlFor="profile-bloodGroup" className="text-xs font-bold text-slate-500 mb-1.5 block">Blood Group</label>
+                  <select id="profile-bloodGroup" value={form.bloodGroup} onChange={e => setForm(p => ({ ...p, bloodGroup: e.target.value }))}
                     className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
                     {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(o => <option key={o}>{o}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 mb-1.5 block">Height (cm)</label>
-                  <input type="number" value={form.height} onChange={e => setForm(p => ({ ...p, height: e.target.value }))}
+                  <label htmlFor="profile-height" className="text-xs font-bold text-slate-500 mb-1.5 block">Height (cm)</label>
+                  <input id="profile-height" type="number" value={form.height} onChange={e => setForm(p => ({ ...p, height: e.target.value }))}
                     className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-500 mb-1.5 block">Weight (kg)</label>
-                  <input type="number" value={form.weight} onChange={e => setForm(p => ({ ...p, weight: e.target.value }))}
+                  <label htmlFor="profile-weight" className="text-xs font-bold text-slate-500 mb-1.5 block">Weight (kg)</label>
+                  <input id="profile-weight" type="number" value={form.weight} onChange={e => setForm(p => ({ ...p, weight: e.target.value }))}
                     className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
                 </div>
               </div>
@@ -335,8 +336,8 @@ function PatientProfile() {
                   { label: 'Confirm New Password', key: 'confirm' },
                 ].map(f => (
                   <div key={f.key}>
-                    <label className="text-xs font-bold text-slate-500 mb-1.5 block">{f.label}</label>
-                    <input type="password" placeholder="••••••••" value={pwdForm[f.key]}
+                    <label htmlFor={`profile-pwd-${f.key}`} className="text-xs font-bold text-slate-500 mb-1.5 block">{f.label}</label>
+                    <input id={`profile-pwd-${f.key}`} type="password" placeholder="••••••••" value={pwdForm[f.key]}
                       onChange={e => setPwdForm(p => ({ ...p, [f.key]: e.target.value }))}
                       className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
                   </div>

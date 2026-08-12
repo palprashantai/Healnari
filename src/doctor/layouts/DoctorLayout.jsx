@@ -7,6 +7,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { HealNariLogo } from '../../components/HealNariLogo.jsx';
 import { PageTransition } from '../../components/PageTransition.jsx';
+import { DataErrorBanner } from '../../components/DataErrorBanner.jsx';
 import { NavHoverRail } from '../../components/NavHoverRail.jsx';
 import { ModuleAccentBar } from '../../components/ModuleAccentBar.jsx';
 import AiChatWidget from '../../tools/AiChatWidget.jsx';
@@ -160,7 +161,7 @@ function DoctorLayout() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const toast     = useToast();
-  const { patients } = useClinicData();
+  const { patients, loadError, retryLoad } = useClinicData();
   const { notifications, unreadCount, markAllRead, markRead } = useNotifications();
 
   const [drawerOpen, setDrawerOpen]       = useState(false);
@@ -476,6 +477,7 @@ function DoctorLayout() {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-3 md:p-5">
+          {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
           <PageTransition />
         </main>
       </div>

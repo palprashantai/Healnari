@@ -2,7 +2,10 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module'; import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { AllExceptionsFilter } from './core/filters/http-exception.filter';
+import { initSentry } from './core/monitoring/sentry';
 import helmet from 'helmet';
+
+initSentry();
 
 const DEFAULT_ALLOWED_ORIGINS = [
   'https://healnari.vercel.app',
@@ -46,21 +49,26 @@ async function bootstrap() {
   // Apply Global Exception Filter (Error Handling)
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  // Setup Swagger API Documentation
-  const config = new DocumentBuilder()
-    .setTitle('HealNari API')
-    .setDescription('The modular backend REST API for the HealNari platform.')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
+  // Swagger API docs — dev-only (AUDIT_REPORT.md SEC-2). Publicly exposing
+  // the exact shape of every endpoint/DTO in production materially eases
+  // enumeration/IDOR attempts against a healthcare API.
+  const swaggerEnabled = process.env.NODE_ENV !== 'production';
+  if (swaggerEnabled) {
+    const config = new DocumentBuilder()
+      .setTitle('HealNari API')
+      .setDescription('The modular backend REST API for the HealNari platform.')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = process.env.PORT || 5000;
   await app.listen(port);
 
   const url = await app.getUrl();
-  console.log(`Swagger docs available at ${url}/api/docs`);
+  if (swaggerEnabled) console.log(`Swagger docs available at ${url}/api/docs`);
 }
 bootstrap();

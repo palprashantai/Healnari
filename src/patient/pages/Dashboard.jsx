@@ -812,6 +812,23 @@ function PatientDashboard() {
   const nextAppointment = upcomingAppointments[0];
   const daysToNext = nextAppointment ? Math.max(0, daysUntil(nextAppointment.date)) : null;
 
+  // Live queue position for today's appointment — refetched periodically
+  // while the dashboard is open so "you're 3rd in line" stays accurate as
+  // the doctor actually works through their queue, instead of the patient
+  // just watching their originally booked slot time come and go.
+  const [queueStatus, setQueueStatus] = useState(null);
+  const isTodayVisit = nextAppointment && daysToNext === 0;
+  useEffect(() => {
+    if (!isTodayVisit) { setQueueStatus(null); return; }
+    let cancelled = false;
+    const fetchQueue = () => apiFetch(`/appointments/${nextAppointment.id}/queue-status`)
+      .then(res => { if (!cancelled) setQueueStatus(res); })
+      .catch(() => { if (!cancelled) setQueueStatus(null); });
+    fetchQueue();
+    const interval = setInterval(fetchQueue, 45000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [isTodayVisit, nextAppointment?.id]);
+
   const [onboardingDone, setOnboardingDone] = useState(() => localStorage.getItem('healnari_onboarding_done') === 'true');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [discreet, setDiscreet] = useState(localStorage.getItem('discreet_mode') === 'true');
@@ -844,6 +861,16 @@ function PatientDashboard() {
                 ? <>Your next visit with Dr. {nextAppointment.doctorName} is <strong className="text-aubergine-700">{daysToNext === 0 ? 'today' : `in ${daysToNext} day${daysToNext === 1 ? '' : 's'}`}</strong>. Rest and recharge.</>
                 : "Welcome to your daily health command center."}
             </p>
+            {isTodayVisit && queueStatus?.position && (
+              <div className="mt-2.5 inline-flex items-center gap-2 bg-white/70 border border-aubergine-200 rounded-xl px-3 py-1.5 text-xs font-bold text-aubergine-800 shadow-sm">
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                {queueStatus.status === 'In Progress'
+                  ? "You're up now — join the call"
+                  : queueStatus.peopleAhead === 0
+                    ? "You're next in the queue"
+                    : `#${queueStatus.position} in queue · ~${queueStatus.estimatedWaitMinutes} min estimated wait`}
+              </div>
+            )}
           </div>
           <div className="flex gap-3">
             <button onClick={() => navigate(`/patient-dashboard/appointments?joinCall=${nextAppointment.id}`)} disabled={!nextAppointment || nextAppointment.type !== 'Video Consult' || daysToNext !== 0}

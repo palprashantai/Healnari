@@ -207,7 +207,11 @@ If the patient corrects or changes an answer they already gave, always use their
 
 Once you have a current value for all three, call calculateFertilityEstimate. If the patient just wants to record that their period started on a specific day, without asking for a calculation, call logPeriodDay instead.
 
-Keep replies short and non-technical. Never give a medical diagnosis; suggest seeing a doctor for anything that sounds concerning.`;
+Keep replies short and non-technical. Never give a medical diagnosis, never invent medical facts, and never state a probability or certainty about what a symptom means.
+
+If the patient describes any of the following, do not continue the normal conversation — respond only with an urgent-care message telling them to seek emergency medical care immediately (or call their local emergency number) and stop there: very heavy bleeding (soaking a pad/tampon in under an hour), severe or worsening abdominal/pelvic pain, chest pain or difficulty breathing, fainting or severe dizziness, or any mention of self-harm or suicidal thoughts. For self-harm or suicidal thoughts specifically, also tell them they don't have to be alone with this and to reach out to a crisis helpline or emergency services right now.
+
+For anything else that sounds concerning but isn't urgent, suggest seeing a doctor rather than assessing it yourself.`;
 
     const model = this.genAI.getGenerativeModel({
       model: 'gemini-1.5-flash',
@@ -276,8 +280,17 @@ Keep replies short and non-technical. Never give a medical diagnosis; suggest se
 
     // 3. Generate response using the RAG context
     const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const prompt = `You are a friendly customer service assistant for HealNari's landing page. 
-Use the following context from our knowledge base to answer the user's question. If the answer isn't in the context, say you don't know but offer to connect them with support.
+    // AUDIT_REPORT.md AI-2 — this is the one AI surface reachable by anyone
+    // with no login, and it previously had no medical-safety instruction at
+    // all (unlike the patient agent above and the consult-brief
+    // summarizer). Same guardrails apply here even though this prompt is
+    // mostly answering product/pricing/logistics questions, since a visitor
+    // can still type a symptom question into it.
+    const prompt = `You are a friendly assistant for HealNari's public landing page, answering questions from visitors who are not logged in.
+
+Use the following context from our knowledge base to answer the user's question. If the answer isn't in the context, say you don't know but offer to connect them with support — never guess or invent an answer.
+
+You are not a doctor and must never diagnose, suggest a treatment, or state what a symptom means. If the user describes a medical symptom or concern, say you can't advise on that and suggest booking a consultation with a HealNari doctor. If they describe a medical emergency (severe pain, heavy bleeding, chest pain/difficulty breathing, fainting, self-harm or suicidal thoughts), tell them to seek emergency care immediately or contact a crisis helpline, and do not attempt to otherwise answer.
 
 Context:
 ${contextTexts || 'No relevant information found in knowledge base.'}
@@ -286,6 +299,39 @@ User Query: ${userQuery}`;
 
     const result = await model.generateContent(prompt);
     return result.response.text();
+  }
+
+  /** Plain-language 2-3 sentence brief for a doctor about to start a
+   * consultation, built ONLY from the facts passed in — the prompt is
+   * explicit that it must not invent or infer anything not listed. Returns
+   * null (not a thrown error) when Gemini isn't configured, so the
+   * consult-brief endpoint can still show the structured facts on their own
+   * instead of failing the whole request over a missing API key. */
+  async summarizeForConsult(facts: {
+    patientName: string;
+    reason?: string;
+    chronicConditions: string[];
+    allergies: string[];
+    currentMedications: string[];
+    recentLabReports: { name: string; status: string }[];
+  }): Promise<string | null> {
+    if (!this.genAI) return null;
+    try {
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const prompt = `You are preparing a short brief for a doctor about to start a consultation. Using ONLY the facts listed below, write a concise 2-3 sentence plain-language summary. Do not invent, assume, or infer any medical information that isn't explicitly listed. If a section says "None recorded", do not mention it as a finding — just leave it out.
+
+Patient: ${facts.patientName}
+Reason for this visit: ${facts.reason || 'Not specified'}
+Chronic conditions on file: ${facts.chronicConditions.length ? facts.chronicConditions.join(', ') : 'None recorded'}
+Known allergies: ${facts.allergies.length ? facts.allergies.join(', ') : 'None recorded'}
+Current medications: ${facts.currentMedications.length ? facts.currentMedications.join(', ') : 'None recorded'}
+Recent lab reports: ${facts.recentLabReports.length ? facts.recentLabReports.map((r) => `${r.name} (${r.status})`).join(', ') : 'None recorded'}`;
+
+      const result = await model.generateContent(prompt);
+      return result.response.text();
+    } catch {
+      return null;
+    }
   }
 
   // --- Helpers ---

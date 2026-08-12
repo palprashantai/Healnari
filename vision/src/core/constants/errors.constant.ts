@@ -39,6 +39,7 @@ export const ERROR_MESSAGES = {
   LAB_REPORT_REQUEST_NOT_FOUND: 'Lab report request not found.',
   LAB_REPORT_ALREADY_REVIEWED: 'This report has already been reviewed and can no longer be removed.',
   INVALID_FILE_TYPE: 'Unsupported file type. Please upload a PDF, JPG, or PNG.',
+  INVALID_IMAGE_TYPE: 'Unsupported file type. Please upload a JPG, PNG, or WebP image.',
   FILE_TOO_LARGE: 'File is too large. Maximum size is 15MB.',
   FILE_REQUIRED: 'Please attach a file.',
 
@@ -53,6 +54,8 @@ export const ERROR_MESSAGES = {
 
   // Billing
   PAYMENT_NOT_FOUND: 'Payment not found.',
+  NOTHING_TO_CHARGE: 'There is nothing to charge for this appointment.',
+  INSUFFICIENT_BALANCE: 'That amount is more than your available balance.',
 
   // Staff
   STAFF_NOT_FOUND: 'Staff member not found.',

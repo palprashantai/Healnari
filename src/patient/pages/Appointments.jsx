@@ -10,6 +10,7 @@ import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
 import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
 import { useFullscreen } from '../../hooks/useFullscreen.js';
+import { PreJoinCheck } from '../../components/PreJoinCheck.jsx';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
  * for srcObject, so this stays a thin imperative wrapper. */
@@ -29,8 +30,6 @@ function VideoTile({ stream, muted = false, mirrored = false, className = '' }) 
     />
   );
 }
-
-const SLOTS = ['9:00 AM', '10:30 AM', '12:00 PM', '2:00 PM', '4:00 PM', '5:30 PM'];
 
 /* ─── Join Waitlist Modal ────────────────────── */
 function JoinWaitlistModal({ isOpen, onClose, doctors, onJoin }) {
@@ -92,10 +91,27 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
     slot: '',
     notes: '',
   });
+  const [slots, setSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
 
   useEffect(() => {
     if (isOpen) setForm({ doctorId: prefill.doctorId || '', type: prefill.type || 'Video Consult', date: '', slot: '', notes: '' });
   }, [isOpen, prefill.doctorId, prefill.type]);
+
+  // Real per-doctor availability, not a fixed list — matches Discovery.jsx /
+  // Dashboard.jsx's QuickBookModal. Re-fetched after a failed booking too
+  // (slotsRefreshKey), so a slot someone else just took disappears instead
+  // of staying selectable.
+  useEffect(() => {
+    if (!form.doctorId || !form.date) { setSlots([]); return; }
+    setForm(p => ({ ...p, slot: '' }));
+    setSlotsLoading(true);
+    apiFetch(`/doctors/${form.doctorId}/slots?date=${form.date}`)
+      .then(res => setSlots(res.availableSlots || []))
+      .catch(() => setSlots([]))
+      .finally(() => setSlotsLoading(false));
+  }, [form.doctorId, form.date, slotsRefreshKey]);
 
   const selectedDoctor = doctors.find(d => d.id === form.doctorId);
 
@@ -113,7 +129,10 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
       await onBook({ ...form, doctorName: selectedDoctor?.full_name, fee: selectedDoctor?.consultation_fee });
       reset();
     } catch {
-      // already toasted by the caller — keep the modal open so the user can retry
+      // already toasted by the caller — keep the modal open so the user can
+      // retry. Re-fetch availability in case this failed because someone
+      // else just took the slot (the 23505 conflict case).
+      setSlotsRefreshKey(k => k + 1);
     } finally {
       setBooking(false);
     }
@@ -163,14 +182,20 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
       {step === 2 && (
         <div className="space-y-4">
           <p className="text-sm font-bold text-slate-700">Available slots for {form.date}:</p>
-          <div className="grid grid-cols-3 gap-2">
-            {SLOTS.map(slot => (
-              <button key={slot} onClick={() => setForm(p => ({ ...p, slot }))}
-                className={`py-3 rounded-xl text-xs font-bold border transition-all ${form.slot === slot ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-aubergine-300'}`}>
-                {slot}
-              </button>
-            ))}
-          </div>
+          {slotsLoading ? (
+            <p className="text-xs text-slate-400 py-2"><i className="fas fa-spinner fa-spin mr-1.5"></i>Loading slots…</p>
+          ) : slots.length === 0 ? (
+            <p className="text-xs text-slate-500 py-2">No slots left for this date — go back and try another date.</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {slots.map(slot => (
+                <button key={slot} onClick={() => setForm(p => ({ ...p, slot }))}
+                  className={`py-3 rounded-xl text-xs font-bold border transition-all ${form.slot === slot ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-aubergine-300'}`}>
+                  {slot}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-4 text-xs space-y-1.5">
             <div className="flex justify-between"><span className="font-bold text-slate-600">Doctor</span><span className="text-slate-800">Dr. {selectedDoctor?.full_name}</span></div>
             <div className="flex justify-between"><span className="font-bold text-slate-600">Type</span><span className="text-slate-800">{form.type}</span></div>
@@ -202,6 +227,12 @@ function callStatusCopy(call) {
   if (call.connectionState === 'failed') return call.error || 'Connection failed';
   return CALL_STATUS_COPY[call.connectionState] || '● Live';
 }
+
+const QUALITY_STYLES = {
+  good: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400',
+  fair: 'bg-amber-500/15 border-amber-500/30 text-amber-400',
+  poor: 'bg-rose-500/15 border-rose-500/30 text-rose-400',
+};
 
 function fmtDuration(s) {
   return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
@@ -297,15 +328,13 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
     return (
       <Modal isOpen={isOpen} onClose={onClose} title="Video Consultation" size="lg">
         <div className="text-center space-y-5 py-2">
-          <div className="w-20 h-20 rounded-3xl bg-aubergine-50 mx-auto flex items-center justify-center text-3xl font-black text-aubergine-700">
-            {initials}
-          </div>
           <div>
             <h4 className="font-black text-slate-800 text-xl">{doctor}</h4>
             <p className="text-sm text-emerald-600 font-semibold mt-1 flex items-center justify-center gap-1.5">
               <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Ready to connect
             </p>
           </div>
+          <PreJoinCheck />
           <div className="bg-slate-50 rounded-xl p-4 text-xs space-y-1.5 text-left">
             <div className="flex items-center gap-2 text-slate-600"><i className="fas fa-shield-halved text-emerald-500"></i> Private, doctor-only session</div>
             <div className="flex items-center gap-2 text-slate-600"><i className="fas fa-lock text-emerald-500"></i> DPDP Act, 2023 compliant</div>
@@ -327,6 +356,11 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
         <div className="flex items-center gap-2 text-xs font-bold">
           <span className={`w-2 h-2 rounded-full ${call.connectionState === 'connected' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
           <span className="font-mono tabular-nums">{call.connectionState === 'connected' ? fmtDuration(elapsed) : callStatusCopy(call)}</span>
+          {call.connectionState === 'connected' && call.connectionQuality && (
+            <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] ${QUALITY_STYLES[call.connectionQuality]}`} title="Connection quality">
+              <i className="fas fa-signal"></i> {call.connectionQuality}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs font-bold text-white/70 truncate max-w-[40vw]">{doctor}</span>
@@ -365,6 +399,15 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
         {call.peerMuted && call.remoteStream && (
           <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-xs text-white text-xs px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5">
             <i className="fas fa-microphone-slash text-rose-400"></i> Doctor is muted
+          </div>
+        )}
+
+        {call.connectionQuality === 'poor' && !call.isVideoOff && call.localStream && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-xs text-white text-xs px-3 py-2 rounded-xl border border-amber-500/30 flex items-center gap-3">
+            <span className="flex items-center gap-1.5"><i className="fas fa-triangle-exclamation text-amber-400"></i> Weak connection</span>
+            <button onClick={call.toggleVideo} className="bg-white/15 hover:bg-white/25 font-bold px-2.5 py-1 rounded-lg text-[11px] transition-colors">
+              Continue with Audio Only
+            </button>
           </div>
         )}
 
@@ -421,10 +464,10 @@ function PatientAppointments() {
   const toast = useToast();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  // transactions/payAppointment come from ClinicDataContext (not fetched
+  // transactions/syncPayment come from ClinicDataContext (not fetched
   // locally) — the same cache Billing.jsx reads, so a payment made on
   // either page is immediately reflected on both.
-  const { appointments, addAppointment, cancelAppointment, waitlist, joinWaitlist, leaveWaitlist, transactions, payAppointment, refreshAppointments } = useClinicData();
+  const { appointments, addAppointment, cancelAppointment, waitlist, joinWaitlist, leaveWaitlist, transactions, syncPayment, refreshAppointments } = useClinicData();
   const [doctors, setDoctors] = useState([]);
   const [tab, setTab] = useState('upcoming');
   const [showJoinWaitlist, setShowJoinWaitlist] = useState(false);
@@ -580,8 +623,8 @@ function PatientAppointments() {
     }
   };
 
-  // "Pay Now" opens the same method-selection/confirmation modal Billing.jsx
-  // uses, instead of silently charging a hardcoded UPI payment on a single click.
+  // "Pay Now" opens the same real Cashfree payment modal Billing.jsx uses,
+  // instead of silently charging a hardcoded UPI payment on a single click.
   const [payTarget, setPayTarget] = useState(null);
   const [showPayModal, setShowPayModal] = useState(false);
 
@@ -590,14 +633,9 @@ function PatientAppointments() {
     setShowPayModal(true);
   };
 
-  const handlePaySuccess = async (method) => {
-    try {
-      await payAppointment(payTarget.id, method);
-      toast('Payment successful!', 'success');
-    } catch (err) {
-      toast(err.message || 'Payment failed. Please try again.', 'error');
-      throw err;
-    }
+  const handlePaid = (payment) => {
+    syncPayment(payment);
+    toast('Payment successful!', 'success');
   };
 
   const handleWaitlistCancel = async (entry) => {
@@ -830,9 +868,10 @@ function PatientAppointments() {
       <PaymentModal
         isOpen={showPayModal}
         onClose={() => setShowPayModal(false)}
+        appointmentId={payTarget?.id}
         amount={payTarget?.fee ?? 0}
         description={payTarget ? `Consultation — ${payTarget.doctor}` : ''}
-        onSuccess={handlePaySuccess}
+        onPaid={handlePaid}
       />
     </div>
   );

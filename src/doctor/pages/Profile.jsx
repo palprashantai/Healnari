@@ -160,22 +160,22 @@ function DoctorProfile() {
                   { label: 'Clinic Name', key: 'clinicName', icon: 'fa-hospital' },
                 ].map(f => (
                   <div key={f.key}>
-                    <label className="text-xs font-bold text-slate-500 mb-1.5 block">
+                    <label htmlFor={`doctor-profile-${f.key}`} className="text-xs font-bold text-slate-500 mb-1.5 block">
                       <i className={`fas ${f.icon} mr-1.5 text-aubergine-400`}></i>{f.label}
                     </label>
-                    <input type={f.type || 'text'} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                    <input id={`doctor-profile-${f.key}`} type={f.type || 'text'} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
                       className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50" />
                   </div>
                 ))}
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 mb-1.5 block"><i className="fas fa-location-dot mr-1.5 text-aubergine-400"></i>Clinic Address</label>
-                <textarea rows={2} value={form.clinicAddress} onChange={e => setForm(p => ({ ...p, clinicAddress: e.target.value }))}
+                <label htmlFor="doctor-profile-clinicAddress" className="text-xs font-bold text-slate-500 mb-1.5 block"><i className="fas fa-location-dot mr-1.5 text-aubergine-400"></i>Clinic Address</label>
+                <textarea id="doctor-profile-clinicAddress" rows={2} value={form.clinicAddress} onChange={e => setForm(p => ({ ...p, clinicAddress: e.target.value }))}
                   className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-none" />
               </div>
               <div>
-                <label className="text-xs font-bold text-slate-500 mb-1.5 block"><i className="fas fa-circle-info mr-1.5 text-aubergine-400"></i>Professional Bio (Patient-facing)</label>
-                <textarea rows={3} value={form.bio} onChange={e => setForm(p => ({ ...p, bio: e.target.value }))} placeholder="Brief description of your expertise..."
+                <label htmlFor="doctor-profile-bio" className="text-xs font-bold text-slate-500 mb-1.5 block"><i className="fas fa-circle-info mr-1.5 text-aubergine-400"></i>Professional Bio (Patient-facing)</label>
+                <textarea id="doctor-profile-bio" rows={3} value={form.bio} onChange={e => setForm(p => ({ ...p, bio: e.target.value }))} placeholder="Brief description of your expertise..."
                   className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-none" />
               </div>
 
@@ -232,8 +232,8 @@ function DoctorProfile() {
                   { label: 'Slot Duration', value: '30 Minutes' },
                 ].map(f => (
                   <div key={f.label}>
-                    <label className="text-xs font-bold text-slate-500 mb-1.5 block">{f.label}</label>
-                    <input defaultValue={f.value} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50" />
+                    <label htmlFor={`doctor-schedule-${f.label.replace(/\s+/g, '-')}`} className="text-xs font-bold text-slate-500 mb-1.5 block">{f.label}</label>
+                    <input id={`doctor-schedule-${f.label.replace(/\s+/g, '-')}`} defaultValue={f.value} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50" />
                   </div>
                 ))}
               </div>
@@ -266,8 +266,8 @@ function DoctorProfile() {
                 ].map(f => (
                   <div key={f.key} className={`border ${f.color} rounded-2xl p-5`}>
                     <div className="text-base mb-2"><i className={`fas ${f.icon}`}></i></div>
-                    <label className="text-xs font-bold text-slate-500 mb-1.5 block">{f.label}</label>
-                    <input type="number" value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                    <label htmlFor={`doctor-fee-${f.key}`} className="text-xs font-bold text-slate-500 mb-1.5 block">{f.label}</label>
+                    <input id={`doctor-fee-${f.key}`} type="number" value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
                       className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-lg font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
                   </div>
                 ))}
@@ -300,8 +300,8 @@ function DoctorProfile() {
                 <h3 className="font-bold text-slate-800">Change Password</h3>
                 {[{ label: 'Current Password', key: 'current' }, { label: 'New Password', key: 'newPwd' }, { label: 'Confirm New Password', key: 'confirm' }].map(f => (
                   <div key={f.key}>
-                    <label className="text-xs font-bold text-slate-500 mb-1.5 block">{f.label}</label>
-                    <input type="password" placeholder="••••••••" value={pwdForm[f.key]} onChange={e => setPwdForm(p => ({ ...p, [f.key]: e.target.value }))}
+                    <label htmlFor={`doctor-pwd-${f.key}`} className="text-xs font-bold text-slate-500 mb-1.5 block">{f.label}</label>
+                    <input id={`doctor-pwd-${f.key}`} type="password" placeholder="••••••••" value={pwdForm[f.key]} onChange={e => setPwdForm(p => ({ ...p, [f.key]: e.target.value }))}
                       className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
                   </div>
                 ))}

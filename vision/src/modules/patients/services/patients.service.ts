@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto';
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PatientRecord } from '@/shared/interfaces/patient-record.interface';
 import { CycleLog } from '@/shared/interfaces/cycle-log.interface';
@@ -38,6 +39,28 @@ export class PatientsService {
     if (!user.profile.kyc_verified) throw new ForbiddenException(ERROR_MESSAGES.DOCTOR_NOT_VERIFIED);
   }
 
+  /** Verified-doctor role alone used to be treated as "may reach any
+   * patient" — fixed per AUDIT_REPORT.md SEC-1. Mirrors
+   * RecordsService.hasCareRelationship() — kept as a separate copy rather
+   * than a shared base class, matching how requireVerifiedDoctor is already
+   * duplicated between these two services in this codebase. */
+  private async hasCareRelationship(doctorId: string, patientId: string): Promise<boolean> {
+    const [{ count: apptCount }, { data: record }] = await Promise.all([
+      this.supabase.admin.from('appointments').select('id', { count: 'exact', head: true }).eq('doctor_id', doctorId).eq('patient_id', patientId),
+      this.supabase.admin.from('patient_records').select('created_by_doctor_id').eq('patient_id', patientId).maybeSingle(),
+    ]);
+    if ((apptCount || 0) > 0) return true;
+    return record?.created_by_doctor_id === doctorId;
+  }
+
+  private async getDoctorPatientIds(doctorId: string): Promise<string[]> {
+    const [{ data: appts }, { data: records }] = await Promise.all([
+      this.supabase.admin.from('appointments').select('patient_id').eq('doctor_id', doctorId),
+      this.supabase.admin.from('patient_records').select('patient_id').eq('created_by_doctor_id', doctorId),
+    ]);
+    return [...new Set([...(appts || []).map((a: any) => a.patient_id), ...(records || []).map((r: any) => r.patient_id)])];
+  }
+
   private async assemble(profile: Profile, record: PatientRecord | null) {
     const [medsRes, reportsRes, notesRes, paymentsRes] = await Promise.all([
       this.supabase.admin.from('prescriptions').select().eq('patient_id', profile.id).order('created_at', { ascending: false }),
@@ -75,7 +98,10 @@ export class PatientsService {
 
   async list(user: AuthUser) {
     this.requireVerifiedDoctor(user);
-    const { data: patients } = await this.supabase.admin.from('profiles').select().eq('role', ProfileRole.PATIENT);
+    const patientIds = await this.getDoctorPatientIds(user.id);
+    if (!patientIds.length) return [];
+
+    const { data: patients } = await this.supabase.admin.from('profiles').select().eq('role', ProfileRole.PATIENT).in('id', patientIds);
     if (!patients || !patients.length) return [];
 
     const { data: records } = await this.supabase.admin.from('patient_records').select().in('patient_id', patients.map(p => p.id));
@@ -88,7 +114,7 @@ export class PatientsService {
     this.requireVerifiedDoctor(user);
 
     const email = body.email || `patient.${Date.now()}@healnari.local`;
-    const password = Math.random().toString(36).slice(2) + 'A1!';
+    const password = randomBytes(12).toString('base64url') + 'A1!';
     const { data, error } = await this.supabase.admin.auth.admin.createUser({
       email,
       password,
@@ -100,13 +126,18 @@ export class PatientsService {
     if (body.phone || body.bloodGroup) {
       await this.supabase.admin.from('profiles').update({ phone: body.phone }).eq('id', data.user.id);
     }
-    if (body.bloodGroup) {
-      await this.supabase.admin.from('patient_records').update({ blood_group: body.bloodGroup }).eq('patient_id', data.user.id);
-    }
+    // Registering this patient is what establishes the care relationship —
+    // there's no appointment yet, so without this the doctor who just
+    // created the patient couldn't open the record they were just filling
+    // in (see AUDIT_REPORT.md SEC-1 / hasCareRelationship()).
+    await this.supabase.admin.from('patient_records').update({
+      ...(body.bloodGroup ? { blood_group: body.bloodGroup } : {}),
+      created_by_doctor_id: user.id,
+    }).eq('patient_id', data.user.id);
 
     const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', data.user.id).single();
     const { data: record } = await this.supabase.admin.from('patient_records').select().eq('patient_id', data.user.id).single();
-    
+
     return this.assemble(profile, record || null);
   }
 
@@ -117,7 +148,10 @@ export class PatientsService {
   }
 
   async update(user: AuthUser, patientId: string, body: UpdatePatientDto) {
-    if (user.id !== patientId) this.requireVerifiedDoctor(user);
+    if (user.id !== patientId) {
+      this.requireVerifiedDoctor(user);
+      if (!(await this.hasCareRelationship(user.id, patientId))) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    }
 
     const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', patientId).eq('role', ProfileRole.PATIENT).single();
     if (!profile) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);

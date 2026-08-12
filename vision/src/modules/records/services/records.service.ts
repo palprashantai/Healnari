@@ -33,6 +33,32 @@ export class RecordsService {
     if (!user.profile.kyc_verified) throw new ForbiddenException(ERROR_MESSAGES.DOCTOR_NOT_VERIFIED);
   }
 
+  /** Verified-doctor role alone used to be treated as "may reach any
+   * patient's PHI" — fixed per AUDIT_REPORT.md SEC-1. A doctor may only
+   * reach a patient they have an actual appointment with (any status,
+   * present or past), or one they registered themselves as a walk-in
+   * (patient_records.created_by_doctor_id — the one legitimate case with no
+   * appointment yet). */
+  private async hasCareRelationship(doctorId: string, patientId: string): Promise<boolean> {
+    const [{ count: apptCount }, { data: record }] = await Promise.all([
+      this.supabase.admin.from('appointments').select('id', { count: 'exact', head: true }).eq('doctor_id', doctorId).eq('patient_id', patientId),
+      this.supabase.admin.from('patient_records').select('created_by_doctor_id').eq('patient_id', patientId).maybeSingle(),
+    ]);
+    if ((apptCount || 0) > 0) return true;
+    return record?.created_by_doctor_id === doctorId;
+  }
+
+  /** Every patient id a doctor may legitimately reach — used for the
+   * cross-patient review-queue views (e.g. getLabReports() with no
+   * patientId) that used to return every patient's data platform-wide. */
+  private async getDoctorPatientIds(doctorId: string): Promise<string[]> {
+    const [{ data: appts }, { data: records }] = await Promise.all([
+      this.supabase.admin.from('appointments').select('patient_id').eq('doctor_id', doctorId),
+      this.supabase.admin.from('patient_records').select('patient_id').eq('created_by_doctor_id', doctorId),
+    ]);
+    return [...new Set([...(appts || []).map((a: any) => a.patient_id), ...(records || []).map((r: any) => r.patient_id)])];
+  }
+
   async getPrescriptions(user: AuthUser) {
     const query = this.supabase.admin.from('prescriptions').select().order('created_at', { ascending: false });
     if (user.profile.role === ProfileRole.DOCTOR) {
@@ -51,6 +77,7 @@ export class RecordsService {
    * 0017_prescription_grouping. */
   async createPrescription(user: AuthUser, body: CreatePrescriptionDto) {
     this.requireVerifiedDoctor(user);
+    if (!(await this.hasCareRelationship(user.id, body.patientId))) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
     const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
@@ -114,21 +141,29 @@ export class RecordsService {
 
   async getLabReports(user: AuthUser, patientId?: string) {
     // Patients are always scoped to themselves. A doctor may either scope to
-    // one patient (the EMR tab's use case) or, same rule as PatientsService's
-    // "any verified doctor sees every patient" — omit patientId to get their
-    // full cross-patient review queue (Reports.jsx's use case).
+    // one patient (the EMR tab's use case) or omit patientId for their
+    // cross-patient review queue (Reports.jsx's use case) — scoped to only
+    // patients they actually have a relationship with, not every patient on
+    // the platform (see AUDIT_REPORT.md SEC-1).
     const scopedPatientId = user.profile.role === ProfileRole.PATIENT ? user.id : patientId;
-    if (scopedPatientId) this.guardPatientAccess(user, scopedPatientId);
-    else this.requireVerifiedDoctor(user);
+    let doctorPatientIds: string[] | null = null;
+    if (scopedPatientId) {
+      await this.guardPatientAccess(user, scopedPatientId);
+    } else {
+      this.requireVerifiedDoctor(user);
+      doctorPatientIds = await this.getDoctorPatientIds(user.id);
+      if (!doctorPatientIds.length) return [];
+    }
 
     const query = this.supabase.admin.from('lab_reports').select().order('created_at', { ascending: false });
     if (scopedPatientId) query.eq('patient_id', scopedPatientId);
+    else query.in('patient_id', doctorPatientIds as string[]);
     const { data } = await query;
     return data || [];
   }
 
   async uploadLabReport(user: AuthUser, file: Express.Multer.File, body: UploadLabReportDto) {
-    this.guardPatientAccess(user, body.patientId);
+    await this.guardPatientAccess(user, body.patientId);
 
     if (!ALLOWED_LAB_REPORT_TYPES.includes(file.mimetype)) {
       throw new BadRequestException(ERROR_MESSAGES.INVALID_FILE_TYPE);
@@ -186,7 +221,7 @@ export class RecordsService {
   async getSignedUrl(user: AuthUser, id: string) {
     const { data: report } = await this.supabase.admin.from('lab_reports').select().eq('id', id).single();
     if (!report) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
-    this.guardPatientAccess(user, report.patient_id);
+    await this.guardPatientAccess(user, report.patient_id);
     if (!report.file_path) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
 
     const { data, error } = await this.supabase.admin.storage.from(LAB_REPORTS_BUCKET).createSignedUrl(report.file_path, 3600);
@@ -211,6 +246,7 @@ export class RecordsService {
 
   async requestLabReport(user: AuthUser, body: RequestLabReportDto) {
     this.requireVerifiedDoctor(user);
+    if (!(await this.hasCareRelationship(user.id, body.patientId))) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
     const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
@@ -270,6 +306,7 @@ export class RecordsService {
 
   async addClinicalNote(user: AuthUser, body: CreateClinicalNoteDto) {
     this.requireVerifiedDoctor(user);
+    if (!(await this.hasCareRelationship(user.id, body.patientId))) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
     const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
@@ -283,14 +320,15 @@ export class RecordsService {
   }
 
   async reviewLabReport(user: AuthUser, id: string, body: ReviewLabReportDto) {
-    // Reports are now patient-uploaded, not doctor-ordered — there is no
-    // single "owning" doctor to restrict this to, so any verified doctor
-    // (same rule guardPatientAccess applies for every other patient) may
-    // review. Matches how getLabReports/uploadLabReport already scope access.
+    // Reports are patient-uploaded, not doctor-ordered — there's no single
+    // "owning" doctor, but that no longer means ANY verified doctor (see
+    // AUDIT_REPORT.md SEC-1) — only one with an actual relationship to this
+    // patient may review it.
     this.requireVerifiedDoctor(user);
 
     const { data: report } = await this.supabase.admin.from('lab_reports').select().eq('id', id).single();
     if (!report) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
+    if (!(await this.hasCareRelationship(user.id, report.patient_id))) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
     const { data: updated } = await this.supabase.admin.from('lab_reports').update({
       interpretation: body.interpretation ?? report.interpretation,
@@ -309,23 +347,26 @@ export class RecordsService {
     return updated;
   }
 
-  /** Patients may only reach their own patientId; verified doctors may reach any. */
-  private guardPatientAccess(user: AuthUser, patientId: string) {
+  /** Patients may only reach their own patientId; verified doctors may only
+   * reach a patient they have a real care relationship with — see
+   * hasCareRelationship(). */
+  private async guardPatientAccess(user: AuthUser, patientId: string) {
     if (user.profile.role === ProfileRole.PATIENT) {
       if (user.id !== patientId) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
       return;
     }
     this.requireVerifiedDoctor(user);
+    if (!(await this.hasCareRelationship(user.id, patientId))) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
   }
 
   async getDocuments(user: AuthUser, patientId: string) {
-    this.guardPatientAccess(user, patientId);
+    await this.guardPatientAccess(user, patientId);
     const { data } = await this.supabase.admin.from('patient_documents').select().eq('patient_id', patientId).order('created_at', { ascending: false });
     return data || [];
   }
 
   async addDocument(user: AuthUser, body: AddDocumentDto) {
-    this.guardPatientAccess(user, body.patientId);
+    await this.guardPatientAccess(user, body.patientId);
     const { data } = await this.supabase.admin.from('patient_documents').insert({
       patient_id: body.patientId,
       uploaded_by: user.id,
@@ -341,20 +382,20 @@ export class RecordsService {
   async deleteDocument(user: AuthUser, id: string) {
     const { data: doc } = await this.supabase.admin.from('patient_documents').select().eq('id', id).single();
     if (!doc) throw new NotFoundException(ERROR_MESSAGES.DOCUMENT_NOT_FOUND);
-    this.guardPatientAccess(user, doc.patient_id);
+    await this.guardPatientAccess(user, doc.patient_id);
 
     await this.supabase.admin.from('patient_documents').delete().eq('id', id);
     return { id };
   }
 
   async getVaccinations(user: AuthUser, patientId: string) {
-    this.guardPatientAccess(user, patientId);
+    await this.guardPatientAccess(user, patientId);
     const { data } = await this.supabase.admin.from('vaccinations').select().eq('patient_id', patientId).order('created_at', { ascending: false });
     return data || [];
   }
 
   async addVaccination(user: AuthUser, body: AddVaccinationDto) {
-    this.guardPatientAccess(user, body.patientId);
+    await this.guardPatientAccess(user, body.patientId);
     const { data } = await this.supabase.admin.from('vaccinations').insert({
       patient_id: body.patientId,
       name: body.name,
@@ -365,13 +406,13 @@ export class RecordsService {
   }
 
   async getEmergencyContacts(user: AuthUser, patientId: string) {
-    this.guardPatientAccess(user, patientId);
+    await this.guardPatientAccess(user, patientId);
     const { data } = await this.supabase.admin.from('emergency_contacts').select().eq('patient_id', patientId).order('created_at', { ascending: false });
     return data || [];
   }
 
   async addEmergencyContact(user: AuthUser, body: AddEmergencyContactDto) {
-    this.guardPatientAccess(user, body.patientId);
+    await this.guardPatientAccess(user, body.patientId);
     const { data } = await this.supabase.admin.from('emergency_contacts').insert({
       patient_id: body.patientId,
       name: body.name,
@@ -384,7 +425,7 @@ export class RecordsService {
   async deleteEmergencyContact(user: AuthUser, id: string) {
     const { data: contact } = await this.supabase.admin.from('emergency_contacts').select().eq('id', id).single();
     if (!contact) throw new NotFoundException(ERROR_MESSAGES.CONTACT_NOT_FOUND);
-    this.guardPatientAccess(user, contact.patient_id);
+    await this.guardPatientAccess(user, contact.patient_id);
 
     await this.supabase.admin.from('emergency_contacts').delete().eq('id', id);
     return { id };

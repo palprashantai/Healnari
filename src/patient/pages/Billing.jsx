@@ -3,18 +3,20 @@ import { useToast } from '../../components/Toast.jsx';
 import { ConfirmModal } from '../../components/Modal.jsx';
 import { PaymentModal } from '../../components/PaymentModal.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
-import { apiFetch } from '../../lib/apiClient.js';
+import { apiFetch, API_URL, getTokens } from '../../lib/apiClient.js';
 
 const STATUS_STYLE = {
-  paid:      'bg-emerald-50 text-emerald-700 border-emerald-100',
-  refunded:  'bg-rose-50 text-rose-700 border-rose-100',
-  pending:   'bg-amber-50 text-amber-700 border-amber-100',
-  insurance: 'bg-sky-50 text-sky-700 border-sky-100',
+  paid:            'bg-emerald-50 text-emerald-700 border-emerald-100',
+  refunded:        'bg-rose-50 text-rose-700 border-rose-100',
+  pending:         'bg-amber-50 text-amber-700 border-amber-100',
+  insurance:       'bg-sky-50 text-sky-700 border-sky-100',
+  'refund pending': 'bg-sky-50 text-sky-700 border-sky-100',
+  failed:          'bg-rose-50 text-rose-700 border-rose-100',
 };
 
 // 'Insurance Claimed' is NOT out-of-pocket spend — kept as its own status so
 // it's excluded from the "Total Spent" sum below instead of inflating it.
-const PAYMENT_STATUS_TO_DISPLAY = { Paid: 'paid', Pending: 'pending', Refunded: 'refunded', 'Insurance Claimed': 'insurance' };
+const PAYMENT_STATUS_TO_DISPLAY = { Paid: 'paid', Pending: 'pending', Refunded: 'refunded', 'Insurance Claimed': 'insurance', 'Refund Pending': 'refund pending', Failed: 'failed' };
 
 const METHOD_ICON = { UPI: 'fa-mobile-screen-button', Card: 'fa-credit-card', 'Net Banking': 'fa-building-columns', Wallet: 'fa-wallet' };
 
@@ -24,13 +26,32 @@ function PatientBilling() {
   // transactions is shared via ClinicDataContext (not fetched locally) so a
   // payment made from the Appointments page shows up here immediately, and
   // vice versa, instead of each page tracking its own stale copy.
-  const { appointments, transactions: rawTransactions, payAppointment } = useClinicData();
+  const { appointments, transactions: rawTransactions, syncPayment } = useClinicData();
   const [doctors, setDoctors] = useState([]);
   const [payTarget, setPayTarget] = useState(null);
   const [showPayModal, setShowPayModal] = useState(false);
   const [payFor, setPayFor] = useState({ amount: 0, description: '' });
 
   useEffect(() => { apiFetch('/doctors/search').then(setDoctors).catch(() => setDoctors([])); }, []);
+
+  // Most Cashfree payment methods complete inside the Drop-in modal, but a
+  // few (some bank UPI/net-banking flows) redirect the whole page to their
+  // own app/bank UI and back — landing here on Cashfree's order_meta.return_url
+  // with ?cf_order_id=... instead of resolving inside PaymentModal. Catch
+  // that case and reconcile it the same way PaymentModal does.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const cfOrderId = params.get('cf_order_id');
+    if (!cfOrderId) return;
+    window.history.replaceState({}, '', window.location.pathname);
+    apiFetch(`/billing/pay/status/${cfOrderId}`)
+      .then((result) => {
+        syncPayment(result);
+        if (result.status === 'Paid') toast(`Payment of ₹${result.amount} successful!`, 'success');
+        else if (result.status === 'Failed') toast('Payment did not go through.', 'error');
+      })
+      .catch(() => {});
+  }, []);
 
   const transactions = useMemo(() => rawTransactions.map(t => ({
     id: t.id,
@@ -45,11 +66,8 @@ function PatientBilling() {
 
   const doctorById = useMemo(() => new Map(doctors.map(d => [d.id, d])), [doctors]);
 
-  // billing.service.ts::pay() creates a brand-new payment row whenever it
-  // doesn't find an existing 'Pending' one for the appointment — it does not
-  // reject an appointment that's already 'Paid'. Without excluding paid
-  // appointments here, "Pay Now" would stay clickable after a successful
-  // payment and create a duplicate payment record on a second click.
+  // Without excluding paid appointments here, "Pay Now" would stay clickable
+  // after a successful payment and open a fresh Cashfree order on a second click.
   const paidAppointmentIds = useMemo(
     () => new Set(rawTransactions.filter(t => t.status === 'Paid').map(t => t.appointment_id)),
     [rawTransactions]
@@ -77,14 +95,9 @@ function PatientBilling() {
     setShowPayModal(true);
   };
 
-  const handlePaySuccess = async (method) => {
-    try {
-      await payAppointment(payTarget, method);
-      toast(`Payment of ₹${payFor.amount} successful!`, 'success');
-    } catch (err) {
-      toast(err.message || 'Payment failed', 'error');
-      throw err;
-    }
+  const handlePaid = (payment) => {
+    syncPayment(payment);
+    toast(`Payment of ₹${payFor.amount} successful!`, 'success');
   };
 
   // Real client-side CSV built from the already-loaded transaction list — no
@@ -105,26 +118,26 @@ function PatientBilling() {
     toast('CSV downloaded to your device!', 'success');
   };
 
-  // No backend invoice/PDF endpoint exists — build a plain-text receipt from
-  // the transaction row's already-loaded (real) data instead of faking a download.
-  const downloadReceipt = (txn) => {
-    const lines = [
-      'HealNari — Payment Receipt', '',
-      `Reference: ${txn.txn_ref || txn.id}`,
-      `Date: ${txn.date}`,
-      `Doctor: ${txn.doctor}`,
-      `Service: ${txn.type}`,
-      `Amount: ₹${txn.amount}`,
-      `Method: ${txn.method}`,
-      `Status: ${txn.status.charAt(0).toUpperCase() + txn.status.slice(1)}`,
-    ];
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `receipt-${txn.txn_ref || txn.id}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+  // Real PDF invoice, generated server-side from the actual payment row —
+  // apiFetch can't be reused here since it JSON-parses every response body;
+  // this one is binary.
+  const downloadReceipt = async (txn) => {
+    try {
+      const tokens = getTokens();
+      const res = await fetch(`${API_URL}/billing/transactions/${txn.id}/invoice`, {
+        headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
+      });
+      if (!res.ok) throw new Error('Could not generate the invoice.');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${txn.txn_ref || txn.id}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast(err.message || 'Failed to download invoice.', 'error');
+    }
   };
 
   return (
@@ -230,9 +243,10 @@ function PatientBilling() {
       <PaymentModal
         isOpen={showPayModal}
         onClose={() => setShowPayModal(false)}
+        appointmentId={payTarget}
         amount={payFor.amount}
         description={payFor.description}
-        onSuccess={handlePaySuccess}
+        onPaid={handlePaid}
       />
     </div>
   );

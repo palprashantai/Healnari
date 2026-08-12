@@ -125,7 +125,7 @@ function LandingPage() {
 
               <div className="flex flex-wrap justify-center gap-6 pt-4 text-xs font-semibold text-white/90">
                 <span className="flex items-center gap-1.5"><i className="fas fa-microscope text-brand-100"></i> Root-Cause Analysis</span>
-                <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-brand-100"></i> 100% Secure & Confidential</span>
+                <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-brand-100"></i> Encrypted & Confidential</span>
                 <span className="flex items-center gap-1.5"><i className="fas fa-clock-rotate-left text-brand-100"></i> Inclusive & Patient-First Care</span>
               </div>
             </div>

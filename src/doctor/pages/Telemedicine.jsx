@@ -9,6 +9,7 @@ import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
 import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
 import { useFullscreen } from '../../hooks/useFullscreen.js';
+import { PreJoinCheck } from '../../components/PreJoinCheck.jsx';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
  * for srcObject, so this stays a thin imperative wrapper. */
@@ -78,12 +79,19 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
 /* ─── Active Call UI (Dual-Pane Split Screen Layout) ─────────────────────────── */
 const LAB_OPTIONS = ['Hormonal Panel (LH, FSH, AMH)', 'Full Thyroid Profile (TSH, FT3, FT4)', 'Fasting Glucose & HbA1c'];
 
-function ActiveCallUI({ session, onEnd, onDeclined }) {
+const QUALITY_STYLES = {
+  good: 'bg-emerald-500/20 text-emerald-400',
+  fair: 'bg-amber-500/20 text-amber-400',
+  poor: 'bg-rose-500/20 text-rose-400',
+};
+
+function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
   const toast = useToast();
   const { addRx, requestLabReport } = useClinicData();
   const { user } = useAuth();
   const { callDeclinedId, clearCallDeclined } = useNotifications() || {};
-  const call = useWebRTCCall({ appointmentId: session.id, active: true });
+  const [joined, setJoined] = useState(autoJoin);
+  const call = useWebRTCCall({ appointmentId: session.id, active: joined });
   const videoAreaRef = useRef(null);
   const { isFullscreen, toggle: toggleFullscreen, supported: fullscreenSupported } = useFullscreen(videoAreaRef);
 
@@ -97,8 +105,21 @@ function ActiveCallUI({ session, onEnd, onDeclined }) {
     clearCallDeclined?.();
   }, [callDeclinedId, session.id]);
   const [clinicalNotes, setClinicalNotes] = useState('');
-  const [activeTab, setActiveTab] = useState('notes'); // notes | rx | lab
+  const [activeTab, setActiveTab] = useState('brief'); // brief | notes | rx | lab
   const [elapsed, setElapsed] = useState(0);
+
+  // Pre-consultation brief — real reason/history/meds/labs on file, plus an
+  // AI summary of exactly those facts (never invented) — fetched once per
+  // session so the doctor isn't spending the first few minutes asking
+  // questions the patient already answered elsewhere in the app.
+  const [brief, setBrief] = useState(null);
+  const [briefLoading, setBriefLoading] = useState(true);
+  useEffect(() => {
+    apiFetch(`/appointments/${session.id}/consult-brief`)
+      .then(setBrief)
+      .catch(() => setBrief(null))
+      .finally(() => setBriefLoading(false));
+  }, [session.id]);
 
   const [rxName, setRxName] = useState('');
   const [rxDosage, setRxDosage] = useState('');
@@ -162,6 +183,29 @@ function ActiveCallUI({ session, onEnd, onDeclined }) {
     ended: 'Call ended',
   };
 
+  if (!joined) {
+    return (
+      <div className="bg-slate-950 rounded-3xl p-6 shadow-2xl border border-slate-800 max-w-lg mx-auto">
+        <div className="text-center mb-4">
+          <h4 className="font-black text-white text-xl">{session.patient}</h4>
+          <p className="text-xs text-slate-400 mt-1">{session.type} · {session.age}</p>
+        </div>
+        <PreJoinCheck dark />
+        <div className="flex gap-3 mt-4">
+          <button onClick={endConsultation} className="flex-1 border border-slate-700 text-slate-300 hover:bg-slate-900 font-bold py-3.5 rounded-2xl text-sm transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={() => setJoined(true)}
+            className="flex-[2] bg-aubergine-600 hover:bg-aubergine-700 text-white font-black py-3.5 rounded-2xl text-sm transition-all flex items-center justify-center gap-3 shadow-lg"
+          >
+            <i className="fas fa-video"></i> Start Call
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 bg-slate-950 rounded-3xl p-4 shadow-2xl border border-slate-800">
 
@@ -198,9 +242,23 @@ function ActiveCallUI({ session, onEnd, onDeclined }) {
             </div>
           )}
 
+          {call.connectionQuality === 'poor' && !call.isVideoOff && call.localStream && (
+            <div className="absolute top-14 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-xs text-white text-xs px-3 py-2 rounded-xl border border-amber-500/30 flex items-center gap-3">
+              <span className="flex items-center gap-1.5"><i className="fas fa-triangle-exclamation text-amber-400"></i> Weak connection</span>
+              <button onClick={call.toggleVideo} className="bg-white/15 hover:bg-white/25 font-bold px-2.5 py-1 rounded-lg text-[11px] transition-colors">
+                Continue with Audio Only
+              </button>
+            </div>
+          )}
+
           {/* Timer */}
           <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-xs text-white text-xs font-mono font-bold px-3 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${call.connectionState === 'connected' ? 'bg-rose-500 animate-pulse' : 'bg-slate-500'}`}></span> {fmt(elapsed)}
+            {call.connectionState === 'connected' && call.connectionQuality && (
+              <span className={`ml-1 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] ${QUALITY_STYLES[call.connectionQuality]}`} title="Connection quality">
+                <i className="fas fa-signal"></i>
+              </span>
+            )}
           </div>
 
           {/* Patient info overlay + fullscreen toggle */}
@@ -270,6 +328,9 @@ function ActiveCallUI({ session, onEnd, onDeclined }) {
 
         {/* Tab Switcher */}
         <div className="flex border-b border-slate-800 mb-3 gap-2">
+          <button onClick={() => setActiveTab('brief')} className={`pb-2 text-xs font-bold border-b-2 transition-all ${activeTab === 'brief' ? 'border-aubergine-400 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
+            Brief
+          </button>
           <button onClick={() => setActiveTab('notes')} className={`pb-2 text-xs font-bold border-b-2 transition-all ${activeTab === 'notes' ? 'border-aubergine-400 text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
             Clinical Notes
           </button>
@@ -282,16 +343,55 @@ function ActiveCallUI({ session, onEnd, onDeclined }) {
         </div>
 
         {/* Tab Content */}
+        {activeTab === 'brief' && (
+          <div className="flex-1 space-y-3 overflow-y-auto">
+            {briefLoading ? (
+              <p className="text-xs text-slate-500"><i className="fas fa-spinner fa-spin mr-1.5"></i>Loading patient brief…</p>
+            ) : !brief ? (
+              <p className="text-xs text-slate-500">Couldn't load the pre-consultation brief.</p>
+            ) : (
+              <>
+                {brief.aiSummary ? (
+                  <div className="bg-aubergine-950/40 border border-aubergine-800/50 rounded-xl p-3">
+                    <p className="text-[10px] font-bold text-aubergine-300 uppercase tracking-wider mb-1.5"><i className="fas fa-sparkles mr-1"></i>AI Summary</p>
+                    <p className="text-xs text-slate-200 leading-relaxed">{brief.aiSummary}</p>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-500 italic">AI summary unavailable — showing the facts on file below.</p>
+                )}
+                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] space-y-2">
+                  <div>
+                    <p className="text-slate-500 font-bold uppercase tracking-wide text-[10px] mb-0.5">Reason for Visit</p>
+                    <p className="text-slate-200">{brief.reason || 'Not specified'}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500 font-bold uppercase tracking-wide text-[10px] mb-0.5">Chronic Conditions</p>
+                    <p className="text-slate-200">{brief.chronicConditions.length ? brief.chronicConditions.join(', ') : 'None recorded'}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500 font-bold uppercase tracking-wide text-[10px] mb-0.5">Allergies</p>
+                    <p className={brief.allergies.length ? 'text-rose-300 font-bold' : 'text-slate-200'}>{brief.allergies.length ? brief.allergies.join(', ') : 'None recorded'}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500 font-bold uppercase tracking-wide text-[10px] mb-0.5">Current Medications</p>
+                    <p className="text-slate-200">{brief.currentMedications.length ? brief.currentMedications.join(', ') : 'None recorded'}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500 font-bold uppercase tracking-wide text-[10px] mb-0.5">Recent Lab Reports</p>
+                    <p className="text-slate-200">{brief.recentLabReports.length ? brief.recentLabReports.map(r => `${r.name} (${r.status})`).join(', ') : 'None recorded'}</p>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {activeTab === 'notes' && (
           <div className="flex-1 flex flex-col space-y-3">
             <div>
               <label className="text-[11px] font-bold text-slate-500 mb-1 block">Subjective / Objective Findings</label>
               <textarea rows={6} value={clinicalNotes} onChange={e => setClinicalNotes(e.target.value)}
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-aubergine-500 resize-none font-mono" />
-            </div>
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] space-y-1">
-              <p className="text-slate-500 font-bold">Vitals & Patient Summary:</p>
-              <p className="text-slate-300">BP: 118/78 mmHg • BMI: 24.2 • Known Allergy: Penicillin</p>
             </div>
           </div>
         )}
@@ -401,6 +501,11 @@ function DoctorTelemedicine() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { updateAppointmentStatus } = useClinicData();
   const [activeCall, setActiveCall] = useState(null);
+  // Calls arrived at via an already-answered ring screen (instant call, or
+  // "Accept" on the incoming-call overlay) skip the device pre-check below —
+  // the doctor already committed to joining on that screen, mirroring how
+  // the patient side's autoJoin skips its own "Join Now" pre-check.
+  const [skipPreJoin, setSkipPreJoin] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [noteTarget, setNoteTarget] = useState(null);
   const [noteDraft, setNoteDraft] = useState('');
@@ -442,6 +547,7 @@ function DoctorTelemedicine() {
     const session = location.state?.instantCallSession;
     if (!session) return;
     setActiveCall(session);
+    setSkipPreJoin(true);
     navigate(location.pathname, { replace: true, state: {} });
   }, [location.state, location.pathname, navigate]);
 
@@ -493,7 +599,7 @@ function DoctorTelemedicine() {
         next.delete('startCall');
         return next;
       }, { replace: true });
-      if (session) setActiveCall(session);
+      if (session) { setActiveCall(session); setSkipPreJoin(true); }
       else toast("Couldn't open that call — it may have already ended.", 'error');
     })();
     return () => { cancelled = true; };
@@ -567,6 +673,7 @@ function DoctorTelemedicine() {
     try {
       await updateAppointmentStatus(session.id, 'In Progress');
       setActiveCall(session);
+      setSkipPreJoin(false);
       toast(`Joining call with ${session.patient}...`, 'success');
     } catch (err) {
       toast(err.message || 'Failed to join call', 'error');
@@ -583,6 +690,7 @@ function DoctorTelemedicine() {
       toast(err.message || 'Failed to end call', 'error');
     } finally {
       setActiveCall(null);
+      setSkipPreJoin(false);
     }
   };
 
@@ -592,6 +700,7 @@ function DoctorTelemedicine() {
   const handleDeclined = () => {
     toast(`${activeCall?.patient || 'The patient'} declined the call.`, 'info');
     setActiveCall(null);
+    setSkipPreJoin(false);
     loadQueue();
   };
 
@@ -643,7 +752,7 @@ function DoctorTelemedicine() {
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Live: {activeCall.patient}
             <span className="text-xs text-slate-500 font-medium">— use "End Consultation" below to save your notes and finish</span>
           </h2>
-          <ActiveCallUI session={activeCall} onEnd={endCall} onDeclined={handleDeclined} />
+          <ActiveCallUI session={activeCall} onEnd={endCall} onDeclined={handleDeclined} autoJoin={skipPreJoin} />
         </div>
       ) : (
         <>

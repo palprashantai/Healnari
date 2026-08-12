@@ -145,7 +145,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Approve or reject a doctor verification' })
   async updateVerification(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: UpdateVerificationDto) {
     this.checkAdmin(user);
-    const data = await this.adminService.updateDoctorVerification(id, body.status);
+    const data = await this.adminService.updateDoctorVerification(user, id, body.status);
     const msg = body.status === 'approved' ? SUCCESS_MESSAGES.VERIFICATION_APPROVED : SUCCESS_MESSAGES.VERIFICATION_REJECTED;
     return ResponseHelper.success(data, msg);
   }
@@ -163,7 +163,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Resolve a support ticket' })
   async resolveTicket(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     this.checkAdmin(user);
-    const data = await this.adminService.resolveTicket(Number(id));
+    const data = await this.adminService.resolveTicket(user, Number(id));
     return ResponseHelper.success(data, SUCCESS_MESSAGES.TICKET_RESOLVED);
   }
 
@@ -180,7 +180,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Process a refund' })
   async processRefund(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     this.checkAdmin(user);
-    const data = await this.adminService.processRefund(Number(id));
+    const data = await this.adminService.processRefund(user, Number(id));
     return ResponseHelper.success(data, SUCCESS_MESSAGES.REFUND_INITIATED);
   }
 
@@ -205,7 +205,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Mark a payout as processed' })
   async processPayout(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: { referenceId: string }) {
     this.checkAdmin(user);
-    const data = await this.adminService.processPayout(id, body.referenceId);
+    const data = await this.adminService.processPayout(user, id, body.referenceId);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
   }
 
@@ -305,7 +305,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Send a broadcast message' })
   async sendBroadcast(@CurrentUser() user: AuthUser, @Body() body: BroadcastDto) {
     this.checkAdmin(user);
-    const data = await this.adminService.sendBroadcast(body);
+    const data = await this.adminService.sendBroadcast(user, body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
   }
 

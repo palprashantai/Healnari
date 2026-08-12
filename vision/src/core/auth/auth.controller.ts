@@ -1,4 +1,5 @@
 import { BadRequestException, Body, Controller, Delete, Get, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { ApiTags, ApiOperation, ApiProperty, ApiConsumes } from '@nestjs/swagger';
@@ -11,6 +12,8 @@ import { Public } from '@/core/decorators/public.decorator';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
+
+const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export class RegisterDto {
   @ApiProperty({ example: 'priya.sharma@example.com' }) @IsEmail() email: string;
@@ -55,7 +58,11 @@ export class UpdatePasswordDto {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // AUDIT_REPORT.md SEC-3 — the only other rate limit anywhere is a flat
+  // 100 req/min/IP applied to every route; that's far too permissive for
+  // credential stuffing against login specifically.
   @Public()
+  @Throttle({ default: { limit: 8, ttl: 60000 } })
   @ApiOperation({ summary: 'Register a new patient or doctor account' })
   @Post('register')
   async register(@Body() body: RegisterDto) {
@@ -64,6 +71,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Log in with email + password' })
   @Post('login')
   async login(@Body() body: LoginDto) {
@@ -105,6 +113,9 @@ export class AuthController {
   @Post('me/avatar')
   async uploadAvatar(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException(ERROR_MESSAGES.BAD_REQUEST);
+    // AUDIT_REPORT.md SEC-5 — previously only size-limited; lab report
+    // uploads already enforce a mimetype allow-list, avatars didn't.
+    if (!ALLOWED_AVATAR_TYPES.includes(file.mimetype)) throw new BadRequestException(ERROR_MESSAGES.INVALID_IMAGE_TYPE);
     const result = await this.authService.uploadAvatar(user, file);
     return ResponseHelper.success(result, SUCCESS_MESSAGES.PROFILE_UPDATED);
   }

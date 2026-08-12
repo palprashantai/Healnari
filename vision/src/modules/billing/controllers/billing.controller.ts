@@ -1,15 +1,16 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsNumber, IsOptional, IsPositive, IsString, IsUUID } from 'class-validator';
+import type { Response } from 'express';
 import { BillingService } from '@/modules/billing/services/billing.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
+import { Public } from '@/core/decorators/public.decorator';
 
-export class PayDto {
+export class CreatePaymentOrderDto {
   @ApiProperty() @IsUUID() appointmentId: string;
-  @ApiProperty({ enum: ['UPI', 'Card', 'Net Banking', 'Wallet'] }) @IsIn(['UPI', 'Card', 'Net Banking', 'Wallet']) method: string;
 }
 
 export class RequestPayoutDto {
@@ -45,11 +46,28 @@ export class BillingController {
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  @ApiOperation({ summary: 'Pay for an appointment (patient only) — settles the linked payment row' })
-  @Post('pay')
-  async pay(@CurrentUser() user: AuthUser, @Body() body: PayDto) {
-    const data = await this.billingService.pay(user, body);
-    return ResponseHelper.success(data, SUCCESS_MESSAGES.PAYMENT_RECORDED);
+  @ApiOperation({ summary: 'Create a real Cashfree payment order for an appointment (patient only) — returns a payment_session_id for the Drop-in checkout' })
+  @Post('pay/order')
+  async createPaymentOrder(@CurrentUser() user: AuthUser, @Body() body: CreatePaymentOrderDto) {
+    const data = await this.billingService.createPaymentOrder(user, body.appointmentId);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({ summary: "Force a fresh server-to-server check of a Cashfree order's status and apply it to our payment row — call this right after the Drop-in checkout closes" })
+  @ApiParam({ name: 'orderId' })
+  @Get('pay/status/:orderId')
+  async paymentStatus(@CurrentUser() user: AuthUser, @Param('orderId') orderId: string) {
+    const data = await this.billingService.getStatusForUser(user, orderId);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({ summary: "Cashfree webhook — order/payment status change. The payload is only ever used to know WHICH order to re-check; the resulting status always comes from a fresh server-to-server call to Cashfree, never from the payload itself" })
+  @Public()
+  @Post('webhook/cashfree')
+  async cashfreeWebhook(@Body() body: any) {
+    const orderId = body?.data?.order?.order_id || body?.order_id;
+    if (orderId) await this.billingService.reconcileCashfreeOrder(orderId).catch(() => {});
+    return { ok: true };
   }
 
   @ApiOperation({ summary: 'Record a manual charge/payment for a patient — e.g. cash collected in-clinic (doctor only)' })
@@ -79,5 +97,18 @@ export class BillingController {
   async transaction(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const data = await this.billingService.getTransaction(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({ summary: 'Download a transaction as a PDF invoice (owner patient or doctor only)' })
+  @ApiParam({ name: 'id' })
+  @Get('transactions/:id/invoice')
+  async invoice(@CurrentUser() user: AuthUser, @Param('id') id: string, @Res() res: Response) {
+    const { pdf, filename } = await this.billingService.getInvoicePdf(user, id);
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Length': pdf.length,
+    });
+    res.send(pdf);
   }
 }

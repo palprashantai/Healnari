@@ -1,10 +1,30 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 // Force Vite restart for recharts dependency
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ command, mode }) => {
+  // AUDIT_REPORT.md OPS-5 — the dev server's /api proxy below never applies
+  // to a production build. Without VITE_API_URL set, the deployed bundle
+  // falls back to relative /api/... paths against whatever static host
+  // serves it — this app's frontend (Vercel) and backend (Render) are never
+  // same-origin, so that's a guaranteed silent 404 on every request. The
+  // build used to succeed cleanly while shipping a completely broken app;
+  // fail it loudly instead.
+  if (command === 'build') {
+    const env = loadEnv(mode, process.cwd(), '');
+    if (!env.VITE_API_URL) {
+      throw new Error(
+        'VITE_API_URL is not set. A production build needs it pointed at the deployed backend ' +
+        '(e.g. VITE_API_URL=https://healnari.onrender.com/api) ' +
+        '— otherwise every API call in the ' +
+        'deployed app 404s silently. See vite.config.js / AUDIT_REPORT.md OPS-5.'
+      );
+    }
+  }
+
+return {
   plugins: [
     react(),
     VitePWA({
@@ -48,4 +68,5 @@ export default defineConfig({
       }
     }
   }
+};
 });

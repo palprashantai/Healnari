@@ -73,4 +73,20 @@ export class AppointmentsController {
     const data = await this.appointmentsService.declineCall(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.APPOINTMENT_UPDATED);
   }
+
+  @ApiOperation({ summary: "Real queue position + estimated wait for one of the caller's own appointments, computed from today's actual queue order (not the booked slot time)" })
+  @ApiParam({ name: 'id' })
+  @Get(':id/queue-status')
+  async getQueueStatus(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const data = await this.appointmentsService.getQueueStatus(user, id);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({ summary: 'Pre-consultation brief: reason for visit, chronic conditions, allergies, current medications, recent lab reports, and an optional AI-written plain-language summary of exactly those facts' })
+  @ApiParam({ name: 'id' })
+  @Get(':id/consult-brief')
+  async getConsultBrief(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const data = await this.appointmentsService.getConsultBrief(user, id);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
 }

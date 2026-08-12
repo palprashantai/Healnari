@@ -1,11 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 
+// AUDIT_REPORT.md SEC-7 — logs shouldn't carry full patient/doctor email
+// addresses in plaintext; keep enough to correlate a support ticket
+// ("did j***@gmail.com's email go out?") without logging the full PII.
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return '***';
+  return `${local.slice(0, 1)}***@${domain}`;
+}
+
+export interface MailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+}
+
 export interface MailPayload {
   to: string;
   subject: string;
   html: string;
   text?: string;
+  attachments?: MailAttachment[];
 }
 
 /** Real SMTP email delivery, configured via env vars — same
@@ -43,7 +59,7 @@ export class EmailService {
 
   async sendMail(payload: MailPayload): Promise<boolean> {
     if (!this.transporter) {
-      this.logger.warn(`Email not configured — skipped "${payload.subject}" to ${payload.to}`);
+      this.logger.warn(`Email not configured — skipped "${payload.subject}" to ${maskEmail(payload.to)}`);
       return false;
     }
     try {
@@ -53,10 +69,11 @@ export class EmailService {
         subject: payload.subject,
         html: payload.html,
         text: payload.text,
+        attachments: payload.attachments,
       });
       return true;
     } catch (err) {
-      this.logger.error(`Failed to send email to ${payload.to}: ${err.message}`);
+      this.logger.error(`Failed to send email to ${maskEmail(payload.to)}: ${err.message}`);
       return false;
     }
   }
