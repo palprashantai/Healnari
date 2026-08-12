@@ -79,19 +79,13 @@ function WriteRxPage({ patient, onBack, onSaveRx }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!medName.trim()) return;
-    const newRx = {
-      id: `RX-${Math.floor(100 + Math.random() * 900)}`,
-      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+    onSaveRx(patient.id, {
       medName: `${medName.trim()} ${dosage.trim()}`.trim(),
       dosage: dosage || 'Standard',
       schedule: schedule || '1-0-1',
       duration: duration || '30 Days',
-      refillsLeft: 2,
-      status: 'Active',
       instructions: instructions || 'Take as directed.',
-      prescribedBy: 'Dr. Sarah Mitchell',
-    };
-    onSaveRx(patient.id, newRx);
+    });
     onBack();
   };
 
@@ -693,11 +687,8 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
   const handleAddRx = async (patientId, newRx) => {
     try {
       await addRx(patientId, {
-        name: newRx.medName,
-        dosage: newRx.dosage,
-        frequency: newRx.schedule,
-        duration: newRx.duration,
         instructions: newRx.instructions,
+        medicines: [{ name: newRx.medName, dosage: newRx.dosage, frequency: newRx.schedule, duration: newRx.duration }],
       });
       toast(`Prescription added for ${patient.name}.`, 'success');
     } catch (err) {

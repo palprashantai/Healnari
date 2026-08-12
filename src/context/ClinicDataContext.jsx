@@ -44,12 +44,16 @@ export function ClinicDataProvider({ children }) {
     // map backend meds to frontend expected shape
     const meds = prescriptions.map(p => ({
       id: p.id,
+      groupId: p.group_id || p.id, // legacy rows with no group_id are their own single-medicine group
+      diagnosis: p.diagnosis || '',
       name: p.med_name,
       dosage: p.dosage,
       frequency: p.schedule,
       duration: p.duration,
       instructions: p.instructions,
       doctor: p.doctor_name || 'Your Doctor',
+      doctorSpecialty: p.doctor_specialty || '',
+      doctorRegNo: p.doctor_registration_no || '',
       prescribedOn: p.created_at ? new Date(p.created_at).toLocaleDateString() : '',
       refillsLeft: p.refills_left || 0,
       validTill: p.valid_till || '',
@@ -251,17 +255,22 @@ export function ClinicDataProvider({ children }) {
     }
   };
 
-  const addRx = async (patientId, med) => {
+  /** Issues one prescription with all its medicines saved together (shared
+   * group_id server-side) — rx: { diagnosis, instructions, medicines: [{ name, dosage, frequency, duration }] } */
+  const addRx = async (patientId, rx) => {
     try {
       const res = await apiFetch('/records/prescriptions', {
         method: 'POST',
         body: {
           patientId,
-          medName: med.name,
-          dosage: med.dosage,
-          schedule: med.frequency,
-          duration: med.duration,
-          instructions: med.instructions
+          diagnosis: rx.diagnosis,
+          instructions: rx.instructions,
+          medicines: rx.medicines.map(m => ({
+            medName: m.name,
+            dosage: m.dosage,
+            schedule: m.frequency,
+            duration: m.duration,
+          })),
         }
       });
       fetchData(); // Reload patients to get the new prescription

@@ -3,10 +3,14 @@ import { SupabaseService } from '@/core/supabase/supabase.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AppointmentStatus } from '@/shared/interfaces/appointment.interface';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
+import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   // ─── Dashboard ───────────────────────────────────────────────────
   async getDashboardStats() {
@@ -87,6 +91,11 @@ export class AdminService {
         .select('doctor_id, scheduled_date')
         .eq('status', AppointmentStatus.DONE);
 
+      // All appointments (any status) for status/type breakdowns
+      const { data: allApts } = await this.supabase.admin
+        .from('appointments')
+        .select('status, type');
+
       // Get patient counts by month (joined date)
       const { data: allPatients } = await this.supabase.admin
         .from('profiles')
@@ -134,6 +143,19 @@ export class AdminService {
         name, value, color: COLORS[i % COLORS.length],
       }));
 
+      // Appointment status breakdown (platform-wide)
+      const statusCounts: Record<string, number> = {};
+      for (const a of (allApts || [])) {
+        statusCounts[a.status] = (statusCounts[a.status] || 0) + 1;
+      }
+      const appointmentStatusBreakdown = Object.entries(statusCounts).map(([status, count]) => ({ status, count }));
+
+      // Consultation delivery mode split (video vs clinic)
+      const consultTypeSplit = {
+        video: (allApts || []).filter(a => a.type === 'video').length,
+        clinic: (allApts || []).filter(a => a.type === 'clinic').length,
+      };
+
       const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
       let cumulativePatients = 0;
@@ -153,6 +175,8 @@ export class AdminService {
         specialtyRevenue: specialtyRevenue.length > 0 ? specialtyRevenue : [{ name: 'No data yet', value: 1, color: '#e2e8f0' }],
         totalDoctors: allDoctors?.length || 0,
         totalPatients: allPatients?.length || 0,
+        appointmentStatusBreakdown,
+        consultTypeSplit,
       };
     } catch (error) {
       console.error(error);
@@ -163,7 +187,7 @@ export class AdminService {
   // ─── Users ───────────────────────────────────────────────────────
   async getAllUsers(role?: string) {
     try {
-      let q = this.supabase.admin.from('profiles').select('id, full_name, email, phone, role, created_at');
+      let q = this.supabase.admin.from('profiles').select('id, full_name, email, phone, role, status, created_at');
       if (role) q = q.eq('role', role);
       else q = q.eq('role', ProfileRole.PATIENT);
       const { data } = await q.order('created_at', { ascending: false });
@@ -173,7 +197,7 @@ export class AdminService {
         email: u.email || '',
         phone: u.phone || '',
         role: u.role,
-        status: 'Active',
+        status: u.status || 'Active',
         joined: u.created_at ? new Date(u.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
         ltv: 0,
         lastVisit: 'N/A',
@@ -187,8 +211,66 @@ export class AdminService {
     try {
       const { data: profile } = await this.supabase.admin.from('profiles').select('*').eq('id', id).single();
       if (!profile) throw new NotFoundException('User not found');
-      const { data: appointments } = await this.supabase.admin.from('appointments').select('*').eq('patient_id', id).order('created_at', { ascending: false });
-      return { profile, appointments: appointments || [] };
+
+      const [{ data: appointments }, { data: payments }] = await Promise.all([
+        this.supabase.admin.from('appointments').select('id, doctor_id, specialty, type, status, scheduled_date').eq('patient_id', id).order('scheduled_date', { ascending: false }).limit(20),
+        this.supabase.admin.from('payments').select('id, doctor_id, appointment_id, amount, status, category, service, created_at').eq('patient_id', id).order('created_at', { ascending: false }),
+      ]);
+
+      const apts = appointments || [];
+      const pays = payments || [];
+
+      const doctorIds = [...new Set([...apts.map(a => a.doctor_id), ...pays.map(p => p.doctor_id)].filter(Boolean))];
+      const { data: doctorProfiles } = doctorIds.length
+        ? await this.supabase.admin.from('profiles').select('id, full_name').in('id', doctorIds)
+        : { data: [] as { id: string; full_name: string }[] };
+      const nameByDoctorId = new Map((doctorProfiles || []).map(d => [d.id, d.full_name]));
+      const amountByAppointmentId = new Map(pays.filter(p => p.appointment_id).map(p => [p.appointment_id, p]));
+
+      const paidPayments = pays.filter(p => p.status === 'Paid');
+
+      // Spending trend, last 6 months
+      const now = new Date();
+      const spentByMonth = new Map<string, number>();
+      paidPayments.forEach(p => {
+        const key = new Date(p.created_at).toISOString().slice(0, 7);
+        spentByMonth.set(key, (spentByMonth.get(key) || 0) + Number(p.amount));
+      });
+      const spendingTrend = Array.from({ length: 6 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+        const key = d.toISOString().slice(0, 7);
+        return { month: d.toLocaleString('en-US', { month: 'short' }), spent: spentByMonth.get(key) || 0 };
+      });
+
+      // Spending by category
+      const byCategory = new Map<string, number>();
+      paidPayments.forEach(p => {
+        const cat = p.category || 'Other';
+        byCategory.set(cat, (byCategory.get(cat) || 0) + Number(p.amount));
+      });
+      const spendingByCategory = [...byCategory.entries()].map(([category, amount]) => ({ category, amount }));
+
+      const consultations = apts.map(a => ({
+        id: a.id,
+        doctor: nameByDoctorId.get(a.doctor_id) || 'Doctor',
+        specialty: a.specialty || 'General',
+        date: a.scheduled_date ? new Date(a.scheduled_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+        type: a.type === 'video' ? 'Video' : 'Clinic',
+        status: a.status,
+        cost: Number(amountByAppointmentId.get(a.id)?.amount || 0),
+      }));
+
+      return {
+        profile,
+        kpis: {
+          lifetimeValue: paidPayments.reduce((sum, p) => sum + Number(p.amount), 0),
+          consultationsCompleted: apts.filter(a => a.status === AppointmentStatus.DONE).length,
+        },
+        spendingTrend,
+        spendingByCategory,
+        consultations,
+        payments: pays,
+      };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
@@ -197,9 +279,11 @@ export class AdminService {
 
   async updateUserStatus(id: string, status: string) {
     try {
-      // We track status in metadata — no dedicated column yet so just return updated flag
-      return { userId: id, status, updatedAt: new Date().toISOString() };
+      const { data: updated, error } = await this.supabase.admin.from('profiles').update({ status }).eq('id', id).select('id, status').single();
+      if (error || !updated) throw new NotFoundException(ERROR_MESSAGES.USER_NOT_FOUND);
+      return { userId: updated.id, status: updated.status, updatedAt: new Date().toISOString() };
     } catch (error) {
+      if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
     }
   }
@@ -209,7 +293,7 @@ export class AdminService {
     try {
       const { data } = await this.supabase.admin
         .from('profiles')
-        .select('id, full_name, email, phone, specialty, kyc_verified, consultation_fee, created_at')
+        .select('id, full_name, email, phone, specialty, kyc_verified, consultation_fee, commission_rate, status, created_at')
         .eq('role', ProfileRole.DOCTOR)
         .order('created_at', { ascending: false });
 
@@ -236,10 +320,10 @@ export class AdminService {
         id: d.id,
         name: d.full_name || 'Unknown',
         specialty: d.specialty || 'General',
-        status: 'Active',
+        status: d.status || 'Active',
         verified: d.kyc_verified || false,
         joined: d.created_at ? new Date(d.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
-        commissionRate: 15,
+        commissionRate: Number(d.commission_rate ?? 15),
         totalGross: revenueMap[d.id] || 0,
         totalConsults: aptCountMap[d.id] || 0,
         rating: 0,
@@ -256,8 +340,61 @@ export class AdminService {
     try {
       const { data: doctor } = await this.supabase.admin.from('profiles').select('*').eq('id', id).eq('role', ProfileRole.DOCTOR).single();
       if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
-      const { data: appointments } = await this.supabase.admin.from('appointments').select('*').eq('doctor_id', id).order('created_at', { ascending: false }).limit(20);
-      return { doctor, appointments: appointments || [] };
+
+      const [{ data: appointments }, { data: payments }] = await Promise.all([
+        this.supabase.admin.from('appointments').select('id, patient_id, type, status, scheduled_date').eq('doctor_id', id).order('scheduled_date', { ascending: false }),
+        this.supabase.admin.from('payments').select('id, patient_id, amount, status, service, created_at').eq('doctor_id', id).order('created_at', { ascending: false }),
+      ]);
+
+      const apts = appointments || [];
+      const pays = payments || [];
+
+      const patientIds = [...new Set([...apts.map(a => a.patient_id), ...pays.map(p => p.patient_id)].filter(Boolean))];
+      const { data: patientProfiles } = patientIds.length
+        ? await this.supabase.admin.from('profiles').select('id, full_name').in('id', patientIds)
+        : { data: [] as { id: string; full_name: string }[] };
+      const nameByPatientId = new Map((patientProfiles || []).map(p => [p.id, p.full_name]));
+
+      const paidPayments = pays.filter(p => p.status === 'Paid');
+
+      // Gross revenue trend, last 6 months
+      const now = new Date();
+      const revenueByMonth = new Map<string, number>();
+      paidPayments.forEach(p => {
+        const key = new Date(p.created_at).toISOString().slice(0, 7);
+        revenueByMonth.set(key, (revenueByMonth.get(key) || 0) + Number(p.amount));
+      });
+      const revenueTrend = Array.from({ length: 6 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+        const key = d.toISOString().slice(0, 7);
+        return { month: d.toLocaleString('en-US', { month: 'short' }), revenue: revenueByMonth.get(key) || 0 };
+      });
+
+      // Appointment status breakdown
+      const statusCounts = new Map<string, number>();
+      apts.forEach(a => statusCounts.set(a.status, (statusCounts.get(a.status) || 0) + 1));
+      const appointmentStatusBreakdown = [...statusCounts.entries()].map(([status, count]) => ({ status, count }));
+
+      const ledger = pays.slice(0, 20).map(p => ({
+        id: p.id,
+        patient: nameByPatientId.get(p.patient_id) || 'Patient',
+        date: new Date(p.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        service: p.service,
+        amount: Number(p.amount),
+        status: p.status,
+      }));
+
+      return {
+        doctor,
+        kpis: {
+          totalGross: paidPayments.reduce((sum, p) => sum + Number(p.amount), 0),
+          totalConsults: apts.filter(a => a.status === AppointmentStatus.DONE).length,
+          totalAppointments: apts.length,
+        },
+        revenueTrend,
+        appointmentStatusBreakdown,
+        ledger,
+      };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
@@ -266,8 +403,17 @@ export class AdminService {
 
   async updateDoctorCommission(id: string, commissionRate: number) {
     try {
-      return { doctorId: id, commissionRate, updatedAt: new Date().toISOString() };
+      const { data: updated, error } = await this.supabase.admin
+        .from('profiles')
+        .update({ commission_rate: commissionRate })
+        .eq('id', id)
+        .eq('role', ProfileRole.DOCTOR)
+        .select('id, commission_rate')
+        .single();
+      if (error || !updated) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
+      return { doctorId: updated.id, commissionRate: Number(updated.commission_rate), updatedAt: new Date().toISOString() };
     } catch (error) {
+      if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
     }
   }
@@ -384,57 +530,66 @@ export class AdminService {
     }
   }
 
+  /** Real doctor-submitted payout requests (BillingService.requestPayout) —
+   * previously this fabricated fake "payout requests" from completed
+   * appointments instead of reading the payouts table doctors actually
+   * submit to, so a doctor's real payout request never showed up here. */
   async getPayoutRequests() {
     try {
-      // Build payout requests from completed appointments grouped by doctor
-      const { data: doneApts } = await this.supabase.admin
-        .from('appointments')
-        .select('doctor_id, scheduled_date')
-        .eq('status', AppointmentStatus.DONE)
-        .order('scheduled_date', { ascending: false });
+      const { data: payouts } = await this.supabase.admin
+        .from('payouts')
+        .select('id, doctor_id, amount, method, status, reference_id, requested_at, processed_at')
+        .order('requested_at', { ascending: false });
 
-      if (!doneApts?.length) return [];
+      if (!payouts?.length) return [];
 
-      const doctorIds = [...new Set(doneApts.map(a => a.doctor_id))];
+      const doctorIds = [...new Set(payouts.map(p => p.doctor_id))];
       const { data: doctors } = await this.supabase.admin
         .from('profiles')
-        .select('id, full_name, consultation_fee, phone')
+        .select('id, full_name, commission_rate')
         .in('id', doctorIds);
-
       const doctorMap = new Map((doctors || []).map(d => [d.id, d]));
-      const payoutMap: Record<string, { doctor: string; amount: number; date: string; method: string }> = {};
 
-      for (const apt of doneApts) {
-        const doc = doctorMap.get(apt.doctor_id);
-        if (!doc) continue;
-        if (!payoutMap[apt.doctor_id]) {
-          payoutMap[apt.doctor_id] = {
-            doctor: doc.full_name || 'Unknown',
-            amount: 0,
-            date: new Date(apt.scheduled_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-            method: 'Bank Transfer',
-          };
-        }
-        payoutMap[apt.doctor_id].amount += Number(doc.consultation_fee || 0) * 0.85;
-      }
-
-      return Object.entries(payoutMap).map(([id, p], i) => ({
-        id,
-        displayId: `PO-${1040 + i}`,
-        doctor: p.doctor,
-        amount: Math.round(p.amount),
-        feeCut: '15%',
-        date: p.date,
-        method: p.method,
-        status: i === 0 ? 'Pending' : 'Processed',
-      }));
+      return payouts.map(p => {
+        const doc = doctorMap.get(p.doctor_id);
+        return {
+          id: p.id,
+          displayId: `PO-${p.id.slice(0, 6).toUpperCase()}`,
+          doctor: doc?.full_name || 'Unknown',
+          amount: Number(p.amount),
+          feeCut: `${Number(doc?.commission_rate ?? 15)}%`,
+          date: p.requested_at ? new Date(p.requested_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+          method: p.method,
+          status: p.status === 'Paid' ? 'Processed' : p.status === 'Failed' ? 'Failed' : 'Pending',
+          referenceId: p.reference_id || null,
+        };
+      });
     } catch (error) {
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
     }
   }
 
   async processPayout(id: string, referenceId: string) {
-    return { payoutId: id, referenceId, status: 'Processed', processedAt: new Date().toISOString() };
+    try {
+      const { data: updated, error } = await this.supabase.admin
+        .from('payouts')
+        .update({ status: 'Paid', reference_id: referenceId, processed_at: new Date().toISOString() })
+        .eq('id', id)
+        .select('id, doctor_id, amount')
+        .single();
+      if (error || !updated) throw new NotFoundException('Payout not found');
+
+      await this.notifications.create(updated.doctor_id, {
+        type: 'payout_processed',
+        title: 'Payout processed',
+        message: `Your payout of ₹${Number(updated.amount).toLocaleString('en-IN')} has been processed. Reference: ${referenceId}`,
+      });
+
+      return { payoutId: updated.id, referenceId, status: 'Processed', processedAt: new Date().toISOString() };
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+    }
   }
 
   // ─── Reports ─────────────────────────────────────────────────────
@@ -536,18 +691,26 @@ export class AdminService {
     }
   }
 
-  async createMessageTemplate(body: { name: string; content: string }) {
+  async createMessageTemplate(body: { name: string; content: string; type?: string; audience?: string }) {
     try {
-      const { data } = await this.supabase.admin.from('message_templates').insert(body).select().single();
+      const { data } = await this.supabase.admin.from('message_templates').insert({
+        name: body.name,
+        content: body.content,
+        type: body.type || 'email',
+        audience: body.audience || 'General',
+      }).select().single();
       return data;
     } catch (error) {
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
     }
   }
 
-  async updateMessageTemplate(id: string, body: { name: string; content: string }) {
+  async updateMessageTemplate(id: string, body: { name: string; content: string; type?: string; audience?: string }) {
     try {
-      const { data } = await this.supabase.admin.from('message_templates').update(body).eq('id', id).select().single();
+      const patch: Record<string, string> = { name: body.name, content: body.content };
+      if (body.type) patch.type = body.type;
+      if (body.audience) patch.audience = body.audience;
+      const { data } = await this.supabase.admin.from('message_templates').update(patch).eq('id', id).select().single();
       return data;
     } catch (error) {
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
@@ -575,17 +738,118 @@ export class AdminService {
     }
   }
 
-  async sendBroadcast(body: { subject: string; audience: string; body: string; scheduleAt?: string }) {
+  /** Resolves a Communications.jsx audience label into real recipient profile ids. */
+  private async resolveAudience(audience: string): Promise<string[]> {
+    let query = this.supabase.admin.from('profiles').select('id');
+    switch (audience) {
+      case 'All Patients':
+        query = query.eq('role', ProfileRole.PATIENT);
+        break;
+      case 'All Doctors':
+        query = query.eq('role', ProfileRole.DOCTOR);
+        break;
+      case 'New Patients': {
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        query = query.eq('role', ProfileRole.PATIENT).gte('created_at', thirtyDaysAgo);
+        break;
+      }
+      case 'Unverified Doctors':
+        query = query.eq('role', ProfileRole.DOCTOR).eq('kyc_verified', false);
+        break;
+      case 'All Users':
+      default:
+        break;
+    }
+    const { data } = await query;
+    return (data || []).map((p) => p.id);
+  }
+
+  /** Only "Push" is a channel we can actually deliver ourselves (no email/SMS
+   * provider is wired up) — resolves the audience to real recipients and fans
+   * out a real in-app + web-push notification to each of them, same pattern
+   * as CommunicationsService (doctor-side broadcasts). */
+  async sendBroadcast(body: { subject: string; audience: string; body: string; scheduleAt?: string; channels?: string[]; userIds?: string[] }) {
     try {
       const displayId = `BC-${Math.floor(Math.random() * 9000) + 100}`;
-      const status = body.scheduleAt ? 'Scheduled' : 'Sent';
+      const scheduled = !!body.scheduleAt;
+      const channels = body.channels || [];
+      let recipientIds: string[] = [];
+
+      if (!scheduled) {
+        // A specific selection (Users.jsx / DoctorManager.jsx "message these
+        // N selected rows") always wins over the audience label — resolving
+        // by label here would silently widen delivery to everyone matching
+        // that label instead of just the rows the admin picked.
+        recipientIds = body.userIds?.length ? body.userIds : await this.resolveAudience(body.audience);
+        if (channels.includes('Push') && recipientIds.length) {
+          await Promise.all(recipientIds.map((userId) => this.notifications.create(userId, {
+            type: 'broadcast',
+            title: body.subject,
+            message: body.body,
+          })));
+        }
+      }
+
       const { data } = await this.supabase.admin
         .from('broadcast_history')
-        .insert({ display_id: displayId, subject: body.subject, audience: body.audience, status, opens: '-', clicks: '-' })
+        .insert({
+          display_id: displayId,
+          subject: body.subject,
+          audience: body.audience,
+          status: scheduled ? 'Scheduled' : 'Sent',
+          channels,
+          recipient_count: recipientIds.length,
+          opens: '-',
+          clicks: '-',
+        })
         .select()
         .single();
       return data;
     } catch (error) {
+      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /** Real single-recipient push, used by the Doctor/Patient detail pages'
+   * "Message" action instead of the toast-only simulation they used to have. */
+  async notifyUser(userId: string, title: string, message: string) {
+    try {
+      const { data: profile } = await this.supabase.admin.from('profiles').select('id').eq('id', userId).single();
+      if (!profile) throw new NotFoundException('User not found');
+      const data = await this.notifications.create(userId, { type: 'admin_message', title, message });
+      return data;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  // ─── Public Leads ────────────────────────────────────────────────
+  async getNewsletterSubscribers() {
+    try {
+      const { data } = await this.supabase.admin.from('newsletter_subscribers').select().order('created_at', { ascending: false });
+      return data || [];
+    } catch (error) {
+      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  async getConsultationRequests() {
+    try {
+      const { data } = await this.supabase.admin.from('consultation_requests').select().order('created_at', { ascending: false });
+      return data || [];
+    } catch (error) {
+      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  async updateConsultationRequestStatus(id: string, status: string) {
+    try {
+      const { data, error } = await this.supabase.admin.from('consultation_requests').update({ status }).eq('id', id).select().single();
+      if (error || !data) throw new NotFoundException('Consultation request not found');
+      return data;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
     }
   }

@@ -45,24 +45,41 @@ export class RecordsService {
     return data || [];
   }
 
+  /** Every medicine line from one "Write Prescription" submission is saved
+   * together under a shared group_id, so the patient sees one prescription
+   * with several medicines instead of N unrelated ones — see migration
+   * 0017_prescription_grouping. */
   async createPrescription(user: AuthUser, body: CreatePrescriptionDto) {
     this.requireVerifiedDoctor(user);
 
     const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
 
-    const { data: prescription } = await this.supabase.admin.from('prescriptions').insert({
+    const groupId = randomUUID();
+    const prescribedAt = new Date().toISOString().slice(0, 10);
+    const rows = body.medicines.map((m) => ({
       patient_id: body.patientId,
       doctor_id: user.id,
-      med_name: body.medName,
-      dosage: body.dosage,
-      schedule: body.schedule,
-      duration: body.duration,
+      group_id: groupId,
+      diagnosis: body.diagnosis,
+      med_name: m.medName,
+      dosage: m.dosage,
+      schedule: m.schedule,
+      duration: m.duration,
       instructions: body.instructions,
-      prescribed_at: new Date().toISOString().slice(0, 10),
-    }).select().single();
+      prescribed_at: prescribedAt,
+    }));
 
-    return prescription;
+    const { data: prescriptions } = await this.supabase.admin.from('prescriptions').insert(rows).select();
+
+    this.notifications.create(body.patientId, {
+      type: 'prescription_issued',
+      title: 'New prescription',
+      message: `Dr. ${user.profile.full_name} issued a new prescription${body.diagnosis ? ` for ${body.diagnosis}` : ''} (${body.medicines.length} medicine${body.medicines.length > 1 ? 's' : ''}).`,
+      data: { groupId },
+    }).catch(() => {});
+
+    return prescriptions;
   }
 
   async requestRefill(user: AuthUser, id: string) {

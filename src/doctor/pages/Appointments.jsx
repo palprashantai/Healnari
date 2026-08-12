@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
@@ -156,67 +157,10 @@ function NotesModal({ patient, isOpen, onClose, onSave }) {
 }
 
 /* ─── Video Call Modal ───────────────────────── */
-function DoctorCallModal({ isOpen, onClose, patient, toast }) {
-  const [active, setActive] = useState(false);
-  const [muted, setMuted] = useState(false);
-  const [vidOff, setVidOff] = useState(false);
-  return (
-    <Modal isOpen={isOpen} onClose={() => { setActive(false); onClose(); }} title="Video Consultation" size="lg">
-      {!active ? (
-        <div className="text-center space-y-5 py-2">
-          <div className="w-20 h-20 rounded-3xl bg-aubergine-100 text-aubergine-700 text-2xl font-black flex items-center justify-center mx-auto">
-            {patient?.name?.split(' ').map(n => n[0]).join('') || 'P'}
-          </div>
-          <div>
-            <h4 className="font-black text-slate-800 text-xl">{patient?.name}</h4>
-            <p className="text-sm text-emerald-600 font-semibold mt-1 flex items-center justify-center gap-1.5">
-              <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Patient is waiting
-            </p>
-            <p className="text-xs text-slate-500 mt-1">{patient?.type} • {patient?.time}</p>
-          </div>
-          <button onClick={() => { setActive(true); toast('Connected to patient!', 'success'); }}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl text-base transition-all flex items-center justify-center gap-3 shadow-lg">
-            <i className="fas fa-video"></i> Join Consultation
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="bg-slate-900 rounded-2xl aspect-video flex items-center justify-center relative overflow-hidden">
-            <div className="text-center text-white">
-              <div className="w-20 h-20 rounded-full bg-aubergine-600 mx-auto mb-3 flex items-center justify-center text-2xl font-black">
-                {patient?.name?.split(' ').map(n => n[0]).join('')}
-              </div>
-              <p className="font-bold">{patient?.name}</p>
-              <p className="text-slate-500 text-xs mt-1">● Live</p>
-            </div>
-            <div className="absolute top-3 right-3 bg-white/10 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/20">
-              <i className="fas fa-clock mr-1"></i> <span>00:00</span>
-            </div>
-            <div className="absolute bottom-3 right-3 w-24 h-16 bg-slate-700 rounded-xl border border-white/10 flex items-center justify-center text-white text-xs font-bold">
-              {vidOff ? <i className="fas fa-video-slash text-slate-500 text-xl"></i> : 'You'}
-            </div>
-          </div>
-          <div className="flex items-center justify-center gap-4">
-            <button onClick={() => setMuted(!muted)} className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all ${muted ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-700'}`}>
-              <i className={`fas ${muted ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
-            </button>
-            <button onClick={() => { setActive(false); onClose(); toast('Call ended. SOAP notes saved.', 'info'); }}
-              className="w-14 h-14 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center text-xl shadow-lg">
-              <i className="fas fa-phone-slash"></i>
-            </button>
-            <button onClick={() => setVidOff(!vidOff)} className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all ${vidOff ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-700'}`}>
-              <i className={`fas ${vidOff ? 'fa-video-slash' : 'fa-video'}`}></i>
-            </button>
-          </div>
-        </div>
-      )}
-    </Modal>
-  );
-}
-
 /* ─── Main Component ─────────────────────────── */
 function DoctorAppointments() {
   const toast = useToast();
+  const navigate = useNavigate();
   const { appointments, patients, approveRequest: approveRequestApi, rejectRequest: rejectRequestApi, cancelAppointment, callNextForDoctor } = useClinicData();
   const [tab, setTab] = useState('queue');
 
@@ -257,7 +201,6 @@ function DoctorAppointments() {
     [appointments, todayStr, ageByPatientId]);
 
   const [notesTarget, setNotesTarget] = useState(null);
-  const [callTarget, setCallTarget] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [search, setSearch] = useState('');
   const [modeFilter, setModeFilter] = useState('All Modes');
@@ -384,8 +327,9 @@ function DoctorAppointments() {
 
   const saveNotes = async ({ notes, diagnosis, followUp }) => {
     const combined = [notes && `Subjective: ${notes}`, diagnosis && `Assessment: ${diagnosis}`, followUp && `Plan: ${followUp}`].filter(Boolean).join('\n');
+    if (!combined) { toast('Add at least one note before saving.', 'error'); return; }
     try {
-      if (combined) await apiFetch(`/telemedicine/${notesTarget.id}/notes`, { method: 'POST', body: { note: combined } });
+      await apiFetch(`/telemedicine/${notesTarget.id}/notes`, { method: 'POST', body: { note: combined } });
       toast(`SOAP notes saved for ${notesTarget?.name}`, 'success');
     } catch (err) {
       toast(err.message || 'Failed to save notes', 'error');
@@ -544,7 +488,7 @@ function DoctorAppointments() {
                         {p.status === 'Done' ? 'View Notes' : 'Add Notes'}
                       </button>
                       {p.mode === 'Video' && p.status !== 'Done' && (
-                        <button onClick={() => setCallTarget(p)} className="bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-1">
+                        <button onClick={() => navigate(`/doctor-dashboard/telemedicine?startCall=${p.id}`)} className="bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-1">
                           <i className="fas fa-video text-[10px]"></i> Join
                         </button>
                       )}
@@ -626,7 +570,6 @@ function DoctorAppointments() {
       </div>
 
       <NotesModal patient={notesTarget} isOpen={!!notesTarget} onClose={() => setNotesTarget(null)} onSave={saveNotes} />
-      <DoctorCallModal isOpen={!!callTarget} onClose={() => setCallTarget(null)} patient={callTarget} toast={toast} />
       <ConfirmModal isOpen={!!cancelTarget} onClose={() => setCancelTarget(null)} onConfirm={handleCancel}
         title="Cancel Appointment?" message={`Cancel appointment with ${cancelTarget?.name}? They will be notified.`}
         confirmLabel="Cancel Appointment" confirmStyle="danger" />

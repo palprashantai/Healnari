@@ -48,22 +48,27 @@ export class PatientsService {
     const prescriptions = medsRes.data || [];
     const notes = notesRes.data || [];
 
-    // Attach the real prescribing/authoring doctor's name — some legacy rows
-    // have no doctor_id (see records.service.ts), so those fall back to a
-    // generic label.
+    // Attach the real prescribing/authoring doctor's name (+ specialty/reg no,
+    // for a proper prescription letterhead) — some legacy rows have no
+    // doctor_id (see records.service.ts), so those fall back to a generic label.
     const doctorIds = [...new Set([...prescriptions.map(p => p.doctor_id), ...notes.map(n => n.doctor_id)].filter(Boolean))];
-    let doctorNameById = new Map<string, string>();
+    let doctorById = new Map<string, { full_name: string; specialty: string | null; registration_no: string | null }>();
     if (doctorIds.length) {
-      const { data: doctors } = await this.supabase.admin.from('profiles').select('id, full_name').in('id', doctorIds);
-      doctorNameById = new Map((doctors || []).map(d => [d.id, d.full_name]));
+      const { data: doctors } = await this.supabase.admin.from('profiles').select('id, full_name, specialty, registration_no').in('id', doctorIds);
+      doctorById = new Map((doctors || []).map(d => [d.id, d]));
     }
 
     return {
       profile,
       record,
-      prescriptions: prescriptions.map(p => ({ ...p, doctor_name: (p.doctor_id && doctorNameById.get(p.doctor_id)) || 'Your Doctor' })),
+      prescriptions: prescriptions.map(p => ({
+        ...p,
+        doctor_name: (p.doctor_id && doctorById.get(p.doctor_id)?.full_name) || 'Your Doctor',
+        doctor_specialty: (p.doctor_id && doctorById.get(p.doctor_id)?.specialty) || null,
+        doctor_registration_no: (p.doctor_id && doctorById.get(p.doctor_id)?.registration_no) || null,
+      })),
       lab_reports: reportsRes.data || [],
-      clinical_notes: notes.map(n => ({ ...n, doctor_name: (n.doctor_id && doctorNameById.get(n.doctor_id)) || 'Your Doctor' })),
+      clinical_notes: notes.map(n => ({ ...n, doctor_name: (n.doctor_id && doctorById.get(n.doctor_id)?.full_name) || 'Your Doctor' })),
       payments: paymentsRes.data || [],
     };
   }

@@ -1,9 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Tilt3D } from '../../components/Tilt3D.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
+
+const TYPE_COLORS = { Financial: '#6366f1', Clinical: '#10b981', Operations: '#f59e0b', System: '#0ea5e9' };
+
+function EmptyChart({ label }) {
+  return (
+    <div className="h-52 flex items-center justify-center text-sm text-slate-400">
+      <i className="fas fa-chart-simple mr-2"></i>{label}
+    </div>
+  );
+}
+
+/** Buckets report history rows into the last `weeks` ISO-ish weeks (Mon-start), oldest first. */
+function buildWeeklyTrend(history, weeks = 8) {
+  const now = new Date();
+  const startOfWeek = (d) => {
+    const x = new Date(d);
+    const day = (x.getDay() + 6) % 7; // Mon = 0
+    x.setDate(x.getDate() - day);
+    x.setHours(0, 0, 0, 0);
+    return x;
+  };
+  const buckets = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const start = new Date(startOfWeek(now));
+    start.setDate(start.getDate() - i * 7);
+    buckets.push({ start, name: `${start.getDate()}/${start.getMonth() + 1}`, count: 0 });
+  }
+  history.forEach((r) => {
+    if (!r.created_at) return;
+    const created = startOfWeek(new Date(r.created_at));
+    const bucket = buckets.find(b => b.start.getTime() === created.getTime());
+    if (bucket) bucket.count += 1;
+  });
+  return buckets;
+}
 
 const REPORT_CATALOG = [
   { id: 'REP-001', name: 'Monthly Revenue Summary', desc: 'Detailed breakdown of platform earnings, payouts, and taxes.', type: 'Financial', freq: 'Monthly' },
@@ -46,12 +81,12 @@ function AdminReports() {
     }
   };
 
-  const trendData = [
-    { name: 'W1', automated: 12, manual: 4 },
-    { name: 'W2', automated: 15, manual: 6 },
-    { name: 'W3', automated: 18, manual: 7 },
-    { name: 'W4', automated: 21, manual: 9 },
-  ];
+  const weeklyTrend = useMemo(() => buildWeeklyTrend(history), [history]);
+  const typeBreakdown = useMemo(() => {
+    const counts = {};
+    history.forEach(r => { counts[r.type] = (counts[r.type] || 0) + 1; });
+    return Object.entries(counts).map(([type, value]) => ({ name: type, value, color: TYPE_COLORS[type] || '#94a3b8' }));
+  }, [history]);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -79,28 +114,53 @@ function AdminReports() {
         ))}
       </div>
 
-      {/* Trend chart */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <div className="mb-4">
-          <h2 className="font-bold text-slate-800">Report Generation Volumes</h2>
-          <p className="text-xs text-slate-500">Automated vs Manual report generation over the last 4 weeks.</p>
+      {/* Trend charts */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div className="mb-4">
+            <h2 className="font-bold text-slate-800">Report Generation Volume</h2>
+            <p className="text-xs text-slate-500">Reports generated per week, last 8 weeks.</p>
+          </div>
+          {loading ? <EmptyChart label="Loading…" /> : history.length === 0 ? (
+            <EmptyChart label="No reports generated yet." />
+          ) : (
+            <div className="h-52">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={weeklyTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorAuto" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} /><stop offset="95%" stopColor="#6366f1" stopOpacity={0} /></linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} allowDecimals={false} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Area type="monotone" dataKey="count" name="Reports Generated" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorAuto)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
-        <div className="h-52">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorAuto" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} /><stop offset="95%" stopColor="#6366f1" stopOpacity={0} /></linearGradient>
-                <linearGradient id="colorManual" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} /><stop offset="95%" stopColor="#f59e0b" stopOpacity={0} /></linearGradient>
-              </defs>
-              <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
-              <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-              <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-              <Area type="monotone" dataKey="automated" name="Automated Reports" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorAuto)" />
-              <Area type="monotone" dataKey="manual" name="Manual Exports" stroke="#f59e0b" strokeWidth={3} fillOpacity={1} fill="url(#colorManual)" />
-            </AreaChart>
-          </ResponsiveContainer>
+
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div className="mb-4">
+            <h2 className="font-bold text-slate-800">Reports by Type</h2>
+            <p className="text-xs text-slate-500">Breakdown of all generated reports.</p>
+          </div>
+          {loading ? <EmptyChart label="Loading…" /> : typeBreakdown.length === 0 ? (
+            <EmptyChart label="No reports generated yet." />
+          ) : (
+            <div className="h-52">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={typeBreakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={4} dataKey="value" stroke="none">
+                    {typeBreakdown.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       </div>
 

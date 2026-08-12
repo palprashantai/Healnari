@@ -36,10 +36,10 @@ function SuccessModal({ details, onClose }) {
         {/* Heading */}
         <div className="space-y-1.5">
           <h3 className="text-2xl font-black text-slate-800 font-display">
-            Appointment Confirmed!
+            Request Received!
           </h3>
           <p className="text-slate-400 text-xs md:text-sm font-semibold max-w-xs mx-auto">
-            Your clinical consultation is successfully booked. An SMS and calendar invite have been sent.
+            Our care team will call you shortly to confirm your specialist and appointment slot.
           </p>
         </div>
 
@@ -51,12 +51,12 @@ function SuccessModal({ details, onClose }) {
           </div>
           <div className="h-px bg-slate-200/60"></div>
           <div className="flex justify-between items-center text-xs font-semibold">
-            <span className="text-slate-400 uppercase tracking-wider">Specialist</span>
-            <span className="text-brand-700 font-bold">{details.doctor}</span>
+            <span className="text-slate-400 uppercase tracking-wider">Preferred Specialty</span>
+            <span className="text-brand-700 font-bold">{details.specialty}</span>
           </div>
           <div className="h-px bg-slate-200/60"></div>
           <div className="flex justify-between items-center text-xs font-semibold">
-            <span className="text-slate-400 uppercase tracking-wider">Date & Time</span>
+            <span className="text-slate-400 uppercase tracking-wider">Requested Date & Time</span>
             <span className="text-slate-700 font-bold">{details.slot}</span>
           </div>
         </div>
@@ -71,7 +71,7 @@ function SuccessModal({ details, onClose }) {
           </button>
 
           <div className="flex justify-center gap-4 text-[10px] font-bold text-slate-400">
-            <span><i className="fas fa-video text-brand-500 mr-1"></i> Zoom/Meet Video</span>
+            <span><i className="fas fa-phone text-brand-500 mr-1"></i> We'll call to confirm</span>
             <span><i className="fas fa-lock text-brand-500 mr-1"></i> Private & Confidential</span>
           </div>
         </div>

@@ -55,6 +55,7 @@ const AdminDoctorManager = lazy(() => import('./admin/pages/DoctorManager.jsx'))
 const AdminDoctorDetails = lazy(() => import('./admin/pages/DoctorDetails.jsx'));
 const AdminPatientDetails = lazy(() => import('./admin/pages/PatientDetails.jsx'));
 const AdminTemplates = lazy(() => import('./admin/pages/TemplatesManager.jsx'));
+const AdminLeads = lazy(() => import('./admin/pages/Leads.jsx'));
 
 function dashboardPathFor(role) {
   if (role === 'doctor') return '/doctor-dashboard';
@@ -190,6 +191,7 @@ function App() {
                 <Route path="reports" element={<AdminReports />} />
                 <Route path="communications" element={<AdminCommunications />} />
                 <Route path="templates" element={<AdminTemplates />} />
+                <Route path="leads" element={<AdminLeads />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

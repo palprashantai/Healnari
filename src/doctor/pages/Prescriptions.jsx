@@ -4,7 +4,9 @@ import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { DoseSchedule } from '../../components/DoseSchedule.jsx';
 import { RxStatusBadge, resolveRxStatus } from '../../components/RxStatus.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+import { openPrescriptionPrintWindow } from '../../lib/prescriptionPrint.js';
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -75,6 +77,7 @@ const TEMPLATES = [
 const RX_ID_SEED = Math.floor(Math.random() * 9000) + 1000;
 
 function WriteRxPage({ onBack, onSave, patients }) {
+  const { user } = useAuth();
   const [form, setForm] = useState({ patientId: '', patient: '', diagnosis: '', meds: [{ name: '', schedule: '', duration: '' }], instructions: '' });
   const [template, setTemplate] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -260,7 +263,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
               <div className="flex justify-between items-start border-b border-slate-200 pb-3">
                 <div>
                   <h3 className="font-black text-slate-800 text-lg">HealNari Rx</h3>
-                  <p className="text-xs text-slate-500">Dr. Sarah Mitchell • MCI-29402</p>
+                  <p className="text-xs text-slate-500">Dr. {user?.name}{user?.regNo ? ` • ${user.regNo}` : ''}</p>
                 </div>
                 <div className="text-right text-xs text-slate-500">
                   <p>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
@@ -313,26 +316,40 @@ function WriteRxPage({ onBack, onSave, patients }) {
 }
 
 /* ─── Main Component ─────────────────────────── */
-/** The backend stores one row per medication line (no diagnosis/bundle concept),
- * so a "prescription card" here is a patient's active meds grouped together —
- * diagnosis comes from the patient's own chronic_conditions, not the Rx form. */
+/** One card per prescription (medicines sharing a group_id — everything a
+ * doctor wrote together in one "Write Prescription" visit), not one card
+ * per patient — a patient with prescriptions from three different visits
+ * gets three cards, each with that visit's own medicines and diagnosis. */
 function toRxCards(patients) {
-  return patients.filter(p => p.meds.length > 0).map(p => ({
-    id: p.id,
-    patientId: p.id,
-    patient: p.name,
-    date: p.meds[0]?.prescribedOn || '',
-    diagnosis: p.diagnosis && p.diagnosis !== 'Pending' ? p.diagnosis : 'General',
-    status: p.meds.some(m => m.refillsLeft > 0) ? 'Active' : 'Expired',
-    validTill: p.meds.reduce((latest, m) => (!latest || (m.validTill && m.validTill > latest)) ? m.validTill : latest, ''),
-    meds: p.meds.map(m => ({ id: m.id, name: m.name, schedule: m.dosage ? `${m.dosage} (${m.frequency || ''})` : (m.frequency || ''), duration: m.duration || '', refillsLeft: m.refillsLeft, refillRequested: m.refillRequested })),
-    instructions: p.meds.find(m => m.instructions)?.instructions || '',
-    refillRequested: p.meds.some(m => m.refillRequested),
-  }));
+  const cards = [];
+  patients.forEach(p => {
+    if (!p.meds.length) return;
+    const byGroup = new Map();
+    p.meds.forEach(m => {
+      if (!byGroup.has(m.groupId)) byGroup.set(m.groupId, []);
+      byGroup.get(m.groupId).push(m);
+    });
+    byGroup.forEach((meds, groupId) => {
+      cards.push({
+        id: groupId,
+        patientId: p.id,
+        patient: p.name,
+        date: meds[0]?.prescribedOn || '',
+        diagnosis: meds.find(m => m.diagnosis)?.diagnosis || (p.diagnosis && p.diagnosis !== 'Pending' ? p.diagnosis : 'General'),
+        status: meds.some(m => m.refillsLeft > 0) ? 'Active' : 'Expired',
+        validTill: meds.reduce((latest, m) => (!latest || (m.validTill && m.validTill > latest)) ? m.validTill : latest, ''),
+        meds: meds.map(m => ({ id: m.id, name: m.name, schedule: m.dosage ? `${m.dosage} (${m.frequency || ''})` : (m.frequency || ''), duration: m.duration || '', refillsLeft: m.refillsLeft, refillRequested: m.refillRequested })),
+        instructions: meds.find(m => m.instructions)?.instructions || '',
+        refillRequested: meds.some(m => m.refillRequested),
+      });
+    });
+  });
+  return cards.sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
 function DoctorPrescriptions() {
   const toast = useToast();
+  const { user } = useAuth();
   const { patients, addRx, approveRefill: approveRefillApi } = useClinicData();
   const prescriptions = useMemo(() => toRxCards(patients), [patients]);
   const [showWrite, setShowWrite] = useState(false);
@@ -399,26 +416,16 @@ function DoctorPrescriptions() {
   };
 
   const downloadRxPdf = (rx) => {
-    const win = window.open('', '_blank', 'width=480,height=640');
-    if (!win) return;
-    const medsHtml = rx.meds.map(m => `<div class="row"><span>${m.name}</span><span class="muted">${m.schedule} — ${m.duration}</span></div>`).join('');
-    win.document.write(`
-      <!doctype html><html><head><title>Prescription — ${rx.patient}</title>
-      <style>
-        body { font-family: Georgia, serif; padding: 32px; color: #1e293b; }
-        h1 { font-size: 20px; margin: 0; }
-        .muted { color: #64748b; font-size: 12px; }
-        .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
-        .header { border-bottom: 1px solid #cbd5e1; padding-bottom: 12px; margin-bottom: 12px; }
-      </style></head><body>
-      <div class="header"><h1>HealNari — Prescription</h1><p class="muted">${rx.patient} • ${rx.diagnosis} • ${rx.date}</p></div>
-      ${medsHtml}
-      ${rx.instructions ? `<p class="muted" style="margin-top:16px"><strong>Instructions:</strong> ${rx.instructions}</p>` : ''}
-      </body></html>
-    `);
-    win.document.close();
-    win.focus();
-    win.print();
+    const patient = patients.find(p => p.id === rx.patientId);
+    openPrescriptionPrintWindow({
+      rxId: `RX-${rx.id.slice(0, 8).toUpperCase()}`,
+      date: rx.date,
+      doctor: { name: user?.name, specialty: user?.specialty, regNo: user?.regNo },
+      patient: { name: rx.patient, age: patient?.age !== '—' ? patient?.age : null },
+      diagnosis: rx.diagnosis,
+      medicines: rx.meds,
+      instructions: rx.instructions,
+    });
   };
   const toggleSelectAll = () => {
     if (selectedIds.length === filtered.length && filtered.length > 0) setSelectedIds([]);
@@ -453,10 +460,12 @@ function DoctorPrescriptions() {
 
   const handleNewRx = async (form) => {
     try {
-      await Promise.all(form.meds.filter(m => m.name).map(m => addRx(form.patientId, {
-        name: m.name, dosage: '', frequency: m.schedule, duration: m.duration, instructions: form.instructions,
-      })));
-      toast(`Prescription issued to ${form.patient}. Patient notified via SMS.`, 'success');
+      await addRx(form.patientId, {
+        diagnosis: form.diagnosis,
+        instructions: form.instructions,
+        medicines: form.meds.filter(m => m.name).map(m => ({ name: m.name, dosage: '', frequency: m.schedule, duration: m.duration })),
+      });
+      toast(`Prescription issued to ${form.patient}. Patient notified.`, 'success');
     } catch (err) {
       toast(err.message || 'Failed to issue prescription', 'error');
     }

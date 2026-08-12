@@ -4,9 +4,27 @@ import { Tilt3D } from '../../components/Tilt3D.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 
 const COLORS = ['#6B46C1', '#10b981', '#0ea5e9', '#f59e0b', '#f43f5e', '#6366f1'];
+const STATUS_COLORS = {
+  Done: '#10b981',
+  Upcoming: '#0ea5e9',
+  Waiting: '#f59e0b',
+  'In Progress': '#6366f1',
+  'No Show': '#94a3b8',
+  Cancelled: '#f43f5e',
+};
+const CONSULT_TYPE_COLORS = { video: '#6366f1', clinic: '#10b981' };
+const CONSULT_TYPE_LABELS = { video: 'Video Consults', clinic: 'Clinic Visits' };
 
 function Skeleton({ className = '' }) {
   return <div className={`animate-pulse bg-slate-100 rounded-lg ${className}`} />;
+}
+
+function EmptyChart({ label }) {
+  return (
+    <div className="h-64 flex items-center justify-center text-sm text-slate-400">
+      <i className="fas fa-chart-simple mr-2"></i>{label}
+    </div>
+  );
 }
 
 function AdminAnalytics() {
@@ -23,6 +41,12 @@ function AdminAnalytics() {
 
   const fd = data?.financialData || [];
   const specialtyRevenue = data?.specialtyRevenue || [];
+  const statusBreakdown = (data?.appointmentStatusBreakdown || []).map(s => ({ ...s, name: s.status }));
+  const consultTypeData = data
+    ? Object.entries(data.consultTypeSplit || {})
+        .filter(([, value]) => value > 0)
+        .map(([key, value]) => ({ name: CONSULT_TYPE_LABELS[key] || key, value, color: CONSULT_TYPE_COLORS[key] || '#94a3b8' }))
+    : [];
 
   const kpis = data ? [
     { title: 'Total Patients', value: data.totalPatients?.toLocaleString() || '0', icon: 'fa-hospital-user', color: 'text-sky-600', bg: 'bg-sky-50', text: 'text-slate-800', trend: 'Platform', up: true },
@@ -144,6 +168,44 @@ function AdminAnalytics() {
               </ResponsiveContainer>
             </div>
           )}
+        </div>
+
+        {/* Appointment Status Breakdown */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <h2 className="font-bold text-slate-800 mb-4">Platform-Wide Appointment Status</h2>
+          {loading ? <Skeleton className="h-64" /> : statusBreakdown.length ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={statusBreakdown} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                  <CartesianGrid horizontal={false} stroke="#e2e8f0" strokeDasharray="3 3" />
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} allowDecimals={false} />
+                  <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 'bold' }} width={80} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} cursor={{ fill: '#f8fafc' }} />
+                  <Bar dataKey="count" name="Appointments" radius={[0, 4, 4, 0]} barSize={22}>
+                    {statusBreakdown.map((entry, index) => <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.status] || '#94a3b8'} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <EmptyChart label="No appointments booked yet." />}
+        </div>
+
+        {/* Consultation Delivery Mode Split */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <h2 className="font-bold text-slate-800 mb-4">Consultation Delivery Modes</h2>
+          {loading ? <Skeleton className="h-64" /> : consultTypeData.length ? (
+            <div className="h-64 flex items-center justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={consultTypeData} cx="50%" cy="50%" innerRadius={60} outerRadius={85} paddingAngle={4} dataKey="value" stroke="none">
+                    {consultTypeData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Legend iconType="circle" layout="vertical" verticalAlign="middle" align="right" wrapperStyle={{ fontSize: '11px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <EmptyChart label="No consultations recorded yet." />}
         </div>
       </div>
     </div>

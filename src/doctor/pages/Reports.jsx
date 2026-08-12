@@ -1,9 +1,38 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+
+const STATUS_COLORS = { Pending: '#f59e0b', Reviewed: '#10b981' };
+
+function EmptyChart({ label }) {
+  return (
+    <div className="h-64 flex items-center justify-center text-sm text-slate-400">
+      <i className="fas fa-chart-simple mr-2"></i>{label}
+    </div>
+  );
+}
+
+/** Buckets a doctor's lab report queue into normal vs flagged counts per
+ * month, Jan through the current month of this year — real data, not a
+ * sample trend. */
+function buildLabTrend(reports) {
+  const now = new Date();
+  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const buckets = MONTH_LABELS.slice(0, now.getMonth() + 1).map(name => ({ name, normal: 0, abnormal: 0 }));
+  reports.forEach(r => {
+    if (!r.created_at) return;
+    const d = new Date(r.created_at);
+    if (d.getFullYear() !== now.getFullYear()) return;
+    const bucket = buckets[d.getMonth()];
+    if (!bucket) return;
+    if (r.urgent) bucket.abnormal += 1;
+    else bucket.normal += 1;
+  });
+  return buckets;
+}
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -51,15 +80,6 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
   );
 }
 
-/* ─── Dummy Data ──────────────────────────────── */
-const LAB_TRENDS = [
-  { name: 'Jan', normal: 45, abnormal: 12 },
-  { name: 'Feb', normal: 52, abnormal: 15 },
-  { name: 'Mar', normal: 48, abnormal: 10 },
-  { name: 'Apr', normal: 61, abnormal: 18 },
-  { name: 'May', normal: 59, abnormal: 14 },
-  { name: 'Jun', normal: 75, abnormal: 22 },
-];
 
 /* ─── Lab Review Modal ───────────────────────── */
 function LabReviewModal({ lab, isOpen, onClose, onAction }) {
@@ -217,6 +237,14 @@ function DoctorReports() {
   const pending = rawReports.filter(r => r.status === 'Uploaded').map(toRow);
   const reviewed = rawReports.filter(r => r.status === 'Reviewed').map(r => ({ ...toRow(r), tests: r.test_name, date: toRow(r).received }));
 
+  const labTrend = useMemo(() => buildLabTrend(rawReports), [rawReports]);
+  const queueBreakdown = useMemo(() => (
+    [
+      { name: 'Pending', value: pending.length },
+      { name: 'Reviewed', value: reviewed.length },
+    ].filter(s => s.value > 0)
+  ), [pending.length, reviewed.length]);
+
   const handleRequestReport = async (patientId, request) => {
     try {
       await requestLabReport(patientId, request);
@@ -350,27 +378,51 @@ function DoctorReports() {
         </div>
       </div>
 
-      {/* Lab Trends Chart */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
-        <div className="mb-4">
-          <h2 className="font-bold text-slate-800">Lab Results Overview (YTD)</h2>
-          <p className="text-xs text-slate-500">Track the volume of normal vs abnormal diagnostic results.</p>
+      {/* Lab Trends Charts */}
+      <div className="grid lg:grid-cols-3 gap-6 mb-6">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div className="mb-4">
+            <h2 className="font-bold text-slate-800">Lab Results Overview (YTD)</h2>
+            <p className="text-xs text-slate-500">Volume of normal vs flagged (urgent) diagnostic results, by month.</p>
+          </div>
+          {rawReports.length === 0 ? <EmptyChart label="No lab reports yet." /> : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={labTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dx={-10} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    cursor={{ fill: '#f8fafc' }}
+                  />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                  <Bar dataKey="normal" name="Normal Results" stackId="a" fill="#10b981" radius={[0, 0, 4, 4]} />
+                  <Bar dataKey="abnormal" name="Flagged (Urgent)" stackId="a" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={LAB_TRENDS} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dx={-10} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                cursor={{ fill: '#f8fafc' }}
-              />
-              <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-              <Bar dataKey="normal" name="Normal Results" stackId="a" fill="#10b981" radius={[0, 0, 4, 4]} />
-              <Bar dataKey="abnormal" name="Abnormal (Flagged)" stackId="a" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <div className="mb-4">
+            <h2 className="font-bold text-slate-800">Review Queue</h2>
+            <p className="text-xs text-slate-500">Pending vs already-reviewed reports.</p>
+          </div>
+          {queueBreakdown.length === 0 ? <EmptyChart label="No lab reports yet." /> : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={queueBreakdown} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4} dataKey="value" stroke="none">
+                    {queueBreakdown.map((entry, index) => <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || '#94a3b8'} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       </div>
 

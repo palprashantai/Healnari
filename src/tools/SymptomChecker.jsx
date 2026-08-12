@@ -120,7 +120,7 @@ function SymptomChecker({ onClose, onBook }) {
     if (hasUrgent) {
       return {
         severity: 'URGENT CARE REQUIRED',
-        doctorMatch: null,
+        specialtyMatch: null,
         reasoning: 'You have reported severe symptoms (such as extreme pain or heavy bleeding clots). This digital platform is not a substitute for emergency care. Please visit your nearest hospital immediately for physical evaluation.',
         isUrgent: true
       };
@@ -130,7 +130,10 @@ function SymptomChecker({ onClose, onBook }) {
       severity = 'Moderate to Severe';
     }
 
-    let doctorMatch = 'Dr. Ananya Mehta'; // default
+    // Real specialty recommendation — not a specific (fabricated) doctor
+    // name. Which specific doctor a patient actually sees is decided at
+    // booking time from HealNari's real, admin-verified roster.
+    let specialtyMatch = 'Gynaecologist';
     let reasoning = '';
     let diagnosisSummary = '';
 
@@ -146,31 +149,19 @@ function SymptomChecker({ onClose, onBook }) {
     }
 
     if (answers.concern === 'PCOS / PCOD' || answers.concern === 'Irregular periods') {
-      doctorMatch = severity === 'Mild' ? 'Dr. Priya Nair' : 'Dr. Ananya Mehta';
+      specialtyMatch = 'Gynaecologist';
       reasoning = `${diagnosisSummary} You exhibit indicators of a ${severity} hormonal rhythm concern. A clinical Gynaecologist can assist with ultrasound mapping and custom cycle regulation therapy.`;
     } else if (answers.concern === 'Hair fall & thinning') {
-      doctorMatch = 'Dr. Shreya Verma';
+      specialtyMatch = 'Dermatologist';
       reasoning = `Your follicular shedding tags point to potential metabolic scalp stress or elevated DHT. A dedicated Dermatologist & Trichologist is recommended to check for systemic androgen excess.`;
     } else {
-      doctorMatch = 'Dr. Ritu Khanna';
+      specialtyMatch = 'Endocrinologist';
       reasoning = `Persistent fatigue and metabolic indicators (${answers.insulinResistance.length} insulin resistance markers logged) point to endocrine axis stress. Consulting an Endocrinologist is recommended to test your thyroid and insulin profiles.`;
     }
 
-    // TODO: [Engineer Action] Pipe this JSON payload securely to Node.js/MongoDB backend via encrypted API.
-    // Ensure PII is not stored in plain-text localStorage to protect patient privacy on shared devices.
-    const intakePayload = {
-      ...answers,
-      severity,
-      doctorMatch,
-      reasoning,
-      isPCOSProbable,
-      timestamp: new Date().toLocaleString()
-    };
-    console.log("Intake payload ready for secure transmission:", intakePayload);
-
     return {
       severity,
-      doctorMatch,
+      specialtyMatch,
       reasoning,
       isUrgent: false
     };
@@ -452,8 +443,8 @@ function SymptomChecker({ onClose, onBook }) {
                   <div className="p-4 bg-slate-50 border border-slate-200/50 rounded-2xl flex items-center gap-3">
                     <i className="fas fa-user-md text-emerald-500 text-xl flex-shrink-0"></i>
                     <div>
-                      <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Expert Recommendation</h5>
-                      <p className="text-slate-700 text-sm font-bold mt-0.5">{results.doctorMatch}</p>
+                      <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Recommended Specialist</h5>
+                      <p className="text-slate-700 text-sm font-bold mt-0.5">{results.specialtyMatch}</p>
                     </div>
                   </div>
                 )}
@@ -464,12 +455,12 @@ function SymptomChecker({ onClose, onBook }) {
                 {!results.isUrgent && (
                   <button
                     onClick={() => {
-                      onBook(results.doctorMatch);
+                      onBook(results.specialtyMatch);
                       onClose();
                     }}
                     className="w-full bg-brand-700 hover:bg-brand-800 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all btn-interactive text-base"
                   >
-                    Book with {results.doctorMatch}
+                    Book a {results.specialtyMatch}
                   </button>
                 )}
                 <button

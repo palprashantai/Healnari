@@ -4,6 +4,7 @@ import { Modal } from '../../components/Modal.jsx';
 import { DoseSchedule, parseDoseSchedule } from '../../components/DoseSchedule.jsx';
 import { RxStatusBadge, resolveRxStatus, daysUntil } from '../../components/RxStatus.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
+import { openPrescriptionPrintWindow } from '../../lib/prescriptionPrint.js';
 
 const STATUS_TABS = ['All', 'Active', 'Expiring Soon', 'Completed', 'Expired'];
 
@@ -18,21 +19,29 @@ const STATUS_CARD_STYLE = {
   Completed:       'bg-slate-200 text-slate-500',
 };
 
-/** The backend stores one row per medication line — each becomes its own
- * card here (medicines is a 1-item array) rather than a fabricated bundle. */
+/** One card per prescription — every medicine a doctor wrote together in the
+ * same "Write Prescription" visit shares a group_id and is shown together,
+ * instead of each medicine line rendering as its own separate prescription. */
 function toRxCards(myPatient) {
   if (!myPatient) return [];
-  return myPatient.meds.map(m => ({
-    id: m.id,
-    doctor: m.doctor || 'Your Doctor',
-    date: m.prescribedOn,
-    diagnosis: myPatient.diagnosis && myPatient.diagnosis !== 'Pending' ? myPatient.diagnosis : 'General',
-    status: m.refillsLeft > 0 ? 'Active' : 'Expired',
-    validTill: m.validTill,
-    medicines: [{ name: m.name, schedule: m.frequency, duration: m.duration, refills: m.refillsLeft }],
-    instructions: m.instructions,
-    refillRequested: m.refillRequested,
-  }));
+  const byGroup = new Map();
+  myPatient.meds.forEach(m => {
+    if (!byGroup.has(m.groupId)) byGroup.set(m.groupId, []);
+    byGroup.get(m.groupId).push(m);
+  });
+  return [...byGroup.entries()].map(([groupId, meds]) => ({
+    id: groupId,
+    doctor: meds[0]?.doctor || 'Your Doctor',
+    doctorSpecialty: meds[0]?.doctorSpecialty || '',
+    doctorRegNo: meds[0]?.doctorRegNo || '',
+    date: meds[0]?.prescribedOn,
+    diagnosis: meds.find(m => m.diagnosis)?.diagnosis || (myPatient.diagnosis && myPatient.diagnosis !== 'Pending' ? myPatient.diagnosis : 'General'),
+    status: meds.some(m => m.refillsLeft > 0) ? 'Active' : 'Expired',
+    validTill: meds.reduce((latest, m) => (!latest || (m.validTill && m.validTill > latest)) ? m.validTill : latest, ''),
+    medicines: meds.map(m => ({ id: m.id, name: m.name, schedule: m.frequency, duration: m.duration, refills: m.refillsLeft })),
+    instructions: meds.find(m => m.instructions)?.instructions || '',
+    refillRequested: meds.some(m => m.refillRequested),
+  })).sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
 const DOSE_SLOT_DEFS = [
@@ -148,7 +157,10 @@ function PatientPrescriptions() {
   const handleRefillSubmit = async () => {
     setSubmittingRefill(true);
     try {
-      await requestRefill(refillRx.id);
+      // A prescription can carry several medicines — request a refill on
+      // every one of them, not just the first (there's no single medicine
+      // id to request against once a card represents the whole prescription).
+      await Promise.all(refillRx.medicines.map(m => requestRefill(m.id)));
       toast('Refill requested. Your doctor will review it shortly.', 'success');
       setRefillRx(null);
     } catch (err) {
@@ -158,10 +170,22 @@ function PatientPrescriptions() {
     }
   };
 
-  // No file storage or PDF generation exists on the backend for
-  // prescriptions — being upfront about that instead of pretending a
-  // download is happening.
-  const handleDownload = () => toast('Prescription downloads are coming soon.', 'info');
+  const handleDownload = (rx) => {
+    const me = patients[0];
+    openPrescriptionPrintWindow({
+      rxId: `RX-${rx.id.slice(0, 8).toUpperCase()}`,
+      date: rx.date,
+      doctor: { name: rx.doctor, specialty: rx.doctorSpecialty, regNo: rx.doctorRegNo },
+      patient: { name: me?.name, age: me?.age !== '—' ? me?.age : null },
+      diagnosis: rx.diagnosis,
+      medicines: rx.medicines,
+      instructions: rx.instructions,
+    });
+  };
+
+  // Sharing (e.g. to a pharmacy over WhatsApp) needs a hosted file URL —
+  // there's no PDF storage on the backend yet, so this stays a stated
+  // limitation rather than a fake "shared!" confirmation.
   const handleShare = () => toast('Sharing prescriptions is coming soon.', 'info');
 
   // Real per-medicine dosing times, parsed from each active prescription's
@@ -275,7 +299,7 @@ function PatientPrescriptions() {
                       <i className="fas fa-eye"></i> View Details
                     </button>
                     <div className="flex gap-2 flex-wrap">
-                      <button onClick={handleDownload}
+                      <button onClick={() => handleDownload(rx)}
                         className="bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-700 font-bold px-4 py-2 rounded-xl text-sm shadow-sm transition-colors border border-aubergine-200 flex items-center gap-1.5">
                         <i className="fas fa-download"></i> PDF
                       </button>

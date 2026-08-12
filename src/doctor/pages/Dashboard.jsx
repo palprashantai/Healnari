@@ -89,9 +89,34 @@ function QuickNotesPad() {
 }
 
 /* ─── Urgent Lab Modal ─── */
-function UrgentLabModal({ lab, onClose, toast }) {
+function UrgentLabModal({ lab, onClose, toast, doctorName }) {
+  const [contacting, setContacting] = useState(false);
   if (!lab) return null;
   const abnormal = Object.entries(lab.results || {}).filter(([, v]) => v.status !== 'normal');
+
+  const contactPatient = async () => {
+    setContacting(true);
+    try {
+      await apiFetch('/communications/broadcasts', {
+        method: 'POST',
+        body: {
+          subject: 'Urgent: please contact your doctor',
+          body: `Dr. ${doctorName} needs to discuss your recent ${lab.test} results urgently. Please call the clinic or reply in the app as soon as possible.`,
+          audience: `Urgent lab alert — ${lab.patient}`,
+          channels: ['Push Notification'],
+          scheduleType: 'immediate',
+          patientIds: [lab.patientId],
+        },
+      });
+      toast('Patient notified.', 'success');
+      onClose();
+    } catch (err) {
+      toast(err.message || 'Failed to notify patient', 'error');
+    } finally {
+      setContacting(false);
+    }
+  };
+
   return (
     <Modal isOpen={!!lab} onClose={onClose} title="Urgent Clinical Alert" size="md">
       <div className="space-y-4">
@@ -111,9 +136,9 @@ function UrgentLabModal({ lab, onClose, toast }) {
           </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => { toast('Patient contacted via emergency channel.', 'success'); onClose(); }}
-            className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors">
-            <i className="fas fa-phone mr-2"></i>Contact Patient
+          <button onClick={contactPatient} disabled={contacting}
+            className="flex-1 bg-rose-600 hover:bg-rose-700 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl text-sm transition-colors">
+            <i className={`fas ${contacting ? 'fa-spinner fa-spin' : 'fa-phone'} mr-2`}></i>{contacting ? 'Notifying…' : 'Contact Patient'}
           </button>
           <button onClick={onClose} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-sm transition-colors">
             Review Later
@@ -179,66 +204,6 @@ function PatientFileModal({ row, onClose, onWriteRx }) {
   );
 }
 
-/* ─── AI Assistant Modal ─── */
-function AIAssistantModal({ isOpen, onClose, patient }) {
-  const [input, setInput] = useState('');
-  const [messages, setMessages] = useState([
-    { role: 'ai', text: `Patient Context for ${patient?.name || 'Jane Doe'}: PCOS with insulin resistance subtype. Elevated TSH 5.2 mIU/L suggests possible Hashimoto's thyroiditis. Current medications: Metformin 500mg BD, Myo-Inositol 2g OD.` },
-    { role: 'ai', text: 'Recommendation: Consider adding T3/T4 to the panel. Evaluate for TPO antibodies. Adjust Metformin after thyroid stabilization. Review HbA1c trend.' },
-  ]);
-  const [typing, setTyping] = useState(false);
-
-  const send = () => {
-    if (!input.trim()) return;
-    const q = input;
-    setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: q }]);
-    setTyping(true);
-    setTimeout(() => {
-      setMessages(prev => [...prev, { role: 'ai', text: `Based on the clinical data: ${q.toLowerCase().includes('dose') ? 'Recommend starting at 25mcg Levothyroxine, titrate every 6 weeks. Monitor TSH quarterly.' : q.toLowerCase().includes('lab') ? 'Order: TSH, Free T4, Anti-TPO Antibodies, Fasting Insulin, HOMA-IR. Expedite as urgent.' : 'Based on existing protocols, a conservative approach is recommended. Review in 4–6 weeks.'}` }]);
-      setTyping(false);
-    }, 1200);
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="AI Clinical Copilot" size="md">
-      <div className="space-y-4">
-        <div className="bg-slate-900 rounded-2xl p-4 h-64 overflow-y-auto space-y-3">
-          {messages.map((m, i) => (
-            <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-black ${m.role === 'ai' ? 'bg-aubergine-600 text-white' : 'bg-slate-700 text-slate-300'}`}>
-                {m.role === 'ai' ? 'AI' : 'Dr'}
-              </div>
-              <div className={`max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed ${m.role === 'ai' ? 'bg-slate-800 text-slate-200' : 'bg-aubergine-600 text-white'}`}>
-                {m.text}
-              </div>
-            </div>
-          ))}
-          {typing && (
-            <div className="flex gap-2">
-              <div className="w-6 h-6 rounded-full bg-aubergine-600 flex items-center justify-center text-[10px] font-black text-white">AI</div>
-              <div className="bg-slate-800 px-3 py-2 rounded-xl flex gap-1 items-center">
-                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></span>
-                <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()}
-            placeholder="Ask about dosage, labs, protocols..."
-            className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
-          <button onClick={send} className="bg-aubergine-600 text-white px-4 py-2.5 rounded-xl hover:bg-aubergine-700 transition-colors">
-            <i className="fas fa-paper-plane"></i>
-          </button>
-        </div>
-        <p className="text-[10px] text-slate-500 text-center">AI suggestions are for clinical decision support only. Always apply professional judgment.</p>
-      </div>
-    </Modal>
-  );
-}
-
 /* ─── KYC Modal ─── */
 function KYCModal({ isOpen, onClose, toast, onVerify }) {
   const [loading, setLoading] = useState(false);
@@ -274,6 +239,31 @@ function KYCModal({ isOpen, onClose, toast, onVerify }) {
 
 /* ─── Live Patient Timeline Card (Clinical Style) ─── */
 function PatientTimelineCard({ patient, isActive, onReview, onCallNext, isNext, toast }) {
+  const [rescheduling, setRescheduling] = useState(false);
+
+  const sendReschedule = async () => {
+    if (!patient.patient?.id) { toast('No patient record linked to this appointment.', 'error'); return; }
+    setRescheduling(true);
+    try {
+      await apiFetch('/communications/broadcasts', {
+        method: 'POST',
+        body: {
+          subject: 'Missed appointment — let\'s reschedule',
+          body: `We missed you for your ${patient.time} appointment. Please open the app to pick a new time that works for you.`,
+          audience: `Reschedule — ${patient.name}`,
+          channels: ['Push Notification'],
+          scheduleType: 'immediate',
+          patientIds: [patient.patient.id],
+        },
+      });
+      toast('Reschedule request sent.', 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to send reschedule request', 'error');
+    } finally {
+      setRescheduling(false);
+    }
+  };
+
   const PRIORITY_COLOR = {
     'In Progress': 'border-l-emerald-500',
     'Waiting':     'border-l-amber-400',
@@ -344,9 +334,9 @@ function PatientTimelineCard({ patient, isActive, onReview, onCallNext, isNext, 
         {/* Action */}
         <div className="flex flex-col gap-2 flex-shrink-0 justify-center">
           {patient.status === 'No Show' ? (
-            <button onClick={() => toast('Reschedule link sent via SMS.', 'success')}
-              className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors whitespace-nowrap">
-              Reschedule
+            <button onClick={sendReschedule} disabled={rescheduling}
+              className="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-60 transition-colors whitespace-nowrap">
+              {rescheduling ? 'Sending…' : 'Reschedule'}
             </button>
           ) : patient.status === 'Waiting' && isNext ? (
             <button onClick={onCallNext}
@@ -599,18 +589,16 @@ function DoctorDashboard() {
 
   const labs = useMemo(() => {
     return patients.flatMap(p => p.reports.slice(0, 1).map(r => ({
-      id: r.id, patient: p.name, test: r.testName, received: daysAgoLabel(r.date), urgent: r.urgent, results: r.results,
+      id: r.id, patientId: p.id, patient: p.name, test: r.testName, received: daysAgoLabel(r.date), urgent: r.urgent, results: r.results,
     })));
   }, [patients]);
 
   const [reviewedLabIds, setReviewedLabIds] = useState([]);
   const visibleLabs = labs.filter(l => !reviewedLabIds.includes(l.id));
   const [selectedRow, setSelectedRow] = useState(null);
-  const [showAI, setShowAI] = useState(false);
   const [showKycModal, setShowKycModal] = useState(false);
   const [kycBannerDismissed, setKycBannerDismissed] = useState(() => sessionStorage.getItem('kyc_banner_dismissed') === 'true');
   const [urgentLab, setUrgentLab] = useState(null);
-  const [callActive, setCallActive] = useState(false);
   const [earnings, setEarnings] = useState(null);
 
   useEffect(() => {
@@ -725,12 +713,8 @@ function DoctorDashboard() {
             </div>
 
             <div className="flex gap-3 flex-wrap">
-              <button onClick={() => setShowAI(true)}
-                className="bg-white/10 hover:bg-white/20 border border-white/20 font-bold px-4 py-2.5 rounded-2xl text-sm flex items-center gap-2 text-white transition-all backdrop-blur-sm">
-                <i className="fas fa-sparkles text-aubergine-300"></i> AI Copilot
-              </button>
               <button
-                onClick={() => { setCallActive(true); toast(`Starting video call with ${currentPatient?.name}...`, 'success'); setTimeout(() => setCallActive(false), 3000); }}
+                onClick={() => navigate(`/doctor-dashboard/telemedicine?startCall=${currentPatient.id}`)}
                 disabled={!currentPatient}
                 className="bg-emerald-500 disabled:opacity-40 hover:bg-emerald-400 text-white font-bold px-4 py-2.5 rounded-2xl text-sm flex items-center gap-2 transition-all shadow-lg shadow-emerald-900/50">
                 <i className="fas fa-video"></i>
@@ -771,25 +755,6 @@ function DoctorDashboard() {
               <i className="fas fa-xmark"></i>
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Active Call Banner */}
-      {callActive && (
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl p-4 flex items-center justify-between gap-4 animate-fade-in shadow-lg shadow-emerald-200">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-white/20 border border-white/30 flex items-center justify-center animate-pulse">
-              <i className="fas fa-video"></i>
-            </div>
-            <div>
-              <p className="font-bold">Video Consultation Active</p>
-              <p className="text-xs text-emerald-100">{currentPatient?.name} • {currentPatient?.type}</p>
-            </div>
-          </div>
-          <button onClick={() => { setCallActive(false); toast('Call ended. Notes saved.', 'info'); }}
-            className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-xl font-bold text-sm border border-white/20 transition-colors">
-            End Call
-          </button>
         </div>
       )}
 
@@ -867,9 +832,8 @@ function DoctorDashboard() {
 
       {/* Modals */}
       <PatientFileModal row={selectedRow} onClose={() => setSelectedRow(null)} onWriteRx={handleWriteRx} />
-      <AIAssistantModal isOpen={showAI} onClose={() => setShowAI(false)} patient={currentPatient} />
       <KYCModal isOpen={showKycModal} onClose={() => setShowKycModal(false)} toast={toast} onVerify={verifyKyc} />
-      <UrgentLabModal lab={urgentLab} onClose={handleUrgentLabClose} toast={toast} />
+      <UrgentLabModal lab={urgentLab} onClose={handleUrgentLabClose} toast={toast} doctorName={user?.name} />
     </div>
   );
 }

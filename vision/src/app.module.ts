@@ -20,6 +20,7 @@ import { StaffModule } from '@/modules/staff/staff.module';
 import { CommunicationsModule } from '@/modules/communications/communications.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { PushSubscriptionsModule } from '@/modules/push-subscriptions/push-subscriptions.module';
+import { LeadsModule } from '@/modules/leads/leads.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { PushSubscriptionsModule } from '@/modules/push-subscriptions/push-subsc
     CommunicationsModule,
     NotificationsModule,
     PushSubscriptionsModule,
+    LeadsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -63,7 +63,7 @@ function DoctorCommunications() {
       toast('Please provide a subject and message body.', 'error');
       return;
     }
-    const channels = [sendEmail && 'Email', sendPush && 'Push', sendWhatsapp && 'WhatsApp'].filter(Boolean);
+    const channels = [sendEmail && 'Email', sendPush && 'Push Notification', sendWhatsapp && 'WhatsApp'].filter(Boolean);
     if (channels.length === 0) {
       toast('Select at least one delivery channel.', 'error');
       return;
@@ -138,10 +138,6 @@ function DoctorCommunications() {
                   <option value="all-patients">All Active Patients</option>
                   <option value="upcoming">Patients with Upcoming Appointments</option>
                   <option value="recent">Recent Consultations (Last 30 Days)</option>
-                  <option value="post-op">Post-Operative Patients</option>
-                </optgroup>
-                <optgroup label="Custom">
-                  <option value="custom">Manual Selection (By Name)</option>
                 </optgroup>
               </select>
             </div>
@@ -181,6 +177,10 @@ function DoctorCommunications() {
                   <span className="text-sm font-bold text-slate-700">Send WhatsApp Message</span>
                 </label>
               </div>
+              <p className="text-[11px] text-slate-400 mt-3">
+                <i className="fas fa-circle-info mr-1"></i>
+                App Notification delivers a real push to patients. Email and WhatsApp are recorded on the broadcast but not actually sent — no provider is connected yet.
+              </p>
             </div>
 
             <div className="pt-2 border-t border-slate-100">

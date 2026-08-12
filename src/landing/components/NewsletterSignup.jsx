@@ -1,20 +1,30 @@
 import React, { useState } from 'react';
 import { markLeadCaptured } from '../../tools/leadCapture.js';
+import { apiFetch } from '../../lib/apiClient.js';
 
 function NewsletterSignup() {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
       setError('Please enter a valid email address.');
       return;
     }
     setError('');
-    setSubmitted(true);
-    markLeadCaptured();
+    setSubmitting(true);
+    try {
+      await apiFetch('/leads/newsletter', { method: 'POST', skipAuth: true, body: { email } });
+      setSubmitted(true);
+      markLeadCaptured();
+    } catch {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const benefits = [
@@ -72,9 +82,10 @@ function NewsletterSignup() {
                   </div>
                   <button
                     type="submit"
-                    className="w-full bg-white text-aubergine-900 hover:bg-sand-50 font-bold py-3 rounded-xl transition-all btn-interactive text-sm flex items-center justify-center gap-2"
+                    disabled={submitting}
+                    className="w-full bg-white text-aubergine-900 hover:bg-sand-50 disabled:opacity-60 font-bold py-3 rounded-xl transition-all btn-interactive text-sm flex items-center justify-center gap-2"
                   >
-                    <i className="fas fa-paper-plane text-aubergine-600"></i> Subscribe — It's Free
+                    <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-paper-plane'} text-aubergine-600`}></i> {submitting ? 'Subscribing…' : "Subscribe — It's Free"}
                   </button>
                 </form>
                 <p className="text-[10px] text-white/40 font-semibold text-center">
@@ -88,7 +99,7 @@ function NewsletterSignup() {
                 </div>
                 <h3 className="font-extrabold text-white text-lg font-display">You're subscribed!</h3>
                 <p className="text-aubergine-100 text-sm font-semibold">
-                  Welcome to the HealNari community. Check your inbox for a welcome note from our doctors.
+                  Welcome to the HealNari community — you'll hear from us with health tips and updates.
                 </p>
               </div>
             )}

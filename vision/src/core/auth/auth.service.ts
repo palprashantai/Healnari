@@ -69,6 +69,7 @@ export class AuthService {
 
     const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', data.user.id).single();
     if (!profile) throw new UnauthorizedException(ERROR_MESSAGES.USER_NOT_FOUND);
+    if (profile.status === 'Suspended') throw new UnauthorizedException(ERROR_MESSAGES.ACCOUNT_SUSPENDED);
 
     return {
       accessToken: data.session.access_token,

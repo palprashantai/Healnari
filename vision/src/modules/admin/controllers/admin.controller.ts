@@ -1,5 +1,6 @@
 import { Controller, Get, Put, Post, Delete, Param, Body, ForbiddenException, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiProperty, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { IsString, IsOptional, IsIn, IsArray, IsNumber, Min, Max } from 'class-validator';
 import { AdminService } from '@/modules/admin/services/admin.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
@@ -9,30 +10,49 @@ import type { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 
 export class UpdateVerificationDto {
-  @ApiProperty({ enum: ['approved', 'rejected'] }) status: string;
+  @ApiProperty({ enum: ['approved', 'rejected'] }) @IsIn(['approved', 'rejected']) status: string;
 }
 export class ResolveTicketDto {
-  @ApiProperty({ required: false }) resolution?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() resolution?: string;
 }
 export class CmsArticleDto {
-  @ApiProperty() title: string;
-  @ApiProperty() author: string;
-  @ApiProperty() category: string;
-  @ApiProperty({ enum: ['Draft', 'Published', 'Archived'], required: false }) status?: string;
+  @ApiProperty() @IsString() title: string;
+  @ApiProperty() @IsString() author: string;
+  @ApiProperty() @IsString() category: string;
+  @ApiProperty({ enum: ['Draft', 'Published', 'Archived'], required: false }) @IsOptional() @IsIn(['Draft', 'Published', 'Archived']) status?: string;
 }
 export class MessageTemplateDto {
-  @ApiProperty() name: string;
-  @ApiProperty() content: string;
+  @ApiProperty() @IsString() name: string;
+  @ApiProperty() @IsString() content: string;
+  @ApiProperty({ enum: ['email', 'whatsapp', 'push'], required: false }) @IsOptional() @IsIn(['email', 'whatsapp', 'push']) type?: string;
+  @ApiProperty({ enum: ['General', 'Patient', 'Doctor'], required: false }) @IsOptional() @IsIn(['General', 'Patient', 'Doctor']) audience?: string;
 }
 export class BroadcastDto {
-  @ApiProperty() subject: string;
-  @ApiProperty() audience: string;
-  @ApiProperty() body: string;
-  @ApiProperty({ required: false }) scheduleAt?: string;
+  @ApiProperty() @IsString() subject: string;
+  @ApiProperty() @IsString() audience: string;
+  @ApiProperty() @IsString() body: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() scheduleAt?: string;
+  @ApiProperty({ required: false, type: [String] }) @IsOptional() @IsArray() @IsString({ each: true }) channels?: string[];
+  @ApiProperty({ required: false, type: [String], description: 'Target these specific profile ids instead of resolving `audience` (e.g. a checkbox selection on Users.jsx/DoctorManager.jsx)' })
+  @IsOptional() @IsArray() @IsString({ each: true }) userIds?: string[];
 }
 export class GenerateReportDto {
-  @ApiProperty() name: string;
-  @ApiProperty() type: string;
+  @ApiProperty() @IsString() name: string;
+  @ApiProperty() @IsString() type: string;
+}
+export class NotifyUserDto {
+  @ApiProperty() @IsString() userId: string;
+  @ApiProperty() @IsString() title: string;
+  @ApiProperty() @IsString() message: string;
+}
+export class UpdateUserStatusDto {
+  @ApiProperty({ enum: ['Active', 'Suspended'] }) @IsIn(['Active', 'Suspended']) status: string;
+}
+export class UpdateCommissionDto {
+  @ApiProperty({ minimum: 0, maximum: 100 }) @IsNumber() @Min(0) @Max(100) commissionRate: number;
+}
+export class UpdateLeadStatusDto {
+  @ApiProperty({ enum: ['New', 'Contacted', 'Converted', 'Closed'] }) @IsIn(['New', 'Contacted', 'Converted', 'Closed']) status: string;
 }
 
 @ApiTags('Admin')
@@ -81,7 +101,7 @@ export class AdminController {
 
   @Put('users/:id/status')
   @ApiOperation({ summary: 'Suspend or activate a user' })
-  async updateUserStatus(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: { status: string }) {
+  async updateUserStatus(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: UpdateUserStatusDto) {
     this.checkAdmin(user);
     const data = await this.adminService.updateUserStatus(id, body.status);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
@@ -106,7 +126,7 @@ export class AdminController {
 
   @Put('clinics/:id/commission')
   @ApiOperation({ summary: 'Update doctor commission rate' })
-  async updateCommission(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: { commissionRate: number }) {
+  async updateCommission(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: UpdateCommissionDto) {
     this.checkAdmin(user);
     const data = await this.adminService.updateDoctorCommission(id, body.commissionRate);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
@@ -286,6 +306,39 @@ export class AdminController {
   async sendBroadcast(@CurrentUser() user: AuthUser, @Body() body: BroadcastDto) {
     this.checkAdmin(user);
     const data = await this.adminService.sendBroadcast(body);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  @Post('notify')
+  @ApiOperation({ summary: 'Send a single real push notification to one user (e.g. from a Doctor/Patient detail page)' })
+  async notifyUser(@CurrentUser() user: AuthUser, @Body() body: NotifyUserDto) {
+    this.checkAdmin(user);
+    const data = await this.adminService.notifyUser(body.userId, body.title, body.message);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  // ─── Public Leads (newsletter + consultation requests from the marketing site) ──
+  @Get('leads/newsletter')
+  @ApiOperation({ summary: 'All newsletter subscribers' })
+  async getNewsletterSubscribers(@CurrentUser() user: AuthUser) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getNewsletterSubscribers();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Get('leads/consultation-requests')
+  @ApiOperation({ summary: 'All consultation requests from the public symptom-checker / booking flow' })
+  async getConsultationRequests(@CurrentUser() user: AuthUser) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getConsultationRequests();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Put('leads/consultation-requests/:id/status')
+  @ApiOperation({ summary: 'Update a consultation request status as the care team follows up' })
+  async updateConsultationRequestStatus(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: UpdateLeadStatusDto) {
+    this.checkAdmin(user);
+    const data = await this.adminService.updateConsultationRequestStatus(id, body.status);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
   }
 

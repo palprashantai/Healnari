@@ -58,11 +58,18 @@ function AdminUsers() {
 
   const handleSendMessage = async () => {
     try {
-      await apiFetch('/admin/communications/broadcasts', {
+      const res = await apiFetch('/admin/communications/broadcasts', {
         method: 'POST',
-        body: { subject: messageText.slice(0, 60), audience: `${selectedIds.length} selected patients`, body: messageText },
+        body: {
+          subject: messageText.slice(0, 60),
+          audience: `${selectedIds.length} selected patients`,
+          body: messageText,
+          userIds: selectedIds,
+          channels: [messageType === 'push' ? 'Push' : 'Email'],
+        },
       });
-      toast(`${messageType.toUpperCase()} sent to ${selectedIds.length} patients!`, 'success');
+      if (messageType === 'push') toast(`Push notification delivered to ${res.recipient_count ?? 0} patient(s).`, 'success');
+      else toast('Recorded, but not delivered — no email provider is connected yet.', 'info');
     } catch { toast('Send failed', 'error'); }
     setIsMessageModalOpen(false); setSelectedIds([]); setMessageText(''); setSelectedTemplate('');
   };

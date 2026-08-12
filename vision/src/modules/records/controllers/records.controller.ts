@@ -2,7 +2,8 @@ import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, Q
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { ApiTags, ApiOperation, ApiParam, ApiProperty, ApiConsumes } from '@nestjs/swagger';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Min, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { RecordsService } from '@/modules/records/services/records.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
@@ -10,13 +11,23 @@ import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
 
-export class CreatePrescriptionDto {
-  @ApiProperty() @IsUUID() patientId: string;
+export class MedicineLineDto {
   @ApiProperty({ example: 'Metformin 500mg' }) @IsString() medName: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() dosage?: string;
   @ApiProperty({ required: false, example: '1-0-1' }) @IsOptional() @IsString() schedule?: string;
   @ApiProperty({ required: false, example: '30 Days' }) @IsOptional() @IsString() duration?: string;
+}
+
+export class CreatePrescriptionDto {
+  @ApiProperty() @IsUUID() patientId: string;
+  @ApiProperty({ required: false, example: 'PCOS — IR Subtype' }) @IsOptional() @IsString() diagnosis?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() instructions?: string;
+  @ApiProperty({
+    type: [MedicineLineDto],
+    description: 'Every medicine written in this visit — all saved as one prescription (shared group_id), not as separate unrelated prescriptions.',
+  })
+  @IsArray() @ArrayMinSize(1) @ValidateNested({ each: true }) @Type(() => MedicineLineDto)
+  medicines: MedicineLineDto[];
 }
 
 export class HandleRefillDto {

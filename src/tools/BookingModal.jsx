@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StepIndicator } from '../components/StepIndicator.jsx';
 import { markLeadCaptured } from './leadCapture.js';
 import { todayLocalStr } from '../lib/dateUtils.js';
+import { apiFetch } from '../lib/apiClient.js';
 
 const STEP_FIELDS = [
-  ['doctor', 'concern'],
+  ['specialty', 'concern'],
   ['name', 'age', 'mobile'],
   ['date', 'time'],
 ];
@@ -15,32 +16,30 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
     name: '',
     age: '',
     mobile: '',
-    doctor: selectedDoc || '',
+    specialty: selectedDoc || '',
     concern: '',
     date: '',
     time: ''
   });
 
   const [errors, setErrors] = useState({});
-  const [reportFile, setReportFile] = useState(null);
-  const [fileError, setFileError] = useState('');
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     if (selectedDoc) {
-      setFormData((prev) => ({ ...prev, doctor: selectedDoc }));
+      setFormData((prev) => ({ ...prev, specialty: selectedDoc }));
     }
   }, [selectedDoc]);
 
   // Set the minimum selectable date to today's date
   const todayStr = todayLocalStr();
 
-  const doctorsList = [
-    'Dr. Ananya Mehta',
-    'Dr. Ritu Khanna',
-    'Dr. Shreya Verma',
-    'Dr. Priya Nair'
+  const specialtyList = [
+    'Gynaecologist',
+    'Endocrinologist',
+    'Dermatologist',
+    'General Physician',
   ];
 
   const concernsList = [
@@ -64,7 +63,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
     name: () => (!formData.name.trim() ? 'Full name is required' : null),
     age: () => (!formData.age || formData.age < 12 || formData.age > 100 ? 'Enter a valid age (12-100)' : null),
     mobile: () => (!formData.mobile.match(/^[0-9]{10}$/) ? 'Enter a valid 10-digit mobile number' : null),
-    doctor: () => (!formData.doctor ? 'Please select a doctor' : null),
+    specialty: () => (!formData.specialty ? 'Please select a specialty' : null),
     concern: () => (!formData.concern ? 'Please select your primary concern' : null),
     date: () => (!formData.date ? 'Select an appointment date' : null),
     time: () => (!formData.time ? 'Select an appointment slot' : null),
@@ -94,7 +93,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
 
   const goBack = () => setStep((s) => s - 1);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateFields(STEP_FIELDS[2])) return;
 
@@ -105,34 +104,33 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
       year: 'numeric'
     });
 
-    markLeadCaptured();
-    onSuccess({
-      doctor: formData.doctor,
-      slot: `${formattedDate} at ${formData.time}`,
-      name: formData.name
-    });
-  };
-
-  const acceptFile = (file) => {
-    if (!file) return;
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-    if (!validTypes.includes(file.type)) {
-      setFileError('Please upload a PDF, JPG, or PNG file.');
-      return;
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      await apiFetch('/leads/consultation-request', {
+        method: 'POST',
+        skipAuth: true,
+        body: {
+          name: formData.name,
+          age: Number(formData.age),
+          mobile: formData.mobile,
+          concern: formData.concern,
+          specialtyRecommendation: formData.specialty,
+          preferredDate: formData.date,
+          preferredTime: formData.time,
+        },
+      });
+      markLeadCaptured();
+      onSuccess({
+        specialty: formData.specialty,
+        slot: `${formattedDate} at ${formData.time}`,
+        name: formData.name
+      });
+    } catch (err) {
+      setSubmitError(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setFileError('File must be under 5MB.');
-      return;
-    }
-    setFileError('');
-    setReportFile(file);
-  };
-
-  const handleFileInput = (e) => acceptFile(e.target.files?.[0]);
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    acceptFile(e.dataTransfer.files?.[0]);
   };
 
   React.useEffect(() => {
@@ -194,23 +192,24 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
 
           {step === 1 && (
             <>
-              {/* Select Doctor */}
+              {/* Preferred Specialty */}
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
-                  Select Specialist *
+                  Preferred Specialty *
                 </label>
                 <select
-                  id="doctor"
+                  id="specialty"
                   required
-                  value={formData.doctor}
+                  value={formData.specialty}
                   onChange={handleInputChange}
-                  className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white ${errors.doctor ? 'border-red-400' : 'border-slate-200'
+                  className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white ${errors.specialty ? 'border-red-400' : 'border-slate-200'
                     }`}
                 >
-                  <option value="" disabled>Choose specialist</option>
-                  {doctorsList.map(doc => <option key={doc}>{doc}</option>)}
+                  <option value="" disabled>Choose a specialty</option>
+                  {specialtyList.map(s => <option key={s}>{s}</option>)}
                 </select>
-                {errors.doctor && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.doctor}</p>}
+                {errors.specialty && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.specialty}</p>}
+                <p className="text-[10px] text-slate-400 mt-1">Our care team will match you with an available specialist and confirm your appointment by phone.</p>
               </div>
 
               {/* Primary Concern */}
@@ -351,43 +350,9 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                 </div>
               </div>
 
-              {/* Medical Records Upload */}
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
-                  Past Reports / Scans (Optional)
-                </label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={handleFileInput}
-                  className="hidden"
-                />
-                {!reportFile ? (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                    onDragLeave={() => setIsDragging(false)}
-                    onDrop={handleDrop}
-                    className={`border border-dashed rounded-xl p-4 text-center transition-colors cursor-pointer group ${isDragging ? 'border-brand-400 bg-brand-50' : 'border-slate-300 hover:bg-slate-50'}`}
-                  >
-                    <i className="fas fa-cloud-arrow-up text-xl text-brand-400 group-hover:text-brand-600 mb-2 transition-colors"></i>
-                    <p className="text-xs font-semibold text-slate-600">Click to upload or drag and drop</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">PDF, JPG, PNG (Max 5MB)</p>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between border border-slate-200 rounded-xl p-3 bg-slate-50">
-                    <span className="flex items-center gap-2 text-xs font-semibold text-slate-700 truncate">
-                      <i className="fas fa-file-circle-check text-emerald-500"></i> {reportFile.name}
-                    </span>
-                    <button type="button" onClick={() => { setReportFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
-                      className="text-slate-400 hover:text-rose-500 transition-colors shrink-0 ml-2">
-                      <i className="fas fa-xmark"></i>
-                    </button>
-                  </div>
-                )}
-                {fileError && <p className="text-red-500 text-[10px] font-bold mt-1">{fileError}</p>}
-              </div>
+              {submitError && (
+                <p className="text-red-500 text-xs font-bold text-center">{submitError}</p>
+              )}
 
               <div className="flex gap-3">
                 <button type="button" onClick={goBack}
@@ -396,9 +361,10 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                 </button>
                 <button
                   type="submit"
-                  className="flex-[2] bg-brand-700 hover:bg-brand-800 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-100 transition-all btn-interactive flex items-center justify-center gap-2 text-base"
+                  disabled={submitting}
+                  className="flex-[2] bg-brand-700 hover:bg-brand-800 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-100 transition-all btn-interactive flex items-center justify-center gap-2 text-base"
                 >
-                  <i className="fas fa-lock text-sm"></i> Confirm Booking Request
+                  <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-lock'} text-sm`}></i> {submitting ? 'Sending…' : 'Send Booking Request'}
                 </button>
               </div>
             </>

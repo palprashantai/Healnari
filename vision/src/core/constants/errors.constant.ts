@@ -6,6 +6,7 @@ export const ERROR_MESSAGES = {
   EMAIL_ALREADY_EXISTS: 'User with this email already exists.',
   UNAUTHORIZED: 'Unauthorized access.',
   FORBIDDEN: 'You do not have permission to perform this action.',
+  ACCOUNT_SUSPENDED: 'This account has been suspended. Please contact support.',
 
   // Patients
   PATIENT_NOT_FOUND: 'Patient profile not found.',

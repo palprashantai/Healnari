@@ -3,16 +3,6 @@ import { useToast } from '../../components/Toast.jsx';
 import { ConfirmModal } from '../../components/Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 
-const INITIAL_TEMPLATES = [
-  { id: 'T-101', type: 'email', audience: 'General', label: 'System Maintenance Notice', text: 'Dear [Name],\n\nThe platform will undergo maintenance on [Date].\n\nThanks,\nAdmin Team' },
-  { id: 'T-102', type: 'email', audience: 'Patient', label: 'Health Camp Invite', text: 'Hello [Name],\n\nJoin our upcoming free health camp this weekend!' },
-  { id: 'T-103', type: 'email', audience: 'Doctor', label: 'Policy Update', text: 'Dear Dr. [Name],\n\nPlease review the updated payout policy in your dashboard.' },
-  { id: 'T-201', type: 'whatsapp', audience: 'Patient', label: 'WhatsApp: Reminder', text: 'Hi [Name], this is a reminder for your upcoming consultation.' },
-  { id: 'T-202', type: 'whatsapp', audience: 'Doctor', label: 'WhatsApp: Missed Consult', text: 'Hi Dr. [Name], you have a missed consultation. Please check your app.' },
-  { id: 'T-301', type: 'push', audience: 'Patient', label: 'Push: Promo Offer', text: 'Get 20% off your next consultation if booked today!' },
-  { id: 'T-302', type: 'push', audience: 'Doctor', label: 'Push: Urgent Update', text: 'Critical platform update requires your attention.' },
-];
-
 function AdminTemplates() {
   const toast = useToast();
   const [templates, setTemplates] = useState([]);
@@ -81,14 +71,14 @@ function AdminTemplates() {
       if (view === 'create') {
         const res = await apiFetch('/admin/communications/templates', {
           method: 'POST',
-          body: { name: formData.name, content: formData.content },
+          body: { name: formData.name, content: formData.content, type: formData.type, audience: formData.audience },
         });
         setTemplates(prev => [res, ...prev]);
         toast('Template created successfully!', 'success');
       } else if (view === 'edit') {
         const res = await apiFetch(`/admin/communications/templates/${selectedTemplate.id}`, {
           method: 'PUT',
-          body: { name: formData.name, content: formData.content },
+          body: { name: formData.name, content: formData.content, type: formData.type, audience: formData.audience },
         });
         setTemplates(prev => prev.map(t => t.id === selectedTemplate.id ? res : t));
         toast('Template updated successfully!', 'success');
@@ -123,7 +113,7 @@ function AdminTemplates() {
               <i className="fas fa-arrow-left"></i> Back to Templates
             </button>
             <h1 className="text-2xl font-black text-slate-800">
-              {view === 'create' ? 'Create New Template' : `Edit Template: ${selectedTemplate?.label}`}
+              {view === 'create' ? 'Create New Template' : `Edit Template: ${selectedTemplate?.name}`}
             </h1>
             <p className="text-sm text-slate-500">
               {view === 'create' ? 'Design a new message layout to use across the platform.' : `Make changes to template ${selectedTemplate?.id}`}
@@ -291,10 +281,10 @@ function AdminTemplates() {
                       <p className="text-sm font-bold text-slate-700">{t.audience}</p>
                     </td>
                     <td className="px-5 py-4">
-                      <p className="font-bold text-slate-800">{t.label}</p>
+                      <p className="font-bold text-slate-800">{t.name}</p>
                     </td>
                     <td className="px-5 py-4">
-                      <p className="text-xs text-slate-500 truncate max-w-xs">{t.text}</p>
+                      <p className="text-xs text-slate-500 truncate max-w-xs">{t.content}</p>
                     </td>
                     <td className="px-5 py-4 text-right flex items-center justify-end gap-2">
                       <button onClick={() => openEdit(t)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-sky-100 hover:text-sky-600 flex items-center justify-center transition-colors shadow-sm" title="Edit Template">
@@ -320,7 +310,7 @@ function AdminTemplates() {
         onClose={() => setDeleteModalOpen(false)}
         onConfirm={handleDelete}
         title="Delete Template"
-        message={`Are you sure you want to delete "${selectedTemplate?.label}"? This action cannot be undone.`}
+        message={`Are you sure you want to delete "${selectedTemplate?.name}"? This action cannot be undone.`}
         confirmLabel="Delete Template"
         confirmStyle="danger"
       />

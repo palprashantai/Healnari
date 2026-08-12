@@ -16,7 +16,7 @@ function AdminCommunications() {
   const [messageSubject, setMessageSubject] = useState('');
   const [messageBody, setMessageBody] = useState('');
   const [sendEmail, setSendEmail] = useState(true);
-  const [sendPush, setSendPush] = useState(false);
+  const [sendPush, setSendPush] = useState(true);
   const [scheduleType, setScheduleType] = useState('immediate');
   const [scheduleDate, setScheduleDate] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -47,6 +47,11 @@ function AdminCommunications() {
       toast('Please fill in subject and message body.', 'error');
       return;
     }
+    const channels = [sendEmail && 'Email', sendPush && 'Push'].filter(Boolean);
+    if (channels.length === 0) {
+      toast('Select at least one delivery channel.', 'error');
+      return;
+    }
     setIsSending(true);
     try {
       const res = await apiFetch('/admin/communications/broadcasts', {
@@ -55,11 +60,18 @@ function AdminCommunications() {
           subject: messageSubject,
           audience,
           body: messageBody,
+          channels,
           scheduleAt: scheduleType === 'scheduled' ? scheduleDate : undefined,
         },
       });
       setBroadcastHistory(prev => [{ ...res, date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) }, ...prev]);
-      toast(scheduleType === 'immediate' ? 'Broadcast sent successfully!' : 'Broadcast scheduled!', 'success');
+      if (scheduleType === 'scheduled') {
+        toast('Broadcast scheduled!', 'success');
+      } else if (channels.includes('Push')) {
+        toast(`Push notification delivered to ${res.recipient_count ?? 0} recipient(s).`, 'success');
+      } else {
+        toast('Recorded, but not delivered — no email provider is connected yet. Enable Push to actually reach recipients.', 'info');
+      }
       setMessageSubject(''); setMessageBody(''); setSelectedTemplate('');
     } catch {
       toast('Failed to send broadcast', 'error');
@@ -135,6 +147,10 @@ function AdminCommunications() {
                 </button>
               ))}
             </div>
+            <p className="text-[11px] text-slate-400 mt-2">
+              <i className="fas fa-circle-info mr-1"></i>
+              Push delivers a real notification. Email is recorded on the broadcast but not actually sent — no email provider is connected yet.
+            </p>
           </div>
 
           {/* Schedule */}
@@ -188,10 +204,14 @@ function AdminCommunications() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-500">{b.audience} • {b.date}</p>
-                  {b.opens !== '-' && (
-                    <div className="flex gap-3 mt-2">
-                      <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded"><i className="fas fa-envelope-open mr-1"></i>{b.opens} opens</span>
-                      <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded"><i className="fas fa-arrow-pointer mr-1"></i>{b.clicks} clicks</span>
+                  {(b.channels?.length > 0) && (
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {b.channels.includes('Push') && (
+                        <span className="text-[10px] font-bold text-sky-700 bg-sky-50 border border-sky-100 px-2 py-0.5 rounded"><i className="fas fa-bell mr-1"></i>{b.recipient_count ?? 0} notified</span>
+                      )}
+                      {b.channels.includes('Email') && (
+                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded"><i className="fas fa-envelope mr-1"></i>Email (not sent)</span>
+                      )}
                     </div>
                   )}
                 </div>
