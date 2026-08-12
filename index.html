@@ -52,7 +52,110 @@
     </script>
   </head>
   <body class="bg-aubergine-50/30 text-slate-700 antialiased scroll-smooth">
-    <div id="root"></div>
+    <div id="root">
+      <!-- PWA Pre-render Loader (App Shell) -->
+      <style>
+        body, html { margin: 0; padding: 0; height: 100%; background-color: #fdfcff; overflow: hidden; }
+        .pwa-loader-wrapper {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          width: 100vw;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          position: relative;
+        }
+        .pwa-medical-group {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          margin-bottom: 20px;
+        }
+        .pwa-loader-logo {
+          width: 50px;
+          height: 50px;
+          border-radius: 12px;
+          box-shadow: 0 8px 25px rgba(89, 46, 113, 0.3);
+          animation: cross-float 2.5s ease-in-out infinite;
+          margin-bottom: 10px;
+          position: relative;
+          z-index: 10;
+        }
+        
+        .ekg-container {
+          width: 180px;
+          height: 60px;
+          position: relative;
+        }
+        .ekg-line {
+          stroke: #10B981; /* Medical Emerald */
+          stroke-width: 3.5;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          fill: none;
+          stroke-dasharray: 400;
+          stroke-dashoffset: 400;
+          animation: ekg-draw 2.5s linear infinite;
+        }
+        .ekg-glow {
+          stroke: rgba(16, 185, 129, 0.5);
+          stroke-width: 8;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          fill: none;
+          stroke-dasharray: 400;
+          stroke-dashoffset: 400;
+          animation: ekg-draw 2.5s linear infinite;
+          filter: blur(4px);
+        }
+        
+        .pwa-loader-text {
+          color: #592E71;
+          font-weight: 900;
+          font-size: 16px;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+        }
+        .pwa-loader-subtext {
+          color: #10B981;
+          font-size: 11px;
+          margin-top: 8px;
+          letter-spacing: 2.5px;
+          text-transform: uppercase;
+          font-weight: 700;
+          animation: ekg-fade 1.25s infinite alternate;
+        }
+        
+        @keyframes ekg-draw {
+          0% { stroke-dashoffset: 400; }
+          50% { stroke-dashoffset: 0; }
+          100% { stroke-dashoffset: -400; }
+        }
+        @keyframes cross-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
+        }
+        @keyframes ekg-fade {
+          from { opacity: 0.3; }
+          to { opacity: 1; }
+        }
+      </style>
+      <div class="pwa-loader-wrapper">
+        <div class="pwa-medical-group">
+          <img src="/brand/logo-icon.jpg" alt="HealNari Logo" class="pwa-loader-logo" />
+          <div class="ekg-container">
+            <svg viewBox="0 0 180 60" width="100%" height="100%">
+              <path class="ekg-glow" d="M 0 30 L 40 30 L 50 10 L 65 55 L 85 5 L 105 45 L 115 30 L 180 30" />
+              <path class="ekg-line" d="M 0 30 L 40 30 L 50 10 L 65 55 L 85 5 L 105 45 L 115 30 L 180 30" />
+            </svg>
+          </div>
+        </div>
+        <div class="pwa-loader-text">HealNari EHR</div>
+        <div class="pwa-loader-subtext">Initializing Clinical Data...</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
