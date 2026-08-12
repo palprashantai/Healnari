@@ -120,22 +120,29 @@ function SidebarContent({ user, onClose, onItemHover }) {
       </div>
 
       {/* Nav */}
-      <nav className="px-4 pt-3 flex-1 overflow-y-auto">
-        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 px-2">Control Panel</p>
-        <NavHoverRail indicatorClassName="bg-slate-800">
+      <nav className="px-3 pt-2 flex-1 overflow-y-auto hide-scrollbar">
+        <p className="text-[11px] font-bold text-aubergine-300/60 uppercase tracking-widest mb-3 px-3">Control Panel</p>
+        <NavHoverRail indicatorClassName="bg-aubergine-800/40 rounded-xl">
           {NAV_ITEMS.map(item => (
             <NavLink key={item.name} to={item.path} end={item.end} onClick={onClose}
               onMouseEnter={() => onItemHover?.(item.color)}
               onMouseLeave={() => onItemHover?.(null)}
               data-nav-item
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 ${isActive
-                  ? 'bg-slate-700 text-white shadow-sm border border-slate-600'
-                  : 'text-slate-400 hover:text-white'
+                `group flex items-center gap-3.5 px-4 py-3 mb-1 rounded-xl font-medium text-[14px] tracking-wide transition-all duration-300 ${
+                  isActive
+                    ? 'bg-gradient-to-r from-aubergine-600/90 to-aubergine-700/50 text-white shadow-md shadow-aubergine-900/40 border border-aubergine-500/30'
+                    : 'text-aubergine-200/70 hover:text-white border border-transparent'
                 }`
               }>
-              <div className="w-5 text-center transition-transform duration-200"><i className={`fas ${item.icon}`}></i></div>
-              {item.name}
+              {({ isActive }) => (
+                <>
+                  <div className={`w-6 flex justify-center items-center transition-all duration-300 ${isActive ? 'text-white drop-shadow-md scale-110' : 'text-aubergine-300/70 group-hover:text-white group-hover:scale-110'}`}>
+                    <i className={`fas ${item.icon} text-[16px]`}></i>
+                  </div>
+                  <span className="flex-1 truncate">{item.name}</span>
+                </>
+              )}
             </NavLink>
           ))}
         </NavHoverRail>
@@ -187,15 +194,15 @@ function AdminLayout() {
   return (
     <div className="flex h-screen overflow-hidden font-sans bg-slate-50">
       {/* Desktop Sidebar */}
-      <aside className="w-64 hidden md:flex flex-col flex-shrink-0 bg-slate-900">
+      <aside className="w-64 hidden md:flex flex-col flex-shrink-0 bg-aubergine-900">
         <SidebarContent user={user} onItemHover={setHoveredColor} />
       </aside>
 
       {/* Mobile Drawer Overlay */}
       {drawerOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setDrawerOpen(false)}></div>
-          <aside className="absolute left-0 top-0 h-full w-72 flex flex-col shadow-2xl animate-slide-in bg-slate-900">
+          <div className="absolute inset-0 bg-aubergine-900/60 backdrop-blur-sm" onClick={() => setDrawerOpen(false)}></div>
+          <aside className="absolute left-0 top-0 h-full w-72 flex flex-col shadow-2xl animate-slide-in bg-aubergine-900">
             <div className="absolute top-4 right-4">
               <button onClick={() => setDrawerOpen(false)} className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors">
                 <i className="fas fa-xmark"></i>

@@ -57,7 +57,7 @@ export class DoctorsService {
 
     const [{ data: appointments }, { data: payments }] = await Promise.all([
       this.supabase.admin.from('appointments').select('patient_id, type, status, scheduled_date').eq('doctor_id', doctorId),
-      this.supabase.admin.from('payments').select('amount, created_at').eq('doctor_id', doctorId).eq('status', 'Paid'),
+      this.supabase.admin.from('payments').select('amount, created_at, status, method').eq('doctor_id', doctorId).eq('status', 'Paid'),
     ]);
 
     const apts = appointments || [];
@@ -66,18 +66,20 @@ export class DoctorsService {
     // Revenue by month (last 12 months, oldest first)
     const revenueByMonth = new Map<string, number>();
     pays.forEach((p) => {
-      const key = new Date(p.created_at).toISOString().slice(0, 7);
+      const d = new Date(p.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       revenueByMonth.set(key, (revenueByMonth.get(key) || 0) + Number(p.amount));
     });
     const consultsByMonth = new Map<string, number>();
     apts.forEach((a) => {
-      const key = new Date(a.scheduled_date).toISOString().slice(0, 7);
+      const d = new Date(a.scheduled_date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       consultsByMonth.set(key, (consultsByMonth.get(key) || 0) + 1);
     });
     const now = new Date();
     const monthlyTrend = Array.from({ length: 12 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-      const key = d.toISOString().slice(0, 7);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       return {
         month: d.toLocaleString('en-US', { month: 'short' }),
         revenue: revenueByMonth.get(key) || 0,
@@ -126,6 +128,21 @@ export class DoctorsService {
     });
     const topDiagnoses = [...diagnosisCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([condition, count]) => ({ condition, count }));
 
+    // Appointment status split
+    const appointmentStatusSplit = {
+      Completed: apts.filter((a) => a.status === 'Done').length,
+      Scheduled: apts.filter((a) => ['Upcoming', 'Waiting'].includes(a.status)).length,
+      Cancelled: apts.filter((a) => a.status === 'Cancelled').length,
+      NoShow: noShows,
+    };
+
+    // Payment method split (revenue by method)
+    const paymentMethodSplit = {
+      UPI: pays.filter((p) => p.method === 'UPI').reduce((sum, p) => sum + Number(p.amount), 0),
+      Card: pays.filter((p) => p.method === 'Card').reduce((sum, p) => sum + Number(p.amount), 0),
+      Cash: pays.filter((p) => p.method === 'Cash').reduce((sum, p) => sum + Number(p.amount), 0),
+    };
+
     return {
       totalRevenue: pays.reduce((sum, p) => sum + Number(p.amount), 0),
       totalConsultations: totalAppointments,
@@ -136,6 +153,8 @@ export class DoctorsService {
       weeklyLoad,
       ageDemographics: Object.entries(ageBuckets).map(([age, count]) => ({ age, count })),
       topDiagnoses,
+      appointmentStatusSplit,
+      paymentMethodSplit,
     };
   }
 

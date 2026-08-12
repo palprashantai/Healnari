@@ -61,7 +61,7 @@ function JoinWaitlistModal({ isOpen, onClose, doctors, onJoin }) {
         <div>
           <label className="text-xs font-bold text-slate-500 mb-1.5 block">Doctor</label>
           <select value={doctorId} onChange={e => setDoctorId(e.target.value)}
-            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
+            className="crm-input">
             <option value="">-- Choose a doctor --</option>
             {doctors.map(d => <option key={d.id} value={d.id}>{d.full_name} ({d.specialty || 'Specialist'})</option>)}
           </select>
@@ -70,10 +70,10 @@ function JoinWaitlistModal({ isOpen, onClose, doctors, onJoin }) {
           <label className="text-xs font-bold text-slate-500 mb-1.5 block">Preferred Window</label>
           <input value={preferredWindow} onChange={e => setPreferredWindow(e.target.value)}
             placeholder="e.g. Tomorrow, Morning Slot"
-            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+            className="crm-input" />
         </div>
         <button disabled={!doctorId || !preferredWindow || joining} onClick={submit}
-          className="w-full bg-aubergine-600 disabled:opacity-40 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
+          className="crm-btn-primary w-full disabled:opacity-40">
           {joining ? 'Joining…' : 'Join Waitlist'}
         </button>
       </div>
@@ -145,7 +145,7 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1.5 block">Select Doctor *</label>
             <select value={form.doctorId} onChange={e => setForm(p => ({ ...p, doctorId: e.target.value }))}
-              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
+              className="crm-input">
               <option value="">-- Choose a specialist --</option>
               {doctors.map(d => <option key={d.id} value={d.id}>Dr. {d.full_name} ({d.specialty || 'Specialist'})</option>)}
             </select>
@@ -165,16 +165,16 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
             <label className="text-xs font-bold text-slate-500 mb-1.5 block">Preferred Date *</label>
             <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
               min={todayLocalStr()}
-              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+              className="crm-input" />
           </div>
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1.5 block">Notes (optional)</label>
             <textarea rows={2} value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
               placeholder="Any specific concerns or symptoms..."
-              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-none" />
+              className="crm-input resize-none" />
           </div>
           <button disabled={!form.doctorId || !form.date} onClick={() => setStep(2)}
-            className="w-full bg-aubergine-600 disabled:opacity-40 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
+            className="crm-btn-primary w-full disabled:opacity-40">
             Choose Time Slot →
           </button>
         </div>
@@ -203,10 +203,10 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
             <div className="flex justify-between"><span className="font-bold text-slate-600">Consult Fee</span><span className="text-aubergine-700 font-black">₹{selectedDoctor?.consultation_fee ?? 799}</span></div>
           </div>
           <div className="flex gap-3">
-            <button onClick={() => setStep(1)} disabled={booking} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors disabled:opacity-40">← Back</button>
+            <button onClick={() => setStep(1)} disabled={booking} className="crm-btn-secondary flex-1 disabled:opacity-40">← Back</button>
             <button disabled={!form.slot || booking} onClick={confirm}
-              className="flex-1 bg-emerald-600 disabled:opacity-40 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-              <i className={`fas ${booking ? 'fa-spinner fa-spin' : 'fa-circle-check'}`}></i> {booking ? 'Booking…' : 'Confirm'}
+              className="crm-btn-primary flex-1 disabled:opacity-40 border-none bg-emerald-600 hover:bg-emerald-700">
+              <i className={`fas ${booking ? 'fa-spinner fa-spin' : 'fa-circle-check'} mr-2`}></i> {booking ? 'Booking…' : 'Confirm'}
             </button>
           </div>
         </div>
@@ -253,7 +253,7 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
   // transition), so this is safe to always fire.
   const join = () => {
     setJoined(true);
-    apiFetch(`/appointments/${appointmentId}/status`, { method: 'PUT', body: { status: 'In Progress' } }).catch(() => {});
+    apiFetch(`/appointments/${appointmentId}/status`, { method: 'PUT', body: { status: 'In Progress' } }).catch(() => { });
   };
 
   // Accepted from the incoming-call ring screen — skip the "Join Now" tap,
@@ -293,7 +293,7 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
   // Whichever way the call ends, don't leave the browser stuck in
   // fullscreen showing nothing once this view unmounts.
   useEffect(() => {
-    if (!joined && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    if (!joined && document.fullscreenElement) document.exitFullscreen().catch(() => { });
   }, [joined]);
 
   useEffect(() => {
@@ -662,7 +662,7 @@ function PatientAppointments() {
           <p className="text-sm text-slate-500">Manage your upcoming and past consultations.</p>
         </div>
         <button onClick={() => { setBookPrefill({}); setShowBook(true); }}
-          className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl shadow-sm transition-colors flex items-center gap-2">
+          className="crm-btn-primary flex items-center gap-2">
           <i className="fas fa-plus"></i> Book New
         </button>
       </div>
@@ -700,14 +700,14 @@ function PatientAppointments() {
           <div className="relative flex-1">
             <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search doctor, specialty, or ID..."
-              className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white" />
+              className="crm-input pl-9" />
           </div>
-          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="border border-slate-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300 outline-none">
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="crm-input max-w-[150px]">
             <option value="All Types">All Types</option>
             <option value="Video Consult">Video Consult</option>
             <option value="Clinic Visit">Clinic Visit</option>
           </select>
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="border border-slate-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300 outline-none">
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="crm-input max-w-[150px]">
             <option value="All Status">All Status</option>
             <option value="Confirmed">Confirmed</option>
             <option value="Pending">Pending</option>
@@ -715,18 +715,18 @@ function PatientAppointments() {
           </select>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="crm-table-container">
+          <table className="crm-table">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-100 text-xs text-slate-500 uppercase tracking-wider">
-                <th className="px-6 py-4 font-semibold">Doctor</th>
-                <th className="px-6 py-4 font-semibold">Date & Time</th>
-                <th className="px-6 py-4 font-semibold">Type</th>
-                <th className="px-6 py-4 font-semibold">Status</th>
-                <th className="px-6 py-4 font-semibold text-right">Actions</th>
+              <tr>
+                <th>Doctor</th>
+                <th>Date & Time</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
+            <tbody>
               {filteredData.map(apt => (
                 <tr key={apt.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
@@ -749,35 +749,35 @@ function PatientAppointments() {
                       {apt.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                  <td className="text-right">
                     {tab === 'upcoming' ? (
                       <div className="flex justify-end gap-2">
                         <button onClick={() => setCancelTarget(apt)}
-                          className="text-rose-500 hover:text-rose-700 font-bold px-3 py-1.5 rounded-lg hover:bg-rose-50 transition-colors text-xs">
+                          className="crm-btn-secondary border-none shadow-none text-rose-500 hover:text-rose-700 hover:bg-rose-50 text-[11px] h-8 px-3">
                           Cancel
                         </button>
                         {apt.type === 'Video Consult' && apt.status === 'Confirmed' && (
                           <button onClick={() => setVideoTarget(apt)}
-                            className="bg-emerald-500 text-white font-bold hover:bg-emerald-600 shadow-sm px-4 py-1.5 rounded-lg transition-colors text-xs flex items-center gap-1.5">
-                            <i className="fas fa-video"></i> Join Call
+                            className="crm-btn-primary bg-emerald-500 hover:bg-emerald-600 border-none text-[11px] h-8 px-3">
+                            <i className="fas fa-video mr-1"></i> Join Call
                           </button>
                         )}
                         {!apt.isPaid && (
                           <button onClick={() => openPayFor(apt)}
-                            className="bg-amber-500 text-white font-bold hover:bg-amber-600 shadow-sm px-4 py-1.5 rounded-lg transition-colors text-xs flex items-center gap-1.5">
-                            <i className="fas fa-credit-card"></i> Pay Now
+                            className="crm-btn-primary bg-amber-500 hover:bg-amber-600 border-none text-[11px] h-8 px-3">
+                            <i className="fas fa-credit-card mr-1"></i> Pay Now
                           </button>
                         )}
                       </div>
                     ) : (
                       <div className="flex justify-end gap-2">
                         <button onClick={() => toast('Appointment summaries are coming soon.', 'info')}
-                          className="text-slate-500 hover:text-slate-700 font-bold px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors text-xs flex items-center gap-1.5">
-                          <i className="fas fa-download"></i> Summary
+                          className="crm-btn-secondary text-[11px] h-8 px-3">
+                          <i className="fas fa-download mr-1"></i> Summary
                         </button>
                         <button onClick={() => { setBookPrefill({ doctorId: apt.doctorId, followUp: true }); setShowBook(true); }}
-                          className="text-aubergine-600 font-bold hover:text-aubergine-800 transition-colors px-3 py-1.5 rounded-lg hover:bg-aubergine-50 text-xs flex items-center gap-1.5">
-                          <i className="fas fa-calendar-plus"></i> Follow-up
+                          className="crm-btn-primary text-[11px] h-8 px-3">
+                          <i className="fas fa-calendar-plus mr-1"></i> Follow-up
                         </button>
                       </div>
                     )}

@@ -8,7 +8,11 @@ function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
+  const limit = 50;
   const [actionTarget, setActionTarget] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
@@ -19,20 +23,36 @@ function AdminUsers() {
   const [templates, setTemplates] = useState([]);
 
   useEffect(() => {
-    apiFetch('/admin/users')
-      .then(d => setUsers(d || []))
-      .catch(() => toast('Failed to load patients', 'error'))
-      .finally(() => setLoading(false));
     apiFetch('/admin/communications/templates')
       .then(d => setTemplates(d || []))
       .catch(console.error);
   }, []);
 
-  const filteredUsers = users.filter(u => {
-    const ms = !search || u.name.toLowerCase().includes(search.toLowerCase()) || (u.email || '').toLowerCase().includes(search.toLowerCase()) || u.id.toLowerCase().includes(search.toLowerCase());
-    const mst = filterStatus === 'All' || u.status === filterStatus;
-    return ms && mst;
-  });
+  // Debounce the search box so every keystroke doesn't fire a request.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // A new search term invalidates the current page — jump back to page 1.
+  useEffect(() => { setPage(1); }, [debouncedSearch]);
+
+  useEffect(() => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (debouncedSearch) params.set('search', debouncedSearch);
+    apiFetch(`/admin/users?${params.toString()}`)
+      .then(res => {
+        setUsers(res?.data || []);
+        setPagination(res?.pagination || { total: 0, totalPages: 1 });
+      })
+      .catch(() => toast('Failed to load patients', 'error'))
+      .finally(() => setLoading(false));
+  }, [page, debouncedSearch]);
+
+  // Status filtering stays client-side, scoped to the current page — the
+  // list is now server-paginated so this only narrows what's already loaded.
+  const filteredUsers = users.filter(u => filterStatus === 'All' || u.status === filterStatus);
 
   const handleSelectAll = (e) => setSelectedIds(e.target.checked ? filteredUsers.map(u => u.id) : []);
   const handleSelectOne = (e, id) => setSelectedIds(prev => e.target.checked ? [...prev, id] : prev.filter(i => i !== id));
@@ -111,7 +131,7 @@ function AdminUsers() {
         <div className="p-5 border-b border-slate-100 flex flex-wrap gap-4 items-center justify-between bg-slate-50/50">
           <div className="relative flex-1 min-w-[250px] max-w-sm">
             <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient name, email, or ID..."
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient name or email..."
               className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100" />
           </div>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-white border border-slate-200 text-slate-600 text-xs font-bold px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-100">
@@ -173,8 +193,23 @@ function AdminUsers() {
             </tbody>
           </table>
         </div>
-        <div className="p-4 border-t border-slate-100 text-xs text-slate-500 text-center bg-slate-50">
-          Showing {filteredUsers.length} of {users.length} patients
+        <div className="p-4 border-t border-slate-100 flex items-center justify-between gap-4 bg-slate-50">
+          <p className="text-xs text-slate-500">
+            Showing {filteredUsers.length} of {pagination.total} patient{pagination.total === 1 ? '' : 's'}
+          </p>
+          {pagination.totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100">
+                Previous
+              </button>
+              <span className="text-xs font-bold text-slate-500">Page {page} of {pagination.totalPages}</span>
+              <button onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))} disabled={page >= pagination.totalPages}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-200 text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100">
+                Next
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

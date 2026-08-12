@@ -97,11 +97,15 @@ export class AppointmentsService {
   async list(user: AuthUser) {
     const col = user.profile.role === ProfileRole.DOCTOR ? 'doctor_id' : 'patient_id';
     
+    // No pagination here (queue/history tabs across both portals expect the
+    // full list in memory) — this cap is just a safety bound against an
+    // unbounded full scan for very long-tenured accounts.
     const { data: appointments } = await this.supabase.admin
       .from('appointments')
       .select()
       .eq(col, user.id)
-      .order('scheduled_date', { ascending: false });
+      .order('scheduled_date', { ascending: false })
+      .limit(1000);
 
     return this.withNames(appointments || []);
   }
@@ -475,14 +479,16 @@ export class AppointmentsService {
     const { data: doctors } = await this.supabase.admin.from('profiles').select('id, full_name').in('id', doctorIds);
     const doctorNameById = new Map((doctors || []).map((d) => [d.id, d.full_name]));
 
-    for (const apt of claimed) {
-      await this.notifications.create(apt.patient_id, {
+    // Each create() is independent and already swallows its own errors —
+    // fire them concurrently instead of one insert+push round trip at a time.
+    await Promise.all(claimed.map((apt) =>
+      this.notifications.create(apt.patient_id, {
         type: 'appointment_reminder',
         title: 'Upcoming appointment',
         message: `Your ${apt.type === AppointmentType.VIDEO ? 'video consultation' : 'clinic visit'} with Dr. ${doctorNameById.get(apt.doctor_id) || ''} is at ${apt.scheduled_time} today. Please be ready a few minutes early.`,
         data: { appointmentId: apt.id },
-      }).catch(() => {});
-    }
+      }).catch(() => {}),
+    ));
 
     this.logger.log(`Sent ${claimed.length} appointment reminder(s).`);
   }

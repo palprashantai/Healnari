@@ -11,6 +11,7 @@ import { Server, Socket } from 'socket.io';
 import { Content } from '@google/generative-ai';
 import { AiService } from '@/modules/ai/services/ai.service';
 import { SupabaseService } from '@/core/supabase/supabase.service';
+import { resolveSupabaseToken } from '@/core/auth/supabase-token.util';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
 // Public access is intentional for the landing-page assistant. Patient/doctor
 // contexts resolve identity from the handshake token below (best-effort —
@@ -49,17 +50,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private async resolveUser(token: string): Promise<AuthUser | null> {
-    try {
-      const { data: userResponse, error } = await this.supabase.anon.auth.getUser(token);
-      if (error || !userResponse?.user) return null;
+    const identity = await resolveSupabaseToken(this.supabase.anon, token);
+    if (!identity) return null;
 
-      const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', userResponse.user.id).single();
-      if (!profile) return null;
+    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', identity.id).single();
+    if (!profile) return null;
 
-      return { id: profile.id, email: userResponse.user.email as string, profile };
-    } catch {
-      return null;
-    }
+    return { id: profile.id, email: identity.email as string, profile };
   }
 
   @SubscribeMessage('chat_message')

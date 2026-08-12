@@ -66,23 +66,34 @@ export class BillingService {
     return { pdf, filename: `invoice-${payment.txn_ref || String(payment.id).slice(0, 8)}.pdf` };
   }
 
+  private sumAmounts(rows: any[]): number {
+    return (rows || []).reduce((total, r) => total + Number(r.amount), 0);
+  }
+
   /** What a doctor can actually request as a payout right now — total ever
    * collected from patients, minus whatever's already been paid out or is
    * sitting in an in-flight payout request. Failed payout attempts don't
    * count against it (the money never left, so it's still available). */
   private async getAvailableBalance(doctorId: string): Promise<number> {
-    const { data: paid } = await this.supabase.admin.from('payments').select('amount').eq('doctor_id', doctorId).eq('status', 'Paid');
-    const { data: outgoing } = await this.supabase.admin.from('payouts').select('amount').eq('doctor_id', doctorId).in('status', ['Processing', 'Paid']);
-    const sum = (rows: any[]) => (rows || []).reduce((total, r) => total + Number(r.amount), 0);
-    return Math.max(0, sum(paid || []) - sum(outgoing || []));
+    const [{ data: paid }, { data: outgoing }] = await Promise.all([
+      this.supabase.admin.from('payments').select('amount').eq('doctor_id', doctorId).eq('status', 'Paid'),
+      this.supabase.admin.from('payouts').select('amount').eq('doctor_id', doctorId).in('status', ['Processing', 'Paid']),
+    ]);
+    return Math.max(0, this.sumAmounts(paid || []) - this.sumAmounts(outgoing || []));
   }
 
   async getEarningsSummary(user: AuthUser) {
     if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
-    const { data: paid } = await this.supabase.admin.from('payments').select('amount, created_at').eq('doctor_id', user.id).eq('status', 'Paid');
-    const { data: pending } = await this.supabase.admin.from('payments').select('amount').eq('doctor_id', user.id).eq('status', 'Pending');
-    const available = await this.getAvailableBalance(user.id);
+    // `paid` also covers what getAvailableBalance would otherwise re-query,
+    // so fetch it once here and compute the balance from it directly instead
+    // of paying for the same 'Paid' payments row set twice.
+    const [{ data: paid }, { data: pending }, { data: outgoing }] = await Promise.all([
+      this.supabase.admin.from('payments').select('amount, created_at').eq('doctor_id', user.id).eq('status', 'Paid'),
+      this.supabase.admin.from('payments').select('amount').eq('doctor_id', user.id).eq('status', 'Pending'),
+      this.supabase.admin.from('payouts').select('amount').eq('doctor_id', user.id).in('status', ['Processing', 'Paid']),
+    ]);
+    const available = Math.max(0, this.sumAmounts(paid || []) - this.sumAmounts(outgoing || []));
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);

@@ -49,6 +49,11 @@ export class EmailService {
         port: Number(process.env.SMTP_PORT || 587),
         secure: process.env.SMTP_SECURE === 'true',
         auth: { user, pass },
+        // Without pooling, every sendMail() pays a fresh SMTP connection +
+        // TLS handshake — real latency on request paths that await this
+        // directly (e.g. lead/consultation approval emails).
+        pool: true,
+        maxConnections: 5,
       });
     }
   }

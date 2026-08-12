@@ -124,8 +124,8 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, descripti
             <i className="fas fa-shield-halved text-emerald-500"></i> Secured by Cashfree Payments — UPI, Card, Net Banking & Wallets
           </div>
           <button onClick={startCheckout} disabled={busy}
-            className="w-full bg-emerald-600 disabled:opacity-60 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-            {busy ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> {BUSY_COPY[phase] || 'Processing…'}</> : <><i className="fas fa-lock"></i> Pay Securely</>}
+            className="crm-btn-primary w-full disabled:opacity-60 bg-emerald-600 hover:bg-emerald-700 border-none shadow-none">
+            {busy ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div> {BUSY_COPY[phase] || 'Processing…'}</> : <><i className="fas fa-lock mr-2"></i> Pay Securely</>}
           </button>
         </div>
       )}
@@ -136,8 +136,8 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, descripti
             <p className="text-sm font-semibold">{error}</p>
           </div>
           <div className="flex gap-3">
-            <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors">Close</button>
-            <button onClick={retry} className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">Try Again</button>
+            <button onClick={onClose} className="crm-btn-secondary flex-1">Close</button>
+            <button onClick={retry} className="crm-btn-primary flex-1">Try Again</button>
           </div>
         </div>
       )}
@@ -151,7 +151,7 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, descripti
             <p className="text-sm text-slate-500 mt-1">{formatCurrency(settledAmount ?? amount, currency)} paid via Cashfree</p>
             <p className="text-xs text-slate-500 mt-0.5">Receipt available in your billing history</p>
           </div>
-          <button onClick={done} className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
+          <button onClick={done} className="crm-btn-primary w-full">
             Done
           </button>
         </div>

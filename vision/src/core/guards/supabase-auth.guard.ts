@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, ForbiddenException, Injectable, Unauthor
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '@/core/decorators/public.decorator';
 import { SupabaseService } from '@/core/supabase/supabase.service';
+import { resolveSupabaseToken } from '@/core/auth/supabase-token.util';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 
 /** Verifies the Supabase-issued access token on every request and resolves
@@ -26,12 +27,10 @@ export class SupabaseAuthGuard implements CanActivate {
     const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
     if (!token) throw new UnauthorizedException('Missing bearer token');
 
-    const { data: userResponse, error } = await this.supabase.anon.auth.getUser(token);
-    if (error || !userResponse?.user) {
-      throw new UnauthorizedException('Invalid or expired token');
-    }
+    const identity = await resolveSupabaseToken(this.supabase.anon, token);
+    if (!identity) throw new UnauthorizedException('Invalid or expired token');
 
-    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', userResponse.user.id).single();
+    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', identity.id).single();
     if (!profile) throw new UnauthorizedException('No profile for this account');
     // AUDIT_REPORT.md DB-9 — confirmed this guard resolves the profile fresh
     // on every request (not just at login), so this is the one place a
@@ -39,7 +38,7 @@ export class SupabaseAuthGuard implements CanActivate {
     // just-suspended account is otherwise usable until natural expiry.
     if (profile.status === 'Suspended') throw new ForbiddenException(ERROR_MESSAGES.ACCOUNT_SUSPENDED);
 
-    request.user = { id: profile.id, email: userResponse.user.email, profile };
+    request.user = { id: profile.id, email: identity.email, profile };
     return true;
   }
 }

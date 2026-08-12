@@ -64,7 +64,7 @@ function Sidebar({ onClose, onItemHover }) {
   };
 
   return (
-    <div className="w-64 h-full flex flex-col bg-aubergine-900">
+    <div className="w-full h-full flex flex-col bg-aubergine-900">
       {/* Logo */}
       <div className="h-16 flex items-center px-5 border-b border-white/10 shrink-0 justify-between">
         <NavLink to="/patient-dashboard" className="flex items-center">
@@ -78,9 +78,9 @@ function Sidebar({ onClose, onItemHover }) {
       </div>
 
       {/* Navigation */}
-      <div className="p-4 flex-1 overflow-y-auto">
-        <div className="text-[10px] font-bold text-aubergine-200/50 uppercase tracking-widest mb-3 px-2">Patient Portal</div>
-        <NavHoverRail indicatorClassName="bg-aubergine-700/60">
+      <div className="p-3 flex-1 overflow-y-auto hide-scrollbar">
+        <div className="text-[11px] font-bold text-aubergine-300/60 uppercase tracking-widest mb-3 px-3">Patient Portal</div>
+        <NavHoverRail indicatorClassName="bg-aubergine-800/40 rounded-xl">
           {MENU_ITEMS.map(item => (
             <NavLink key={item.name} to={item.path} end={item.path === '/patient-dashboard'}
               onClick={onClose}
@@ -88,14 +88,20 @@ function Sidebar({ onClose, onItemHover }) {
               onMouseLeave={() => onItemHover?.(null)}
               data-nav-item
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                `group flex items-center gap-3.5 px-4 py-3 mb-1 rounded-xl font-medium text-[14px] tracking-wide transition-all duration-300 ${
                   isActive
-                    ? 'bg-aubergine-600 text-white shadow-sm'
-                    : 'text-aubergine-100/80 hover:text-white'
+                    ? 'bg-gradient-to-r from-aubergine-600/90 to-aubergine-700/50 text-white shadow-md shadow-aubergine-900/40 border border-aubergine-500/30'
+                    : 'text-aubergine-200/70 hover:text-white border border-transparent'
                 }`
               }>
-              <div className="w-5 text-center transition-transform duration-200"><i className={`fas ${item.icon}`}></i></div>
-              {item.name}
+              {({ isActive }) => (
+                <>
+                  <div className={`w-6 flex justify-center items-center transition-all duration-300 ${isActive ? 'text-white drop-shadow-md scale-110' : 'text-aubergine-300/70 group-hover:text-white group-hover:scale-110'}`}>
+                    <i className={`fas ${item.icon} text-[16px]`}></i>
+                  </div>
+                  <span className="flex-1 truncate">{item.name}</span>
+                </>
+              )}
             </NavLink>
           ))}
         </NavHoverRail>

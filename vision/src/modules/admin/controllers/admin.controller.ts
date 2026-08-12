@@ -83,12 +83,23 @@ export class AdminController {
 
   // ─── Users ────────────────────────────────────────────────────────
   @Get('users')
-  @ApiOperation({ summary: 'All platform users (patients)' })
+  @ApiOperation({ summary: 'All platform users (patients), paginated' })
   @ApiQuery({ name: 'role', required: false })
-  async getUsers(@CurrentUser() user: AuthUser, @Query('role') role?: string) {
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiQuery({ name: 'search', required: false })
+  async getUsers(
+    @CurrentUser() user: AuthUser,
+    @Query('role') role?: string,
+    @Query('page') pageRaw?: string,
+    @Query('limit') limitRaw?: string,
+    @Query('search') search?: string,
+  ) {
     this.checkAdmin(user);
-    const data = await this.adminService.getAllUsers(role);
-    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+    const page = Math.max(1, parseInt(pageRaw ?? '1', 10) || 1);
+    const limit = Math.min(200, Math.max(1, parseInt(limitRaw ?? '50', 10) || 50));
+    const { users, total } = await this.adminService.getAllUsers(role, page, limit, search);
+    return ResponseHelper.paginated(users, total, page, limit, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
   @Get('users/:id')

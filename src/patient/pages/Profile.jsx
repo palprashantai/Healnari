@@ -5,10 +5,25 @@ import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 
 function PatientProfile() {
-  const { user, updateUser, updatePassword, uploadAvatar, removeAvatar, logout } = useAuth();
+  const { user, updateUser, updatePassword, uploadAvatar, removeAvatar, logout, subscribePush } = useAuth();
   const { patients, updatePatient } = useClinicData();
   const own = patients?.[0];
   const toast = useToast();
+  
+  const [pushEnabled, setPushEnabled] = useState(typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted');
+  const handlePushToggle = async () => {
+    if (pushEnabled) {
+      toast('Push notifications cannot be disabled from here. Please revoke permission in your browser settings.', 'info');
+      return;
+    }
+    const success = await subscribePush?.();
+    if (success) {
+      setPushEnabled(true);
+      toast('Push notifications enabled for this device.', 'success');
+    } else {
+      toast('Failed to enable push notifications. Ensure they are allowed in your browser settings.', 'error');
+    }
+  };
   const [activeTab, setActiveTab] = useState('personal');
   const [form, setForm] = useState({
     name: user?.name || '',
@@ -257,6 +272,16 @@ function PatientProfile() {
                       </button>
                     </div>
                   ))}
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <div>
+                      <p className="text-sm font-bold text-slate-700">Push Notifications</p>
+                      <p className="text-xs text-slate-500">Device alerts for incoming calls</p>
+                    </div>
+                    <button onClick={handlePushToggle}
+                      className={`w-12 h-6 rounded-full relative transition-all border ${pushEnabled ? 'bg-aubergine-600 border-aubergine-600' : 'bg-slate-200 border-slate-300'}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${pushEnabled ? 'right-1' : 'left-1'}`}></div>
+                    </button>
+                  </div>
                 </div>
               </div>
 

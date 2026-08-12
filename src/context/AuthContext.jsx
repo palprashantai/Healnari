@@ -9,27 +9,74 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('healnari_user')) || null;
+    } catch {
+      return null;
+    }
+  });
+  
+  const [loading, setLoading] = useState(!user);
 
-  usePushSubscription(user);
+  const setAndCacheUser = useCallback((updater) => {
+    setUser((prev) => {
+      const newUser = typeof updater === 'function' ? updater(prev) : updater;
+      if (newUser) {
+        localStorage.setItem('healnari_user', JSON.stringify(newUser));
+      } else {
+        localStorage.removeItem('healnari_user');
+      }
+      return newUser;
+    });
+  }, []);
+
+  const { subscribe: subscribePush } = usePushSubscription(user);
 
   const loadMe = useCallback(async () => {
-    if (!getTokens()?.accessToken) {
-      setUser(null);
-      return;
+    let tokens = getTokens();
+    if (!tokens?.accessToken) {
+      // iOS Safari PWA Mitigation: localStorage is cleared after 7 days of inactivity.
+      // Recover the session from IndexedDB which survives the 7-day purge.
+      const { readTokensFromIndexedDb } = await import('../lib/tokenStore.js');
+      const recoveredTokens = await readTokensFromIndexedDb();
+      if (recoveredTokens?.accessToken) {
+        setTokens(recoveredTokens);
+        tokens = recoveredTokens;
+      } else {
+        setAndCacheUser(null);
+        return;
+      }
     }
     try {
-      setUser(await apiFetch('/auth/me'));
-    } catch {
-      clearTokens();
-      setUser(null);
+      setAndCacheUser(await apiFetch('/auth/me'));
+    } catch (err) {
+      if (err.status === 401 || err.status === 403) {
+        clearTokens();
+        setAndCacheUser(null);
+      }
+      // Network errors are gracefully ignored, keeping the cached session alive
     }
-  }, []);
+  }, [setAndCacheUser]);
 
   useEffect(() => {
     loadMe().finally(() => setLoading(false));
-  }, [loadMe]);
+    
+    // Cross-tab synchronization
+    const handleStorage = (e) => {
+      if (e.key === 'healnari_tokens' && !e.newValue) {
+        setAndCacheUser(null);
+      } else if (e.key === 'healnari_user' && e.newValue !== e.oldValue) {
+        try {
+          setUser(JSON.parse(e.newValue) || null);
+        } catch {
+          // ignore
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [loadMe, setAndCacheUser]);
 
   /** role: 'patient' | 'doctor'. extra: { fullName, specialty?, registrationNo? } */
   const signUp = async (email, password, role, extra = {}) => {
@@ -40,7 +87,7 @@ export function AuthProvider({ children }) {
         body: { email, password, role, ...extra },
       });
       setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
-      setUser(data.user);
+      setAndCacheUser(data.user);
       return { user: data.user };
     } catch (error) {
       return { error };
@@ -51,7 +98,7 @@ export function AuthProvider({ children }) {
     try {
       const data = await apiFetch('/auth/login', { method: 'POST', skipAuth: true, body: { email, password } });
       setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
-      setUser(data.user);
+      setAndCacheUser(data.user);
       return { user: data.user };
     } catch (error) {
       return { error };
@@ -81,12 +128,12 @@ export function AuthProvider({ children }) {
     }
 
     clearTokens();
-    setUser(null);
+    setAndCacheUser(null);
   };
 
   /** Optimistic local merge + best-effort persist of the fields `vision` tracks on `profiles`. */
   const updateUser = async (updates) => {
-    setUser(prev => ({ ...prev, ...updates }));
+    setAndCacheUser(prev => ({ ...prev, ...updates }));
 
     const patch = {};
     if (updates.name !== undefined) patch.fullName = updates.name;
@@ -113,17 +160,17 @@ export function AuthProvider({ children }) {
     const formData = new FormData();
     formData.append('file', file);
     const data = await apiFetch('/auth/me/avatar', { method: 'POST', body: formData });
-    setUser(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
+    setAndCacheUser(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
     return data;
   };
 
   const removeAvatar = async () => {
     const data = await apiFetch('/auth/me/avatar', { method: 'DELETE' });
-    setUser(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
+    setAndCacheUser(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
     return data;
   };
 
-  const value = { user, signUp, signIn, logout, updateUser, updatePassword, uploadAvatar, removeAvatar, loading };
+  const value = { user, signUp, signIn, logout, updateUser, updatePassword, uploadAvatar, removeAvatar, loading, subscribePush };
 
   return (
     <AuthContext.Provider value={value}>

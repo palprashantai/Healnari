@@ -66,9 +66,11 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
 }
 
 const STATUS_BADGE = {
-  'In Progress': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'Waiting':     'bg-amber-50 text-amber-700 border-amber-200',
-  'Upcoming':    'bg-slate-100 text-slate-600 border-slate-200',
+  'In Progress': 'bg-gradient-to-r from-emerald-100 to-emerald-50 text-emerald-700 ring-1 ring-emerald-200 ring-inset shadow-sm',
+  'Waiting':     'bg-gradient-to-r from-amber-100 to-amber-50 text-amber-700 ring-1 ring-amber-200 ring-inset shadow-sm',
+  'Upcoming':    'bg-gradient-to-r from-slate-100 to-slate-50 text-slate-600 ring-1 ring-slate-200 ring-inset shadow-sm',
+  'Requested':   'bg-gradient-to-r from-sky-100 to-sky-50 text-sky-700 ring-1 ring-sky-200 ring-inset shadow-sm',
+  'Done':        'bg-gradient-to-r from-slate-200 to-slate-100 text-slate-700 ring-1 ring-slate-300 ring-inset shadow-sm'
 };
 
 /* ─── Notes Modal ────────────────────────────── */
@@ -339,89 +341,108 @@ function DoctorAppointments() {
   return (
     <div className="space-y-3 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-lg font-black text-slate-800">Queue Management</h1>
-          <p className="text-xs text-slate-500">Manage your daily tokens, approvals, and call history.</p>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Queue Management</h1>
+          <p className="text-sm text-slate-500 mt-1">Manage your daily tokens, approvals, and call history.</p>
         </div>
         <button onClick={callNext}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2 text-xs">
-          <i className="fas fa-bullhorn"></i> Call Next Patient
+          className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-emerald-600/30 transition-all hover:-translate-y-0.5 flex items-center gap-2 text-sm">
+          <i className="fas fa-bullhorn animate-pulse"></i> Call Next Patient
         </button>
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {[
-          { label: 'In Queue', value: queue.filter(q => q.status !== 'Done').length, color: 'text-aubergine-700' },
-          { label: 'Waiting', value: queue.filter(q => q.status === 'Waiting').length, color: 'text-amber-600' },
-          { label: 'Completed', value: queue.filter(q => q.status === 'Done').length, color: 'text-emerald-600' },
-          { label: 'Requests', value: requests.length, color: 'text-rose-500' },
+          { label: 'In Queue', value: queue.filter(q => q.status !== 'Done').length, color: 'text-aubergine-700', bg: 'bg-gradient-to-br from-aubergine-50 to-white', icon: 'fa-users', iconColor: 'text-aubergine-200' },
+          { label: 'Waiting', value: queue.filter(q => q.status === 'Waiting').length, color: 'text-amber-600', bg: 'bg-gradient-to-br from-amber-50 to-white', icon: 'fa-hourglass-half', iconColor: 'text-amber-200' },
+          { label: 'Completed', value: queue.filter(q => q.status === 'Done').length, color: 'text-emerald-600', bg: 'bg-gradient-to-br from-emerald-50 to-white', icon: 'fa-check-circle', iconColor: 'text-emerald-200' },
+          { label: 'Requests', value: requests.length, color: 'text-rose-600', bg: 'bg-gradient-to-br from-rose-50 to-white', icon: 'fa-inbox', iconColor: 'text-rose-200' },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-2 text-center shadow-sm">
-            <div className={`text-lg font-black ${s.color}`}>{s.value}</div>
-            <div className="text-[10px] text-slate-500 font-medium">{s.label}</div>
+          <div key={s.label} className={`${s.bg} rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-all hover:-translate-y-1 relative overflow-hidden group`}>
+            <div className="relative z-10">
+              <div className={`text-3xl font-black ${s.color}`}>{s.value}</div>
+              <div className="text-xs text-slate-500 font-bold mt-1 uppercase tracking-wider">{s.label}</div>
+            </div>
+            <i className={`fas ${s.icon} absolute -right-2 -bottom-2 text-6xl ${s.iconColor} opacity-50 group-hover:scale-110 transition-transform duration-300`}></i>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-6">
         {/* Tabs */}
-        <div className="flex border-b border-slate-200 bg-slate-50 overflow-x-auto">
+        <div className="p-2 border-b border-slate-200 bg-slate-50/50 flex flex-wrap gap-2">
           {[
             ['queue',    'Today\'s Queue', queue.length],
             ['requests', 'New Requests', requests.length],
             ['past',     'Past Consults', past.length],
           ].map(([key, label, count]) => (
             <button key={key} onClick={() => setTab(key)}
-              className={`px-4 py-2.5 text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${tab === key ? 'bg-white text-aubergine-700 border-t-2 border-t-aubergine-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+              className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center gap-2 ${tab === key ? 'bg-white text-aubergine-700 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
               {label}
-              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${tab === key ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-200 text-slate-500'}`}>{count}</span>
+              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${tab === key ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-200 text-slate-500'}`}>{count}</span>
             </button>
           ))}
         </div>
 
         {/* Filters */}
-        <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-3 bg-white justify-between items-center">
-          <div className="flex gap-3 flex-1 w-full max-w-md">
-            <div className="relative flex-1">
-              <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient or token..."
-                className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white" />
+        <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row gap-4 bg-white justify-between items-center">
+          <div className="flex flex-col sm:flex-row gap-3 flex-1 w-full max-w-2xl">
+            <div className="relative flex-1 group">
+              <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-aubergine-500 transition-colors"></i>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient name or token..."
+                className="w-full border border-slate-200 rounded-xl pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50 focus:bg-white transition-all shadow-inner" />
             </div>
-            <select value={modeFilter} onChange={e => setModeFilter(e.target.value)} className="border border-slate-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300 outline-none">
-              <option value="All Modes">All Modes</option>
-              <option value="Video">Video Consult</option>
-              <option value="Clinic">Clinic Visit</option>
-            </select>
+            <div className="relative group min-w-[160px]">
+              <i className="fas fa-filter absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-aubergine-500 transition-colors z-10"></i>
+              <select value={modeFilter} onChange={e => setModeFilter(e.target.value)} className="w-full border border-slate-200 rounded-xl pl-10 pr-8 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50 focus:bg-white transition-all appearance-none cursor-pointer">
+                <option value="All Modes">All Modes</option>
+                <option value="Video">Video Consult</option>
+                <option value="Clinic">Clinic Visit</option>
+              </select>
+              <i className="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+            </div>
           </div>
 
-          <div className="relative" ref={actionsMenuRef}>
+          <div className="relative w-full sm:w-auto" ref={actionsMenuRef}>
             <button 
               onClick={() => setShowActionsMenu(!showActionsMenu)}
-              className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm h-full"
+              className="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
             >
-              Actions <i className={`fas fa-chevron-down text-[10px] transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}></i>
+              Bulk Actions <i className={`fas fa-chevron-down text-[10px] transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}></i>
             </button>
             {showActionsMenu && (
-              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
-                <div className="px-3 py-1.5 mb-1">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p>
+              <div className="absolute right-0 sm:right-0 left-0 sm:left-auto top-full mt-2 w-full sm:w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-fade-in origin-top-right">
+                <div className="px-4 py-2 mb-1">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Messaging Channels</p>
                 </div>
-                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
-                  <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
+                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-sky-50 hover:text-sky-700 flex items-center gap-3 transition-colors group">
+                  <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                    <i className="fas fa-envelope text-sky-500"></i>
+                  </div>
+                  Bulk Email
                 </button>
-                <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
-                  <i className="fas fa-bell text-amber-500 w-4"></i> Push Notification
+                <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors group">
+                  <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                    <i className="fas fa-bell text-amber-500"></i>
+                  </div>
+                  Push Notification
                 </button>
-                <button onClick={() => handleBulkAction('WhatsApp Message')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
-                  <i className="fab fa-whatsapp text-emerald-500 w-4 text-lg"></i> WhatsApp Message
+                <button onClick={() => handleBulkAction('WhatsApp Message')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-3 transition-colors group">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                    <i className="fab fa-whatsapp text-emerald-500 text-lg"></i>
+                  </div>
+                  WhatsApp Message
                 </button>
                 {tab === 'requests' && (
                   <>
-                    <div className="h-px bg-slate-100 my-1"></div>
-                    <button onClick={() => handleBulkAction('Approve Selected')} className="w-full text-left px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-3 transition-colors">
-                      <i className="fas fa-check text-emerald-500 w-4"></i> Approve Selected
+                    <div className="h-px bg-slate-100 my-2 mx-4"></div>
+                    <button onClick={() => handleBulkAction('Approve Selected')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-3 transition-colors group">
+                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                        <i className="fas fa-check-double text-emerald-600"></i>
+                      </div>
+                      Approve Selected
                     </button>
                   </>
                 )}
@@ -430,66 +451,77 @@ function DoctorAppointments() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm border-collapse">
+        <div className="overflow-x-auto px-4 pb-4">
+          <table className="w-full text-left text-sm border-separate border-spacing-y-3">
             <thead>
-              <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wider border-b border-slate-100">
-                <th className="px-5 py-3 w-10">
+              <tr className="text-[10px] text-slate-400 uppercase tracking-widest">
+                <th className="px-4 py-2 font-bold w-12">
                   <label className="flex items-center justify-center cursor-pointer">
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedIds.length > 0 && selectedIds.length === filteredData.length ? 'bg-aubergine-600 border-aubergine-600 text-white' : selectedIds.length > 0 ? 'bg-aubergine-100 border-aubergine-300 text-aubergine-600' : 'bg-white border-slate-300'}`}>
-                      {(selectedIds.length > 0 && selectedIds.length === filteredData.length) ? <i className="fas fa-check text-[8px]"></i> : selectedIds.length > 0 ? <div className="w-2 h-0.5 bg-aubergine-600 rounded"></div> : null}
+                    <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${selectedIds.length > 0 && selectedIds.length === filteredData.length ? 'bg-aubergine-600 shadow-sm text-white' : selectedIds.length > 0 ? 'bg-aubergine-200 text-aubergine-700 ring-1 ring-aubergine-400' : 'bg-slate-100/80 hover:bg-slate-200 ring-1 ring-slate-200/80 ring-inset'}`}>
+                      {(selectedIds.length > 0 && selectedIds.length === filteredData.length) ? <i className="fas fa-check text-[9px]"></i> : selectedIds.length > 0 ? <div className="w-2 h-0.5 bg-aubergine-700 rounded-full"></div> : null}
                     </div>
                     <input type="checkbox" className="hidden" checked={selectedIds.length === filteredData.length} onChange={toggleSelectAll} />
                   </label>
                 </th>
-                {tab === 'queue' && <th className="px-5 py-3 font-semibold">Token</th>}
-                <th className="px-5 py-3 font-semibold">Patient</th>
-                <th className="px-5 py-3 font-semibold">Type</th>
-                <th className="px-5 py-3 font-semibold">{tab === 'past' ? 'Date' : 'Time'}</th>
-                <th className="px-5 py-3 font-semibold">Mode</th>
-                {tab === 'queue' && <th className="px-5 py-3 font-semibold">Status</th>}
-                <th className="px-5 py-3 font-semibold text-right">Actions</th>
+                {tab === 'queue' && <th className="px-4 py-2 font-bold">Token</th>}
+                <th className="px-4 py-2 font-bold">Patient</th>
+                <th className="px-4 py-2 font-bold">Purpose</th>
+                <th className="px-4 py-2 font-bold">{tab === 'past' ? 'Date' : 'Time'}</th>
+                <th className="px-4 py-2 font-bold">Format</th>
+                {tab === 'queue' && <th className="px-4 py-2 font-bold">Status</th>}
+                <th className="px-4 py-2 font-bold text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody>
               {tab === 'queue' && filteredData.map(p => (
-                <tr key={p.id} className={`hover:bg-slate-50 transition-colors ${selectedIds.includes(p.id) ? 'bg-slate-50' : ''} ${p.status === 'In Progress' ? 'bg-emerald-50/30' : ''}`}>
-                  <td className="px-5 py-4">
-                    <label className="flex items-center justify-center cursor-pointer group">
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedIds.includes(p.id) ? 'bg-aubergine-600 border-aubergine-600 text-white' : 'bg-white border-slate-300 group-hover:border-aubergine-400'}`}>
-                        {selectedIds.includes(p.id) && <i className="fas fa-check text-[8px]"></i>}
+                <tr key={p.id} className={`group bg-white hover:bg-slate-50/80 transition-all duration-300 shadow-sm hover:shadow-md ${selectedIds.includes(p.id) ? 'ring-1 ring-aubergine-400 bg-aubergine-50/20' : 'ring-1 ring-slate-100'} ${p.status === 'In Progress' ? 'ring-1 ring-emerald-400 bg-emerald-50/20' : ''}`}>
+                  <td className="px-4 py-3 rounded-l-2xl align-middle">
+                    <label className="flex items-center justify-center cursor-pointer">
+                      <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${selectedIds.includes(p.id) ? 'bg-aubergine-600 shadow-sm text-white' : 'bg-slate-100/80 group-hover:bg-slate-200 ring-1 ring-slate-200/80 ring-inset group-hover:ring-aubergine-300'}`}>
+                        {selectedIds.includes(p.id) && <i className="fas fa-check text-[9px]"></i>}
                       </div>
                       <input type="checkbox" className="hidden" checked={selectedIds.includes(p.id)} onChange={() => toggleSelect(p.id)} />
                     </label>
                   </td>
-                  <td className="px-5 py-4">
-                    <span className={`text-xs font-black px-2 py-1 rounded font-mono ${p.status === 'In Progress' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-white'}`}>{p.token}</span>
+                  <td className="px-4 py-3 align-middle">
+                    <span className={`text-[11px] font-black px-2.5 py-1 rounded-lg font-mono tracking-widest ${p.status === 'In Progress' ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30' : 'bg-slate-800 text-white shadow-sm shadow-slate-800/30'}`}>{p.token}</span>
                   </td>
-                  <td className="px-5 py-4">
-                    <div className="font-bold text-slate-800">{p.name}</div>
-                    <div className="text-xs text-slate-500">{p.age}</div>
+                  <td className="px-4 py-3 align-middle">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-aubergine-100 flex items-center justify-center text-aubergine-700 font-bold text-sm shadow-inner shrink-0">
+                        {p.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-800 tracking-tight">{p.name}</div>
+                        <div className="text-[11px] text-slate-500 font-medium">{p.age}</div>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-5 py-4 text-xs"><span className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-full font-bold">{p.type}</span></td>
-                  <td className="px-5 py-4 font-bold text-aubergine-700 text-xs whitespace-nowrap">{p.time}</td>
-                  <td className="px-5 py-4">
-                    <span className={`flex items-center gap-1 text-xs font-bold w-max ${p.mode === 'Video' ? 'text-sky-600' : 'text-slate-600'}`}>
+                  <td className="px-4 py-3 align-middle">
+                    <span className="text-[11px] font-bold text-slate-600 bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200/50 inline-block">{p.type}</span>
+                  </td>
+                  <td className="px-4 py-3 align-middle font-bold text-aubergine-700 text-[13px] whitespace-nowrap">{p.time}</td>
+                  <td className="px-4 py-3 align-middle">
+                    <span className={`flex items-center gap-1.5 text-[11px] font-bold w-max px-2.5 py-1 rounded-lg ${p.mode === 'Video' ? 'bg-sky-50 text-sky-700' : 'bg-slate-50 text-slate-600'}`}>
                       <i className={`fas ${p.mode === 'Video' ? 'fa-video' : 'fa-hospital'} text-[10px]`}></i> {p.mode}
                     </span>
                   </td>
-                  <td className="px-5 py-4">
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${STATUS_BADGE[p.status] || 'bg-slate-100 text-slate-500 border-slate-200'}`}>{p.status}</span>
+                  <td className="px-4 py-3 align-middle">
+                    <span className={`text-[11px] font-bold px-3 py-1 rounded-full ${STATUS_BADGE[p.status] || 'bg-slate-100 text-slate-500 border-slate-200'}`}>{p.status}</span>
                   </td>
-                  <td className="px-5 py-4 text-right">
-                    <div className="flex justify-end gap-2">
+                  <td className="px-4 py-3 rounded-r-2xl align-middle text-right">
+                    <div className="flex justify-end gap-2 items-center">
                       {p.status !== 'Done' && (
-                        <button onClick={() => setCancelTarget(p)} className="text-rose-500 font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-rose-50 transition-colors">Cancel</button>
+                        <button onClick={() => setCancelTarget(p)} title="Cancel Appointment" className="text-rose-400 hover:text-rose-600 hover:bg-rose-50 w-8 h-8 rounded-full flex items-center justify-center transition-colors">
+                          <i className="fas fa-times"></i>
+                        </button>
                       )}
-                      <button onClick={() => setNotesTarget(p)} className="text-aubergine-600 font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-aubergine-50 transition-colors border border-aubergine-100">
-                        {p.status === 'Done' ? 'View Notes' : 'Add Notes'}
+                      <button onClick={() => setNotesTarget(p)} className="text-aubergine-600 font-bold text-[11px] px-3 py-1.5 rounded-lg hover:bg-aubergine-50 transition-colors border border-aubergine-100 flex items-center gap-1.5 shadow-sm">
+                        <i className={`fas ${p.status === 'Done' ? 'fa-file-lines' : 'fa-pen'}`}></i> {p.status === 'Done' ? 'Notes' : 'Notes'}
                       </button>
                       {p.mode === 'Video' && p.status !== 'Done' && (
-                        <button onClick={() => navigate(`/doctor-dashboard/telemedicine?startCall=${p.id}`)} className="bg-emerald-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-1">
-                          <i className="fas fa-video text-[10px]"></i> Join
+                        <button onClick={() => navigate(`/doctor-dashboard/telemedicine?startCall=${p.id}`)} className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold text-[11px] px-3 py-1.5 rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm shadow-emerald-500/20">
+                          <i className="fas fa-video animate-pulse"></i> Join
                         </button>
                       )}
                     </div>
@@ -497,72 +529,116 @@ function DoctorAppointments() {
                 </tr>
               ))}
               {tab === 'queue' && filteredData.length === 0 && (
-                <tr><td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-500">No patients match your filters.</td></tr>
+                <tr>
+                  <td colSpan={8} className="px-5 py-16 text-center">
+                    <div className="inline-flex flex-col items-center text-slate-400">
+                      <i className="fas fa-mug-hot text-4xl mb-3 text-slate-300"></i>
+                      <p className="text-sm font-bold">No patients in the queue right now.</p>
+                      <p className="text-[11px]">Take a quick break or check your new requests.</p>
+                    </div>
+                  </td>
+                </tr>
               )}
 
               {tab === 'requests' && filteredData.map(r => (
-                <tr key={r.id} className={`hover:bg-slate-50 transition-colors ${selectedIds.includes(r.id) ? 'bg-slate-50' : ''}`}>
-                  <td className="px-5 py-4">
-                    <label className="flex items-center justify-center cursor-pointer group">
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedIds.includes(r.id) ? 'bg-aubergine-600 border-aubergine-600 text-white' : 'bg-white border-slate-300 group-hover:border-aubergine-400'}`}>
-                        {selectedIds.includes(r.id) && <i className="fas fa-check text-[8px]"></i>}
+                <tr key={r.id} className={`group bg-white hover:bg-slate-50/80 transition-all duration-300 shadow-sm hover:shadow-md rounded-2xl overflow-hidden ${selectedIds.includes(r.id) ? 'ring-1 ring-aubergine-400 bg-aubergine-50/20' : 'ring-1 ring-slate-100'}`}>
+                  <td className="px-4 py-3 rounded-l-2xl align-middle">
+                    <label className="flex items-center justify-center cursor-pointer">
+                      <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${selectedIds.includes(r.id) ? 'bg-aubergine-600 shadow-sm text-white' : 'bg-slate-100/80 group-hover:bg-slate-200 ring-1 ring-slate-200/80 ring-inset group-hover:ring-aubergine-300'}`}>
+                        {selectedIds.includes(r.id) && <i className="fas fa-check text-[9px]"></i>}
                       </div>
                       <input type="checkbox" className="hidden" checked={selectedIds.includes(r.id)} onChange={() => toggleSelect(r.id)} />
                     </label>
                   </td>
-                  <td className="px-5 py-4">
-                    <div className="font-bold text-slate-800">{r.name}</div>
-                    <div className="text-xs text-slate-500">{r.age}</div>
+                  <td className="px-4 py-3 align-middle">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-rose-50 to-orange-50 flex items-center justify-center text-rose-500 font-bold text-sm shadow-inner shrink-0">
+                        {r.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-800 tracking-tight">{r.name}</div>
+                        <div className="text-[11px] text-slate-500 font-medium">{r.age}</div>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-5 py-4 text-xs"><span className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-full font-bold">{r.type}</span></td>
-                  <td className="px-5 py-4 font-bold text-aubergine-700 text-xs whitespace-nowrap">{r.date} • {r.time}</td>
-                  <td className="px-5 py-4">
-                    <span className={`flex items-center gap-1 text-xs font-bold w-max ${r.mode === 'Video' ? 'text-sky-600' : 'text-slate-600'}`}>
+                  <td className="px-4 py-3 align-middle">
+                     <span className="text-[11px] font-bold text-slate-600 bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200/50 inline-block">{r.type}</span>
+                  </td>
+                  <td className="px-4 py-3 align-middle font-bold text-aubergine-700 text-[13px] whitespace-nowrap">{r.date} • {r.time}</td>
+                  <td className="px-4 py-3 align-middle">
+                    <span className={`flex items-center gap-1.5 text-[11px] font-bold w-max px-2.5 py-1 rounded-lg ${r.mode === 'Video' ? 'bg-sky-50 text-sky-700' : 'bg-slate-50 text-slate-600'}`}>
                       <i className={`fas ${r.mode === 'Video' ? 'fa-video' : 'fa-hospital'} text-[10px]`}></i> {r.mode}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-right">
+                  <td className="px-4 py-3 rounded-r-2xl align-middle text-right">
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => rejectRequest(r)} className="text-rose-500 font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-rose-50 transition-colors border border-rose-200">Reject</button>
-                      <button onClick={() => approveRequest(r)} className="bg-emerald-500 text-white font-bold text-xs px-4 py-1.5 rounded-lg hover:bg-emerald-600 transition-colors">Approve</button>
+                      <button onClick={() => rejectRequest(r)} className="text-rose-500 font-bold text-[11px] px-4 py-1.5 rounded-lg hover:bg-rose-50 transition-colors border border-rose-200 shadow-sm">Reject</button>
+                      <button onClick={() => approveRequest(r)} className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold text-[11px] px-4 py-1.5 rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-colors shadow-sm shadow-emerald-500/20 flex items-center gap-1.5">
+                        <i className="fas fa-check"></i> Approve
+                      </button>
                     </div>
                   </td>
                 </tr>
               ))}
               {tab === 'requests' && filteredData.length === 0 && (
-                <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-500">No new appointment requests match your filters.</td></tr>
+                <tr>
+                  <td colSpan={6} className="px-5 py-16 text-center">
+                    <div className="inline-flex flex-col items-center text-slate-400">
+                      <i className="fas fa-inbox text-4xl mb-3 text-slate-300"></i>
+                      <p className="text-sm font-bold">No pending appointment requests.</p>
+                      <p className="text-[11px]">You're all caught up!</p>
+                    </div>
+                  </td>
+                </tr>
               )}
 
               {tab === 'past' && filteredData.map(p => (
-                <tr key={p.id} className={`hover:bg-slate-50 transition-colors ${selectedIds.includes(p.id) ? 'bg-slate-50' : ''}`}>
-                  <td className="px-5 py-4">
-                    <label className="flex items-center justify-center cursor-pointer group">
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedIds.includes(p.id) ? 'bg-aubergine-600 border-aubergine-600 text-white' : 'bg-white border-slate-300 group-hover:border-aubergine-400'}`}>
-                        {selectedIds.includes(p.id) && <i className="fas fa-check text-[8px]"></i>}
+                <tr key={p.id} className={`group bg-white hover:bg-slate-50/80 transition-all duration-300 shadow-sm hover:shadow-md rounded-2xl overflow-hidden ${selectedIds.includes(p.id) ? 'ring-1 ring-aubergine-400 bg-aubergine-50/20' : 'ring-1 ring-slate-100'}`}>
+                  <td className="px-4 py-3 rounded-l-2xl align-middle">
+                    <label className="flex items-center justify-center cursor-pointer">
+                      <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${selectedIds.includes(p.id) ? 'bg-aubergine-600 shadow-sm text-white' : 'bg-slate-100/80 group-hover:bg-slate-200 ring-1 ring-slate-200/80 ring-inset group-hover:ring-aubergine-300'}`}>
+                        {selectedIds.includes(p.id) && <i className="fas fa-check text-[9px]"></i>}
                       </div>
                       <input type="checkbox" className="hidden" checked={selectedIds.includes(p.id)} onChange={() => toggleSelect(p.id)} />
                     </label>
                   </td>
-                  <td className="px-5 py-4">
-                    <div className="font-bold text-slate-800">{p.name}</div>
-                    <div className="text-xs text-slate-500">{p.age}</div>
+                  <td className="px-4 py-3 align-middle">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-bold text-sm shadow-inner shrink-0">
+                        {p.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-800 tracking-tight">{p.name}</div>
+                        <div className="text-[11px] text-slate-500 font-medium">{p.age}</div>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-5 py-4 text-xs"><span className="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-full font-bold">{p.type}</span></td>
-                  <td className="px-5 py-4 font-bold text-aubergine-700 text-xs whitespace-nowrap">{p.date}</td>
-                  <td className="px-5 py-4">
-                    <span className={`flex items-center gap-1 text-xs font-bold w-max ${p.mode === 'Video' ? 'text-sky-600' : 'text-slate-600'}`}>
+                  <td className="px-4 py-3 align-middle">
+                     <span className="text-[11px] font-bold text-slate-600 bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200/50 inline-block">{p.type}</span>
+                  </td>
+                  <td className="px-4 py-3 align-middle font-bold text-aubergine-700 text-[13px] whitespace-nowrap">{p.date}</td>
+                  <td className="px-4 py-3 align-middle">
+                    <span className={`flex items-center gap-1.5 text-[11px] font-bold w-max px-2.5 py-1 rounded-lg ${p.mode === 'Video' ? 'bg-sky-50 text-sky-700' : 'bg-slate-50 text-slate-600'}`}>
                       <i className={`fas ${p.mode === 'Video' ? 'fa-video' : 'fa-hospital'} text-[10px]`}></i> {p.mode}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-right">
-                    <button onClick={() => setNotesTarget(p)} className="text-aubergine-600 font-bold text-xs px-3 py-1.5 rounded-lg hover:bg-aubergine-50 transition-colors border border-aubergine-100">
-                      View Summary
+                  <td className="px-4 py-3 rounded-r-2xl align-middle text-right">
+                    <button onClick={() => setNotesTarget(p)} className="text-aubergine-600 font-bold text-[11px] px-4 py-1.5 rounded-lg hover:bg-aubergine-50 transition-colors border border-aubergine-100 shadow-sm flex items-center gap-1.5 inline-flex">
+                      <i className="fas fa-file-lines"></i> View Summary
                     </button>
                   </td>
                 </tr>
               ))}
               {tab === 'past' && filteredData.length === 0 && (
-                <tr><td colSpan={5} className="px-5 py-10 text-center text-sm text-slate-500">No past consultations match your filters.</td></tr>
+                <tr>
+                  <td colSpan={6} className="px-5 py-16 text-center">
+                    <div className="inline-flex flex-col items-center text-slate-400">
+                      <i className="fas fa-history text-4xl mb-3 text-slate-300"></i>
+                      <p className="text-sm font-bold">No past consultations found.</p>
+                      <p className="text-[11px]">Adjust your filters to see more.</p>
+                    </div>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>

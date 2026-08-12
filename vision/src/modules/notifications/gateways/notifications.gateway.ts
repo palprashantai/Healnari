@@ -7,6 +7,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { SupabaseService } from '@/core/supabase/supabase.service';
+import { resolveSupabaseToken } from '@/core/auth/supabase-token.util';
 
 /** Pushes real-time notification events to a signed-in user. Mirrors the
  * handshake-token auth pattern from ChatGateway, but rooms clients by user
@@ -28,13 +29,9 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     const token = client.handshake.auth?.token || client.handshake.query?.token;
     if (typeof token !== 'string' || !token) return;
 
-    try {
-      const { data: userResponse, error } = await this.supabase.anon.auth.getUser(token);
-      if (error || !userResponse?.user) return;
-      client.join(`user:${userResponse.user.id}`);
-    } catch {
-      // Invalid/expired token — leave the socket unjoined rather than failing the connection.
-    }
+    const identity = await resolveSupabaseToken(this.supabase.anon, token);
+    if (identity) client.join(`user:${identity.id}`);
+    // Invalid/expired token — leave the socket unjoined rather than failing the connection.
   }
 
   handleDisconnect(@ConnectedSocket() _client: Socket) {}

@@ -46,18 +46,18 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
           </select>
         </div>
         <div>
-           <label className="text-xs font-bold text-slate-500 mb-1.5 block">Message Content</label>
-           <textarea 
-             rows={4} 
-             value={messageText}
-             onChange={e => setMessageText(e.target.value)}
-             placeholder="Type your custom message here..." 
-             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-y"
-           ></textarea>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Message Content</label>
+          <textarea
+            rows={4}
+            value={messageText}
+            onChange={e => setMessageText(e.target.value)}
+            placeholder="Type your custom message here..."
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-y"
+          ></textarea>
         </div>
         <div className="pt-2">
-          <button 
-            onClick={() => { onSend(messageText); onClose(); }} 
+          <button
+            onClick={() => { onSend(messageText); onClose(); }}
             disabled={!messageText.trim()}
             className="w-full bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-sm flex items-center justify-center gap-2"
           >
@@ -700,7 +700,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
     () => buildPatientTimeline(patient, (appointments || []).filter(a => a.patientId === patient.id)),
     [patient, appointments]
   );
-  
+
   const groupedRx = useMemo(() => {
     if (!patient || !patient.meds) return [];
     const byGroup = new Map();
@@ -940,11 +940,10 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`px-3 py-2 rounded-lg whitespace-nowrap transition-all flex items-center gap-1.5 ${
-                tab === t.key
-                  ? 'bg-aubergine-700 text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
+              className={`px-3 py-2 rounded-lg whitespace-nowrap transition-all flex items-center gap-1.5 ${tab === t.key
+                ? 'bg-aubergine-700 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
             >
               <i className={`fas ${t.icon} text-[11px]`}></i> {t.label}
             </button>
@@ -1140,9 +1139,8 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                       <div className="flex items-center gap-3">
                         <span className="font-black text-slate-900 text-base">Prescription on {rxGroup.date}</span>
                         <span
-                          className={`px-3 py-0.5 rounded-full text-[11px] font-bold ${
-                            rxGroup.status === 'Active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-200 text-slate-600'
-                          }`}
+                          className={`px-3 py-0.5 rounded-full text-[11px] font-bold ${rxGroup.status === 'Active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-200 text-slate-600'
+                            }`}
                         >
                           ● {rxGroup.status}
                         </span>
@@ -1205,9 +1203,8 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                     <button
                       key={key}
                       onClick={() => setLabFilter(key)}
-                      className={`px-3.5 py-1.5 rounded-lg transition-all ${
-                        labFilter === key ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-                      }`}
+                      className={`px-3.5 py-1.5 rounded-lg transition-all ${labFilter === key ? 'bg-white text-slate-800 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                        }`}
                     >
                       {label}
                     </button>
@@ -1345,13 +1342,12 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                       <td className="font-black text-slate-900">₹{pay.amount.toLocaleString('en-IN')}</td>
                       <td>
                         <span
-                          className={`crm-badge border ${
-                            pay.status === 'Paid'
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : pay.status === 'Pending'
+                          className={`crm-badge border ${pay.status === 'Paid'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : pay.status === 'Pending'
                               ? 'bg-amber-50 text-amber-700 border-amber-200'
                               : 'bg-sky-50 text-sky-700 border-sky-200'
-                          }`}
+                            }`}
                         >
                           ● {pay.status}
                         </span>
@@ -1370,9 +1366,9 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
               </table>
             </div>
 
-              {(patient.payments || []).length === 0 && (
-                <div className="text-center py-12 text-slate-500">No payment transaction records found.</div>
-              )}
+            {(patient.payments || []).length === 0 && (
+              <div className="text-center py-12 text-slate-500">No payment transaction records found.</div>
+            )}
           </div>
         )}
 
@@ -1724,7 +1720,7 @@ function DoctorPatients() {
         </div>
         <div className="flex items-center gap-3">
           <div className="relative" ref={actionsMenuRef}>
-            <button 
+            <button
               onClick={() => setShowActionsMenu(!showActionsMenu)}
               className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm"
             >
@@ -1780,11 +1776,10 @@ function DoctorPatients() {
             <button
               key={v}
               onClick={() => setFilterStatus(v)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
-                filterStatus === v
-                  ? 'bg-aubergine-600 text-white border-aubergine-600 shadow-xs'
-                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-aubergine-300'
-              }`}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${filterStatus === v
+                ? 'bg-aubergine-600 text-white border-aubergine-600 shadow-xs'
+                : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-aubergine-300'
+                }`}
             >
               {l}
             </button>
@@ -1792,7 +1787,7 @@ function DoctorPatients() {
         </div>
         <p className="text-xs text-slate-500 font-medium">{filtered.length} results</p>
       </div>
-      
+
       {/* Select All Bar */}
       {filtered.length > 0 && (
         <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl">
@@ -1814,9 +1809,8 @@ function DoctorPatients() {
         {filtered.map((p) => (
           <div
             key={p.id}
-            className={`rounded-2xl border shadow-sm hover:shadow-md transition-all overflow-hidden p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 ${
-              selectedIds.includes(p.id) ? 'bg-slate-50 border-aubergine-300' : 'bg-white border-slate-200 hover:border-aubergine-300'
-            }`}
+            className={`rounded-2xl border shadow-sm hover:shadow-md transition-all overflow-hidden p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 ${selectedIds.includes(p.id) ? 'bg-slate-50 border-aubergine-300' : 'bg-white border-slate-200 hover:border-aubergine-300'
+              }`}
           >
             {/* Selection Checkbox */}
             <div className="flex-shrink-0">

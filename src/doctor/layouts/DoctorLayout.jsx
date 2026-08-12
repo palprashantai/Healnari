@@ -24,7 +24,7 @@ const NAV_ITEMS = [
   { name: 'Telemedicine',     icon: 'fa-video',               path: '/doctor-dashboard/telemedicine', end: false, color: '#6366f1' },
   { name: 'Communication Center',icon: 'fa-bullhorn',         path: '/doctor-dashboard/communications',end:false, color: '#ec4899' },
   { name: 'Lab & Reports',    icon: 'fa-flask',               path: '/doctor-dashboard/reports',      end: false, color: '#f59e0b' },
-  { name: 'Billing',          icon: 'fa-file-invoice-dollar', path: '/doctor-dashboard/billing',      end: false, color: '#14b8a6' },
+  { name: 'Earnings & Payouts', icon: 'fa-file-invoice-dollar', path: '/doctor-dashboard/billing',      end: false, color: '#14b8a6' },
   { name: 'Staff Management', icon: 'fa-user-nurse',          path: '/doctor-dashboard/staff',        end: false, color: '#d946ef' },
   { name: 'My Profile',       icon: 'fa-circle-user',         path: '/doctor-dashboard/profile',      end: false, color: '#64748b' },
 ];
@@ -100,53 +100,60 @@ function SidebarContent({ user, onClose, onItemHover }) {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-aubergine-900">
       {/* Logo */}
-      <div className="h-16 flex items-center px-5 border-b border-white/10 shrink-0">
+      <div className="h-16 flex items-center px-6 shrink-0 pt-2">
         <NavLink to="/doctor-dashboard" className="flex items-center">
           <HealNariLogo showTagline={false} size="sm" variant="dark" />
         </NavLink>
-        <span className="ml-auto text-[10px] bg-magenta-500 text-white px-2.5 py-0.5 rounded-full font-bold border border-magenta-400/30">Provider</span>
+        <span className="ml-auto text-[9px] text-aubergine-300 font-bold uppercase tracking-widest border border-aubergine-500/30 bg-aubergine-500/10 px-2 py-0.5 rounded-full shadow-inner">Provider</span>
       </div>
 
       {/* Doctor Badge */}
-      <div className="mx-4 mt-4 mb-1 py-2.5 px-3 bg-white/5 rounded-xl border border-white/10 flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-full bg-aubergine-600 flex items-center justify-center text-white text-xs font-black shrink-0">
+      <div className="mx-4 mt-6 mb-4 py-2 px-3 bg-white/[0.03] hover:bg-white/[0.06] transition-colors rounded-xl border border-white/5 flex items-center gap-3 cursor-pointer group">
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-aubergine-500 to-magenta-600 shadow-lg flex items-center justify-center text-white text-xs font-black shrink-0 relative">
           {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'DR'}
+          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
         </div>
         <div className="min-w-0">
-          <p className="text-white text-xs font-bold leading-tight truncate">{user?.name || 'Dr. Sarah Mitchell'}</p>
-          <p className="text-aubergine-300 text-[10px] truncate">{user?.specialty || 'Gynaecologist'}</p>
+          <p className="text-slate-200 text-xs font-bold leading-tight truncate group-hover:text-white transition-colors">{user?.name || 'Dr. Sarah Mitchell'}</p>
+          <p className="text-slate-500 text-[10px] truncate">{user?.specialty || 'Gynaecologist'}</p>
         </div>
-        <div className="w-2 h-2 bg-emerald-400 rounded-full flex-shrink-0 ml-auto" title="Online"></div>
       </div>
 
       {/* Nav */}
-      <nav className="px-4 pt-3 flex-1 overflow-y-auto">
-        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-2 px-2">Provider Portal</p>
-        <NavHoverRail indicatorClassName="bg-white/5">
+      <nav className="px-3 pt-2 flex-1 overflow-y-auto hide-scrollbar">
+        <p className="text-[11px] font-bold text-aubergine-300/60 uppercase tracking-widest mb-3 px-3">Main Menu</p>
+        <NavHoverRail indicatorClassName="bg-aubergine-800/40 rounded-xl">
           {NAV_ITEMS.map(item => (
             <NavLink key={item.name} to={item.path} end={item.end} onClick={onClose}
               onMouseEnter={() => onItemHover?.(item.color)}
               onMouseLeave={() => onItemHover?.(null)}
               data-nav-item
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 ${isActive
-                  ? 'bg-aubergine-600 text-white shadow-sm'
-                  : 'text-white/60 hover:text-white'
+                `group flex items-center gap-3.5 px-4 py-3 mb-1 rounded-xl font-medium text-[14px] tracking-wide transition-all duration-300 ${
+                  isActive
+                    ? 'bg-gradient-to-r from-aubergine-600/90 to-aubergine-700/50 text-white shadow-md shadow-aubergine-900/40 border border-aubergine-500/30'
+                    : 'text-aubergine-200/70 hover:text-white border border-transparent'
                 }`
               }>
-              <div className="w-5 text-center transition-transform duration-200"><i className={`fas ${item.icon}`}></i></div>
-              {item.name}
+              {({ isActive }) => (
+                <>
+                  <div className={`w-6 flex justify-center items-center transition-all duration-300 ${isActive ? 'text-white drop-shadow-md scale-110' : 'text-aubergine-300/70 group-hover:text-white group-hover:scale-110'}`}>
+                    <i className={`fas ${item.icon} text-[16px]`}></i>
+                  </div>
+                  <span className="flex-1 truncate">{item.name}</span>
+                </>
+              )}
             </NavLink>
           ))}
         </NavHoverRail>
       </nav>
 
       {/* Logout */}
-      <div className="p-4 border-t border-white/10 shrink-0">
+      <div className="p-4 shrink-0">
         <button onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm text-white/40 hover:bg-rose-900/30 hover:text-rose-300 transition-all w-full">
+          className="flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-[13px] text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 border border-transparent transition-all w-full">
           <div className="w-5 text-center"><i className="fas fa-right-from-bracket"></i></div>
           Sign Out
         </button>
@@ -256,7 +263,7 @@ function DoctorLayout() {
   return (
     <div className="flex h-screen overflow-hidden font-sans bg-slate-50">
       {/* Desktop Sidebar */}
-      <aside className="w-60 hidden md:flex flex-col flex-shrink-0 bg-aubergine-900">
+      <aside className="w-64 hidden md:flex flex-col flex-shrink-0 bg-aubergine-900 border-r border-aubergine-800">
         <SidebarContent user={user} onItemHover={setHoveredColor} />
       </aside>
 
@@ -264,7 +271,7 @@ function DoctorLayout() {
       {drawerOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDrawerOpen(false)}></div>
-          <aside className="absolute left-0 top-0 h-full w-72 flex flex-col shadow-2xl animate-slide-in bg-aubergine-900">
+          <aside className="absolute left-0 top-0 h-full w-72 flex flex-col shadow-2xl animate-slide-in bg-aubergine-900 border-r border-aubergine-800">
             <div className="absolute top-4 right-4">
               <button onClick={() => setDrawerOpen(false)} className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors">
                 <i className="fas fa-xmark"></i>
@@ -280,7 +287,7 @@ function DoctorLayout() {
         <ModuleAccentBar color={hoveredColor || DEFAULT_ACCENT} className="rounded-none" />
         <div ref={chromeRef}>
         {/* Topbar */}
-        <header className="h-16 border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0 bg-white shadow-xs z-20">
+        <header className="h-16 border-b border-slate-200/60 flex items-center justify-between px-4 md:px-6 shrink-0 bg-white/80 backdrop-blur-md shadow-sm z-20">
           <div className="flex items-center gap-3">
             <button onClick={() => setDrawerOpen(true)} className="md:hidden text-slate-500 hover:text-aubergine-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
               <i className="fas fa-bars text-xl"></i>
@@ -298,11 +305,11 @@ function DoctorLayout() {
 
           <div className="flex items-center gap-3">
             {/* Patient Search */}
-            <div className="relative hidden sm:block">
-              <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+            <div className="relative hidden sm:block group">
+              <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm group-focus-within:text-aubergine-500 transition-colors"></i>
               <input type="text" value={search} onChange={e => handleSearch(e.target.value)}
                 placeholder="Search patients by Name or MRN..."
-                className="pl-9 pr-4 py-1.5 bg-slate-100 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-aubergine-300 focus:ring-2 focus:ring-aubergine-100 transition-all outline-none w-64" />
+                className="pl-11 pr-4 py-2 bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-full text-[13px] focus:bg-white focus:border-aubergine-400 focus:ring-4 focus:ring-aubergine-50 transition-all outline-none w-64 shadow-inner" />
               {searchResults.length > 0 && (
                 <div className="absolute top-full left-0 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
                   {searchResults.map(p => (

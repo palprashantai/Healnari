@@ -10,6 +10,7 @@ import {
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { SupabaseService } from '@/core/supabase/supabase.service';
+import { resolveSupabaseToken } from '@/core/auth/supabase-token.util';
 import { AppointmentStatus, AppointmentType } from '@/shared/interfaces/appointment.interface';
 
 /** Relays WebRTC SDP offers/answers and ICE candidates between exactly the
@@ -35,13 +36,9 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const token = client.handshake.auth?.token || client.handshake.query?.token;
     if (typeof token !== 'string' || !token) return;
 
-    try {
-      const { data: userResponse, error } = await this.supabase.anon.auth.getUser(token);
-      if (error || !userResponse?.user) return;
-      client.data.userId = userResponse.user.id;
-    } catch {
-      // Invalid/expired token — leave userId unset; call:join will reject.
-    }
+    const identity = await resolveSupabaseToken(this.supabase.anon, token);
+    if (identity) client.data.userId = identity.id;
+    // Invalid/expired token — leave userId unset; call:join will reject.
   }
 
   handleDisconnect(@ConnectedSocket() client: Socket) {

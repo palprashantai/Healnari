@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { AllExceptionsFilter } from './core/filters/http-exception.filter';
 import { initSentry } from './core/monitoring/sentry';
 import helmet from 'helmet';
+import compression from 'compression';
 
 initSentry();
 
@@ -20,6 +21,10 @@ async function bootstrap() {
 
   // Use Helmet for security headers
   app.use(helmet());
+
+  // Gzip/brotli-negotiated compression for JSON responses — analytics and
+  // list endpoints ship uncompressed multi-KB payloads otherwise.
+  app.use(compression());
 
   // Allow the frontend dev/prod origin(s) to make requests.
   // FRONTEND_URL may hold a single origin or a comma-separated list; it is

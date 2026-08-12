@@ -7,6 +7,8 @@ import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 @Injectable()
 export class TelemedicineService {
   private readonly logger = new Logger(TelemedicineService.name);
+  private cachedIceServers: { urls: string; username?: string; credential?: string }[] | null = null;
+  private iceServersExpiresAt = 0;
 
   constructor(
     private readonly supabase: SupabaseService,
@@ -95,6 +97,14 @@ export class TelemedicineService {
       return stunServers;
     }
 
+    // Every call join was hitting Metered's API fresh — a full external
+    // round trip on the call-start hot path. TURN REST API credentials are
+    // time-limited but not single-use, so reuse them until shortly before
+    // they actually expire instead of refetching on every join.
+    if (this.cachedIceServers && Date.now() < this.iceServersExpiresAt) {
+      return this.cachedIceServers;
+    }
+
     try {
       const res = await fetch(`https://${domain}/api/v1/turn/credentials?apiKey=${apiKey}`);
       if (!res.ok) {
@@ -106,8 +116,24 @@ export class TelemedicineService {
         return stunServers;
       }
       const turnServers = await res.json();
-      this.logger.log(`TURN credentials fetched OK (${Array.isArray(turnServers) ? turnServers.length : 0} server(s))`);
-      return [...stunServers, ...turnServers];
+      const combined = [...stunServers, ...turnServers];
+
+      // TURN REST API usernames conventionally embed their expiry as the
+      // leading "<unix-seconds>:" segment — refresh a minute before that so
+      // a join right at the boundary never gets a stale credential. Falls
+      // back to a conservative 30-minute cache if that convention isn't
+      // followed (or the field is missing).
+      const sampleUsername = Array.isArray(turnServers) ? turnServers.find((s: any) => s?.username)?.username : undefined;
+      const expiryUnixSeconds = typeof sampleUsername === 'string' ? parseInt(sampleUsername.split(':')[0], 10) : NaN;
+      const ttlMs = Number.isFinite(expiryUnixSeconds) && expiryUnixSeconds > 0
+        ? Math.max(0, expiryUnixSeconds * 1000 - Date.now() - 60_000)
+        : 30 * 60 * 1000;
+
+      this.cachedIceServers = combined;
+      this.iceServersExpiresAt = Date.now() + ttlMs;
+
+      this.logger.log(`TURN credentials fetched OK (${Array.isArray(turnServers) ? turnServers.length : 0} server(s)), cached for ${Math.round(ttlMs / 1000)}s`);
+      return combined;
     } catch (err) {
       this.logger.error(`TURN credential fetch threw: ${err.message} — falling back to STUN-only.`);
       return stunServers;

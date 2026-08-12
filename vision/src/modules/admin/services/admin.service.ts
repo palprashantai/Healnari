@@ -106,27 +106,33 @@ export class AdminService {
         months.push(d.toISOString().slice(0, 7)); // "YYYY-MM"
       }
 
-      // Get all completed appointments with doctor fees grouped by month
-      const { data: completedApts } = await this.supabase.admin
-        .from('appointments')
-        .select('doctor_id, scheduled_date')
-        .eq('status', AppointmentStatus.DONE);
-
-      // All appointments (any status) for status/type breakdowns
-      const { data: allApts } = await this.supabase.admin
-        .from('appointments')
-        .select('status, type');
-
-      // Get patient counts by month (joined date)
-      const { data: allPatients } = await this.supabase.admin
-        .from('profiles')
-        .select('created_at')
-        .eq('role', ProfileRole.PATIENT);
-
-      const { data: allDoctors } = await this.supabase.admin
-        .from('profiles')
-        .select('id, created_at, consultation_fee, specialty')
-        .eq('role', ProfileRole.DOCTOR);
+      // These four queries are independent of one another — run them
+      // concurrently instead of paying four sequential round-trips.
+      const [
+        { data: completedApts },
+        { data: allApts },
+        { data: allPatients },
+        { data: allDoctors },
+      ] = await Promise.all([
+        // Get all completed appointments with doctor fees grouped by month
+        this.supabase.admin
+          .from('appointments')
+          .select('doctor_id, scheduled_date')
+          .eq('status', AppointmentStatus.DONE),
+        // All appointments (any status) for status/type breakdowns
+        this.supabase.admin
+          .from('appointments')
+          .select('status, type'),
+        // Get patient counts by month (joined date)
+        this.supabase.admin
+          .from('profiles')
+          .select('created_at')
+          .eq('role', ProfileRole.PATIENT),
+        this.supabase.admin
+          .from('profiles')
+          .select('id, created_at, consultation_fee, specialty')
+          .eq('role', ProfileRole.DOCTOR),
+      ]);
 
       const doctorFeeMap = new Map((allDoctors || []).map(d => [d.id, { fee: Number(d.consultation_fee || 0), specialty: d.specialty || 'General' }]));
 
@@ -206,23 +212,38 @@ export class AdminService {
   }
 
   // ─── Users ───────────────────────────────────────────────────────
-  async getAllUsers(role?: string) {
+  async getAllUsers(role?: string, page = 1, limit = 50, search?: string) {
     try {
-      let q = this.supabase.admin.from('profiles').select('id, full_name, email, phone, role, status, created_at');
+      let q = this.supabase.admin
+        .from('profiles')
+        .select('id, full_name, email, phone, role, status, created_at', { count: 'exact' });
       if (role) q = q.eq('role', role);
       else q = q.eq('role', ProfileRole.PATIENT);
-      const { data } = await q.order('created_at', { ascending: false });
-      return (data || []).map(u => ({
-        id: u.id,
-        name: u.full_name || 'Unknown',
-        email: u.email || '',
-        phone: u.phone || '',
-        role: u.role,
-        status: u.status || 'Active',
-        joined: u.created_at ? new Date(u.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
-        ltv: 0,
-        lastVisit: 'N/A',
-      }));
+      if (search) {
+        // Strip characters that are structurally significant in a PostgREST
+        // filter string (`,` separates or-conditions, `(`/`)` group them) so
+        // a search term can't break out of the ilike clauses below.
+        const safeSearch = search.replace(/[,()%_]/g, ' ').trim();
+        if (safeSearch) q = q.or(`full_name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%`);
+      }
+
+      const from = (page - 1) * limit;
+      const { data, count } = await q.order('created_at', { ascending: false }).range(from, from + limit - 1);
+
+      return {
+        users: (data || []).map(u => ({
+          id: u.id,
+          name: u.full_name || 'Unknown',
+          email: u.email || '',
+          phone: u.phone || '',
+          role: u.role,
+          status: u.status || 'Active',
+          joined: u.created_at ? new Date(u.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+          ltv: 0,
+          lastVisit: 'N/A',
+        })),
+        total: count || 0,
+      };
     } catch (error) {
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
     }

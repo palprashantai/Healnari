@@ -21,6 +21,7 @@ export function setTokens(tokens) {
 
 export function clearTokens() {
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem('healnari_user');
   clearTokensFromIndexedDb();
 }
 
@@ -88,7 +89,12 @@ export async function apiFetch(path, { method = 'GET', body, skipAuth = false, r
 
   const payload = await res.json().catch(() => null);
   if (!res.ok || (payload && payload.success === false)) {
-    throw new Error(payload?.message || `Request failed (${res.status})`);
+    const err = new Error(payload?.message || `Request failed (${res.status})`);
+    err.status = res.status;
+    throw err;
   }
-  return payload?.data;
+  // Paginated endpoints (ResponseHelper.paginated) carry a sibling
+  // `pagination` object alongside `data` — surface both instead of
+  // silently dropping page/total info that callers need to page through.
+  return payload?.pagination ? { data: payload.data, pagination: payload.pagination } : payload?.data;
 }
