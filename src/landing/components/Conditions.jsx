@@ -22,7 +22,7 @@ function Conditions() {
           Clinical Focus
         </span>
         <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight font-display">
-          Women's health concerns we treat
+          Women's health conditions we treat online
         </h2>
         <p className="text-slate-500 text-sm md:text-base">
           Our specialized team is trained in root-cause clinical gynaecology, reproductive medicine, and nutritional science.

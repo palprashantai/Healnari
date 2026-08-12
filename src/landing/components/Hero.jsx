@@ -26,7 +26,7 @@ function Hero({ onStartConsult, onOpenChecker }) {
           {/* Main Titles */}
           <div className="space-y-4">
             <h1 className="text-4xl sm:text-5xl lg:text-5xl lg:leading-[1.15] font-extrabold tracking-tight text-slate-900 font-display">
-              Finally, Healthcare That <br className="hidden lg:block" />
+              Online PCOS & Hormonal Healthcare That <br className="hidden lg:block" />
               Treats the <span className="text-aubergine-600">Root Cause</span>
             </h1>
             <div className="space-y-3 max-w-xl mx-auto lg:mx-0">
@@ -81,7 +81,7 @@ function Hero({ onStartConsult, onOpenChecker }) {
             <div className="w-full h-full rounded-full overflow-hidden border-8 border-white shadow-2xl relative">
               <img
                 src="/generated/hero.png"
-                alt="Portrait of a smiling Indian woman, representing a HealNari patient"
+                alt="Patient consulting an online gynaecologist for PCOS and hormonal health at HealNari"
                 width="500"
                 height="500"
                 fetchpriority="high"

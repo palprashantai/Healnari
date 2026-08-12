@@ -101,9 +101,9 @@ function LandingPage() {
               <span className="inline-flex items-center gap-1.5 bg-brand-800/60 backdrop-blur border border-brand-700 text-brand-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                 <i className="fas fa-percent text-emerald-400"></i> Introductory Offer
               </span>
-              <h2 className="text-3xl md:text-4xl font-black leading-tight text-white font-display">
+              <div className="text-3xl md:text-4xl font-black leading-tight text-white font-display">
                 Discuss your concerns with an expert for just <span className="underline decoration-white/40 decoration-wavy">₹299</span>
-              </h2>
+              </div>
               <p className="text-white/90 text-base max-w-xl mx-auto leading-relaxed font-medium">
                 Receive a provisional clinical assessment, personalized lab-testing roadmap, and initial lifestyle protocols. No judgment, 100% private.
               </p>
