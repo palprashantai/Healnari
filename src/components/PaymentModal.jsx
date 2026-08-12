@@ -61,7 +61,15 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, descripti
       const cashfree = await getCashfree();
       if (!cashfree) throw new Error('Could not load the payment gateway. Check your connection and try again.');
 
-      await cashfree.checkout({ paymentSessionId: order.paymentSessionId, redirectTarget: '_modal' });
+      await cashfree.checkout({ 
+        paymentSessionId: order.paymentSessionId, 
+        redirectTarget: '_modal',
+        appearance: {
+          theme: 'light',
+          color: '#6B46C1', // HealNari Purple
+          fontFamily: 'Inter, system-ui, sans-serif'
+        }
+      });
 
       // The SDK promise resolving only means the checkout UI closed — it does
       // NOT mean the payment succeeded (user may have cancelled, or the bank

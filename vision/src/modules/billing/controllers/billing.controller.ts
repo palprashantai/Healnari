@@ -30,7 +30,7 @@ export class RecordChargeDto {
 @ApiTags('Billing')
 @Controller('api/billing')
 export class BillingController {
-  constructor(private readonly billingService: BillingService) {}
+  constructor(private readonly billingService: BillingService) { }
 
   @ApiOperation({ summary: "List the caller's transactions (patient: own payments; doctor: payments they billed)" })
   @Get('transactions')
@@ -66,7 +66,7 @@ export class BillingController {
   @Post('webhook/cashfree')
   async cashfreeWebhook(@Body() body: any) {
     const orderId = body?.data?.order?.order_id || body?.order_id;
-    if (orderId) await this.billingService.reconcileCashfreeOrder(orderId).catch(() => {});
+    if (orderId) await this.billingService.reconcileCashfreeOrder(orderId).catch(() => { });
     return { ok: true };
   }
 

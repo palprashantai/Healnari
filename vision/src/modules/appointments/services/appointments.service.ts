@@ -563,4 +563,26 @@ export class AppointmentsService {
 
     if (claimed?.length) this.logger.log(`Sent ${claimed.length} delay notification(s).`);
   }
+
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  async releaseUnpaidSlots() {
+    // Free any slot where the payment wasn't completed within 5 minutes
+    const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    
+    const { data: expired, error } = await this.supabase.admin
+      .from('appointments')
+      .update({ status: AppointmentStatus.CANCELLED })
+      .eq('status', AppointmentStatus.REQUESTED)
+      .lt('created_at', fiveMinsAgo)
+      .select('id');
+
+    if (error) {
+      this.logger.error('Failed to release unpaid slots:', error);
+      return;
+    }
+
+    if (expired?.length) {
+      this.logger.log(`Released ${expired.length} unpaid slots due to payment timeout.`);
+    }
+  }
 }

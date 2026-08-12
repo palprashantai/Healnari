@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { CashfreeService } from '@/core/cashfree/cashfree.service';
 import { InvoiceService } from '@/modules/billing/services/invoice.service';
@@ -33,7 +33,7 @@ export class BillingService {
     private readonly invoices: InvoiceService,
     private readonly notifications: NotificationsService,
     private readonly email: EmailService,
-  ) {}
+  ) { }
 
   private async withNames(payments: any[]) {
     if (!payments.length) return [];
@@ -160,9 +160,15 @@ export class BillingService {
       cf_order_id: cfOrderId,
     };
 
-    const { data: saved } = pending
+    const { data: saved, error } = pending
       ? await this.supabase.admin.from('payments').update(row).eq('id', pending.id).select().single()
       : await this.supabase.admin.from('payments').insert(row).select().single();
+
+    if (error || !saved) {
+      throw new InternalServerErrorException(
+        `Database error during payment creation: ${error?.message || 'Unknown error'}. Did you forget to apply the database migrations?`
+      );
+    }
 
     return { orderId: cfOrderId, paymentSessionId: order.payment_session_id, amount, currency, paymentId: saved.id };
   }

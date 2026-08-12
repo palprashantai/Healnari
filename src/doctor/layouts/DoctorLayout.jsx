@@ -256,7 +256,7 @@ function DoctorLayout() {
   return (
     <div className="flex h-screen overflow-hidden font-sans bg-slate-50">
       {/* Desktop Sidebar */}
-      <aside className="w-64 hidden md:flex flex-col flex-shrink-0 bg-aubergine-900">
+      <aside className="w-60 hidden md:flex flex-col flex-shrink-0 bg-aubergine-900">
         <SidebarContent user={user} onItemHover={setHoveredColor} />
       </aside>
 
@@ -476,7 +476,7 @@ function DoctorLayout() {
         )}
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-3 md:p-5">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
           {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
           <PageTransition />
         </main>

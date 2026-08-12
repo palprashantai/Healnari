@@ -54,8 +54,9 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow })
     try {
       const apt = await addAppointment({ doctorId: doc.id, type, date, time: slot, reason: notes });
       setBookedApt(apt);
-      setStep(3);
-      toast(`Appointment booked with ${doc?.name}!`, 'success');
+      toast(`Slot reserved for 5 minutes! Please complete payment to confirm.`, 'info');
+      onPayNow({ id: apt.id, fee: doc.fee, doctorName: doc.name });
+      reset();
     } catch (err) {
       toast(err.message || 'Failed to book appointment. Please try again.', 'error');
     } finally {
@@ -90,9 +91,7 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow })
             <span className="font-black text-aubergine-800">₹{doc.fee}</span>
           </div>
 
-          {/* Type — a button group, not a single input, so this is a group
-              label (role="group") rather than a <label htmlFor> pointing at
-              nothing (AUDIT_REPORT.md FE-2). */}
+          {/* Type */}
           <div>
             <p className="text-xs font-bold text-slate-500 mb-1.5 block" id="consult-type-label">Consult Type</p>
             <div className="flex gap-2" role="group" aria-labelledby="consult-type-label">
@@ -112,7 +111,7 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow })
               className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
           </div>
 
-          {/* Slots — same as Consult Type above, a group of buttons. */}
+          {/* Slots */}
           <div>
             <p className="text-xs font-bold text-slate-500 mb-1.5 block" id="available-slots-label">Available Slots</p>
             {slotsLoading ? (
@@ -141,7 +140,7 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow })
 
           <button disabled={!slot} onClick={() => setStep(2)}
             className="w-full bg-aubergine-600 disabled:opacity-40 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
-            Review & Confirm →
+            Review & Pay →
           </button>
         </div>
       )}
@@ -162,33 +161,7 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow })
           <div className="flex gap-3">
             <button onClick={() => setStep(1)} disabled={booking} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors disabled:opacity-40">← Back</button>
             <button onClick={confirm} disabled={booking} className="flex-1 bg-emerald-600 disabled:opacity-40 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-              {booking ? <i className="fas fa-spinner fa-spin text-xs"></i> : <i className="fas fa-calendar-check text-xs"></i>} {booking ? 'Booking…' : 'Confirm Booking'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {step === 3 && (
-        <div className="text-center space-y-4 py-4">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 text-3xl flex items-center justify-center mx-auto border-2 border-emerald-200">
-            <i className="fas fa-circle-check"></i>
-          </div>
-          <h4 className="font-black text-slate-800 text-xl">Appointment Booked!</h4>
-          <p className="text-sm text-slate-500 leading-relaxed">
-            Your consultation is confirmed. Pay now to secure your slot, or pay later from My Appointments.
-          </p>
-          <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-xs text-left space-y-1.5">
-            <div className="flex justify-between"><span className="text-slate-500">With</span><span className="font-bold">{doc.name}</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">Date</span><span className="font-bold">{date}</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">Slot</span><span className="font-bold">{slot}</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">Type</span><span className="font-bold">{type}</span></div>
-            <div className="flex justify-between border-t border-emerald-100 pt-1.5 mt-1.5"><span className="text-slate-500">Fee</span><span className="font-black text-aubergine-800">₹{doc.fee}</span></div>
-          </div>
-          <div className="flex gap-3">
-            <button onClick={reset} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors">Pay Later</button>
-            <button onClick={() => { onPayNow({ id: bookedApt.id, fee: doc.fee, doctorName: doc.name }); reset(); }}
-              className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-              <i className="fas fa-lock text-xs"></i> Pay Now
+              {booking ? <i className="fas fa-spinner fa-spin text-xs"></i> : <i className="fas fa-lock text-xs"></i>} {booking ? 'Locking Slot…' : 'Pay & Confirm'}
             </button>
           </div>
         </div>

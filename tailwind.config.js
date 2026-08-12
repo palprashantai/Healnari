@@ -103,6 +103,14 @@ export default {
         '3.5xl': '2.0rem',
         '4.5xl': '2.5rem',
       },
+      fontWeight: {
+        normal: '400',
+        medium: '500',
+        semibold: '600',
+        bold: '700',
+        extrabold: '800',
+        black: '900',
+      },
       borderRadius: {
         '2xl': '1rem',
         '3xl': '1.5rem',

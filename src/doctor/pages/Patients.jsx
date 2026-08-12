@@ -7,6 +7,7 @@ import { DoseSchedule } from '../../components/DoseSchedule.jsx';
 import { RxStatusBadge } from '../../components/RxStatus.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { buildPatientTimeline } from '../../lib/patientTimeline.js';
+import { openPrescriptionPrintWindow } from '../../lib/prescriptionPrint.js';
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -227,7 +228,7 @@ function RequestLabReportModal({ isOpen, onClose, patient, onRequest }) {
             value={requestedTests}
             onChange={(e) => setRequestedTests(e.target.value)}
             placeholder="e.g. Serum AMH, TSH & Free T4, TVS Ultrasound Scan"
-            className="w-full border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300"
+            className="crm-input"
           />
           <p className="text-[11px] text-slate-500 mt-1">The patient will be notified to get this done externally and upload the report here.</p>
         </div>
@@ -238,7 +239,7 @@ function RequestLabReportModal({ isOpen, onClose, patient, onRequest }) {
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300"
+            className="crm-input"
           />
         </div>
 
@@ -253,12 +254,12 @@ function RequestLabReportModal({ isOpen, onClose, patient, onRequest }) {
           />
         </div>
 
-        <div className="flex gap-3 pt-3 border-t border-slate-100">
-          <button type="button" onClick={onClose} className="flex-1 border border-slate-200 text-slate-600 font-bold py-2 rounded-xl text-sm hover:bg-slate-50">
+        <div className="flex gap-3 pt-4 border-t border-slate-100">
+          <button type="button" onClick={onClose} className="flex-1 crm-btn-secondary">
             Cancel
           </button>
-          <button type="submit" disabled={submitting} className="flex-1 bg-aubergine-700 hover:bg-aubergine-800 disabled:opacity-50 text-white font-bold py-2 rounded-xl text-sm transition-colors flex items-center justify-center gap-1.5">
-            <i className="fas fa-paper-plane"></i> {submitting ? 'Sending…' : 'Send Request'}
+          <button type="submit" disabled={submitting} className="flex-1 crm-btn-primary disabled:opacity-50">
+            <i className="fas fa-paper-plane mr-1.5"></i> {submitting ? 'Sending…' : 'Send Request'}
           </button>
         </div>
       </form>
@@ -369,12 +370,12 @@ function InlineRecordPaymentModal({ isOpen, onClose, patient, onSavePayment }) {
           </div>
         </div>
 
-        <div className="flex gap-3 pt-3 border-t border-slate-100">
-          <button type="button" onClick={onClose} className="flex-1 border border-slate-200 text-slate-600 font-bold py-2 rounded-xl text-sm hover:bg-slate-50">
+        <div className="flex gap-3 pt-4 border-t border-slate-100">
+          <button type="button" onClick={onClose} className="flex-1 crm-btn-secondary">
             Cancel
           </button>
-          <button type="submit" className="flex-1 bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold py-2 rounded-xl text-sm transition-colors flex items-center justify-center gap-1.5">
-            <i className="fas fa-receipt"></i> Save Payment Invoice
+          <button type="submit" className="flex-1 crm-btn-primary">
+            <i className="fas fa-receipt mr-1.5"></i> Save Payment Invoice
           </button>
         </div>
       </form>
@@ -420,37 +421,35 @@ function ViewInvoiceModal({ invoice, patient, isOpen, onClose }) {
         </div>
 
         {/* Table */}
-        <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
-                <tr>
-                  <th className="p-3">Service Description</th>
-                  <th className="p-3">Category</th>
-                  <th className="p-3 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="p-3 font-bold text-slate-800">{invoice.service}</td>
-                  <td className="p-3 text-slate-600">{invoice.category}</td>
-                  <td className="p-3 text-right font-black text-slate-900 text-sm">₹{invoice.amount.toLocaleString('en-IN')}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div className="bg-slate-50 p-3 border-t border-slate-200 flex justify-between items-center text-xs">
+        <div className="crm-table-container">
+          <table className="crm-table">
+            <thead>
+              <tr>
+                <th>Service Description</th>
+                <th>Category</th>
+                <th className="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="font-bold text-slate-800">{invoice.service}</td>
+                <td>{invoice.category}</td>
+                <td className="text-right font-black text-slate-900">₹{invoice.amount.toLocaleString('en-IN')}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-between items-center text-[14px]">
             <span className="font-bold text-slate-700">Total Billed Amount Paid</span>
-            <span className="font-black text-aubergine-900 text-base">₹{invoice.amount.toLocaleString('en-IN')}</span>
+            <span className="font-black text-aubergine-900 text-[16px]">₹{invoice.amount.toLocaleString('en-IN')}</span>
           </div>
         </div>
 
         {/* Actions */}
         <div className="flex gap-3 pt-2">
-          <button onClick={() => window.print()} className="flex-1 bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2">
-            <i className="fas fa-print"></i> Print Invoice PDF
+          <button onClick={() => window.print()} className="flex-1 crm-btn-primary">
+            <i className="fas fa-print mr-2"></i> Print Invoice PDF
           </button>
-          <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs hover:bg-slate-50">
+          <button onClick={onClose} className="flex-1 crm-btn-secondary">
             Close
           </button>
         </div>
@@ -460,8 +459,12 @@ function ViewInvoiceModal({ invoice, patient, isOpen, onClose }) {
 }
 
 /* ─── View Rx Document Modal ─────────────────────────── */
-function ViewRxDocModal({ rx, patient, isOpen, onClose }) {
+function ViewRxDocModal({ rx, patient, labRequests, isOpen, onClose }) {
   if (!isOpen || !rx || !patient) return null;
+
+  const matchingLabTests = (labRequests || []).filter(
+    r => (r.created_at ? new Date(r.created_at).toLocaleDateString() : '') === rx.date
+  );
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Digital Prescription Document" size="lg">
@@ -499,33 +502,46 @@ function ViewRxDocModal({ rx, patient, isOpen, onClose }) {
         {/* Prescription Table */}
         <div>
           <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-2">Prescribed Medications</h4>
-          <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
-                  <tr>
-                    <th className="p-3">Medication</th>
-                    <th className="p-3">Dosage</th>
-                    <th className="p-3">Schedule</th>
-                    <th className="p-3">Duration</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  <tr>
-                    <td className="p-3 font-black text-slate-800">{rx.medName}</td>
-                    <td className="p-3 font-semibold text-slate-700">{rx.dosage}</td>
-                    <td className="p-3">
-                      <span className="bg-aubergine-50 text-aubergine-700 border border-aubergine-200 font-bold px-2 py-0.5 rounded text-[11px]">
-                        {rx.schedule}
+          <div className="crm-table-container">
+            <table className="crm-table">
+              <thead>
+                <tr>
+                  <th>Medication</th>
+                  <th>Dosage</th>
+                  <th>Schedule</th>
+                  <th>Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rx.medicines?.map((m, i) => (
+                  <tr key={i}>
+                    <td className="font-black text-slate-800">{m.medName}</td>
+                    <td className="font-semibold text-slate-700">{m.dosage || 'Standard'}</td>
+                    <td>
+                      <span className="crm-badge bg-aubergine-50 text-aubergine-700 border border-aubergine-200">
+                        {m.schedule}
                       </span>
                     </td>
-                    <td className="p-3 text-slate-600">{rx.duration}</td>
+                    <td>{m.duration}</td>
                   </tr>
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
+
+        {matchingLabTests.length > 0 && (
+          <div>
+            <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-2 mt-4">Suggested Lab Tests</h4>
+            <div className="bg-sky-50 border border-sky-100 rounded-xl p-3.5 text-xs">
+              <ul className="list-disc pl-4 space-y-1 text-sky-900 font-medium">
+                {matchingLabTests.map((req, i) => (
+                  <li key={i}>{req.requested_tests}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
 
         {/* Special Instructions */}
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs">
@@ -547,8 +563,23 @@ function ViewRxDocModal({ rx, patient, isOpen, onClose }) {
         </div>
 
         <div className="flex gap-3 pt-2">
-          <button onClick={() => window.print()} className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2">
-            <i className="fas fa-print"></i> Print Prescription
+          <button onClick={() => {
+            openPrescriptionPrintWindow({
+              rxId: rx.id,
+              date: rx.date,
+              doctor: { name: rx.prescribedBy },
+              patient: { name: patient.name, age: patient.age },
+              diagnosis: patient.diagnosis,
+              medicines: rx.medicines?.map(m => ({
+                name: m.medName,
+                schedule: m.schedule,
+                duration: m.duration
+              })) || [],
+              labTests: matchingLabTests.map(r => r.requested_tests),
+              instructions: rx.instructions
+            });
+          }} className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2">
+            <i className="fas fa-download"></i> Download PDF
           </button>
           <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs hover:bg-slate-50">
             Close Document
@@ -669,6 +700,33 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
     () => buildPatientTimeline(patient, (appointments || []).filter(a => a.patientId === patient.id)),
     [patient, appointments]
   );
+  
+  const groupedRx = useMemo(() => {
+    if (!patient || !patient.meds) return [];
+    const byGroup = new Map();
+    patient.meds.forEach(m => {
+      const groupId = m.groupId || m.date || 'unknown';
+      if (!byGroup.has(groupId)) byGroup.set(groupId, []);
+      byGroup.get(groupId).push(m);
+    });
+    return [...byGroup.entries()].map(([groupId, items]) => ({
+      id: items[0].groupId || items[0].id,
+      date: items[0].date,
+      prescribedBy: items[0].prescribedBy,
+      status: items.some(m => m.status === 'Active') ? 'Active' : 'Expired',
+      instructions: items.find(m => m.instructions)?.instructions || '',
+      medicines: items.map(m => ({
+        id: m.id,
+        medName: m.medName,
+        dosage: m.dosage,
+        schedule: m.schedule,
+        duration: m.duration,
+        refillsLeft: m.refillsLeft,
+        status: m.status
+      }))
+    })).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+  }, [patient]);
+
   const [labFilter, setLabFilter] = useState('all');
   const [newNote, setNewNote] = useState('');
   const [labRequests, setLabRequests] = useState([]);
@@ -1075,55 +1133,58 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
             </div>
 
             <div className="space-y-4 text-xs">
-              {patient.meds.map((m) => (
-                <div key={m.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-xs hover:border-aubergine-300 transition-all space-y-3">
+              {groupedRx.map((rxGroup) => (
+                <div key={rxGroup.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-xs hover:border-aubergine-300 transition-all space-y-3">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-200">
                     <div>
                       <div className="flex items-center gap-3">
-                        <span className="font-black text-slate-900 text-base">{m.medName}</span>
+                        <span className="font-black text-slate-900 text-base">Prescription on {rxGroup.date}</span>
                         <span
                           className={`px-3 py-0.5 rounded-full text-[11px] font-bold ${
-                            m.status === 'Active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-200 text-slate-600'
+                            rxGroup.status === 'Active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-200 text-slate-600'
                           }`}
                         >
-                          ● {m.status}
+                          ● {rxGroup.status}
                         </span>
                       </div>
                       <p className="text-slate-500 text-xs mt-1">
-                        Prescription ID: <span className="font-mono font-bold text-slate-600">{m.id}</span> • Prescribed on {m.date} by {m.prescribedBy}
+                        Prescription ID: <span className="font-mono font-bold text-slate-600">{rxGroup.id}</span> • Prescribed by {rxGroup.prescribedBy}
                       </p>
                     </div>
 
                     <button
-                      onClick={() => setSelectedRxDoc(m)}
+                      onClick={() => setSelectedRxDoc(rxGroup)}
                       className="bg-white hover:bg-slate-100 text-slate-700 font-bold px-3.5 py-2 rounded-xl border border-slate-200 text-xs transition-colors flex items-center gap-1.5 shadow-xs"
                     >
                       <i className="fas fa-file-prescription text-aubergine-600"></i> View Rx
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white rounded-xl p-4 border border-slate-100 text-slate-700">
-                    <div>
-                      <span className="text-slate-500 text-[10px] font-bold block uppercase">Dose Frequency</span>
-                      <span className="font-black text-aubergine-800 text-sm">{m.schedule}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 text-[10px] font-bold block uppercase">Course Duration</span>
-                      <span className="font-black text-slate-800 text-sm">{m.duration}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 text-[10px] font-bold block uppercase">Authorized Refills</span>
-                      <span className="font-black text-slate-800 text-sm">{m.refillsLeft} Remaining</span>
-                    </div>
+                  <div className="space-y-3">
+                    {rxGroup.medicines.map((m, i) => (
+                      <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white rounded-xl p-3.5 border border-slate-100 text-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                        <div>
+                          <p className="font-black text-slate-800 text-sm mb-1">{m.medName}</p>
+                          <p className="text-[11px] text-slate-500 font-medium">
+                            {m.schedule} • {m.duration} • {m.refillsLeft} refills left
+                          </p>
+                        </div>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-2 sm:mt-0 ${m.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                          {m.status}
+                        </span>
+                      </div>
+                    ))}
                   </div>
 
-                  <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 text-amber-900">
-                    <strong>Doctor Instructions:</strong> {m.instructions}
-                  </div>
+                  {rxGroup.instructions && (
+                    <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 text-amber-900 mt-2">
+                      <strong className="font-bold">Doctor Instructions:</strong> {rxGroup.instructions}
+                    </div>
+                  )}
                 </div>
               ))}
 
-              {patient.meds.length === 0 && (
+              {groupedRx.length === 0 && (
                 <div className="text-center py-12 bg-slate-50 rounded-2xl border border-slate-200">
                   <p className="text-slate-500">No prescription records found for this patient.</p>
                 </div>
@@ -1255,37 +1316,36 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
             </div>
 
             {/* Transactions Table */}
-            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs text-xs">
-              <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+            <div className="crm-table-container">
+              <table className="crm-table">
+                <thead>
                   <tr>
-                    <th className="p-3.5">Invoice ID</th>
-                    <th className="p-3.5">Date</th>
-                    <th className="p-3.5">Service Description</th>
-                    <th className="p-3.5">Category</th>
-                    <th className="p-3.5">Payment Method</th>
-                    <th className="p-3.5">Amount</th>
-                    <th className="p-3.5">Status</th>
-                    <th className="p-3.5 text-right">Invoice Action</th>
+                    <th>Invoice ID</th>
+                    <th>Date</th>
+                    <th>Service Description</th>
+                    <th>Category</th>
+                    <th>Payment Method</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th className="text-right">Invoice Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody>
                   {(patient.payments || []).map((pay) => (
-                    <tr key={pay.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-3.5 font-mono font-bold text-slate-800">{pay.id}</td>
-                      <td className="p-3.5 text-slate-600">{pay.date}</td>
-                      <td className="p-3.5 font-bold text-slate-900">{pay.service}</td>
-                      <td className="p-3.5">
+                    <tr key={pay.id}>
+                      <td className="font-mono font-bold text-slate-800">{pay.id}</td>
+                      <td>{pay.date}</td>
+                      <td className="font-bold text-slate-900">{pay.service}</td>
+                      <td>
                         <span className="bg-slate-100 text-slate-700 font-bold px-2.5 py-0.5 rounded text-[11px]">
                           {pay.category}
                         </span>
                       </td>
-                      <td className="p-3.5 text-slate-600 font-medium">{pay.method}</td>
-                      <td className="p-3.5 font-black text-slate-900 text-sm">₹{pay.amount.toLocaleString('en-IN')}</td>
-                      <td className="p-3.5">
+                      <td className="font-medium">{pay.method}</td>
+                      <td className="font-black text-slate-900">₹{pay.amount.toLocaleString('en-IN')}</td>
+                      <td>
                         <span
-                          className={`px-3 py-1 rounded-full text-[10px] font-bold border ${
+                          className={`crm-badge border ${
                             pay.status === 'Paid'
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : pay.status === 'Pending'
@@ -1296,10 +1356,10 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                           ● {pay.status}
                         </span>
                       </td>
-                      <td className="p-3.5 text-right">
+                      <td className="text-right">
                         <button
                           onClick={() => setSelectedInvoice(pay)}
-                          className="bg-white hover:bg-slate-100 text-slate-700 font-bold px-3 py-1.5 rounded-lg border border-slate-200 text-[11px] transition-colors shadow-xs"
+                          className="crm-btn-secondary h-8 text-[11px] px-3 py-1"
                         >
                           <i className="fas fa-file-invoice text-aubergine-600 mr-1"></i> View Receipt
                         </button>
@@ -1308,12 +1368,11 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                   ))}
                 </tbody>
               </table>
-              </div>
+            </div>
 
               {(patient.payments || []).length === 0 && (
                 <div className="text-center py-12 text-slate-500">No payment transaction records found.</div>
               )}
-            </div>
           </div>
         )}
 
@@ -1431,7 +1490,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
       {/* Sub Modals */}
       <RequestLabReportModal isOpen={showOrderLab} onClose={() => setShowOrderLab(false)} patient={patient} onRequest={handleRequestLab} />
       <InlineRecordPaymentModal isOpen={showRecordPayment} onClose={() => setShowRecordPayment(false)} patient={patient} onSavePayment={handleAddPayment} />
-      <ViewRxDocModal rx={selectedRxDoc} patient={patient} isOpen={!!selectedRxDoc} onClose={() => setSelectedRxDoc(null)} />
+      <ViewRxDocModal rx={selectedRxDoc} patient={patient} labRequests={labRequests} isOpen={!!selectedRxDoc} onClose={() => setSelectedRxDoc(null)} />
       <ViewLabDocModal report={selectedLabDoc} patient={patient} isOpen={!!selectedLabDoc} onClose={() => setSelectedLabDoc(null)} />
       <ViewInvoiceModal invoice={selectedInvoice} patient={patient} isOpen={!!selectedInvoice} onClose={() => setSelectedInvoice(null)} />
     </div>

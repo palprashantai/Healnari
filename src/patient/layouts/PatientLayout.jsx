@@ -222,12 +222,12 @@ function PatientLayout() {
       )}
 
       {/* Desktop Sidebar */}
-      <aside className="w-64 hidden md:flex flex-col flex-shrink-0">
+      <aside className="w-60 hidden md:flex flex-col flex-shrink-0">
         <Sidebar onItemHover={setHoveredColor} />
       </aside>
 
       {/* Mobile Sidebar Drawer */}
-      <aside className={`fixed left-0 top-0 h-full w-64 z-50 flex flex-col flex-shrink-0 transition-transform duration-300 md:hidden ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed left-0 top-0 h-full w-60 z-50 flex flex-col flex-shrink-0 transition-transform duration-300 md:hidden ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <Sidebar onClose={() => setMobileSidebarOpen(false)} />
       </aside>
 
@@ -308,7 +308,7 @@ function PatientLayout() {
         </header>
 
         {/* Dynamic Content */}
-        <main className={`flex-1 overflow-y-auto p-4 md:p-8 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}>
+        <main className={`flex-1 overflow-y-auto p-4 md:p-6 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}>
           {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
           <PageTransition />
         </main>

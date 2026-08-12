@@ -151,17 +151,23 @@ export class LeadsService {
       const appointmentLine = `<p>Your appointment with Dr. ${doctor?.full_name || ''} is confirmed for <strong>${scheduledDate} at ${scheduledTime}</strong>.</p>`;
 
       if (generatedPassword) {
+        const { data: linkData } = await this.supabase.admin.auth.admin.generateLink({
+          type: 'recovery',
+          email: request.email,
+        });
+        const setupLink = linkData?.properties?.action_link || 'https://healnari.vercel.app/reset-password';
+
         await this.email.sendMail({
           to: request.email,
           subject: 'Your HealNari account is ready',
           html: `
             <p>Hi ${request.name},</p>
             <p>Dr. ${doctor?.full_name || ''} has approved your consultation request. We've created your HealNari account so you can manage it:</p>
-            <p><strong>Email:</strong> ${request.email}<br/><strong>Password:</strong> ${generatedPassword}</p>
-            <p>Please log in and change your password from your profile settings.</p>
+            <p><strong>Email:</strong> ${request.email}</p>
+            <p>Please <a href="${setupLink}">click here to set your password</a> and log in.</p>
             ${appointmentLine}
           `,
-          text: `Hi ${request.name}, your HealNari account has been created.\nEmail: ${request.email}\nPassword: ${generatedPassword}\nYour appointment with Dr. ${doctor?.full_name || ''} is confirmed for ${scheduledDate} at ${scheduledTime}.`,
+          text: `Hi ${request.name}, your HealNari account has been created.\nEmail: ${request.email}\nPlease use this link to set your password: ${setupLink}\nYour appointment with Dr. ${doctor?.full_name || ''} is confirmed for ${scheduledDate} at ${scheduledTime}.`,
         });
       } else {
         await this.email.sendMail({

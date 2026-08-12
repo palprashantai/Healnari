@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
+import * as path from 'path';
+import * as fs from 'fs';
 
 export interface InvoiceData {
   id: string;
@@ -20,7 +22,7 @@ export interface InvoiceData {
 @Injectable()
 export class InvoiceService {
   async generatePdf(payment: InvoiceData): Promise<Buffer> {
-    const doc = new PDFDocument({ size: 'A4', margin: 50 });
+    const doc = new PDFDocument({ size: 'A4', margin: 0 });
     const chunks: Buffer[] = [];
     doc.on('data', (chunk) => chunks.push(chunk));
     const done = new Promise<Buffer>((resolve) => doc.on('end', () => resolve(Buffer.concat(chunks))));
@@ -28,46 +30,110 @@ export class InvoiceService {
     const invoiceNo = payment.txn_ref || payment.id.slice(0, 8).toUpperCase();
     const date = new Date(payment.created_at);
     const amount = Number(payment.amount).toFixed(2);
+    const isPaid = payment.status === 'Paid';
 
-    doc.fillColor('#6B46C1').fontSize(22).font('Helvetica-Bold').text('HealNari', 50, 50);
-    doc.fillColor('#64748b').fontSize(9).font('Helvetica').text('Telehealth & Women\'s Care', 50, 76);
+    // --- Modern Medical Invoice Design ---
+    doc.rect(0, 0, 595, 140).fill('#f8fafc'); // Soft top banner
+    doc.moveTo(0, 140).lineTo(595, 140).strokeColor('#6B46C1').lineWidth(4).stroke(); // Purple Accent
 
-    doc.fillColor('#0f172a').fontSize(18).font('Helvetica-Bold').text('INVOICE', 400, 50, { align: 'right' });
+    // --- Clinic Details (Left) ---
+    const logoPath = path.join(process.cwd(), '../public/brand/logo-full.jpg');
+    if (fs.existsSync(logoPath)) {
+      doc.image(logoPath, 50, 40, { width: 120 });
+      doc.fillColor('#475569').fontSize(11).font('Helvetica-Bold').text('Digital Health Clinic', 50, 78);
+    } else {
+      doc.fillColor('#6B46C1').fontSize(28).font('Helvetica-Bold').text('HealNari', 50, 45);
+      doc.fillColor('#475569').fontSize(11).font('Helvetica-Bold').text('Digital Health Clinic', 50, 78);
+    }
     doc.fillColor('#64748b').fontSize(9).font('Helvetica')
-      .text(`Invoice #: ${invoiceNo}`, 400, 76, { align: 'right' })
-      .text(`Date: ${date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`, 400, 90, { align: 'right' });
+      .text('123 Wellness Avenue, Health City', 50, 95)
+      .text('support@healnari.app  |  +91 80000 00000', 50, 110);
 
-    doc.moveTo(50, 115).lineTo(545, 115).strokeColor('#e2e8f0').stroke();
+    // --- Invoice Info (Right) ---
+    doc.fillColor('#0f172a').fontSize(24).font('Helvetica-Bold').text('TAX INVOICE', 395, 45, { align: 'right', width: 150 });
+    
+    doc.fillColor('#64748b').fontSize(10).font('Helvetica')
+      .text('Invoice No:', 350, 78, { width: 90, align: 'right' })
+      .fillColor('#0f172a').font('Helvetica-Bold').text(invoiceNo, 450, 78, { width: 95, align: 'right' });
 
-    doc.fillColor('#64748b').fontSize(9).font('Helvetica-Bold').text('BILLED TO', 50, 135);
-    doc.fillColor('#0f172a').fontSize(11).font('Helvetica').text(payment.patientName || 'Patient', 50, 150);
+    doc.fillColor('#64748b').font('Helvetica')
+      .text('Date of Issue:', 350, 95, { width: 90, align: 'right' })
+      .fillColor('#0f172a').font('Helvetica-Bold')
+      .text(date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }), 450, 95, { width: 95, align: 'right' });
 
-    doc.fillColor('#64748b').fontSize(9).font('Helvetica-Bold').text('CONSULTING DOCTOR', 300, 135);
-    doc.fillColor('#0f172a').fontSize(11).font('Helvetica').text(payment.doctorName ? `Dr. ${payment.doctorName}` : '—', 300, 150);
+    // --- Status Watermark ---
+    if (isPaid) {
+      doc.save().rotate(-20, { origin: [300, 400] });
+      doc.fillColor('#22c55e').fillOpacity(0.08).fontSize(80).font('Helvetica-Bold').text('PAID', 150, 350, { align: 'center', width: 300 });
+      doc.restore();
+    } else if (payment.status === 'Failed' || payment.status === 'Cancelled') {
+      doc.save().rotate(-20, { origin: [300, 400] });
+      doc.fillColor('#ef4444').fillOpacity(0.08).fontSize(80).font('Helvetica-Bold').text('CANCELLED', 100, 350, { align: 'center', width: 400 });
+      doc.restore();
+    }
 
-    const tableTop = 200;
-    doc.rect(50, tableTop, 495, 26).fill('#f8fafc');
-    doc.fillColor('#475569').fontSize(9).font('Helvetica-Bold')
-      .text('DESCRIPTION', 60, tableTop + 8)
-      .text('PAYMENT METHOD', 300, tableTop + 8)
-      .text('STATUS', 410, tableTop + 8)
-      .text('AMOUNT', 470, tableTop + 8, { width: 65, align: 'right' });
+    // --- Billing Details Grid ---
+    const detailTop = 180;
+    
+    // Patient Box
+    doc.rect(50, detailTop, 235, 80).fill('#ffffff').strokeColor('#e2e8f0').lineWidth(1).stroke();
+    doc.fillColor('#64748b').fontSize(9).font('Helvetica-Bold').text('BILLED TO (PATIENT)', 65, detailTop + 15, { characterSpacing: 1 });
+    doc.fillColor('#0f172a').fontSize(13).font('Helvetica-Bold').text(payment.patientName || 'Patient', 65, detailTop + 35);
+    doc.fillColor('#64748b').fontSize(10).font('Helvetica').text('Telehealth Member', 65, detailTop + 55);
 
-    const rowTop = tableTop + 26;
-    doc.fillColor('#0f172a').fontSize(10).font('Helvetica')
-      .text(payment.category ? `${payment.service} — ${payment.category}` : payment.service, 60, rowTop + 12, { width: 230 })
-      .text(payment.method || '—', 300, rowTop + 12, { width: 100 })
-      .text(payment.status, 410, rowTop + 12, { width: 55 })
-      .text(`INR ${amount}`, 470, rowTop + 12, { width: 65, align: 'right' });
+    // Doctor Box
+    doc.rect(310, detailTop, 235, 80).fill('#ffffff').strokeColor('#e2e8f0').lineWidth(1).stroke();
+    doc.fillColor('#64748b').fontSize(9).font('Helvetica-Bold').text('TREATING DOCTOR', 325, detailTop + 15, { characterSpacing: 1 });
+    doc.fillColor('#0f172a').fontSize(13).font('Helvetica-Bold').text(payment.doctorName ? `Dr. ${payment.doctorName}` : '—', 325, detailTop + 35);
+    doc.fillColor('#64748b').fontSize(10).font('Helvetica').text('HealNari Telehealth', 325, detailTop + 55);
 
-    doc.moveTo(50, rowTop + 45).lineTo(545, rowTop + 45).strokeColor('#e2e8f0').stroke();
+    // --- Itemized Table ---
+    const tableTop = 290;
+    
+    // Table Header
+    doc.rect(50, tableTop, 495, 30).fill('#6B46C1');
+    doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold')
+      .text('DESCRIPTION / SERVICE', 70, tableTop + 10, { characterSpacing: 1 })
+      .text('PAYMENT MODE', 300, tableTop + 10, { characterSpacing: 1 })
+      .text('STATUS', 410, tableTop + 10, { characterSpacing: 1 })
+      .text('AMOUNT', 460, tableTop + 10, { width: 65, align: 'right', characterSpacing: 1 });
 
-    doc.fillColor('#64748b').fontSize(10).font('Helvetica').text('Total Paid', 350, rowTop + 60, { width: 120, align: 'right' });
-    doc.fillColor('#6B46C1').fontSize(16).font('Helvetica-Bold').text(`INR ${amount}`, 350, rowTop + 75, { width: 195, align: 'right' });
+    // Table Row
+    const rowTop = tableTop + 30;
+    doc.rect(50, rowTop, 495, 50).fill('#ffffff').strokeColor('#e2e8f0').lineWidth(1).stroke();
 
-    doc.fillColor('#94a3b8').fontSize(8).font('Helvetica')
-      .text('This is a system-generated invoice and does not require a signature.', 50, 760, { align: 'center', width: 495 })
-      .text('HealNari — support@healnari.app', 50, 774, { align: 'center', width: 495 });
+    doc.fillColor('#0f172a').fontSize(11).font('Helvetica')
+      .text(payment.category ? `${payment.service} — ${payment.category}` : payment.service, 70, rowTop + 20, { width: 220 })
+      .text(payment.method || '—', 300, rowTop + 20, { width: 100 })
+      .fillColor(isPaid ? '#16a34a' : '#ef4444').font('Helvetica-Bold')
+      .text(payment.status.toUpperCase(), 410, rowTop + 20, { width: 55 })
+      .fillColor('#0f172a').font('Helvetica')
+      .text(`INR ${amount}`, 460, rowTop + 20, { width: 65, align: 'right' });
+
+    // --- Totals Section ---
+    const totalsTop = rowTop + 75;
+    
+    doc.rect(320, totalsTop - 15, 225, 110).fill('#f8fafc').strokeColor('#e2e8f0').lineWidth(1).stroke();
+
+    doc.fillColor('#64748b').fontSize(11).font('Helvetica').text('Subtotal', 340, totalsTop, { width: 100, align: 'left' });
+    doc.fillColor('#0f172a').fontSize(11).font('Helvetica').text(`INR ${amount}`, 460, totalsTop, { width: 65, align: 'right' });
+
+    doc.fillColor('#64748b').fontSize(11).font('Helvetica').text('Taxes (0%)', 340, totalsTop + 25, { width: 100, align: 'left' });
+    doc.fillColor('#0f172a').fontSize(11).font('Helvetica').text('INR 0.00', 460, totalsTop + 25, { width: 65, align: 'right' });
+
+    doc.moveTo(340, totalsTop + 50).lineTo(525, totalsTop + 50).strokeColor('#cbd5e1').lineWidth(1).stroke();
+
+    doc.fillColor('#0f172a').fontSize(13).font('Helvetica-Bold').text('Total Amount', 340, totalsTop + 65, { width: 100, align: 'left' });
+    doc.fillColor('#6B46C1').fontSize(16).font('Helvetica-Bold').text(`INR ${amount}`, 440, totalsTop + 63, { width: 85, align: 'right' });
+
+    // --- Footer Notes ---
+    const footerTop = 720;
+    doc.moveTo(50, footerTop).lineTo(545, footerTop).strokeColor('#e2e8f0').lineWidth(1).stroke();
+    
+    doc.fillColor('#475569').fontSize(10).font('Helvetica-Bold').text('Terms & Conditions', 50, footerTop + 15);
+    doc.fillColor('#94a3b8').fontSize(9).font('Helvetica')
+      .text('1. This is a system-generated invoice. No physical signature is required.', 50, footerTop + 30)
+      .text('2. For any discrepancies or queries, please contact support@healnari.app within 7 days.', 50, footerTop + 45);
 
     doc.end();
     return done;

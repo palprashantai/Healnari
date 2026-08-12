@@ -51,7 +51,7 @@ const DOSE_SLOT_DEFS = [
 ];
 
 /* ─── Prescription Detail Modal ─────────────── */
-function PrescriptionModal({ rx, onClose }) {
+function PrescriptionModal({ rx, labRequests, onClose }) {
   if (!rx) return null;
   const daysLeft = daysUntil(rx.validTill);
   const effectiveStatus = resolveRxStatus(rx);
@@ -98,6 +98,26 @@ function PrescriptionModal({ rx, onClose }) {
           </div>
         </div>
 
+        {/* Suggested Lab Tests */}
+        {(() => {
+          const matchingLabTests = (labRequests || []).filter(
+            r => (r.created_at ? new Date(r.created_at).toLocaleDateString() : '') === rx.date
+          );
+          if (matchingLabTests.length === 0) return null;
+          return (
+            <div>
+              <h4 className="font-bold text-slate-700 text-sm mb-2 mt-4">Suggested Lab Tests</h4>
+              <div className="bg-sky-50 border border-sky-100 rounded-xl p-4 text-xs">
+                <ul className="list-disc pl-4 space-y-1 text-sky-900 font-medium">
+                  {matchingLabTests.map((req, i) => (
+                    <li key={i}>{req.requested_tests}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Instructions */}
         <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
           <p className="text-xs font-black text-amber-800 mb-1.5 uppercase tracking-wide flex items-center gap-1.5"><i className="fas fa-circle-info"></i> Doctor's Instructions</p>
@@ -105,7 +125,7 @@ function PrescriptionModal({ rx, onClose }) {
         </div>
 
         <div className="flex gap-2 pt-2 border-t border-slate-100">
-          <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-sm hover:bg-slate-50 transition-colors">Close</button>
+          <button onClick={onClose} className="flex-1 crm-btn-secondary">Close</button>
         </div>
       </div>
     </Modal>
@@ -127,9 +147,9 @@ function RefillModal({ rx, onClose, onSubmit, submitting }) {
           <p className="font-bold text-slate-800">{rx.diagnosis}</p>
           <p className="text-xs text-slate-500 mt-0.5">{rx.medicines.map(m => m.name).join(', ')}</p>
         </div>
-        <p className="text-xs text-slate-500">Your doctor will review this request and approve or decline it from their dashboard.</p>
-        <button onClick={onSubmit} disabled={submitting} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-          <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i> {submitting ? 'Submitting…' : 'Submit Refill Request'}
+        <p className="text-[12px] text-slate-500">Your doctor will review this request and approve or decline it from their dashboard.</p>
+        <button onClick={onSubmit} disabled={submitting} className="w-full crm-btn-primary disabled:opacity-60 bg-emerald-600 hover:bg-emerald-700 border-none shadow-none">
+          <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-paper-plane'} mr-2`}></i> {submitting ? 'Submitting…' : 'Submit Refill Request'}
         </button>
       </div>
     </Modal>
@@ -145,6 +165,15 @@ function PatientPrescriptions() {
   const [refillRx, setRefillRx] = useState(null);
   const [submittingRefill, setSubmittingRefill] = useState(false);
   const [tab, setTab] = useState('All');
+  const [labRequests, setLabRequests] = useState([]);
+
+  const { listLabReportRequests } = useClinicData();
+
+  React.useEffect(() => {
+    if (patients && patients[0]) {
+      listLabReportRequests(patients[0].id).then(r => setLabRequests(r)).catch(() => {});
+    }
+  }, [patients, listLabReportRequests]);
 
   const tabFiltered = prescriptions
     .filter(rx => tab === 'All' || resolveRxStatus(rx) === tab)
@@ -172,6 +201,9 @@ function PatientPrescriptions() {
 
   const handleDownload = (rx) => {
     const me = patients[0];
+    const matchingLabTests = labRequests.filter(r => 
+      (r.created_at ? new Date(r.created_at).toLocaleDateString() : '') === rx.date
+    );
     openPrescriptionPrintWindow({
       rxId: `RX-${rx.id.slice(0, 8).toUpperCase()}`,
       date: rx.date,
@@ -179,6 +211,7 @@ function PatientPrescriptions() {
       patient: { name: me?.name, age: me?.age !== '—' ? me?.age : null },
       diagnosis: rx.diagnosis,
       medicines: rx.medicines,
+      labTests: matchingLabTests.map(r => r.requested_tests),
       instructions: rx.instructions,
     });
   };
@@ -390,7 +423,7 @@ function PatientPrescriptions() {
       </div>
 
       {/* Modals */}
-      <PrescriptionModal rx={detailRx} onClose={() => setDetailRx(null)} />
+      <PrescriptionModal rx={detailRx} labRequests={labRequests} onClose={() => setDetailRx(null)} />
       <RefillModal rx={refillRx} onClose={() => setRefillRx(null)} onSubmit={handleRefillSubmit} submitting={submittingRefill} />
     </div>
   );
