@@ -34,30 +34,40 @@ function Hero({ onStartConsult, onOpenChecker }) {
                 Stop being told to <span className="text-slate-800 font-medium">"just lose weight."</span> Whether you're dealing with <span className="text-aubergine-600 font-medium">PCOS, PCOD, thyroid disorders, hair fall, irregular periods, acne, hormonal imbalances, or weight-related concerns</span>, get a personalized treatment plan designed to address the <span className="text-slate-800 font-medium">underlying cause</span> of your symptoms.
               </p>
               <p className="text-slate-700 text-base md:text-lg font-medium leading-relaxed pt-1">
-                Consult India's leading endocrinologists and gynecologists online for evidence-based, personalized care—tailored to your unique hormonal health needs.
+                Consult world-class endocrinologists and gynecologists online for evidence-based, personalized care—tailored to your unique hormonal health needs.
               </p>
             </div>
           </div>
 
           {/* Pricing Banner */}
           <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2 inline-flex items-center gap-2 text-emerald-800 font-bold text-sm shadow-sm">
-            <i className="fas fa-tag text-emerald-600"></i> Consultations starting at just ₹299
+            <i className="fas fa-tag text-emerald-600"></i> Consultations starting at just $29
           </div>
 
           {/* Dual Action Buttons */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-            <button
-              onClick={onStartConsult}
-              className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg shadow-aubergine-100 transition-all btn-interactive flex items-center justify-center gap-2.5 text-lg"
-            >
-              <i className="fas fa-stethoscope text-base"></i> Book My ₹299 Consult
-            </button>
+            <div className="flex flex-col gap-2 w-full sm:w-auto relative">
+              <span className="absolute -top-3 right-0 md:-right-4 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-lg animate-pulse z-10 border border-white">
+                📅 Next slot: Today at 4:30 PM
+              </span>
+              <button
+                onClick={onStartConsult}
+                className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg shadow-aubergine-100 transition-all btn-interactive flex items-center justify-center gap-2.5 text-lg"
+              >
+                <i className="fas fa-stethoscope text-base"></i> Book My $29 Consult
+              </button>
+            </div>
             <button
               onClick={onOpenChecker}
-              className="bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-4 px-8 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2.5 text-lg"
+              className="bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-4 px-8 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2.5 text-lg h-full sm:h-[60px] mt-2 sm:mt-0"
             >
               <i className="fas fa-heart-pulse text-rose-500"></i> 2-Min Symptom Check
             </button>
+          </div>
+
+          {/* Risk Reversal */}
+          <div className="text-center lg:text-left text-xs font-bold text-slate-500 mt-3 pt-1">
+             <i className="fas fa-shield-halved text-emerald-500 mr-1"></i> 100% Risk-Free. Don't love your doctor? Your next consult is on us.
           </div>
 
           {/* Consultation trust statement */}

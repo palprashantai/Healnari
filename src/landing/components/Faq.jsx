@@ -47,17 +47,19 @@ function Faq() {
                 }`}
               >
                 {/* Accordion Toggle Header */}
-                <button
-                  onClick={() => toggleAccordion(idx)}
-                  className="w-full flex justify-between items-center text-left font-bold text-slate-800 text-sm md:text-base leading-snug py-2 hover:text-aubergine-700 transition-colors select-none focus:outline-none"
-                >
-                  <span className="pr-4">{faq.q}</span>
-                  <div className={`w-8 h-8 rounded-xl bg-sand-100 flex items-center justify-center text-slate-400 border border-sand-200 transition-transform duration-300 ${
-                    isOpen ? 'rotate-180 bg-aubergine-50 border-aubergine-100 text-aubergine-600' : ''
-                  }`}>
-                    <i className="fas fa-chevron-down text-xs"></i>
-                  </div>
-                </button>
+                <h3 className="m-0 p-0 font-inherit">
+                  <button
+                    onClick={() => toggleAccordion(idx)}
+                    className="w-full flex justify-between items-center text-left font-bold text-slate-800 text-sm md:text-base leading-snug py-2 hover:text-aubergine-700 transition-colors select-none focus:outline-none"
+                  >
+                    <span className="pr-4">{faq.q}</span>
+                    <div className={`w-8 h-8 rounded-xl bg-sand-100 flex items-center justify-center text-slate-400 border border-sand-200 transition-transform duration-300 ${
+                      isOpen ? 'rotate-180 bg-aubergine-50 border-aubergine-100 text-aubergine-600' : ''
+                    }`}>
+                      <i className="fas fa-chevron-down text-xs"></i>
+                    </div>
+                  </button>
+                </h3>
 
                 {/* Animated Body Content — grid-rows trick so any answer length can expand, not just <240px */}
                 <div

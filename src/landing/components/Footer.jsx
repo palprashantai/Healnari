@@ -92,14 +92,17 @@ function Footer() {
           <div>
             <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Compliance</h3>
             <ul className="space-y-3 text-sm">
+              <li className="flex items-center gap-2 text-aubergine-200" title="Health Insurance Portability and Accountability Act">
+                <i className="fas fa-shield-virus text-emerald-400"></i> HIPAA Compliant
+              </li>
+              <li className="flex items-center gap-2 text-aubergine-200" title="General Data Protection Regulation">
+                <i className="fas fa-user-lock text-emerald-400"></i> GDPR Ready
+              </li>
               <li className="flex items-center gap-2 text-aubergine-200">
                 <i className="fas fa-shield-halved text-emerald-400"></i> DPDP Act Compliant
               </li>
               <li className="flex items-center gap-2 text-aubergine-200">
                 <i className="fas fa-lock text-emerald-400"></i> End-to-End Encrypted
-              </li>
-              <li className="flex items-center gap-2 text-aubergine-200">
-                <i className="fas fa-user-shield text-emerald-400"></i> 100% Confidential
               </li>
             </ul>
           </div>

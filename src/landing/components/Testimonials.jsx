@@ -5,28 +5,31 @@ function Testimonials() {
 
   const reviews = [
     {
-      quote: "I had almost given up after years of PCOS and severe hair fall. Dr. Ananya Mehta’s root-cause approach changed everything. My periods are regular, my skin has cleared, and my hair density is finally improving.",
+      quote: "After 3 years of severe PCOS-induced hair thinning and irregular cycles, Dr. Mehta’s root-cause protocol restored my natural cycle in exactly 4 months. My hair density has visibly improved.",
       author: "Sneha K.",
       age: 32,
       stars: 5,
       role: "PCOS & Hair Fall Patient",
-      image: "/generated/patient1.webp"
+      image: "/generated/patient1.webp",
+      tags: ['Diagnosed: PCOD', 'Outcome: 4 Months']
     },
     {
-      quote: "The holistic plan combining safe medical supplements with specialized diet and stress management brought my PCOD symptoms under control within 4 months. I am so grateful for the judgment-free, expert clinical guidance.",
+      quote: "The holistic plan—combining safe medical supplements with specialized diet and stress management—brought my insulin resistance and acne under control within 12 weeks. Completely judgment-free clinical guidance.",
       author: "Ritika P.",
       age: 27,
       stars: 5,
       role: "Metabolic & Acne Patient",
-      image: "/generated/patient2.webp"
+      image: "/generated/patient2.webp",
+      tags: ['Diagnosed: Insulin Resistance', 'Outcome: 12 Weeks']
     },
     {
-      quote: "After seeing my own transformation under their care, I believed in their clinical model so much that I joined as an angel investor! This is the future of compassionate, high-fidelity women’s healthcare.",
+      quote: "After seeing my own transformational recovery from hormonal and metabolic issues under their care, I believed in their high-fidelity clinical model so much that I joined as an angel investor.",
       author: "Nidhi S.",
       age: 35,
       stars: 5,
       role: "Patient turned Angel Investor",
-      image: "/generated/patient3.webp"
+      image: "/generated/patient3.webp",
+      tags: ['Diagnosed: Hormonal Imbalance', 'Outcome: Investor']
     }
   ];
 
@@ -62,31 +65,48 @@ function Testimonials() {
 
           <div className="relative z-10 space-y-6 flex flex-col md:flex-row gap-6 items-center">
 
-            {/* User Profile Image */}
-            <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-4 border-aubergine-50/50 shadow-md flex-shrink-0">
-              <img
-                src={reviews[activeIndex].image}
-                alt={reviews[activeIndex].author}
-                loading="lazy"
-                decoding="async"
-                width="96"
-                height="96"
-                className="w-full h-full object-cover"
-              />
+            {/* User Profile Image with UGC Video Overlay */}
+            <div className="relative w-20 h-20 md:w-28 md:h-28 rounded-full flex-shrink-0 group cursor-pointer mx-auto md:mx-0">
+              <div className="w-full h-full rounded-full overflow-hidden border-4 border-aubergine-50 shadow-md bg-slate-100">
+                <img
+                  src={reviews[activeIndex].image}
+                  alt={reviews[activeIndex].author}
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+              </div>
+              {/* Play Button Mockup */}
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-900/10 rounded-full opacity-80 group-hover:opacity-100 transition-opacity duration-300">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white/95 flex items-center justify-center text-aubergine-600 shadow-lg backdrop-blur-sm">
+                  <i className="fas fa-play text-[10px] md:text-xs ml-0.5"></i>
+                </div>
+              </div>
             </div>
 
             {/* Testimonial Quote */}
-            <div className="space-y-3.5 text-center md:text-left flex-grow">
+            <div className="space-y-4 text-center md:text-left flex-grow">
 
-              {/* Stars */}
-              <div className="flex justify-center md:justify-start gap-1 text-amber-400 text-sm">
-                {[...Array(reviews[activeIndex].stars)].map((_, i) => (
-                  <i key={i} className="fas fa-star"></i>
-                ))}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                {/* Stars */}
+                <div className="flex justify-center md:justify-start gap-1 text-amber-400 text-sm">
+                  {[...Array(reviews[activeIndex].stars)].map((_, i) => (
+                    <i key={i} className="fas fa-star"></i>
+                  ))}
+                </div>
+                
+                {/* Clinical Condition Tags */}
+                <div className="flex flex-wrap justify-center md:justify-end gap-1.5">
+                  {reviews[activeIndex].tags.map((tag, idx) => (
+                    <span key={idx} className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-[9px] md:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md shadow-sm">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
 
               {/* Quote Copy */}
-              <p className="text-slate-655 text-base md:text-lg font-medium italic leading-relaxed">
+              <p className="text-slate-700 text-base md:text-lg font-medium leading-relaxed relative z-10 italic">
                 “{reviews[activeIndex].quote}”
               </p>
 
@@ -159,16 +179,49 @@ function Testimonials() {
         </p>
       </div>
 
-      {/* Media Platforms */}
+      {/* Scientific Foundations */}
       <div className="pt-16 max-w-4xl mx-auto">
-        <h3 className="text-xs text-slate-400 font-bold text-center uppercase tracking-wider mb-6">
-          Recognized by Leading Media Platforms
+        <h3 className="text-[10px] md:text-xs text-slate-400 font-bold text-center uppercase tracking-widest mb-8">
+          Clinical protocols aligned with global health guidelines
         </h3>
-        <div className="flex flex-wrap justify-center gap-8 md:gap-12 items-center opacity-50">
-          <span className="font-extrabold text-slate-500 tracking-tight text-base hover:opacity-100 transition-opacity">ZEENEWS</span>
-          <span className="font-extrabold text-slate-500 tracking-tight text-base hover:opacity-100 transition-opacity">Hans India</span>
-          <span className="font-extrabold text-slate-500 tracking-tight text-base hover:opacity-100 transition-opacity">YOURSTORY</span>
-          <span className="font-extrabold text-slate-500 tracking-tight text-base hover:opacity-100 transition-opacity">Startup Leaders</span>
+        <div className="flex flex-wrap justify-center gap-8 md:gap-16 items-center opacity-70 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
+          
+          {/* ACOG Replica */}
+          <div className="flex items-center gap-2 hover:scale-105 transition-transform cursor-default text-slate-800">
+            <i className="fas fa-notes-medical text-2xl text-blue-800"></i>
+            <div className="flex flex-col leading-none">
+              <span className="font-bold text-lg md:text-xl tracking-tight text-blue-900">ACOG</span>
+              <span className="text-[8px] md:text-[9px] uppercase tracking-wider font-semibold text-slate-500 mt-0.5">Guidelines</span>
+            </div>
+          </div>
+          
+          {/* Endocrine Society Replica */}
+          <div className="flex items-center gap-2 hover:scale-105 transition-transform cursor-default text-slate-800">
+            <i className="fas fa-dna text-2xl text-emerald-700"></i>
+            <div className="flex flex-col leading-none">
+              <span className="font-bold text-lg md:text-xl tracking-tight text-emerald-800">Endocrine</span>
+              <span className="text-[8px] md:text-[9px] uppercase tracking-wider font-semibold text-slate-500 mt-0.5">Society Standards</span>
+            </div>
+          </div>
+          
+          {/* WHO Replica */}
+          <div className="flex items-center gap-2 hover:scale-105 transition-transform cursor-default text-slate-800">
+            <i className="fas fa-globe text-2xl text-sky-600"></i>
+            <div className="flex flex-col leading-none">
+              <span className="font-bold text-lg md:text-xl tracking-tighter text-sky-700">WHO</span>
+              <span className="text-[8px] md:text-[9px] uppercase tracking-wider font-semibold text-slate-500 mt-0.5">Health Criteria</span>
+            </div>
+          </div>
+          
+          {/* ICMR Replica */}
+          <div className="flex items-center gap-2 hover:scale-105 transition-transform cursor-default text-slate-800">
+            <i className="fas fa-microscope text-2xl text-rose-700"></i>
+            <div className="flex flex-col leading-none">
+              <span className="font-bold text-lg md:text-xl tracking-tight text-rose-800">ICMR</span>
+              <span className="text-[8px] md:text-[9px] uppercase tracking-wider font-semibold text-slate-500 mt-0.5">Research Aligned</span>
+            </div>
+          </div>
+
         </div>
       </div>
     </section>

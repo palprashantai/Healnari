@@ -105,10 +105,10 @@ function LandingPage() {
                   <i className="fas fa-percent text-emerald-400"></i> Introductory Offer
                 </span>
                 <div className="text-3xl md:text-4xl font-black leading-tight text-white font-display">
-                  Discuss your concerns with an expert for just <span className="underline decoration-white/40 decoration-wavy">₹299</span>
+                  Discuss your concerns with an expert for just <span className="underline decoration-white/40 decoration-wavy">$29</span>
                 </div>
                 <p className="text-white/90 text-base max-w-xl mx-auto leading-relaxed font-medium">
-                  Receive a provisional clinical assessment, personalized lab-testing roadmap, and initial lifestyle protocols. No judgment, 100% private.
+                  Receive a provisional clinical assessment, personalized lab-testing roadmap, and initial lifestyle protocols. No judgment, 100% private. <br/> <span className="text-brand-100 text-sm mt-1 inline-block"><i className="fas fa-globe-americas"></i> Consultations available in all global timezones.</span>
                 </p>
                 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-2">
@@ -134,6 +134,9 @@ function LandingPage() {
               </div>
             </div>
           </Reveal>
+          
+          {/* CRO Social Proof Trust Ribbon - Removed per user request */}
+
           </section>
 
           <Reveal><Faq /></Reveal>
@@ -185,10 +188,14 @@ function LandingPage() {
       )}
 
       {/* Exit Intent Lead Capture */}
-      <ExitIntentModal />
+      {!isBookingOpen && !isSuccessOpen && !isAuthOpen && !isSymptomOpen && (
+        <ExitIntentModal />
+      )}
 
       {/* Install-the-app prompt */}
-      <AppInstallToast />
+      {!isBookingOpen && !isSuccessOpen && !isAuthOpen && !isSymptomOpen && (
+        <AppInstallToast />
+      )}
 
       {/* AI Assistant */}
       <Suspense fallback={null}>

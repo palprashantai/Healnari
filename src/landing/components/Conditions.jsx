@@ -42,9 +42,9 @@ function Conditions() {
               <i className={`fas ${cond.icon}`}></i>
             </div>
 
-            <span className="font-bold text-slate-700 text-base group-hover:text-aubergine-700 transition-colors leading-tight">
+            <h3 className="font-bold text-slate-700 text-base group-hover:text-aubergine-700 transition-colors leading-tight m-0">
               {cond.name}
-            </span>
+            </h3>
           </div>
           </Tilt3D>
           </Reveal>
