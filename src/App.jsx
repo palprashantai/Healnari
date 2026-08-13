@@ -108,6 +108,7 @@ function RootRoute() {
 }
 
 import CookieBanner from './landing/components/CookieBanner.jsx';
+import PWASplashScreen from './components/PWASplashScreen.jsx';
 
 function App() {
   return (
@@ -117,6 +118,7 @@ function App() {
       <ToastProvider>
       <NotificationsProvider>
         <Router>
+          <PWASplashScreen />
           <IncomingCallModal />
           <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
