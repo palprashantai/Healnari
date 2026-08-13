@@ -4,6 +4,7 @@ import App from './App.jsx';
 import './index.css';
 import { setupPWA } from './pwa.js';
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 
 setupPWA();
 
@@ -11,5 +12,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
     <SpeedInsights />
+    <Analytics />
   </React.StrictMode>
 );

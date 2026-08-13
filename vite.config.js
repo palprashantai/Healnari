@@ -28,7 +28,7 @@ return {
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.js',
@@ -41,18 +41,32 @@ return {
         theme_color: '#2A1647',
         background_color: '#F8F6FF',
         display: 'standalone',
+        start_url: '/',
+        orientation: 'portrait',
         icons: [
           {
             src: '/brand/logo-icon.jpg',
             sizes: '192x192',
             type: 'image/jpeg',
-            purpose: 'any maskable'
+            purpose: 'any'
+          },
+          {
+            src: '/brand/logo-icon.jpg',
+            sizes: '192x192',
+            type: 'image/jpeg',
+            purpose: 'maskable'
           },
           {
             src: '/brand/logo-icon.jpg',
             sizes: '512x512',
             type: 'image/jpeg',
-            purpose: 'any maskable'
+            purpose: 'any'
+          },
+          {
+            src: '/brand/logo-icon.jpg',
+            sizes: '512x512',
+            type: 'image/jpeg',
+            purpose: 'maskable'
           }
         ]
       }
