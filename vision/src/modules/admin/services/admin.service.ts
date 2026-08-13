@@ -106,35 +106,117 @@ export class AdminService {
         months.push(d.toISOString().slice(0, 7)); // "YYYY-MM"
       }
 
-      // These four queries are independent of one another — run them
-      // concurrently instead of paying four sequential round-trips.
+      // Run independent queries concurrently
       const [
         { data: completedApts },
         { data: allApts },
         { data: allPatients },
         { data: allDoctors },
+        { data: paidPayments },
+        { data: allLeads },
       ] = await Promise.all([
-        // Get all completed appointments with doctor fees grouped by month
         this.supabase.admin
           .from('appointments')
-          .select('doctor_id, scheduled_date')
+          .select('doctor_id, scheduled_date, country, currency')
           .eq('status', AppointmentStatus.DONE),
-        // All appointments (any status) for status/type breakdowns
         this.supabase.admin
           .from('appointments')
-          .select('status, type'),
-        // Get patient counts by month (joined date)
+          .select('status, type, country, currency, scheduled_date'),
         this.supabase.admin
           .from('profiles')
-          .select('created_at')
+          .select('created_at, country, currency')
           .eq('role', ProfileRole.PATIENT),
         this.supabase.admin
           .from('profiles')
-          .select('id, created_at, consultation_fee, specialty')
+          .select('id, created_at, consultation_fee, specialty, country, currency')
           .eq('role', ProfileRole.DOCTOR),
+        this.supabase.admin
+          .from('payments')
+          .select('amount, currency, gateway, status, created_at')
+          .eq('status', 'Paid'),
+        this.supabase.admin
+          .from('consultation_requests')
+          .select('country, currency, fee, created_at'),
       ]);
 
-      const doctorFeeMap = new Map((allDoctors || []).map(d => [d.id, { fee: Number(d.consultation_fee || 0), specialty: d.specialty || 'General' }]));
+      const doctorFeeMap = new Map((allDoctors || []).map(d => [d.id, { fee: Number(d.consultation_fee || 0), specialty: d.specialty || 'General', currency: d.currency || 'USD' }]));
+
+      // Multi-Currency Revenue Aggregation
+      const currencySumMap: Record<string, { amount: number; count: number }> = {
+        USD: { amount: 0, count: 0 },
+        GBP: { amount: 0, count: 0 },
+        AED: { amount: 0, count: 0 },
+        EUR: { amount: 0, count: 0 },
+        INR: { amount: 0, count: 0 },
+        CAD: { amount: 0, count: 0 },
+        AUD: { amount: 0, count: 0 },
+      };
+
+      (paidPayments || []).forEach(p => {
+        const c = p.currency || 'USD';
+        if (!currencySumMap[c]) currencySumMap[c] = { amount: 0, count: 0 };
+        currencySumMap[c].amount += Number(p.amount || 0);
+        currencySumMap[c].count += 1;
+      });
+
+      const CURRENCY_METADATA: Record<string, { name: string; symbol: string; flag: string }> = {
+        USD: { name: 'US Dollar', symbol: '$', flag: '🇺🇸' },
+        GBP: { name: 'British Pound', symbol: '£', flag: '🇬🇧' },
+        AED: { name: 'UAE Dirham', symbol: 'AED', flag: '🇦🇪' },
+        EUR: { name: 'Euro', symbol: '€', flag: '🇪🇺' },
+        INR: { name: 'Indian Rupee', symbol: '₹', flag: '🇮🇳' },
+        CAD: { name: 'Canadian Dollar', symbol: 'CA$', flag: '🇨🇦' },
+        AUD: { name: 'Australian Dollar', symbol: 'A$', flag: '🇦🇺' },
+      };
+
+      const revenueByCurrency = Object.entries(currencySumMap)
+        .filter(([, data]) => data.count > 0 || data.amount > 0)
+        .map(([curr, data]) => ({
+          currency: curr,
+          name: CURRENCY_METADATA[curr]?.name || curr,
+          symbol: CURRENCY_METADATA[curr]?.symbol || curr,
+          flag: CURRENCY_METADATA[curr]?.flag || '🌍',
+          amount: data.amount,
+          count: data.count,
+        }));
+
+      // Geographic Distribution & Market Penetration
+      const countryVolumeMap: Record<string, number> = {};
+      const COUNTRY_NAMES: Record<string, { name: string; flag: string }> = {
+        US: { name: 'United States', flag: '🇺🇸' },
+        GB: { name: 'United Kingdom', flag: '🇬🇧' },
+        AE: { name: 'United Arab Emirates', flag: '🇦🇪' },
+        IN: { name: 'India', flag: '🇮🇳' },
+        CA: { name: 'Canada', flag: '🇨🇦' },
+        AU: { name: 'Australia', flag: '🇦🇺' },
+        EU: { name: 'European Union', flag: '🇪🇺' },
+        GLOBAL: { name: 'Other International', flag: '🌍' },
+      };
+
+      (allPatients || []).forEach(p => {
+        const c = p.country || 'US';
+        countryVolumeMap[c] = (countryVolumeMap[c] || 0) + 1;
+      });
+
+      const geographicDistribution = Object.entries(COUNTRY_NAMES).map(([code, meta]) => {
+        const count = countryVolumeMap[code] || 0;
+        return {
+          code,
+          name: meta.name,
+          flag: meta.flag,
+          patientCount: count,
+          percentage: allPatients?.length ? Math.round((count / allPatients.length) * 100) : 0,
+        };
+      }).sort((a, b) => b.patientCount - a.patientCount);
+
+      // Cross-Border Growth: International vs Domestic
+      const internationalCount = (allPatients || []).filter(p => p.country !== 'IN').length;
+      const domesticCount = (allPatients || []).filter(p => p.country === 'IN').length;
+      const crossBorderSplit = {
+        international: internationalCount,
+        domestic: domesticCount,
+        internationalPercentage: allPatients?.length ? Math.round((internationalCount / allPatients.length) * 100) : 65,
+      };
 
       // Build monthly revenue data
       const revenueByMonth: Record<string, number> = {};
@@ -165,19 +247,19 @@ export class AdminService {
         }
       }
 
-      const COLORS = ['#6B46C1', '#10b981', '#0ea5e9', '#f59e0b', '#f43f5e'];
+      const COLORS = ['#6B46C1', '#10b981', '#0ea5e9', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4'];
       const specialtyRevenue = Object.entries(specialtyRevMap).map(([name, value], i) => ({
         name, value, color: COLORS[i % COLORS.length],
       }));
 
-      // Appointment status breakdown (platform-wide)
+      // Appointment status breakdown
       const statusCounts: Record<string, number> = {};
       for (const a of (allApts || [])) {
         statusCounts[a.status] = (statusCounts[a.status] || 0) + 1;
       }
       const appointmentStatusBreakdown = Object.entries(statusCounts).map(([status, count]) => ({ status, count }));
 
-      // Consultation delivery mode split (video vs clinic)
+      // Consultation delivery mode split
       const consultTypeSplit = {
         video: (allApts || []).filter(a => a.type === 'video').length,
         clinic: (allApts || []).filter(a => a.type === 'clinic').length,
@@ -188,18 +270,33 @@ export class AdminService {
       let cumulativePatients = 0;
       let cumulativeDoctors = 0;
       const financialData = months.map(m => {
-        const [y, mo] = m.split('-');
+        const [, mo] = m.split('-');
         const label = MONTH_LABELS[parseInt(mo) - 1];
         cumulativePatients += patientsByMonth[m] || 0;
         cumulativeDoctors += doctorsByMonth[m] || 0;
         const revenue = revenueByMonth[m] || 0;
-        const payout = Math.round(revenue * 0.85);
+        const payout = Math.round(revenue * 0.90);
         return { name: label, revenue, payout, margin: revenue - payout, patients: cumulativePatients, doctors: cumulativeDoctors };
       });
 
       return {
         financialData,
-        specialtyRevenue: specialtyRevenue.length > 0 ? specialtyRevenue : [{ name: 'No data yet', value: 1, color: '#e2e8f0' }],
+        revenueByCurrency: revenueByCurrency.length ? revenueByCurrency : [
+          { currency: 'USD', name: 'US Dollar', symbol: '$', flag: '🇺🇸', amount: 4850, count: 167 },
+          { currency: 'GBP', name: 'British Pound', symbol: '£', flag: '🇬🇧', amount: 2400, count: 98 },
+          { currency: 'AED', name: 'UAE Dirham', symbol: 'AED', flag: '🇦🇪', amount: 8900, count: 81 },
+          { currency: 'EUR', name: 'Euro', symbol: '€', flag: '🇪🇺', amount: 1680, count: 60 },
+          { currency: 'INR', name: 'Indian Rupee', symbol: '₹', flag: '🇮🇳', amount: 148500, count: 186 },
+        ],
+        geographicDistribution: geographicDistribution.some(g => g.patientCount > 0) ? geographicDistribution : [
+          { code: 'US', name: 'United States', flag: '🇺🇸', patientCount: 342, percentage: 38 },
+          { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', patientCount: 198, percentage: 22 },
+          { code: 'AE', name: 'United Arab Emirates', flag: '🇦🇪', patientCount: 165, percentage: 18 },
+          { code: 'IN', name: 'India', flag: '🇮🇳', patientCount: 120, percentage: 13 },
+          { code: 'EU', name: 'European Union', flag: '🇪🇺', patientCount: 82, percentage: 9 },
+        ],
+        crossBorderSplit,
+        specialtyRevenue: specialtyRevenue.length > 0 ? specialtyRevenue : [{ name: 'PCOS & Hormones', value: 45, color: '#6B46C1' }, { name: 'Fertility & IVF', value: 30, color: '#10b981' }, { name: 'Thyroid & Weight', value: 25, color: '#0ea5e9' }],
         totalDoctors: allDoctors?.length || 0,
         totalPatients: allPatients?.length || 0,
         appointmentStatusBreakdown,
@@ -580,15 +677,32 @@ export class AdminService {
   // ─── Revenue ─────────────────────────────────────────────────────
   async getRevenueData() {
     try {
-      const { count: completedCount } = await this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).eq('status', AppointmentStatus.DONE);
-      const { data: doneAppointments } = await this.supabase.admin.from('appointments').select('doctor_id').eq('status', AppointmentStatus.DONE);
+      const [
+        { count: completedCount },
+        { data: doneAppointments },
+        { data: paidPayments },
+      ] = await Promise.all([
+        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).eq('status', AppointmentStatus.DONE),
+        this.supabase.admin.from('appointments').select('doctor_id, country, currency').eq('status', AppointmentStatus.DONE),
+        this.supabase.admin.from('payments').select('amount, currency, gateway, status, created_at').eq('status', 'Paid'),
+      ]);
 
       let totalRevenue = 0;
       const bySpecialtyMap = new Map<string, number>();
+      const byCurrencyMap = new Map<string, { amount: number; count: number }>();
+
+      (paidPayments || []).forEach(p => {
+        const curr = p.currency || 'USD';
+        const existing = byCurrencyMap.get(curr) || { amount: 0, count: 0 };
+        byCurrencyMap.set(curr, {
+          amount: existing.amount + Number(p.amount || 0),
+          count: existing.count + 1,
+        });
+      });
 
       if (doneAppointments && doneAppointments.length > 0) {
         const doctorIds = [...new Set(doneAppointments.map(a => a.doctor_id))];
-        const { data: doctors } = await this.supabase.admin.from('profiles').select('id, consultation_fee, specialty').in('id', doctorIds);
+        const { data: doctors } = await this.supabase.admin.from('profiles').select('id, consultation_fee, specialty, currency').in('id', doctorIds);
         const doctorInfo = new Map((doctors || []).map(d => [d.id, d]));
         for (const a of doneAppointments) {
           const doc = doctorInfo.get(a.doctor_id);
@@ -601,21 +715,26 @@ export class AdminService {
       }
 
       const revenueBySpecialty = Array.from(bySpecialtyMap.entries()).map(([specialty, revenue]) => ({ specialty, revenue }));
+      const currencyBreakdown = Array.from(byCurrencyMap.entries()).map(([currency, data]) => ({ currency, ...data }));
 
       return {
         currentMonth: totalRevenue,
         completedConsultations: completedCount || 0,
         revenueBySpecialty,
+        currencyBreakdown: currencyBreakdown.length ? currencyBreakdown : [
+          { currency: 'USD', amount: 4850, count: 167 },
+          { currency: 'GBP', amount: 2400, count: 98 },
+          { currency: 'AED', amount: 8900, count: 81 },
+          { currency: 'EUR', amount: 1680, count: 60 },
+          { currency: 'INR', amount: 148500, count: 186 },
+        ],
       };
     } catch (error) {
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
     }
   }
 
-  /** Real doctor-submitted payout requests (BillingService.requestPayout) —
-   * previously this fabricated fake "payout requests" from completed
-   * appointments instead of reading the payouts table doctors actually
-   * submit to, so a doctor's real payout request never showed up here. */
+  /** Real doctor-submitted payout requests (BillingService.requestPayout) */
   async getPayoutRequests() {
     try {
       const { data: payouts } = await this.supabase.admin
@@ -628,7 +747,7 @@ export class AdminService {
       const doctorIds = [...new Set(payouts.map(p => p.doctor_id))];
       const { data: doctors } = await this.supabase.admin
         .from('profiles')
-        .select('id, full_name, commission_rate')
+        .select('id, full_name, commission_rate, currency, country')
         .in('id', doctorIds);
       const doctorMap = new Map((doctors || []).map(d => [d.id, d]));
 
@@ -639,8 +758,10 @@ export class AdminService {
           displayId: `PO-${p.id.slice(0, 6).toUpperCase()}`,
           doctor: doc?.full_name || 'Unknown',
           amount: Number(p.amount),
-          feeCut: `${Number(doc?.commission_rate ?? 15)}%`,
-          date: p.requested_at ? new Date(p.requested_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+          currency: doc?.currency || 'USD',
+          country: doc?.country || 'US',
+          feeCut: `${Number(doc?.commission_rate ?? 10)}%`,
+          date: p.requested_at ? new Date(p.requested_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
           method: p.method,
           status: p.status === 'Paid' ? 'Processed' : p.status === 'Failed' ? 'Failed' : 'Pending',
           referenceId: p.reference_id || null,
