@@ -1,11 +1,30 @@
-const SYMBOLS = { INR: '₹', AED: 'AED ', USD: '$' };
+const SYMBOLS = {
+  INR: '₹',
+  USD: '$',
+  GBP: '£',
+  AED: 'AED ',
+  EUR: '€',
+  CAD: 'CA$',
+  AUD: 'A$',
+};
 
-/** AUDIT_REPORT.md DB-3 — the ₹ symbol was hardcoded across the app with no
- * currency concept at all. Backend rows without an explicit currency are
- * pre-migration and were always INR, so that's the safe default here too. */
-export function formatCurrency(amount, currency = 'INR') {
+const LOCALES = {
+  INR: 'en-IN',
+  USD: 'en-US',
+  GBP: 'en-GB',
+  AED: 'en-AE',
+  EUR: 'de-DE',
+  CAD: 'en-CA',
+  AUD: 'en-AU',
+};
+
+/**
+ * Format monetary amounts according to currency and locale.
+ */
+export function formatCurrency(amount, currency = 'USD') {
   const symbol = SYMBOLS[currency] || `${currency} `;
-  const value = Number(amount || 0).toLocaleString('en-IN');
+  const locale = LOCALES[currency] || 'en-US';
+  const value = Number(amount || 0).toLocaleString(locale);
   return `${symbol}${value}`;
 }
 

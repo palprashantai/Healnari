@@ -9,6 +9,7 @@ export interface InvoiceData {
   service: string;
   category?: string | null;
   amount: number | string;
+  currency?: string | null;
   method?: string | null;
   status: string;
   created_at: string;
@@ -30,6 +31,7 @@ export class InvoiceService {
     const invoiceNo = payment.txn_ref || payment.id.slice(0, 8).toUpperCase();
     const date = new Date(payment.created_at);
     const amount = Number(payment.amount).toFixed(2);
+    const curr = payment.currency || 'USD';
     const isPaid = payment.status === 'Paid';
 
     // --- Modern Medical Invoice Design ---
@@ -47,7 +49,7 @@ export class InvoiceService {
     }
     doc.fillColor('#64748b').fontSize(9).font('Helvetica')
       .text('123 Wellness Avenue, Health City', 50, 95)
-      .text('support@healnari.app  |  +91 80000 00000', 50, 110);
+      .text('support@healnari.app  |  +1 (800) 000-0000', 50, 110);
 
     // --- Invoice Info (Right) ---
     doc.fillColor('#0f172a').fontSize(24).font('Helvetica-Bold').text('TAX INVOICE', 395, 45, { align: 'right', width: 150 });
@@ -59,7 +61,7 @@ export class InvoiceService {
     doc.fillColor('#64748b').font('Helvetica')
       .text('Date of Issue:', 350, 95, { width: 90, align: 'right' })
       .fillColor('#0f172a').font('Helvetica-Bold')
-      .text(date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }), 450, 95, { width: 95, align: 'right' });
+      .text(date.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }), 450, 95, { width: 95, align: 'right' });
 
     // --- Status Watermark ---
     if (isPaid) {
@@ -108,7 +110,7 @@ export class InvoiceService {
       .fillColor(isPaid ? '#16a34a' : '#ef4444').font('Helvetica-Bold')
       .text(payment.status.toUpperCase(), 410, rowTop + 20, { width: 55 })
       .fillColor('#0f172a').font('Helvetica')
-      .text(`INR ${amount}`, 460, rowTop + 20, { width: 65, align: 'right' });
+      .text(`${curr} ${amount}`, 440, rowTop + 20, { width: 85, align: 'right' });
 
     // --- Totals Section ---
     const totalsTop = rowTop + 75;
@@ -116,15 +118,15 @@ export class InvoiceService {
     doc.rect(320, totalsTop - 15, 225, 110).fill('#f8fafc').strokeColor('#e2e8f0').lineWidth(1).stroke();
 
     doc.fillColor('#64748b').fontSize(11).font('Helvetica').text('Subtotal', 340, totalsTop, { width: 100, align: 'left' });
-    doc.fillColor('#0f172a').fontSize(11).font('Helvetica').text(`INR ${amount}`, 460, totalsTop, { width: 65, align: 'right' });
+    doc.fillColor('#0f172a').fontSize(11).font('Helvetica').text(`${curr} ${amount}`, 440, totalsTop, { width: 85, align: 'right' });
 
     doc.fillColor('#64748b').fontSize(11).font('Helvetica').text('Taxes (0%)', 340, totalsTop + 25, { width: 100, align: 'left' });
-    doc.fillColor('#0f172a').fontSize(11).font('Helvetica').text('INR 0.00', 460, totalsTop + 25, { width: 65, align: 'right' });
+    doc.fillColor('#0f172a').fontSize(11).font('Helvetica').text(`${curr} 0.00`, 440, totalsTop + 25, { width: 85, align: 'right' });
 
     doc.moveTo(340, totalsTop + 50).lineTo(525, totalsTop + 50).strokeColor('#cbd5e1').lineWidth(1).stroke();
 
     doc.fillColor('#0f172a').fontSize(13).font('Helvetica-Bold').text('Total Amount', 340, totalsTop + 65, { width: 100, align: 'left' });
-    doc.fillColor('#6B46C1').fontSize(16).font('Helvetica-Bold').text(`INR ${amount}`, 440, totalsTop + 63, { width: 85, align: 'right' });
+    doc.fillColor('#6B46C1').fontSize(16).font('Helvetica-Bold').text(`${curr} ${amount}`, 430, totalsTop + 63, { width: 95, align: 'right' });
 
     // --- Footer Notes ---
     const footerTop = 720;

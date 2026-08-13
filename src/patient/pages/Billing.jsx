@@ -4,6 +4,7 @@ import { ConfirmModal } from '../../components/Modal.jsx';
 import { PaymentModal } from '../../components/PaymentModal.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch, API_URL, getTokens } from '../../lib/apiClient.js';
+import { formatCurrency } from '../../lib/currency.js';
 
 const STATUS_STYLE = {
   paid:            'bg-emerald-50 text-emerald-700 border-emerald-100',
@@ -30,7 +31,7 @@ function PatientBilling() {
   const [doctors, setDoctors] = useState([]);
   const [payTarget, setPayTarget] = useState(null);
   const [showPayModal, setShowPayModal] = useState(false);
-  const [payFor, setPayFor] = useState({ amount: 0, description: '' });
+  const [payFor, setPayFor] = useState({ amount: 0, currency: 'USD', description: '' });
 
   useEffect(() => { apiFetch('/doctors/search').then(setDoctors).catch(() => setDoctors([])); }, []);
 
@@ -47,7 +48,7 @@ function PatientBilling() {
     apiFetch(`/billing/pay/status/${cfOrderId}`)
       .then((result) => {
         syncPayment(result);
-        if (result.status === 'Paid') toast(`Payment of ₹${result.amount} successful!`, 'success');
+        if (result.status === 'Paid') toast(`Payment of ${formatCurrency(result.amount, result.currency || 'USD')} successful!`, 'success');
         else if (result.status === 'Failed') toast('Payment did not go through.', 'error');
       })
       .catch(() => {});
@@ -56,10 +57,11 @@ function PatientBilling() {
   const transactions = useMemo(() => rawTransactions.map(t => ({
     id: t.id,
     txn_ref: t.txn_ref,
-    date: new Date(t.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+    date: new Date(t.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
     doctor: t.doctorName ? `Dr. ${t.doctorName}` : '—',
     type: t.service,
     amount: Number(t.amount),
+    currency: t.currency || 'USD',
     status: PAYMENT_STATUS_TO_DISPLAY[t.status] || 'pending',
     method: t.method || '—',
   })), [rawTransactions]);
@@ -83,21 +85,23 @@ function PatientBilling() {
       appointmentId: next.id,
       doctor: `Dr. ${next.doctorName}`,
       date: next.date,
-      amount: doc?.consultation_fee ?? 799,
+      amount: doc?.consultation_fee ?? 29,
+      currency: doc?.currency || next.currency || 'USD',
     };
   }, [appointments, doctorById, paidAppointmentIds]);
 
+  const defaultCurrency = transactions[0]?.currency || upcomingPayment?.currency || 'USD';
   const totalPaid = transactions.filter(t => t.status === 'paid').reduce((s, t) => s + t.amount, 0);
 
-  const openPay = (amount, description, appointmentId) => {
-    setPayFor({ amount, description });
+  const openPay = (amount, description, appointmentId, currency = 'USD') => {
+    setPayFor({ amount, description, currency });
     setPayTarget(appointmentId);
     setShowPayModal(true);
   };
 
   const handlePaid = (payment) => {
     syncPayment(payment);
-    toast(`Payment of ₹${payFor.amount} successful!`, 'success');
+    toast(`Payment of ${formatCurrency(payFor.amount, payFor.currency)} successful!`, 'success');
   };
 
   // Real client-side CSV built from the already-loaded transaction list — no
@@ -105,8 +109,8 @@ function PatientBilling() {
   // since it's an actual file built from actual data.
   const handleExport = () => {
     if (!transactions.length) { toast('No transactions to export yet.', 'info'); return; }
-    const header = ['Date', 'Doctor', 'Type', 'Method', 'Amount', 'Status', 'Reference'];
-    const rows = transactions.map(t => [t.date, t.doctor, t.type, t.method, t.amount, t.status, t.txn_ref || t.id]);
+    const header = ['Date', 'Doctor', 'Type', 'Method', 'Amount', 'Currency', 'Status', 'Reference'];
+    const rows = transactions.map(t => [t.date, t.doctor, t.type, t.method, t.amount, t.currency, t.status, t.txn_ref || t.id]);
     const csv = [header, ...rows].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -144,16 +148,16 @@ function PatientBilling() {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-2xl font-black text-slate-800">Billing & Payments</h1>
-        <p className="text-sm text-slate-500">View payment history, invoices, and manage your wallet.</p>
+        <p className="text-sm text-slate-500">View payment history, invoices, and manage your consultations in {defaultCurrency}.</p>
       </div>
 
       {/* Summary Cards */}
       <div className="grid sm:grid-cols-3 gap-4">
         {/* Total Spent */}
         <div className="bg-gradient-to-br from-aubergine-900 to-indigo-900 text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
-          <div className="absolute -right-4 -bottom-4 text-8xl opacity-10"><i className="fas fa-indian-rupee-sign"></i></div>
+          <div className="absolute -right-4 -bottom-4 text-8xl opacity-10"><i className="fas fa-wallet"></i></div>
           <div className="text-sm text-indigo-200 font-medium mb-1">Total Spent</div>
-          <div className="text-3xl font-black">₹{totalPaid.toLocaleString()}</div>
+          <div className="text-3xl font-black">{formatCurrency(totalPaid, defaultCurrency)}</div>
           <div className="text-xs text-indigo-300 mt-2">{transactions.filter(t => t.status === 'paid').length} transactions</div>
         </div>
 
@@ -162,9 +166,9 @@ function PatientBilling() {
           <div className="text-sm text-slate-500 font-medium mb-1">Next Consultation</div>
           {upcomingPayment ? (
             <>
-              <div className="text-2xl font-black text-slate-800">₹{upcomingPayment.amount}</div>
+              <div className="text-2xl font-black text-slate-800">{formatCurrency(upcomingPayment.amount, upcomingPayment.currency)}</div>
               <div className="text-xs text-slate-500 mt-1">{upcomingPayment.doctor} • {upcomingPayment.date}</div>
-              <button onClick={() => openPay(upcomingPayment.amount, `Consultation — ${upcomingPayment.doctor}`, upcomingPayment.appointmentId)}
+              <button onClick={() => openPay(upcomingPayment.amount, `Consultation — ${upcomingPayment.doctor}`, upcomingPayment.appointmentId, upcomingPayment.currency)}
                 className="mt-3 w-full text-center bg-aubergine-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer hover:bg-aubergine-700 transition-colors">
                 Pay Now
               </button>
@@ -221,7 +225,7 @@ function PatientBilling() {
                       <i className={`fas ${METHOD_ICON[txn.method] || 'fa-money-bill'}`}></i> {txn.method}
                     </span>
                   </td>
-                  <td className="px-5 py-4 font-black text-slate-800">₹{txn.amount}</td>
+                  <td className="px-5 py-4 font-black text-slate-800">{formatCurrency(txn.amount, txn.currency)}</td>
                   <td className="px-5 py-4">
                     <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${STATUS_STYLE[txn.status]}`}>
                       {txn.status.charAt(0).toUpperCase() + txn.status.slice(1)}
@@ -235,6 +239,11 @@ function PatientBilling() {
                   </td>
                 </tr>
               ))}
+              {transactions.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="text-center py-12 text-slate-400">No transactions recorded yet.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -245,8 +254,9 @@ function PatientBilling() {
         onClose={() => setShowPayModal(false)}
         appointmentId={payTarget}
         amount={payFor.amount}
+        currency={payFor.currency}
         description={payFor.description}
-        onPaid={handlePaid}
+        onSuccess={handlePaid}
       />
     </div>
   );

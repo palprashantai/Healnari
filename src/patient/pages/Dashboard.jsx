@@ -8,6 +8,7 @@ import { StepIndicator } from '../../components/StepIndicator.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
 import { LIFESTYLE_ITEMS } from '../lifestyleConfig.js';
+import { formatCurrency } from '../../lib/currency.js';
 
 /* ─── Reference config (not user data) ───────── */
 const CYCLE_PHASES = [
@@ -307,7 +308,7 @@ function QuickBookModal({ isOpen, onClose, toast, addAppointment }) {
           <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-3 text-xs text-aubergine-800 space-y-1">
             <p className="font-bold">{selectedDoctor?.full_name}</p>
             <p>{form.type} • {form.date} • {form.slot || 'No slot selected'}</p>
-            <p className="text-aubergine-600">Fee: ₹{selectedDoctor?.consultation_fee || 799} (Standard Consult)</p>
+            <p className="text-aubergine-600">Fee: {formatCurrency(selectedDoctor?.consultation_fee || 29, selectedDoctor?.currency || 'USD')} (Standard Consult)</p>
           </div>
           <div className="flex gap-3">
             <button onClick={() => setStep(1)} disabled={booking} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors disabled:opacity-40">← Back</button>

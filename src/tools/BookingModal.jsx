@@ -3,6 +3,8 @@ import { StepIndicator } from '../components/StepIndicator.jsx';
 import { markLeadCaptured } from './leadCapture.js';
 import { todayLocalStr } from '../lib/dateUtils.js';
 import { apiFetch } from '../lib/apiClient.js';
+import { COUNTRIES, getCountryByCode, detectUserCountry } from '../lib/countries.js';
+import { formatCurrency } from '../lib/currency.js';
 
 const STEP_FIELDS = [
   ['doctorId', 'concern'],
@@ -12,11 +14,16 @@ const STEP_FIELDS = [
 
 function BookingModal({ selectedDoc, onClose, onSuccess }) {
   const [step, setStep] = useState(1);
+  const initialCountryCode = detectUserCountry();
+  const [countryCode, setCountryCode] = useState(initialCountryCode);
+
+  const currentCountry = getCountryByCode(countryCode);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     age: '',
-    mobile: '',
+    mobile: `${currentCountry.phonePrefix} `,
     doctorId: '',
     concern: '',
     date: '',
@@ -29,9 +36,15 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  // selectedDoc, when set (e.g. from the symptom checker), is a recommended
-  // *specialty* — used only to pre-sort/hint the real doctor list below, not
-  // a specific doctor id (the visitor still picks a real, verified doctor).
+  const handleCountrySelect = (code) => {
+    setCountryCode(code);
+    const sel = getCountryByCode(code);
+    setFormData(prev => ({
+      ...prev,
+      mobile: prev.mobile.includes(' ') ? `${sel.phonePrefix} ${prev.mobile.split(' ').slice(1).join(' ')}` : `${sel.phonePrefix} `
+    }));
+  };
+
   useEffect(() => {
     apiFetch('/doctors/search', { skipAuth: true })
       .then(list => {
@@ -45,7 +58,6 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
       .finally(() => setLoadingDoctors(false));
   }, [selectedDoc]);
 
-  // Set the minimum selectable date to today's date
   const todayStr = todayLocalStr();
 
   const concernsList = [
@@ -69,7 +81,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
     name: () => (!formData.name.trim() ? 'Full name is required' : null),
     email: () => (!formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) ? 'Enter a valid email address' : null),
     age: () => (!formData.age || formData.age < 12 || formData.age > 100 ? 'Enter a valid age (12-100)' : null),
-    mobile: () => (!formData.mobile.match(/^[0-9]{10}$/) ? 'Enter a valid 10-digit mobile number' : null),
+    mobile: () => (!formData.mobile.trim() || formData.mobile.replace(/[^0-9]/g, '').length < 7 ? 'Enter a valid contact number' : null),
     doctorId: () => (!formData.doctorId ? 'Please select a doctor' : null),
     concern: () => (!formData.concern ? 'Please select your primary concern' : null),
     date: () => (!formData.date ? 'Select an appointment date' : null),
@@ -111,7 +123,6 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
     e.preventDefault();
     if (!validateFields(STEP_FIELDS[2])) return;
 
-    // Format date beautifully
     const formattedDate = new Date(formData.date).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -133,6 +144,9 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
           doctorId: formData.doctorId,
           preferredDate: formData.date,
           preferredTime: formData.time,
+          country: currentCountry.code,
+          currency: currentCountry.currency,
+          fee: currentCountry.defaultPatientFee,
         },
       });
       markLeadCaptured();
@@ -141,6 +155,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
         slot: `${formattedDate} at ${formData.time}`,
         name: formData.name,
         email: formData.email,
+        fee: `${currentCountry.symbol}${currentCountry.defaultPatientFee} ${currentCountry.currency}`,
       });
     } catch (err) {
       setSubmitError(err.message || 'Something went wrong. Please try again.');
@@ -161,7 +176,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
     };
   }, [onClose]);
 
-  const stepLabels = ['Choose Doctor', 'Your Details', 'Schedule'];
+  const stepLabels = ['Doctor & Location', 'Your Details', 'Schedule & Payment'];
 
   return (
     <div
@@ -170,17 +185,15 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
       aria-modal="true"
       aria-labelledby="booking-modal-title"
     >
-      {/* Modal Dialog container */}
       <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100 animate-slide-up flex flex-col my-auto max-h-[92vh]">
 
-        {/* Sticky Modal Header */}
         <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 z-10">
           <div className="flex justify-between items-center">
             <div>
-              <h3 id="booking-modal-title" className="font-extrabold text-xl text-slate-800 font-display">
+              <h3 id="booking-modal-title" className="font-bold text-xl text-slate-800 font-display tracking-tight">
                 Book Your Consultation
               </h3>
-              <p className="text-slate-400 text-xs font-semibold mt-0.5">
+              <p className="text-slate-400 text-xs font-medium mt-0.5">
                 45-minute clinical digital review
               </p>
             </div>
@@ -192,10 +205,14 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
             </button>
           </div>
 
-          {/* Price visible from the very first screen */}
           <div className="mt-3.5 flex items-center justify-between bg-aubergine-50 border border-aubergine-100 rounded-xl px-3.5 py-2">
-            <span className="text-[10px] font-extrabold text-aubergine-700 uppercase tracking-wider">Consultation fee</span>
-            <span className="text-aubergine-800 text-base font-black">₹299 <span className="text-[10px] font-bold text-aubergine-500 normal-case">· incl. free digital prescription &amp; follow-up chat</span></span>
+            <span className="text-[10px] font-semibold text-aubergine-700 uppercase tracking-wider">
+              {currentCountry.flag} Consult Fee ({currentCountry.currency})
+            </span>
+            <span className="text-aubergine-800 text-base font-bold">
+              {formatCurrency(currentCountry.defaultPatientFee, currentCountry.currency)}{' '}
+              <span className="text-[10px] font-medium text-aubergine-600 normal-case">· incl. prescription &amp; chat</span>
+            </span>
           </div>
 
           <div className="mt-4">
@@ -203,12 +220,27 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
           </div>
         </div>
 
-        {/* Modal Form scrollable wrapper */}
         <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-grow space-y-4">
 
           {step === 1 && (
             <>
-              {/* Choose Doctor */}
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                  Your Location &amp; Currency *
+                </label>
+                <select
+                  value={countryCode}
+                  onChange={e => handleCountrySelect(e.target.value)}
+                  className="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white border-slate-200 font-semibold"
+                >
+                  {COUNTRIES.map(c => (
+                    <option key={c.code} value={c.code}>
+                      {c.flag} {c.name} — {c.symbol}{c.defaultPatientFee} ({c.currency})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1" id="choose-doctor-label">
                   Choose Your Doctor *
@@ -220,17 +252,22 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                     No doctors are available for booking right now. Please check back soon.
                   </p>
                 ) : (
-                  <div className="space-y-2 max-h-52 overflow-y-auto pr-0.5" role="group" aria-labelledby="choose-doctor-label">
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-0.5" role="group" aria-labelledby="choose-doctor-label">
                     {doctors.map(d => (
                       <button type="button" key={d.id} onClick={() => selectDoctor(d.id)}
-                        className={`w-full text-left border rounded-xl p-3 flex items-center gap-3 transition-all ${formData.doctorId === d.id ? 'border-brand-500 bg-brand-50/40 ring-1 ring-brand-200' : 'border-slate-200 hover:border-brand-300'}`}>
-                        <div className="w-9 h-9 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-black text-xs flex-shrink-0">
-                          {(d.full_name || 'D').charAt(0)}
+                        className={`w-full text-left border rounded-xl p-3 flex items-center justify-between transition-all ${formData.doctorId === d.id ? 'border-brand-500 bg-brand-50/40 ring-1 ring-brand-200' : 'border-slate-200 hover:border-brand-300'}`}>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                            {(d.full_name || 'D').charAt(0)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-800 text-sm truncate">Dr. {d.full_name}</p>
+                            <p className="text-xs text-slate-500 truncate">{d.specialty || 'Women’s Health Specialist'}</p>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-slate-800 text-sm truncate">Dr. {d.full_name}</p>
-                          <p className="text-xs text-slate-500 truncate">{d.specialty || 'General Physician'}</p>
-                        </div>
+                        <span className="text-xs font-bold text-aubergine-700 bg-white border border-aubergine-200 px-2 py-1 rounded-md shrink-0 ml-2">
+                          {formatCurrency(currentCountry.defaultPatientFee, currentCountry.currency)}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -238,7 +275,6 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                 {errors.doctorId && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.doctorId}</p>}
               </div>
 
-              {/* Primary Concern */}
               <div>
                 <label htmlFor="concern" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
                   Primary Concern *
@@ -258,15 +294,14 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
               </div>
 
               <button type="button" onClick={goNext} disabled={doctors.length === 0}
-                className="w-full bg-brand-700 hover:bg-brand-800 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-100 transition-all btn-interactive flex items-center justify-center gap-2 text-base">
-                Continue <i className="fas fa-arrow-right text-sm"></i>
+                className="w-full bg-brand-700 hover:bg-brand-800 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-100 transition-all btn-interactive flex items-center justify-center gap-2 text-base mt-2">
+                Continue to Details <i className="fas fa-arrow-right text-sm"></i>
               </button>
             </>
           )}
 
           {step === 2 && (
             <>
-              {/* Full Name */}
               <div>
                 <label htmlFor="name" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
                   Full Name *
@@ -275,35 +310,32 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                   type="text"
                   id="name"
                   required
+                  placeholder="Jane Doe"
                   value={formData.name}
                   onChange={handleInputChange}
-                  placeholder="e.g. Aditi Sharma"
-                  className={`w-full border rounded-xl p-3 text-sm transition-all focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.name ? 'border-red-400 ring-2 ring-red-100' : 'border-slate-200'
+                  className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.name ? 'border-red-400' : 'border-slate-200'
                     }`}
                 />
                 {errors.name && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.name}</p>}
               </div>
 
-              {/* Email */}
               <div>
                 <label htmlFor="email" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
-                  Email Address *
+                  Email Address (For Prescription &amp; Link) *
                 </label>
                 <input
                   type="email"
                   id="email"
                   required
+                  placeholder="jane@example.com"
                   value={formData.email}
                   onChange={handleInputChange}
-                  placeholder="you@example.com"
-                  className={`w-full border rounded-xl p-3 text-sm transition-all focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.email ? 'border-red-400 ring-2 ring-red-100' : 'border-slate-200'
+                  className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.email ? 'border-red-400' : 'border-slate-200'
                     }`}
                 />
                 {errors.email && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.email}</p>}
-                <p className="text-[10px] text-slate-400 mt-1">Once your doctor confirms, we'll create your HealNari account and email your login details here.</p>
               </div>
 
-              {/* Age & Mobile */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-1">
                   <label htmlFor="age" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
@@ -315,27 +347,27 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                     min="12"
                     max="100"
                     required
+                    placeholder="26"
                     value={formData.age}
                     onChange={handleInputChange}
-                    placeholder="25"
-                    className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.age ? 'border-red-400 ring-2 ring-red-100' : 'border-slate-200'
+                    className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.age ? 'border-red-400' : 'border-slate-200'
                       }`}
                   />
                   {errors.age && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.age}</p>}
                 </div>
+
                 <div className="col-span-2">
                   <label htmlFor="mobile" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
-                    Mobile Number *
+                    Phone Number *
                   </label>
                   <input
                     type="tel"
                     id="mobile"
-                    pattern="[0-9]{10}"
                     required
+                    placeholder={`${currentCountry.phonePrefix} 555-0199`}
                     value={formData.mobile}
                     onChange={handleInputChange}
-                    placeholder="10-digit number"
-                    className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.mobile ? 'border-red-400 ring-2 ring-red-100' : 'border-slate-200'
+                    className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.mobile ? 'border-red-400' : 'border-slate-200'
                       }`}
                   />
                   {errors.mobile && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.mobile}</p>}
@@ -344,7 +376,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
 
               <div className="flex gap-3">
                 <button type="button" onClick={goBack}
-                  className="flex-1 border border-slate-200 text-slate-600 font-bold py-3.5 rounded-xl text-sm hover:bg-slate-50 transition-colors">
+                  className="flex-1 border border-slate-200 text-slate-600 font-semibold py-3.5 rounded-xl text-sm hover:bg-slate-50 transition-colors">
                   <i className="fas fa-arrow-left text-sm mr-1.5"></i> Back
                 </button>
                 <button type="button" onClick={goNext}
@@ -357,7 +389,6 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
 
           {step === 3 && (
             <>
-              {/* Date & Time Slot */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="date" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
@@ -395,11 +426,20 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                 </div>
               </div>
 
-              {selectedDoctor && (
-                <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-3">
-                  This request goes directly to <strong>Dr. {selectedDoctor.full_name}</strong> for approval.
-                </p>
-              )}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-600 font-medium">Selected Specialist:</span>
+                  <span className="font-bold text-slate-800">Dr. {selectedDoctor?.full_name || 'Assigned Specialist'}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-600 font-medium">Total Amount:</span>
+                  <span className="font-bold text-aubergine-700 text-sm">{formatCurrency(currentCountry.defaultPatientFee, currentCountry.currency)}</span>
+                </div>
+                <div className="pt-2 border-t border-slate-200/80 flex items-center gap-1.5 text-[11px] text-slate-500">
+                  <i className="fas fa-shield-halved text-emerald-600"></i>
+                  <span>{currentCountry.gatewayName}</span>
+                </div>
+              </div>
 
               {submitError && (
                 <p className="text-red-500 text-xs font-bold text-center">{submitError}</p>
@@ -407,7 +447,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
 
               <div className="flex gap-3">
                 <button type="button" onClick={goBack}
-                  className="flex-1 border border-slate-200 text-slate-600 font-bold py-3.5 rounded-xl text-sm hover:bg-slate-50 transition-colors">
+                  className="flex-1 border border-slate-200 text-slate-600 font-semibold py-3.5 rounded-xl text-sm hover:bg-slate-50 transition-colors">
                   <i className="fas fa-arrow-left text-sm mr-1.5"></i> Back
                 </button>
                 <button
@@ -415,7 +455,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                   disabled={submitting}
                   className="flex-[2] bg-brand-700 hover:bg-brand-800 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-100 transition-all btn-interactive flex items-center justify-center gap-2 text-base"
                 >
-                  <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-lock'} text-sm`}></i> {submitting ? 'Sending…' : 'Send Booking Request'}
+                  <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-lock'} text-sm`}></i> {submitting ? 'Connecting...' : `Confirm & Pay ${formatCurrency(currentCountry.defaultPatientFee, currentCountry.currency)}`}
                 </button>
               </div>
             </>

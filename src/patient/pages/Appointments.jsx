@@ -11,6 +11,7 @@ import { todayLocalStr } from '../../lib/dateUtils.js';
 import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
 import { useFullscreen } from '../../hooks/useFullscreen.js';
 import { PreJoinCheck } from '../../components/PreJoinCheck.jsx';
+import { formatCurrency } from '../../lib/currency.js';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
  * for srcObject, so this stays a thin imperative wrapper. */
@@ -200,7 +201,7 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
             <div className="flex justify-between"><span className="font-bold text-slate-600">Doctor</span><span className="text-slate-800">Dr. {selectedDoctor?.full_name}</span></div>
             <div className="flex justify-between"><span className="font-bold text-slate-600">Type</span><span className="text-slate-800">{form.type}</span></div>
             <div className="flex justify-between"><span className="font-bold text-slate-600">Date & Time</span><span className="text-slate-800">{form.date} • {form.slot || '—'}</span></div>
-            <div className="flex justify-between"><span className="font-bold text-slate-600">Consult Fee</span><span className="text-aubergine-700 font-black">₹{selectedDoctor?.consultation_fee ?? 799}</span></div>
+            <div className="flex justify-between"><span className="font-bold text-slate-600">Consult Fee</span><span className="text-aubergine-700 font-black">{formatCurrency(selectedDoctor?.consultation_fee ?? 29, selectedDoctor?.currency || 'USD')}</span></div>
           </div>
           <div className="flex gap-3">
             <button onClick={() => setStep(1)} disabled={booking} className="crm-btn-secondary flex-1 disabled:opacity-40">← Back</button>
@@ -742,7 +743,7 @@ function PatientAppointments() {
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1 w-max">
                       <i className={`fas ${apt.type === 'Video Consult' ? 'fa-video' : 'fa-hospital'} text-[10px]`}></i> {apt.type}
                     </span>
-                    <div className="text-xs text-slate-500 mt-1">₹{apt.fee}</div>
+                    <div className="text-xs text-slate-500 mt-1">{formatCurrency(apt.fee, apt.currency || 'USD')}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${STATUS_BADGE[apt.status] || 'bg-slate-100 text-slate-600'}`}>

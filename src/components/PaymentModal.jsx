@@ -20,12 +20,12 @@ function getCashfree() {
  * with Cashfree before ever showing "Payment Successful". Used anywhere a
  * patient can pay for an appointment (Billing, Appointments) so there is
  * exactly one real payment path instead of a per-page fake one. */
-export function PaymentModal({ isOpen, onClose, appointmentId, amount, description, onPaid }) {
+export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency: initialCurrency = 'USD', description, onPaid, onSuccess }) {
   // idle -> creating-order -> checkout -> verifying -> paid | failed
   const [phase, setPhase] = useState('idle');
   const [error, setError] = useState(null);
   const [settledAmount, setSettledAmount] = useState(amount);
-  const [currency, setCurrency] = useState('INR');
+  const [currency, setCurrency] = useState(initialCurrency);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -33,10 +33,15 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, descripti
       setPhase('idle');
       setError(null);
       setSettledAmount(amount);
-      setCurrency('INR');
+      setCurrency(initialCurrency);
       startedRef.current = false;
     }
-  }, [isOpen, amount]);
+  }, [isOpen, amount, initialCurrency]);
+
+  const handleSuccess = (result) => {
+    onPaid?.(result);
+    onSuccess?.(result);
+  };
 
   const startCheckout = async () => {
     if (startedRef.current) return;
@@ -48,14 +53,14 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, descripti
 
       if (order.alreadyPaid) {
         setSettledAmount(Number(order.payment.amount));
-        setCurrency(order.payment.currency || 'INR');
+        setCurrency(order.payment.currency || initialCurrency);
         setPhase('paid');
-        onPaid?.(order.payment);
+        handleSuccess(order.payment);
         return;
       }
 
       setSettledAmount(order.amount);
-      setCurrency(order.currency || 'INR');
+      setCurrency(order.currency || initialCurrency);
       setPhase('checkout');
 
       const cashfree = await getCashfree();
@@ -79,9 +84,9 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, descripti
       const result = await apiFetch(`/billing/pay/status/${order.orderId}`);
       if (result.status === 'Paid') {
         setSettledAmount(Number(result.amount));
-        setCurrency(result.currency || 'INR');
+        setCurrency(result.currency || initialCurrency);
         setPhase('paid');
-        onPaid?.(result);
+        handleSuccess(result);
       } else {
         setError(result.status === 'Failed' ? 'The payment did not go through.' : 'Payment not completed. You can try again.');
         setPhase('failed');
@@ -121,11 +126,11 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, descripti
             <p className="text-3xl font-black text-aubergine-800">{formatCurrency(settledAmount ?? amount, currency)}</p>
           </div>
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs text-slate-600 flex items-center gap-2">
-            <i className="fas fa-shield-halved text-emerald-500"></i> Secured by Cashfree Payments — UPI, Card, Net Banking & Wallets
+            <i className="fas fa-shield-halved text-emerald-500"></i> {currency === 'INR' ? 'Secured by Cashfree / Razorpay — UPI, Card, Net Banking & Wallets' : 'Secured by Stripe Global Checkout — Apple Pay, Google Pay, Visa & Mastercard'}
           </div>
           <button onClick={startCheckout} disabled={busy}
-            className="crm-btn-primary w-full disabled:opacity-60 bg-emerald-600 hover:bg-emerald-700 border-none shadow-none">
-            {busy ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div> {BUSY_COPY[phase] || 'Processing…'}</> : <><i className="fas fa-lock mr-2"></i> Pay Securely</>}
+            className="crm-btn-primary w-full disabled:opacity-60 bg-emerald-600 hover:bg-emerald-700 border-none shadow-none font-bold">
+            {busy ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div> {BUSY_COPY[phase] || 'Processing…'}</> : <><i className="fas fa-lock mr-2"></i> Pay Securely {formatCurrency(settledAmount ?? amount, currency)}</>}
           </button>
         </div>
       )}
@@ -136,8 +141,8 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, descripti
             <p className="text-sm font-semibold">{error}</p>
           </div>
           <div className="flex gap-3">
-            <button onClick={onClose} className="crm-btn-secondary flex-1">Close</button>
-            <button onClick={retry} className="crm-btn-primary flex-1">Try Again</button>
+            <button onClick={onClose} className="crm-btn-secondary flex-1 font-semibold">Close</button>
+            <button onClick={retry} className="crm-btn-primary flex-1 font-bold">Try Again</button>
           </div>
         </div>
       )}
@@ -147,8 +152,8 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, descripti
             <i className="fas fa-circle-check"></i>
           </div>
           <div>
-            <h3 className="font-black text-slate-800 text-xl">Payment Successful!</h3>
-            <p className="text-sm text-slate-500 mt-1">{formatCurrency(settledAmount ?? amount, currency)} paid via Cashfree</p>
+            <h3 className="font-bold text-slate-800 text-xl">Payment Successful!</h3>
+            <p className="text-sm text-slate-500 mt-1">{formatCurrency(settledAmount ?? amount, currency)} paid securely</p>
             <p className="text-xs text-slate-500 mt-0.5">Receipt available in your billing history</p>
           </div>
           <button onClick={done} className="crm-btn-primary w-full">

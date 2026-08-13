@@ -51,6 +51,9 @@ export class LeadsService {
           preferred_date: body.preferredDate || null,
           preferred_time: body.preferredTime,
           notes: body.notes,
+          country: body.country || 'US',
+          currency: body.currency || 'USD',
+          fee: body.fee || null,
         })
         .select()
         .single();
@@ -120,12 +123,16 @@ export class LeadsService {
         });
         if (error || !created?.user) throw new ForbiddenException(error?.message || 'Failed to create patient account');
         patientId = created.user.id;
-        if (request.mobile) {
-          await this.supabase.admin.from('profiles').update({ phone: request.mobile }).eq('id', patientId);
+        const profileUpdates: any = {};
+        if (request.mobile) profileUpdates.phone = request.mobile;
+        if (request.country) profileUpdates.country = request.country;
+        if (request.currency) profileUpdates.currency = request.currency;
+        if (Object.keys(profileUpdates).length > 0) {
+          await this.supabase.admin.from('profiles').update(profileUpdates).eq('id', patientId);
         }
       }
 
-      const { data: doctor } = await this.supabase.admin.from('profiles').select('full_name, specialty').eq('id', user.id).single();
+      const { data: doctor } = await this.supabase.admin.from('profiles').select('full_name, specialty, currency').eq('id', user.id).single();
 
       const scheduledDate = request.preferred_date || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const scheduledTime = request.preferred_time || '10:00 AM';
@@ -139,6 +146,8 @@ export class LeadsService {
         scheduled_time: scheduledTime,
         reason: request.concern || 'Consultation request',
         status: AppointmentStatus.UPCOMING,
+        country: request.country || 'US',
+        currency: request.currency || doctor?.currency || 'USD',
       }).select().single();
 
       const { data: updated } = await this.supabase.admin

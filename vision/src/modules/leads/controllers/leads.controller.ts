@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsInt, IsOptional, IsString, IsUUID, Max, Matches, Min } from 'class-validator';
+import { IsEmail, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, Matches, Min } from 'class-validator';
 import { Public } from '@/core/decorators/public.decorator';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
@@ -16,7 +16,7 @@ export class ConsultationRequestDto {
   @ApiProperty() @IsString() name: string;
   @ApiProperty() @IsEmail() email: string;
   @ApiProperty({ required: false }) @IsOptional() @IsInt() @Min(12) @Max(100) age?: number;
-  @ApiProperty() @Matches(/^[0-9]{10}$/, { message: 'mobile must be a valid 10-digit number' }) mobile: string;
+  @ApiProperty() @Matches(/^[0-9+\s\-()]{7,20}$/, { message: 'mobile must be a valid contact number' }) mobile: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() concern?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() specialtyRecommendation?: string;
   @ApiProperty({ required: false, description: 'A specific verified doctor the visitor picked — approving this request makes them that doctor\'s patient.' })
@@ -24,6 +24,9 @@ export class ConsultationRequestDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() preferredDate?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() preferredTime?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() notes?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() country?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() currency?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsNumber() fee?: number;
 }
 
 /** Public (unauthenticated) endpoints for the marketing site — newsletter

@@ -3,6 +3,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { apiFetch, API_URL, getTokens } from '../../lib/apiClient.js';
+import { formatCurrency } from '../../lib/currency.js';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const STATUS_STYLE = {
@@ -22,7 +23,7 @@ const PAYMENT_STATUS_TO_DISPLAY = {
 };
 
 /* ─── Payout Modal ───────────────────────────── */
-function PayoutModal({ isOpen, onClose, onRequest, available, toast }) {
+function PayoutModal({ isOpen, onClose, onRequest, available, currency = 'USD', toast }) {
   const [method, setMethod] = useState('Bank Account');
   const [amount, setAmount] = useState('');
   const [step, setStep] = useState(1);
@@ -44,8 +45,8 @@ function PayoutModal({ isOpen, onClose, onRequest, available, toast }) {
       {step === 1 ? (
         <div className="space-y-4">
           <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-4 text-center">
-            <p className="text-xs text-slate-500">Available Balance</p>
-            <p className="text-3xl font-black text-aubergine-800">₹{Number(available || 0).toLocaleString()}</p>
+            <p className="text-xs text-slate-500 font-medium mb-1">Available for Payout</p>
+            <p className="text-3xl font-black text-aubergine-800">{formatCurrency(available || 0, currency)}</p>
           </div>
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1.5 block">Payout Amount</label>
@@ -167,22 +168,25 @@ function DoctorBilling() {
   };
   useEffect(() => { load(); }, []);
 
+  const userCurrency = user?.profile?.currency || user?.currency || 'USD';
+
   const rows = transactions.map(t => ({
     id: t.id,
     txn_ref: t.txn_ref,
     patient: t.patientName,
-    date: new Date(t.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+    date: new Date(t.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
     type: t.service,
     amount: Number(t.amount),
+    currency: t.currency || userCurrency,
     status: PAYMENT_STATUS_TO_DISPLAY[t.status] || 'pending',
     method: t.method || '—',
   }));
 
   const EARNINGS = [
-    { label: 'This Month', value: `₹${summary.thisMonth.toLocaleString()}`, sub: `${summary.thisMonthCount} consultations`, trend: null, up: null },
-    { label: 'Last Month', value: `₹${summary.lastMonth.toLocaleString()}`, sub: `${summary.lastMonthCount} consultations`, trend: 'Baseline', up: null },
-    { label: 'Pending', value: `₹${summary.pending.toLocaleString()}`, sub: `${summary.pendingCount} consultations`, trend: null, up: null },
-    { label: 'Total YTD', value: `₹${summary.totalYtd.toLocaleString()}`, sub: 'Since Jan', trend: null, up: null },
+    { label: 'This Month', value: formatCurrency(summary.thisMonth, userCurrency), sub: `${summary.thisMonthCount} consultations`, trend: null, up: null },
+    { label: 'Last Month', value: formatCurrency(summary.lastMonth, userCurrency), sub: `${summary.lastMonthCount} consultations`, trend: 'Baseline', up: null },
+    { label: 'Pending', value: formatCurrency(summary.pending, userCurrency), sub: `${summary.pendingCount} consultations`, trend: null, up: null },
+    { label: 'Total YTD', value: formatCurrency(summary.totalYtd, userCurrency), sub: 'Since Jan', trend: null, up: null },
   ];
 
   const filtered = rows.filter(t => {
@@ -190,9 +194,6 @@ function DoctorBilling() {
     const mf = filterStatus === 'all' || t.status === filterStatus;
     let md = true;
     if (dateRange.start || dateRange.end) {
-      // Very basic date filter simulation, requires parsing the en-IN date string
-      // or filtering by t.id directly if we had a raw timestamp
-      // For this UI demo, we'll just parse the original created_at if we can find it
       const originalTxn = transactions.find(tx => tx.id === t.id);
       if (originalTxn) {
         const txnDate = new Date(originalTxn.created_at);
@@ -211,8 +212,8 @@ function DoctorBilling() {
 
   const exportEarnings = () => {
     if (filtered.length === 0) { toast('No transactions to export.', 'error'); return; }
-    const header = ['ID', 'Patient', 'Date', 'Type', 'Method', 'Amount', 'Status'];
-    const csvRows = filtered.map(t => [t.txn_ref || t.id, t.patient, t.date, t.type, t.method, t.amount, t.status]);
+    const header = ['ID', 'Patient', 'Date', 'Type', 'Method', 'Amount', 'Currency', 'Status'];
+    const csvRows = filtered.map(t => [t.txn_ref || t.id, t.patient, t.date, t.type, t.method, t.amount, t.currency, t.status]);
     const csv = [header, ...csvRows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -226,8 +227,8 @@ function DoctorBilling() {
 
   const requestPayout = async (method, amount) => {
     try {
-      await apiFetch('/billing/payouts', { method: 'POST', body: { method, amount } });
-      toast(`Payout of ₹${amount} via ${method} initiated. Processing in 1–2 business days.`, 'success');
+      await apiFetch('/billing/payouts', { method: 'POST', body: { method, amount, currency: userCurrency } });
+      toast(`Payout of ${formatCurrency(amount, userCurrency)} via ${method} initiated. Processing in 1–2 business days.`, 'success');
     } catch (err) {
       toast(err.message || 'Failed to request payout', 'error');
     }
@@ -240,11 +241,11 @@ function DoctorBilling() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800">Earnings & Payouts</h1>
-          <p className="text-sm text-slate-500">Track consultation revenue and manage your available balance.</p>
+          <p className="text-sm text-slate-500">Track consultation revenue and manage your available balance in {userCurrency}.</p>
         </div>
         <button onClick={() => setShowPayout(true)}
-          className="crm-btn-primary flex items-center gap-2">
-          <i className="fas fa-indian-rupee-sign"></i> Request Payout
+          className="crm-btn-primary flex items-center gap-2 font-bold">
+          <i className="fas fa-wallet"></i> Request Payout
         </button>
       </div>
 
@@ -259,7 +260,7 @@ function DoctorBilling() {
               Available for Payout
               <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-sm"><i className="fas fa-wallet text-white text-xs"></i></div>
             </div>
-            <div className="text-3xl font-black mb-1 tabular-nums tracking-tight">₹{summary.available.toLocaleString()}</div>
+            <div className="text-3xl font-black mb-1 tabular-nums tracking-tight">{formatCurrency(summary.available, userCurrency)}</div>
             <div className="text-aubergine-200 text-xs font-medium">Ready to withdraw</div>
           </div>
           <button onClick={() => setShowPayout(true)} className="relative z-10 mt-5 w-full bg-white text-aubergine-800 hover:bg-aubergine-50 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
@@ -274,7 +275,7 @@ function DoctorBilling() {
               Pending Clearing
               <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center group-hover:scale-110 transition-transform"><i className="fas fa-clock text-xs"></i></div>
             </div>
-            <div className="text-2xl font-black text-slate-800 mb-1 tabular-nums tracking-tight">₹{summary.pending.toLocaleString()}</div>
+            <div className="text-2xl font-black text-slate-800 mb-1 tabular-nums tracking-tight">{formatCurrency(summary.pending, userCurrency)}</div>
             <div className="text-slate-500 text-xs font-medium">{summary.pendingCount} consultations processing</div>
           </div>
           <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-400 font-medium flex items-center gap-1.5">
@@ -289,7 +290,7 @@ function DoctorBilling() {
               Earnings This Month
               <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform"><i className="fas fa-chart-line text-xs"></i></div>
             </div>
-            <div className="text-2xl font-black text-slate-800 mb-1 tabular-nums tracking-tight">₹{summary.thisMonth.toLocaleString()}</div>
+            <div className="text-2xl font-black text-slate-800 mb-1 tabular-nums tracking-tight">{formatCurrency(summary.thisMonth, userCurrency)}</div>
             <div className="text-slate-500 text-xs font-medium">{summary.thisMonthCount} consultations</div>
           </div>
           <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2">
@@ -308,7 +309,7 @@ function DoctorBilling() {
               Total Earnings (YTD)
               <div className="w-8 h-8 rounded-full bg-sky-50 text-sky-500 flex items-center justify-center group-hover:scale-110 transition-transform"><i className="fas fa-calendar-check text-xs"></i></div>
             </div>
-            <div className="text-2xl font-black text-slate-800 mb-1 tabular-nums tracking-tight">₹{summary.totalYtd.toLocaleString()}</div>
+            <div className="text-2xl font-black text-slate-800 mb-1 tabular-nums tracking-tight">{formatCurrency(summary.totalYtd, userCurrency)}</div>
             <div className="text-slate-500 text-xs font-medium">Since January</div>
           </div>
           <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-400 font-medium flex items-center gap-1.5">
@@ -330,12 +331,12 @@ function DoctorBilling() {
                 </linearGradient>
               </defs>
               <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} dy={10} minTickGap={20} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={(value) => `₹${value / 1000}k`} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={(value) => `${value >= 1000 ? `${value / 1000}k` : value}`} />
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <Tooltip 
                 contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                 itemStyle={{ color: '#6B46C1', fontWeight: 'bold' }}
-                formatter={(value) => [`₹${value.toLocaleString()}`, 'Earnings']}
+                formatter={(value) => [formatCurrency(value, userCurrency), 'Earnings']}
               />
               <Area type="monotone" dataKey="earnings" stroke="#6B46C1" strokeWidth={3} fillOpacity={1} fill="url(#colorEarnings)" activeDot={{ r: 6, strokeWidth: 0, fill: '#6B46C1' }} />
             </AreaChart>
@@ -368,7 +369,7 @@ function DoctorBilling() {
           </div>
           <div className="flex items-center gap-4">
             <div className="text-sm text-slate-500 font-medium bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
-              Showing: <strong className="text-emerald-700 font-black tracking-tight">₹{total.toLocaleString()}</strong> settled
+              Showing: <strong className="text-emerald-700 font-black tracking-tight">{formatCurrency(total, userCurrency)}</strong> settled
             </div>
             <button onClick={exportEarnings} className="crm-btn-secondary h-[36px] bg-white">
               <i className="fas fa-download mr-1.5"></i> Export CSV
@@ -398,7 +399,7 @@ function DoctorBilling() {
                   <td className="text-slate-500 whitespace-nowrap">{t.date}</td>
                   <td><span className="bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-1 rounded-full font-bold text-[10px]">{t.type}</span></td>
                   <td className="text-slate-500">{t.method}</td>
-                  <td className="font-black text-slate-800">₹{t.amount}</td>
+                  <td className="font-black text-slate-800">{formatCurrency(t.amount, t.currency || userCurrency)}</td>
                   <td>
                     <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border capitalize ${STATUS_STYLE[t.status]}`}>{t.status}</span>
                   </td>
@@ -425,7 +426,7 @@ function DoctorBilling() {
         </div>
       </div>
 
-      <PayoutModal isOpen={showPayout} onClose={() => setShowPayout(false)} toast={toast} available={summary.available} onRequest={requestPayout} />
+      <PayoutModal isOpen={showPayout} onClose={() => setShowPayout(false)} toast={toast} available={summary.available} currency={userCurrency} onRequest={requestPayout} />
       <InvoiceModal txn={invoiceTxn} isOpen={!!invoiceTxn} onClose={() => setInvoiceTxn(null)} doctorName={user?.name} toast={toast} />
     </div>
   );

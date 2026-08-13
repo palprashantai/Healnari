@@ -6,6 +6,7 @@ import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
 import { CONCERN_OPTIONS, findClosestSpecialty } from '../../lib/specialtyMatch.js';
+import { formatCurrency } from '../../lib/currency.js';
 
 /* ─── "Not sure which specialist?" Modal ─────── */
 function ConcernPickerModal({ isOpen, onClose, specialties, onPick }) {
@@ -55,7 +56,7 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow })
       const apt = await addAppointment({ doctorId: doc.id, type, date, time: slot, reason: notes });
       setBookedApt(apt);
       toast(`Slot reserved for 5 minutes! Please complete payment to confirm.`, 'info');
-      onPayNow({ id: apt.id, fee: doc.fee, doctorName: doc.name });
+      onPayNow({ id: apt.id, fee: doc.fee, currency: doc.currency, doctorName: doc.name });
       reset();
     } catch (err) {
       toast(err.message || 'Failed to book appointment. Please try again.', 'error');
@@ -88,7 +89,7 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow })
           {/* Fee summary */}
           <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-3 text-xs flex justify-between">
             <span className="text-slate-600 font-medium">Standard Consult (30 mins)</span>
-            <span className="font-black text-aubergine-800">₹{doc.fee}</span>
+            <span className="font-black text-aubergine-800">{formatCurrency(doc.fee, doc.currency || 'INR')}</span>
           </div>
 
           {/* Type */}
@@ -152,7 +153,7 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow })
             <div className="flex justify-between"><span className="text-slate-500">Type</span><span className="font-bold text-slate-800">{type}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Date</span><span className="font-bold text-slate-800">{date}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Slot</span><span className="font-bold text-slate-800">{slot}</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">Fee</span><span className="font-black text-aubergine-800">₹{doc.fee}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500">Fee</span><span className="font-black text-aubergine-800">{formatCurrency(doc.fee, doc.currency || 'INR')}</span></div>
             <p className="text-[10px] text-slate-500 pt-2 border-t border-slate-200">
               🔒 Private & confidential. Governed under NMC Telemedicine Guidelines, India.
             </p>
@@ -204,7 +205,7 @@ function DoctorCard({ doc, onBook, onFavorite, favorites }) {
           </div>
           <div className="flex flex-col items-end">
             <span className="text-[9px] text-slate-500 uppercase tracking-wider mb-0.5">Consult Fee</span>
-            <span className="text-slate-800 font-black text-sm">₹{doc.fee}</span>
+            <span className="text-slate-800 font-black text-sm">{formatCurrency(doc.fee, doc.currency || 'INR')}</span>
           </div>
         </div>
       </div>

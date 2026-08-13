@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
+import { formatCurrency } from '../../lib/currency.js';
 
 /* ─── Main Component ─────────────────────────── */
 function DoctorProfile() {
@@ -287,8 +288,8 @@ function DoctorProfile() {
             <div className="space-y-5 max-w-lg">
               <div className="grid grid-cols-2 gap-5">
                 {[
-                  { label: 'Video Consult Fee (₹)', key: 'videoFee', icon: 'fa-video', color: 'bg-sky-50 text-sky-600 border-sky-100' },
-                  { label: 'Clinic Visit Fee (₹)', key: 'clinicFee', icon: 'fa-hospital', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+                  { label: `Video Consult Fee (${doc?.profile?.currency || 'USD'})`, key: 'videoFee', icon: 'fa-video', color: 'bg-sky-50 text-sky-600 border-sky-100' },
+                  { label: `Clinic Visit Fee (${doc?.profile?.currency || 'USD'})`, key: 'clinicFee', icon: 'fa-hospital', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
                 ].map(f => (
                   <div key={f.key} className={`border ${f.color} rounded-2xl p-5`}>
                     <div className="text-base mb-2"><i className={`fas ${f.icon}`}></i></div>
@@ -300,9 +301,13 @@ function DoctorProfile() {
               </div>
 
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                <h4 className="font-bold text-slate-700 text-sm mb-2">Platform Deductions</h4>
+                <h4 className="font-bold text-slate-700 text-sm mb-2">Platform Deductions & Take-Home</h4>
                 <div className="space-y-2 text-xs">
-                  {[['Video Consult Gross', `₹${form.videoFee}`], ['Platform Fee (8%)', `-₹${Math.round(form.videoFee * 0.08)}`], ['GST on fee (18%)', `-₹${Math.round(form.videoFee * 0.08 * 0.18)}`], ['Your Net Earnings', `₹${Math.round(form.videoFee * 0.92 * 0.82)}`]].map(([k, v]) => (
+                  {[
+                    ['Video Consult Gross', formatCurrency(form.videoFee, doc?.profile?.currency || 'USD')],
+                    ['Platform & Clinical Infrastructure Fee (10%)', `-${formatCurrency(Math.round(form.videoFee * 0.10), doc?.profile?.currency || 'USD')}`],
+                    ['Your Direct Net Take-Home (90%)', formatCurrency(Math.round(form.videoFee * 0.90), doc?.profile?.currency || 'USD')]
+                  ].map(([k, v]) => (
                     <div key={k} className="flex justify-between">
                       <span className="text-slate-500">{k}</span>
                       <span className={`font-bold ${k.startsWith('Your') ? 'text-emerald-700 text-sm' : 'text-slate-800'}`}>{v}</span>
