@@ -161,6 +161,22 @@ function LabTests({ onBook }) {
           ))}
         </div>
 
+        {/* Global Partner Lab Network Callout */}
+        <div className="mx-6 sm:mx-8 mb-6 p-4 bg-emerald-50/80 border border-emerald-200/80 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-emerald-950 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-base shrink-0 shadow-xs">
+              <i className="fas fa-earth-americas"></i>
+            </div>
+            <div>
+              <strong className="block text-slate-900 font-extrabold text-xs sm:text-sm">Worldwide Lab Compatibility &amp; At-Home Kits</strong>
+              <span className="text-slate-600 text-xs">Upload recent bloodwork from any certified global lab: LabCorp &amp; Quest (US), Medichecks (UK), Al Borg (UAE), or Thyrocare (India).</span>
+            </div>
+          </div>
+          <span className="bg-emerald-700 text-white font-extrabold text-[11px] px-3.5 py-1.5 rounded-xl shrink-0 shadow-xs">
+            Global Upload Supported
+          </span>
+        </div>
+
         {/* CTA Footer */}
         <div className="border-t border-slate-100 p-6 bg-slate-50/30 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-sm text-slate-500 font-semibold max-w-sm">

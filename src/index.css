@@ -59,7 +59,8 @@
   /* HealNari Serif Headings */
   h1, h2, h3, h4, .font-serif-brand {
     font-family: 'Playfair Display', serif;
-    @apply tracking-tight;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
 
   a {

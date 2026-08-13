@@ -49,7 +49,7 @@ function Testimonials() {
           Success Stories
         </span>
         <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight font-display">
-          Hear real experiences from women who chose HealNari
+          Hear real experiences from women who choose HealNari
         </h2>
       </div>
 

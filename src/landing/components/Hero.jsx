@@ -12,13 +12,13 @@ function Hero({ onStartConsult, onOpenChecker }) {
         <div className="lg:col-span-7 space-y-8 text-center lg:text-left animate-slide-up order-2 lg:order-1">
           {/* Trust Badges */}
           <div className="flex flex-wrap justify-center lg:justify-start gap-2.5">
-            <span className="inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
-              <i className="fas fa-lock text-aubergine-500"></i> 100% private & confidential
+            <span className="inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
+              <i className="fas fa-lock text-aubergine-500"></i> 100% private &amp; confidential
             </span>
-            <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
+            <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
               <i className="fas fa-user-md text-emerald-500"></i> Backed by doctors
             </span>
-            <span className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-100 text-amber-700 text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
+            <span className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
               <i className="fas fa-microscope text-amber-600"></i> Science-backed
             </span>
           </div>
@@ -48,7 +48,7 @@ function Hero({ onStartConsult, onOpenChecker }) {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
             <div className="flex flex-col gap-2 w-full sm:w-auto relative">
               <span className="absolute -top-3 right-0 md:-right-4 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-lg animate-pulse z-10 border border-white">
-                📅 Next slot: Today at 4:30 PM
+                📅 Next slot: Today in your timezone
               </span>
               <button
                 onClick={onStartConsult}
@@ -85,9 +85,9 @@ function Hero({ onStartConsult, onOpenChecker }) {
         <div className="lg:col-span-5 relative flex justify-center lg:justify-end order-1 lg:order-2">
           {/* Main Visual Frame */}
           <div className="relative w-72 h-72 sm:w-80 sm:h-80 lg:w-96 lg:h-96">
-            <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-aubergine-600 to-aubergine-200 opacity-20 blur-xl animate-pulse-subtle"></div>
+            <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-aubergine-600 via-magenta-400 to-indigo-300 opacity-25 blur-2xl animate-pulse-subtle"></div>
             
-            {/* Beautiful Profile Image */}
+            {/* Beautiful Profile Image with Soft Vignette */}
             <div className="w-full h-full rounded-full overflow-hidden border-8 border-white shadow-2xl relative">
               <img
                 src="/generated/hero.webp"
@@ -98,29 +98,29 @@ function Hero({ onStartConsult, onOpenChecker }) {
                 decoding="async"
                 className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/10 to-transparent"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/20 via-transparent to-transparent"></div>
             </div>
 
             {/* Interactive Rating Badge Overlay */}
-            <div className="absolute -bottom-4 right-4 bg-white rounded-2xl shadow-xl border border-aubergine-50/80 p-3.5 flex items-center gap-3 animate-float">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500 text-lg">
+            <div className="absolute -bottom-3 sm:-bottom-4 right-2 sm:right-4 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-sand-200 p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 animate-float z-10">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500 text-base sm:text-lg shrink-0">
                 <i className="fas fa-star"></i>
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-slate-800 text-base leading-none">4.98</span>
-                  <span className="text-xs text-slate-400 font-bold">/ 5.0</span>
+                  <span className="font-extrabold text-slate-800 text-sm sm:text-base leading-none">4.98</span>
+                  <span className="text-[11px] text-slate-400 font-bold">/ 5.0</span>
                 </div>
-                <p className="text-[11px] text-slate-500 font-semibold mt-0.5">2,000+ happy reviews</p>
+                <p className="text-[10px] sm:text-[11px] text-slate-500 font-bold mt-0.5">2,000+ verified consults</p>
               </div>
             </div>
 
             {/* Mini Trust Bubble */}
-            <div className="absolute -top-3 -left-3 bg-white rounded-2xl shadow-lg border border-aubergine-50 p-2.5 flex items-center gap-2 animate-bounce-subtle">
-              <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-xs">
+            <div className="absolute -top-2 sm:-top-3 -left-2 sm:-left-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-sand-200 p-2 sm:p-2.5 flex items-center gap-2 animate-bounce-subtle z-10">
+              <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-xs shrink-0">
                 <i className="fas fa-shield-heart"></i>
               </div>
-              <span className="text-[11px] font-bold text-slate-700">100% Safe Care</span>
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-800">100% Doctor-Led</span>
             </div>
           </div>
         </div>

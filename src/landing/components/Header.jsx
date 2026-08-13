@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HealNariLogo } from '../../components/HealNariLogo.jsx';
+import { NavLink } from 'react-router-dom';
 
 function Header({ onStartConsult, onOpenAuth }) {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -59,10 +60,17 @@ function Header({ onStartConsult, onOpenAuth }) {
           </nav>
         </div>
 
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-2.5 sm:gap-3.5">
+          <NavLink
+            to="/for-doctors"
+            className="hidden xl:inline-flex text-xs font-extrabold text-aubergine-700 bg-aubergine-50 hover:bg-aubergine-100 border border-aubergine-200 px-3 py-2 rounded-xl transition-all shadow-2xs items-center gap-1.5 whitespace-nowrap"
+          >
+            <i className="fas fa-stethoscope text-[10px]"></i> For Doctors
+          </NavLink>
+
           <button 
             onClick={() => document.body.classList.toggle('discreet-blur')}
-            className="hidden lg:flex bg-slate-50 hover:bg-slate-100 text-slate-500 font-bold px-3.5 py-2.5 rounded-xl text-sm border border-slate-200 transition-all btn-interactive items-center"
+            className="hidden lg:flex bg-slate-50 hover:bg-slate-100 text-slate-500 font-bold px-3 py-2 rounded-xl text-sm border border-slate-200 transition-all btn-interactive items-center"
             title="Discreet Mode (Blur screen for privacy)"
             aria-label="Toggle discreet mode"
           >
@@ -70,7 +78,7 @@ function Header({ onStartConsult, onOpenAuth }) {
           </button>
           <button 
             onClick={onOpenAuth}
-            className="hidden lg:flex bg-white hover:bg-slate-50 text-slate-700 font-bold px-5 py-2.5 rounded-xl text-sm border border-slate-200 transition-all btn-interactive items-center gap-2"
+            className="hidden lg:flex bg-white hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm border border-slate-200 transition-all btn-interactive items-center gap-2"
           >
             <i className="fas fa-user-circle text-slate-400"></i> Login
           </button>

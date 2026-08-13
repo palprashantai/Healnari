@@ -9,58 +9,58 @@ function Doctors({ onSelectDoctor }) {
     {
       name: 'Dr. Ananya Mehta',
       specialty: 'Reproductive Endocrinologist',
-      degree: 'MBBS, MD, Fellowship in Reproductive Medicine',
-      location: 'Mumbai | English, Hindi, Marathi',
-      experience: '15+ years',
-      patients: '12k+ patients',
+      degree: 'MBBS, MD, Fellowship in Reproductive Endocrinology (Ex-AIIMS)',
+      location: 'Global Telemedicine • English, Hindi, Spanish',
+      experience: '15+ years experience',
+      patients: '12k+ global patients',
       image: '/generated/doc1.webp',
       tags: ['Gynaecologist', 'Endocrinologist'],
       availability: 'online',
-      nextSlot: 'Today, 4:30 PM',
-      regNo: 'MCI-15201',
-      ethos: 'Unmarried-Friendly Care'
+      nextSlot: 'Today in your timezone',
+      regNo: 'NMC / MCI-15201',
+      ethos: 'Root-Cause & Fertility Focus'
     },
     {
       name: 'Dr. Ritu Khanna',
       specialty: 'Endocrinologist & Metabolic Specialist',
-      degree: 'MBBS, MD (Endocrinology)',
-      location: 'Delhi | English, Hindi, Punjabi',
-      experience: '12+ years',
-      patients: '8k+ patients',
+      degree: 'MBBS, MD (Endocrinology), Apollo Health Fellow',
+      location: 'Global Telemedicine • English, Hindi, Arabic',
+      experience: '12+ years experience',
+      patients: '8k+ global patients',
       image: '/generated/doc2.webp',
       tags: ['Endocrinologist'],
       availability: 'busy',
-      nextSlot: 'Today, 6:00 PM',
-      regNo: 'MCI-92810',
-      ethos: 'Weight-Neutral Care'
+      nextSlot: 'Today in your timezone',
+      regNo: 'DMC-92810',
+      ethos: 'Insulin Resistance Specialist'
     },
     {
       name: 'Dr. Shreya Verma',
-      specialty: 'Trichologist & Dermatologist',
-      degree: 'MBBS, DDVL, Diploma in Trichology',
-      location: 'Bengaluru | English, Hindi, Tamil',
-      experience: '10+ years',
-      patients: '6k+ patients',
+      specialty: 'Trichologist & Clinical Dermatologist',
+      degree: 'MBBS, DDVL, Diploma in Trichology (UK Affil)',
+      location: 'Global Telemedicine • English, Hindi, Tamil',
+      experience: '10+ years experience',
+      patients: '6k+ global patients',
       image: '/generated/doc3.webp',
       tags: ['Trichologist'],
       availability: 'online',
-      nextSlot: 'Today, 2:00 PM',
-      regNo: 'MCI-33821',
-      ethos: 'Trauma-Informed Focus'
+      nextSlot: 'Today in your timezone',
+      regNo: 'KMC-33821',
+      ethos: 'Hormonal Acne & Hair Loss Lead'
     },
     {
       name: 'Dr. Priya Nair',
       specialty: 'Reproductive & Sexual Health Expert',
-      degree: 'MBBS, DGO, Fellowship in Reproductive Medicine',
-      location: 'Chennai | English, Malayalam, Tamil',
-      experience: '18+ years',
-      patients: '15k+ patients',
+      degree: 'MBBS, DGO, Fellowship in Reproductive Medicine (Ex-CMC)',
+      location: 'Global Telemedicine • English, Malayalam, Tamil',
+      experience: '18+ years experience',
+      patients: '15k+ global patients',
       image: '/generated/doc4.webp',
       tags: ['Gynaecologist'],
-      availability: 'offline',
-      nextSlot: 'Tomorrow, 10:00 AM',
-      regNo: 'MCI-77290',
-      ethos: 'LGBTQ+ Allied Care'
+      availability: 'online',
+      nextSlot: 'Tomorrow in your timezone',
+      regNo: 'NMC / MCI-77290',
+      ethos: 'LGBTQ+ Allied & Evidence-Based Care'
     }
   ];
 
@@ -84,14 +84,14 @@ function Doctors({ onSelectDoctor }) {
     <section id="doctors" className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20 scroll-mt-20">
       {/* Head block */}
       <Reveal className="text-center max-w-2xl mx-auto mb-10 space-y-3">
-        <span className="text-xs font-bold text-aubergine-600 uppercase tracking-widest bg-aubergine-50 px-3 py-1 rounded-full">
-          Our Team
+        <span className="text-xs font-semibold text-aubergine-700 uppercase tracking-wider bg-aubergine-50 px-3.5 py-1 rounded-full border border-aubergine-100">
+          Our Specialist Team
         </span>
-        <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight font-display">
-          Care Led by Experienced Doctors
+        <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 leading-tight font-display">
+          Care Led by Experienced Specialists
         </h2>
-        <p className="text-slate-500 text-sm md:text-base">
-          Gynaecologists, endocrinologists & trichologists — collaborating under one digital roof to trace your concerns back to their root cause.
+        <p className="text-slate-600 text-sm md:text-base font-normal leading-relaxed">
+          Gynaecologists, endocrinologists &amp; trichologists — collaborating under one digital roof to trace your concerns back to their root cause.
         </p>
       </Reveal>
 
@@ -101,10 +101,10 @@ function Doctors({ onSelectDoctor }) {
           <button
             key={tab}
             onClick={() => setActiveFilter(tab)}
-            className={`px-5 py-2 rounded-xl text-sm font-bold transition-all duration-200 btn-interactive border ${
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 btn-interactive border ${
               activeFilter === tab
                 ? 'bg-aubergine-600 border-aubergine-600 text-white shadow-md shadow-aubergine-100'
-                : 'border-sand-200 text-slate-600 hover:bg-sand-100 hover:text-slate-900'
+                : 'border-sand-200 text-slate-600 hover:bg-sand-100 hover:text-slate-900 bg-white'
             }`}
           >
             {tab}

@@ -47,14 +47,14 @@ function HealthTips() {
     <section id="health-tips" className="max-w-6xl mx-auto px-5 md:px-8 py-16 scroll-mt-20">
       {/* Title Block */}
       <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
-        <span className="text-xs font-bold text-rose-600 uppercase tracking-widest bg-rose-50 px-3 py-1 rounded-full">
-          Health Education
+        <span className="text-xs font-semibold text-rose-700 uppercase tracking-wider bg-rose-50 px-3.5 py-1 rounded-full border border-rose-100">
+          Health Education &amp; Clinical Guides
         </span>
-        <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight font-display">
-          Know your body better
+        <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 leading-tight font-display">
+          Understand Your Hormonal Body
         </h2>
-        <p className="text-slate-500 text-sm md:text-base">
-          Clinical insights from our specialist team — because understanding your health is the first step to healing it.
+        <p className="text-slate-600 text-sm md:text-base font-normal leading-relaxed">
+          Clinical insights from our specialist team — because understanding your biological root cause is the first step to healing it.
         </p>
       </div>
 

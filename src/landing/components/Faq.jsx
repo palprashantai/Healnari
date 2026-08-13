@@ -31,8 +31,8 @@ function Faq() {
       <div className="rounded-3xl p-6 md:p-10 border border-sand-200 shadow-sm" style={{ backgroundColor: 'var(--color-surface-card)' }}>
 
         {/* Title */}
-        <h2 className="text-3xl md:text-4xl font-black text-center text-slate-900 mb-8 font-display">
-          Frequently asked questions
+        <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-center text-slate-900 mb-8 font-display">
+          Frequently Asked Questions
         </h2>
 
         {/* Accordion List */}

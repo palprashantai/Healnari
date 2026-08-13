@@ -401,7 +401,7 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
             <button onClick={() => setBriefExpanded(!briefExpanded)} className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-900 transition-colors group">
               <div className="flex items-center gap-3">
                 <div className="w-7 h-7 rounded-full bg-aubergine-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                   <i className="fas fa-sparkles text-aubergine-400 text-xs"></i>
+                   <i className="fas fa-wand-magic-sparkles text-aubergine-400 text-xs"></i>
                 </div>
                 <span className="font-bold text-xs text-white uppercase tracking-wider">AI Brief & History</span>
               </div>

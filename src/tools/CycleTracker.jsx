@@ -110,7 +110,7 @@ function CycleTracker() {
         {/* Title */}
         {step < 5 && (
           <div className="text-center mb-8 space-y-2">
-            <h2 className="text-2xl md:text-3xl font-black text-slate-900 font-display">
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 font-display">
               Comprehensive Cycle Analysis
             </h2>
             <p className="text-slate-500 text-sm md:text-base">

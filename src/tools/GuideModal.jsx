@@ -124,7 +124,7 @@ function GuideModal({ isOpen, onClose, guide, onBookConsult }) {
             </span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black font-display leading-tight tracking-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold font-display leading-tight tracking-tight">
             {guide.title}
           </h1>
 
@@ -138,12 +138,11 @@ function GuideModal({ isOpen, onClose, guide, onBookConsult }) {
               />
             </div>
             <div>
-              <p className="text-xs font-bold text-white flex items-center gap-1.5">
-                Medically reviewed by Dr. Sarah Mitchell
-                <i className="fas fa-circle-check text-emerald-400 text-xs"></i>
+              <p className="text-sm font-bold text-white flex items-center gap-1.5">
+                {guide.author} <i className="fas fa-certificate text-emerald-400 text-xs"></i>
               </p>
-              <p className="text-[11px] text-slate-300 font-medium">
-                Lead Endocrinologist & HealNari Medical Advisory Board
+              <p className="text-xs text-slate-300">
+                {guide.role}
               </p>
             </div>
           </div>
@@ -155,18 +154,16 @@ function GuideModal({ isOpen, onClose, guide, onBookConsult }) {
         <article className="max-w-4xl mx-auto space-y-8 text-slate-700">
 
           {/* Key Executive Summary Box */}
-          <div className="bg-sand-50/80 border border-sand-200 rounded-3xl p-6 sm:p-8 space-y-3 shadow-sm">
-            <h3 className="text-sm font-extrabold text-aubergine-800 uppercase tracking-wider flex items-center gap-2 font-display">
-              <i className="fas fa-bookmark text-aubergine-600"></i> Executive Summary
-            </h3>
-            <p className="text-base sm:text-lg font-medium text-slate-800 leading-relaxed">
-              {guide.summary}
-            </p>
+          <div className="bg-sand-50/70 border border-sand-200/80 rounded-2xl p-5 sm:p-6 text-slate-700 leading-relaxed text-sm sm:text-base">
+            <strong className="text-slate-900 block mb-1.5 font-bold flex items-center gap-2">
+              <i className="fas fa-bookmark text-aubergine-600"></i> Clinical Executive Summary
+            </strong>
+            {guide.desc}
           </div>
 
           {/* Article Section 1: Biological Root Cause */}
           <section className="space-y-4 pt-4">
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 font-display">
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 font-display tracking-tight">
               1. Understanding the Underlying Biological Mechanism
             </h2>
             <p className="text-base sm:text-lg text-slate-650 leading-relaxed">
@@ -179,17 +176,17 @@ function GuideModal({ isOpen, onClose, guide, onBookConsult }) {
 
           {/* Doctor's Clinical Tip Callout */}
           <div className={`border-l-4 rounded-2xl p-6 bg-slate-50/80 border ${theme.tipBorder} ${theme.accentBg}`}>
-            <h4 className="text-sm font-extrabold uppercase tracking-wider mb-1 flex items-center gap-2 text-slate-900">
+            <h4 className="text-sm font-bold uppercase tracking-wider mb-1 flex items-center gap-2 text-slate-900">
               <i className="fas fa-lightbulb text-amber-500"></i> Key Clinical Recommendation
             </h4>
-            <p className="text-base font-bold text-slate-800 leading-relaxed">
+            <p className="text-base font-semibold text-slate-800 leading-relaxed">
               "{guide.tip}"
             </p>
           </div>
 
           {/* Article Section 2: Clinical Action Protocol */}
           <section className="space-y-5 pt-4">
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 font-display">
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 font-display tracking-tight">
               2. Evidence-Based Clinical Action Steps
             </h2>
             <p className="text-base sm:text-lg text-slate-650 leading-relaxed">
@@ -198,42 +195,31 @@ function GuideModal({ isOpen, onClose, guide, onBookConsult }) {
 
             <div className="grid sm:grid-cols-3 gap-5 pt-2">
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <div className="w-8 h-8 rounded-lg bg-aubergine-50 text-aubergine-600 flex items-center justify-center font-bold text-sm">
-                  01
-                </div>
-                <h4 className="font-bold text-slate-900 text-sm">Comprehensive Lab Diagnostic</h4>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Evaluate fasting insulin, total & free testosterone, DHEAS, TSH, and 17-OH progesterone.
-                </p>
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-sm">01</div>
+                <h4 className="font-bold text-slate-900 text-base">Metabolic Stabilization</h4>
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">Prioritize protein-first breakfast and resistance exercise to lower baseline fasting insulin.</p>
               </div>
-
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">
-                  02
-                </div>
-                <h4 className="font-bold text-slate-900 text-sm">Metabolic & Anti-Inflammatory Diet</h4>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Focus on high-fiber, low-glycemic index whole foods paired with clean protein sources.
-                </p>
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-sm">02</div>
+                <h4 className="font-bold text-slate-900 text-base">Targeted Biomarkers</h4>
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">Check DHEA-S, fasting insulin, and full thyroid panels rather than relying on ultrasounds alone.</p>
               </div>
-
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-sm">
-                  03
-                </div>
-                <h4 className="font-bold text-slate-900 text-sm">Targeted Medical Protocol</h4>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Partner with a specialist endocrinologist to monitor cellular turnover every 90 days.
-                </p>
+                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-sm">03</div>
+                <h4 className="font-bold text-slate-900 text-base">Circadian Rhythm Alignment</h4>
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">Aim for 7.5+ hours of uninterrupted sleep to normalize morning cortisol and prolactin surges.</p>
               </div>
             </div>
           </section>
 
           {/* Bottom Consultation CTA Banner */}
-          <div className="bg-gradient-to-r from-aubergine-900 via-aubergine-800 to-slate-900 text-white rounded-3xl p-8 sm:p-10 shadow-2xl mt-12 flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="space-y-2 text-center sm:text-left max-w-md">
-              <h3 className="text-2xl font-black font-display">
-                Need a Personalized Medical Protocol?
+          <div className="mt-8 rounded-3xl bg-gradient-to-br from-aubergine-900 via-slate-900 to-aubergine-800 p-6 sm:p-8 text-white flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl">
+            <div className="space-y-2 text-center sm:text-left">
+              <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-800/80">
+                1-on-1 Personalized Care
+              </span>
+              <h3 className="text-2xl font-bold font-display tracking-tight">
+                Want a personalized protocol for your symptoms?
               </h3>
               <p className="text-sm text-slate-200 leading-relaxed">
                 Book a 1-on-1 consultation with top endocrinologists and gynecologists to get your custom recovery plan.

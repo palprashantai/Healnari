@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Header from '../components/Header.jsx';
 import Hero from '../components/Hero.jsx';
 import BookingModal from '../../tools/BookingModal.jsx';
@@ -34,6 +34,15 @@ function LandingPage() {
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [confirmedDetails, setConfirmedDetails] = useState(null);
+  const [showMobileBar, setShowMobileBar] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowMobileBar(window.scrollY > 450);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const openBooking = (docName = '') => {
     setSelectedDoctor(docName);
@@ -151,6 +160,24 @@ function LandingPage() {
 
       {/* Floating WhatsApp / Call CTA */}
       <FloatingCTA onBook={openBooking} />
+
+      {/* Floating Bottom Sticky Bar on Mobile (Natural Thumb Zone for Patients) */}
+      {showMobileBar && (
+        <div className="md:hidden fixed bottom-4 inset-x-4 z-40 animate-slide-up">
+          <div className="bg-slate-900/95 backdrop-blur-lg border border-sand-200/40 rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-3 text-white">
+            <div className="min-w-0 pl-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-rose-400 block">Next Slot: Today</span>
+              <p className="text-xs font-bold text-slate-200 truncate">45-Min Detailed Video Call</p>
+            </div>
+            <button
+              onClick={() => openBooking('')}
+              className="bg-gradient-to-r from-aubergine-500 to-magenta-600 hover:from-aubergine-600 hover:to-magenta-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105 shrink-0 flex items-center gap-1.5"
+            >
+              <i className="fas fa-stethoscope text-[10px]"></i> Book $29
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Booking Form Overlay */}
       {isBookingOpen && (

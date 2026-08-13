@@ -18,13 +18,13 @@ function Conditions() {
     <section id="conditions" className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20 scroll-mt-20">
       {/* Title Header */}
       <Reveal className="text-center max-w-2xl mx-auto mb-10 space-y-3">
-        <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full">
+        <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider bg-emerald-50 px-3.5 py-1 rounded-full border border-emerald-100">
           Clinical Focus
         </span>
-        <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight font-display">
-          Women's health conditions we treat online
+        <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 leading-tight font-display">
+          Hormonal &amp; Metabolic Conditions We Treat
         </h2>
-        <p className="text-slate-500 text-sm md:text-base">
+        <p className="text-slate-600 text-sm md:text-base font-normal leading-relaxed">
           Our specialized team is trained in root-cause clinical gynaecology, reproductive medicine, and nutritional science.
         </p>
       </Reveal>

@@ -550,7 +550,7 @@ function AIInsightStrip({ queue, labs, refillRequests }) {
         </div>
       )}
       <span className="text-[10px] font-black text-teal-700 bg-teal-100 px-2 py-1 rounded-lg flex-shrink-0">
-        <i className="fas fa-sparkles mr-1"></i>AI
+        <i className="fas fa-wand-magic-sparkles mr-1"></i>AI
       </span>
     </div>
   );

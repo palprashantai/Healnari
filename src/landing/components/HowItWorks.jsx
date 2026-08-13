@@ -5,7 +5,7 @@ const steps = [
   {
     num: 1,
     title: 'Discover Your Root Cause',
-    price: '₹299',
+    price: '$29',
     desc: 'We start by actually listening to you. Your specialist doctor will conduct a deep-dive, 45-minute consultation to validate your symptoms and uncover the true hormonal cause.',
     bullets: [
       'Led by gynaecologists, endocrinologists & trichologists',
@@ -13,7 +13,7 @@ const steps = [
       'Doctor-designed root-cause diagnostic process',
     ],
     image: '/generated/step1.webp',
-    imageAlt: 'Indian woman having a video consultation with a doctor',
+    imageAlt: 'Woman having a 1-on-1 video consultation with a specialist doctor',
     accent: '#5A7A5A',
     tagBg: 'bg-sage-50 text-sage-800 border-sage-100',
     tag: 'Step 1 · Diagnose',
@@ -80,13 +80,13 @@ function HowItWorks() {
 
       {/* ── Title ── */}
       <div className="text-center max-w-2xl mx-auto mb-12 md:mb-16 space-y-3">
-        <span className="text-xs font-bold text-aubergine-700 uppercase tracking-widest bg-aubergine-50 border border-aubergine-100 px-3.5 py-1.5 rounded-full shadow-sm">
-          The Journey
+        <span className="text-xs font-semibold text-aubergine-700 uppercase tracking-wider bg-aubergine-50 border border-aubergine-100 px-3.5 py-1.5 rounded-full shadow-2xs">
+          The Clinical Journey
         </span>
-        <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight font-display">
-          How the HealNari journey works
+        <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 leading-tight font-display">
+          How Your HealNari Care Works
         </h2>
-        <p className="text-slate-500 text-sm md:text-base leading-relaxed">
+        <p className="text-slate-600 text-sm md:text-base font-normal leading-relaxed">
           From precise diagnosis to guided, doctor-led clinical recovery.
         </p>
       </div>
