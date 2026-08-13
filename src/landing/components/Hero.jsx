@@ -80,7 +80,7 @@ function Hero({ onStartConsult, onOpenChecker }) {
             {/* Beautiful Profile Image */}
             <div className="w-full h-full rounded-full overflow-hidden border-8 border-white shadow-2xl relative">
               <img
-                src="/generated/hero.png"
+                src="/generated/hero.webp"
                 alt="Patient consulting an online gynaecologist for PCOS and hormonal health at HealNari"
                 width="500"
                 height="500"
