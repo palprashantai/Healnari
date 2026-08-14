@@ -78,40 +78,40 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
 }
 
 /* ─── Simplified Active Call UI ─────────────────────────── */
-/* ─── Reference Data for Smart Prescribing & Telemedicine ─── */
-const MED_SUGGESTIONS = [
-  { name: 'Metformin ER', defaultDose: '500mg', defaultFreq: '1-0-1', defaultTiming: 'After Food', defaultDuration: '90 Days' },
-  { name: 'Myo-Inositol Sachet', defaultDose: '2g', defaultFreq: '1-0-0', defaultTiming: 'Morning with water', defaultDuration: '90 Days' },
-  { name: 'Norethisterone', defaultDose: '5mg', defaultFreq: '1-0-1', defaultTiming: 'After Food (Day 16-25)', defaultDuration: '10 Days' },
-  { name: 'Dienogest', defaultDose: '2mg', defaultFreq: '0-0-1', defaultTiming: 'Night', defaultDuration: '90 Days' },
-  { name: 'Mefenamic Acid', defaultDose: '500mg', defaultFreq: '1-1-1', defaultTiming: 'After Food during pain', defaultDuration: '5 Days' },
-  { name: 'Tranexamic Acid', defaultDose: '500mg', defaultFreq: '1-1-1', defaultTiming: 'During heavy flow', defaultDuration: '5 Days' },
-  { name: 'Nitrofurantoin', defaultDose: '100mg', defaultFreq: '1-0-1', defaultTiming: 'After Food', defaultDuration: '5 Days' },
-  { name: 'Levothyroxine', defaultDose: '50mcg', defaultFreq: '1-0-0', defaultTiming: 'Empty stomach morning', defaultDuration: '60 Days' },
-  { name: 'Folic Acid + DHA', defaultDose: '5mg', defaultFreq: '1-0-0', defaultTiming: 'After Breakfast', defaultDuration: '90 Days' },
-  { name: 'Vitamin D3 (Cholecalciferol)', defaultDose: '60,000 IU', defaultFreq: 'Weekly', defaultTiming: 'With milk', defaultDuration: '8 Weeks' },
-  { name: 'Combined Oral Contraceptive', defaultDose: '1 Tab', defaultFreq: '0-0-1', defaultTiming: 'Fixed time night', defaultDuration: '21 Days' },
-  { name: 'Clomiphene Citrate', defaultDose: '50mg', defaultFreq: '0-0-1', defaultTiming: 'Day 2 to Day 6', defaultDuration: '5 Days' },
-  { name: 'Progesterone Sustained Release', defaultDose: '200mg', defaultFreq: '0-0-1', defaultTiming: 'Bedtime', defaultDuration: '15 Days' },
-];
 
-const LAB_CATALOG = [
-  { id: 'lh_fsh', name: 'LH & FSH Ratio', category: 'Hormones', badge: '🌸 PCOS/Cycle' },
-  { id: 'amh', name: 'Serum AMH (Ovarian Reserve)', category: 'Hormones', badge: '🌸 Fertility' },
-  { id: 'total_testosterone', name: 'Total & Free Testosterone', category: 'Hormones', badge: '🌸 Androgen' },
-  { id: 'dheas', name: 'DHEA-Sulfate', category: 'Hormones', badge: '🌸 Adrenal' },
-  { id: 'tsh_ft3_ft4', name: 'Complete Thyroid Profile (TSH, FT3, FT4)', category: 'Thyroid', badge: '🦋 Thyroid' },
-  { id: 'anti_tpo', name: 'Anti-TPO Antibodies', category: 'Thyroid', badge: '🦋 Autoimmune' },
-  { id: 'hba1c_fasting', name: 'Fasting Glucose & HbA1c', category: 'Metabolic', badge: '🍬 Sugar' },
-  { id: 'fasting_insulin', name: 'Fasting Serum Insulin (HOMA-IR)', category: 'Metabolic', badge: '🍬 Resistance' },
-  { id: 'lipid_profile', name: 'Lipid Profile Screen', category: 'Metabolic', badge: '🫀 Cardio' },
-  { id: 'cbc_esr', name: 'Complete Blood Count (CBC) + ESR', category: 'Blood', badge: '🩸 Routine' },
-  { id: 'ferritin_iron', name: 'Serum Ferritin & Iron Studies', category: 'Blood', badge: '🩸 Anemia' },
-  { id: 'vit_d_b12', name: 'Vitamin D3 & Vitamin B12 Duo', category: 'Vitamins', badge: '☀️ Vital' },
-  { id: 'pelvic_usg', name: 'Pelvic Ultrasound (USG Abdomen/Pelvis)', category: 'Imaging', badge: '🖼️ Scan' },
-  { id: 'tvs_scan', name: 'Transvaginal Scan (TVS - Antral Follicle)', category: 'Imaging', badge: '🖼️ Scan' },
-  { id: 'urine_re_cs', name: 'Urine Routine & Culture Sensitivity', category: 'General', badge: '🛡️ UTI' },
-];
+/**
+ * Smart medical search filter that ranks prefix matches (e.g. typing "N" or "Nor" returns "Norethisterone" first)
+ * followed by word-boundary matches and category matches.
+ */
+function filterAndRankCatalog(catalog = [], query = '') {
+  if (!query || !query.trim()) return catalog;
+  const q = query.trim().toLowerCase();
+  
+  const exactPrefix = [];
+  const wordPrefix = [];
+  const otherContains = [];
+
+  for (const item of catalog) {
+    const nameLower = (item.name || '').toLowerCase();
+    const catLower = (item.category || '').toLowerCase();
+    const words = nameLower.split(/[\s,/-]+/);
+
+    if (nameLower.startsWith(q)) {
+      exactPrefix.push(item);
+    } else if (words.some(w => w.startsWith(q))) {
+      wordPrefix.push(item);
+    } else if (nameLower.includes(q) || catLower.includes(q)) {
+      otherContains.push(item);
+    }
+  }
+
+  const alpha = (a, b) => (a.name || '').localeCompare(b.name || '');
+  exactPrefix.sort(alpha);
+  wordPrefix.sort(alpha);
+  otherContains.sort(alpha);
+
+  return [...exactPrefix, ...wordPrefix, ...otherContains];
+}
 
 const CLINICAL_PROTOCOLS = [
   {
@@ -508,6 +508,126 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
   const [medTiming, setMedTiming] = useState('After Food');
   const [medDuration, setMedDuration] = useState('30 Days');
   const [isMedDropdownOpen, setIsMedDropdownOpen] = useState(false);
+  const [medCatalog, setMedCatalog] = useState([]);
+  const [labCatalog, setLabCatalog] = useState([]);
+
+  // Add Custom Catalog Item Modals
+  const [showAddMedModal, setShowAddMedModal] = useState(false);
+  const [newMedForm, setNewMedForm] = useState({
+    name: '',
+    category: 'General',
+    defaultDose: '500mg',
+    defaultFreq: '1-0-1',
+    defaultTiming: 'After Food',
+    defaultDuration: '30 Days',
+    badge: '',
+    isGlobal: false,
+  });
+  const [savingCustomMed, setSavingCustomMed] = useState(false);
+
+  // Fetch live catalog items
+  useEffect(() => {
+    apiFetch('/records/catalog?type=medicine')
+      .then(res => {
+        const items = Array.isArray(res) ? res : (res?.data || []);
+        if (items.length > 0) {
+          const mapped = items.map(i => ({
+            id: i.id,
+            name: i.name,
+            defaultDose: i.default_dose || '500mg',
+            defaultFreq: i.default_freq || '1-0-1',
+            defaultTiming: i.default_timing || 'After Food',
+            defaultDuration: i.default_duration || '30 Days',
+            badge: i.badge || i.category,
+            isCustom: !!i.doctor_id,
+          }));
+          setMedCatalog(mapped);
+        }
+      })
+      .catch(() => {});
+
+    apiFetch('/records/catalog?type=lab_test')
+      .then(res => {
+        const items = Array.isArray(res) ? res : (res?.data || []);
+        if (items.length > 0) {
+          const mapped = items.map(i => ({
+            id: i.id,
+            name: i.name,
+            category: i.category || 'General',
+            badge: i.badge || '🧪 Test',
+            isCustom: !!i.doctor_id,
+          }));
+          setLabCatalog(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveNewMed = async (e) => {
+    if (e) e.preventDefault();
+    if (!newMedForm.name.trim()) {
+      toast('Please enter a medication name', 'error');
+      return;
+    }
+    setSavingCustomMed(true);
+    try {
+      const created = await apiFetch('/records/catalog', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'medicine',
+          name: newMedForm.name.trim(),
+          category: newMedForm.category,
+          defaultDose: newMedForm.defaultDose,
+          defaultFreq: newMedForm.defaultFreq,
+          defaultTiming: newMedForm.defaultTiming,
+          defaultDuration: newMedForm.defaultDuration,
+          badge: newMedForm.badge,
+          isGlobal: newMedForm.isGlobal,
+        }),
+      });
+      const item = {
+        id: created?.id || Date.now(),
+        name: newMedForm.name.trim(),
+        defaultDose: newMedForm.defaultDose,
+        defaultFreq: newMedForm.defaultFreq,
+        defaultTiming: newMedForm.defaultTiming,
+        defaultDuration: newMedForm.defaultDuration,
+        badge: newMedForm.badge || newMedForm.category,
+        isCustom: true,
+      };
+      setMedCatalog(prev => [item, ...prev]);
+      handleSelectSuggestion(item);
+      setShowAddMedModal(false);
+      setNewMedForm({
+        name: '',
+        category: 'General',
+        defaultDose: '500mg',
+        defaultFreq: '1-0-1',
+        defaultTiming: 'After Food',
+        defaultDuration: '30 Days',
+        badge: '',
+        isGlobal: false,
+      });
+      toast(`Added "${item.name}" to your medicine catalog!`, 'success');
+    } catch (err) {
+      const item = {
+        id: Date.now(),
+        name: newMedForm.name.trim(),
+        defaultDose: newMedForm.defaultDose,
+        defaultFreq: newMedForm.defaultFreq,
+        defaultTiming: newMedForm.defaultTiming,
+        defaultDuration: newMedForm.defaultDuration,
+        badge: newMedForm.badge || newMedForm.category,
+        isCustom: true,
+      };
+      setMedCatalog(prev => [item, ...prev]);
+      handleSelectSuggestion(item);
+      setShowAddMedModal(false);
+      toast(`Added "${item.name}" to prescription!`, 'success');
+    } finally {
+      setSavingCustomMed(false);
+    }
+  };
 
   // Lab Search & Category Filter
   const [selectedLabCat, setSelectedLabCat] = useState('All');
@@ -586,11 +706,32 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
     toast('Protocol applied successfully!', 'success');
   };
 
-  const handleAddCustomLab = (e) => {
+  const handleAddCustomLab = async (e) => {
     e.preventDefault();
-    if (!customLabInput.trim()) return;
-    setDraftLabs(prev => Array.from(new Set([...prev, customLabInput.trim()])));
+    const name = customLabInput.trim();
+    if (!name) return;
+    setDraftLabs(prev => Array.from(new Set([...prev, name])));
     setCustomLabInput('');
+
+    // Persist to catalog for future dropdowns
+    try {
+      const created = await apiFetch('/records/catalog', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'lab_test',
+          name,
+          category: selectedLabCat !== 'All' ? selectedLabCat : 'General',
+          badge: '🔬 Custom',
+        }),
+      });
+      setLabCatalog(prev => [
+        { id: created?.id || Date.now(), name, category: selectedLabCat !== 'All' ? selectedLabCat : 'General', badge: '🔬 Custom', isCustom: true },
+        ...prev,
+      ]);
+      toast(`Added "${name}" to your lab catalog!`, 'success');
+    } catch (err) {
+      // optimistic fallback
+    }
   };
 
   // Dictation & AI State
@@ -1043,7 +1184,16 @@ PLAN:
                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
                         <i className="fas fa-magnifying-glass text-[#A78BFA]"></i> Search / Enter Medicine
                       </label>
-                      <span className="text-[10px] font-bold text-slate-500">Pick dose, frequency & add</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewMedForm(prev => ({ ...prev, name: medSearch }));
+                          setShowAddMedModal(true);
+                        }}
+                        className="text-[10px] font-bold text-[#A78BFA] hover:text-[#C4B5FD] flex items-center gap-1 bg-[#6B46C1]/20 hover:bg-[#6B46C1]/30 border border-[#6B46C1]/40 px-2 py-1 rounded-lg transition-colors"
+                      >
+                        <i className="fas fa-plus text-[9px]"></i> Add to Catalog
+                      </button>
                     </div>
 
                     {/* Auto-suggest search box */}
@@ -1067,19 +1217,60 @@ PLAN:
 
                       {/* Dropdown Suggestions */}
                       {isMedDropdownOpen && (
-                        <div className="absolute left-0 right-0 top-full mt-1.5 bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl max-h-56 overflow-y-auto custom-scrollbar z-50 p-1.5">
-                          <p className="px-3 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider">Quick Suggestions</p>
-                          {MED_SUGGESTIONS.filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase())).map((item) => (
+                        <div className="absolute left-0 right-0 top-full mt-1.5 bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl max-h-64 overflow-y-auto custom-scrollbar z-50 p-1.5 space-y-0.5">
+                          <div className="flex items-center justify-between px-3 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-800 mb-1">
+                            <span>Matches ({filterAndRankCatalog(medCatalog, medSearch).length})</span>
+                            <span className="text-[9px] text-[#A78BFA] font-bold">Prefix &amp; Keyword Match</span>
+                          </div>
+                          {filterAndRankCatalog(medCatalog, medSearch).slice(0, 30).map((item) => (
                             <button
-                              key={item.name}
+                              key={item.id || item.name}
                               type="button"
                               onClick={() => handleSelectSuggestion(item)}
-                              className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-800 text-xs font-bold text-slate-200 hover:text-white flex items-center justify-between transition-colors"
+                              className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-800 text-xs font-bold text-slate-200 hover:text-white flex items-center justify-between transition-colors group"
                             >
-                              <span>{item.name}</span>
-                              <span className="text-[10px] font-mono text-[#A78BFA] bg-[#6B46C1]/20 px-2 py-0.5 rounded-md">{item.defaultDose} • {item.defaultFreq}</span>
+                              <span className="flex items-center gap-1.5 flex-1 min-w-0 pr-2">
+                                {item.isCustom && <span className="text-[9px] bg-purple-900/60 text-purple-300 border border-purple-700/60 px-1.5 py-0.2 rounded font-black shrink-0">Custom</span>}
+                                <span className="truncate">
+                                  {medSearch && item.name.toLowerCase().startsWith(medSearch.trim().toLowerCase()) ? (
+                                    <>
+                                      <span className="text-[#F98BD2] bg-[#E23E8C]/20 px-0.5 rounded font-black">{item.name.slice(0, medSearch.trim().length)}</span>
+                                      <span>{item.name.slice(medSearch.trim().length)}</span>
+                                    </>
+                                  ) : (
+                                    item.name
+                                  )}
+                                </span>
+                              </span>
+                              <div className="flex items-center gap-1 shrink-0">
+                                {item.category && (
+                                  <span className="text-[9px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 hidden sm:inline-block">
+                                    {item.category}
+                                  </span>
+                                )}
+                                <span className="text-[10px] font-mono text-[#A78BFA] bg-[#6B46C1]/20 px-2 py-0.5 rounded-md">
+                                  {item.defaultDose} • {item.defaultFreq}
+                                </span>
+                              </div>
                             </button>
                           ))}
+                          {medSearch && !medCatalog.some(m => m.name.toLowerCase() === medSearch.toLowerCase()) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewMedForm(prev => ({ ...prev, name: medSearch }));
+                                setShowAddMedModal(true);
+                                setIsMedDropdownOpen(false);
+                              }}
+                              className="w-full text-left px-3 py-2.5 rounded-xl bg-purple-950/60 hover:bg-purple-900/80 border border-purple-700/50 text-xs font-bold text-purple-200 hover:text-white flex items-center justify-between transition-colors mt-1 shadow-xs"
+                            >
+                              <span className="flex items-center gap-1.5">
+                                <i className="fas fa-plus-circle text-purple-400"></i>
+                                <span>Add &ldquo;{medSearch}&rdquo; to Catalog</span>
+                              </span>
+                              <span className="text-[10px] font-mono text-purple-300 font-bold bg-slate-900 px-2 py-0.5 rounded border border-purple-800">Save Preset</span>
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1299,7 +1490,7 @@ PLAN:
                 <div className="space-y-4 animate-fade-in">
                   {/* Category Filter Chips */}
                   <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-xs">
-                    {['All', 'Hormones', 'Thyroid', 'Blood', 'Metabolic', 'Vitamins', 'Imaging', 'General'].map(cat => (
+                    {['All', 'Hormonal & Ovarian Reserve', 'Thyroid, Endocrine & Autoimmune', 'Metabolic & Cardiovascular', 'Hematology, Anemia & Micronutrients', 'Infections & STI Screening', 'Cervical Screening & Cytology', 'Antenatal & Genetic Diagnostics', 'Ultrasound & Imaging Procedures'].map(cat => (
                       <button
                         key={cat}
                         onClick={() => setSelectedLabCat(cat)}
@@ -1330,7 +1521,7 @@ PLAN:
 
                   {/* Interactive Lab Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {LAB_CATALOG.filter(l => selectedLabCat === 'All' || l.category === selectedLabCat).map(item => {
+                    {labCatalog.filter(l => selectedLabCat === 'All' || l.category === selectedLabCat).map(item => {
                       const isSelected = draftLabs.includes(item.name);
                       return (
                         <button
@@ -1701,6 +1892,144 @@ PLAN:
               Close Viewer
             </button>
           </div>
+        </Modal>
+      )}
+
+      {/* ─── Add Custom Medicine to Catalog Modal ─── */}
+      {showAddMedModal && (
+        <Modal isOpen={showAddMedModal} onClose={() => setShowAddMedModal(false)} title="Add Medication to Catalog" size="md">
+          <form onSubmit={handleSaveNewMed} className="space-y-4 p-2">
+            <div className="bg-purple-50/80 border border-purple-200/80 text-purple-900 rounded-2xl p-3.5 text-xs">
+              <div className="font-bold flex items-center gap-1.5 mb-0.5">
+                <i className="fas fa-pills text-purple-600"></i> Smart Preset Customization
+              </div>
+              <p className="text-purple-700">Add your commonly prescribed medications here with default dosage and schedules for 1-click prescribing.</p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Medication Name *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Dydrogesterone, Letrozole, Inositol Complex..."
+                value={newMedForm.name}
+                onChange={(e) => setNewMedForm(p => ({ ...p, name: e.target.value }))}
+                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Category</label>
+                <select
+                  value={newMedForm.category}
+                  onChange={(e) => setNewMedForm(p => ({ ...p, category: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                >
+                  <option value="Hormones">Hormones</option>
+                  <option value="Supplements">Supplements &amp; Vitamins</option>
+                  <option value="Metabolic">Metabolic / PCOS</option>
+                  <option value="Fertility">Fertility / Ovulation</option>
+                  <option value="Analgesics">Analgesics &amp; Pain</option>
+                  <option value="Antibiotics">Antibiotics</option>
+                  <option value="Thyroid">Thyroid</option>
+                  <option value="General">General Care</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Default Dosage</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 10mg, 500mg, 1 Tab"
+                  value={newMedForm.defaultDose}
+                  onChange={(e) => setNewMedForm(p => ({ ...p, defaultDose: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">Default Frequency</label>
+                <select
+                  value={newMedForm.defaultFreq}
+                  onChange={(e) => setNewMedForm(p => ({ ...p, defaultFreq: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                >
+                  <option value="1-0-1">1-0-1 (BD)</option>
+                  <option value="1-0-0">1-0-0 (OD Morning)</option>
+                  <option value="0-0-1">0-0-1 (OD Night)</option>
+                  <option value="1-1-1">1-1-1 (TDS)</option>
+                  <option value="SOS">SOS (When Needed)</option>
+                  <option value="Once Weekly">Once Weekly</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">Default Timing</label>
+                <select
+                  value={newMedForm.defaultTiming}
+                  onChange={(e) => setNewMedForm(p => ({ ...p, defaultTiming: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                >
+                  <option value="After Food">After Food</option>
+                  <option value="Before Food">Before Food</option>
+                  <option value="Empty Stomach">Empty Stomach</option>
+                  <option value="Bedtime">Bedtime</option>
+                  <option value="With Milk">With Milk</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">Default Duration</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 30 Days"
+                  value={newMedForm.defaultDuration}
+                  onChange={(e) => setNewMedForm(p => ({ ...p, defaultDuration: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                />
+              </div>
+            </div>
+
+            {user?.profile?.role === 'admin' && (
+              <label className="flex items-center gap-2 text-xs font-bold text-slate-700 bg-slate-100 p-3 rounded-xl cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newMedForm.isGlobal}
+                  onChange={(e) => setNewMedForm(p => ({ ...p, isGlobal: e.target.checked }))}
+                  className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4"
+                />
+                <span>Set as Global Medicine (Available for all doctors platform-wide)</span>
+              </label>
+            )}
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowAddMedModal(false)}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={savingCustomMed || !newMedForm.name.trim()}
+                className="flex-1 bg-[#6B46C1] hover:bg-[#522F9E] disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs transition-colors shadow-md flex items-center justify-center gap-1.5"
+              >
+                {savingCustomMed ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin"></i> Saving...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-check"></i> Save to My Catalog
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
 

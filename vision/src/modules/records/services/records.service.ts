@@ -9,6 +9,7 @@ import {
   AddDocumentDto,
   AddEmergencyContactDto,
   AddVaccinationDto,
+  CreateCatalogItemDto,
   CreateClinicalNoteDto,
   CreatePrescriptionDto,
   RequestLabReportDto,
@@ -445,6 +446,91 @@ export class RecordsService {
     await this.guardPatientAccess(user, contact.patient_id);
 
     await this.supabase.admin.from('emergency_contacts').delete().eq('id', id);
+    return { id };
+  }
+
+  async getCatalog(user: AuthUser, type?: 'medicine' | 'lab_test') {
+    let query = this.supabase.admin
+      .from('clinical_catalog')
+      .select('*')
+      .is('deleted_at', null);
+
+    if (type) {
+      query = query.eq('type', type);
+    }
+
+    if (user.profile.role !== ProfileRole.ADMIN) {
+      // Return global items (doctor_id is null) + caller's custom items
+      query = query.or(`doctor_id.is.null,doctor_id.eq.${user.id}`);
+    }
+
+    const { data, error } = await query.order('name', { ascending: true });
+    if (error) {
+      return [];
+    }
+    return data || [];
+  }
+
+  async createCatalogItem(user: AuthUser, body: CreateCatalogItemDto) {
+    const isAdmin = user.profile.role === ProfileRole.ADMIN;
+    const isDoctor = user.profile.role === ProfileRole.DOCTOR;
+
+    if (!isAdmin && !isDoctor) {
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    }
+
+    if (isDoctor && !user.profile.kyc_verified && !isAdmin) {
+      throw new ForbiddenException(ERROR_MESSAGES.DOCTOR_NOT_VERIFIED);
+    }
+
+    const doctorId = isAdmin && body.isGlobal ? null : user.id;
+
+    const row = {
+      type: body.type,
+      doctor_id: doctorId,
+      name: body.name.trim(),
+      category: body.category?.trim() || null,
+      default_dose: body.defaultDose?.trim() || null,
+      default_freq: body.defaultFreq?.trim() || null,
+      default_timing: body.defaultTiming?.trim() || null,
+      default_duration: body.defaultDuration?.trim() || null,
+      badge: body.badge?.trim() || null,
+      instructions: body.instructions?.trim() || null,
+    };
+
+    const { data, error } = await this.supabase.admin
+      .from('clinical_catalog')
+      .insert(row)
+      .select()
+      .single();
+
+    if (error || !data) {
+      throw new BadRequestException(error?.message || 'Failed to create catalog item');
+    }
+
+    return data;
+  }
+
+  async deleteCatalogItem(user: AuthUser, id: string) {
+    const { data: item } = await this.supabase.admin
+      .from('clinical_catalog')
+      .select()
+      .is('deleted_at', null)
+      .eq('id', id)
+      .single();
+
+    if (!item) throw new NotFoundException('Catalog item not found');
+
+    const isAdmin = user.profile.role === ProfileRole.ADMIN;
+    if (!isAdmin && item.doctor_id !== user.id) {
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    }
+
+    await this.supabase.admin
+      .from('clinical_catalog')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id);
+
     return { id };
   }
 }

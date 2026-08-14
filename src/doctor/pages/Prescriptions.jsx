@@ -55,14 +55,6 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
   );
 }
 
-/* ─── Reference data (not patient/prescription records — no backend needed) ── */
-const MED_LIBRARY = [
-  'Metformin 500mg', 'Metformin 1000mg', 'Myo-Inositol Sachet 2g', 'Vitamin D3 60000 IU',
-  'Norethisterone 5mg', 'Dienogest 2mg', 'Mefenamic Acid 500mg', 'Clomiphene Citrate 50mg',
-  'Progesterone 400mg', 'Folic Acid 5mg', 'Calcium + Vitamin D3', 'Tranexamic Acid 500mg',
-  'Combined Oral Contraceptive Pill', 'Letrozole 2.5mg', 'Ibuprofen 400mg',
-];
-
 const SCHEDULE_PRESETS = ['1-0-1', '1-1-1', '1-0-0', '0-0-1', '0-1-0', 'SOS'];
 
 const STATUS_TABS = ['All', 'Active', 'Expiring Soon', 'Refill Requested', 'Expired'];
@@ -73,6 +65,40 @@ const TEMPLATES = [
   { name: 'Endometriosis (GnRH + Dienogest)', meds: ['Dienogest 2mg OD', 'Calcium + Vit D supplement OD'] },
   { name: 'Fertility — Clomiphene Cycle',  meds: ['Clomiphene Citrate 50mg (Day 2–6)', 'Progesterone 400mg (Day 15–25)'] },
 ];
+
+/**
+ * Smart medical search filter that ranks prefix matches (e.g. typing "N" or "Nor" returns "Norethisterone" first)
+ * followed by word-boundary matches and category matches.
+ */
+function filterAndRankCatalog(catalog = [], query = '') {
+  if (!query || !query.trim()) return catalog;
+  const q = query.trim().toLowerCase();
+  
+  const exactPrefix = [];
+  const wordPrefix = [];
+  const otherContains = [];
+
+  for (const item of catalog) {
+    const nameLower = (item.name || '').toLowerCase();
+    const catLower = (item.category || '').toLowerCase();
+    const words = nameLower.split(/[\s,/-]+/);
+
+    if (nameLower.startsWith(q)) {
+      exactPrefix.push(item);
+    } else if (words.some(w => w.startsWith(q))) {
+      wordPrefix.push(item);
+    } else if (nameLower.includes(q) || catLower.includes(q)) {
+      otherContains.push(item);
+    }
+  }
+
+  const alpha = (a, b) => (a.name || '').localeCompare(b.name || '');
+  exactPrefix.sort(alpha);
+  wordPrefix.sort(alpha);
+  otherContains.sort(alpha);
+
+  return [...exactPrefix, ...wordPrefix, ...otherContains];
+}
 
 /* ─── Stylus Handwritten Prescription Canvas Component ─── */
 function StylusHandwritingPad({ patient, diagnosis, doctorName, doctorReg, onExportImage }) {
@@ -342,6 +368,7 @@ const RX_ID_SEED = Math.floor(Math.random() * 9000) + 1000;
 
 function WriteRxPage({ onBack, onSave, patients }) {
   const { user } = useAuth();
+  const toast = useToast();
   const [rxMode, setRxMode] = useState('digital'); // 'digital', 'handwritten', 'upload'
   const [form, setForm] = useState({ 
     patientId: '', 
@@ -354,6 +381,131 @@ function WriteRxPage({ onBack, onSave, patients }) {
   const [template, setTemplate] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
+
+  // Dynamic Catalog State (loaded purely from API)
+  const [medCatalog, setMedCatalog] = useState([]);
+  const [activeDropdownIndex, setActiveDropdownIndex] = useState(null);
+  const [showAddMedModal, setShowAddMedModal] = useState(false);
+  const [targetMedIndex, setTargetMedIndex] = useState(null);
+  const [newMedForm, setNewMedForm] = useState({
+    name: '',
+    category: 'General',
+    defaultDose: '500mg',
+    defaultFreq: '1-0-1',
+    defaultTiming: 'After Food',
+    defaultDuration: '30 Days',
+    badge: '',
+    isGlobal: false,
+  });
+  const [savingCustomMed, setSavingCustomMed] = useState(false);
+
+  useEffect(() => {
+    apiFetch('/records/catalog?type=medicine')
+      .then(res => {
+        const items = Array.isArray(res) ? res : (res?.data || []);
+        if (items.length > 0) {
+          const mapped = items.map(i => ({
+            id: i.id,
+            name: i.name,
+            defaultDose: i.default_dose || '500mg',
+            defaultFreq: i.default_freq || '1-0-1',
+            defaultTiming: i.default_timing || 'After Food',
+            defaultDuration: i.default_duration || '30 Days',
+            badge: i.badge || i.category,
+            isCustom: !!i.doctor_id,
+          }));
+          setMedCatalog(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSelectCatalogMed = (index, item) => {
+    const fullName = item.defaultDose ? `${item.name} ${item.defaultDose}` : item.name;
+    setForm(p => ({
+      ...p,
+      meds: p.meds.map((m, idx) => idx === index ? {
+        ...m,
+        name: fullName,
+        schedule: item.defaultFreq || m.schedule || '1-0-1',
+        duration: item.defaultDuration || m.duration || '30 Days',
+      } : m),
+      instructions: (item.defaultTiming && !p.instructions?.includes(item.defaultTiming))
+        ? (p.instructions ? `${p.instructions}\n• ${item.name}: ${item.defaultTiming}` : `• ${item.name}: ${item.defaultTiming}`)
+        : p.instructions,
+    }));
+    setActiveDropdownIndex(null);
+  };
+
+  const handleSaveNewMed = async (e) => {
+    if (e) e.preventDefault();
+    if (!newMedForm.name.trim()) {
+      toast('Please enter a medication name', 'error');
+      return;
+    }
+    setSavingCustomMed(true);
+    try {
+      const created = await apiFetch('/records/catalog', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'medicine',
+          name: newMedForm.name.trim(),
+          category: newMedForm.category,
+          defaultDose: newMedForm.defaultDose,
+          defaultFreq: newMedForm.defaultFreq,
+          defaultTiming: newMedForm.defaultTiming,
+          defaultDuration: newMedForm.defaultDuration,
+          badge: newMedForm.badge,
+          isGlobal: newMedForm.isGlobal,
+        }),
+      });
+      const item = {
+        id: created?.id || Date.now(),
+        name: newMedForm.name.trim(),
+        defaultDose: newMedForm.defaultDose,
+        defaultFreq: newMedForm.defaultFreq,
+        defaultTiming: newMedForm.defaultTiming,
+        defaultDuration: newMedForm.defaultDuration,
+        badge: newMedForm.badge || newMedForm.category,
+        isCustom: true,
+      };
+      setMedCatalog(prev => [item, ...prev]);
+      if (targetMedIndex !== null) {
+        handleSelectCatalogMed(targetMedIndex, item);
+      }
+      setShowAddMedModal(false);
+      setNewMedForm({
+        name: '',
+        category: 'General',
+        defaultDose: '500mg',
+        defaultFreq: '1-0-1',
+        defaultTiming: 'After Food',
+        defaultDuration: '30 Days',
+        badge: '',
+        isGlobal: false,
+      });
+      toast(`Added "${item.name}" to prescription catalog!`, 'success');
+    } catch {
+      const item = {
+        id: Date.now(),
+        name: newMedForm.name.trim(),
+        defaultDose: newMedForm.defaultDose,
+        defaultFreq: newMedForm.defaultFreq,
+        defaultTiming: newMedForm.defaultTiming,
+        defaultDuration: newMedForm.defaultDuration,
+        badge: newMedForm.badge || newMedForm.category,
+        isCustom: true,
+      };
+      setMedCatalog(prev => [item, ...prev]);
+      if (targetMedIndex !== null) {
+        handleSelectCatalogMed(targetMedIndex, item);
+      }
+      setShowAddMedModal(false);
+      toast(`Added "${item.name}" to prescription!`, 'success');
+    } finally {
+      setSavingCustomMed(false);
+    }
+  };
 
   const selectedPatient = patients.find(p => p.id === form.patientId) || null;
   const hasPenicillinAllergy = selectedPatient?.allergies?.some(a => a.toLowerCase().includes('penicillin'));
@@ -581,9 +733,22 @@ function WriteRxPage({ onBack, onSave, patients }) {
 
             {/* Medicines */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
-              <h2 className="text-xs font-black text-slate-500 uppercase tracking-wide flex items-center gap-2">
-                <i className="fas fa-pills text-aubergine-600"></i> Medicines &amp; Dosage
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-black text-slate-500 uppercase tracking-wide flex items-center gap-2">
+                  <i className="fas fa-pills text-aubergine-600"></i> Medicines &amp; Dosage
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetMedIndex(null);
+                    setNewMedForm(p => ({ ...p, name: '' }));
+                    setShowAddMedModal(true);
+                  }}
+                  className="text-[10px] font-bold text-aubergine-700 hover:text-aubergine-900 flex items-center gap-1 bg-aubergine-50 hover:bg-aubergine-100 border border-aubergine-200 px-2.5 py-1 rounded-xl transition-colors"
+                >
+                  <i className="fas fa-plus text-[9px]"></i> Add to Catalog
+                </button>
+              </div>
 
               {/* CDSS Safety Checker Banner */}
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2.5">
@@ -594,17 +759,93 @@ function WriteRxPage({ onBack, onSave, patients }) {
                 </div>
               </div>
 
-              <datalist id="med-library">
-                {MED_LIBRARY.map(name => <option key={name} value={name} />)}
-              </datalist>
-
               <div className="space-y-3">
                 {form.meds.map((med, i) => (
-                  <div key={i} className="border border-slate-100 rounded-xl p-3 bg-slate-50/60 space-y-2">
+                  <div key={i} className="border border-slate-100 rounded-xl p-3 bg-slate-50/60 space-y-2 relative">
                     <div className="grid grid-cols-12 gap-2 items-start">
                       <div className="col-span-5 relative">
-                        <input list="med-library" value={med.name} onChange={e => updateMed(i, 'name', e.target.value)} placeholder="Medicine name + dose"
-                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+                        <input
+                          value={med.name}
+                          onChange={e => {
+                            updateMed(i, 'name', e.target.value);
+                            setActiveDropdownIndex(i);
+                          }}
+                          onFocus={() => setActiveDropdownIndex(i)}
+                          placeholder="Search or enter medicine name..."
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300 font-semibold"
+                        />
+                        {med.name && (
+                          <button
+                            type="button"
+                            onClick={() => updateMed(i, 'name', '')}
+                            className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+                          >
+                            <i className="fas fa-xmark text-xs"></i>
+                          </button>
+                        )}
+
+                        {/* Smart Dynamic Dropdown */}
+                        {activeDropdownIndex === i && (
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-64 overflow-y-auto custom-scrollbar z-50 p-1.5 space-y-0.5">
+                            <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
+                              <span>Matches ({filterAndRankCatalog(medCatalog, med.name).length})</span>
+                              <span className="text-[9px] text-aubergine-600 font-bold">Prefix &amp; Keyword Match</span>
+                            </div>
+                            {filterAndRankCatalog(medCatalog, med.name).slice(0, 30).map((item) => (
+                              <button
+                                key={item.id || item.name}
+                                type="button"
+                                onClick={() => handleSelectCatalogMed(i, item)}
+                                className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-aubergine-50 text-xs font-bold text-slate-700 hover:text-aubergine-900 flex items-center justify-between transition-colors group"
+                              >
+                                <span className="flex items-center gap-1.5 flex-1 min-w-0 pr-2">
+                                  {item.isCustom && (
+                                    <span className="text-[9px] bg-purple-100 text-purple-800 border border-purple-200 px-1.5 py-0.2 rounded font-black shrink-0">Custom</span>
+                                  )}
+                                  <span className="truncate">
+                                    {/* Highlight prefix match if typing */}
+                                    {med.name && item.name.toLowerCase().startsWith(med.name.trim().toLowerCase()) ? (
+                                      <>
+                                        <span className="text-aubergine-700 bg-aubergine-100/80 px-0.5 rounded font-black">{item.name.slice(0, med.name.trim().length)}</span>
+                                        <span>{item.name.slice(med.name.trim().length)}</span>
+                                      </>
+                                    ) : (
+                                      item.name
+                                    )}
+                                  </span>
+                                </span>
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {item.category && (
+                                    <span className="text-[9px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 hidden sm:inline-block font-semibold">
+                                      {item.category}
+                                    </span>
+                                  )}
+                                  <span className="text-[10px] font-mono text-aubergine-700 bg-aubergine-50 px-2 py-0.5 rounded-md border border-aubergine-100">
+                                    {item.defaultDose} • {item.defaultFreq}
+                                  </span>
+                                </div>
+                              </button>
+                            ))}
+                            {med.name && !medCatalog.some(m => m.name.toLowerCase() === med.name.toLowerCase()) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTargetMedIndex(i);
+                                  setNewMedForm(prev => ({ ...prev, name: med.name }));
+                                  setShowAddMedModal(true);
+                                  setActiveDropdownIndex(null);
+                                }}
+                                className="w-full text-left px-2.5 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-xs font-bold text-purple-800 flex items-center justify-between transition-colors mt-1 shadow-xs"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <i className="fas fa-plus-circle text-purple-600"></i>
+                                  <span>Add &ldquo;{med.name}&rdquo; to Catalog</span>
+                                </span>
+                                <span className="text-[10px] font-mono text-purple-700 font-bold bg-white px-2 py-0.5 rounded border border-purple-200">Save Preset</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <input value={med.schedule} onChange={e => updateMed(i, 'schedule', e.target.value)} placeholder="Schedule (e.g. 1-0-1)"
                         className="col-span-3 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
@@ -752,6 +993,147 @@ function WriteRxPage({ onBack, onSave, patients }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ─── Add Custom Medicine to Catalog Modal ─── */}
+      {showAddMedModal && (
+        <Modal isOpen={showAddMedModal} onClose={() => setShowAddMedModal(false)} title="Add Medication to Catalog" size="md">
+          <form onSubmit={handleSaveNewMed} className="space-y-4 p-2">
+            <div className="bg-purple-50/80 border border-purple-200/80 text-purple-900 rounded-2xl p-3.5 text-xs">
+              <div className="font-bold flex items-center gap-1.5 mb-0.5">
+                <i className="fas fa-pills text-purple-600"></i> Smart Preset Customization
+              </div>
+              <p className="text-purple-700">Add your commonly prescribed medications with default dosage, schedules, and timing for 1-click prescribing.</p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Medication Name *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Dydrogesterone, Letrozole, Inositol Complex..."
+                value={newMedForm.name}
+                onChange={(e) => setNewMedForm(p => ({ ...p, name: e.target.value }))}
+                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Category</label>
+                <select
+                  value={newMedForm.category}
+                  onChange={(e) => setNewMedForm(p => ({ ...p, category: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                >
+                  <option value="PCOS & Metabolic Health">PCOS &amp; Metabolic Health</option>
+                  <option value="Progestins & Cycle Regulators">Progestins &amp; Cycle Regulators</option>
+                  <option value="Ovulation Induction & Fertility">Ovulation Induction &amp; Fertility</option>
+                  <option value="Endometriosis & Pelvic Pain">Endometriosis &amp; Pelvic Pain</option>
+                  <option value="Contraception & Family Planning">Contraception &amp; Family Planning</option>
+                  <option value="Vaginal Health & Infections">Vaginal Health &amp; Infections</option>
+                  <option value="UTI & Bladder Care">UTI &amp; Bladder Care</option>
+                  <option value="Thyroid, Endocrine & Bone Health">Thyroid, Endocrine &amp; Bone Health</option>
+                  <option value="Prenatal & Antenatal Care">Prenatal &amp; Antenatal Care</option>
+                  <option value="Menopause, HRT & Atrophy">Menopause, HRT &amp; Atrophy</option>
+                  <option value="Dermatology & PCOS Aesthetics">Dermatology &amp; PCOS Aesthetics</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Default Dosage</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 10mg, 500mg, 1 Tab"
+                  value={newMedForm.defaultDose}
+                  onChange={(e) => setNewMedForm(p => ({ ...p, defaultDose: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">Default Frequency</label>
+                <select
+                  value={newMedForm.defaultFreq}
+                  onChange={(e) => setNewMedForm(p => ({ ...p, defaultFreq: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                >
+                  <option value="1-0-1">1-0-1 (BD)</option>
+                  <option value="1-0-0">1-0-0 (OD Morning)</option>
+                  <option value="0-0-1">0-0-1 (OD Night)</option>
+                  <option value="1-1-1">1-1-1 (TDS)</option>
+                  <option value="SOS">SOS (When Needed)</option>
+                  <option value="Once Weekly">Once Weekly</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">Default Timing</label>
+                <select
+                  value={newMedForm.defaultTiming}
+                  onChange={(e) => setNewMedForm(p => ({ ...p, defaultTiming: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                >
+                  <option value="After Food">After Food</option>
+                  <option value="Before Food">Before Food</option>
+                  <option value="Empty Stomach">Empty Stomach</option>
+                  <option value="Bedtime">Bedtime</option>
+                  <option value="With Milk">With Milk</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-700 block mb-1">Default Duration</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 30 Days"
+                  value={newMedForm.defaultDuration}
+                  onChange={(e) => setNewMedForm(p => ({ ...p, defaultDuration: e.target.value }))}
+                  className="w-full border border-slate-300 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                />
+              </div>
+            </div>
+
+            {user?.profile?.role === 'admin' && (
+              <label className="flex items-center gap-2 text-xs font-bold text-slate-700 bg-slate-100 p-3 rounded-xl cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newMedForm.isGlobal}
+                  onChange={(e) => setNewMedForm(p => ({ ...p, isGlobal: e.target.checked }))}
+                  className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4"
+                />
+                <span>Set as Global Medicine (Available for all doctors platform-wide)</span>
+              </label>
+            )}
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowAddMedModal(false)}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={savingCustomMed || !newMedForm.name.trim()}
+                className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs transition-colors shadow-md flex items-center justify-center gap-1.5"
+              >
+                {savingCustomMed ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin"></i> Saving...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-check"></i> Save to Catalog
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </Modal>
       )}
     </div>
   );

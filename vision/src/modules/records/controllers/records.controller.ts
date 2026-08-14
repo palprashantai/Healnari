@@ -88,6 +88,19 @@ export class AddEmergencyContactDto {
   @ApiProperty() @IsString() phone: string;
 }
 
+export class CreateCatalogItemDto {
+  @ApiProperty({ enum: ['medicine', 'lab_test'] }) @IsIn(['medicine', 'lab_test']) type: 'medicine' | 'lab_test';
+  @ApiProperty({ example: 'Metformin ER' }) @IsString() name: string;
+  @ApiProperty({ required: false, example: 'Metabolic' }) @IsOptional() @IsString() category?: string;
+  @ApiProperty({ required: false, example: '500mg' }) @IsOptional() @IsString() defaultDose?: string;
+  @ApiProperty({ required: false, example: '1-0-1' }) @IsOptional() @IsString() defaultFreq?: string;
+  @ApiProperty({ required: false, example: 'After Food' }) @IsOptional() @IsString() defaultTiming?: string;
+  @ApiProperty({ required: false, example: '90 Days' }) @IsOptional() @IsString() defaultDuration?: string;
+  @ApiProperty({ required: false, example: '🌸 PCOS' }) @IsOptional() @IsString() badge?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() instructions?: string;
+  @ApiProperty({ required: false, description: 'Admin-only: true to make item global' }) @IsOptional() @IsBoolean() isGlobal?: boolean;
+}
+
 @ApiTags('Medical Records')
 @Controller('api/records')
 export class RecordsController {
@@ -251,4 +264,27 @@ export class RecordsController {
     const data = await this.recordsService.deleteEmergencyContact(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.CONTACT_DELETED);
   }
+
+  @ApiOperation({ summary: 'Get medicine or lab test catalog items (returns global + doctor custom items)' })
+  @Get('catalog')
+  async getCatalog(@CurrentUser() user: AuthUser, @Query('type') type?: 'medicine' | 'lab_test') {
+    const data = await this.recordsService.getCatalog(user, type);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({ summary: 'Add a new medicine or lab test to catalog (doctor custom or admin global)' })
+  @Post('catalog')
+  async createCatalogItem(@CurrentUser() user: AuthUser, @Body() body: CreateCatalogItemDto) {
+    const data = await this.recordsService.createCatalogItem(user, body);
+    return ResponseHelper.success(data, 'Catalog item created successfully');
+  }
+
+  @ApiOperation({ summary: 'Delete a catalog item' })
+  @ApiParam({ name: 'id' })
+  @Delete('catalog/:id')
+  async deleteCatalogItem(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const data = await this.recordsService.deleteCatalogItem(user, id);
+    return ResponseHelper.success(data, 'Catalog item removed successfully');
+  }
 }
+
