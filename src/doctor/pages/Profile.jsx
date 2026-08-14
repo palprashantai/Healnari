@@ -4,6 +4,7 @@ import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { formatCurrency } from '../../lib/currency.js';
+import api from '../../lib/api';
 
 /* ─── Main Component ─────────────────────────── */
 function DoctorProfile() {
@@ -54,6 +55,19 @@ function DoctorProfile() {
     Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false, Sun: false,
   });
   const [leaveMode, setLeaveMode] = useState(false);
+
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditLogsLoading, setAuditLogsLoading] = useState(false);
+
+  React.useEffect(() => {
+    if (tab === 'security') {
+      setAuditLogsLoading(true);
+      api.get('/doctors/me/audit-logs')
+        .then(res => setAuditLogs(res.data || []))
+        .catch(() => toast('Failed to load audit logs', 'error'))
+        .finally(() => setAuditLogsLoading(false));
+    }
+  }, [tab]);
 
   const handleSave = async () => {
     try {
@@ -351,6 +365,45 @@ function DoctorProfile() {
                   className={`w-12 h-6 rounded-full relative transition-all border ${twoFA ? 'bg-aubergine-600 border-aubergine-600' : 'bg-slate-200 border-slate-300'}`}>
                   <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-all ${twoFA ? 'right-1' : 'left-1'}`}></div>
                 </button>
+              </div>
+
+              {/* PHI Audit Logs */}
+              <div className="border-t border-slate-100 pt-5">
+                <h4 className="font-bold text-slate-700 mb-3">System Access Log</h4>
+                <p className="text-xs text-slate-500 mb-4">
+                  A compliance trail of your access to patient health information.
+                </p>
+                
+                <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
+                  {auditLogsLoading ? (
+                    <div className="p-6 text-center text-slate-400">
+                      <i className="fas fa-spinner fa-spin text-xl"></i>
+                    </div>
+                  ) : auditLogs.length === 0 ? (
+                    <div className="p-6 text-center text-slate-500 text-xs">
+                      No access records found.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-200/60">
+                      {auditLogs.map(log => (
+                        <div key={log.id} className="p-3 text-xs flex justify-between items-start gap-4 hover:bg-slate-100 transition-colors">
+                          <div>
+                            <p className="font-bold text-slate-700">{log.target?.full_name || 'System Resource'}</p>
+                            <p className="text-slate-500 mt-0.5">
+                              {log.action} <span className="font-mono bg-white px-1 border border-slate-200 rounded">{log.resource.replace('/api/', '')}</span>
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-slate-400 text-[10px]">{new Date(log.created_at).toLocaleString()}</p>
+                            <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${log.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                              {log.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Danger Zone */}

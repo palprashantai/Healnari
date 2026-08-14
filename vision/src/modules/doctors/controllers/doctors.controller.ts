@@ -36,6 +36,13 @@ export class DoctorsController {
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
+  @ApiOperation({ summary: "Doctor's own system access logs (what they accessed)" })
+  @Get('me/audit-logs')
+  async getMyAuditLogs(@CurrentUser() user: AuthUser) {
+    const data = await this.doctorsService.getMyAuditLogs(user);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
   @Public()
   @ApiOperation({ summary: 'Get available time slots for a doctor on a date (static placeholder)' })
   @ApiParam({ name: 'doctorId' })

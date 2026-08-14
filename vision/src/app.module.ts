@@ -11,6 +11,8 @@ import { AppointmentsModule } from '@/modules/appointments/appointments.module';
 import { RecordsModule } from '@/modules/records/records.module';
 import { SupabaseAuthGuard } from '@/core/guards/supabase-auth.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditLogInterceptor } from '@/core/interceptors/audit-log.interceptor';
 
 import { AdminModule } from '@/modules/admin/admin.module';
 import { AiModule } from '@/modules/ai/ai.module';
@@ -52,6 +54,7 @@ import { LeadsModule } from '@/modules/leads/leads.module';
     AppService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: SupabaseAuthGuard },
+    { provide: APP_INTERCEPTOR, useClass: AuditLogInterceptor },
   ],
 })
 export class AppModule {}

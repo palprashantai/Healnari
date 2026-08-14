@@ -236,7 +236,7 @@ export class RecordsService {
     if (report.status !== 'Uploaded') throw new ForbiddenException(ERROR_MESSAGES.LAB_REPORT_ALREADY_REVIEWED);
 
     if (report.file_path) await this.supabase.admin.storage.from(LAB_REPORTS_BUCKET).remove([report.file_path]);
-    await this.supabase.admin.from('lab_reports').delete().eq('id', id);
+    await this.supabase.admin.from('lab_reports').update({ deleted_at: new Date().toISOString() }).eq('id', id);
 
     if (report.request_id) {
       await this.supabase.admin.from('lab_report_requests').update({ status: 'Pending' }).eq('id', report.request_id);

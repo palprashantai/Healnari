@@ -343,12 +343,13 @@ export class AppointmentsService {
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
 
     const now = new Date();
+    const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const { data: saved } = await this.supabase.admin.from('appointments').insert({
       patient_id: patientId,
       doctor_id: user.id,
       specialty: user.profile.specialty,
       type: AppointmentType.VIDEO,
-      scheduled_date: now.toISOString().slice(0, 10),
+      scheduled_date: localDate,
       scheduled_time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
       reason: 'Instant video consultation',
       status: AppointmentStatus.IN_PROGRESS,
@@ -365,7 +366,8 @@ export class AppointmentsService {
   async callNext(user: AuthUser) {
     if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
-    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const { data: todays } = await this.supabase.admin
       .from('appointments')
       .select()
@@ -565,7 +567,8 @@ export class AppointmentsService {
    * for as long as the delay persists. */
   @Cron(CronExpression.EVERY_5_MINUTES, { name: 'appointments_queue_delay' })
   async sendDelayNotifications() {
-    const today = new Date().toISOString().slice(0, 10);
+    const nowD = new Date();
+    const today = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, '0')}-${String(nowD.getDate()).padStart(2, '0')}`;
     const { data: todaysActive, error } = await this.supabase.admin
       .from('appointments')
       .select('id, doctor_id, patient_id, scheduled_time, scheduled_at, status, type, delay_notified_at')

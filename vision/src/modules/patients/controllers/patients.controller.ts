@@ -24,6 +24,9 @@ export class UpdatePatientDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() city?: string;
   @ApiProperty({ required: false, type: [String] }) @IsOptional() @IsArray() allergies?: string[];
   @ApiProperty({ required: false, type: [String] }) @IsOptional() @IsArray() chronicConditions?: string[];
+  @ApiProperty({ required: false }) @IsOptional() @IsString() lifeStageMode?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() currencyPreference?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsInt() @Min(10) @Max(16) lutealPhaseDays?: number;
 }
 
 export class LogCycleDto {
@@ -32,6 +35,9 @@ export class LogCycleDto {
   @ApiProperty({ required: false }) @IsOptional() cramps?: number;
   @ApiProperty({ required: false }) @IsOptional() @IsString() mood?: string;
   @ApiProperty({ required: false, type: [String] }) @IsOptional() @IsArray() symptoms?: string[];
+  @ApiProperty({ required: false }) @IsOptional() bbt?: number;
+  @ApiProperty({ required: false }) @IsOptional() lhRatio?: number;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() cervicalMucus?: string;
 }
 
 export class LogVitalDto {
@@ -69,6 +75,7 @@ export class QuickFertilityEstimateDto {
   @ApiProperty({ example: '2026-08-01', description: 'First day of your last menstrual period' }) @IsDateString() lastPeriodStart: string;
   @ApiProperty({ example: 5 }) @IsInt() @Min(1) @Max(15) periodDurationDays: number;
   @ApiProperty({ example: 28 }) @IsInt() @Min(15) @Max(90) cycleLengthDays: number;
+  @ApiProperty({ required: false, example: 14 }) @IsOptional() @IsInt() @Min(10) @Max(16) customLutealPhaseDays?: number;
 }
 
 @ApiTags('Patients')
@@ -94,6 +101,13 @@ export class PatientsController {
   @Get('me')
   async me(@CurrentUser() user: AuthUser) {
     const data = await this.patientsService.getOwn(user);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({ summary: "Get the caller's own PHI audit logs (who accessed their data)" })
+  @Get('me/audit-logs')
+  async getMyAuditLogs(@CurrentUser() user: AuthUser) {
+    const data = await this.patientsService.getOwnAuditLogs(user);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 

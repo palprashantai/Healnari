@@ -3,6 +3,9 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
+import { SUPPORTED_CURRENCIES } from '../../lib/currency.js';
+import { LIFE_MODES } from './Dashboard.jsx';
+import api from '../../lib/api';
 
 function PatientProfile() {
   const { user, updateUser, updatePassword, uploadAvatar, removeAvatar, logout, subscribePush } = useAuth();
@@ -67,15 +70,41 @@ function PatientProfile() {
   const [photoSaving, setPhotoSaving] = useState(false);
   const [emailNotif, setEmailNotif] = useState(user?.emailNotifications ?? true);
   const [smsNotif, setSmsNotif] = useState(user?.smsNotifications ?? true);
+  const [selectedCurrency, setSelectedCurrency] = useState(() => localStorage.getItem('healnari_currency') || 'USD');
+  const [selectedLifeMode, setSelectedLifeMode] = useState(() => localStorage.getItem('patient_life_mode') || 'cycle');
+  const [discreetMode, setDiscreetMode] = useState(() => localStorage.getItem('discreet_mode') === 'true');
 
-  const validateForm = () => {
-    if (!form.name.trim()) return 'Name is required.';
-    const phoneDigits = form.phone.replace(/\D/g, '');
-    if (form.phone && (phoneDigits.length < 7 || phoneDigits.length > 15)) return 'Enter a valid phone number.';
-    if (form.dob && new Date(form.dob) > new Date()) return 'Date of birth cannot be in the future.';
-    if (form.height && (Number(form.height) <= 0 || Number(form.height) > 300)) return 'Enter a valid height in cm.';
-    if (form.weight && (Number(form.weight) <= 0 || Number(form.weight) > 500)) return 'Enter a valid weight in kg.';
-    return null;
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [auditLogsLoading, setAuditLogsLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'security') {
+      setAuditLogsLoading(true);
+      api.get('/patients/me/audit-logs')
+        .then(res => setAuditLogs(res.data || []))
+        .catch(() => toast('Failed to load audit logs', 'error'))
+        .finally(() => setAuditLogsLoading(false));
+    }
+  }, [activeTab]);
+
+  const handleCurrencyChange = (code) => {
+    setSelectedCurrency(code);
+    localStorage.setItem('healnari_currency', code);
+    toast(`Display currency updated to ${code}.`, 'success');
+  };
+
+  const handleLifeModeChange = (id) => {
+    setSelectedLifeMode(id);
+    localStorage.setItem('patient_life_mode', id);
+    toast(`Primary life stage set to ${LIFE_MODES.find(m => m.id === id)?.label}.`, 'success');
+  };
+
+  const handleDiscreetToggle = () => {
+    const next = !discreetMode;
+    setDiscreetMode(next);
+    localStorage.setItem('discreet_mode', String(next));
+    window.dispatchEvent(new Event('discreet_mode_changed'));
+    toast(`Discreet Mode ${next ? 'enabled' : 'disabled'}.`, 'info');
   };
 
   const handleSave = async () => {
@@ -169,6 +198,7 @@ function PatientProfile() {
   const FIELD_COLOR = {
     personal: 'from-aubergine-900 to-aubergine-700',
     health: 'from-rose-900 to-rose-700',
+    preferences: 'from-indigo-900 to-purple-700',
     security: 'from-slate-800 to-slate-700',
   };
 
@@ -215,6 +245,7 @@ function PatientProfile() {
           {[
             ['personal', 'Personal Info', 'fa-user'],
             ['health', 'Health Details', 'fa-heart-pulse'],
+            ['preferences', 'Regional & Life Stage', 'fa-globe'],
             ['security', 'Security', 'fa-shield-halved'],
           ].map(([key, label, icon]) => (
             <button key={key} onClick={() => setActiveTab(key)}
@@ -349,6 +380,102 @@ function PatientProfile() {
             </div>
           )}
 
+          {/* ── REGIONAL & LIFE STAGE PREFERENCES ── */}
+          {activeTab === 'preferences' && (
+            <div className="space-y-8 max-w-2xl">
+              {/* Primary Life Stage Goal */}
+              <div className="space-y-3">
+                <div>
+                  <h3 className="font-extrabold text-slate-800 text-base">Primary Health & Life Stage Goal</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Customizes your daily dashboard widgets, trackers, and insights.</p>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {LIFE_MODES.map(m => {
+                    const isSelected = selectedLifeMode === m.id;
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={() => handleLifeModeChange(m.id)}
+                        className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-aubergine-500 bg-aubergine-50/60 shadow-sm ring-2 ring-aubergine-200'
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${m.color} text-white flex items-center justify-center text-sm shadow-sm`}>
+                            <i className={`fas ${m.icon}`}></i>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-bold text-slate-800 text-xs">{m.label}</h4>
+                              {isSelected && <i className="fas fa-circle-check text-aubergine-600 text-sm"></i>}
+                            </div>
+                            <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">{m.desc}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* International Currency Selection */}
+              <div className="border-t border-slate-100 pt-6 space-y-3">
+                <div>
+                  <h3 className="font-extrabold text-slate-800 text-base">Display & Billing Currency</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Formatted for your region across appointment bookings and invoices.</p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  {SUPPORTED_CURRENCIES.map(curr => {
+                    const isSelected = selectedCurrency === curr.code;
+                    return (
+                      <button
+                        key={curr.code}
+                        type="button"
+                        onClick={() => handleCurrencyChange(curr.code)}
+                        className={`p-3 rounded-xl border text-left transition-all ${
+                          isSelected
+                            ? 'border-aubergine-500 bg-aubergine-50 text-aubergine-900 shadow-sm'
+                            : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-base">{curr.flag}</span>
+                          <span className="text-xs font-black">{curr.symbol}</span>
+                        </div>
+                        <p className="text-xs font-bold truncate">{curr.code}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{curr.label.split('(')[1]?.replace(')', '')}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Discreet Mode Privacy Switch */}
+              <div className="border-t border-slate-100 pt-6">
+                <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center text-sm shadow-inner">
+                      <i className="fas fa-eye-slash"></i>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800 text-sm">Discreet Public Privacy Mode</h4>
+                      <p className="text-xs text-slate-500 mt-0.5">Blurs sensitive vitals, cycle days, and diagnoses when browsing in public.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDiscreetToggle}
+                    className={`w-12 h-6 rounded-full relative transition-colors ${discreetMode ? 'bg-aubergine-600' : 'bg-slate-300'}`}
+                  >
+                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${discreetMode ? 'left-7' : 'left-1'}`}></div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── SECURITY ── */}
           {activeTab === 'security' && (
             <div className="space-y-6 max-w-lg">
@@ -399,6 +526,45 @@ function PatientProfile() {
                 <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl p-3">
                   Viewing and managing individual sign-in sessions isn't available yet.
                 </p>
+              </div>
+
+              {/* PHI Audit Logs */}
+              <div className="border-t border-slate-100 pt-5">
+                <h4 className="font-bold text-slate-700 mb-3">Health Record Access Log</h4>
+                <p className="text-xs text-slate-500 mb-4">
+                  See when doctors or system services access your health information.
+                </p>
+                
+                <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
+                  {auditLogsLoading ? (
+                    <div className="p-6 text-center text-slate-400">
+                      <i className="fas fa-spinner fa-spin text-xl"></i>
+                    </div>
+                  ) : auditLogs.length === 0 ? (
+                    <div className="p-6 text-center text-slate-500 text-xs">
+                      No access records found.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-200/60">
+                      {auditLogs.map(log => (
+                        <div key={log.id} className="p-3 text-xs flex justify-between items-start gap-4 hover:bg-slate-100 transition-colors">
+                          <div>
+                            <p className="font-bold text-slate-700">{log.actor?.full_name || log.actor_id}</p>
+                            <p className="text-slate-500 mt-0.5">
+                              {log.action} <span className="font-mono bg-white px-1 border border-slate-200 rounded">{log.resource.replace('/api/', '')}</span>
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-slate-400 text-[10px]">{new Date(log.created_at).toLocaleString()}</p>
+                            <span className="inline-block mt-1 px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded text-[9px] font-black uppercase">
+                              {log.actor_role}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Danger Zone */}

@@ -59,6 +59,7 @@ const AdminPatientDetails = lazy(() => import('./admin/pages/PatientDetails.jsx'
 const AdminTemplates = lazy(() => import('./admin/pages/TemplatesManager.jsx'));
 const AdminLeads = lazy(() => import('./admin/pages/Leads.jsx'));
 const AdminCronManager = lazy(() => import('./admin/pages/CronManager.jsx'));
+const AdminAuditLogs = lazy(() => import('./admin/pages/AuditLogs.jsx'));
 
 function dashboardPathFor(role) {
   if (role === 'doctor') return '/doctor-dashboard';
@@ -196,6 +197,7 @@ function App() {
                 <Route path="revenue" element={<AdminRevenue />} />
                 <Route path="cms" element={<AdminCMS />} />
                 <Route path="reports" element={<AdminReports />} />
+                <Route path="audit-logs" element={<AdminAuditLogs />} />
                 <Route path="communications" element={<AdminCommunications />} />
                 <Route path="templates" element={<AdminTemplates />} />
                 <Route path="leads" element={<AdminLeads />} />

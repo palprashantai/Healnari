@@ -9,6 +9,7 @@ function CycleTracker() {
     lastPeriodDate: '',
     cycleLength: 28,
     periodDuration: 5,
+    lutealPhase: 14,
     flow: 'Medium',
     spotting: 'No',
     symptoms: [],
@@ -21,8 +22,8 @@ function CycleTracker() {
 
   const [result, setResult] = useState(null);
 
-  const symptomOptions = ['Cramps', 'Bloating', 'Headache', 'Breast tenderness', 'Acne', 'Mood changes', 'Fatigue', 'Hair fall'];
-  const conditionOptions = ['PCOS / PCOD', 'Thyroid issues', 'Diabetes', 'Endometriosis'];
+  const symptomOptions = ['Cramps', 'Bloating', 'Headache', 'Breast tenderness', 'Acne', 'Mood changes', 'Fatigue', 'Hair fall', 'Hot Flashes'];
+  const conditionOptions = ['PCOS / PCOD', 'Thyroid issues', 'Diabetes', 'Endometriosis', 'Perimenopause'];
 
   const handleToggle = (field, item) => {
     setData(prev => ({
@@ -47,8 +48,9 @@ function CycleTracker() {
       const nextPeriod = new Date(last);
       nextPeriod.setDate(nextPeriod.getDate() + data.cycleLength);
 
+      const luteal = Math.max(10, Math.min(16, data.lutealPhase || 14));
       const ovulationDay = new Date(last);
-      ovulationDay.setDate(ovulationDay.getDate() + data.cycleLength - 14);
+      ovulationDay.setDate(ovulationDay.getDate() + Math.max(data.cycleLength - luteal, 7));
 
       const fertileStart = new Date(ovulationDay);
       fertileStart.setDate(fertileStart.getDate() - 5);
@@ -58,23 +60,28 @@ function CycleTracker() {
       const daysToNext = Math.ceil((nextPeriod - today) / (1000 * 60 * 60 * 24));
       const currentPhaseDay = ((daysSinceLast % data.cycleLength) + data.cycleLength) % data.cycleLength + 1;
 
-      // AI Risk Alerts Logic
+      // AI & Clinical Risk Alerts Logic
       const alerts = [];
-      if (data.cycleLength > 35) alerts.push({ type: 'warning', msg: 'Cycle > 35 days. This irregularity may require evaluation.' });
+      if (data.cycleLength > 35) alerts.push({ type: 'warning', msg: 'Cycle > 35 days (Oligomenorrhea). Clinical evaluation recommended.' });
+      if (data.cycleLength < 21) alerts.push({ type: 'warning', msg: 'Cycle < 21 days (Polymenorrhea). Hormonal evaluation suggested.' });
       if (data.conditions.includes('PCOS / PCOD') || (data.symptoms.includes('Hair fall') && data.symptoms.includes('Acne') && data.cycleLength > 35)) {
-        alerts.push({ type: 'danger', msg: 'Possible PCOS pattern detected. High priority for doctor consultation.' });
+        alerts.push({ type: 'danger', msg: 'Rotterdam-concordant PCOS pattern detected. Recommended to schedule an ultrasound & endocrine panel.' });
       }
       if (data.flow === 'Heavy' && data.periodDuration > 7) {
-        alerts.push({ type: 'danger', msg: 'Heavy/prolonged bleeding detected. Risk of anemia.' });
+        alerts.push({ type: 'danger', msg: 'Prolonged/heavy bleeding (Menorrhagia) detected. Risk of iron deficiency anemia.' });
+      }
+      if (data.symptoms.includes('Hot Flashes') || data.conditions.includes('Perimenopause')) {
+        alerts.push({ type: 'warning', msg: 'Vasomotor symptoms detected. Endocrine transition mapping recommended.' });
       }
       if (alerts.length === 0) {
-        alerts.push({ type: 'success', msg: 'Cycle parameters look generally normal, but symptoms will be monitored.' });
+        alerts.push({ type: 'success', msg: 'Cycle parameters fall within standard physiological ranges.' });
       }
 
       setResult({
         daysSinceLast,
         daysToNext: Math.max(daysToNext, 0),
         currentPhaseDay,
+        lutealPhase: luteal,
         nextPeriod: nextPeriod.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
         ovulation: ovulationDay.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
         fertileWindow: `${fertileStart.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${fertileEnd.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`,
@@ -345,6 +352,15 @@ function CycleTracker() {
                 <button className="w-full bg-brand-50 hover:bg-brand-100 text-brand-700 font-bold py-3 rounded-xl transition-colors text-sm flex items-center justify-center gap-2">
                   <i className="fas fa-video"></i> Discuss these results with a Doctor
                 </button>
+              </div>
+            </div>
+
+            {/* SaMD Clinical Governance Disclaimer */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 text-slate-500 text-[11px] leading-relaxed flex items-start gap-2.5">
+              <i className="fas fa-shield-halved text-aubergine-600 mt-0.5 flex-shrink-0 text-sm"></i>
+              <div>
+                <span className="font-bold text-slate-700">Clinical & Regulatory Notice (SaMD Guidance): </span>
+                HealNari cycle analysis provides educational estimates based on reported menstrual history. It is not an FDA/CE-certified contraceptive device and should not be used as birth control or for definitive diagnostic decisions without physician evaluation.
               </div>
             </div>
 

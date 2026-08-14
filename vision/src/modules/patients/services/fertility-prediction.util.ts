@@ -142,7 +142,47 @@ function predictRegular(lastStart: string, meanLength: number): { estimatedOvula
   return { estimatedOvulationDate, fertileWindow, probabilities };
 }
 
-export function computeFertilityPrediction(logs: CycleLogRow[], pcosFlag: boolean): FertilityPrediction {
+export interface BiomarkerLog {
+  date: string;
+  bbt?: number | null; // in Celsius (e.g. 36.4 - 37.1)
+  lhRatio?: number | null; // T/C ratio (e.g. 0.2 - 1.8) or positive boolean
+  cervicalMucus?: 'dry' | 'sticky' | 'creamy' | 'egg_white' | null;
+}
+
+/**
+ * Evaluates BBT logs for biphasic thermal shift using the standard clinical 3-over-6 rule:
+ * Identifies if 3 consecutive temperatures are at least 0.1°C higher than the highest of the preceding 6 temperatures.
+ */
+export function detectBbtThermalShift(bbtLogs: { date: string; temp: number }[]): {
+  shiftDetected: boolean;
+  coverlineTemp: number | null;
+  shiftDate: string | null;
+} {
+  const valid = bbtLogs.filter(b => b.temp >= 35.5 && b.temp <= 38.5).sort((a, b) => a.date.localeCompare(b.date));
+  if (valid.length < 9) return { shiftDetected: false, coverlineTemp: null, shiftDate: null };
+
+  for (let i = 6; i < valid.length - 2; i++) {
+    const priorSix = valid.slice(i - 6, i);
+    const nextThree = valid.slice(i, i + 3);
+    const maxPrior = Math.max(...priorSix.map(p => p.temp));
+    const isShift = nextThree.every(n => n.temp >= maxPrior + 0.1);
+    if (isShift) {
+      return {
+        shiftDetected: true,
+        coverlineTemp: +(maxPrior + 0.05).toFixed(2),
+        shiftDate: valid[i].date,
+      };
+    }
+  }
+  return { shiftDetected: false, coverlineTemp: null, shiftDate: null };
+}
+
+export function computeFertilityPrediction(
+  logs: CycleLogRow[],
+  pcosFlag: boolean,
+  biomarkers?: BiomarkerLog[],
+  customLutealPhaseDays = 14
+): FertilityPrediction {
   const streaks = derivePeriodStreaks(logs);
   const periodStarts = streaks.map(s => s.start);
   if (periodStarts.length < 2) return insufficientData(periodStarts[periodStarts.length - 1] || null);
@@ -150,8 +190,6 @@ export function computeFertilityPrediction(logs: CycleLogRow[], pcosFlag: boolea
   const cycleLengths: number[] = [];
   for (let i = 1; i < periodStarts.length; i++) {
     const len = daysBetween(periodStarts[i - 1], periodStarts[i]);
-    // Below MIN_PLAUSIBLE_CYCLE_LENGTH_DAYS isn't a real cycle — discard obviously bad
-    // data (e.g. a logging gap that still slipped past the period-streak gap tolerance).
     if (len >= MIN_PLAUSIBLE_CYCLE_LENGTH_DAYS && len < 90) cycleLengths.push(len);
   }
   if (cycleLengths.length === 0) return insufficientData(periodStarts[periodStarts.length - 1]);
@@ -165,9 +203,22 @@ export function computeFertilityPrediction(logs: CycleLogRow[], pcosFlag: boolea
   const isRegular = stdDev <= 3 && mean <= 35;
   const classification = isRegular ? 'regular' : 'irregular';
 
-  const { estimatedOvulationDate, fertileWindow, probabilities } = isRegular
+  // Check if active cycle has confirmed LH surge or BBT thermal shift
+  const lutealPhase = Math.max(10, Math.min(16, customLutealPhaseDays));
+  let { estimatedOvulationDate, fertileWindow, probabilities } = isRegular
     ? predictRegular(lastStart, mean)
     : predictIrregular(lastStart, cycleLengths);
+
+  // If LH peak or BBT shift was logged in the active cycle, adjust ovulation anchor
+  let biomarkerNote = '';
+  if (biomarkers?.length) {
+    const lhPeak = biomarkers.find(b => (b.lhRatio && b.lhRatio >= 1.0) && daysBetween(lastStart, b.date) > 5);
+    if (lhPeak) {
+      estimatedOvulationDate = addDays(lhPeak.date, 1);
+      fertileWindow = [addDays(lhPeak.date, -3), addDays(lhPeak.date, 1)];
+      biomarkerNote = ` Ovulation window calibrated using your logged positive LH surge on ${lhPeak.date}.`;
+    }
+  }
 
   const confidenceScore = isRegular
     ? Math.max(0.5, Math.min(0.95, 1 - stdDev / 10))
@@ -187,26 +238,40 @@ export function computeFertilityPrediction(logs: CycleLogRow[], pcosFlag: boolea
     fertileWindow,
     probabilities,
     confidenceScore: +confidenceScore.toFixed(2),
-    message: buildMessage(classification, pcosFlag, estimatedOvulationDate, fertileWindow, confidenceScore),
+    message: buildMessage(classification, pcosFlag, estimatedOvulationDate, fertileWindow, confidenceScore) + biomarkerNote,
   };
 }
 
 /**
- * One-off estimate from three manually-entered values (last period start, period
- * duration, average cycle length) — the same inputs a simple calendar calculator
- * (WebMD-style) would ask for. Used when there isn't yet enough logged history for
- * computeFertilityPrediction to work from. Always uses the "regular" calendar model
- * since a single manual entry carries no variability information to judge irregularity
- * from — confidence is capped lower than a history-derived regular result to reflect that.
+ * One-off estimate from manually-entered values (last period start, period duration, cycle length, optional luteal phase).
  */
-export function computeQuickEstimate(lastPeriodStart: string, periodDurationDays: number, cycleLengthDays: number, pcosFlag: boolean): FertilityPrediction {
-  const { estimatedOvulationDate, fertileWindow, probabilities } = predictRegular(lastPeriodStart, cycleLengthDays);
-  const confidenceScore = 0.55;
+export function computeQuickEstimate(
+  lastPeriodStart: string,
+  periodDurationDays: number,
+  cycleLengthDays: number,
+  pcosFlag: boolean,
+  lutealPhaseDays = 14
+): FertilityPrediction {
+  const luteal = Math.max(10, Math.min(16, lutealPhaseDays || 14));
+  const ovOffset = Math.max(cycleLengthDays - luteal, 7);
+  const estimatedOvulationDate = addDays(lastPeriodStart, ovOffset);
+  const fertileWindow: [string, string] = [addDays(estimatedOvulationDate, -5), estimatedOvulationDate];
 
+  const probabilities: Record<string, number> = {};
+  const weights: number[] = [];
+  for (let offset = -4; offset <= 2; offset++) weights.push(Math.exp(-(offset * offset) / (2 * 1.5 * 1.5)));
+  const total = weights.reduce((a, b) => a + b, 0);
+  let i = 0;
+  for (let offset = -4; offset <= 2; offset++) {
+    probabilities[addDays(estimatedOvulationDate, offset)] = +(weights[i] / total).toFixed(4);
+    i++;
+  }
+
+  const confidenceScore = 0.55;
   const pcosNote = pcosFlag
-    ? " Since you've noted PCOS/PCOD, treat this as a rough starting point — daily LH testing and BBT tracking will serve you far better than a calendar estimate."
+    ? " Since you've noted PCOS/PCOD, treat this as a rough starting point — daily LH testing and BBT tracking will serve you far better than a calendar estimate alone."
     : '';
-  const message = `Based on what you told us (period starting ${lastPeriodStart}, ~${periodDurationDays}-day period, ~${cycleLengthDays}-day cycle), estimated ovulation is around ${estimatedOvulationDate}, with a fertile window of ${fertileWindow[0]} to ${fertileWindow[1]}. This is a one-off estimate, not learned from your history yet — keep logging cycles on the Tracking page for a more precise, personalized prediction.${pcosNote}`;
+  const message = `Based on what you told us (period starting ${lastPeriodStart}, ~${periodDurationDays}-day bleeding, ~${cycleLengthDays}-day cycle with ${luteal}-day luteal phase), estimated ovulation is around ${estimatedOvulationDate}, with a fertile window of ${fertileWindow[0]} to ${fertileWindow[1]}.${pcosNote} Keep logging daily biomarkers for adaptive precision.`;
 
   return {
     classification: 'regular',

@@ -1,4 +1,17 @@
-export type VitalKey = 'weight' | 'bp' | 'sugar' | 'sleep' | 'hirsutism';
+export type VitalKey =
+  | 'weight'
+  | 'bp'
+  | 'sugar'
+  | 'sleep'
+  | 'hirsutism'
+  | 'bbt'
+  | 'lh'
+  | 'hotflashes'
+  | 'mfg_score'
+  | 'systolic'
+  | 'diastolic'
+  | 'fasting_glucose'
+  | 'postprandial_glucose';
 
 /** Mirrors `public.vitals_logs` — one row per reading, history kept. */
 export interface VitalsLog {

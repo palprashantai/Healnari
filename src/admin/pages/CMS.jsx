@@ -1,14 +1,69 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
-import { ConfirmModal } from '../../components/Modal.jsx';
+import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { Tilt3D } from '../../components/Tilt3D.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+import { AiButton } from '../../components/AiButton.jsx';
 
 function AdminCMS() {
   const toast = useToast();
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // AI CMS Article Generator State
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiTopic, setAiTopic] = useState('');
+  const [aiCategory, setAiCategory] = useState('Health Guide');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiGeneratedArticle, setAiGeneratedArticle] = useState(null);
+
+  const handleGenerateArticle = async () => {
+    if (!aiTopic.trim()) {
+      toast('Please enter an article topic or focus keyword.', 'error');
+      return;
+    }
+    setAiGenerating(true);
+    try {
+      const res = await apiFetch('/ai/cms-article', {
+        method: 'POST',
+        body: {
+          topic: aiTopic.trim(),
+          category: aiCategory,
+        },
+      });
+      const data = res?.data || res;
+      setAiGeneratedArticle(data);
+      toast('AI article draft generated successfully!', 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to generate article', 'error');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
+  const handleSaveGeneratedArticle = async () => {
+    if (!aiGeneratedArticle) return;
+    try {
+      const newArticle = {
+        title: aiGeneratedArticle.title,
+        category: aiCategory,
+        author: 'HealNari Clinical Team (AI Assisted)',
+        status: 'Published',
+        views: 0,
+        content: aiGeneratedArticle.content,
+        summary: aiGeneratedArticle.summary,
+        date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+      };
+      setArticles(prev => [newArticle, ...prev]);
+      setAiModalOpen(false);
+      setAiGeneratedArticle(null);
+      setAiTopic('');
+      toast('Article saved to CMS library!', 'success');
+    } catch {
+      toast('Failed to save article', 'error');
+    }
+  };
 
   useEffect(() => {
     apiFetch('/admin/cms')
@@ -56,16 +111,23 @@ function AdminCMS() {
   const symCheckers = articles.filter(a => a.category === 'Symptom Checker');
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-10">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800">Content Management</h1>
           <p className="text-sm text-slate-500">Manage symptom checker logic, health guides, and platform announcements.</p>
         </div>
-        <button onClick={() => toast('Opening content editor...', 'info')}
-          className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm">
-          <i className="fas fa-plus"></i> Create Content
-        </button>
+        <div className="flex gap-2.5">
+          <AiButton
+            variant="gradient"
+            size="md"
+            icon="fa-wand-magic-sparkles"
+            badge="Gemini"
+            onClick={() => { setAiModalOpen(true); setAiGeneratedArticle(null); }}
+          >
+            Generate Guide with AI
+          </AiButton>
+        </div>
       </div>
 
       <div className="grid sm:grid-cols-3 gap-4">
@@ -126,6 +188,85 @@ function AdminCMS() {
           )}
         </div>
       </div>
+
+      {/* ── AI Article Generator Modal ── */}
+      <Modal isOpen={aiModalOpen} onClose={() => setAiModalOpen(false)} title="AI Health Guide &amp; Article Generator" size="lg">
+        <div className="space-y-4">
+          <div className="p-3.5 bg-purple-50 border border-purple-200 rounded-xl text-xs text-purple-900 flex items-start gap-2.5">
+            <i className="fas fa-wand-magic-sparkles text-purple-600 text-sm mt-0.5 shrink-0"></i>
+            <div>
+              <p className="font-bold">Powered by Gemini 1.5 Medical Knowledge Base</p>
+              <p className="text-purple-700 mt-0.5">Generates evidence-based, medically structured health guides complete with symptoms, nutritional guidance, and clinical disclaimers.</p>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <label className="text-xs font-bold text-slate-500 mb-1.5 block">Article Topic or Focus *</label>
+              <input 
+                value={aiTopic}
+                onChange={e => setAiTopic(e.target.value)}
+                placeholder="e.g. Managing Insulin Resistance in PCOS"
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1.5 block">Category</label>
+              <select 
+                value={aiCategory} 
+                onChange={e => setAiCategory(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+              >
+                <option value="Health Guide">Health Guide</option>
+                <option value="Symptom Checker">Symptom Guide</option>
+                <option value="Announcement">Announcement</option>
+              </select>
+            </div>
+          </div>
+
+          <button 
+            type="button"
+            onClick={handleGenerateArticle}
+            disabled={aiGenerating || !aiTopic.trim()}
+            className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-sm transition-colors shadow-sm flex items-center justify-center gap-2"
+          >
+            <i className={`fas ${aiGenerating ? 'fa-spinner fa-spin' : 'fa-wand-sparkles'}`}></i>
+            <span>{aiGenerating ? 'Generating Evidence-Based Draft...' : 'Generate Full Article Draft'}</span>
+          </button>
+
+          {aiGeneratedArticle && (
+            <div className="mt-4 pt-4 border-t border-slate-200 space-y-4 animate-fade-in">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 bg-purple-100 px-2 py-0.5 rounded">Generated Draft Preview</span>
+                <h3 className="font-bold text-slate-800 text-base">{aiGeneratedArticle.title}</h3>
+                <p className="text-xs text-slate-600 italic">{aiGeneratedArticle.summary}</p>
+                <div 
+                  className="text-xs text-slate-700 max-h-56 overflow-y-auto border-t border-slate-200 pt-2 space-y-2 prose prose-sm"
+                  dangerouslySetInnerHTML={{ __html: aiGeneratedArticle.content }}
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => setAiGeneratedArticle(null)} 
+                  className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold py-2.5 rounded-xl text-sm transition-colors"
+                >
+                  Regenerate
+                </button>
+                <button 
+                  type="button" 
+                  onClick={handleSaveGeneratedArticle}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors shadow-sm flex items-center justify-center gap-2"
+                >
+                  <i className="fas fa-check"></i>
+                  <span>Publish to CMS Library</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
 
       <ConfirmModal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete}
         title="Delete Article?" message={`Are you sure you want to delete "${deleteTarget?.title}"? This cannot be undone.`}

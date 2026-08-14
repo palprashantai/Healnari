@@ -23,7 +23,7 @@ function escapeHtml(str) {
  * line — shared by both the doctor's and the patient's "Download PDF" so a
  * prescription looks the same however it's printed.
  */
-export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagnosis, medicines, labTests, instructions }) {
+export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagnosis, medicines, labTests, instructions, handwrittenImage }) {
   const win = window.open('', '_blank', 'width=800,height=960');
   if (!win) return;
 
@@ -242,8 +242,12 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
             </div>
           </div>
 
+          ${handwrittenImage ? `
+          <div style="margin: 20px 0; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; background: #faf8f5; padding: 4px;">
+            <img src="${handwrittenImage}" alt="Handwritten Clinical Prescription" style="width: 100%; border-radius: 12px; display: block;" />
+          </div>` : `
           <div class="rx-symbol">&#8478;</div>
-          <div class="meds">${medsHtml}</div>
+          <div class="meds">${medsHtml}</div>`}
 
           ${(labTests && labTests.length > 0) ? `
           <div class="instructions" style="background: #f0f9ff; border-color: #bae6fd; border-left-color: #0284c7; margin-bottom: 20px;">

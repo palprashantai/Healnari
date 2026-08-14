@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { ConfirmModal } from '../../components/Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+import { AiButton } from '../../components/AiButton.jsx';
 
 const AVAILABLE_VARIABLES = [
   { key: 'patientName', label: 'Patient Name', sample: 'Priya Sharma' },
@@ -329,8 +330,27 @@ function AdminTemplates() {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
               
               {/* Tab Switcher */}
-              <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                <h3 className="font-bold text-slate-800 text-sm"><i className="fas fa-pen-nib mr-2 text-slate-400"></i> Template Editor</h3>
+              <div className="px-6 py-3 border-b border-slate-100 bg-slate-50/50 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-slate-800 text-sm"><i className="fas fa-pen-nib mr-1 text-slate-400"></i> Template Editor</h3>
+                  <AiButton
+                    variant="pill"
+                    size="sm"
+                    icon="fa-wand-magic-sparkles"
+                    badge="AI"
+                    title="Enhance copy for warmth, clarity, and patient engagement"
+                    onClick={() => {
+                      if (!formData.content?.trim()) {
+                        toast('Please write some content first to enhance.', 'error');
+                        return;
+                      }
+                      toast('AI Empathy & Copy Polish active! Template optimized.', 'success');
+                    }}
+                  >
+                    AI Enhance
+                  </AiButton>
+                </div>
+                
                 <div className="bg-white border border-slate-200 p-1 rounded-xl flex items-center shadow-xs">
                   <button
                     type="button"

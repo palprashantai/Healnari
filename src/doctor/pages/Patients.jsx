@@ -8,6 +8,7 @@ import { RxStatusBadge } from '../../components/RxStatus.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { buildPatientTimeline } from '../../lib/patientTimeline.js';
 import { openPrescriptionPrintWindow } from '../../lib/prescriptionPrint.js';
+import { AiButton } from '../../components/AiButton.jsx';
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -810,6 +811,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
     }
   };
 
+  const [showAiBrief, setShowAiBrief] = useState(false);
   const filteredReports = patient.reports.filter((r) => {
     if (labFilter === 'all') return true;
     if (labFilter === 'awaiting') return r.status === 'Uploaded';
@@ -859,6 +861,16 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
           {/* Quick Header Actions */}
           <div className="flex items-center gap-2 flex-wrap self-stretch md:self-center justify-end">
+            <AiButton
+              variant="glass"
+              size="sm"
+              icon="fa-wand-magic-sparkles"
+              badge="AI"
+              onClick={() => setShowAiBrief(true)}
+              title="Generate 30-Second AI Clinical Brief"
+            >
+              AI Brief
+            </AiButton>
             <button
               onClick={() => setShowWriteRx(true)}
               className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"

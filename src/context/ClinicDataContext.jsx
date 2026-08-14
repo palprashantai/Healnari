@@ -277,6 +277,7 @@ export function ClinicDataProvider({ children }) {
           patientId,
           diagnosis: rx.diagnosis,
           instructions: rx.instructions,
+          handwrittenImage: rx.handwrittenImage,
           medicines: rx.medicines.map(m => ({
             medName: m.name,
             dosage: m.dosage,

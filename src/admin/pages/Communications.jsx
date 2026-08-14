@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+import { AIButton } from '../../components/AiButton.jsx';
 
 function AdminCommunications() {
   const toast = useToast();
@@ -80,13 +81,60 @@ function AdminCommunications() {
     }
   };
 
+  const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+
+  const CAMPAIGN_PRESETS = [
+    {
+      topic: '🌸 PCOS Awareness & Lifestyle',
+      subject: 'Take Control of Your Hormones: Free PCOS Health Checklist Inside',
+      body: 'Dear [Name], struggling with irregular cycles, sudden breakouts, or fatigue? You are not alone. Our specialist gynecologists have put together a doctor-reviewed PCOS nutrition and cycle tracking guide. Tap here to view your personalized care plan.'
+    },
+    {
+      topic: '✨ Fertility & Ovulation Guidance',
+      subject: 'Understanding Your Fertile Window: Expert Tips from HealNari',
+      body: 'Hi [Name], tracking your ovulation doesn\'t have to be confusing. Discover your peak 48-hour conception window with our digital fertility estimator. Book a 1-on-1 video consult with our fertility specialist today.'
+    },
+    {
+      topic: '🛡️ Annual Cervical & Pelvic Health',
+      subject: 'Important Reminder: Your Preventive Health Checkup is Due',
+      body: 'Dear [Name], preventive health is the highest form of self-care. It\'s time for your annual pelvic health review and routine ultrasound check. Schedule your preferred slot in seconds through your patient portal.'
+    },
+    {
+      topic: '💊 Medication Refill Reminder',
+      subject: 'Keep Your Treatment on Track: Quick Refill Available',
+      body: 'Hello [Name], consistent medication timing is essential for hormonal balance. If your prescription is running low, tap here to request an instant digital refill.'
+    }
+  ];
+
+  const handleApplyCampaignPreset = (preset) => {
+    setAiGenerating(true);
+    setTimeout(() => {
+      setMessageSubject(preset.subject);
+      setMessageBody(preset.body);
+      setAiGenerating(false);
+      setAiGeneratorOpen(false);
+      toast(`✨ Applied "${preset.topic}" campaign template!`, 'success');
+    }, 500);
+  };
+
   const audienceOptions = ['All Patients', 'All Doctors', 'New Patients', 'Unverified Doctors', 'All Users'];
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-black text-slate-800">Communications</h1>
-        <p className="text-sm text-slate-500">Broadcast messages to patients and doctors across the platform.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-slate-800">Communications</h1>
+          <p className="text-sm text-slate-500">Broadcast messages to patients and doctors across the platform.</p>
+        </div>
+        <AIButton
+          onClick={() => setAiGeneratorOpen(true)}
+          variant="gradient"
+          icon="fa-wand-magic-sparkles"
+          size="sm"
+        >
+          AI Campaign Generator
+        </AIButton>
       </div>
 
       <div className="grid lg:grid-cols-5 gap-6">
@@ -238,6 +286,48 @@ function AdminCommunications() {
           </div>
         </div>
       </Modal>
+
+      {/* AI Campaign Generator Modal */}
+      {aiGeneratorOpen && (
+        <Modal
+          isOpen={aiGeneratorOpen}
+          onClose={() => setAiGeneratorOpen(false)}
+          title="AI Women's Health Campaign Drafter"
+          size="md"
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-slate-500">
+              Select an evidence-based clinical campaign theme to generate high-converting, empathetic copy.
+            </p>
+
+            <div className="space-y-2.5">
+              {CAMPAIGN_PRESETS.map((p, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => handleApplyCampaignPreset(p)}
+                  className="bg-slate-50 hover:bg-purple-50/50 border border-slate-200 hover:border-purple-300 rounded-2xl p-4 cursor-pointer transition-all space-y-1.5 group"
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-xs text-slate-800 group-hover:text-purple-700">{p.topic}</h4>
+                    <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded-md">Use Template</span>
+                  </div>
+                  <p className="text-[11px] font-bold text-slate-600">Subject: "{p.subject}"</p>
+                  <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{p.body}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setAiGeneratorOpen(false)}
+                className="bg-slate-900 text-white font-bold px-4 py-2 rounded-xl text-xs"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -31,7 +31,11 @@ function PatientBilling() {
   const [doctors, setDoctors] = useState([]);
   const [payTarget, setPayTarget] = useState(null);
   const [showPayModal, setShowPayModal] = useState(false);
-  const [payFor, setPayFor] = useState({ amount: 0, currency: 'USD', description: '' });
+  const [payFor, setPayFor] = useState(() => ({
+    amount: 0,
+    currency: localStorage.getItem('healnari_currency') || 'INR',
+    description: '',
+  }));
 
   useEffect(() => { apiFetch('/doctors/search').then(setDoctors).catch(() => setDoctors([])); }, []);
 

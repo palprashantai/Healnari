@@ -7,6 +7,7 @@ import { todayLocalStr } from '../../lib/dateUtils.js';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { AIButton } from '../../components/AiButton.jsx';
 
 /* ─── Config ─────────────────────────────────── */
 const HIRSUTISM_GRADES = [
@@ -16,16 +17,31 @@ const HIRSUTISM_GRADES = [
   { grade: 3, label: 'Thick hair growth', dots: 3, desc: 'Thick, beard-like hair growth on the face.' },
 ];
 
+export const MFG_BODY_AREAS = [
+  { id: 'lip', name: 'Upper Lip', icon: 'fa-face-smile', max: 4, desc: '0: None to 4: Complete continuous mustache' },
+  { id: 'chin', name: 'Chin & Jaw', icon: 'fa-face-grimace', max: 4, desc: '0: None to 4: Heavy dense beard-pattern' },
+  { id: 'chest', name: 'Chest / Sternum', icon: 'fa-heart', max: 4, desc: '0: None to 4: Continuous sternal coverage' },
+  { id: 'up_ab', name: 'Upper Abdomen', icon: 'fa-circle-dot', max: 4, desc: '0: None to 4: Complete midline triangle' },
+  { id: 'low_ab', name: 'Lower Abdomen', icon: 'fa-shield-halved', max: 4, desc: '0: None to 4: Full male-pattern escutcheon' },
+  { id: 'up_back', name: 'Upper Back', icon: 'fa-person', max: 4, desc: '0: None to 4: Broad dense shoulder coverage' },
+  { id: 'low_back', name: 'Lower Back', icon: 'fa-user', max: 4, desc: '0: None to 4: Complete sacral/lower back hair' },
+  { id: 'arms', name: 'Upper Arms', icon: 'fa-hand-fist', max: 4, desc: '0: None to 4: Dense upper arm coverage' },
+  { id: 'thighs', name: 'Thighs', icon: 'fa-person-walking', max: 4, desc: '0: None to 4: Complete bilateral thigh coverage' },
+];
+
 const VITALS_CONFIG = {
+  bbt: { label: 'Basal Body Temp', icon: 'fa-temperature-half', color: 'bg-rose-50 text-rose-500', unit: '°C' },
+  lh: { label: 'LH Surge (T/C)', icon: 'fa-vial-circle-check', color: 'bg-purple-50 text-purple-500', unit: 'ratio' },
   weight: { label: 'Body Weight', icon: 'fa-weight-scale', color: 'bg-sky-50 text-sky-500', unit: 'kg' },
   bp: { label: 'Blood Pressure', icon: 'fa-heart-pulse', color: 'bg-rose-50 text-rose-500', unit: 'mmHg' },
   sugar: { label: 'Fasting Sugar', icon: 'fa-droplet', color: 'bg-amber-50 text-amber-500', unit: 'mg/dL' },
   sleep: { label: 'Sleep Duration', icon: 'fa-moon', color: 'bg-indigo-50 text-indigo-500', unit: 'hrs' },
+  hotflashes: { label: 'Hot Flashes', icon: 'fa-fire-flame-curved', color: 'bg-orange-50 text-orange-500', unit: 'episodes' },
 };
 
 const todayKey = todayLocalStr;
 
-const VITAL_EXAMPLES = { weight: '65', bp: '120/80', sugar: '95', sleep: '7.5' };
+const VITAL_EXAMPLES = { bbt: '36.65', lh: '1.2', weight: '65', bp: '120/80', sugar: '95', sleep: '7.5', hotflashes: '3' };
 
 /** Derives a "vs last reading" trend line from the current + previous logged values. */
 function computeTrend(current, previous, unit) {
@@ -55,11 +71,107 @@ function computeTrend(current, previous, unit) {
 
 // Zod schemas for validation
 const vitalSchemas = {
+  bbt: z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) >= 35 && parseFloat(val) <= 41, "BBT must be between 35.0°C and 41.0°C"),
+  lh: z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) >= 0 && parseFloat(val) <= 5, "LH T/C ratio must be between 0.0 and 5.0"),
   weight: z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0 && parseFloat(val) < 300, "Weight must be a valid number between 0 and 300"),
   bp: z.string().regex(/^\d{2,3}\/\d{2,3}$/, "BP must be in format SYS/DIA (e.g., 120/80)"),
   sugar: z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, "Sugar must be a positive number"),
   sleep: z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) >= 0 && parseFloat(val) <= 24, "Sleep must be between 0 and 24 hours"),
+  hotflashes: z.string().refine(val => !isNaN(parseInt(val, 10)) && parseInt(val, 10) >= 0 && parseInt(val, 10) <= 50, "Episodes must be between 0 and 50"),
 };
+
+/* ─── Modified Ferriman-Gallwey (mFG) Clinical Modal ─── */
+function MfgAssessmentModal({ isOpen, onClose, onSave, currentScores }) {
+  const [scores, setScores] = useState({});
+
+  useEffect(() => {
+    if (isOpen) {
+      setScores(currentScores || {});
+    }
+  }, [isOpen, currentScores]);
+
+  const totalScore = Object.values(scores).reduce((a, b) => a + (Number(b) || 0), 0);
+  const staging = totalScore < 8
+    ? { label: 'Normal / Minimal', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' }
+    : totalScore <= 15
+    ? { label: 'Mild Hirsutism', color: 'text-amber-700 bg-amber-50 border-amber-200' }
+    : { label: 'Moderate-to-Severe Hirsutism', color: 'text-rose-700 bg-rose-50 border-rose-200' };
+
+  const handleScoreChange = (id, val) => {
+    setScores(prev => ({ ...prev, [id]: val }));
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Modified Ferriman-Gallwey (mFG) Assessment" size="lg">
+      <div className="space-y-5">
+        <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div>
+            <h4 className="font-bold text-slate-800 text-sm">Clinical 9-Area Body Hair Mapping</h4>
+            <p className="text-xs text-slate-500 mt-0.5">This is a self-assessment guide. Share this with your gynaecologist for clinical interpretation.</p>
+          </div>
+          <div className={`px-3.5 py-1.5 rounded-xl border text-xs font-black flex items-center gap-2 ${staging.color}`}>
+            <span>Total Score: <strong className="text-base">{totalScore}</strong>/36</span>
+            <span>• {staging.label}</span>
+          </div>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto pr-1">
+          {MFG_BODY_AREAS.map(area => {
+            const currentVal = scores[area.id] ?? 0;
+            return (
+              <div key={area.id} className="p-3.5 rounded-2xl border border-slate-100 bg-white hover:border-aubergine-200 transition-all shadow-sm">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-aubergine-50 text-aubergine-600 flex items-center justify-center text-xs">
+                      <i className={`fas ${area.icon}`}></i>
+                    </div>
+                    <span className="font-bold text-xs text-slate-800">{area.name}</span>
+                  </div>
+                  <span className="text-xs font-black text-aubergine-700 bg-aubergine-50 px-2 py-0.5 rounded-md">
+                    Grade {currentVal}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400 mb-2 leading-tight">{area.desc}</p>
+                <div className="flex gap-1">
+                  {[0, 1, 2, 3, 4].map(val => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => handleScoreChange(area.id, val)}
+                      className={`flex-1 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                        currentVal === val
+                          ? 'bg-aubergine-600 text-white border-aubergine-600 shadow-sm'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {val}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+          <p className="text-[11px] text-slate-400 italic">Score &ge;8 points warrants endocrine androgen profile workup.</p>
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => { onSave(totalScore, scores); onClose(); }}
+              className="px-5 py-2 text-xs font-bold text-white bg-aubergine-600 hover:bg-aubergine-700 rounded-xl shadow-md transition-all"
+            >
+              Save mFG Score ({totalScore})
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 /* ─── Log Vital Modal ────────────────────────── */
 function LogVitalModal({ vitalKey, config, currentValue, isOpen, onClose, onSave }) {
@@ -122,7 +234,11 @@ function LogVitalModal({ vitalKey, config, currentValue, isOpen, onClose, onSave
 /* ─── Cycle Log Modal ────────────────────────── */
 function CycleLogModal({ isOpen, onClose, onSave, existingLog }) {
   const [form, setForm] = useState({ flow: 'Medium', cramps: 2, mood: 'Calm', symptoms: [] });
-  const SYMPTOMS_LIST = ['Cramps', 'Bloating', 'Headache', 'Fatigue', 'Back Pain', 'Nausea'];
+  const SYMPTOMS_LIST = [
+    'Cramps', 'Bloating', 'Headache', 'Fatigue', 'Back Pain', 'Nausea',
+    'Breast Tenderness', 'Pelvic Pressure', 'Acne Flare', 'Vaginal Dryness',
+    'Hot Flashes', 'Insomnia', 'Brain Fog', 'Joint Pain',
+  ];
 
   useEffect(() => {
     if (isOpen) {
@@ -214,6 +330,7 @@ function PatientTracking() {
 
   const [logModal, setLogModal] = useState(null); // { key, config, currentValue }
   const [showCycleLog, setShowCycleLog] = useState(false);
+  const [showMfgModal, setShowMfgModal] = useState(false);
   
   const todayCycleLog = cycleLogs[todayKey()] || null;
   const [cycleBannerDismissed, setCycleBannerDismissed] = useState(false);
@@ -236,6 +353,15 @@ function PatientTracking() {
       toast(`${config.label} updated to ${value} ${config.unit}`, 'success');
     } catch {
       toast(`Failed to save ${config.label}. Please try again.`, 'error');
+    }
+  };
+
+  const handleMfgSave = async (totalScore, scoresMap) => {
+    try {
+      await logVital('mfg_score', String(totalScore), '/36');
+      toast(`mFG Score of ${totalScore}/36 recorded successfully.`, 'success');
+    } catch {
+      toast('Failed to save mFG score. Please try again.', 'error');
     }
   };
 
@@ -288,6 +414,72 @@ function PatientTracking() {
 
   const completedCount = Object.values(lifestyle).filter(Boolean).length;
 
+  const [aiForecastOpen, setAiForecastOpen] = useState(false);
+  const [aiForecastLoading, setAiForecastLoading] = useState(false);
+  const [forecastData, setForecastData] = useState(null);
+
+  const handleRunAiForecast = async () => {
+    if (!cycleLogs || Object.keys(cycleLogs).length === 0) {
+      toast('Log your period start date first to enable AI forecasting', 'error');
+      return;
+    }
+    setAiForecastOpen(true);
+    setAiForecastLoading(true);
+    try {
+      const { apiFetch } = await import('../../lib/apiClient.js');
+      const data = await apiFetch('/patients/fertility');
+      const cycleStats = data?.cycleStats;
+      const fertile = data?.fertileWindow;
+      const nextPeriod = data?.nextPeriodEstimate;
+      const classification = data?.classification;
+      const pcos = data?.pcosFlag;
+
+      const daysToNext = nextPeriod
+        ? Math.round((new Date(nextPeriod) - new Date()) / 86400000)
+        : null;
+      const nextPeriodLabel = daysToNext != null
+        ? daysToNext <= 0 ? 'Due today or overdue' : `Predicted in ${daysToNext} day${daysToNext === 1 ? '' : 's'}`
+        : 'Insufficient cycle history';
+
+      const regularityLabel = classification === 'regular'
+        ? `${Math.round((data.confidenceScore || 0.7) * 100)}% Regularity · ${cycleStats?.stdDev != null ? `±${cycleStats.stdDev}d σ` : 'Stable pattern'}`
+        : `Irregular · ${pcos ? 'PCOS Detected' : `StdDev ${cycleStats?.stdDev ?? '—'}d`}`;
+
+      const hormone = data?.message || 'Cycle data analyzed. Log daily BBT and LH strips for improved hormone phase accuracy.';
+
+      const recs = [
+        pcos
+          ? 'Consider daily Myo-Inositol 2g and low-GI nutrition to support insulin sensitivity and ovulatory regularity.'
+          : 'Prioritize magnesium & zinc-rich foods (pumpkin seeds, dark leafy greens) to ease menstrual cramps.',
+        'Schedule 30-minute brisk walking each morning to stabilize cortisol and support cycle regularity.',
+        'Maintain consistent sleep (7–9 hours) to avoid prolactin elevation which can disrupt ovulation.',
+      ];
+
+      setForecastData({
+        nextPeriod: nextPeriodLabel,
+        cycleRegularityScore: regularityLabel,
+        hormonePattern: hormone,
+        recommendations: recs,
+        fertileWindow: fertile ? `${fertile[0]} – ${fertile[1]}` : null,
+      });
+    } catch {
+      // Graceful fallback if API is unavailable
+      setForecastData({
+        nextPeriod: 'Log more cycles for prediction',
+        cycleRegularityScore: 'Needs more data',
+        hormonePattern: 'Log at least 2 full menstrual cycles on the Tracking page to enable AI-powered forecasting.',
+        recommendations: [
+          'Start logging your period flow days every month.',
+          'Track BBT each morning before getting out of bed.',
+          'Use LH surge test strips in the middle of your cycle.',
+        ],
+        fertileWindow: null,
+      });
+    } finally {
+      setAiForecastLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -296,9 +488,19 @@ function PatientTracking() {
           <h1 className="text-2xl font-black text-slate-800">Health & Endocrine Tracking</h1>
           <p className="text-sm text-slate-500">Log vitals, cycle, and lifestyle parameters for your care team.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <AIButton
+            onClick={handleRunAiForecast}
+            loading={aiForecastLoading}
+            loadingText="Analyzing Cycle..."
+            variant="gradient"
+            icon="fa-wand-magic-sparkles"
+            size="sm"
+          >
+            AI Cycle Forecast
+          </AIButton>
           <button onClick={() => setShowCycleLog(true)}
-            className="bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm">
+            className="bg-rose-500 hover:bg-rose-600 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-sm">
             <i className="fas fa-circle-dot"></i> Log Cycle
           </button>
         </div>
@@ -346,11 +548,18 @@ function PatientTracking() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Androgen Tracker */}
+        {/* Androgen & Metabolic Tracker */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-          <div>
-            <h3 className="font-extrabold text-slate-800 text-base">Facial & Body Hair Tracker</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Once a month, pick the option closest to what you see.</p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="font-extrabold text-slate-800 text-base">Facial & Body Hair (Androgen) Tracker</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Track hirsutism progression for PCOS & endocrine monitoring.</p>
+            </div>
+            {vitals.mfg_score?.value && (
+              <span className="text-[11px] font-black text-aubergine-700 bg-aubergine-50 px-2.5 py-1 rounded-xl border border-aubergine-200">
+                mFG: {vitals.mfg_score.value}/36
+              </span>
+            )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {HIRSUTISM_GRADES.map(g => (
@@ -367,8 +576,17 @@ function PatientTracking() {
               </button>
             ))}
           </div>
-          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs text-slate-600 leading-relaxed">
-            <strong>You selected:</strong> {HIRSUTISM_GRADES[hirsutismGrade].desc} Checking this every month helps your doctor see if your treatment is working.
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs text-slate-600 leading-relaxed flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+            <div>
+              <strong>Quick Grade:</strong> {HIRSUTISM_GRADES[hirsutismGrade].desc}
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowMfgModal(true)}
+              className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold text-[11px] px-3.5 py-1.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5 flex-shrink-0"
+            >
+              <i className="fas fa-stethoscope"></i> Full 9-Area mFG Calculator
+            </button>
           </div>
         </div>
 
@@ -431,6 +649,91 @@ function PatientTracking() {
         />
       )}
       <CycleLogModal isOpen={showCycleLog} onClose={() => setShowCycleLog(false)} onSave={handleCycleLogSave} existingLog={todayCycleLog} />
+      <MfgAssessmentModal
+        isOpen={showMfgModal}
+        onClose={() => setShowMfgModal(false)}
+        onSave={handleMfgSave}
+      />
+
+      {/* AI Cycle & Hormone Forecast Modal */}
+      {aiForecastOpen && (
+        <Modal
+          isOpen={aiForecastOpen}
+          onClose={() => setAiForecastOpen(false)}
+          title="AI Menstrual & Hormone Health Forecast"
+          size="md"
+        >
+          <div className="space-y-4">
+            {aiForecastLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-14 bg-slate-100 rounded-2xl animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-pink-500/10 border border-purple-200 rounded-2xl p-4 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-black text-purple-700 uppercase tracking-wider block">Next Menstrual Cycle</span>
+                    <h4 className="text-lg font-black text-purple-900 mt-0.5">{forecastData?.nextPeriod || 'Predicting...'}</h4>
+                  </div>
+                  <span className="bg-purple-100 text-purple-800 font-bold px-3 py-1 rounded-xl text-xs border border-purple-200 text-right">
+                    {forecastData?.cycleRegularityScore || 'Analyzing'}
+                  </span>
+                </div>
+
+                {forecastData?.fertileWindow && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 flex items-center gap-3">
+                    <div className="w-9 h-9 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0 text-sm">
+                      <i className="fas fa-seedling" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block">Estimated Fertile Window</span>
+                      <p className="text-sm font-black text-emerald-900">{forecastData.fertileWindow}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Cycle Pattern & AI Insight</span>
+                  <p className="text-xs text-slate-700 leading-relaxed font-medium">
+                    {forecastData?.hormonePattern}
+                  </p>
+                </div>
+
+                {forecastData?.recommendations && (
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-black text-purple-700 uppercase tracking-wider block">Personalised Care Recommendations</span>
+                    <div className="space-y-1.5">
+                      {forecastData.recommendations.map((rec, i) => (
+                        <div key={i} className="flex items-start gap-2 text-xs text-slate-600 bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm">
+                          <i className="fas fa-sparkles text-purple-500 mt-0.5 text-[10px]" />
+                          <span>{rec}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* SaMD clinical disclaimer */}
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[10px] text-amber-700 leading-relaxed">
+                  <i className="fas fa-triangle-exclamation mr-1.5" />
+                  <strong>Educational use only.</strong> These predictions are estimates based on logged cycle data and are not a substitute for clinical medical advice. Consult your doctor or gynaecologist for personalised health guidance.
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setAiForecastOpen(false)}
+                className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-2 rounded-xl text-xs transition-colors"
+              >
+                Close Forecast
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

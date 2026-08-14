@@ -34,12 +34,14 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
     scheduledTime: '10:00 AM',
   } as any;
 
+  const email = { sendTemplatedMail: jest.fn().mockResolvedValue({ success: true }) };
+
   it('translates a 23505 unique-violation into a ConflictException, not a raw DB error', async () => {
     const { supabase } = createSupabaseMock({
       profiles: [{ data: doctorProfile }],
       appointments: [{ data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint' } }],
     });
-    const service = new AppointmentsService(supabase as any, notifications as any, ai as any);
+    const service = new AppointmentsService(supabase as any, notifications as any, ai as any, email as any);
 
     await expect(service.create(patient, body)).rejects.toBeInstanceOf(ConflictException);
   });
@@ -50,7 +52,7 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
       profiles: [{ data: doctorProfile }],
       appointments: [{ data: null, error: dbError }],
     });
-    const service = new AppointmentsService(supabase as any, notifications as any, ai as any);
+    const service = new AppointmentsService(supabase as any, notifications as any, ai as any, email as any);
 
     await expect(service.create(patient, body)).rejects.toBe(dbError);
   });
@@ -61,7 +63,7 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
       profiles: [{ data: doctorProfile }, { data: [{ id: 'patient-1', full_name: 'Priya' }, { id: 'doctor-1', full_name: 'Dr. Rao' }] }],
       appointments: [{ data: savedAppointment, error: null }],
     });
-    const service = new AppointmentsService(supabase as any, notifications as any, ai as any);
+    const service = new AppointmentsService(supabase as any, notifications as any, ai as any, email as any);
 
     const result = await service.create(patient, body);
     expect(result.id).toBe('apt-1');

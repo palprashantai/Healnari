@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PatientRecord } from '@/shared/interfaces/patient-record.interface';
 import { CycleLog } from '@/shared/interfaces/cycle-log.interface';
 import { VitalKey } from '@/shared/interfaces/vitals-log.interface';
@@ -20,13 +20,27 @@ import {
   UpdatePatientDto,
 } from '@/modules/patients/controllers/patients.controller';
 
-const VITAL_KEYS: VitalKey[] = ['weight', 'bp', 'sugar', 'sleep', 'hirsutism'];
+const VITAL_KEYS: VitalKey[] = [
+  'weight',
+  'bp',
+  'sugar',
+  'sleep',
+  'hirsutism',
+  'bbt',
+  'lh',
+  'hotflashes',
+  'mfg_score',
+  'systolic',
+  'diastolic',
+  'fasting_glucose',
+  'postprandial_glucose',
+];
 
 @Injectable()
 export class PatientsService {
   constructor(
     private readonly supabase: SupabaseService,
-  ) {}
+  ) { }
 
   private requireDoctor(user: AuthUser) {
     if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
@@ -106,7 +120,7 @@ export class PatientsService {
 
     const { data: records } = await this.supabase.admin.from('patient_records').select().in('patient_id', patients.map(p => p.id));
     const recordByPatient = new Map((records || []).map(r => [r.patient_id, r]));
-    
+
     return Promise.all(patients.map(p => this.assemble(p, recordByPatient.get(p.id) || null)));
   }
 
@@ -136,15 +150,32 @@ export class PatientsService {
     }).eq('patient_id', data.user.id);
 
     const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', data.user.id).single();
-    const { data: record } = await this.supabase.admin.from('patient_records').select().eq('patient_id', data.user.id).single();
+    const { data: record } = await this.supabase.admin.from('patient_records').select().eq('patient_id', data.user.id).is('deleted_at', null).single();
 
     return this.assemble(profile, record || null);
   }
 
   async getOwn(user: AuthUser) {
     if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
-    const { data: record } = await this.supabase.admin.from('patient_records').select().eq('patient_id', user.id).single();
+    const { data: record } = await this.supabase.admin.from('patient_records').select().eq('patient_id', user.id).is('deleted_at', null).single();
     return this.assemble(user.profile, record || null);
+  }
+
+  async getOwnAuditLogs(user: AuthUser) {
+    if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+
+    const { data, error } = await this.supabase.admin
+      .from('phi_audit_logs')
+      .select(`
+        id, actor_id, actor_role, action, resource, status, ip_address, created_at,
+        actor:profiles!phi_audit_logs_actor_id_fkey(full_name)
+      `)
+      .eq('target_patient_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) throw new InternalServerErrorException(error.message);
+    return data || [];
   }
 
   async update(user: AuthUser, patientId: string, body: UpdatePatientDto) {
@@ -167,19 +198,22 @@ export class PatientsService {
     if (body.city !== undefined) recordPatch.city = body.city;
     if (body.allergies !== undefined) recordPatch.allergies = body.allergies;
     if (body.chronicConditions !== undefined) recordPatch.chronic_conditions = body.chronicConditions;
+    if (body.lifeStageMode !== undefined) recordPatch.life_stage_mode = body.lifeStageMode;
+    if (body.currencyPreference !== undefined) recordPatch.currency_preference = body.currencyPreference;
+    if (body.lutealPhaseDays !== undefined) recordPatch.luteal_phase_days = body.lutealPhaseDays;
     if (Object.keys(recordPatch).length > 0) {
       await this.supabase.admin.from('patient_records').update(recordPatch).eq('patient_id', patientId);
     }
 
     const { data: updatedProfile } = await this.supabase.admin.from('profiles').select().eq('id', patientId).single();
-    const { data: record } = await this.supabase.admin.from('patient_records').select().eq('patient_id', patientId).single();
-    
+    const { data: record } = await this.supabase.admin.from('patient_records').select().eq('patient_id', patientId).is('deleted_at', null).single();
+
     return this.assemble(updatedProfile, record || null);
   }
 
   async getCycleLogs(user: AuthUser) {
     if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
-    const { data: logs } = await this.supabase.admin.from('cycle_logs').select().eq('patient_id', user.id).order('log_date', { ascending: false });
+    const { data: logs } = await this.supabase.admin.from('cycle_logs').select().eq('patient_id', user.id).is('deleted_at', null).order('log_date', { ascending: false });
     return logs || [];
   }
 
@@ -187,12 +221,26 @@ export class PatientsService {
     if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
     const [{ data: logs }, { data: record }] = await Promise.all([
-      this.supabase.admin.from('cycle_logs').select('log_date, flow').eq('patient_id', user.id).order('log_date', { ascending: true }),
-      this.supabase.admin.from('patient_records').select('chronic_conditions').eq('patient_id', user.id).single(),
+      this.supabase.admin.from('cycle_logs').select('log_date, flow, bbt, lh_ratio, cervical_mucus').eq('patient_id', user.id).is('deleted_at', null).order('log_date', { ascending: true }),
+      this.supabase.admin.from('patient_records').select('chronic_conditions, luteal_phase_days').eq('patient_id', user.id).is('deleted_at', null).single(),
     ]);
 
     const pcosFlag = (record?.chronic_conditions || []).some((c: string) => /pcos|pcod/i.test(c));
-    return computeFertilityPrediction(logs || [], pcosFlag);
+    const biomarkerLogs = (logs || [])
+      .filter((l: any) => l.bbt != null || l.lh_ratio != null || l.cervical_mucus != null)
+      .map((l: any) => ({
+        date: l.log_date,
+        bbt: l.bbt != null ? Number(l.bbt) : undefined,
+        lhRatio: l.lh_ratio != null ? Number(l.lh_ratio) : undefined,
+        cervicalMucus: l.cervical_mucus,
+      }));
+
+    return computeFertilityPrediction(
+      logs || [],
+      pcosFlag,
+      biomarkerLogs,
+      record?.luteal_phase_days || 14,
+    );
   }
 
   /** Quick calendar estimate from 3 manually-entered values, for patients who
@@ -210,10 +258,16 @@ export class PatientsService {
     }));
     await this.supabase.admin.from('cycle_logs').upsert(rows, { onConflict: 'patient_id,log_date', ignoreDuplicates: true });
 
-    const { data: record } = await this.supabase.admin.from('patient_records').select('chronic_conditions').eq('patient_id', user.id).single();
+    const { data: record } = await this.supabase.admin.from('patient_records').select('chronic_conditions, luteal_phase_days').eq('patient_id', user.id).is('deleted_at', null).single();
     const pcosFlag = (record?.chronic_conditions || []).some((c: string) => /pcos|pcod/i.test(c));
 
-    return computeQuickEstimate(body.lastPeriodStart, body.periodDurationDays, body.cycleLengthDays, pcosFlag);
+    return computeQuickEstimate(
+      body.lastPeriodStart,
+      body.periodDurationDays,
+      body.cycleLengthDays,
+      pcosFlag,
+      body.customLutealPhaseDays || record?.luteal_phase_days || 14,
+    );
   }
 
   async logCycle(user: AuthUser, date: string, body: LogCycleDto) {

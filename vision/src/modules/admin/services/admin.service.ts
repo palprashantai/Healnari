@@ -98,6 +98,22 @@ export class AdminService {
     }
   }
 
+  // ─── Compliance & Audit ──────────────────────────────────────────
+  async getPhiAuditLogs() {
+    const { data, error } = await this.supabase.admin
+      .from('phi_audit_logs')
+      .select(`
+        id, actor_id, actor_role, target_patient_id, action, resource, status, ip_address, created_at,
+        actor:profiles!phi_audit_logs_actor_id_fkey(full_name, email),
+        target:profiles!phi_audit_logs_target_patient_id_fkey(full_name, email)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(500);
+      
+    if (error) throw new InternalServerErrorException(error.message);
+    return data || [];
+  }
+
   // ─── Analytics ───────────────────────────────────────────────────
   async getAnalytics() {
     try {

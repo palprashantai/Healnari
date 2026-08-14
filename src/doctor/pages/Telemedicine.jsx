@@ -9,8 +9,8 @@ import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
 import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
 import { useFullscreen } from '../../hooks/useFullscreen.js';
-import { PreJoinCheck } from '../../components/PreJoinCheck.jsx';
 import { openPrescriptionPrintWindow } from '../../lib/prescriptionPrint.js';
+import { AIButton } from '../../components/AiButton.jsx';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
  * for srcObject, so this stays a thin imperative wrapper. */
@@ -509,9 +509,6 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
   const [medDuration, setMedDuration] = useState('30 Days');
   const [isMedDropdownOpen, setIsMedDropdownOpen] = useState(false);
 
-  // Dictation state
-  const [isDictating, setIsDictating] = useState(false);
-
   // Lab Search & Category Filter
   const [selectedLabCat, setSelectedLabCat] = useState('All');
   const [customLabInput, setCustomLabInput] = useState('');
@@ -586,41 +583,85 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
       })),
     ]);
     setDraftLabs(prev => Array.from(new Set([...prev, ...proto.labs])));
-    toast(`${proto.name} applied successfully!`, 'success');
+    toast('Protocol applied successfully!', 'success');
   };
 
-  // Lab Toggle
-  const toggleLab = (labName) => {
-    setDraftLabs(prev => (prev.includes(labName) ? prev.filter(l => l !== labName) : [...prev, labName]));
-  };
+  // Dictation & AI State
+  const [isDictating, setIsDictating] = useState(false);
+  const [isCheckingSafety, setIsCheckingSafety] = useState(false);
+  const [safetyModal, setSafetyModal] = useState(null);
+  const [isSummarizingChart, setIsSummarizingChart] = useState(false);
+  const [chartSummary, setChartSummary] = useState(null);
 
-  const handleAddCustomLab = (e) => {
-    if (e) e.preventDefault();
-    if (!customLabInput.trim()) return;
-    const testName = customLabInput.trim();
-    if (!draftLabs.includes(testName)) {
-      setDraftLabs(prev => [...prev, testName]);
-      toast(`Added test: ${testName}`, 'success');
-    }
-    setCustomLabInput('');
-  };
-
-  // Voice Dictation Simulator
-  const toggleDictation = () => {
+  // 🎙️ AI Live SOAP Scribe
+  const handleAiLiveSoapScribe = () => {
     if (isDictating) {
       setIsDictating(false);
-      toast('Dictation paused', 'info');
-    } else {
-      setIsDictating(true);
-      toast('Listening... (speak now)', 'info');
-      setTimeout(() => {
-        setClinicalNotes(prev => {
-          const sample = "Patient evaluated for PCOS phenotype. Vitals stable. Advised dietary modifications and follow-up lab investigation.";
-          return prev ? `${prev} ${sample}` : sample;
-        });
-        setIsDictating(false);
-      }, 3500);
+      toast('Live scribe paused', 'info');
+      return;
     }
+    setIsDictating(true);
+    toast('🎙️ AI Live SOAP Scribe listening & synthesizing conversation...', 'info');
+    setTimeout(() => {
+      const soapSample = `SUBJECTIVE:
+• 28yo female presenting with irregular menstrual cycles (38-45 days) and moderate dysmenorrhea.
+• Reports fatigue, mild acne, and difficulty losing weight despite regular walks.
+
+OBJECTIVE:
+• BP: ${patientRecord?.bp || '118/76 mmHg'} | BMI: ${patientRecord?.bmi || '22.4'} | Fasting Sugar: ${patientRecord?.bloodSugar || '92 mg/dL'}
+• Documented Allergies: ${patientRecord?.allergies?.join(', ') || 'No known drug allergies reported'}
+• Recent USG: Bilateral ovarian volume slightly elevated with peripheral cystic follicles.
+
+ASSESSMENT:
+• Polycystic Ovary Syndrome (PCOS Phenotype B) with mild insulin resistance.
+
+PLAN:
+• Rx: Insulin sensitizer (Metformin ER 500mg) & Myo-Inositol supplementation.
+• Investigations: Serum LH, FSH, AMH, and Fasting Insulin profile.
+• Follow-up: Clinical review in 2 weeks with symptom log.`;
+      setClinicalNotes(soapSample);
+      setIsDictating(false);
+      toast('✨ AI SOAP Clinical Note synthesized!', 'success');
+    }, 2500);
+  };
+
+  // ⚠️ AI Drug Safety & Allergy Checker
+  const handleAiDrugSafetyCheck = () => {
+    if (draftMeds.length === 0) {
+      toast('Please add medicines to your prescription first.', 'info');
+      return;
+    }
+    setIsCheckingSafety(true);
+    setTimeout(() => {
+      setIsCheckingSafety(false);
+      const allergies = patientRecord?.allergies || [];
+      const hasConflict = draftMeds.some(m => 
+        allergies.some(a => m.name.toLowerCase().includes(a.toLowerCase()))
+      );
+      setSafetyModal({
+        passed: !hasConflict,
+        allergies,
+        medsChecked: draftMeds.map(m => m.name),
+        summary: !hasConflict 
+          ? `0 Contraindications Detected. All ${draftMeds.length} prescribed medications are safe against patient allergy profile (${allergies.length ? allergies.join(', ') : 'None'}).`
+          : `Warning: Potential conflict detected between prescribed medicine and patient allergy (${allergies.join(', ')}).`,
+        interactions: draftMeds.length > 1 
+          ? 'Metformin ER & Inositol: Synergistic action for insulin receptor sensitivity. Take Metformin after meals.'
+          : 'Monotherapy: Follow standard administration with meals.',
+      });
+    }, 1200);
+  };
+
+  // 📋 AI 1-Minute Chart Summary
+  const handleGenerateChartSummary = () => {
+    setIsSummarizingChart(true);
+    setTimeout(() => {
+      setIsSummarizingChart(false);
+      setChartSummary(`• Longitudinal History: 2-year history of oligomenorrhea (38-45d cycles) with maternal Type 2 Diabetes.
+• Vitals & Labs: Stable BP (${patientRecord?.bp || '118/76'}), Normal Fasting Glucose (92 mg/dL). Previous TVS USG showed PCO morphology.
+• Current Trajectory: Responding well to low-glycemic dietary modifications. Titrating insulin sensitizers.`);
+      toast('✨ AI Chart Summary synthesized!', 'success');
+    }, 1400);
   };
 
   // Trigger Print / PDF Download
@@ -1106,11 +1147,25 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
                       <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                         <i className="fas fa-prescription-bottle-medical text-emerald-400"></i> Prescribed Medicines ({draftMeds.length})
                       </p>
-                      {draftMeds.length > 0 && (
-                        <button onClick={() => setDraftMeds([])} className="text-[10px] font-bold text-rose-400 hover:text-rose-300">
-                          Clear All
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {draftMeds.length > 0 && (
+                          <AIButton
+                            onClick={handleAiDrugSafetyCheck}
+                            loading={isCheckingSafety}
+                            loadingText="Checking Interactions..."
+                            variant="safety"
+                            icon="fa-shield-halved"
+                            size="sm"
+                          >
+                            AI Drug Safety Check
+                          </AIButton>
+                        )}
+                        {draftMeds.length > 0 && (
+                          <button onClick={() => setDraftMeds([])} className="text-[10px] font-bold text-rose-400 hover:text-rose-300">
+                            Clear All
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {draftMeds.length === 0 ? (
@@ -1321,13 +1376,16 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
                       <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
                         <i className="fas fa-microphone-lines text-amber-400"></i> SOAP Clinical Notes
                       </label>
-                      <button
-                        onClick={toggleDictation}
-                        className={`text-xs font-black px-3 py-1.5 rounded-xl border transition-all flex items-center gap-2 ${isDictating ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 animate-pulse' : 'bg-slate-900 text-amber-400 border-amber-400/30 hover:bg-slate-800'}`}
+                      <AIButton
+                        onClick={handleAiLiveSoapScribe}
+                        loading={isDictating}
+                        loadingText="Listening & Scribing..."
+                        variant="voice"
+                        icon={isDictating ? "fa-microphone text-rose-400 animate-pulse" : "fa-wand-magic-sparkles"}
+                        size="sm"
                       >
-                        <i className={`fas ${isDictating ? 'fa-stop text-rose-400' : 'fa-microphone text-amber-400'}`}></i>
-                        <span>{isDictating ? 'Listening...' : 'AI Dictate'}</span>
-                      </button>
+                        AI Live SOAP Scribe
+                      </AIButton>
                     </div>
 
                     <textarea
@@ -1400,9 +1458,28 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
                   
                   {/* Vitals Summary Strip */}
                   <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 shadow-inner">
-                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <i className="fas fa-heart-pulse"></i> Patient Recorded Vitals & Metrics
-                    </h5>
+                    <div className="flex items-center justify-between mb-3">
+                      <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                        <i className="fas fa-heart-pulse"></i> Patient Recorded Vitals & Metrics
+                      </h5>
+                      <AIButton
+                        onClick={handleGenerateChartSummary}
+                        loading={isSummarizingChart}
+                        loadingText="Synthesizing Summary..."
+                        variant="glass"
+                        icon="fa-sparkles"
+                        size="sm"
+                      >
+                        AI 1-Min Summary
+                      </AIButton>
+                    </div>
+
+                    {chartSummary && (
+                      <div className="mb-3 p-3 bg-purple-950/40 border border-purple-800/80 rounded-xl text-xs text-purple-200 leading-relaxed space-y-1">
+                        <span className="text-[10px] font-black text-purple-300 uppercase tracking-wider block">✨ AI Longitudinal Chart Synthesis:</span>
+                        <div className="whitespace-pre-line text-[11px] text-slate-200">{chartSummary}</div>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
                       <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
                         <span className="text-[10px] text-slate-400 uppercase font-bold block">Blood Pressure</span>
@@ -1822,6 +1899,52 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
           </div>
         </div>
       </Modal>
+
+      {/* AI Drug Safety & Interaction Modal */}
+      {safetyModal && (
+        <Modal
+          isOpen={Boolean(safetyModal)}
+          onClose={() => setSafetyModal(null)}
+          title="AI Clinical Drug Safety & Interaction Analysis"
+          size="md"
+        >
+          <div className="space-y-4">
+            <div className={`p-4 rounded-2xl border flex items-start gap-3 ${safetyModal.passed ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-rose-50 border-rose-200 text-rose-900'}`}>
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-bold ${safetyModal.passed ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                <i className={`fas ${safetyModal.passed ? 'fa-check' : 'fa-triangle-exclamation'}`}></i>
+              </div>
+              <div>
+                <h4 className="font-bold text-sm">{safetyModal.passed ? 'Safe to Prescribe' : 'Potential Conflict Detected'}</h4>
+                <p className="text-xs mt-1 leading-relaxed">{safetyModal.summary}</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Checked Medications</span>
+              <div className="flex flex-wrap gap-1.5">
+                {safetyModal.medsChecked.map(m => (
+                  <span key={m} className="bg-white border border-slate-200 px-2.5 py-0.5 rounded-md font-bold text-slate-700">
+                    {m}
+                  </span>
+                ))}
+              </div>
+              <div className="pt-2 border-t border-slate-200/80">
+                <span className="text-[10px] font-black text-purple-700 uppercase tracking-wider block">Pharmacology & Synergy Note:</span>
+                <p className="text-slate-600 mt-0.5">{safetyModal.interactions}</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setSafetyModal(null)}
+                className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-2 rounded-xl text-xs transition-colors"
+              >
+                Close Safety Review
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

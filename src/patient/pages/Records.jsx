@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { buildPatientTimeline } from '../../lib/patientTimeline.js';
+import { AIButton } from '../../components/AiButton.jsx';
 
 const FILE_STYLE = {
   pdf: { icon: 'fa-file-pdf', color: 'bg-rose-50 text-rose-500' },
@@ -258,6 +259,34 @@ function PatientRecords() {
 
   const loadLabReports = () => apiFetch('/records/lab-reports').then(setRawLabReports).catch(err => toast(err.message || 'Failed to load lab reports', 'error'));
   const loadLabRequests = () => listLabReportRequests().then(r => setLabRequests(r.filter(x => x.status === 'Pending'))).catch(() => setLabRequests([]));
+
+  // AI Lab Report Decoder State
+  const [aiLabModalOpen, setAiLabModalOpen] = useState(false);
+  const [aiLabLoading, setAiLabLoading] = useState(false);
+  const [aiLabData, setAiLabData] = useState(null);
+
+  const handleExplainWithAi = async (report) => {
+    setAiLabModalOpen(true);
+    setAiLabLoading(true);
+    setAiLabData(null);
+    try {
+      const promptText = `Test: ${report.test_name}\nCategory: ${report.test_category || 'General'}\nLab: ${report.lab_name || 'Not specified'}\nNotes / Findings: ${report.notes || report.interpretation || 'Standard diagnostic panel'}`;
+      const res = await apiFetch('/ai/lab-analysis', {
+        method: 'POST',
+        body: {
+          reportText: promptText,
+          reportName: report.test_name,
+        },
+      });
+      const data = res?.data || res;
+      setAiLabData(data);
+    } catch (err) {
+      toast(err.message || 'Failed to analyze lab report with AI', 'error');
+      setAiLabModalOpen(false);
+    } finally {
+      setAiLabLoading(false);
+    }
+  };
 
   const viewLabReport = async (report) => {
     try {
@@ -579,12 +608,21 @@ function PatientRecords() {
                           </p>
                         )}
                       </div>
-                      <div className="flex flex-col gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity">
-                        <button onClick={() => viewLabReport(r)} className="w-8 h-8 rounded-lg bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-600 flex items-center justify-center text-xs transition-colors" title="View">
+                      <div className="flex flex-col sm:flex-row items-center gap-1.5 opacity-100 sm:opacity-90 sm:group-hover:opacity-100 transition-opacity">
+                        <AIButton
+                          variant="gradient"
+                          size="sm"
+                          icon="fa-wand-magic-sparkles"
+                          onClick={() => handleExplainWithAi(r)}
+                          title="Explain this lab report with AI"
+                        >
+                          <span className="hidden sm:inline">AI Simplifier</span>
+                        </AIButton>
+                        <button onClick={() => viewLabReport(r)} className="w-8 h-8 rounded-xl bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-600 flex items-center justify-center text-xs transition-colors border border-aubergine-200/60" title="View Document">
                           <i className="fas fa-eye"></i>
                         </button>
                         {r.status === 'Uploaded' && (
-                          <button onClick={() => setDeleteLabTarget(r)} className="w-8 h-8 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-500 flex items-center justify-center text-xs transition-colors" title="Delete">
+                          <button onClick={() => setDeleteLabTarget(r)} className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-500 flex items-center justify-center text-xs transition-colors border border-rose-200/60" title="Delete">
                             <i className="fas fa-trash"></i>
                           </button>
                         )}
@@ -789,6 +827,93 @@ function PatientRecords() {
           toast(err.message || 'Failed to add vaccination', 'error');
         }
       }} />
+      {/* ── AI Lab Report Explainer Modal ── */}
+      <Modal 
+        isOpen={aiLabModalOpen} 
+        onClose={() => setAiLabModalOpen(false)} 
+        title={aiLabData?.reportName ? `AI Report Insights: ${aiLabData.reportName}` : 'AI Lab Report Insights'} 
+        size="lg"
+      >
+        {aiLabLoading ? (
+          <div className="py-16 text-center space-y-3">
+            <div className="w-12 h-12 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin mx-auto"></div>
+            <p className="text-sm font-bold text-slate-700">Analyzing diagnostic biomarkers with Gemini Medical AI...</p>
+            <p className="text-xs text-slate-400">Translating reference ranges into plain English</p>
+          </div>
+        ) : aiLabData ? (
+          <div className="space-y-6">
+            {/* Reassuring Summary Banner */}
+            <div className="p-4 bg-purple-50/60 border border-purple-200 rounded-2xl flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 text-sm shadow-xs">
+                <i className="fas fa-sparkles"></i>
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-black text-purple-950 text-sm">Clinical Overview</h4>
+                <p className="text-xs text-purple-900 leading-relaxed">{aiLabData.summary}</p>
+              </div>
+            </div>
+
+            {/* Biomarker Breakdown */}
+            {aiLabData.biomarkers?.length > 0 && (
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">Key Biomarkers &amp; Reference Ranges</h4>
+                <div className="space-y-2.5">
+                  {aiLabData.biomarkers.map((b, idx) => (
+                    <div key={idx} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-800 text-sm">{b.name}</span>
+                          <span className="text-xs font-mono font-bold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+                            {b.value} {b.unit}
+                          </span>
+                        </div>
+                        <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                          b.status === 'HIGH' ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                          b.status === 'LOW' ? 'bg-sky-100 text-sky-800 border-sky-300' :
+                          'bg-emerald-100 text-emerald-800 border-emerald-300'
+                        }`}>
+                          {b.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span>Standard Reference: <strong className="text-slate-700">{b.referenceRange}</strong></span>
+                      </div>
+                      {b.explanation && (
+                        <p className="text-xs text-slate-600 pt-1 border-t border-slate-200/60 leading-relaxed">
+                          {b.explanation}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Questions to Ask Doctor */}
+            {aiLabData.questionsForDoctor?.length > 0 && (
+              <div className="bg-sky-50/50 border border-sky-200 rounded-2xl p-4 space-y-2">
+                <h4 className="text-xs font-black uppercase tracking-wider text-sky-800 flex items-center gap-1.5">
+                  <i className="fas fa-comments"></i> 3 Questions to Ask Your Doctor
+                </h4>
+                <ul className="space-y-1.5">
+                  {aiLabData.questionsForDoctor.map((q, idx) => (
+                    <li key={idx} className="text-xs text-sky-950 font-medium flex items-start gap-2">
+                      <span className="w-4 h-4 rounded-full bg-sky-200 text-sky-800 flex items-center justify-center text-[10px] shrink-0 font-bold mt-0.5">{idx + 1}</span>
+                      <span>{q}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Disclaimer */}
+            <p className="text-[11px] text-slate-400 text-center italic">
+              * Educational Insights Only: This automated analysis is designed to help you prepare for doctor consultations and does not constitute a clinical medical diagnosis.
+            </p>
+          </div>
+        ) : null}
+      </Modal>
+
       <ConfirmModal
         isOpen={!!deleteContactTarget}
         onClose={() => setDeleteContactTarget(null)}

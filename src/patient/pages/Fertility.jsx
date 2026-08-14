@@ -690,11 +690,19 @@ function PatientFertility() {
         </div>
       </div>
 
-      <div className="bg-sky-50/80 backdrop-blur-sm border border-sky-100 rounded-2xl p-3 flex items-center gap-3 max-w-2xl">
-        <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center flex-shrink-0 text-sm">
-          <i className="fas fa-user-doctor"></i>
+      <div className="bg-gradient-to-r from-sky-50 to-indigo-50 border border-sky-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center flex-shrink-0 text-sm shadow-inner">
+            <i className="fas fa-shield-halved"></i>
+          </div>
+          <div>
+            <p className="text-xs text-slate-800 font-bold">SaMD Clinical Guidance & Non-Contraceptive Notice</p>
+            <p className="text-[11px] text-slate-600 leading-snug">Calculated for conception planning and cycle awareness. Not an FDA/CE-certified contraceptive device — do not use as birth control.</p>
+          </div>
         </div>
-        <p className="text-xs text-sky-800 font-medium leading-relaxed"><strong>A helpful guide, not a medical test.</strong> Always consult your doctor for medical advice.</p>
+        <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-100/80 px-2.5 py-1 rounded-lg border border-indigo-200 flex-shrink-0">
+          Multi-Modal Engine
+        </span>
       </div>
 
       {loading && !prediction && !setupMode && (

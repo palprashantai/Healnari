@@ -84,6 +84,15 @@ export class AdminController {
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
+  // ─── Compliance & Audit ──────────────────────────────────────────
+  @Get('audit-logs')
+  @ApiOperation({ summary: 'PHI access audit logs' })
+  async getAuditLogs(@CurrentUser() user: AuthUser) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getPhiAuditLogs();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
   // ─── Users ────────────────────────────────────────────────────────
   @Get('users')
   @ApiOperation({ summary: 'All platform users (patients), paginated' })

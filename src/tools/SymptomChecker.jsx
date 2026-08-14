@@ -448,6 +448,15 @@ function SymptomChecker({ onClose, onBook }) {
                     </div>
                   </div>
                 )}
+
+                {/* SaMD Clinical Governance Disclaimer */}
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 text-slate-500 text-[11px] leading-relaxed flex items-start gap-2">
+                  <i className="fas fa-shield-halved text-aubergine-600 mt-0.5 flex-shrink-0 text-xs"></i>
+                  <span>
+                    <strong className="text-slate-700">Medical Notice: </strong>
+                    This questionnaire provides automated triage mapping (Rotterdam risk stratification) and is not a clinical medical diagnosis. Formal PCOS confirmation requires clinical pelvic ultrasound and lab exclusion.
+                  </span>
+                </div>
               </div>
 
               {/* Action Buttons */}

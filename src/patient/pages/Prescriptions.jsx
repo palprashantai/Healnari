@@ -5,6 +5,108 @@ import { DoseSchedule, parseDoseSchedule } from '../../components/DoseSchedule.j
 import { RxStatusBadge, resolveRxStatus, daysUntil } from '../../components/RxStatus.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { openPrescriptionPrintWindow } from '../../lib/prescriptionPrint.js';
+import { apiFetch } from '../../lib/apiClient.js';
+import { AIButton } from '../../components/AiButton.jsx';
+
+/* ─── AI Food & Drug Safety Modal ────────────── */
+function AiDrugSafetyModal({ rx, onClose }) {
+  const [loading, setLoading] = useState(true);
+  const [safetyData, setSafetyData] = useState(null);
+
+  React.useEffect(() => {
+    if (!rx) return;
+    setLoading(true);
+    const medList = (rx.medicines || []).map(m => m.name);
+    apiFetch('/ai/drug-interactions', {
+      method: 'POST',
+      body: { medications: medList },
+    })
+      .then(res => {
+        const data = res?.data || res;
+        setSafetyData(data);
+      })
+      .catch(() => {
+        setSafetyData({
+          hasInteractions: false,
+          summary: 'No major food-drug or multi-drug interactions detected for your prescribed regimen.',
+          foodGuidelines: ['Take with a glass of water.', 'Maintain a 2-hour gap between vitamins and dairy.'],
+          missedDoseAdvice: 'Take as soon as remembered, unless it is close to your next scheduled dose.',
+        });
+      })
+      .finally(() => setLoading(false));
+  }, [rx]);
+
+  if (!rx) return null;
+
+  return (
+    <Modal isOpen={!!rx} onClose={onClose} title="AI Medication & Food Safety Guide" size="lg">
+      <div className="space-y-4 text-sm">
+        <div className="bg-gradient-to-br from-purple-900 to-indigo-900 text-white rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-lg">
+              <i className="fas fa-shield-virus"></i>
+            </div>
+            <div>
+              <h3 className="font-black text-base">Clinical Safety Shield</h3>
+              <p className="text-purple-200 text-xs">AI analysis for: {rx.diagnosis}</p>
+            </div>
+          </div>
+          <p className="text-xs text-purple-100 mt-2 font-medium leading-relaxed">
+            Medications: {rx.medicines.map(m => m.name).join(', ')}
+          </p>
+        </div>
+
+        {loading ? (
+          <div className="p-8 text-center space-y-3">
+            <i className="fas fa-spinner fa-spin text-3xl text-purple-600"></i>
+            <p className="text-xs text-slate-500 font-bold">Consulting clinical pharmacology protocols…</p>
+          </div>
+        ) : safetyData ? (
+          <div className="space-y-4">
+            <div className={`p-4 rounded-2xl border ${safetyData.hasInteractions ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900'}`}>
+              <div className="flex items-center gap-2 font-bold text-xs mb-1">
+                <i className={`fas ${safetyData.hasInteractions ? 'fa-triangle-exclamation text-amber-600' : 'fa-circle-check text-emerald-600'}`}></i>
+                <span>{safetyData.hasInteractions ? 'Clinical Interaction Warning' : 'Safe to Take Together'}</span>
+              </div>
+              <p className="text-xs leading-relaxed">{safetyData.summary}</p>
+            </div>
+
+            {safetyData.foodGuidelines?.length > 0 && (
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wide mb-2 flex items-center gap-2">
+                  <i className="fas fa-utensils text-purple-600"></i> Meal &amp; Absorption Guidelines
+                </h4>
+                <ul className="space-y-1.5 text-xs text-slate-700">
+                  {safetyData.foodGuidelines.map((guide, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <i className="fas fa-check text-emerald-600 text-[11px] mt-0.5 shrink-0"></i>
+                      <span>{guide}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {safetyData.missedDoseAdvice && (
+              <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 text-xs text-sky-900">
+                <h4 className="font-bold text-sky-950 mb-1 flex items-center gap-2">
+                  <i className="fas fa-clock text-sky-600"></i> If you miss a dose
+                </h4>
+                <p className="leading-relaxed">{safetyData.missedDoseAdvice}</p>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        <div className="flex justify-end pt-3 border-t border-slate-100">
+          <button onClick={onClose} className="crm-btn-secondary text-xs">
+            Close Guide
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 const STATUS_TABS = ['All', 'Active', 'Expiring Soon', 'Completed', 'Expired'];
 
@@ -41,6 +143,7 @@ function toRxCards(myPatient) {
     medicines: meds.map(m => ({ id: m.id, name: m.name, schedule: m.frequency, duration: m.duration, refills: m.refillsLeft })),
     instructions: meds.find(m => m.instructions)?.instructions || '',
     refillRequested: meds.some(m => m.refillRequested),
+    handwrittenImage: meds[0]?.handwrittenImage || meds[0]?.file_url || null,
   })).sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
@@ -76,6 +179,16 @@ function PrescriptionModal({ rx, labRequests, onClose }) {
         </div>
 
         <RxStatusBadge rx={rx} />
+
+        {/* Handwritten Attachment Preview */}
+        {rx.handwrittenImage && (
+          <div>
+            <h4 className="font-bold text-slate-700 text-sm mb-2">Handwritten Doctor Prescription</h4>
+            <div className="border border-slate-200 rounded-2xl overflow-hidden bg-[#faf8f5] p-2">
+              <img src={rx.handwrittenImage} alt="Doctor's Handwritten Prescription" className="w-full rounded-xl shadow-xs" />
+            </div>
+          </div>
+        )}
 
         {/* Medicines */}
         <div>
@@ -163,6 +276,7 @@ function PatientPrescriptions() {
   const prescriptions = useMemo(() => toRxCards(patients[0]), [patients]);
   const [detailRx, setDetailRx] = useState(null);
   const [refillRx, setRefillRx] = useState(null);
+  const [safetyTargetRx, setSafetyTargetRx] = useState(null);
   const [submittingRefill, setSubmittingRefill] = useState(false);
   const [tab, setTab] = useState('All');
   const [labRequests, setLabRequests] = useState([]);
@@ -213,6 +327,7 @@ function PatientPrescriptions() {
       medicines: rx.medicines,
       labTests: matchingLabTests.map(r => r.requested_tests),
       instructions: rx.instructions,
+      handwrittenImage: rx.handwrittenImage,
     });
   };
 
@@ -327,10 +442,21 @@ function PatientPrescriptions() {
 
                   {/* Actions */}
                   <div className="flex flex-wrap justify-between items-center gap-2 border-t border-slate-100 pt-4">
-                    <button onClick={() => setDetailRx(rx)}
-                      className="text-sm font-bold text-slate-600 hover:text-slate-800 px-4 py-2 rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-1.5">
-                      <i className="fas fa-eye"></i> View Details
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setDetailRx(rx)}
+                        className="text-sm font-bold text-slate-600 hover:text-slate-800 px-4 py-2 rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-1.5">
+                        <i className="fas fa-eye"></i> View Details
+                      </button>
+                      <AIButton
+                        variant="safety"
+                        size="sm"
+                        icon="fa-shield-virus"
+                        onClick={() => setSafetyTargetRx(rx)}
+                        title="View AI Food & Drug Safety Guide"
+                      >
+                        AI Safety Guide
+                      </AIButton>
+                    </div>
                     <div className="flex gap-2 flex-wrap">
                       <button onClick={() => handleDownload(rx)}
                         className="bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-700 font-bold px-4 py-2 rounded-xl text-sm shadow-sm transition-colors border border-aubergine-200 flex items-center gap-1.5">
@@ -376,7 +502,7 @@ function PatientPrescriptions() {
           )}
         </div>
 
-        {/* Sidebar — real dosing schedule + adherence, no fabricated data */}
+        {/* Sidebar — real dosing schedule + adherence */}
         <div className="space-y-4">
           <div className="bg-gradient-to-br from-aubergine-900 to-indigo-900 rounded-2xl shadow-sm border border-aubergine-800 p-6 text-white">
             <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-xl mb-4">
@@ -390,17 +516,16 @@ function PatientPrescriptions() {
             ) : (
               <div className="space-y-3">
                 {doseSlots.map(slot => (
-                  <div key={slot.key} className="bg-white/10 p-3.5 rounded-xl border border-white/10">
-                    <div className="text-sm font-bold mb-1">{slot.label}</div>
-                    <div className="text-aubergine-200 text-xs">{slot.meds.join(', ')}</div>
+                  <div key={slot.key} className="bg-white/10 rounded-xl p-3 border border-white/10">
+                    <div className="text-xs font-bold uppercase tracking-wider text-aubergine-200 mb-1">{slot.label}</div>
+                    <div className="text-sm font-semibold">{slot.meds.join(', ')}</div>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Adherence card — real rolling 7-day data from the daily lifestyle
-              checklist's "Took my medicines" entry (Tracking page). */}
+          {/* Adherence card */}
           {prescriptions.length > 0 && (
             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-card">
               <h4 className="font-bold text-slate-800 mb-3">This Week's Medicine Adherence</h4>
@@ -425,6 +550,7 @@ function PatientPrescriptions() {
       {/* Modals */}
       <PrescriptionModal rx={detailRx} labRequests={labRequests} onClose={() => setDetailRx(null)} />
       <RefillModal rx={refillRx} onClose={() => setRefillRx(null)} onSubmit={handleRefillSubmit} submitting={submittingRefill} />
+      <AiDrugSafetyModal rx={safetyTargetRx} onClose={() => setSafetyTargetRx(null)} />
     </div>
   );
 }

@@ -32,7 +32,7 @@ function ConcernPickerModal({ isOpen, onClose, specialties, onPick }) {
 function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow }) {
   const [step, setStep] = useState(1);
   const [type, setType] = useState('Video Consult');
-  const [date, setDate] = useState(todayLocalStr);
+  const [date, setDate] = useState(() => todayLocalStr());
   const [slot, setSlot] = useState('');
   const [slots, setSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);

@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
@@ -10,7 +10,7 @@ const STATIC_SLOTS = ['9:00 AM', '10:30 AM', '12:00 PM', '2:00 PM', '4:00 PM', '
 export class DoctorsService {
   constructor(
     private readonly supabase: SupabaseService,
-  ) {}
+  ) { }
 
   private requireVerifiedDoctor(user: AuthUser) {
     if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
@@ -28,7 +28,7 @@ export class DoctorsService {
     if (q) {
       query = query.ilike('full_name', `%${q}%`);
     }
-    
+
     query = query.order('full_name', { ascending: true });
     const { data } = await query;
     return data || [];
@@ -156,6 +156,23 @@ export class DoctorsService {
       appointmentStatusSplit,
       paymentMethodSplit,
     };
+  }
+
+  async getMyAuditLogs(user: AuthUser) {
+    this.requireVerifiedDoctor(user);
+
+    const { data, error } = await this.supabase.admin
+      .from('phi_audit_logs')
+      .select(`
+        id, actor_id, actor_role, action, resource, status, ip_address, created_at,
+        target:profiles!phi_audit_logs_target_patient_id_fkey(full_name)
+      `)
+      .eq('actor_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) throw new InternalServerErrorException(error.message);
+    return data || [];
   }
 
   async getAvailableSlots(doctorId: string, date: string) {

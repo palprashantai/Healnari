@@ -341,9 +341,6 @@ function OnboardingModal({ isOpen, onClose, toast }) {
     if (!own) { onClose(); return; }
     setSaving(true);
     try {
-      // Onboarding only asks for age, not an exact birthdate — approximate a
-      // dob (Jan 1 of the birth year) so the record has something to compute
-      // age from elsewhere, rather than discarding the answer entirely.
       const dob = form.age ? `${new Date().getFullYear() - Number(form.age)}-01-01` : own.dob;
       await updatePatient({
         ...own,
@@ -353,6 +350,18 @@ function OnboardingModal({ isOpen, onClose, toast }) {
         weight: form.weight || own.weight,
         medicalHistory: { ...own.medicalHistory, chronicConditions: form.conditions.filter(c => c !== 'None') },
       });
+
+      if (form.lastPeriodStart) {
+        await apiFetch('/patients/fertility-prediction/quick-estimate', {
+          method: 'POST',
+          body: JSON.stringify({
+            lastPeriodStart: form.lastPeriodStart,
+            periodDurationDays: Number(form.periodDurationDays) || 5,
+            cycleLengthDays: Number(form.cycleLengthDays) || 28,
+          })
+        }).catch(() => {});
+      }
+
       toast('Profile setup complete! Welcome to HealNari.', 'success');
       onClose();
     } catch {
@@ -364,7 +373,7 @@ function OnboardingModal({ isOpen, onClose, toast }) {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Complete Your Health Profile" size="md">
-      <StepIndicator step={step} total={2} labels={['Basic Info', 'Medical History']} />
+      <StepIndicator step={step} total={3} labels={['Basic Info', 'Medical History', 'Cycle Data']} />
       {step === 1 && (
         <div className="space-y-4 mt-3">
           <p className="text-sm text-slate-600 mb-2">Let's personalize your care experience. This helps our doctors provide better care.</p>
@@ -414,6 +423,35 @@ function OnboardingModal({ isOpen, onClose, toast }) {
                 {c}
               </button>
             ))}
+          </div>
+          <button onClick={() => setStep(3)}
+            className="w-full mt-4 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
+            Next → Cycle Setup
+          </button>
+          <button onClick={onClose} className="w-full text-center text-xs text-slate-500 hover:text-slate-600 font-semibold">
+            Skip for now
+          </button>
+        </div>
+      )}
+      {step === 3 && (
+        <div className="space-y-4 mt-3">
+          <p className="text-sm text-slate-600 mb-2">When was your last period? This helps us predict your cycle.</p>
+          <div>
+            <label className="text-xs font-bold text-slate-500 mb-1.5 block">First day of last period</label>
+            <input type="date" value={form.lastPeriodStart || ''} max={todayLocalStr()} onChange={e => setForm(p => ({ ...p, lastPeriodStart: e.target.value }))}
+              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1.5 block">Bleeding duration</label>
+              <input type="number" value={form.periodDurationDays || 5} min={1} max={15} onChange={e => setForm(p => ({ ...p, periodDurationDays: e.target.value }))}
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" placeholder="Days" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1.5 block">Cycle length</label>
+              <input type="number" value={form.cycleLengthDays || 28} min={15} max={90} onChange={e => setForm(p => ({ ...p, cycleLengthDays: e.target.value }))}
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" placeholder="Days" />
+            </div>
           </div>
           <button onClick={handleComplete} disabled={saving}
             className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
@@ -635,7 +673,7 @@ function MoodEnergyLogger({ logCycle, cycleLogs, toast }) {
               <span className="text-2xl mb-1">{m.icon}</span>
               <span className={`text-[10px] font-bold ${isSelected ? '' : 'text-slate-500'}`}>{m.id}</span>
             </button>
-          )
+          );
         })}
       </div>
       {currentMood && (
@@ -643,6 +681,257 @@ function MoodEnergyLogger({ logCycle, cycleLogs, toast }) {
           "{MOODS.find(m => m.id === currentMood)?.msg}"
         </p>
       )}
+    </div>
+  );
+}
+
+/* ─── 5 Life-Stage Modes ─── */
+export const LIFE_MODES = [
+  { id: 'cycle', label: 'Cycle & Wellness', icon: 'fa-droplet', color: 'from-rose-500 to-pink-500', desc: 'Menstrual rhythm & phases' },
+  { id: 'pcos', label: 'PCOS & Metabolic', icon: 'fa-sliders', color: 'from-aubergine-600 to-indigo-600', desc: 'Androgen mapping & insulin' },
+  { id: 'ttc', label: 'TTC & Fertility', icon: 'fa-egg', color: 'from-emerald-500 to-teal-600', desc: 'Ovulation peak & BBT shift' },
+  { id: 'pregnancy', label: 'Pregnancy Journey', icon: 'fa-baby', color: 'from-amber-500 to-orange-500', desc: 'Fetal growth & milestones' },
+  { id: 'menopause', label: 'Perimenopause', icon: 'fa-fire-flame-curved', color: 'from-purple-600 to-rose-500', desc: 'Vasomotor & bone health' },
+];
+
+/* ─── Mode-Tailored Feature Cards ─── */
+function PregnancyJourneyCard({ navigate, toast }) {
+  const [lmpDate, setLmpDate] = useState(() => localStorage.getItem('pregnancy_lmp_date') || '');
+  const [gestationalWeek, setGestationalWeek] = useState(18);
+
+  useEffect(() => {
+    if (lmpDate) {
+      const days = daysBetweenLocal(lmpDate, todayLocalStr());
+      setGestationalWeek(Math.max(1, Math.floor(days / 7) + 1));
+    }
+  }, [lmpDate]);
+
+  const handleSetLmp = () => {
+    const d = prompt("When was your last period start date? (YYYY-MM-DD)");
+    if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+      localStorage.setItem('pregnancy_lmp_date', d);
+      setLmpDate(d);
+    } else if (d) {
+      toast("Invalid date format. Use YYYY-MM-DD", "error");
+    }
+  };
+
+  const [kicksToday, setKicksToday] = useState(() => {
+    const saved = localStorage.getItem(`kicks_${todayLocalStr()}`);
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
+  const handleAddKick = () => {
+    const next = kicksToday + 1;
+    setKicksToday(next);
+    localStorage.setItem(`kicks_${todayLocalStr()}`, String(next));
+    toast(`Fetal kick logged! Total today: ${next}`, 'success');
+  };
+
+  return (
+    <div className="glass-panel rounded-3xl p-6 lg:col-span-2 bg-gradient-to-br from-amber-50/70 via-orange-50/50 to-white border border-amber-200/80 shadow-md">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-xl shadow-md shadow-amber-300">
+            <i className="fas fa-baby"></i>
+          </div>
+          <div>
+            <h3 className="font-black text-slate-800 text-base">Pregnancy Journey</h3>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-amber-800 font-semibold">
+                {lmpDate ? `Week ${gestationalWeek} of 40` : 'Set your dates to track progress'}
+              </p>
+              {!lmpDate && <button onClick={handleSetLmp} className="text-[9px] font-bold bg-white px-2 py-0.5 rounded-full text-amber-700 border border-amber-200">Set LMP</button>}
+            </div>
+          </div>
+        </div>
+        <button onClick={() => navigate('/patient-dashboard/appointments')}
+          className="text-[11px] font-black text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-xl transition-all">
+          Antenatal Visits
+        </button>
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-3 my-4">
+        <div className="p-3.5 rounded-2xl bg-white border border-amber-100 shadow-sm flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase">Fetal Kick Counter</p>
+            <p className="text-xl font-black text-slate-800 mt-0.5">{kicksToday} <span className="text-xs text-slate-400 font-bold">kicks today</span></p>
+          </div>
+          <button onClick={handleAddKick} className="w-9 h-9 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white flex items-center justify-center text-sm shadow-sm transition-all">
+            <i className="fas fa-plus"></i>
+          </button>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-white border border-amber-100 shadow-sm">
+          <p className="text-[10px] font-bold text-slate-400 uppercase">Upcoming Screening</p>
+          <p className="text-xs font-black text-slate-800 mt-1 flex items-center gap-1.5 text-amber-800">
+            <i className="fas fa-ultrasound"></i> Anatomy Ultrasound (18–22w)
+          </p>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-white border border-amber-100 shadow-sm">
+          <p className="text-[10px] font-bold text-slate-400 uppercase">Daily Maternal Rx</p>
+          <p className="text-xs font-black text-slate-800 mt-1 flex items-center gap-1.5 text-emerald-700">
+            <i className="fas fa-pills"></i> Prenatal DHA + Folate
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-white/90 rounded-2xl p-3 text-xs text-slate-600 border border-amber-100 flex items-center gap-2">
+        <i className="fas fa-lightbulb text-amber-500"></i>
+        <span><strong>Trimester 2 Tip:</strong> Hydrate consistently and sleep on your left side to maximize uteroplacental blood flow.</span>
+      </div>
+    </div>
+  );
+}
+
+function PcosMetabolicCard({ navigate }) {
+  const { vitals } = useClinicData();
+  const mfg = vitals.mfg_score?.value;
+
+  return (
+    <div className="glass-panel rounded-3xl p-6 lg:col-span-2 bg-gradient-to-br from-purple-50/70 via-indigo-50/50 to-white border border-purple-200/80 shadow-md">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-aubergine-600 text-white flex items-center justify-center text-xl shadow-md shadow-aubergine-300">
+            <i className="fas fa-sliders"></i>
+          </div>
+          <div>
+            <h3 className="font-black text-slate-800 text-base">PCOS & Metabolic Tracker</h3>
+            <p className="text-xs text-aubergine-800 font-semibold">Manage your PCOS symptoms and insulin</p>
+          </div>
+        </div>
+        <button onClick={() => navigate('/patient-dashboard/tracking')}
+          className="text-[11px] font-black text-aubergine-700 bg-aubergine-100 hover:bg-aubergine-200 px-3 py-1.5 rounded-xl transition-all">
+          Update Metrics
+        </button>
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-3 my-4">
+        <div className="p-3.5 rounded-2xl bg-white border border-purple-100 shadow-sm">
+          <p className="text-[10px] font-bold text-slate-400 uppercase">Hirsutism mFG Score</p>
+          <p className="text-lg font-black text-slate-800 mt-0.5">{mfg ? `${mfg}/36 points` : 'Not evaluated'}</p>
+          <span className="text-[10px] text-aubergine-600 font-bold">{mfg && Number(mfg) >= 8 ? 'Androgen elevation noted' : 'Minimal androgen excess'}</span>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-white border border-purple-100 shadow-sm">
+          <p className="text-[10px] font-bold text-slate-400 uppercase">Metabolic Target</p>
+          <p className="text-lg font-black text-slate-800 mt-0.5">&le; 95 mg/dL</p>
+          <span className="text-[10px] text-emerald-600 font-bold">Fasting glucose target</span>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-white border border-purple-100 shadow-sm">
+          <p className="text-[10px] font-bold text-slate-400 uppercase">First-Line Protocol</p>
+          <p className="text-xs font-black text-slate-800 mt-1 text-indigo-700">Myo-Inositol 2g + Low-GI diet</p>
+          <span className="text-[10px] text-slate-400 font-bold">Improves ovulatory rate</span>
+        </div>
+      </div>
+
+      <div className="bg-white/90 rounded-2xl p-3 text-xs text-slate-600 border border-purple-100 flex items-center gap-2">
+        <i className="fas fa-sparkles text-purple-500"></i>
+        <span><strong>Insulin Sensitivity Tip:</strong> Combining protein & healthy fats with carbohydrates reduces postprandial insulin surges.</span>
+      </div>
+    </div>
+  );
+}
+
+function TtcFertilityCard({ navigate }) {
+  const { vitals } = useClinicData();
+  const bbt = vitals.bbt?.value;
+  const lh = vitals.lh?.value;
+
+  return (
+    <div className="glass-panel rounded-3xl p-6 lg:col-span-2 bg-gradient-to-br from-emerald-50/70 via-teal-50/50 to-white border border-emerald-200/80 shadow-md">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-xl shadow-md shadow-emerald-300">
+            <i className="fas fa-egg"></i>
+          </div>
+          <div>
+            <h3 className="font-black text-slate-800 text-base">Trying to Conceive (TTC) Hub</h3>
+            <p className="text-xs text-emerald-800 font-semibold">Multi-Modal Biomarker Window & Ovulation Peak</p>
+          </div>
+        </div>
+        <button onClick={() => navigate('/patient-dashboard/fertility')}
+          className="text-[11px] font-black text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-xl transition-all">
+          Open Calendar
+        </button>
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-3 my-4">
+        <div className="p-3.5 rounded-2xl bg-white border border-emerald-100 shadow-sm">
+          <p className="text-[10px] font-bold text-slate-400 uppercase">Basal Body Temp (BBT)</p>
+          <p className="text-lg font-black text-slate-800 mt-0.5">{bbt ? `${bbt} °C` : '36.55 °C'}</p>
+          <span className="text-[10px] text-emerald-600 font-bold">{bbt ? 'Biphasic tracking active' : 'Log morning temp'}</span>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-white border border-emerald-100 shadow-sm">
+          <p className="text-[10px] font-bold text-slate-400 uppercase">LH Surge Strip</p>
+          <p className="text-lg font-black text-slate-800 mt-0.5">{lh ? `T/C: ${lh}` : 'Log LH'}</p>
+          <span className="text-[10px] text-teal-600 font-bold">{lh && Number(lh) >= 1 ? 'Peak LH Surge!' : 'Pre-surge window'}</span>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-white border border-emerald-100 shadow-sm">
+          <p className="text-[10px] font-bold text-slate-400 uppercase">Optimal Timing</p>
+          <p className="text-xs font-black text-slate-800 mt-1 text-emerald-700">Days -2, -1, and Ovulation</p>
+          <span className="text-[10px] text-slate-400 font-bold">Highest conception window</span>
+        </div>
+      </div>
+
+      <div className="bg-white/90 rounded-2xl p-3 text-xs text-slate-600 border border-emerald-100 flex items-center gap-2">
+        <i className="fas fa-heart text-rose-500"></i>
+        <span><strong>Fertility Tip:</strong> Sperm can survive in fertile cervical mucus for up to 5 days before ovulation occurs.</span>
+      </div>
+    </div>
+  );
+}
+
+function PerimenopauseCard({ navigate }) {
+  const { vitals } = useClinicData();
+  const hotflashes = vitals.hotflashes?.value;
+
+  return (
+    <div className="glass-panel rounded-3xl p-6 lg:col-span-2 bg-gradient-to-br from-purple-50/70 via-rose-50/50 to-white border border-purple-200/80 shadow-md">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-purple-600 text-white flex items-center justify-center text-xl shadow-md shadow-purple-300">
+            <i className="fas fa-fire-flame-curved"></i>
+          </div>
+          <div>
+            <h3 className="font-black text-slate-800 text-base">Perimenopause & Menopause Navigator</h3>
+            <p className="text-xs text-purple-800 font-semibold">Vasomotor Symptoms, HRT Monitoring & Bone Health</p>
+          </div>
+        </div>
+        <button onClick={() => navigate('/patient-dashboard/tracking')}
+          className="text-[11px] font-black text-purple-700 bg-purple-100 hover:bg-purple-200 px-3 py-1.5 rounded-xl transition-all">
+          Log Symptoms
+        </button>
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-3 my-4">
+        <div className="p-3.5 rounded-2xl bg-white border border-purple-100 shadow-sm">
+          <p className="text-[10px] font-bold text-slate-400 uppercase">Vasomotor Frequency</p>
+          <p className="text-lg font-black text-slate-800 mt-0.5">{hotflashes ? `${hotflashes} episodes` : '0 logged today'}</p>
+          <span className="text-[10px] text-purple-600 font-bold">Hot flashes & night sweats</span>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-white border border-purple-100 shadow-sm">
+          <p className="text-[10px] font-bold text-slate-400 uppercase">DEXA & Bone Density</p>
+          <p className="text-xs font-black text-slate-800 mt-1 text-rose-700">T-Score Screening Due</p>
+          <span className="text-[10px] text-slate-400 font-bold">Osteoporosis prevention</span>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-white border border-purple-100 shadow-sm">
+          <p className="text-[10px] font-bold text-slate-400 uppercase">Cardiovascular Health</p>
+          <p className="text-xs font-black text-slate-800 mt-1 text-emerald-700">{vitals.bp?.value ? `BP: ${vitals.bp.value}` : 'Log BP reading'}</p>
+          <span className="text-[10px] text-slate-400 font-bold">Heart health monitoring</span>
+        </div>
+      </div>
+
+      <div className="bg-white/90 rounded-2xl p-3 text-xs text-slate-600 border border-purple-100 flex items-center gap-2">
+        <i className="fas fa-shield-heart text-purple-500"></i>
+        <span><strong>Bone Health Tip:</strong> Adequate Vitamin D3 (2000 IU) + Calcium (1200 mg) supports bone mass during estrogen transition.</span>
+      </div>
     </div>
   );
 }
@@ -723,6 +1012,12 @@ function WeeklyCycleRibbon({ toast }) {
           </button>
         ))}
       </div>
+      <div className="mt-3">
+        <button onClick={() => logCycle(dateKey, { flow: 'Medium' }).then(() => toast('Period logged for today', 'success'))}
+          className="w-full bg-slate-50 border border-slate-200 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 text-slate-600 font-bold py-2.5 rounded-xl text-xs transition-colors">
+          <i className="fas fa-droplet mr-1.5"></i> My Period Started Today
+        </button>
+      </div>
     </div>
   );
 }
@@ -773,6 +1068,11 @@ function PatientDashboard() {
   const [showLabReports, setShowLabReports] = useState(false);
   const [showQuickBook, setShowQuickBook] = useState(false);
   const [pendingReportCount, setPendingReportCount] = useState(0);
+  const [fertilityData, setFertilityData] = useState(null);
+
+  useEffect(() => {
+    apiFetch('/patients/fertility').then(setFertilityData).catch(() => {});
+  }, []);
 
   // Water tracking integration
   const dateKey = todayLocalStr();
@@ -830,9 +1130,16 @@ function PatientDashboard() {
     return () => { cancelled = true; clearInterval(interval); };
   }, [isTodayVisit, nextAppointment?.id]);
 
+  const [activeLifeMode, setActiveLifeMode] = useState(() => localStorage.getItem('patient_life_mode') || 'cycle');
   const [onboardingDone, setOnboardingDone] = useState(() => localStorage.getItem('healnari_onboarding_done') === 'true');
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [discreet, setDiscreet] = useState(localStorage.getItem('discreet_mode') === 'true');
+
+  const handleSelectLifeMode = (id) => {
+    setActiveLifeMode(id);
+    localStorage.setItem('patient_life_mode', id);
+    toast(`Active Mode: ${LIFE_MODES.find(m => m.id === id)?.label}`, 'info');
+  };
 
   useEffect(() => {
     const handler = () => setDiscreet(localStorage.getItem('discreet_mode') === 'true');
@@ -860,7 +1167,9 @@ function PatientDashboard() {
             <p className="text-slate-500 text-sm max-w-md leading-relaxed">
               {nextAppointment
                 ? <>Your next visit with Dr. {nextAppointment.doctorName} is <strong className="text-aubergine-700">{daysToNext === 0 ? 'today' : `in ${daysToNext} day${daysToNext === 1 ? '' : 's'}`}</strong>. Rest and recharge.</>
-                : "Welcome to your daily health command center."}
+                : fertilityData?.nextPeriodEstimate 
+                  ? <>Your next period is predicted in <strong className="text-rose-600">{daysUntil(fertilityData.nextPeriodEstimate)} days</strong>. You are in your {fertilityData.phase || 'current'} phase.</>
+                  : "Welcome to your daily health command center. Let's start tracking your cycle."}
             </p>
             {isTodayVisit && queueStatus?.position && (
               <div className="mt-2.5 inline-flex items-center gap-2 bg-white/70 border border-aubergine-200 rounded-xl px-3 py-1.5 text-xs font-bold text-aubergine-800 shadow-sm">
@@ -880,6 +1189,29 @@ function PatientDashboard() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* 5-Stage Life Mode Switcher Bar */}
+      <div className="bg-white/80 backdrop-blur-md rounded-2xl p-2 border border-slate-200/80 shadow-sm flex items-center gap-1.5 overflow-x-auto">
+        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-3 flex-shrink-0">Life Stage:</span>
+        {LIFE_MODES.map(mode => {
+          const isActive = activeLifeMode === mode.id;
+          return (
+            <button
+              key={mode.id}
+              onClick={() => handleSelectLifeMode(mode.id)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all flex-shrink-0 ${
+                isActive
+                  ? 'bg-gradient-to-r from-aubergine-600 to-magenta-600 text-white shadow-md shadow-aubergine-500/20 scale-[1.02]'
+                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-100'
+              }`}
+              title={mode.desc}
+            >
+              <i className={`fas ${mode.icon} text-xs`}></i>
+              <span>{mode.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Profile Completion Alert */}
@@ -906,8 +1238,13 @@ function PatientDashboard() {
         <HydrationTracker waterCount={waterCount} setWaterCount={setWaterCount} toast={toast} discreet={discreet} />
         <DailyMedicationChecklist meds={own?.meds} requestRefill={requestRefill} toast={toast} discreet={discreet} />
 
-        {/* Row 2 */}
-        <WeeklyCycleRibbon toast={toast} />
+        {/* Row 2: Dynamic Mode Feature Card */}
+        {activeLifeMode === 'cycle' && <WeeklyCycleRibbon toast={toast} />}
+        {activeLifeMode === 'pcos' && <PcosMetabolicCard navigate={navigate} />}
+        {activeLifeMode === 'ttc' && <TtcFertilityCard navigate={navigate} />}
+        {activeLifeMode === 'pregnancy' && <PregnancyJourneyCard navigate={navigate} toast={toast} />}
+        {activeLifeMode === 'menopause' && <PerimenopauseCard navigate={navigate} />}
+
         <div className="grid grid-rows-2 gap-6 lg:col-span-1">
           <VitalsSnapshot vitals={vitals} discreet={discreet} navigate={navigate} />
           <MoodEnergyLogger logCycle={logCycle} cycleLogs={cycleLogs} toast={toast} />
@@ -969,6 +1306,15 @@ function PatientDashboard() {
           </div>
         </div>
 
+      </div>
+
+      {/* Clinical SaMD Notice */}
+      <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4 flex items-start gap-3 text-slate-500 text-xs leading-relaxed">
+        <i className="fas fa-shield-halved text-aubergine-600 mt-0.5 flex-shrink-0 text-sm"></i>
+        <div>
+          <span className="font-bold text-slate-700">Clinical & Regulatory Notice (SaMD Guidance): </span>
+          HealNari health scoring, cycle mapping, and life-stage insights are designed for educational self-monitoring. They do not constitute medical diagnosis, birth control, or medical treatment plans without consultation with your licensed physician.
+        </div>
       </div>
 
       {/* Modals */}
