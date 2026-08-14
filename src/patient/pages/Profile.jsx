@@ -5,7 +5,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { SUPPORTED_CURRENCIES } from '../../lib/currency.js';
 import { LIFE_MODES } from './Dashboard.jsx';
-import api from '../../lib/api';
+import { apiFetch } from '../../lib/apiClient.js';
 
 function PatientProfile() {
   const { user, updateUser, updatePassword, uploadAvatar, removeAvatar, logout, subscribePush } = useAuth();
@@ -80,8 +80,8 @@ function PatientProfile() {
   useEffect(() => {
     if (activeTab === 'security') {
       setAuditLogsLoading(true);
-      api.get('/patients/me/audit-logs')
-        .then(res => setAuditLogs(res.data || []))
+      apiFetch('/patients/me/audit-logs')
+        .then(res => setAuditLogs(res || []))
         .catch(() => toast('Failed to load audit logs', 'error'))
         .finally(() => setAuditLogsLoading(false));
     }

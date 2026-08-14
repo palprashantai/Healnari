@@ -4,7 +4,7 @@ import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { formatCurrency } from '../../lib/currency.js';
-import api from '../../lib/api';
+import { apiFetch } from '../../lib/apiClient.js';
 
 /* ─── Main Component ─────────────────────────── */
 function DoctorProfile() {
@@ -62,8 +62,8 @@ function DoctorProfile() {
   React.useEffect(() => {
     if (tab === 'security') {
       setAuditLogsLoading(true);
-      api.get('/doctors/me/audit-logs')
-        .then(res => setAuditLogs(res.data || []))
+      apiFetch('/doctors/me/audit-logs')
+        .then(res => setAuditLogs(res || []))
         .catch(() => toast('Failed to load audit logs', 'error'))
         .finally(() => setAuditLogsLoading(false));
     }

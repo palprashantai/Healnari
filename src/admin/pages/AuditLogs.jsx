@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../lib/api';
+import { apiFetch } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast.jsx';
 
 export function AuditLogs() {
@@ -13,8 +13,8 @@ export function AuditLogs() {
 
   const fetchLogs = async () => {
     try {
-      const res = await api.get('/admin/audit-logs');
-      setLogs(res.data || []);
+      const res = await apiFetch('/admin/audit-logs');
+      setLogs(res || []);
     } catch (err) {
       toast('Failed to load audit logs', 'error');
     } finally {
