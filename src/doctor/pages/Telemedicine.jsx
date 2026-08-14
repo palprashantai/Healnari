@@ -508,6 +508,7 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
   const [medTiming, setMedTiming] = useState('After Food');
   const [medDuration, setMedDuration] = useState('30 Days');
   const [isMedDropdownOpen, setIsMedDropdownOpen] = useState(false);
+  const [isLabDropdownOpen, setIsLabDropdownOpen] = useState(false);
   const [medCatalog, setMedCatalog] = useState([]);
   const [labCatalog, setLabCatalog] = useState([]);
 
@@ -732,6 +733,12 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
     } catch (err) {
       // optimistic fallback
     }
+  };
+
+  const toggleLab = (name) => {
+    setDraftLabs(prev => 
+      prev.includes(name) ? prev.filter(l => l !== name) : [...prev, name]
+    );
   };
 
   // Dictation & AI State
@@ -1501,23 +1508,105 @@ PLAN:
                     ))}
                   </div>
 
-                  {/* Custom Test Add Form */}
-                  <form onSubmit={handleAddCustomLab} className="flex gap-2">
-                    <input
-                      type="text"
-                      value={customLabInput}
-                      onChange={(e) => setCustomLabInput(e.target.value)}
-                      placeholder="Type custom test name (e.g. Serum Prolactin)..."
-                      className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-sky-400"
-                    />
-                    <button
-                      type="submit"
-                      disabled={!customLabInput.trim()}
-                      className="bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-colors"
-                    >
-                      Add Test
-                    </button>
-                  </form>
+                  {/* Smart Searchable Lab Dropdown & Quick Add Bar */}
+                  <div className="relative">
+                    <form onSubmit={handleAddCustomLab} className="flex gap-2">
+                      <div className="relative flex-1">
+                        <i className="fas fa-microscope absolute left-3.5 top-3 text-sky-400 text-xs"></i>
+                        <input
+                          type="text"
+                          value={customLabInput}
+                          onChange={(e) => {
+                            setCustomLabInput(e.target.value);
+                            setIsLabDropdownOpen(true);
+                          }}
+                          onFocus={() => setIsLabDropdownOpen(true)}
+                          placeholder="Search or enter lab test (e.g. AMH, LH, TVS Scan, Thyroid)..."
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-8 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-sky-400"
+                        />
+                        {customLabInput && (
+                          <button
+                            type="button"
+                            onClick={() => setCustomLabInput('')}
+                            className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+                          >
+                            <i className="fas fa-xmark text-xs"></i>
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={!customLabInput.trim()}
+                        className="bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-colors shrink-0"
+                      >
+                        <i className="fas fa-plus mr-1"></i> Add
+                      </button>
+                    </form>
+
+                    {/* Smart Lab Search Dropdown */}
+                    {isLabDropdownOpen && (
+                      <div className="absolute left-0 right-0 top-full mt-1.5 bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl max-h-64 overflow-y-auto custom-scrollbar z-50 p-1.5 space-y-0.5">
+                        <div className="flex items-center justify-between px-3 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-800 mb-1">
+                          <span>Diagnostic Tests ({filterAndRankCatalog(labCatalog, customLabInput).length})</span>
+                          <span className="text-[9px] text-sky-400 font-bold">Prefix &amp; Keyword Match</span>
+                        </div>
+                        {filterAndRankCatalog(labCatalog.filter(l => selectedLabCat === 'All' || l.category === selectedLabCat), customLabInput).slice(0, 30).map((item) => {
+                          const isSelected = draftLabs.includes(item.name);
+                          return (
+                            <button
+                              key={item.id || item.name}
+                              type="button"
+                              onClick={() => {
+                                toggleLab(item.name);
+                                setIsLabDropdownOpen(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-colors group ${isSelected ? 'bg-sky-500/20 text-sky-200 border border-sky-500/40' : 'hover:bg-slate-800 text-slate-200 hover:text-white'}`}
+                            >
+                              <span className="flex items-center gap-2 flex-1 min-w-0 pr-2">
+                                <span className="text-[10px] shrink-0 font-bold">{item.badge}</span>
+                                <span className="truncate">
+                                  {customLabInput && item.name.toLowerCase().startsWith(customLabInput.trim().toLowerCase()) ? (
+                                    <>
+                                      <span className="text-sky-300 bg-sky-500/30 px-0.5 rounded font-black">{item.name.slice(0, customLabInput.trim().length)}</span>
+                                      <span>{item.name.slice(customLabInput.trim().length)}</span>
+                                    </>
+                                  ) : (
+                                    item.name
+                                  )}
+                                </span>
+                              </span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {item.category && (
+                                  <span className="text-[9px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700 hidden sm:inline-block">
+                                    {item.category}
+                                  </span>
+                                )}
+                                <div className={`w-4 h-4 rounded flex items-center justify-center text-[10px] ${isSelected ? 'bg-sky-500 text-white' : 'border border-slate-600 text-transparent'}`}>
+                                  <i className="fas fa-check"></i>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                        {customLabInput && !labCatalog.some(l => l.name.toLowerCase() === customLabInput.toLowerCase()) && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              handleAddCustomLab(e);
+                              setIsLabDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-3 py-2.5 rounded-xl bg-sky-950/60 hover:bg-sky-900/80 border border-sky-700/50 text-xs font-bold text-sky-200 hover:text-white flex items-center justify-between transition-colors mt-1 shadow-xs"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <i className="fas fa-plus-circle text-sky-400"></i>
+                              <span>Add &ldquo;{customLabInput}&rdquo; to Lab Catalog</span>
+                            </span>
+                            <span className="text-[10px] font-mono text-sky-300 font-bold bg-slate-900 px-2 py-0.5 rounded border border-sky-800">Save Custom Test</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   {/* Interactive Lab Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">

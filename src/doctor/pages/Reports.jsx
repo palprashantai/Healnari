@@ -144,24 +144,120 @@ function LabReviewModal({ lab, isOpen, onClose, onAction }) {
   );
 }
 
+/**
+ * Smart medical search filter that ranks prefix matches (e.g. typing "N" or "Nor" returns "Norethisterone" first)
+ * followed by word-boundary matches and category matches.
+ */
+function filterAndRankCatalog(catalog = [], query = '') {
+  if (!query || !query.trim()) return catalog;
+  const q = query.trim().toLowerCase();
+  
+  const exactPrefix = [];
+  const wordPrefix = [];
+  const otherContains = [];
+
+  for (const item of catalog) {
+    const nameLower = (item.name || '').toLowerCase();
+    const catLower = (item.category || '').toLowerCase();
+    const words = nameLower.split(/[\s,/-]+/);
+
+    if (nameLower.startsWith(q)) {
+      exactPrefix.push(item);
+    } else if (words.some(w => w.startsWith(q))) {
+      wordPrefix.push(item);
+    } else if (nameLower.includes(q) || catLower.includes(q)) {
+      otherContains.push(item);
+    }
+  }
+
+  const alpha = (a, b) => (a.name || '').localeCompare(b.name || '');
+  exactPrefix.sort(alpha);
+  wordPrefix.sort(alpha);
+  otherContains.sort(alpha);
+
+  return [...exactPrefix, ...wordPrefix, ...otherContains];
+}
+
 /* ─── Request Report Modal ───────────────────── */
 function RequestReportModal({ isOpen, onClose, patients, onRequest }) {
   const [patientId, setPatientId] = useState('');
-  const [requestedTests, setRequestedTests] = useState('');
+  const [selectedLabs, setSelectedLabs] = useState([]);
+  const [labSearchInput, setLabSearchInput] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedCat, setSelectedCat] = useState('All');
+  const [labCatalog, setLabCatalog] = useState([]);
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isOpen) { setPatientId(''); setRequestedTests(''); setDueDate(''); setNotes(''); }
+    if (isOpen) {
+      setPatientId('');
+      setSelectedLabs([]);
+      setLabSearchInput('');
+      setIsDropdownOpen(false);
+      setDueDate('');
+      setNotes('');
+      
+      apiFetch('/records/catalog?type=lab_test')
+        .then(res => {
+          const items = Array.isArray(res) ? res : (res?.data || []);
+          if (items.length > 0) {
+            setLabCatalog(items.map(i => ({
+              id: i.id,
+              name: i.name,
+              category: i.category || 'General',
+              badge: i.badge || '🔬 Test',
+              isCustom: !!i.doctor_id,
+            })));
+          }
+        })
+        .catch(() => {});
+    }
   }, [isOpen]);
+
+  const toggleLab = (name) => {
+    setSelectedLabs(prev => 
+      prev.includes(name) ? prev.filter(l => l !== name) : [...prev, name]
+    );
+  };
+
+  const handleAddCustomLab = async (e) => {
+    if (e) e.preventDefault();
+    const name = labSearchInput.trim();
+    if (!name) return;
+    if (!selectedLabs.includes(name)) {
+      setSelectedLabs(prev => [...prev, name]);
+    }
+    setLabSearchInput('');
+    setIsDropdownOpen(false);
+
+    try {
+      const created = await apiFetch('/records/catalog', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'lab_test',
+          name,
+          category: selectedCat !== 'All' ? selectedCat : 'General',
+          badge: '🔬 Custom',
+        }),
+      });
+      setLabCatalog(prev => [
+        { id: created?.id || Date.now(), name, category: selectedCat !== 'All' ? selectedCat : 'General', badge: '🔬 Custom', isCustom: true },
+        ...prev,
+      ]);
+    } catch {
+      // optimistic fallback
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!patientId || !requestedTests.trim()) return;
+    const finalTests = selectedLabs.length > 0 ? selectedLabs.join(', ') : labSearchInput.trim();
+    if (!patientId || !finalTests) return;
     setSubmitting(true);
     try {
-      await onRequest(patientId, { requestedTests: requestedTests.trim(), dueDate: dueDate || undefined, notes: notes.trim() || undefined });
+      await onRequest(patientId, { requestedTests: finalTests, dueDate: dueDate || undefined, notes: notes.trim() || undefined });
       onClose();
     } catch {
       // already surfaced via toast in the caller
@@ -169,6 +265,11 @@ function RequestReportModal({ isOpen, onClose, patients, onRequest }) {
       setSubmitting(false);
     }
   };
+
+  const filteredTests = filterAndRankCatalog(
+    labCatalog.filter(l => selectedCat === 'All' || l.category === selectedCat),
+    labSearchInput
+  );
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Request Lab Report" size="md">
@@ -181,11 +282,143 @@ function RequestReportModal({ isOpen, onClose, patients, onRequest }) {
             {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
-        <div>
-          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Test(s) / Panel *</label>
-          <input required value={requestedTests} onChange={e => setRequestedTests(e.target.value)} placeholder="e.g. Serum AMH, TSH & Free T4"
-            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+
+        {/* Smart Searchable Lab Dropdown */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-500 block">
+              Test(s) / Panel * {selectedLabs.length > 0 && `(${selectedLabs.length} selected)`}
+            </label>
+            {selectedLabs.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelectedLabs([])}
+                className="text-[10px] font-bold text-rose-500 hover:text-rose-700"
+              >
+                Clear All
+              </button>
+            )}
+          </div>
+
+          {/* Category Filter Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-0.5 text-xs">
+            {['All', 'Hormonal & Ovarian Reserve', 'Thyroid, Endocrine & Autoimmune', 'Metabolic & Cardiovascular', 'Hematology, Anemia & Micronutrients', 'Infections & STI Screening', 'Cervical Screening & Cytology', 'Antenatal & Genetic Diagnostics', 'Ultrasound & Imaging Procedures'].map(cat => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCat(cat)}
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all shrink-0 ${selectedCat === cat ? 'bg-aubergine-700 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative">
+            <div className="relative">
+              <i className="fas fa-microscope absolute left-3.5 top-3 text-slate-400 text-xs"></i>
+              <input
+                value={labSearchInput}
+                onChange={e => {
+                  setLabSearchInput(e.target.value);
+                  setIsDropdownOpen(true);
+                }}
+                onFocus={() => setIsDropdownOpen(true)}
+                placeholder="Search or enter lab test (e.g. AMH, LH, TVS Scan, Thyroid)..."
+                className="w-full border border-slate-200 rounded-xl pl-9 pr-8 py-2.5 text-xs bg-white font-semibold focus:outline-none focus:ring-2 focus:ring-aubergine-300"
+              />
+              {labSearchInput && (
+                <button
+                  type="button"
+                  onClick={() => setLabSearchInput('')}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                >
+                  <i className="fas fa-xmark text-xs"></i>
+                </button>
+              )}
+            </div>
+
+            {/* Prefix-Ranked Dropdown Menu */}
+            {isDropdownOpen && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-60 overflow-y-auto custom-scrollbar z-50 p-1.5 space-y-0.5">
+                <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
+                  <span>Diagnostic Tests ({filteredTests.length})</span>
+                  <span className="text-[9px] text-aubergine-700 font-bold">Prefix &amp; Keyword Match</span>
+                </div>
+                {filteredTests.slice(0, 30).map(item => {
+                  const isSelected = selectedLabs.includes(item.name);
+                  return (
+                    <button
+                      key={item.id || item.name}
+                      type="button"
+                      onClick={() => {
+                        toggleLab(item.name);
+                        setIsDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-2.5 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-colors ${isSelected ? 'bg-aubergine-50 text-aubergine-900 border border-aubergine-200' : 'hover:bg-slate-50 text-slate-700'}`}
+                    >
+                      <span className="flex items-center gap-1.5 flex-1 min-w-0 pr-2">
+                        <span className="text-[10px] shrink-0 font-bold">{item.badge}</span>
+                        <span className="truncate">
+                          {labSearchInput && item.name.toLowerCase().startsWith(labSearchInput.trim().toLowerCase()) ? (
+                            <>
+                              <span className="text-aubergine-700 bg-aubergine-100 px-0.5 rounded font-black">{item.name.slice(0, labSearchInput.trim().length)}</span>
+                              <span>{item.name.slice(labSearchInput.trim().length)}</span>
+                            </>
+                          ) : (
+                            item.name
+                          )}
+                        </span>
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {item.category && (
+                          <span className="text-[9px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 hidden sm:inline-block">
+                            {item.category}
+                          </span>
+                        )}
+                        <div className={`w-4 h-4 rounded flex items-center justify-center text-[10px] ${isSelected ? 'bg-aubergine-700 text-white' : 'border border-slate-300 text-transparent'}`}>
+                          <i className="fas fa-check"></i>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+                {labSearchInput && !labCatalog.some(l => l.name.toLowerCase() === labSearchInput.toLowerCase()) && (
+                  <button
+                    type="button"
+                    onClick={handleAddCustomLab}
+                    className="w-full text-left px-2.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-xs font-bold text-purple-800 flex items-center justify-between transition-colors mt-1"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <i className="fas fa-plus-circle text-purple-600"></i>
+                      <span>Add &ldquo;{labSearchInput}&rdquo; to Catalog</span>
+                    </span>
+                    <span className="text-[10px] font-mono text-purple-700 bg-white px-2 py-0.5 rounded border border-purple-200">Save Custom Test</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Selected Labs Pills */}
+          {selectedLabs.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {selectedLabs.map(lab => (
+                <span
+                  key={lab}
+                  className="inline-flex items-center gap-1.5 bg-aubergine-50 text-aubergine-900 border border-aubergine-200 px-2.5 py-1 rounded-xl text-xs font-bold shadow-xs"
+                >
+                  <i className="fas fa-vial text-[10px] text-aubergine-600"></i>
+                  <span>{lab}</span>
+                  <button type="button" onClick={() => toggleLab(lab)} className="hover:text-rose-500 ml-0.5">
+                    <i className="fas fa-xmark text-[10px]"></i>
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
+
         <div>
           <label className="text-xs font-bold text-slate-500 mb-1.5 block">Due Date</label>
           <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
@@ -196,7 +429,7 @@ function RequestReportModal({ isOpen, onClose, patients, onRequest }) {
           <textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Fasting required before the blood draw"
             className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-none" />
         </div>
-        <button type="submit" disabled={submitting} className="w-full bg-aubergine-700 hover:bg-aubergine-800 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+        <button type="submit" disabled={submitting || (!selectedLabs.length && !labSearchInput.trim())} className="w-full bg-aubergine-700 hover:bg-aubergine-800 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
           <i className="fas fa-paper-plane"></i> {submitting ? 'Sending…' : 'Send Request'}
         </button>
       </form>
