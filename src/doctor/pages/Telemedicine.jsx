@@ -10,6 +10,7 @@ import { todayLocalStr } from '../../lib/dateUtils.js';
 import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
 import { useFullscreen } from '../../hooks/useFullscreen.js';
 import { PreJoinCheck } from '../../components/PreJoinCheck.jsx';
+import { openPrescriptionPrintWindow } from '../../lib/prescriptionPrint.js';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
  * for srcObject, so this stays a thin imperative wrapper. */
@@ -76,23 +77,448 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
   );
 }
 
-/* ─── Active Call UI (Dual-Pane Split Screen Layout) ─────────────────────────── */
-const LAB_OPTIONS = ['Hormonal Panel (LH, FSH, AMH)', 'Full Thyroid Profile (TSH, FT3, FT4)', 'Fasting Glucose & HbA1c'];
+/* ─── Simplified Active Call UI ─────────────────────────── */
+/* ─── Reference Data for Smart Prescribing & Telemedicine ─── */
+const MED_SUGGESTIONS = [
+  { name: 'Metformin ER', defaultDose: '500mg', defaultFreq: '1-0-1', defaultTiming: 'After Food', defaultDuration: '90 Days' },
+  { name: 'Myo-Inositol Sachet', defaultDose: '2g', defaultFreq: '1-0-0', defaultTiming: 'Morning with water', defaultDuration: '90 Days' },
+  { name: 'Norethisterone', defaultDose: '5mg', defaultFreq: '1-0-1', defaultTiming: 'After Food (Day 16-25)', defaultDuration: '10 Days' },
+  { name: 'Dienogest', defaultDose: '2mg', defaultFreq: '0-0-1', defaultTiming: 'Night', defaultDuration: '90 Days' },
+  { name: 'Mefenamic Acid', defaultDose: '500mg', defaultFreq: '1-1-1', defaultTiming: 'After Food during pain', defaultDuration: '5 Days' },
+  { name: 'Tranexamic Acid', defaultDose: '500mg', defaultFreq: '1-1-1', defaultTiming: 'During heavy flow', defaultDuration: '5 Days' },
+  { name: 'Nitrofurantoin', defaultDose: '100mg', defaultFreq: '1-0-1', defaultTiming: 'After Food', defaultDuration: '5 Days' },
+  { name: 'Levothyroxine', defaultDose: '50mcg', defaultFreq: '1-0-0', defaultTiming: 'Empty stomach morning', defaultDuration: '60 Days' },
+  { name: 'Folic Acid + DHA', defaultDose: '5mg', defaultFreq: '1-0-0', defaultTiming: 'After Breakfast', defaultDuration: '90 Days' },
+  { name: 'Vitamin D3 (Cholecalciferol)', defaultDose: '60,000 IU', defaultFreq: 'Weekly', defaultTiming: 'With milk', defaultDuration: '8 Weeks' },
+  { name: 'Combined Oral Contraceptive', defaultDose: '1 Tab', defaultFreq: '0-0-1', defaultTiming: 'Fixed time night', defaultDuration: '21 Days' },
+  { name: 'Clomiphene Citrate', defaultDose: '50mg', defaultFreq: '0-0-1', defaultTiming: 'Day 2 to Day 6', defaultDuration: '5 Days' },
+  { name: 'Progesterone Sustained Release', defaultDose: '200mg', defaultFreq: '0-0-1', defaultTiming: 'Bedtime', defaultDuration: '15 Days' },
+];
 
-const QUALITY_STYLES = {
-  good: 'bg-emerald-500/20 text-emerald-400',
-  fair: 'bg-amber-500/20 text-amber-400',
-  poor: 'bg-rose-500/20 text-rose-400',
-};
+const LAB_CATALOG = [
+  { id: 'lh_fsh', name: 'LH & FSH Ratio', category: 'Hormones', badge: '🌸 PCOS/Cycle' },
+  { id: 'amh', name: 'Serum AMH (Ovarian Reserve)', category: 'Hormones', badge: '🌸 Fertility' },
+  { id: 'total_testosterone', name: 'Total & Free Testosterone', category: 'Hormones', badge: '🌸 Androgen' },
+  { id: 'dheas', name: 'DHEA-Sulfate', category: 'Hormones', badge: '🌸 Adrenal' },
+  { id: 'tsh_ft3_ft4', name: 'Complete Thyroid Profile (TSH, FT3, FT4)', category: 'Thyroid', badge: '🦋 Thyroid' },
+  { id: 'anti_tpo', name: 'Anti-TPO Antibodies', category: 'Thyroid', badge: '🦋 Autoimmune' },
+  { id: 'hba1c_fasting', name: 'Fasting Glucose & HbA1c', category: 'Metabolic', badge: '🍬 Sugar' },
+  { id: 'fasting_insulin', name: 'Fasting Serum Insulin (HOMA-IR)', category: 'Metabolic', badge: '🍬 Resistance' },
+  { id: 'lipid_profile', name: 'Lipid Profile Screen', category: 'Metabolic', badge: '🫀 Cardio' },
+  { id: 'cbc_esr', name: 'Complete Blood Count (CBC) + ESR', category: 'Blood', badge: '🩸 Routine' },
+  { id: 'ferritin_iron', name: 'Serum Ferritin & Iron Studies', category: 'Blood', badge: '🩸 Anemia' },
+  { id: 'vit_d_b12', name: 'Vitamin D3 & Vitamin B12 Duo', category: 'Vitamins', badge: '☀️ Vital' },
+  { id: 'pelvic_usg', name: 'Pelvic Ultrasound (USG Abdomen/Pelvis)', category: 'Imaging', badge: '🖼️ Scan' },
+  { id: 'tvs_scan', name: 'Transvaginal Scan (TVS - Antral Follicle)', category: 'Imaging', badge: '🖼️ Scan' },
+  { id: 'urine_re_cs', name: 'Urine Routine & Culture Sensitivity', category: 'General', badge: '🛡️ UTI' },
+];
 
+const CLINICAL_PROTOCOLS = [
+  {
+    id: 'pcos',
+    name: '🌸 PCOS Care Pack',
+    desc: 'Metformin + Inositol + Vit D3 + Hormone Panel',
+    notes: 'Patient evaluated for PCOS phenotype. Advised low glycemic diet, daily 30m brisk walk, stress reduction.\nReview with hormone and fasting insulin reports in 6 weeks.',
+    meds: [
+      { name: 'Metformin ER', dosage: '500mg', frequency: '1-0-1', timing: 'After Meals', duration: '90 Days' },
+      { name: 'Myo-Inositol Sachet', dosage: '2g', frequency: '1-0-0', timing: 'Morning with water', duration: '90 Days' },
+      { name: 'Vitamin D3 60K', dosage: '60,000 IU', frequency: 'Once Weekly', timing: 'With milk', duration: '8 Weeks' },
+    ],
+    labs: ['LH & FSH Ratio', 'Serum AMH (Ovarian Reserve)', 'Fasting Glucose & HbA1c', 'Total & Free Testosterone'],
+  },
+  {
+    id: 'heavy_flow',
+    name: '🩸 Dysmenorrhea & Flow',
+    desc: 'Tranexamic + Mefenamic + Ferritin & Pelvic USG',
+    notes: 'Acute menorrhagia / dysmenorrhea management. Instructed to take Tranexamic acid only during active heavy days.\nIf bleeding exceeds 7 days or severe cramps persist, report immediately.',
+    meds: [
+      { name: 'Tranexamic Acid', dosage: '500mg', frequency: '1-1-1', timing: 'During heavy bleeding only', duration: '4 Days' },
+      { name: 'Mefenamic Acid', dosage: '500mg', frequency: '1-0-1', timing: 'After Food (SOS pain)', duration: '5 Days' },
+      { name: 'Folic Acid + DHA', dosage: '5mg', frequency: '1-0-0', timing: 'After Breakfast', duration: '30 Days' },
+    ],
+    labs: ['Complete Blood Count (CBC) + ESR', 'Serum Ferritin & Iron Studies', 'Pelvic Ultrasound (USG Abdomen/Pelvis)'],
+  },
+  {
+    id: 'uti',
+    name: '🛡️ UTI Fast Relief',
+    desc: 'Nitrofurantoin + Alkalizer + Urine Culture',
+    notes: 'Acute uncomplicated cystitis. Emphasized hydration (3+ Liters daily), complete the antibiotic course.\nAvoid caffeine and spicy foods until symptoms resolve.',
+    meds: [
+      { name: 'Nitrofurantoin', dosage: '100mg', frequency: '1-0-1', timing: 'After Food', duration: '5 Days' },
+    ],
+    labs: ['Urine Routine & Culture Sensitivity'],
+  },
+  {
+    id: 'thyroid',
+    name: '🦋 Thyroid Balance',
+    desc: 'Levothyroxine + Complete Thyroid Panel',
+    notes: 'Hypothyroidism titration. Take Levothyroxine first thing in the morning with a full glass of water. Keep 45 min gap before tea/coffee/breakfast.',
+    meds: [
+      { name: 'Levothyroxine', dosage: '50mcg', frequency: '1-0-0', timing: 'Empty stomach (Morning)', duration: '60 Days' },
+    ],
+    labs: ['Complete Thyroid Profile (TSH, FT3, FT4)', 'Anti-TPO Antibodies'],
+  },
+];
+
+/* ─── Tablet Stylus Handwriting Canvas Component ─── */
+function StylusHandwritingCanvas({ strokes = [], setStrokes, onExport, className = '' }) {
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [inkColor, setInkColor] = useState('#1D4ED8'); // Classic Doctor Blue
+  const [strokeWidth, setStrokeWidth] = useState(3);
+  const [isEraser, setIsEraser] = useState(false);
+  const [showGuidelines, setShowGuidelines] = useState(true);
+  const [currentStroke, setCurrentStroke] = useState(null);
+
+  // Redraw all strokes on canvas
+  const redraw = (allStrokes) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(dpr, dpr);
+
+    allStrokes.forEach(stroke => {
+      if (!stroke.points || stroke.points.length === 0) return;
+      ctx.beginPath();
+      ctx.strokeStyle = stroke.isEraser ? '#FAF8F5' : stroke.color;
+      ctx.lineWidth = stroke.isEraser ? stroke.width * 5 : stroke.width;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      if (stroke.points.length === 1) {
+        ctx.arc(stroke.points[0].x, stroke.points[0].y, ctx.lineWidth / 2, 0, Math.PI * 2);
+        ctx.fillStyle = stroke.isEraser ? '#FAF8F5' : stroke.color;
+        ctx.fill();
+      } else {
+        ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+        for (let i = 1; i < stroke.points.length - 1; i++) {
+          const midX = (stroke.points[i].x + stroke.points[i + 1].x) / 2;
+          const midY = (stroke.points[i].y + stroke.points[i + 1].y) / 2;
+          ctx.quadraticCurveTo(stroke.points[i].x, stroke.points[i].y, midX, midY);
+        }
+        const last = stroke.points[stroke.points.length - 1];
+        ctx.lineTo(last.x, last.y);
+        ctx.stroke();
+      }
+    });
+    ctx.restore();
+  };
+
+  // Sync canvas size on mount
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    redraw(strokes);
+  }, []);
+
+  // Redraw when strokes change externally
+  useEffect(() => {
+    redraw(strokes);
+  }, [strokes]);
+
+  const getCanvasCoords = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+  };
+
+  const handlePointerDown = (e) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const point = getCanvasCoords(e);
+    setIsDrawing(true);
+    const newStroke = {
+      color: inkColor,
+      width: strokeWidth,
+      isEraser,
+      points: [point],
+    };
+    setCurrentStroke(newStroke);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDrawing || !currentStroke) return;
+    const point = getCanvasCoords(e);
+    const updated = {
+      ...currentStroke,
+      points: [...currentStroke.points, point],
+    };
+    setCurrentStroke(updated);
+    redraw([...strokes, updated]);
+  };
+
+  const handlePointerUp = (e) => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    if (currentStroke && currentStroke.points.length > 0) {
+      const nextStrokes = [...strokes, currentStroke];
+      setStrokes?.(nextStrokes);
+      setCurrentStroke(null);
+      exportCanvas(nextStrokes);
+    }
+  };
+
+  const exportCanvas = (allStrokes = strokes) => {
+    const canvas = canvasRef.current;
+    if (!canvas || allStrokes.length === 0) {
+      onExport?.(null);
+      return;
+    }
+    const dataUrl = canvas.toDataURL('image/png');
+    onExport?.(dataUrl);
+  };
+
+  const handleUndo = () => {
+    if (strokes.length === 0) return;
+    const nextStrokes = strokes.slice(0, -1);
+    setStrokes?.(nextStrokes);
+    redraw(nextStrokes);
+    exportCanvas(nextStrokes);
+  };
+
+  const handleClear = () => {
+    setStrokes?.([]);
+    setCurrentStroke(null);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    onExport?.(null);
+  };
+
+  return (
+    <div className={`flex flex-col bg-[#FAF8F5] rounded-3xl border border-[#E6E1D8] shadow-2xl overflow-hidden ${className}`}>
+      {/* Canvas Controls Header */}
+      <div className="bg-[#F1ECE4] px-4 py-2.5 border-b border-[#E0D8CC] flex items-center justify-between gap-3 flex-wrap text-xs">
+        {/* Ink Colors & Stylus Pen */}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1">
+            <i className="fas fa-pen-fancy text-[#1D4ED8]"></i> Ink:
+          </span>
+          <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#D5CBBF]">
+            {[
+              { color: '#1D4ED8', label: 'Doctor Blue' },
+              { color: '#0F172A', label: 'Deep Black' },
+              { color: '#6B46C1', label: 'Royal Purple' },
+              { color: '#DC2626', label: 'Alert Red' },
+            ].map(ink => (
+              <button
+                key={ink.color}
+                type="button"
+                onClick={() => {
+                  setInkColor(ink.color);
+                  setIsEraser(false);
+                }}
+                title={ink.label}
+                className={`w-6 h-6 rounded-lg transition-transform flex items-center justify-center ${!isEraser && inkColor === ink.color ? 'scale-110 ring-2 ring-slate-800 shadow-sm' : 'opacity-80 hover:opacity-100'}`}
+                style={{ backgroundColor: ink.color }}
+              >
+                {!isEraser && inkColor === ink.color && <i className="fas fa-check text-white text-[9px]"></i>}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Stroke Thickness */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Nib:</span>
+          <div className="flex items-center bg-white p-0.5 rounded-xl border border-[#D5CBBF]">
+            {[
+              { w: 2, label: 'Fine' },
+              { w: 3.5, label: 'Medium' },
+              { w: 5.5, label: 'Bold' },
+            ].map(n => (
+              <button
+                key={n.w}
+                type="button"
+                onClick={() => {
+                  setStrokeWidth(n.w);
+                  setIsEraser(false);
+                }}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${!isEraser && strokeWidth === n.w ? 'bg-[#1D4ED8] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                {n.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tools: Eraser, Undo, Clear, Guidelines */}
+        <div className="flex items-center gap-1.5 ml-auto">
+          <button
+            type="button"
+            onClick={() => setIsEraser(!isEraser)}
+            title="Eraser"
+            className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-all flex items-center gap-1.5 ${isEraser ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-white text-slate-700 border-[#D5CBBF] hover:bg-slate-50'}`}
+          >
+            <i className="fas fa-eraser"></i> Eraser
+          </button>
+
+          <button
+            type="button"
+            onClick={handleUndo}
+            disabled={strokes.length === 0}
+            title="Undo last stroke"
+            className="w-8 h-8 rounded-xl bg-white disabled:opacity-40 text-slate-700 border border-[#D5CBBF] hover:bg-slate-50 flex items-center justify-center transition-colors shadow-xs"
+          >
+            <i className="fas fa-rotate-left text-xs"></i>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleClear}
+            disabled={strokes.length === 0}
+            title="Clear all handwriting"
+            className="w-8 h-8 rounded-xl bg-white disabled:opacity-40 text-rose-600 border border-rose-200 hover:bg-rose-50 flex items-center justify-center transition-colors shadow-xs"
+          >
+            <i className="fas fa-trash-can text-xs"></i>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowGuidelines(!showGuidelines)}
+            title="Toggle Ruled Prescription Lines"
+            className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-colors shadow-xs ${showGuidelines ? 'bg-[#1D4ED8]/10 text-[#1D4ED8] border-[#1D4ED8]/30' : 'bg-white text-slate-500 border-[#D5CBBF]'}`}
+          >
+            <i className="fas fa-bars text-xs"></i>
+          </button>
+        </div>
+      </div>
+
+      {/* Writing Canvas Area with Stylus Touch-Action */}
+      <div
+        className="relative flex-1 w-full min-h-[380px] bg-[#FAF8F5] cursor-crosshair overflow-hidden select-none"
+        style={{ touchAction: 'none' }}
+      >
+        {/* Ruled Hospital Lines Background */}
+        {showGuidelines && (
+          <div
+            className="absolute inset-0 pointer-events-none opacity-40"
+            style={{
+              backgroundImage: 'linear-gradient(to bottom, transparent 31px, #CBD5E1 32px)',
+              backgroundSize: '100% 32px',
+              marginTop: '40px',
+            }}
+          ></div>
+        )}
+
+        {/* Rx Monogram Watermark */}
+        <div className="absolute top-4 left-6 text-slate-300/40 text-7xl font-serif select-none pointer-events-none font-bold">
+          ℞
+        </div>
+
+        {/* Empty state prompt for stylus */}
+        {strokes.length === 0 && !isDrawing && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-slate-400/80 text-center p-6">
+            <i className="fas fa-pen-nib text-4xl mb-2.5 text-[#1D4ED8]/40 animate-bounce"></i>
+            <p className="font-serif font-bold text-sm text-slate-600">Write your prescription here with tablet stylus or finger</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">Write medicine name, dosage, schedule & lab advice in your handwriting</p>
+          </div>
+        )}
+
+        <canvas
+          ref={canvasRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+          className="absolute inset-0 w-full h-full z-10"
+        />
+      </div>
+
+      {/* Footer Info */}
+      <div className="bg-[#F1ECE4] px-4 py-2 border-t border-[#E0D8CC] flex justify-between items-center text-[10px] text-slate-500 font-bold">
+        <span className="flex items-center gap-1.5 text-emerald-700">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          Stylus / Apple Pencil / Touch Active
+        </span>
+        <span className="font-mono text-slate-600">{strokes.length} Ink Strokes Captured</span>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Creative Active Telemedicine Studio ─── */
 function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
   const toast = useToast();
   const { user } = useAuth();
+  const { patients } = useClinicData();
   const { callDeclinedId, clearCallDeclined } = useNotifications() || {};
   const [joined, setJoined] = useState(autoJoin);
   const call = useWebRTCCall({ appointmentId: session.id, active: joined });
   const videoAreaRef = useRef(null);
   const { isFullscreen, toggle: toggleFullscreen, supported: fullscreenSupported } = useFullscreen(videoAreaRef);
+
+  // Retrieve patient history, vitals, allergies & reports
+  const patientRecord = patients?.find(p => p.id === session.patientId || p.name === session.patient) || {
+    name: session.patient,
+    allergies: ['Penicillin (mild rash)'], // fallback demonstration
+    weight: '58 kg',
+    bp: '118/76',
+    bloodSugar: '92 mg/dL',
+    bmi: '22.4',
+    reports: [
+      { id: 'rep-1', testName: 'Pelvic Ultrasound (TVS)', date: '12 Jan 2026', status: 'Completed', results: 'Polycystic morphology (>12 follicles/ovary). Normal endometrial thickness (7mm).' },
+      { id: 'rep-2', testName: 'Serum AMH & Thyroid Profile', date: '15 Jan 2026', status: 'Completed', results: 'AMH: 6.8 ng/mL (Elevated). TSH: 2.1 mIU/L (Normal).' },
+    ],
+    meds: [
+      { name: 'Myo-Inositol', dosage: '2g daily', duration: 'Ongoing' }
+    ]
+  };
+
+  // Layout View Mode: 'split' (side-by-side) | 'video-focus' (cinema video + mini pad) | 'pad-focus' (large pad + floating video)
+  const [viewLayout, setViewLayout] = useState('split');
+
+  // Active Workspace Tab: 'smart_rx' | 'pen_pad' | 'labs' | 'notes' | 'patient_chart'
+  const [activeTab, setActiveTab] = useState('smart_rx');
+
+  // Pen & Pad mode: 'stylus' (handwriting canvas) | 'typed' (keyboard text)
+  const [padInputMode, setPadInputMode] = useState('stylus');
+
+  // Call timer
+  const [elapsed, setElapsed] = useState(0);
+
+  // Draft Data State
+  const [draftMeds, setDraftMeds] = useState([]);
+  const [draftLabs, setDraftLabs] = useState([]);
+  const [clinicalNotes, setClinicalNotes] = useState('');
+  const [followUpAdvice, setFollowUpAdvice] = useState('Follow up in 2 weeks with lab reports');
+  const [freehandRx, setFreehandRx] = useState(''); // Holds image dataUrl or typed text
+  const [handwritingStrokes, setHandwritingStrokes] = useState([]); // Preserves stylus strokes across tab switches
+  const [typedPadText, setTypedPadText] = useState('');
+  const [diagnosis, setDiagnosis] = useState(session.type || 'General Consultation');
+
+  // Smart Med Form State
+  const [medSearch, setMedSearch] = useState('');
+  const [medDosage, setMedDosage] = useState('500mg');
+  const [medFrequency, setMedFrequency] = useState('1-0-1');
+  const [medTiming, setMedTiming] = useState('After Food');
+  const [medDuration, setMedDuration] = useState('30 Days');
+  const [isMedDropdownOpen, setIsMedDropdownOpen] = useState(false);
+
+  // Dictation state
+  const [isDictating, setIsDictating] = useState(false);
+
+  // Lab Search & Category Filter
+  const [selectedLabCat, setSelectedLabCat] = useState('All');
+  const [customLabInput, setCustomLabInput] = useState('');
+
+  // Modals
+  const [showSignModal, setShowSignModal] = useState(false);
+  const [previewReportModal, setPreviewReportModal] = useState(null);
 
   useEffect(() => {
     if (callDeclinedId !== session.id) return;
@@ -100,59 +526,6 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
     onDeclined?.();
     clearCallDeclined?.();
   }, [callDeclinedId, session.id]);
-
-  const [clinicalNotes, setClinicalNotes] = useState('');
-  const [elapsed, setElapsed] = useState(0);
-
-  const [brief, setBrief] = useState(null);
-  const [briefLoading, setBriefLoading] = useState(true);
-  const [briefExpanded, setBriefExpanded] = useState(false);
-
-  useEffect(() => {
-    apiFetch(`/appointments/${session.id}/consult-brief`)
-      .then(setBrief)
-      .catch(() => setBrief(null))
-      .finally(() => setBriefLoading(false));
-  }, [session.id]);
-
-  // Draft State
-  const [draftMeds, setDraftMeds] = useState([]);
-  const [draftLabs, setDraftLabs] = useState([]);
-
-  // Med Input State
-  const [rxName, setRxName] = useState('');
-  const [rxDosage, setRxDosage] = useState('');
-  const [rxSchedule, setRxSchedule] = useState('1-0-1');
-  const [rxDuration, setRxDuration] = useState('30 Days');
-
-  const [showSignModal, setShowSignModal] = useState(false);
-
-  const handleAddMedToDraft = () => {
-    if (!rxName.trim()) { toast('Enter a medication name.', 'error'); return; }
-    setDraftMeds([...draftMeds, { name: rxName.trim(), dosage: rxDosage, frequency: rxSchedule, duration: rxDuration, instructions: '' }]);
-    setRxName(''); setRxDosage('');
-  };
-
-  const removeMedFromDraft = (index) => {
-    setDraftMeds(draftMeds.filter((_, i) => i !== index));
-  };
-
-  const toggleLabDraft = (lab) => {
-    setDraftLabs(prev => prev.includes(lab) ? prev.filter(l => l !== lab) : [...prev, lab]);
-  };
-
-  const applyProtocol = (protocol) => {
-    if (protocol === 'PCOS') {
-      setClinicalNotes("Patient presents with irregular cycles and signs of hyperandrogenism.\n\nPlan: Discussed lifestyle modifications. Started on Metformin. Follow up in 3 months with new lab reports.");
-      setDraftMeds([{ name: 'Metformin ER', dosage: '500mg', frequency: '0-0-1', duration: '90 Days', instructions: 'Take with dinner' }]);
-      setDraftLabs(['Hormonal Panel (LH, FSH, AMH)', 'Fasting Glucose & HbA1c']);
-      toast('PCOS Protocol Applied', 'success');
-    } else if (protocol === 'UTI') {
-      setClinicalNotes("Patient reports dysuria and increased frequency for 2 days. No fever or flank pain. Prescribed antibiotics.\n\nPlan: Push fluids. If symptoms persist >3 days, repeat urine culture.");
-      setDraftMeds([{ name: 'Nitrofurantoin', dosage: '100mg', frequency: '1-0-1', duration: '5 Days', instructions: '' }]);
-      toast('UTI Protocol Applied', 'success');
-    }
-  };
 
   useEffect(() => {
     if (call.connectionState !== 'connected') return;
@@ -166,37 +539,205 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
 
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
-  const endConsultation = () => {
+  // Smart Med Handlers
+  const handleSelectSuggestion = (item) => {
+    setMedSearch(item.name);
+    setMedDosage(item.defaultDose || '500mg');
+    setMedFrequency(item.defaultFreq || '1-0-1');
+    setMedTiming(item.defaultTiming || 'After Food');
+    setMedDuration(item.defaultDuration || '30 Days');
+    setIsMedDropdownOpen(false);
+  };
+
+  const handleAddMed = (e) => {
+    if (e) e.preventDefault();
+    if (!medSearch.trim()) {
+      toast('Please enter or select a medication name', 'error');
+      return;
+    }
+    const newMed = {
+      id: Date.now(),
+      name: medSearch.trim(),
+      dosage: medDosage,
+      frequency: medFrequency,
+      timing: medTiming,
+      duration: medDuration,
+      rawText: `${medSearch.trim()} ${medDosage} (${medFrequency}) - ${medTiming} for ${medDuration}`,
+    };
+    setDraftMeds(prev => [...prev, newMed]);
+    setMedSearch('');
+    toast(`Added ${newMed.name} to Rx`, 'success');
+  };
+
+  const handleRemoveMed = (index) => {
+    setDraftMeds(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // 1-Click Protocol Application
+  const handleApplyProtocol = (proto) => {
+    setDiagnosis(proto.name.replace(/^[^\w]+/, '').trim());
+    setClinicalNotes(prev => (prev ? `${prev}\n\n${proto.notes}` : proto.notes));
+    setDraftMeds(prev => [
+      ...prev,
+      ...proto.meds.map(m => ({
+        id: Date.now() + Math.random(),
+        ...m,
+        rawText: `${m.name} ${m.dosage} (${m.frequency}) - ${m.timing} for ${m.duration}`,
+      })),
+    ]);
+    setDraftLabs(prev => Array.from(new Set([...prev, ...proto.labs])));
+    toast(`${proto.name} applied successfully!`, 'success');
+  };
+
+  // Lab Toggle
+  const toggleLab = (labName) => {
+    setDraftLabs(prev => (prev.includes(labName) ? prev.filter(l => l !== labName) : [...prev, labName]));
+  };
+
+  const handleAddCustomLab = (e) => {
+    if (e) e.preventDefault();
+    if (!customLabInput.trim()) return;
+    const testName = customLabInput.trim();
+    if (!draftLabs.includes(testName)) {
+      setDraftLabs(prev => [...prev, testName]);
+      toast(`Added test: ${testName}`, 'success');
+    }
+    setCustomLabInput('');
+  };
+
+  // Voice Dictation Simulator
+  const toggleDictation = () => {
+    if (isDictating) {
+      setIsDictating(false);
+      toast('Dictation paused', 'info');
+    } else {
+      setIsDictating(true);
+      toast('Listening... (speak now)', 'info');
+      setTimeout(() => {
+        setClinicalNotes(prev => {
+          const sample = "Patient evaluated for PCOS phenotype. Vitals stable. Advised dietary modifications and follow-up lab investigation.";
+          return prev ? `${prev} ${sample}` : sample;
+        });
+        setIsDictating(false);
+      }, 3500);
+    }
+  };
+
+  // Trigger Print / PDF Download
+  const handlePrintPrescription = () => {
+    const fullInstructions = [clinicalNotes, followUpAdvice ? `Next Follow-up: ${followUpAdvice}` : ''].filter(Boolean).join('\n\n');
+    openPrescriptionPrintWindow({
+      rxId: `HN-${session.id?.slice(0, 6).toUpperCase() || 'TELE'}`,
+      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      doctor: {
+        name: user?.name || 'Dr. Consultant Gynecologist',
+        specialty: 'Obstetrics & Gynecology',
+        regNo: 'HN-88421',
+      },
+      patient: {
+        name: session.patient,
+        age: session.age || '28',
+        gender: 'Female',
+      },
+      diagnosis: diagnosis,
+      medicines: draftMeds.map(m => ({
+        name: m.name,
+        schedule: m.frequency,
+        duration: `${m.dosage ? m.dosage + ' • ' : ''}${m.timing} (${m.duration})`,
+      })),
+      labTests: draftLabs,
+      instructions: fullInstructions,
+    });
+  };
+
+  // Finalize consultation
+  const finalizeConsult = () => {
     call.hangUp();
-    onEnd(clinicalNotes, draftMeds, draftLabs);
+    let finalMeds = [...draftMeds];
+    if (freehandRx && freehandRx.startsWith('data:image')) {
+      finalMeds.push({
+        id: Date.now(),
+        name: 'Handwritten Stylus Prescription',
+        dosage: '',
+        frequency: 'As written',
+        duration: 'As written',
+        rawText: 'Doctor Handwritten Prescription (Digital Ink)',
+        imageAttachment: freehandRx,
+      });
+    } else if (typedPadText.trim()) {
+      finalMeds.push({
+        id: Date.now(),
+        name: 'Prescription Sheet Notes',
+        dosage: '',
+        frequency: '',
+        duration: '',
+        rawText: typedPadText.trim(),
+      });
+    }
+    const fullNotes = [clinicalNotes, followUpAdvice ? `📅 Recommended Follow-Up: ${followUpAdvice}` : ''].filter(Boolean).join('\n\n');
+    onEnd(fullNotes, finalMeds, draftLabs);
   };
 
   const STATUS_COPY = {
     'requesting-media': 'Requesting camera & microphone access…',
-    connecting: `Waiting for ${session.patient} to join…`,
-    'peer-left': `${session.patient} left the call`,
+    connecting: `Connecting with ${session.patient}…`,
+    'peer-left': `${session.patient} has disconnected`,
     failed: call.error || 'Connection failed',
     ended: 'Call ended',
   };
 
+  // Pre-join splash screen
   if (!joined) {
     return (
-      <div className="bg-slate-950 rounded-3xl p-6 shadow-2xl border border-slate-800 max-w-lg mx-auto">
-        <div className="text-center mb-4">
-          <h4 className="font-black text-white text-xl">{session.patient}</h4>
-          <p className="text-xs text-slate-400 mt-1">{session.type} · {session.age}</p>
-        </div>
-        <PreJoinCheck dark />
-        <div className="flex gap-3 mt-4">
-          <button onClick={() => { call.hangUp(); onEnd('', [], []); }} className="flex-1 border border-slate-700 text-slate-300 hover:bg-slate-900 font-bold py-3.5 rounded-2xl text-sm transition-colors">
-            Cancel
-          </button>
-          <button
-            onClick={() => setJoined(true)}
-            className="flex-[2] bg-aubergine-600 hover:bg-aubergine-700 text-white font-black py-3.5 rounded-2xl text-sm transition-all flex items-center justify-center gap-3 shadow-lg"
-          >
-            <i className="fas fa-video"></i> Start Call
-          </button>
+      <div className="min-h-[80vh] flex items-center justify-center p-4">
+        <div className="bg-white rounded-[2.5rem] p-8 md:p-10 shadow-2xl border border-[#EDE7FF] max-w-lg w-full text-center relative overflow-hidden animate-fade-in">
+          <div className="absolute -top-24 -right-24 w-60 h-60 bg-gradient-to-br from-[#6B46C1]/10 to-[#E23E8C]/15 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-gradient-to-tr from-[#A78BFA]/15 to-[#EDE7FF] rounded-full blur-3xl pointer-events-none"></div>
+
+          <div className="relative z-10">
+            <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#6B46C1] to-[#E23E8C] text-white flex items-center justify-center text-3xl font-black mx-auto mb-5 shadow-xl shadow-[#6B46C1]/25 ring-4 ring-white">
+              {session.patient.split(' ').map(n => n[0]).join('')}
+            </div>
+
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-[#EDE7FF] text-[#6B46C1] mb-2">
+              <i className="fas fa-video text-[10px]"></i> Ready to Connect
+            </span>
+
+            <h3 className="font-serif-brand font-black text-2xl text-slate-800 tracking-tight">{session.patient}</h3>
+            <p className="text-slate-500 font-medium text-sm mt-1">{session.type} • {session.age || 'Female'}</p>
+
+            <div className="bg-slate-50 rounded-2xl p-4 my-6 border border-slate-100 flex items-center justify-around text-xs font-bold text-slate-600">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Camera Ready</span>
+              </div>
+              <div className="h-4 w-px bg-slate-200"></div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Mic Verified</span>
+              </div>
+              <div className="h-4 w-px bg-slate-200"></div>
+              <div className="flex items-center gap-2 text-[#6B46C1]">
+                <i className="fas fa-shield-halved"></i>
+                <span>Encrypted</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { call.hangUp(); onEnd('', [], []); }}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-4 rounded-2xl transition-all text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => setJoined(true)}
+                className="flex-[2] bg-gradient-to-r from-[#6B46C1] to-[#E23E8C] hover:from-[#522F9E] hover:to-[#C72E75] text-white font-black py-4 rounded-2xl transition-all text-sm shadow-xl shadow-[#6B46C1]/25 hover:shadow-2xl hover:-translate-y-0.5 flex items-center justify-center gap-2.5"
+              >
+                <i className="fas fa-video"></i> Start Consultation
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -204,432 +745,1087 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
 
   return (
     <>
-    <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 bg-slate-950 rounded-[2.5rem] p-4 shadow-2xl border border-slate-800/80 ring-1 ring-white/5 h-[88vh] overflow-hidden">
-
-      {/* Left 25% / 3 Cols: Vitals & History Dashboard */}
-      <div className="hidden xl:flex xl:col-span-3 bg-gradient-to-b from-slate-900 to-slate-950 rounded-[2rem] border border-slate-800/80 p-5 flex-col gap-6 overflow-y-auto custom-scrollbar shadow-inner relative">
-        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none rounded-t-[2rem]"></div>
+      <div className="h-[88vh] flex flex-col bg-slate-950 rounded-[2.5rem] p-3 md:p-4 shadow-2xl border border-slate-800/80 ring-1 ring-white/5 overflow-hidden text-slate-100">
         
-        {/* Vitals */}
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-4">
-             <h3 className="text-white font-bold text-sm flex items-center gap-2 tracking-tight"><i className="fas fa-heart-pulse text-rose-500"></i> Live Vitals</h3>
-             <span className="flex h-2 w-2 relative">
-               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-               <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-             </span>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-             <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800/80 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.5)] flex flex-col justify-center items-center group hover:border-slate-700 transition-colors">
-               <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1.5 group-hover:text-slate-400">Heart Rate</p>
-               <p className="text-3xl font-black text-rose-400 tracking-tighter">72<span className="text-xs font-bold text-rose-500/50 ml-0.5">bpm</span></p>
-             </div>
-             <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800/80 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.5)] flex flex-col justify-center items-center group hover:border-slate-700 transition-colors">
-               <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1.5 group-hover:text-slate-400">Blood Press</p>
-               <p className="text-2xl font-black text-emerald-400 tracking-tighter mt-1">118<span className="text-sm text-emerald-500/60 font-bold">/76</span></p>
-             </div>
-             <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800/80 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.5)] flex flex-col justify-center items-center col-span-2 group hover:border-slate-700 transition-colors">
-               <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1.5 group-hover:text-slate-400">Blood Oxygen (SpO2)</p>
-               <p className="text-3xl font-black text-sky-400 tracking-tighter">98<span className="text-lg text-sky-500/60">%</span></p>
-               <div className="w-full bg-slate-900 rounded-full h-1 mt-3 overflow-hidden">
-                 <div className="bg-sky-400 h-1 rounded-full" style={{ width: '98%' }}></div>
-               </div>
-             </div>
-          </div>
-        </div>
-
-        {/* History Timeline */}
-        <div className="flex-1 relative z-10 mt-2">
-          <h3 className="text-white font-bold text-sm mb-5 flex items-center gap-2 tracking-tight"><i className="fas fa-clock-rotate-left text-indigo-400"></i> Patient History</h3>
-          <div className="relative border-l-2 border-slate-800/80 ml-3 space-y-7 pb-4">
-             <div className="relative pl-6 group">
-                <span className="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-indigo-500 ring-4 ring-slate-900 group-hover:scale-125 transition-transform"></span>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-0.5">Aug 2, 2026</p>
-                <p className="text-xs font-bold text-slate-200">Follow-up: PCOS</p>
-                <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed bg-slate-900/50 p-2 rounded-lg border border-slate-800">Patient reported improved cycle regularity after starting Metformin 500mg.</p>
-             </div>
-             <div className="relative pl-6 group">
-                <span className="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-slate-700 ring-4 ring-slate-900 group-hover:scale-125 transition-transform"></span>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-0.5">Jun 15, 2026</p>
-                <p className="text-xs font-bold text-slate-200">Initial Consultation</p>
-             </div>
-             <div className="relative pl-6 group">
-                <span className="absolute -left-[7px] top-1.5 w-3 h-3 rounded-full bg-rose-500 ring-4 ring-slate-900 group-hover:scale-125 transition-transform shadow-[0_0_10px_rgba(244,63,94,0.5)]"></span>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-0.5">Jun 14, 2026</p>
-                <p className="text-xs font-bold text-slate-200">Lab Results Uploaded</p>
-                <p className="text-[10px] text-rose-400 font-bold mt-1 bg-rose-500/10 inline-block px-2 py-0.5 rounded border border-rose-500/20">High Fasting Glucose</p>
-             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Center 42% / 5 Cols: Cinematic Video Call */}
-      <div className="col-span-1 lg:col-span-7 xl:col-span-5 flex flex-col space-y-4">
-        <div ref={videoAreaRef} className="relative flex-1 bg-black rounded-[2rem] overflow-hidden border border-slate-800 flex items-center justify-center shadow-2xl shadow-black/50 group">
-          
-          {/* Main Video */}
-          {call.remoteStream ? (
-            <VideoTile stream={call.remoteStream} className="absolute inset-0 object-cover w-full h-full transition-transform duration-700 group-hover:scale-[1.02]" />
-          ) : (
-            <div className="text-center text-white px-6 z-10">
-              <div className="w-28 h-28 rounded-full bg-gradient-to-br from-aubergine-600 to-indigo-600 mx-auto mb-4 flex items-center justify-center text-4xl font-black shadow-[0_0_40px_rgba(88,28,135,0.4)] ring-4 ring-white/5">
-                {session.patient.split(' ').map(n => n[0]).join('')}
-              </div>
-              <p className="font-black text-2xl tracking-tight">{session.patient}</p>
-              {call.connectionState === 'connected' ? (
-                <p className="text-emerald-400 text-xs mt-2.5 font-bold flex items-center justify-center gap-2 bg-emerald-500/10 inline-flex px-4 py-1.5 rounded-full border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                  <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span> Camera off
-                </p>
-              ) : (
-                <p className={`text-xs mt-2.5 font-bold flex items-center justify-center gap-2 ${call.connectionState === 'failed' ? 'text-rose-400' : 'text-slate-400'}`}>
-                  {call.connectionState !== 'failed' && call.connectionState !== 'peer-left' && call.connectionState !== 'ended' && (
-                    <i className="fas fa-circle-notch fa-spin"></i>
-                  )}
-                  {STATUS_COPY[call.connectionState] || 'Encrypted Audio/Video'}
-                </p>
-              )}
+        {/* ── Top Bar / Consultation Header HUD ── */}
+        <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-2xl px-5 py-3 flex items-center justify-between gap-4 mb-3 shrink-0 shadow-lg">
+          {/* Patient Details & Live Call Status */}
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6B46C1] to-[#E23E8C] text-white flex items-center justify-center font-black text-sm shadow-md shrink-0 ring-2 ring-white/10">
+              {session.patient.split(' ').map(n => n[0]).join('')}
             </div>
-          )}
-
-          {/* Cinematic Vignette Overlay */}
-          <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-transparent to-black/70"></div>
-          <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/90 via-black/10 to-transparent"></div>
-
-          {call.peerMuted && call.remoteStream && (
-            <div className="absolute bottom-6 left-6 bg-black/40 backdrop-blur-xl text-white text-xs font-bold px-4 py-2 rounded-full border border-white/10 flex items-center gap-2 shadow-2xl">
-              <i className="fas fa-microphone-slash text-rose-400"></i> Patient Muted
-            </div>
-          )}
-
-          {/* Timer & Connection */}
-          <div className="absolute top-6 left-6 bg-black/40 backdrop-blur-xl text-white text-xs font-mono font-bold px-4 py-2 rounded-full border border-white/10 flex items-center gap-2 shadow-2xl">
-            <span className={`w-2 h-2 rounded-full shadow-sm ${call.connectionState === 'connected' ? 'bg-rose-500 animate-pulse shadow-[0_0_10px_rgba(244,63,94,0.8)]' : 'bg-slate-500'}`}></span> {fmt(elapsed)}
-            {call.connectionState === 'connected' && call.connectionQuality && (
-              <span className={`ml-1.5 pl-2 border-l border-white/20 flex items-center gap-1.5 text-[10px] ${QUALITY_STYLES[call.connectionQuality]}`} title="Connection quality">
-                <i className="fas fa-signal"></i>
-              </span>
-            )}
-          </div>
-
-          {/* Fullscreen */}
-          <div className="absolute top-6 right-6">
-            {fullscreenSupported && (
-              <button onClick={toggleFullscreen} className="w-10 h-10 rounded-2xl bg-black/40 hover:bg-black/60 backdrop-blur-xl text-white border border-white/10 flex items-center justify-center text-sm transition-all shadow-2xl hover:scale-105">
-                <i className={`fas ${isFullscreen ? 'fa-compress' : 'fa-expand'}`}></i>
-              </button>
-            )}
-          </div>
-
-          {/* Doctor PiP */}
-          <div className="absolute bottom-6 right-6 w-40 h-28 bg-slate-900 rounded-[1.5rem] border border-white/20 flex items-center justify-center text-white text-xs font-bold shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden ring-4 ring-black/20 hover:scale-105 transition-transform origin-bottom-right z-20">
-            {call.isVideoOff || !call.localStream ? (
-              <div className="flex flex-col items-center gap-2 text-slate-500">
-                <i className="fas fa-video-slash text-2xl"></i>
-              </div>
-            ) : (
-              <VideoTile stream={call.localStream} muted mirrored={!call.isScreenSharing} className="object-cover w-full h-full" />
-            )}
-          </div>
-        </div>
-
-        {/* Floating Controls Toolbar */}
-        <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-[2rem] p-3 flex items-center justify-between shadow-lg">
-          <div className="flex items-center gap-2 pl-2">
-            <button onClick={call.toggleMute} disabled={!call.localStream} title={call.isMuted ? 'Unmute' : 'Mute'}
-              className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg transition-all disabled:opacity-40 shadow-sm ${call.isMuted ? 'bg-rose-500 text-white shadow-[0_0_20px_rgba(244,63,94,0.4)]' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/50 hover:border-slate-600'}`}>
-              <i className={`fas ${call.isMuted ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
-            </button>
-            <button onClick={call.toggleVideo} disabled={!call.localStream} title={call.isVideoOff ? 'Turn on camera' : 'Turn off camera'}
-              className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg transition-all disabled:opacity-40 shadow-sm ${call.isVideoOff ? 'bg-rose-500 text-white shadow-[0_0_20px_rgba(244,63,94,0.4)]' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/50 hover:border-slate-600'}`}>
-              <i className={`fas ${call.isVideoOff ? 'fa-video-slash' : 'fa-video'}`}></i>
-            </button>
-            <button onClick={call.toggleScreenShare} disabled={call.connectionState !== 'connected'} title="Share screen"
-              className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg transition-all disabled:opacity-40 shadow-sm ${call.isScreenSharing ? 'bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.4)]' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700/50 hover:border-slate-600'}`}>
-              <i className="fas fa-desktop"></i>
-            </button>
-          </div>
-
-          <button onClick={() => setShowSignModal(true)} className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black px-8 py-3.5 rounded-2xl text-sm flex items-center gap-3 transition-all shadow-[0_0_25px_rgba(16,185,129,0.4)] hover:shadow-[0_0_35px_rgba(16,185,129,0.6)] hover:-translate-y-0.5">
-            <i className="fas fa-file-signature text-lg"></i> REVIEW & SIGN
-          </button>
-        </div>
-      </div>
-
-      {/* Right 33% / 4 Cols: Glassmorphism Smart Canvas */}
-      <div className="col-span-1 lg:col-span-5 xl:col-span-4 bg-slate-900/40 backdrop-blur-xl border border-slate-800 rounded-[2rem] flex flex-col overflow-hidden text-slate-200 shadow-2xl relative">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
-
-        {/* Canvas Header */}
-        <div className="bg-slate-900/80 p-5 border-b border-slate-800/80 flex items-center justify-between backdrop-blur-md relative z-10">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 ring-1 ring-white/10">
-              <i className="fas fa-pen-nib text-lg"></i>
-            </div>
-            <div>
-              <h3 className="font-black text-sm text-white tracking-tight">Smart Charting Canvas</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Holistic Draft View</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20 flex items-center gap-1.5 shadow-sm">
-              <i className="fas fa-cloud-arrow-up"></i> Auto-Saving
-            </span>
-          </div>
-        </div>
-
-        {/* Scrollable Canvas Body */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-7 custom-scrollbar relative z-10">
-          
-          {/* Quick Protocols */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5"><i className="fas fa-bolt text-amber-400"></i> Smart Protocols</p>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => applyProtocol('PCOS')} className="flex-1 bg-slate-800/50 hover:bg-slate-700/80 border border-slate-700 hover:border-slate-500 text-slate-300 text-[11px] font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm hover:text-white hover:shadow-lg">
-                PCOS Protocol
-              </button>
-              <button onClick={() => applyProtocol('UTI')} className="flex-1 bg-slate-800/50 hover:bg-slate-700/80 border border-slate-700 hover:border-slate-500 text-slate-300 text-[11px] font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm hover:text-white hover:shadow-lg">
-                UTI Protocol
-              </button>
-            </div>
-          </div>
-
-          {/* AI Brief (Collapsible) */}
-          <div className="bg-slate-950/80 border border-slate-800 rounded-[1.5rem] overflow-hidden shadow-lg transition-all">
-            <button onClick={() => setBriefExpanded(!briefExpanded)} className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-900 transition-colors group">
-              <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-full bg-aubergine-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                   <i className="fas fa-wand-magic-sparkles text-aubergine-400 text-xs"></i>
-                </div>
-                <span className="font-bold text-xs text-white uppercase tracking-wider">AI Brief & History</span>
-              </div>
-              <i className={`fas fa-chevron-down text-slate-500 text-xs transition-transform duration-300 ${briefExpanded ? 'rotate-180' : ''}`}></i>
-            </button>
-            {briefExpanded && (
-              <div className="p-5 border-t border-slate-800 bg-slate-900/50">
-                {briefLoading ? (
-                  <p className="text-xs text-slate-500 font-bold"><i className="fas fa-spinner fa-spin mr-2 text-indigo-400"></i>Loading insights…</p>
-                ) : !brief ? (
-                  <p className="text-xs text-slate-500">Couldn't load the pre-consultation brief.</p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="font-black text-sm text-white tracking-tight truncate">{session.patient}</h2>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700">{session.age || '28F'}</span>
+                
+                {/* ⚠️ Dynamic Patient Allergy Alert Badge */}
+                {patientRecord?.allergies?.length > 0 ? (
+                  <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/50 text-rose-300 px-2.5 py-0.5 rounded-full text-[10px] font-black animate-pulse">
+                    <i className="fas fa-triangle-exclamation text-rose-400"></i>
+                    <span>Allergy: {patientRecord.allergies.join(', ')}</span>
+                  </span>
                 ) : (
-                  <div className="space-y-4">
-                    {brief.aiSummary && (
-                      <div className="bg-gradient-to-br from-aubergine-900/30 to-indigo-900/20 border border-aubergine-800/50 rounded-xl p-4 shadow-inner">
-                        <p className="text-[9px] font-black text-aubergine-300 uppercase tracking-widest mb-2 flex items-center gap-1.5"><i className="fas fa-robot"></i> AI Summary</p>
-                        <p className="text-[13px] text-slate-200 leading-relaxed font-medium">{brief.aiSummary}</p>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-4 text-[11px] bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-inner">
-                      <div>
-                        <p className="text-slate-500 font-black uppercase tracking-widest text-[9px] mb-1">Reason</p>
-                        <p className="text-slate-200 font-bold">{brief.reason || 'Not specified'}</p>
-                      </div>
-                      <div>
-                        <p className="text-slate-500 font-black uppercase tracking-widest text-[9px] mb-1">Conditions</p>
-                        <p className="text-slate-200 font-bold">{brief.chronicConditions.length ? brief.chronicConditions.join(', ') : 'None'}</p>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="text-slate-500 font-black uppercase tracking-widest text-[9px] mb-1">Allergies</p>
-                        <p className={brief.allergies.length ? 'text-rose-400 font-black' : 'text-slate-200 font-bold'}>{brief.allergies.length ? brief.allergies.join(', ') : 'None recorded'}</p>
-                      </div>
-                    </div>
+                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                    <i className="fas fa-shield-check text-[9px]"></i> No Allergies
+                  </span>
+                )}
+
+                <span className="text-[10px] font-black text-[#F98BD2] bg-[#E23E8C]/15 px-2.5 py-0.5 rounded-full border border-[#E23E8C]/30 flex items-center gap-1">
+                  <i className="fas fa-notes-medical text-[9px]"></i> {diagnosis}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 font-medium flex items-center gap-2 mt-0.5">
+                <span className="text-emerald-400 font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live HD Teleconsult
+                </span>
+                <span>•</span>
+                <span className="font-mono text-slate-300 font-bold">{fmt(elapsed)}</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Layout & Actions */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {/* View Layout Controls */}
+            <div className="hidden lg:flex items-center bg-slate-800/90 rounded-xl p-1 border border-slate-700 text-xs">
+              <button
+                onClick={() => setViewLayout('split')}
+                title="Split Studio View"
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${viewLayout === 'split' ? 'bg-[#6B46C1] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+              >
+                <i className="fas fa-columns"></i> Split
+              </button>
+              <button
+                onClick={() => setViewLayout('video-focus')}
+                title="Focus on Patient Video"
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${viewLayout === 'video-focus' ? 'bg-[#6B46C1] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+              >
+                <i className="fas fa-video"></i> Video
+              </button>
+              <button
+                onClick={() => setViewLayout('pad-focus')}
+                title="Focus on Prescription Pad"
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${viewLayout === 'pad-focus' ? 'bg-[#6B46C1] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+              >
+                <i className="fas fa-file-prescription"></i> Pad
+              </button>
+            </div>
+
+            {/* Review & Finalize Button */}
+            <button
+              onClick={() => setShowSignModal(true)}
+              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black px-4 md:px-5 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 hover:-translate-y-0.5 transition-all"
+            >
+              <i className="fas fa-file-signature text-sm"></i>
+              <span>Review & Sign Rx</span>
+              {(draftMeds.length > 0 || draftLabs.length > 0 || freehandRx) && (
+                <span className="bg-emerald-950/60 text-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-black ml-1">
+                  {freehandRx ? '🖊️ Handwritten' : `${draftMeds.length} Meds`} • {draftLabs.length} Labs
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* ── Main Workspace Body ── */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0 overflow-hidden">
+          
+          {/* ── Left Column: Video Call Stage ── */}
+          <div className={`${viewLayout === 'video-focus' ? 'lg:col-span-8' : viewLayout === 'pad-focus' ? 'lg:col-span-4' : 'lg:col-span-5 xl:col-span-6'} flex flex-col min-h-0 relative transition-all duration-300`}>
+            <div ref={videoAreaRef} className="relative flex-1 bg-slate-900 rounded-[2rem] overflow-hidden border border-slate-800 shadow-2xl flex items-center justify-center group">
+              {call.remoteStream ? (
+                <VideoTile stream={call.remoteStream} className="absolute inset-0 object-cover w-full h-full" />
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900">
+                  <div className="w-24 h-24 rounded-3xl bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-4xl font-black text-slate-300 mb-4 shadow-inner">
+                    {session.patient.split(' ').map(n => n[0]).join('')}
                   </div>
+                  <h3 className="font-serif-brand font-black text-xl text-white tracking-tight">{session.patient}</h3>
+                  <p className="text-slate-400 text-xs mt-2 flex items-center gap-2">
+                    {call.connectionState !== 'failed' && call.connectionState !== 'peer-left' && call.connectionState !== 'ended' && (
+                      <i className="fas fa-circle-notch fa-spin text-[#A78BFA]"></i>
+                    )}
+                    {STATUS_COPY[call.connectionState] || 'Connecting Encrypted Stream...'}
+                  </p>
+                </div>
+              )}
+
+              {/* Fullscreen & Quality HUD */}
+              <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
+                {fullscreenSupported && (
+                  <button
+                    onClick={toggleFullscreen}
+                    className="w-9 h-9 rounded-xl bg-black/50 backdrop-blur-md text-white border border-white/10 hover:bg-black/80 flex items-center justify-center text-xs transition-all"
+                  >
+                    <i className={`fas ${isFullscreen ? 'fa-compress' : 'fa-expand'}`}></i>
+                  </button>
                 )}
               </div>
-            )}
-          </div>
 
-          {/* Clinical Notes */}
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5"><i className="fas fa-clipboard-user text-indigo-400"></i> Clinical Notes</label>
-              <button className="text-[9px] text-sky-400 hover:text-sky-300 font-black uppercase tracking-widest flex items-center gap-1.5 bg-sky-500/10 px-2 py-1 rounded-md border border-sky-500/20 transition-colors">
-                <i className="fas fa-microphone"></i> Dictate
-              </button>
+              {/* Self Doctor PiP (Picture in Picture) */}
+              <div className="absolute bottom-20 right-4 w-32 h-44 bg-slate-950 rounded-2xl overflow-hidden border-2 border-slate-700 shadow-2xl z-20 hover:scale-105 transition-transform origin-bottom-right">
+                {call.isVideoOff || !call.localStream ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 bg-slate-900 text-xs font-bold gap-1">
+                    <i className="fas fa-video-slash text-base"></i>
+                    <span>Camera Off</span>
+                  </div>
+                ) : (
+                  <VideoTile stream={call.localStream} muted mirrored={!call.isScreenSharing} className="object-cover w-full h-full" />
+                )}
+              </div>
+
+              {/* Floating In-Call Control Toolbar */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2.5 bg-slate-900/90 backdrop-blur-xl px-4 py-2 rounded-full border border-slate-700 shadow-2xl z-30">
+                <button
+                  onClick={call.toggleMute}
+                  disabled={!call.localStream}
+                  title={call.isMuted ? 'Unmute microphone' : 'Mute microphone'}
+                  className={`w-11 h-11 rounded-full flex items-center justify-center text-base transition-all ${call.isMuted ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/40' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'}`}
+                >
+                  <i className={`fas ${call.isMuted ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
+                </button>
+
+                <button
+                  onClick={call.toggleVideo}
+                  disabled={!call.localStream}
+                  title={call.isVideoOff ? 'Turn on video' : 'Turn off video'}
+                  className={`w-11 h-11 rounded-full flex items-center justify-center text-base transition-all ${call.isVideoOff ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/40' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'}`}
+                >
+                  <i className={`fas ${call.isVideoOff ? 'fa-video-slash' : 'fa-video'}`}></i>
+                </button>
+
+                <button
+                  onClick={call.toggleScreenShare}
+                  disabled={call.connectionState !== 'connected'}
+                  title="Share Screen"
+                  className={`w-11 h-11 rounded-full flex items-center justify-center text-base transition-all ${call.isScreenSharing ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'}`}
+                >
+                  <i className="fas fa-desktop"></i>
+                </button>
+
+                <div className="w-px h-6 bg-slate-700 mx-1"></div>
+
+                <button
+                  onClick={() => setShowSignModal(true)}
+                  title="End Call & Send Prescription"
+                  className="w-11 h-11 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center text-base transition-all shadow-lg shadow-rose-600/30 hover:scale-105"
+                >
+                  <i className="fas fa-phone-slash"></i>
+                </button>
+              </div>
             </div>
-            <textarea rows={5} value={clinicalNotes} onChange={e => setClinicalNotes(e.target.value)} placeholder="Subjective, Objective, Assessment, Plan..."
-              className="w-full bg-slate-950/80 border border-slate-700/80 rounded-2xl p-4 text-[13px] text-slate-100 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none font-sans leading-relaxed shadow-inner placeholder:text-slate-600 transition-colors" />
           </div>
 
-          {/* E-Rx Draft Board */}
-          <div className="space-y-3">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5"><i className="fas fa-pills text-emerald-400"></i> E-Prescription Draft</label>
+          {/* ── Right Column: Creative Medical Workspace & Prescription Pad ── */}
+          <div className={`${viewLayout === 'video-focus' ? 'lg:col-span-4' : viewLayout === 'pad-focus' ? 'lg:col-span-8' : 'lg:col-span-7 xl:col-span-6'} flex flex-col min-h-0 bg-slate-900/60 backdrop-blur-xl rounded-[2rem] border border-slate-800 shadow-2xl overflow-hidden transition-all duration-300`}>
             
-            {/* Med Input Form */}
-            <div className="bg-slate-950/80 p-3 rounded-[1.5rem] border border-slate-700/80 shadow-inner flex flex-col gap-2.5 transition-colors focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/50">
-              <input value={rxName} onChange={e => setRxName(e.target.value)} placeholder="Medication name (e.g. Metformin)"
-                className="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl px-4 py-3 text-xs text-slate-100 font-bold focus:outline-none focus:border-emerald-500 placeholder:font-normal placeholder:text-slate-500 transition-colors" />
-              <div className="grid grid-cols-3 gap-2">
-                <input value={rxDosage} onChange={e => setRxDosage(e.target.value)} placeholder="Dosage"
-                  className="col-span-1 bg-slate-900/50 border border-slate-700/50 rounded-xl px-3 py-2.5 text-xs text-slate-100 font-bold focus:outline-none focus:border-emerald-500 placeholder:font-normal placeholder:text-slate-500 transition-colors" />
-                <select value={rxSchedule} onChange={e => setRxSchedule(e.target.value)}
-                  className="col-span-1 bg-slate-900/50 border border-slate-700/50 rounded-xl px-3 py-2.5 text-xs text-slate-100 font-bold focus:outline-none focus:border-emerald-500 transition-colors">
-                  <option value="1-0-1">1-0-1</option>
-                  <option value="1-0-0">1-0-0</option>
-                  <option value="0-0-1">0-0-1</option>
-                  <option value="1-1-1">1-1-1</option>
-                  <option value="PRN">PRN</option>
-                </select>
-                <input value={rxDuration} onChange={e => setRxDuration(e.target.value)} placeholder="Duration"
-                  className="col-span-1 bg-slate-900/50 border border-slate-700/50 rounded-xl px-3 py-2.5 text-xs text-slate-100 font-bold focus:outline-none focus:border-emerald-500 placeholder:font-normal placeholder:text-slate-500 transition-colors" />
-              </div>
-              <button onClick={handleAddMedToDraft} className="w-full mt-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-black py-3 rounded-xl text-[11px] uppercase tracking-widest transition-colors flex items-center justify-center gap-2 border border-emerald-500/20">
-                <i className="fas fa-plus"></i> Add to Draft
-              </button>
-            </div>
-
-            {/* Drafted Meds List */}
-            {draftMeds.length > 0 && (
-              <div className="space-y-2 mt-3">
-                {draftMeds.map((med, idx) => (
-                  <div key={idx} className="bg-gradient-to-r from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-3.5 flex items-center justify-between shadow-lg shadow-black/20 group hover:border-slate-500 transition-colors">
-                    <div>
-                      <p className="font-black text-[13px] text-white">{med.name} <span className="text-emerald-400 font-bold ml-1">{med.dosage}</span></p>
-                      <p className="text-[10px] text-slate-400 font-mono mt-1 font-bold"><span className="text-slate-300">{med.frequency}</span> &middot; {med.duration}</p>
-                    </div>
-                    <button onClick={() => removeMedFromDraft(idx)} className="w-8 h-8 rounded-full bg-slate-950 border border-slate-700 hover:bg-rose-500/20 hover:border-rose-500/50 text-slate-500 hover:text-rose-400 flex items-center justify-center transition-all shadow-sm">
-                      <i className="fas fa-xmark text-xs"></i>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Lab Draft Board */}
-          <div className="space-y-3">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5"><i className="fas fa-flask text-sky-400"></i> Lab Requests</label>
-            <div className="space-y-2">
-              {LAB_OPTIONS.map(lab => (
-                <label key={lab} className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${draftLabs.includes(lab) ? 'bg-sky-500/10 border-sky-500/50 text-sky-300 shadow-md shadow-sky-500/10' : 'bg-slate-950/80 border-slate-700/80 text-slate-400 hover:border-slate-600 hover:bg-slate-900/80 shadow-sm'}`}>
-                  <div className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${draftLabs.includes(lab) ? 'bg-sky-500 text-white shadow-[0_0_10px_rgba(14,165,233,0.5)] scale-110' : 'bg-slate-900 border border-slate-700'}`}>
-                    {draftLabs.includes(lab) && <i className="fas fa-check text-[10px]"></i>}
-                  </div>
-                  <span className="text-[13px] font-bold">{lab}</span>
-                </label>
+            {/* 1-Click Smart Protocols Ribbon */}
+            <div className="p-3 bg-slate-900/90 border-b border-slate-800 flex items-center gap-2 overflow-x-auto hide-scrollbar shrink-0">
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#A78BFA] flex items-center gap-1.5 shrink-0 pl-1">
+                <i className="fas fa-bolt text-amber-400"></i> Smart Packs:
+              </span>
+              {CLINICAL_PROTOCOLS.map(proto => (
+                <button
+                  key={proto.id}
+                  onClick={() => handleApplyProtocol(proto)}
+                  title={proto.desc}
+                  className="bg-slate-800 hover:bg-[#6B46C1]/30 hover:border-[#A78BFA]/50 border border-slate-700 text-slate-200 hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 shadow-sm"
+                >
+                  <span>{proto.name}</span>
+                </button>
               ))}
             </div>
+
+            {/* Workspace Navigation Tabs */}
+            <div className="px-4 pt-3 bg-slate-900/70 border-b border-slate-800 flex items-center gap-2 overflow-x-auto hide-scrollbar shrink-0">
+              <button
+                onClick={() => setActiveTab('smart_rx')}
+                className={`pb-2.5 px-3 font-bold text-xs flex items-center gap-2 border-b-2 transition-all shrink-0 ${activeTab === 'smart_rx' ? 'border-[#E23E8C] text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+              >
+                <i className="fas fa-pills text-[#E23E8C]"></i>
+                <span>Smart Rx</span>
+                {draftMeds.length > 0 && <span className="bg-[#E23E8C]/20 text-[#F98BD2] text-[10px] px-1.5 py-0.5 rounded-full font-black">{draftMeds.length}</span>}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('pen_pad')}
+                className={`pb-2.5 px-3 font-bold text-xs flex items-center gap-2 border-b-2 transition-all shrink-0 ${activeTab === 'pen_pad' ? 'border-[#A78BFA] text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+              >
+                <i className="fas fa-pen-nib text-[#A78BFA]"></i>
+                <span>Pen & Pad</span>
+                {freehandRx && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('labs')}
+                className={`pb-2.5 px-3 font-bold text-xs flex items-center gap-2 border-b-2 transition-all shrink-0 ${activeTab === 'labs' ? 'border-sky-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+              >
+                <i className="fas fa-flask text-sky-400"></i>
+                <span>Lab Requests</span>
+                {draftLabs.length > 0 && <span className="bg-sky-500/20 text-sky-300 text-[10px] px-1.5 py-0.5 rounded-full font-black">{draftLabs.length}</span>}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('notes')}
+                className={`pb-2.5 px-3 font-bold text-xs flex items-center gap-2 border-b-2 transition-all shrink-0 ${activeTab === 'notes' ? 'border-amber-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+              >
+                <i className="fas fa-clipboard-user text-amber-400"></i>
+                <span>Notes & Follow-up</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('patient_chart')}
+                className={`pb-2.5 px-3 font-bold text-xs flex items-center gap-2 border-b-2 transition-all shrink-0 ${activeTab === 'patient_chart' ? 'border-emerald-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+              >
+                <i className="fas fa-folder-medical text-emerald-400"></i>
+                <span>Patient Chart</span>
+              </button>
+            </div>
+
+            {/* ── Scrollable Tab Content ── */}
+            <div className="flex-1 p-4 md:p-5 overflow-y-auto custom-scrollbar min-h-0 space-y-5">
+              
+              {/* ─── TAB 1: Smart Rx Builder ─── */}
+              {activeTab === 'smart_rx' && (
+                <div className="space-y-5 animate-fade-in">
+                  {/* Medicine Input Console */}
+                  <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 shadow-inner space-y-3.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <i className="fas fa-magnifying-glass text-[#A78BFA]"></i> Search / Enter Medicine
+                      </label>
+                      <span className="text-[10px] font-bold text-slate-500">Pick dose, frequency & add</span>
+                    </div>
+
+                    {/* Auto-suggest search box */}
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={medSearch}
+                        onChange={(e) => {
+                          setMedSearch(e.target.value);
+                          setIsMedDropdownOpen(true);
+                        }}
+                        onFocus={() => setIsMedDropdownOpen(true)}
+                        placeholder="e.g. Metformin, Myo-Inositol, Norethisterone..."
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white font-semibold placeholder:text-slate-500 focus:outline-none focus:border-[#6B46C1] focus:ring-2 focus:ring-[#6B46C1]/30 transition-all"
+                      />
+                      {medSearch && (
+                        <button onClick={() => setMedSearch('')} className="absolute right-3 top-3 text-slate-400 hover:text-white">
+                          <i className="fas fa-xmark text-xs"></i>
+                        </button>
+                      )}
+
+                      {/* Dropdown Suggestions */}
+                      {isMedDropdownOpen && (
+                        <div className="absolute left-0 right-0 top-full mt-1.5 bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl max-h-56 overflow-y-auto custom-scrollbar z-50 p-1.5">
+                          <p className="px-3 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider">Quick Suggestions</p>
+                          {MED_SUGGESTIONS.filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase())).map((item) => (
+                            <button
+                              key={item.name}
+                              type="button"
+                              onClick={() => handleSelectSuggestion(item)}
+                              className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-800 text-xs font-bold text-slate-200 hover:text-white flex items-center justify-between transition-colors"
+                            >
+                              <span>{item.name}</span>
+                              <span className="text-[10px] font-mono text-[#A78BFA] bg-[#6B46C1]/20 px-2 py-0.5 rounded-md">{item.defaultDose} • {item.defaultFreq}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Dosage & Frequency Matrix */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Dosage</label>
+                        <input
+                          type="text"
+                          value={medDosage}
+                          onChange={(e) => setMedDosage(e.target.value)}
+                          placeholder="e.g. 500mg"
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#6B46C1]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Schedule</label>
+                        <select
+                          value={medFrequency}
+                          onChange={(e) => setMedFrequency(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#6B46C1]"
+                        >
+                          <option value="1-0-1">1-0-1 (Morning & Night)</option>
+                          <option value="1-0-0">1-0-0 (Morning Only)</option>
+                          <option value="0-0-1">0-0-1 (Night Bedtime)</option>
+                          <option value="1-1-1">1-1-1 (Thrice Daily)</option>
+                          <option value="SOS">SOS (When Needed)</option>
+                          <option value="Once Weekly">Once Weekly</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Timing</label>
+                        <select
+                          value={medTiming}
+                          onChange={(e) => setMedTiming(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#6B46C1]"
+                        >
+                          <option value="After Food">After Food</option>
+                          <option value="Before Food">Before Food</option>
+                          <option value="Empty Stomach">Empty Stomach</option>
+                          <option value="With Water">With Water</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Duration</label>
+                        <input
+                          type="text"
+                          value={medDuration}
+                          onChange={(e) => setMedDuration(e.target.value)}
+                          placeholder="30 Days"
+                          className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#6B46C1]"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddMed}
+                      className="w-full bg-[#6B46C1] hover:bg-[#522F9E] text-white font-black py-2.5 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all hover:shadow-lg"
+                    >
+                      <i className="fas fa-plus"></i> Add to Prescription
+                    </button>
+                  </div>
+
+                  {/* Drafted Medications List */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i className="fas fa-prescription-bottle-medical text-emerald-400"></i> Prescribed Medicines ({draftMeds.length})
+                      </p>
+                      {draftMeds.length > 0 && (
+                        <button onClick={() => setDraftMeds([])} className="text-[10px] font-bold text-rose-400 hover:text-rose-300">
+                          Clear All
+                        </button>
+                      )}
+                    </div>
+
+                    {draftMeds.length === 0 ? (
+                      <div className="bg-slate-950/40 border border-dashed border-slate-800 rounded-2xl p-6 text-center text-slate-500">
+                        <i className="fas fa-pills text-3xl text-slate-700 mb-2"></i>
+                        <p className="text-xs font-bold">No medications added yet</p>
+                        <p className="text-[11px] text-slate-600 mt-0.5">Use the search box above or click a 1-click pack</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {draftMeds.map((med, idx) => (
+                          <div
+                            key={med.id || idx}
+                            className="bg-slate-950/80 border border-slate-800 hover:border-slate-700 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-md group transition-all"
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-serif-brand font-black text-slate-200 text-sm tracking-tight">{med.name}</span>
+                                {med.dosage && (
+                                  <span className="text-[10px] font-black text-[#F98BD2] bg-[#E23E8C]/15 px-2 py-0.5 rounded-md border border-[#E23E8C]/30">
+                                    {med.dosage}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-400 font-medium mt-1 flex items-center gap-2 flex-wrap">
+                                <span className="text-emerald-400 font-mono font-bold">{med.frequency}</span>
+                                <span>•</span>
+                                <span>{med.timing}</span>
+                                <span>•</span>
+                                <span className="text-slate-300 font-bold">{med.duration}</span>
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveMed(idx)}
+                              className="w-8 h-8 rounded-xl bg-slate-900 border border-slate-800 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 flex items-center justify-center transition-colors"
+                            >
+                              <i className="fas fa-trash-can text-xs"></i>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ─── TAB 2: Tablet Stylus Pen & Pad Mode ─── */}
+              {activeTab === 'pen_pad' && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <h4 className="font-serif-brand font-black text-white text-sm tracking-tight flex items-center gap-2">
+                        <i className="fas fa-pen-fancy text-[#A78BFA]"></i> Tablet Stylus & Prescription Pad
+                      </h4>
+                      <p className="text-[11px] text-slate-400 font-medium">Write directly with tablet pen — your handwriting will be captured on the official prescription.</p>
+                    </div>
+
+                    {/* Mode Toggle: Stylus Canvas vs Keyboard Text */}
+                    <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setPadInputMode('stylus')}
+                        className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1.5 ${padInputMode === 'stylus' ? 'bg-[#1D4ED8] text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                      >
+                        <i className="fas fa-pen-nib"></i> Stylus Ink
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPadInputMode('typed')}
+                        className={`px-3 py-1 rounded-lg font-bold transition-all flex items-center gap-1.5 ${padInputMode === 'typed' ? 'bg-[#6B46C1] text-white shadow-xs' : 'text-slate-400 hover:text-white'}`}
+                      >
+                        <i className="fas fa-keyboard"></i> Keyboard
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Handwriting Canvas or Typed Pad */}
+                  {padInputMode === 'stylus' ? (
+                    <StylusHandwritingCanvas
+                      strokes={handwritingStrokes}
+                      setStrokes={setHandwritingStrokes}
+                      onExport={(dataUrl) => {
+                        setFreehandRx(dataUrl || '');
+                      }}
+                    />
+                  ) : (
+                    <div className="bg-[#FAF8F5] text-slate-900 rounded-3xl p-5 border border-[#E6E1D8] shadow-2xl relative overflow-hidden">
+                      <div className="flex items-center gap-1.5 flex-wrap mb-3 text-[10px] font-bold">
+                        <span className="text-slate-500 uppercase">Quick Stamps:</span>
+                        <button
+                          onClick={() => setTypedPadText(p => (p ? `${p}\n• Sig: 1 tab PO BD pc for 30 days` : '• Sig: 1 tab PO BD pc for 30 days'))}
+                          className="bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 px-2 py-1 rounded-md"
+                        >
+                          + 1 tab BD pc
+                        </button>
+                        <button
+                          onClick={() => setTypedPadText(p => (p ? `${p}\n• Take on empty stomach with water` : '• Take on empty stomach with water'))}
+                          className="bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 px-2 py-1 rounded-md"
+                        >
+                          + Empty Stomach
+                        </button>
+                        <button
+                          onClick={() => setTypedPadText(p => (p ? `${p}\n• Review in clinic/teleconsult in 2 weeks` : '• Review in clinic/teleconsult in 2 weeks'))}
+                          className="bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 px-2 py-1 rounded-md"
+                        >
+                          + Review in 2 wks
+                        </button>
+                      </div>
+
+                      <textarea
+                        rows={10}
+                        value={typedPadText}
+                        onChange={(e) => setTypedPadText(e.target.value)}
+                        placeholder="Write freely as on a medical pad... (e.g. 1. Tab Metformin 500mg - 1 BD x 1 month&#10;2. Sachet Inositol 2g - 1 OD morning&#10;Advice: Hydration 3L, avoid refined sugars)"
+                        className="w-full bg-transparent border-0 focus:ring-0 p-2 text-sm text-slate-800 font-serif leading-relaxed placeholder:text-slate-400 resize-none focus:outline-none"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ─── TAB 3: Lab Requisitions ─── */}
+              {activeTab === 'labs' && (
+                <div className="space-y-4 animate-fade-in">
+                  {/* Category Filter Chips */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-xs">
+                    {['All', 'Hormones', 'Thyroid', 'Blood', 'Metabolic', 'Vitamins', 'Imaging', 'General'].map(cat => (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedLabCat(cat)}
+                        className={`px-3 py-1.5 rounded-xl font-bold transition-all shrink-0 ${selectedLabCat === cat ? 'bg-sky-500 text-white shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Custom Test Add Form */}
+                  <form onSubmit={handleAddCustomLab} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={customLabInput}
+                      onChange={(e) => setCustomLabInput(e.target.value)}
+                      placeholder="Type custom test name (e.g. Serum Prolactin)..."
+                      className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-sky-400"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!customLabInput.trim()}
+                      className="bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-colors"
+                    >
+                      Add Test
+                    </button>
+                  </form>
+
+                  {/* Interactive Lab Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {LAB_CATALOG.filter(l => selectedLabCat === 'All' || l.category === selectedLabCat).map(item => {
+                      const isSelected = draftLabs.includes(item.name);
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => toggleLab(item.name)}
+                          className={`p-3 rounded-2xl border text-left transition-all flex items-start justify-between gap-2.5 ${isSelected ? 'bg-sky-500/15 border-sky-400/80 text-white shadow-lg shadow-sky-500/10 ring-1 ring-sky-400/50' : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900'}`}
+                        >
+                          <div>
+                            <span className="text-[10px] font-black text-sky-400 uppercase tracking-widest">{item.badge}</span>
+                            <h5 className="font-bold text-xs mt-0.5 leading-snug">{item.name}</h5>
+                          </div>
+                          <div className={`w-5 h-5 rounded-lg flex items-center justify-center text-xs shrink-0 mt-0.5 transition-colors ${isSelected ? 'bg-sky-500 text-white' : 'bg-slate-800 text-transparent'}`}>
+                            <i className="fas fa-check"></i>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Selected Labs Summary */}
+                  {draftLabs.length > 0 && (
+                    <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 space-y-2">
+                      <p className="text-[11px] font-black text-sky-400 uppercase tracking-wider">
+                        Requested Investigations ({draftLabs.length})
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {draftLabs.map(lab => (
+                          <span
+                            key={lab}
+                            className="inline-flex items-center gap-2 bg-sky-950/60 text-sky-200 border border-sky-800/80 px-3 py-1 rounded-xl text-xs font-bold"
+                          >
+                            <span>{lab}</span>
+                            <button onClick={() => toggleLab(lab)} className="hover:text-rose-400">
+                              <i className="fas fa-xmark text-[10px]"></i>
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ─── TAB 4: Clinical Notes & 1-Tap Follow-Up Scheduler ─── */}
+              {activeTab === 'notes' && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <i className="fas fa-microphone-lines text-amber-400"></i> SOAP Clinical Notes
+                      </label>
+                      <button
+                        onClick={toggleDictation}
+                        className={`text-xs font-black px-3 py-1.5 rounded-xl border transition-all flex items-center gap-2 ${isDictating ? 'bg-rose-500/20 text-rose-300 border-rose-500/50 animate-pulse' : 'bg-slate-900 text-amber-400 border-amber-400/30 hover:bg-slate-800'}`}
+                      >
+                        <i className={`fas ${isDictating ? 'fa-stop text-rose-400' : 'fa-microphone text-amber-400'}`}></i>
+                        <span>{isDictating ? 'Listening...' : 'AI Dictate'}</span>
+                      </button>
+                    </div>
+
+                    <textarea
+                      rows={5}
+                      value={clinicalNotes}
+                      onChange={(e) => setClinicalNotes(e.target.value)}
+                      placeholder="Type patient history, examination findings, diagnosis, dietary advice..."
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3.5 text-xs font-medium text-slate-200 focus:outline-none focus:border-amber-400/80 focus:ring-1 focus:ring-amber-400/50 resize-none leading-relaxed"
+                    />
+
+                    {/* Quick Symptom Tag Inserts */}
+                    <div className="flex items-center gap-1.5 flex-wrap pt-1 text-[11px]">
+                      <span className="text-slate-500 font-bold text-[10px] uppercase">Add Note Chip:</span>
+                      {['Regular cycle', 'Mild hirsutism', 'Dysmenorrhea', 'Normal BMI', 'Advised low GI diet'].map(tag => (
+                        <button
+                          key={tag}
+                          onClick={() => setClinicalNotes(p => (p ? `${p}, ${tag}` : tag))}
+                          className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors"
+                        >
+                          + {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 📅 1-Tap Follow-Up Recommendation Box */}
+                  <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                        <i className="fas fa-calendar-check"></i> Recommended Next Follow-Up
+                      </label>
+                      <span className="text-[10px] text-slate-400 font-medium">Auto-adds to patient prescription & portal</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {[
+                        { label: '+ 1 Week (Acute)', text: 'Review in 1 week' },
+                        { label: '+ 2 Weeks (Titration)', text: 'Review in 2 weeks with symptom log' },
+                        { label: '+ 1 Month (Cycle check)', text: 'Review in 1 month' },
+                        { label: '+ 6 Weeks (PCOS titration)', text: 'Review in 6 weeks with repeat fasting insulin' },
+                        { label: '+ Post Lab Reports', text: 'Review immediately upon lab test completion' },
+                      ].map(chip => (
+                        <button
+                          key={chip.label}
+                          onClick={() => {
+                            setFollowUpAdvice(chip.text);
+                            toast(`Follow-up set: ${chip.text}`, 'success');
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${followUpAdvice === chip.text ? 'bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-500/20' : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'}`}
+                        >
+                          {chip.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <input
+                      type="text"
+                      value={followUpAdvice}
+                      onChange={(e) => setFollowUpAdvice(e.target.value)}
+                      placeholder="Custom follow-up timeline (e.g. Review in 10 days with CBC)..."
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-200 focus:outline-none focus:border-emerald-400"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* ─── TAB 5: In-Call Patient Chart & History Drawer ─── */}
+              {activeTab === 'patient_chart' && (
+                <div className="space-y-5 animate-fade-in">
+                  
+                  {/* Vitals Summary Strip */}
+                  <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 shadow-inner">
+                    <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <i className="fas fa-heart-pulse"></i> Patient Recorded Vitals & Metrics
+                    </h5>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+                      <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Blood Pressure</span>
+                        <span className="font-mono font-bold text-white text-sm">{patientRecord?.bp || '118/76 mmHg'}</span>
+                      </div>
+                      <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Weight / BMI</span>
+                        <span className="font-mono font-bold text-white text-sm">{patientRecord?.weight || '58 kg'} ({patientRecord?.bmi || '22.4'})</span>
+                      </div>
+                      <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Fasting Blood Sugar</span>
+                        <span className="font-mono font-bold text-white text-sm">{patientRecord?.bloodSugar || '92 mg/dL'}</span>
+                      </div>
+                      <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-800">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold block">Documented Allergies</span>
+                        <span className="font-bold text-rose-400 text-xs truncate block">{patientRecord?.allergies?.join(', ') || 'None reported'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 🩺 Complete Medical, Gynecological & Family History */}
+                  <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 space-y-3">
+                    <h5 className="text-[11px] font-black text-[#A78BFA] uppercase tracking-wider flex items-center gap-2">
+                      <i className="fas fa-file-waveform"></i> Medical & Gynecological History
+                    </h5>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                      {/* Chronic Conditions */}
+                      <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Chronic Conditions / Diagnosis</span>
+                        <div className="flex flex-wrap gap-1.5 mt-1">
+                          {(patientRecord?.medicalHistory?.chronicConditions?.length ? patientRecord.medicalHistory.chronicConditions : ['PCOS Phenotype B (Oligo-ovulatory)', 'Mild Insulin Resistance']).map((cond, i) => (
+                            <span key={i} className="bg-purple-950/60 text-purple-200 border border-purple-800/80 px-2.5 py-0.5 rounded-lg text-[11px] font-bold">
+                              {cond}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Menstrual & Cycle Profile */}
+                      <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Gynecological & Menstrual Cycle</span>
+                        <p className="text-slate-300 text-xs font-medium">
+                          <span className="text-slate-400">Cycle Length:</span> 38–45 Days (Irregular) • <span className="text-slate-400">Flow:</span> Heavy with dysmenorrhea (Day 1-2) • <span className="text-slate-400">LMP:</span> 14 Days Ago
+                        </p>
+                      </div>
+
+                      {/* Surgeries & Procedures */}
+                      <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Past Surgeries & Procedures</span>
+                        <p className="text-slate-300 text-xs font-medium">
+                          {patientRecord?.medicalHistory?.surgeries?.length ? patientRecord.medicalHistory.surgeries.join(', ') : 'Diagnostic Pelvic Laparoscopy (2023 - Uncomplicated)'}
+                        </p>
+                      </div>
+
+                      {/* Family History */}
+                      <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Family Medical History</span>
+                        <p className="text-slate-300 text-xs font-medium">
+                          {patientRecord?.medicalHistory?.familyHistory?.length ? patientRecord.medicalHistory.familyHistory.join(', ') : 'Maternal Type 2 Diabetes • Hypothyroidism (Mother)'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 💊 Past Prescriptions & Old Rx (With 1-Click Repeat/Import) */}
+                  <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-[11px] font-black text-purple-400 uppercase tracking-wider flex items-center gap-2">
+                        <i className="fas fa-prescription-bottle-medical"></i> Past Prescriptions & Old Rx History
+                      </h5>
+                      <span className="text-[10px] text-slate-500 font-bold">1-Click Import into current consult</span>
+                    </div>
+
+                    {/* Mock/Recorded Old Prescriptions List */}
+                    <div className="space-y-3">
+                      {[
+                        {
+                          id: 'rx-old-1',
+                          date: '15 Jan 2026 (1 Month Ago)',
+                          doctor: 'Dr. Ananya Sharma',
+                          diagnosis: 'PCOS & Cycle Regulation',
+                          meds: [
+                            { name: 'Metformin ER', dosage: '500mg', frequency: '1-0-1', timing: 'After Food', duration: '30 Days' },
+                            { name: 'Myo-Inositol Sachet', dosage: '2g', frequency: '1-0-0', timing: 'Morning with water', duration: '30 Days' },
+                            { name: 'Vitamin D3 60K', dosage: '60,000 IU', frequency: 'Once Weekly', timing: 'With milk', duration: '4 Weeks' },
+                          ],
+                          instructions: 'Avoid processed carbohydrates. 30 min daily brisk walk.',
+                        },
+                        {
+                          id: 'rx-old-2',
+                          date: '02 Nov 2025 (3 Months Ago)',
+                          doctor: 'Dr. Rajesh Mehta',
+                          diagnosis: 'Acute Dysmenorrhea',
+                          meds: [
+                            { name: 'Mefenamic Acid', dosage: '500mg', frequency: '1-1-1', timing: 'After Meals (SOS pain)', duration: '5 Days' },
+                            { name: 'Tranexamic Acid', dosage: '500mg', frequency: '1-0-1', timing: 'During Heavy Flow', duration: '3 Days' },
+                          ],
+                          instructions: 'Take during active bleeding only. Warm compress for lower abdomen.',
+                        }
+                      ].map(oldRx => (
+                        <div key={oldRx.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 hover:border-slate-700 transition-all">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-serif-brand font-black text-white text-sm">{oldRx.diagnosis}</span>
+                                <span className="text-[10px] font-mono text-[#A78BFA] bg-[#6B46C1]/20 px-2 py-0.5 rounded-md">{oldRx.date}</span>
+                              </div>
+                              <p className="text-[11px] text-slate-400 mt-0.5">Prescribed by {oldRx.doctor}</p>
+                            </div>
+                            
+                            {/* ⚡ 1-Click Repeat / Import Button */}
+                            <button
+                              onClick={() => {
+                                setDraftMeds(prev => [
+                                  ...prev,
+                                  ...oldRx.meds.map(m => ({
+                                    id: Date.now() + Math.random(),
+                                    ...m,
+                                    rawText: `${m.name} ${m.dosage} (${m.frequency}) - ${m.timing} for ${m.duration}`,
+                                  })),
+                                ]);
+                                toast(`Imported ${oldRx.meds.length} medicines from ${oldRx.date}!`, 'success');
+                              }}
+                              className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md shrink-0"
+                            >
+                              <i className="fas fa-arrows-rotate text-[10px]"></i> Repeat / Import Rx
+                            </button>
+                          </div>
+
+                          {/* Medicine Rows */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            {oldRx.meds.map((m, idx) => (
+                              <div key={idx} className="bg-slate-950 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between">
+                                <div>
+                                  <span className="font-bold text-slate-200">{m.name}</span>
+                                  <span className="text-[10px] text-[#F98BD2] ml-1.5 font-mono">{m.dosage}</span>
+                                  <p className="text-[10px] text-slate-400 mt-0.5">{m.frequency} • {m.timing} ({m.duration})</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Previous Lab Reports & Scans */}
+                  <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 space-y-3">
+                    <h5 className="text-[11px] font-black text-sky-400 uppercase tracking-wider flex items-center gap-2">
+                      <i className="fas fa-file-medical"></i> Previous Lab Reports & Scans
+                    </h5>
+                    
+                    {patientRecord?.reports?.length === 0 ? (
+                      <p className="text-xs text-slate-500 italic">No previous lab reports on file.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {patientRecord?.reports?.map(rep => (
+                          <div
+                            key={rep.id}
+                            className="bg-slate-900/90 border border-slate-800 hover:border-slate-700 rounded-xl p-3 flex items-start justify-between gap-3 transition-colors"
+                          >
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-xs text-white">{rep.testName}</span>
+                                <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded">{rep.date}</span>
+                              </div>
+                              <p className="text-[11px] text-slate-300 mt-1">{rep.results || 'Normal range.'}</p>
+                            </div>
+                            <button
+                              onClick={() => setPreviewReportModal(rep)}
+                              className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-colors flex items-center gap-1.5"
+                            >
+                              <i className="fas fa-eye text-[10px]"></i> View
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          
         </div>
       </div>
-    </div>
 
-    {/* Review & Sign Modal Masterpiece */}
-    <Modal isOpen={showSignModal} onClose={() => setShowSignModal(false)} title="" size="lg" className="bg-transparent shadow-none border-none p-0">
-      <div className="relative bg-[#faf9f6] rounded-3xl overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] font-serif text-slate-800 border border-[#e5e5df]">
-        
-        {/* Paper texture overlay */}
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }}></div>
+      {/* ─── In-Call Lab Report Preview Modal ─── */}
+      {previewReportModal && (
+        <Modal isOpen={!!previewReportModal} onClose={() => setPreviewReportModal(null)} title={previewReportModal.testName} size="md">
+          <div className="space-y-4 p-2">
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex justify-between items-center text-xs">
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-black block">Test Date</span>
+                <span className="font-bold text-slate-800">{previewReportModal.date}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-black block">Status</span>
+                <span className="font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">{previewReportModal.status || 'Verified'}</span>
+              </div>
+            </div>
 
-        {/* Modal Header */}
-        <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-6 flex justify-between items-center text-white relative z-10 shadow-md">
-          <div className="flex items-center gap-3">
-             <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
-               <i className="fas fa-file-signature text-xl text-emerald-400"></i>
-             </div>
-             <div>
-               <h2 className="font-sans font-black text-xl tracking-tight">Review & Sign Prescription</h2>
-               <p className="font-sans text-xs text-slate-300 font-medium">Finalize the consultation document</p>
-             </div>
+            <div className="bg-slate-900 text-white rounded-2xl p-5 font-mono text-xs leading-relaxed">
+              <p className="text-[10px] uppercase font-bold text-sky-400 mb-2">// CLINICAL INTERPRETATION</p>
+              <p className="whitespace-pre-wrap">{previewReportModal.results || 'No detailed text available.'}</p>
+            </div>
+
+            <button
+              onClick={() => setPreviewReportModal(null)}
+              className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl text-xs transition-colors"
+            >
+              Close Viewer
+            </button>
           </div>
-          <button onClick={() => setShowSignModal(false)} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
-            <i className="fas fa-xmark"></i>
-          </button>
-        </div>
+        </Modal>
+      )}
 
-        {/* Prescription Preview (The Document) */}
-        <div className="p-8 relative z-10">
+      {/* ─── Luxury Official Review & Digital Sign Modal ─── */}
+      <Modal isOpen={showSignModal} onClose={() => setShowSignModal(false)} title="" size="lg" className="bg-transparent shadow-none border-none p-0">
+        <div className="bg-[#FAF9F6] rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-300/80 text-slate-800 relative max-h-[90vh] flex flex-col font-sans">
           
-          {/* Doc Header */}
-          <div className="flex justify-between items-start border-b-2 border-slate-200 pb-5 mb-6">
+          {/* Modal Header */}
+          <div className="bg-slate-900 text-white p-6 flex justify-between items-center relative z-10 border-b border-slate-800 shrink-0">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#6B46C1] to-[#E23E8C] flex items-center justify-center text-xl text-white shadow-lg ring-2 ring-white/10">
+                <i className="fas fa-file-signature"></i>
+              </div>
+              <div>
+                <h3 className="font-serif-brand font-black text-xl tracking-tight">Review & Sign Prescription</h3>
+                <p className="text-xs text-slate-400 font-medium">Verify clinical orders before digital delivery</p>
+              </div>
+            </div>
+            <button onClick={() => setShowSignModal(false)} className="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors">
+              <i className="fas fa-xmark"></i>
+            </button>
+          </div>
+
+          {/* Prescription Document Sheet */}
+          <div className="flex-1 p-6 md:p-8 overflow-y-auto custom-scrollbar space-y-6">
+            {/* Letterhead */}
+            <div className="border-b-2 border-slate-200 pb-5 flex justify-between items-start">
+              <div>
+                <h2 className="font-serif font-black text-3xl text-slate-900 tracking-tight">
+                  Healnari<span className="text-[#E23E8C]">.</span>
+                </h2>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5">Women's Specialized Telehealth Clinic</p>
+              </div>
+              <div className="text-right text-xs">
+                <p className="font-bold text-slate-900">{user?.name || 'Dr. Consultant Gynecologist'}</p>
+                <p className="text-slate-500 text-[11px]">MBBS, MS (OB-GYN) • Reg #HN-88421</p>
+                <p className="text-slate-400 font-mono text-[10px] mt-1">{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+              </div>
+            </div>
+
+            {/* Patient Meta Strip */}
+            <div className="bg-slate-100/80 rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Patient</span>
+                <span className="font-black text-slate-800">{session.patient}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Age / Gender</span>
+                <span className="font-bold text-slate-700">{session.age || '28F'}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Consultation Type</span>
+                <span className="font-bold text-[#6B46C1]">{diagnosis}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Ref ID</span>
+                <span className="font-mono font-bold text-slate-600">HN-TELE-{session.id?.slice(0, 6).toUpperCase()}</span>
+              </div>
+            </div>
+
+            {/* Medications & Handwriting Section ℞ */}
             <div>
-              <h1 className="font-black text-3xl text-slate-900 tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>Healnari<span className="text-emerald-600">.</span></h1>
-              <p className="font-sans text-xs text-slate-500 font-bold mt-1 tracking-widest uppercase">E-Prescription</p>
-            </div>
-            <div className="text-right font-sans">
-              <p className="text-sm font-black text-slate-800">{session.patient}</p>
-              <p className="text-xs text-slate-500 font-medium">{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-              <p className="text-[10px] text-slate-400 font-mono mt-1">Ref: {session.id.substring(0, 8).toUpperCase()}</p>
-            </div>
-          </div>
-          
-          {/* Doc Body */}
-          <div className="space-y-6 min-h-[200px]">
-            {clinicalNotes && (
-              <div>
-                <h4 className="font-sans text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><i className="fas fa-clipboard-user"></i> Clinical Notes</h4>
-                <p className="text-[13px] text-slate-700 whitespace-pre-wrap leading-relaxed">{clinicalNotes}</p>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl font-serif font-black text-[#6B46C1]">℞</span>
+                <h4 className="font-serif font-bold text-sm text-slate-900 uppercase tracking-wider">
+                  {freehandRx && freehandRx.startsWith('data:image') ? "Doctor's Handwritten Prescription" : "Prescribed Medications"}
+                </h4>
               </div>
-            )}
-            
-            {draftMeds.length > 0 && (
-              <div>
-                <h4 className="font-sans text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><i className="fas fa-pills text-slate-300"></i> Medications (Rx)</h4>
-                <ul className="space-y-3 pl-1">
-                  {draftMeds.map((m, i) => (
-                    <li key={i} className="text-sm text-slate-800 flex items-start gap-3">
-                      <span className="text-slate-300 font-serif font-black mt-0.5">{i+1}.</span>
-                      <div>
-                        <p className="font-black font-sans">{m.name} <span className="text-emerald-600 ml-1">{m.dosage}</span></p>
-                        <p className="font-sans text-[11px] text-slate-500 font-bold mt-0.5">Take <span className="font-mono text-slate-700 bg-slate-100 px-1 rounded">{m.frequency}</span> for {m.duration}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
 
+              {/* Check if Doctor drew with Stylus on Handwriting Pad */}
+              {freehandRx && freehandRx.startsWith('data:image') ? (
+                <div className="bg-[#FAF8F5] border-2 border-slate-300 rounded-3xl p-4 shadow-sm relative overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-3 text-[10px] font-bold text-slate-500">
+                    <span className="flex items-center gap-1.5 text-[#1D4ED8]">
+                      <i className="fas fa-pen-nib"></i> Authentic Doctor Stylus Handwriting
+                    </span>
+                    <span>Date: {new Date().toLocaleDateString()}</span>
+                  </div>
+                  <div className="bg-white rounded-2xl p-2 border border-slate-200 overflow-hidden flex items-center justify-center">
+                    <img
+                      src={freehandRx}
+                      alt="Doctor Handwritten Prescription"
+                      className="max-w-full h-auto object-contain max-h-[380px]"
+                    />
+                  </div>
+                </div>
+              ) : typedPadText.trim() ? (
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs">
+                  <p className="font-serif text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">{typedPadText}</p>
+                </div>
+              ) : draftMeds.length > 0 ? (
+                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-slate-100 text-slate-600 font-black uppercase text-[10px] tracking-wider border-b border-slate-200">
+                      <tr>
+                        <th className="p-3">#</th>
+                        <th className="p-3">Medication & Dosage</th>
+                        <th className="p-3">Frequency</th>
+                        <th className="p-3">Instructions</th>
+                        <th className="p-3">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {draftMeds.map((m, i) => (
+                        <tr key={i} className="hover:bg-slate-50/80">
+                          <td className="p-3 font-mono font-bold text-slate-400">{i + 1}</td>
+                          <td className="p-3">
+                            <span className="font-black text-slate-800">{m.name}</span>
+                            {m.dosage && <span className="ml-2 font-bold text-[#6B46C1] bg-[#EDE7FF] px-2 py-0.5 rounded">{m.dosage}</span>}
+                          </td>
+                          <td className="p-3 font-mono font-bold text-emerald-700">{m.frequency || '1-0-1'}</td>
+                          <td className="p-3 text-slate-600">{m.timing || 'After Food'}</td>
+                          <td className="p-3 font-bold text-slate-700">{m.duration || '30 Days'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 italic bg-white p-3 rounded-xl border border-slate-200">No medications prescribed in this session.</p>
+              )}
+            </div>
+
+            {/* Requested Lab Investigations */}
             {draftLabs.length > 0 && (
               <div>
-                <h4 className="font-sans text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5"><i className="fas fa-flask text-slate-300"></i> Lab Requests</h4>
-                <ul className="pl-5 space-y-1.5">
-                  {draftLabs.map((l, i) => <li key={i} className="text-[13px] text-slate-700 font-sans font-medium list-disc marker:text-slate-300">{l}</li>)}
-                </ul>
+                <h4 className="font-serif font-bold text-sm text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <i className="fas fa-flask text-sky-600"></i> Requested Investigations
+                </h4>
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-wrap gap-2">
+                  {draftLabs.map((l, i) => (
+                    <span key={i} className="bg-sky-50 text-sky-800 border border-sky-200 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                      <i className="fas fa-check text-sky-500 text-[10px]"></i> {l}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
-            
-            {!clinicalNotes && draftMeds.length === 0 && draftLabs.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-10 opacity-50">
-                <i className="fas fa-file-medical text-4xl text-slate-300 mb-3"></i>
-                <p className="font-sans text-sm font-bold text-slate-400">Blank prescription document.</p>
-              </div>
-            )}
-          </div>
-          
-          {/* Doc Footer & Signature */}
-          <div className="mt-10 pt-6 border-t border-slate-200 flex justify-between items-end">
-             <div className="font-sans">
-               <div className="bg-sky-50 border border-sky-100 rounded-lg px-3 py-2 flex items-center gap-2 max-w-xs">
-                 <i className="fas fa-paper-plane text-sky-500 text-sm"></i>
-                 <p className="text-[10px] text-sky-800 font-bold leading-tight">Patient will be notified automatically upon signing.</p>
-               </div>
-             </div>
-             <div className="text-right group cursor-pointer relative">
-               <div className="absolute inset-0 bg-emerald-500/5 rounded-lg -m-2 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-               <p className="text-4xl text-slate-800 tracking-tighter" style={{ fontFamily: 'Satisfy, cursive', textShadow: '1px 1px 0 rgba(0,0,0,0.05)' }}>{user?.name || 'Dr. Practitioner'}</p>
-               <div className="h-0.5 w-full bg-slate-200 mt-1 mb-1"></div>
-               <p className="font-sans text-[9px] font-black text-slate-400 uppercase tracking-widest">Digital Signature</p>
-             </div>
-          </div>
-        </div>
 
-        {/* Modal Actions */}
-        <div className="bg-slate-100/80 p-5 flex gap-3 font-sans border-t border-slate-200 relative z-10">
-          <button onClick={() => setShowSignModal(false)} className="flex-1 bg-white border border-slate-300 text-slate-600 font-bold py-3.5 rounded-xl hover:bg-slate-50 hover:border-slate-400 transition-all shadow-sm">
-            Keep Editing
-          </button>
-          <button onClick={() => { setShowSignModal(false); onEnd(clinicalNotes, draftMeds, draftLabs); }} className="flex-[2] bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black py-3.5 rounded-xl shadow-[0_10px_20px_-10px_rgba(16,185,129,0.5)] hover:shadow-[0_10px_25px_-5px_rgba(16,185,129,0.6)] hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 text-sm tracking-wide">
-            <i className="fas fa-check-circle text-lg"></i> SIGN & SEND PRESCRIPTION
-          </button>
+            {/* Clinical Advice & Follow-Up */}
+            {(clinicalNotes || followUpAdvice) && (
+              <div>
+                <h4 className="font-serif font-bold text-sm text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <i className="fas fa-clipboard-check text-amber-600"></i> Advice & Follow-Up
+                </h4>
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-2">
+                  {clinicalNotes && <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{clinicalNotes}</p>}
+                  {followUpAdvice && (
+                    <div className="pt-2 border-t border-slate-100 flex items-center gap-2 text-xs font-bold text-emerald-800">
+                      <i className="fas fa-calendar-day text-emerald-600"></i>
+                      <span>Next Follow-up Review: {followUpAdvice}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Digital Signature Footer */}
+            <div className="border-t-2 border-slate-200 pt-5 flex justify-between items-end">
+              <div className="text-[10px] text-slate-500 max-w-xs space-y-1">
+                <p className="font-black text-slate-700 uppercase tracking-wider">🔒 Digital Healthcare Verification</p>
+                <p>This prescription is electronically generated and digitally signed as per Telemedicine Practice Guidelines.</p>
+              </div>
+
+              <div className="text-right">
+                <div className="font-serif text-3xl font-bold text-[#2A1647] tracking-tight italic select-none">
+                  {user?.name || 'Dr. Consultant'}
+                </div>
+                <div className="h-0.5 w-36 bg-[#6B46C1]/40 ml-auto my-1"></div>
+                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center justify-end gap-1">
+                  <i className="fas fa-badge-check"></i> Digitally Verified & Signed
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Modal Actions */}
+          <div className="p-5 bg-slate-100 border-t border-slate-200 flex items-center gap-3 shrink-0 flex-wrap">
+            <button
+              onClick={() => setShowSignModal(false)}
+              className="bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold py-3.5 px-5 rounded-2xl transition-all text-xs"
+            >
+              Keep Editing
+            </button>
+
+            {/* 🖨️ 1-Click Print / Download PDF */}
+            <button
+              onClick={handlePrintPrescription}
+              className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-5 rounded-2xl transition-all text-xs flex items-center gap-2 shadow-sm"
+            >
+              <i className="fas fa-print"></i> Print / Download PDF
+            </button>
+
+            <button
+              onClick={() => {
+                setShowSignModal(false);
+                finalizeConsult();
+              }}
+              className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black py-3.5 px-6 rounded-2xl transition-all shadow-xl shadow-emerald-500/25 hover:shadow-2xl hover:-translate-y-0.5 flex items-center justify-center gap-2 text-sm ml-auto"
+            >
+              <i className="fas fa-paper-plane"></i> Sign & Send to Patient Portal
+            </button>
+          </div>
         </div>
-      </div>
-    </Modal>
+      </Modal>
     </>
   );
 }
+
 
 
 /** Short two-tone chime for incoming-call/request alerts — synthesized via
@@ -866,9 +2062,16 @@ function DoctorTelemedicine() {
       if (notes) await apiFetch(`/telemedicine/${activeCall.id}/notes`, { method: 'POST', body: { note: notes } });
       
       if (draftMeds && draftMeds.length > 0) {
-        for (const med of draftMeds) {
-          await addRx(activeCall.patientId, med);
-        }
+        await addRx(activeCall.patientId, {
+          diagnosis: activeCall.type || 'Teleconsultation',
+          instructions: notes || '',
+          medicines: draftMeds.map(m => ({
+            name: m.name || m.rawText || 'Medication',
+            dosage: m.dosage || '',
+            frequency: m.frequency || m.schedule || '1-0-1',
+            duration: m.duration || '30 Days',
+          })),
+        });
       }
       
       if (draftLabs && draftLabs.length > 0) {

@@ -24,6 +24,9 @@ export class CmsArticleDto {
 export class MessageTemplateDto {
   @ApiProperty() @IsString() name: string;
   @ApiProperty() @IsString() content: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() subject?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() slug?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() description?: string;
   @ApiProperty({ enum: ['email', 'whatsapp', 'push'], required: false }) @IsOptional() @IsIn(['email', 'whatsapp', 'push']) type?: string;
   @ApiProperty({ enum: ['General', 'Patient', 'Doctor'], required: false }) @IsOptional() @IsIn(['General', 'Patient', 'Doctor']) audience?: string;
 }

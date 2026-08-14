@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+import { SupabaseService } from '@/core/supabase/supabase.service';
 
 // AUDIT_REPORT.md SEC-7 — logs shouldn't carry full patient/doctor email
 // addresses in plaintext; keep enough to correlate a support ticket
@@ -24,20 +25,30 @@ export interface MailPayload {
   attachments?: MailAttachment[];
 }
 
-/** Real SMTP email delivery, configured via env vars — same
- * configure-or-gracefully-no-op shape as PushSubscriptionsService's VAPID
- * check. Nothing in this codebase sent real email before this; until
- * SMTP_HOST/SMTP_USER/SMTP_PASS are set, sendMail() logs a warning and
- * returns false instead of throwing, so callers (account creation, etc.)
- * can keep working and surface "email not configured" rather than fail
- * the whole request over a missing mail server. */
+export interface TemplatedMailOptions {
+  to: string;
+  slug: string;
+  defaultSubject: string;
+  defaultHtml: string;
+  variables?: Record<string, string | number | undefined | null>;
+  attachments?: MailAttachment[];
+}
+
+interface CachedTemplate {
+  subject?: string;
+  content: string;
+  fetchedAt: number;
+}
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter | null = null;
   private readonly from: string;
+  private templateCache = new Map<string, CachedTemplate>();
+  private readonly CACHE_TTL_MS = 60 * 1000; // 1 minute in-memory cache
 
-  constructor() {
+  constructor(private readonly supabase: SupabaseService) {
     this.from = process.env.EMAIL_FROM || 'HealNari <no-reply@healnari.app>';
     const host = process.env.SMTP_HOST;
     const user = process.env.SMTP_USER;
@@ -49,9 +60,6 @@ export class EmailService {
         port: Number(process.env.SMTP_PORT || 587),
         secure: process.env.SMTP_SECURE === 'true',
         auth: { user, pass },
-        // Without pooling, every sendMail() pays a fresh SMTP connection +
-        // TLS handshake — real latency on request paths that await this
-        // directly (e.g. lead/consultation approval emails).
         pool: true,
         maxConnections: 5,
       });
@@ -60,6 +68,81 @@ export class EmailService {
 
   get isConfigured() {
     return !!this.transporter;
+  }
+
+  /**
+   * Invalidate template cache (called when admin updates a template).
+   */
+  invalidateTemplateCache(slug?: string) {
+    if (slug) {
+      this.templateCache.delete(slug);
+    } else {
+      this.templateCache.clear();
+    }
+  }
+
+  /**
+   * Sends an email using a database-managed template if available in Supabase,
+   * otherwise falls back to the default subject & HTML provided in code.
+   * Interpolates {{variableName}} placeholders.
+   */
+  async sendTemplatedMail(options: TemplatedMailOptions): Promise<boolean> {
+    const { to, slug, defaultSubject, defaultHtml, variables = {}, attachments } = options;
+
+    let templateSubject = defaultSubject;
+    let templateHtml = defaultHtml;
+
+    try {
+      // 1. Check in-memory cache
+      const cached = this.templateCache.get(slug);
+      const now = Date.now();
+
+      if (cached && now - cached.fetchedAt < this.CACHE_TTL_MS) {
+        if (cached.subject) templateSubject = cached.subject;
+        if (cached.content) templateHtml = cached.content;
+      } else {
+        // 2. Fetch from Supabase message_templates
+        const { data: dbTemplate, error } = await this.supabase.admin
+          .from('message_templates')
+          .select('subject, content')
+          .eq('slug', slug)
+          .maybeSingle();
+
+        if (!error && dbTemplate?.content) {
+          if (dbTemplate.subject) templateSubject = dbTemplate.subject;
+          templateHtml = dbTemplate.content;
+          this.templateCache.set(slug, {
+            subject: dbTemplate.subject,
+            content: dbTemplate.content,
+            fetchedAt: now,
+          });
+        }
+      }
+    } catch (err) {
+      this.logger.warn(`Could not load template '${slug}' from database, using code default: ${err.message}`);
+    }
+
+    // 3. Interpolate variables into subject and HTML
+    const interpolatedSubject = this.interpolate(templateSubject, variables);
+    const interpolatedHtml = this.interpolate(templateHtml, variables);
+
+    return this.sendMail({
+      to,
+      subject: interpolatedSubject,
+      html: interpolatedHtml,
+      attachments,
+    });
+  }
+
+  /**
+   * Replaces all {{key}} placeholders in text with the provided variable values.
+   */
+  private interpolate(text: string, variables: Record<string, string | number | undefined | null>): string {
+    if (!text) return '';
+    return text.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, key) => {
+      const val = variables[key];
+      return val !== undefined && val !== null ? String(val) : match;
+    });
   }
 
   async sendMail(payload: MailPayload): Promise<boolean> {

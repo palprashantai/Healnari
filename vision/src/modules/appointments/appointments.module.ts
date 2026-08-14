@@ -4,9 +4,10 @@ import { AppointmentsController } from '@/modules/appointments/controllers/appoi
 import { SupabaseModule } from '@/core/supabase/supabase.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { AiModule } from '@/modules/ai/ai.module';
+import { EmailModule } from '@/core/email/email.module';
 
 @Module({
-  imports: [SupabaseModule, NotificationsModule, AiModule],
+  imports: [SupabaseModule, NotificationsModule, AiModule, EmailModule],
   controllers: [AppointmentsController],
   providers: [AppointmentsService],
 })

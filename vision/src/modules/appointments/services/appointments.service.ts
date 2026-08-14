@@ -8,6 +8,7 @@ import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 import { CreateAppointmentDto } from '@/modules/appointments/controllers/appointments.controller';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { AiService } from '@/modules/ai/services/ai.service';
+import { EmailService } from '@/core/email/email.service';
 
 @Injectable()
 export class AppointmentsService {
@@ -17,6 +18,7 @@ export class AppointmentsService {
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
     private readonly ai: AiService,
+    private readonly email: EmailService,
   ) {}
 
   private appointmentWhen(a: Appointment) {
@@ -218,6 +220,39 @@ export class AppointmentsService {
         message: `Dr. ${appointment.doctorName} confirmed your ${label} on ${when}.`,
         data: { appointmentId: appointment.id },
       });
+
+      // Send confirmation email to patient via database-managed template
+      const { data: patientProfile } = await this.supabase.admin.from('profiles').select('email, full_name').eq('id', appointment.patient_id).single();
+      if (patientProfile?.email) {
+        this.email.sendTemplatedMail({
+          to: patientProfile.email,
+          slug: 'appointment_confirmed',
+          defaultSubject: `✅ Confirmed: Consultation with Dr. {{doctorName}} on {{when}}`,
+          defaultHtml: `
+            <div style="font-family:sans-serif;max-width:550px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;">
+              <h2 style="color:#10b981;margin-top:0;">✅ Appointment Confirmed</h2>
+              <p>Hello {{patientName}},</p>
+              <p>Your {{label}} with <strong>Dr. {{doctorName}}</strong> has been confirmed.</p>
+              <div style="background:#f8fafc;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin:16px 0;">
+                <p style="margin:4px 0;font-size:13px;color:#64748b;">Consultation Date & Time:</p>
+                <h3 style="margin:4px 0;color:#0f172a;">{{when}}</h3>
+                <p style="margin:8px 0 0 0;font-size:12px;color:#64748b;">Type: <strong>{{label}}</strong></p>
+              </div>
+              <div style="margin:20px 0;">
+                <a href="{{dashboardUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">View Appointment Details</a>
+              </div>
+              <p style="color:#94a3b8;font-size:11px;">Please log in 5 minutes early to test your camera and audio.</p>
+            </div>
+          `,
+          variables: {
+            patientName: patientProfile.full_name || 'Patient',
+            doctorName: appointment.doctorName,
+            when,
+            label,
+            dashboardUrl: 'https://healnari.vercel.app/patient/appointments',
+          },
+        }).catch(() => {});
+      }
     } else if (isDoctorActing && appointment.status === AppointmentStatus.CANCELLED) {
       await this.notifications.create(appointment.patient_id, {
         type: 'appointment_cancelled',
@@ -226,6 +261,33 @@ export class AppointmentsService {
         data: { appointmentId: appointment.id },
       });
       await this.initiateRefundIfPaid(appointment);
+
+      const { data: patientProfile } = await this.supabase.admin.from('profiles').select('email, full_name').eq('id', appointment.patient_id).single();
+      if (patientProfile?.email) {
+        this.email.sendTemplatedMail({
+          to: patientProfile.email,
+          slug: 'appointment_cancelled',
+          defaultSubject: `Cancelled: Consultation on {{when}}`,
+          defaultHtml: `
+            <div style="font-family:sans-serif;max-width:550px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;">
+              <h2 style="color:#e11d48;margin-top:0;">Appointment Cancelled</h2>
+              <p>Hello {{patientName}},</p>
+              <p>Your {{label}} scheduled for <strong>{{when}}</strong> with Dr. {{doctorName}} has been cancelled.</p>
+              <p style="font-size:13px;color:#475569;">If you had already paid for this session, a refund has been initiated to your original payment method.</p>
+              <div style="margin:20px 0;">
+                <a href="{{dashboardUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">Book Another Slot</a>
+              </div>
+            </div>
+          `,
+          variables: {
+            patientName: patientProfile.full_name || 'Patient',
+            doctorName: appointment.doctorName,
+            when,
+            label,
+            dashboardUrl: 'https://healnari.vercel.app/patient/appointments',
+          },
+        }).catch(() => {});
+      }
     } else if (!isDoctorActing && appointment.status === AppointmentStatus.CANCELLED) {
       await this.notifications.create(appointment.doctor_id, {
         type: 'appointment_cancelled',
@@ -440,7 +502,7 @@ export class AppointmentsService {
    * (reminder_sent_at is the idempotency guard — without it every run would
    * re-notify the same patient). Reminders only, no attendance prediction —
    * there's no historical no-show dataset in this schema to train on. */
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_5_MINUTES, { name: 'appointments_reminder_30min' })
   async sendUpcomingReminders() {
     const now = new Date();
     const windowEnd = new Date(now.getTime() + 30 * 60 * 1000);
@@ -501,7 +563,7 @@ export class AppointmentsService {
    * checking the app themselves. delay_notified_at is a one-shot guard, not
    * a repeating alarm: it fires once per appointment, not every 5 minutes
    * for as long as the delay persists. */
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_5_MINUTES, { name: 'appointments_queue_delay' })
   async sendDelayNotifications() {
     const today = new Date().toISOString().slice(0, 10);
     const { data: todaysActive, error } = await this.supabase.admin
@@ -570,7 +632,7 @@ export class AppointmentsService {
     if (claimed?.length) this.logger.log(`Sent ${claimed.length} delay notification(s).`);
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_5_MINUTES, { name: 'appointments_unpaid_release' })
   async releaseUnpaidSlots() {
     // Free any slot where the payment wasn't completed within 5 minutes
     const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();

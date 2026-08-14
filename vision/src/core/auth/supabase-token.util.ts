@@ -30,7 +30,11 @@ export async function resolveSupabaseToken(anonClient: SupabaseClient, token: st
     }
   }
 
-  const { data: userResponse, error } = await anonClient.auth.getUser(token);
-  if (error || !userResponse?.user) return null;
-  return { id: userResponse.user.id, email: userResponse.user.email };
+  try {
+    const { data: userResponse, error } = await anonClient.auth.getUser(token);
+    if (error || !userResponse?.user) return null;
+    return { id: userResponse.user.id, email: userResponse.user.email };
+  } catch {
+    return null;
+  }
 }

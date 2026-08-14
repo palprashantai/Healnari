@@ -33,6 +33,7 @@ const NAV_ITEMS = [
   { name: 'CMS & Content',      icon: 'fa-pen-to-square',     path: '/admin-dashboard/cms',          end: false, color: '#d946ef' },
   { name: 'Reports',            icon: 'fa-file-contract',     path: '/admin-dashboard/reports',      end: false, color: '#6366f1' },
   { name: 'Leads',              icon: 'fa-address-book',      path: '/admin-dashboard/leads',        end: false, color: '#14b8a6' },
+  { name: 'Cron & Automations', icon: 'fa-clock-rotate-left', path: '/admin-dashboard/crons',        end: false, color: '#10b981' },
 ];
 
 /* ─── Notification Panel ─────────────────────── */
