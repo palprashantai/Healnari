@@ -5,7 +5,8 @@ import { ClinicDataProvider } from './context/ClinicDataContext.jsx';
 import { NotificationsProvider } from './context/NotificationsContext.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 import { IncomingCallModal } from './components/IncomingCallModal.jsx';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SpeedInsights } from '@vercel/speed-insights/react';
+import { Analytics } from '@vercel/analytics/react';
 
 const queryClient = new QueryClient();
 
@@ -206,6 +207,8 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
             <CookieBanner />
+            <SpeedInsights />
+            <Analytics />
           </Suspense>
         </Router>
       </NotificationsProvider>
