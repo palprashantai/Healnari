@@ -87,7 +87,7 @@ function Doctors({ onSelectDoctor }) {
         <span className="text-xs font-semibold text-aubergine-700 uppercase tracking-wider bg-aubergine-50 px-3.5 py-1 rounded-full border border-aubergine-100">
           Our Specialist Team
         </span>
-        <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 leading-tight font-display">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-slate-900 leading-tight font-display">
           Care Led by Experienced Specialists
         </h2>
         <p className="text-slate-600 text-sm md:text-base font-normal leading-relaxed">

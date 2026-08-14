@@ -46,7 +46,7 @@ function NewsletterSignup() {
             <span className="inline-flex items-center gap-1.5 bg-aubergine-700/60 border border-aubergine-500 text-aubergine-100 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
               <i className="fas fa-envelope-open-text text-aubergine-200"></i> Free Health Newsletter
             </span>
-            <h2 className="text-3xl md:text-4xl font-black leading-tight font-display">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black leading-tight font-display">
               Get expert women's health insights — delivered weekly
             </h2>
             <p className="text-aubergine-100 text-sm leading-relaxed">

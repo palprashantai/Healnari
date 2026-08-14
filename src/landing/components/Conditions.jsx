@@ -21,7 +21,7 @@ function Conditions() {
         <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider bg-emerald-50 px-3.5 py-1 rounded-full border border-emerald-100">
           Clinical Focus
         </span>
-        <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 leading-tight font-display">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-slate-900 leading-tight font-display">
           Hormonal &amp; Metabolic Conditions We Treat
         </h2>
         <p className="text-slate-600 text-sm md:text-base font-normal leading-relaxed">

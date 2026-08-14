@@ -95,7 +95,7 @@ export default function AiChatWidget({ context = 'landing' }) {
 
   return (
     <div
-      className="fixed bottom-6 right-6 z-50 flex flex-col items-end pointer-events-none"
+      className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[60] flex flex-col items-end pointer-events-none"
       style={{
         '--primary': theme.primary,
         '--primary-deep': theme.primaryDeep,
@@ -136,9 +136,9 @@ export default function AiChatWidget({ context = 'landing' }) {
           }`}
       >
         <div
-          className={`w-80 sm:w-96 bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 ${isOpen ? 'hn-panel-open' : ''
+          className={`w-[calc(100vw-2rem)] sm:w-96 bg-white rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200 ${isOpen ? 'hn-panel-open' : ''
             }`}
-          style={{ height: 560, maxHeight: '75vh' }}
+          style={{ height: 600, maxHeight: 'calc(100vh - 120px)' }}
         >
           {/* Header */}
           <div className="hn-header relative px-5 pt-5 pb-6 shrink-0 overflow-hidden">
@@ -169,17 +169,17 @@ export default function AiChatWidget({ context = 'landing' }) {
 
           {/* AUDIT_REPORT.md FE-4 — AI, not a clinician; visible for the
               whole conversation. */}
-          <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 shrink-0">
+          <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-200 shrink-0 shadow-sm z-10">
             <p className="hn-body text-[10.5px] text-amber-800 text-center leading-snug">
               AI assistant — not a substitute for medical advice. For emergencies, contact local emergency services.
             </p>
           </div>
 
           {/* Input */}
-          <div className="px-4 py-3.5 bg-white border-t border-slate-100 shrink-0">
+          <div className="p-4 bg-slate-50 border-t border-slate-200 shrink-0 mt-auto rounded-b-3xl">
             <form
               onSubmit={handleSend}
-              className="hn-input-wrap flex items-center gap-2 pl-4 pr-1.5 py-1.5 rounded-full border border-slate-200 bg-slate-50 transition-shadow"
+              className="hn-input-wrap flex items-center gap-2 pl-4 pr-1.5 py-1.5 rounded-full border border-slate-200 bg-white shadow-sm transition-shadow"
             >
               <input
                 type="text"

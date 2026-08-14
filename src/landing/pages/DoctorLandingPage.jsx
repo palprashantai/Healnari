@@ -12,6 +12,7 @@ const ProviderCalculator = lazy(() => import('../components/ProviderCalculator.j
 const ProviderComparison = lazy(() => import('../components/ProviderComparison.jsx'));
 const ProviderTestimonials = lazy(() => import('../components/ProviderTestimonials.jsx'));
 const ProviderFooter = lazy(() => import('../components/ProviderFooter.jsx'));
+const AiChatWidget = lazy(() => import('../../tools/AiChatWidget.jsx'));
 
 function DoctorLandingPage() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -218,7 +219,7 @@ function DoctorLandingPage() {
               <span className="text-xs font-semibold text-aubergine-700 uppercase tracking-wider bg-aubergine-50 px-3.5 py-1.5 rounded-full border border-aubergine-100">
                 Frequently Asked Questions
               </span>
-              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 font-display">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-slate-900 font-display">
                 Everything You Need to Know as a Provider
               </h2>
             </Reveal>
@@ -261,7 +262,7 @@ function DoctorLandingPage() {
                   <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-xs font-semibold px-4 py-1.5 rounded-full uppercase tracking-wider">
                     <i className="fas fa-stethoscope text-emerald-300"></i> Join 200+ Verified Specialists
                   </span>
-                  <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold font-display leading-tight">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-display leading-tight">
                     Ready to Expand Your Clinical Practice?
                   </h2>
                   <p className="text-pink-100 text-base md:text-lg leading-relaxed font-normal">
@@ -328,6 +329,11 @@ function DoctorLandingPage() {
           onSuccess={() => setIsAuthOpen(false)}
         />
       )}
+
+      {/* Floating AI Assistant for Doctors */}
+      <Suspense fallback={null}>
+        <AiChatWidget context="doctor" />
+      </Suspense>
     </div>
   );
 }

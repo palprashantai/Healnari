@@ -5,7 +5,7 @@ const steps = [
   {
     num: 1,
     title: 'Discover Your Root Cause',
-    price: '$29',
+    price: '₹799',
     desc: 'We start by actually listening to you. Your specialist doctor will conduct a deep-dive, 45-minute consultation to validate your symptoms and uncover the true hormonal cause.',
     bullets: [
       'Led by gynaecologists, endocrinologists & trichologists',

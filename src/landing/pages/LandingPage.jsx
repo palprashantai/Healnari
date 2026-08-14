@@ -113,8 +113,8 @@ function LandingPage() {
                 <span className="inline-flex items-center gap-1.5 bg-brand-800/60 backdrop-blur border border-brand-700 text-brand-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                   <i className="fas fa-percent text-emerald-400"></i> Introductory Offer
                 </span>
-                <div className="text-3xl md:text-4xl font-black leading-tight text-white font-display">
-                  Discuss your concerns with an expert for just <span className="underline decoration-white/40 decoration-wavy">$29</span>
+                <div className="text-2xl sm:text-3xl md:text-4xl font-black leading-tight text-white font-display">
+                  Discuss your concerns with an expert for just <span className="underline decoration-white/40 decoration-wavy">₹799</span>
                 </div>
                 <p className="text-white/90 text-base max-w-xl mx-auto leading-relaxed font-medium">
                   Receive a provisional clinical assessment, personalized lab-testing roadmap, and initial lifestyle protocols. No judgment, 100% private. <br/> <span className="text-brand-100 text-sm mt-1 inline-block"><i className="fas fa-globe-americas"></i> Consultations available in all global timezones.</span>
@@ -173,7 +173,7 @@ function LandingPage() {
               onClick={() => openBooking('')}
               className="bg-gradient-to-r from-aubergine-500 to-magenta-600 hover:from-aubergine-600 hover:to-magenta-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105 shrink-0 flex items-center gap-1.5"
             >
-              <i className="fas fa-stethoscope text-[10px]"></i> Book $29
+              <i className="fas fa-stethoscope text-[10px]"></i> Book ₹799
             </button>
           </div>
         </div>

@@ -25,7 +25,7 @@ function Hero({ onStartConsult, onOpenChecker }) {
 
           {/* Main Titles */}
           <div className="space-y-4">
-            <h1 className="text-4xl sm:text-5xl lg:text-5xl lg:leading-[1.15] font-extrabold tracking-tight text-slate-900 font-display">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl lg:leading-[1.15] font-extrabold tracking-tight text-slate-900 font-display">
               Online PCOS & Hormonal Healthcare That <br className="hidden lg:block" />
               Treats the <span className="text-aubergine-600">Root Cause</span>
             </h1>
@@ -40,21 +40,24 @@ function Hero({ onStartConsult, onOpenChecker }) {
           </div>
 
           {/* Pricing Banner */}
-          <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2 inline-flex items-center gap-2 text-emerald-800 font-bold text-sm shadow-sm">
-            <i className="fas fa-tag text-emerald-600"></i> Consultations starting at just $29
+          <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-sm sm:text-base font-semibold text-slate-700">
+            <span className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1 rounded-full text-emerald-800 border border-emerald-100 shadow-xs">
+              <i className="fas fa-tag text-emerald-600"></i> Consultations starting at just ₹799
+            </span>
           </div>
 
           {/* Dual Action Buttons */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-            <div className="flex flex-col gap-2 w-full sm:w-auto relative">
-              <span className="absolute -top-3 right-0 md:-right-4 bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full shadow-lg animate-pulse z-10 border border-white">
-                📅 Next slot: Today in your timezone
-              </span>
-              <button
+            {/* Primary Action Button */}
+            <div className="relative group">
+              <div className="absolute -top-3 -right-3 z-10 bg-rose-500 text-white text-[10px] font-black uppercase tracking-wider py-1 px-2.5 rounded-full shadow-md shadow-rose-200/50 animate-bounce flex items-center gap-1">
+                <i className="fas fa-calendar-day"></i> Next Slot: Today in your timezone
+              </div>
+              <button 
                 onClick={onStartConsult}
-                className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-4 px-8 rounded-xl shadow-lg shadow-aubergine-100 transition-all btn-interactive flex items-center justify-center gap-2.5 text-lg"
+                className="w-full sm:w-auto relative bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 hover:from-aubergine-700 hover:via-magenta-700 hover:to-indigo-700 text-white font-extrabold px-8 sm:px-10 py-4 sm:py-5 rounded-2xl sm:rounded-3xl shadow-xl shadow-aubergine-200 hover:shadow-2xl hover:shadow-aubergine-300 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 text-lg sm:text-xl group-hover:ring-4 ring-aubergine-100"
               >
-                <i className="fas fa-stethoscope text-base"></i> Book My $29 Consult
+                <i className="fas fa-stethoscope text-base"></i> Book My ₹799 Consult
               </button>
             </div>
             <button
@@ -84,7 +87,7 @@ function Hero({ onStartConsult, onOpenChecker }) {
         {/* Right Column: Visual Component */}
         <div className="lg:col-span-5 relative flex justify-center lg:justify-end order-1 lg:order-2">
           {/* Main Visual Frame */}
-          <div className="relative w-72 h-72 sm:w-80 sm:h-80 lg:w-96 lg:h-96">
+          <div className="relative w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96">
             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-aubergine-600 via-magenta-400 to-indigo-300 opacity-25 blur-2xl animate-pulse-subtle"></div>
             
             {/* Beautiful Profile Image with Soft Vignette */}

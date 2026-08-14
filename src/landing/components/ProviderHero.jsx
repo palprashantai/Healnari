@@ -93,7 +93,7 @@ function ProviderHero({ onApply, onOpenLogin }) {
           </div>
 
           {/* Dynamic Typewriter Heading */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 font-display leading-[1.14] min-h-[120px] sm:min-h-[145px]">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 font-display leading-[1.14] min-h-[120px] sm:min-h-[145px]">
             Expand Your Clinical Practice with <br className="hidden sm:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-aubergine-700 via-magenta-600 to-indigo-700 inline-block">
               {displayedText}
@@ -212,39 +212,40 @@ function ProviderHero({ onApply, onOpenLogin }) {
                       </div>
 
                       {/* Active Patient Card */}
-                      <div className="bg-emerald-50/70 border border-emerald-300/80 rounded-2xl p-3.5 flex items-center justify-between gap-3 shadow-xs transition-all">
-                        <div className="flex items-center gap-3">
-                          <span className="w-10 h-10 rounded-xl bg-emerald-600 text-white font-mono font-bold text-sm flex items-center justify-center shadow-sm">
+                      <div className="bg-emerald-50/70 border border-emerald-300/80 rounded-2xl p-3.5 flex flex-wrap sm:flex-nowrap items-start sm:items-center justify-between gap-3 shadow-xs transition-all">
+                        <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
+                          <span className="w-10 h-10 shrink-0 rounded-xl bg-emerald-600 text-white font-mono font-bold text-sm flex items-center justify-center shadow-sm">
                             {activeSession.token}
                           </span>
-                          <div>
-                            <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                              {activeSession.patient} <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse">● IN VIDEO CALL</span>
+                          <div className="min-w-0">
+                            <div className="font-bold text-slate-900 text-sm flex flex-wrap items-center gap-2">
+                              <span className="truncate">{activeSession.patient}</span>
+                              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse shrink-0 whitespace-nowrap">● IN VIDEO CALL</span>
                             </div>
-                            <p className="text-xs text-slate-500 mt-0.5">{activeSession.concern} • (Elapsed: {activeSession.elapsed} min)</p>
+                            <p className="text-xs text-slate-500 mt-0.5 truncate">{activeSession.concern} • (Elapsed: {activeSession.elapsed} min)</p>
                           </div>
                         </div>
-                        <span className="bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm">
+                        <span className="bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm shrink-0 whitespace-nowrap ml-auto sm:ml-0">
                           <i className="fas fa-video"></i> Live Call
                         </span>
                       </div>
 
                       {/* Next Patient Card in Queue */}
                       {queueList.map((item, i) => (
-                        <div key={item.token} className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all">
-                          <div className="flex items-center gap-3">
-                            <span className="w-10 h-10 rounded-xl bg-slate-800 text-white font-mono font-bold text-sm flex items-center justify-center">
+                        <div key={item.token} className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 flex flex-wrap sm:flex-nowrap items-start sm:items-center justify-between gap-3 transition-all">
+                          <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
+                            <span className="w-10 h-10 shrink-0 rounded-xl bg-slate-800 text-white font-mono font-bold text-sm flex items-center justify-center">
                               {item.token}
                             </span>
-                            <div>
-                              <div className="font-bold text-slate-800 text-sm">{item.patient}</div>
-                              <p className="text-xs text-slate-500 mt-0.5">{item.concern} • {item.time} (Waiting)</p>
+                            <div className="min-w-0">
+                              <div className="font-bold text-slate-800 text-sm truncate">{item.patient}</div>
+                              <p className="text-xs text-slate-500 mt-0.5 truncate">{item.concern} • {item.time} (Waiting)</p>
                             </div>
                           </div>
                           {i === 0 && (
                             <button
                               onClick={handleCallNext}
-                              className="bg-slate-900 hover:bg-aubergine-700 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-sm hover:scale-105"
+                              className="bg-slate-900 hover:bg-aubergine-700 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm hover:scale-105 shrink-0 whitespace-nowrap ml-auto sm:ml-0"
                             >
                               <i className="fas fa-bullhorn text-[10px]"></i> Call Next
                             </button>
