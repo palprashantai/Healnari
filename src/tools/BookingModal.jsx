@@ -3,7 +3,7 @@ import { StepIndicator } from '../components/StepIndicator.jsx';
 import { markLeadCaptured } from './leadCapture.js';
 import { todayLocalStr } from '../lib/dateUtils.js';
 import { apiFetch } from '../lib/apiClient.js';
-import { COUNTRIES, getCountryByCode, detectUserCountry } from '../lib/countries.js';
+import { COUNTRIES, COUNTRY_DIAL_CODES, getCountryByCode, detectUserCountry } from '../lib/countries.js';
 import { formatCurrency } from '../lib/currency.js';
 
 const STEP_FIELDS = [
@@ -360,16 +360,33 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                   <label htmlFor="mobile" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
                     Phone Number *
                   </label>
-                  <input
-                    type="tel"
-                    id="mobile"
-                    required
-                    placeholder={`${currentCountry.phonePrefix} 555-0199`}
-                    value={formData.mobile}
-                    onChange={handleInputChange}
-                    className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.mobile ? 'border-red-400' : 'border-slate-200'
-                      }`}
-                  />
+                  <div className={`flex rounded-xl border bg-slate-50 focus-within:bg-white focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-100 transition-all overflow-hidden ${errors.mobile ? 'border-red-400' : 'border-slate-200'}`}>
+                    <select
+                      value={countryCode}
+                      onChange={(e) => handleCountrySelect(e.target.value)}
+                      className="px-2.5 py-3 bg-slate-100/90 hover:bg-slate-200/80 border-r border-slate-200 text-xs sm:text-sm font-bold text-slate-700 outline-none cursor-pointer max-w-[110px] sm:max-w-[125px]"
+                      aria-label="Country Dial Code"
+                    >
+                      {COUNTRY_DIAL_CODES.map((item) => (
+                        <option key={item.code} value={item.code}>
+                          {item.flag} {item.dialCode}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="tel"
+                      id="mobile"
+                      required
+                      placeholder="98765 43210"
+                      value={formData.mobile.replace(/^\+\d+\s*/, '')}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData(prev => ({ ...prev, mobile: `${currentCountry.phonePrefix} ${val}`.trim() }));
+                        if (errors.mobile) setErrors(prev => ({ ...prev, mobile: null }));
+                      }}
+                      className="flex-1 px-3.5 py-3 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                    />
+                  </div>
                   {errors.mobile && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.mobile}</p>}
                 </div>
               </div>
