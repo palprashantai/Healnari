@@ -10,5 +10,6 @@ import { EmailModule } from '@/core/email/email.module';
   imports: [SupabaseModule, NotificationsModule, AiModule, EmailModule],
   controllers: [AppointmentsController],
   providers: [AppointmentsService],
+  exports: [AppointmentsService],
 })
 export class AppointmentsModule {}

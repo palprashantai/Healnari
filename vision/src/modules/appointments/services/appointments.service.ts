@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { Appointment, AppointmentStatus, AppointmentType } from '@/shared/interfaces/appointment.interface';
@@ -19,7 +19,7 @@ export class AppointmentsService {
     private readonly notifications: NotificationsService,
     private readonly ai: AiService,
     private readonly email: EmailService,
-  ) {}
+  ) { }
 
   private appointmentWhen(a: Appointment) {
     return `${a.scheduled_date} at ${a.scheduled_time}`;
@@ -31,7 +31,7 @@ export class AppointmentsService {
    * Cashfree's refund API) and file a refund_requests row linked to the
    * payment so admin has what it needs to process a real refund instead of
    * just flipping a status. */
-  private async initiateRefundIfPaid(appointment: Appointment & { patientName: string }) {
+  public async initiateRefundIfPaid(appointment: Appointment & { patientName: string }) {
     const { data: payment } = await this.supabase.admin
       .from('payments')
       .select()
@@ -80,31 +80,37 @@ export class AppointmentsService {
     return type === AppointmentType.VIDEO ? 'video consultation' : 'clinic visit';
   }
 
-  private async withNames(appointments: Appointment[]) {
+  private async withNames(appointments: any[]) {
     if (!appointments.length) return [];
+    return appointments.map(a => {
+      // If the join hasn't been applied (e.g. from an old cache or non-joined query), fallback gracefully
+      const pName = a.patient?.full_name || 'Patient';
+      const dName = a.doctor?.full_name || 'Doctor';
+      const pAvatar = a.patient?.avatar_url || null;
+      const dAvatar = a.doctor?.avatar_url || null;
 
-    const ids = [...new Set(appointments.flatMap(a => [a.patient_id, a.doctor_id]))];
-    const { data: profiles } = await this.supabase.admin.from('profiles').select('id, full_name, avatar_url').in('id', ids);
-    const profileById = new Map((profiles || []).map(p => [p.id, p]));
-
-    return appointments.map(a => ({
-      ...a,
-      patientName: profileById.get(a.patient_id)?.full_name || 'Patient',
-      doctorName: profileById.get(a.doctor_id)?.full_name || 'Doctor',
-      patientAvatarUrl: profileById.get(a.patient_id)?.avatar_url || null,
-      doctorAvatarUrl: profileById.get(a.doctor_id)?.avatar_url || null,
-    }));
+      const out = {
+        ...a,
+        patientName: pName,
+        doctorName: dName,
+        patientAvatarUrl: pAvatar,
+        doctorAvatarUrl: dAvatar,
+      };
+      delete out.patient;
+      delete out.doctor;
+      return out;
+    });
   }
 
   async list(user: AuthUser) {
     const col = user.profile.role === ProfileRole.DOCTOR ? 'doctor_id' : 'patient_id';
-    
+
     // No pagination here (queue/history tabs across both portals expect the
     // full list in memory) — this cap is just a safety bound against an
     // unbounded full scan for very long-tenured accounts.
     const { data: appointments } = await this.supabase.admin
       .from('appointments')
-      .select()
+      .select('*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)')
       .eq(col, user.id)
       .order('scheduled_date', { ascending: false })
       .limit(1000);
@@ -120,6 +126,36 @@ export class AppointmentsService {
     // DOCTOR_NOT_FOUND doubles as the message here rather than leaking which
     // doctor IDs exist but aren't verified yet.
     if (!doctor || !doctor.kyc_verified) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
+
+    // Prevent booking if the doctor is on an approved leave on this date
+    const { data: leaves } = await this.supabase.admin
+      .from('leave_requests')
+      .select('id')
+      .eq('doctor_id', body.doctorId)
+      .eq('status', 'Approved')
+      .lte('from_date', body.scheduledDate)
+      .gte('to_date', body.scheduledDate);
+
+    if (leaves && leaves.length > 0) {
+      throw new ConflictException('The doctor is on leave on the requested date.');
+    }
+
+    // Prevent booking slots that have already expired
+    const isPM = body.scheduledTime.toLowerCase().includes('pm');
+    const timeMatches = body.scheduledTime.match(/(\d+):(\d+)/);
+    if (timeMatches) {
+      let hour = parseInt(timeMatches[1], 10);
+      const min = parseInt(timeMatches[2], 10);
+      if (isPM && hour < 12) hour += 12;
+      if (!isPM && hour === 12) hour = 0;
+      
+      const scheduledDateTime = new Date(`${body.scheduledDate}T${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}:00`);
+      // We allow a 15 minute grace period for ongoing bookings
+      const fifteenMinsAgo = new Date(Date.now() - 15 * 60000);
+      if (scheduledDateTime < fifteenMinsAgo) {
+        throw new BadRequestException('Cannot book an appointment in the past.');
+      }
+    }
 
     // The unique index (appointments_no_double_booking, migration 0020) is
     // what actually prevents two patients booking the same doctor/date/time
@@ -137,7 +173,7 @@ export class AppointmentsService {
       scheduled_time: body.scheduledTime,
       reason: body.reason,
       status: AppointmentStatus.REQUESTED,
-    }).select().single();
+    }).select('*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)').single();
 
     if (insertError) {
       if (insertError.code === '23505') throw new ConflictException(ERROR_MESSAGES.APPOINTMENT_CONFLICT);
@@ -157,19 +193,83 @@ export class AppointmentsService {
   }
 
   async updateStatus(user: AuthUser, id: string, status: AppointmentStatus) {
-    const { data: appointment } = await this.supabase.admin.from('appointments').select().eq('id', id).single();
+    const { data: appointment } = await this.supabase.admin.from('appointments').select().is('deleted_at', null).eq('id', id).single();
     if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
 
     if (appointment.patient_id !== user.id && appointment.doctor_id !== user.id) {
       throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     }
 
-    const { data: saved } = await this.supabase.admin.from('appointments').update({ status }).eq('id', id).select().single();
+    if (appointment.status === status) {
+      return (await this.withNames([appointment]))[0];
+    }
+
+    // Terminal states cannot be changed
+    if (appointment.status === AppointmentStatus.DONE || appointment.status === AppointmentStatus.CANCELLED) {
+      throw new BadRequestException(`Cannot change status of an appointment that is already ${appointment.status.toLowerCase()}.`);
+    }
+
+    // Patients cannot mark appointments as Done or No Show
+    if (
+      (status === AppointmentStatus.DONE || status === AppointmentStatus.NO_SHOW) &&
+      user.profile.role !== ProfileRole.DOCTOR
+    ) {
+      throw new ForbiddenException('Only doctors can complete or mark appointments as no-show.');
+    }
+
+    // Patients cannot cancel an ongoing consultation
+    if (
+      status === AppointmentStatus.CANCELLED &&
+      appointment.status === AppointmentStatus.IN_PROGRESS &&
+      user.id === appointment.patient_id
+    ) {
+      throw new BadRequestException('Cannot cancel a consultation that has already started.');
+    }
+
+    const { data: saved } = await this.supabase.admin.from('appointments').update({ status }).eq('id', id).select('*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)').is('deleted_at', null).single();
     const [withNames] = await this.withNames([saved]);
 
     await this.notifyStatusChange(user, withNames, appointment.status);
 
     return withNames;
+  }
+
+  /**
+   * Idempotently confirms an appointment after a successful payment.
+   * If the appointment is still in REQUESTED status, moves it to UPCOMING.
+   */
+  public async confirmPaidAppointment(id: string) {
+    const { data: appointment } = await this.supabase.admin
+      .from('appointments')
+      .select('*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .single();
+
+    if (!appointment) return null;
+
+    if (appointment.status === AppointmentStatus.REQUESTED) {
+      const { data: updated } = await this.supabase.admin
+        .from('appointments')
+        .update({ status: AppointmentStatus.UPCOMING })
+        .eq('id', id)
+        .select('*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)')
+        .single();
+
+      const [withNames] = await this.withNames([updated]);
+
+      // Notify the doctor that a paid appointment was confirmed
+      await this.notifications.create(appointment.doctor_id, {
+        type: 'appointment_confirmed',
+        title: 'New Appointment Booked',
+        message: `${withNames.patientName} booked a ${this.typeLabel(withNames.type)} on ${this.appointmentWhen(withNames)}.`,
+        data: { appointmentId: withNames.id },
+      });
+
+      return withNames;
+    }
+
+    return (await this.withNames([appointment]))[0];
   }
 
   /** Declining an incoming call must end it on the caller's side too — like
@@ -178,7 +278,7 @@ export class AppointmentsService {
    * (not Cancelled/Done — declining one call attempt isn't the same as
    * cancelling the whole appointment) and notifies whoever was calling. */
   async declineCall(user: AuthUser, id: string) {
-    const { data: appointment } = await this.supabase.admin.from('appointments').select().eq('id', id).single();
+    const { data: appointment } = await this.supabase.admin.from('appointments').select().is('deleted_at', null).eq('id', id).single();
     if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
     if (appointment.patient_id !== user.id && appointment.doctor_id !== user.id) {
       throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
@@ -199,7 +299,7 @@ export class AppointmentsService {
       data: { appointmentId: id, calleeRole: callerRole },
     });
 
-    const { data: saved } = await this.supabase.admin.from('appointments').select().eq('id', id).single();
+    const { data: saved } = await this.supabase.admin.from('appointments').select('*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)').is('deleted_at', null).eq('id', id).single();
     const [withNames] = await this.withNames([saved]);
     return withNames;
   }
@@ -251,7 +351,7 @@ export class AppointmentsService {
             label,
             dashboardUrl: 'https://healnari.vercel.app/patient/appointments',
           },
-        }).catch(() => {});
+        }).catch(() => { });
       }
     } else if (isDoctorActing && appointment.status === AppointmentStatus.CANCELLED) {
       await this.notifications.create(appointment.patient_id, {
@@ -286,7 +386,7 @@ export class AppointmentsService {
             label,
             dashboardUrl: 'https://healnari.vercel.app/patient/appointments',
           },
-        }).catch(() => {});
+        }).catch(() => { });
       }
     } else if (!isDoctorActing && appointment.status === AppointmentStatus.CANCELLED) {
       await this.notifications.create(appointment.doctor_id, {
@@ -353,7 +453,7 @@ export class AppointmentsService {
       scheduled_time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
       reason: 'Instant video consultation',
       status: AppointmentStatus.IN_PROGRESS,
-    }).select().single();
+    }).select('*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)').single();
 
     const [withNames] = await this.withNames([saved]);
     await this.notifyIncomingCall(patientId, ProfileRole.PATIENT, `Dr. ${withNames.doctorName}`, withNames.id, user.profile.avatar_url);
@@ -425,7 +525,7 @@ export class AppointmentsService {
    * running behind shifts everyone's position and ETA live instead of the
    * patient just watching their booked 4:00 PM come and go. */
   async getQueueStatus(user: AuthUser, id: string) {
-    const { data: appointment } = await this.supabase.admin.from('appointments').select().eq('id', id).single();
+    const { data: appointment } = await this.supabase.admin.from('appointments').select().is('deleted_at', null).eq('id', id).single();
     if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
     if (appointment.patient_id !== user.id && appointment.doctor_id !== user.id) {
       throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
@@ -472,7 +572,7 @@ export class AppointmentsService {
    * AI summary is best-effort (null when Gemini isn't configured); the
    * structured facts always come through regardless. */
   async getConsultBrief(user: AuthUser, id: string) {
-    const { data: appointment } = await this.supabase.admin.from('appointments').select().eq('id', id).single();
+    const { data: appointment } = await this.supabase.admin.from('appointments').select().is('deleted_at', null).eq('id', id).single();
     if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
     if (appointment.patient_id !== user.id && appointment.doctor_id !== user.id) {
       throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
@@ -480,9 +580,9 @@ export class AppointmentsService {
 
     const [{ data: profile }, { data: record }, { data: meds }, { data: labs }] = await Promise.all([
       this.supabase.admin.from('profiles').select('full_name').eq('id', appointment.patient_id).single(),
-      this.supabase.admin.from('patient_records').select('chronic_conditions, allergies').eq('patient_id', appointment.patient_id).maybeSingle(),
-      this.supabase.admin.from('prescriptions').select('med_name').eq('patient_id', appointment.patient_id).eq('status', 'Active'),
-      this.supabase.admin.from('lab_reports').select('test_name, status').eq('patient_id', appointment.patient_id).order('created_at', { ascending: false }).limit(5),
+      this.supabase.admin.from('patient_records').select('chronic_conditions, allergies').is('deleted_at', null).eq('patient_id', appointment.patient_id).maybeSingle(),
+      this.supabase.admin.from('prescriptions').select('med_name').is('deleted_at', null).eq('patient_id', appointment.patient_id).eq('status', 'Active'),
+      this.supabase.admin.from('lab_reports').select('test_name, status').is('deleted_at', null).eq('patient_id', appointment.patient_id).order('created_at', { ascending: false }).limit(5),
     ]);
 
     const facts = {
@@ -551,7 +651,7 @@ export class AppointmentsService {
         title: 'Upcoming appointment',
         message: `Your ${apt.type === AppointmentType.VIDEO ? 'video consultation' : 'clinic visit'} with Dr. ${doctorNameById.get(apt.doctor_id) || ''} is at ${apt.scheduled_time} today. Please be ready a few minutes early.`,
         data: { appointmentId: apt.id },
-      }).catch(() => {}),
+      }).catch(() => { }),
     ));
 
     this.logger.log(`Sent ${claimed.length} appointment reminder(s).`);
@@ -629,7 +729,7 @@ export class AppointmentsService {
         title: 'Running behind schedule',
         message: `Dr. ${doctorNameById.get(c.doctorId) || ''} is running about ${Math.round(c.delayMinutes)} minutes behind for your ${c.scheduledTime} appointment. We'll let you know when it's your turn.`,
         data: { appointmentId: row.id },
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     if (claimed?.length) this.logger.log(`Sent ${claimed.length} delay notification(s).`);
@@ -639,7 +739,7 @@ export class AppointmentsService {
   async releaseUnpaidSlots() {
     // Free any slot where the payment wasn't completed within 5 minutes
     const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    
+
     const { data: expired, error } = await this.supabase.admin
       .from('appointments')
       .update({ status: AppointmentStatus.CANCELLED })

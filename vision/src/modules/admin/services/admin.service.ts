@@ -51,21 +51,14 @@ export class AdminService {
         this.supabase.admin.from('profiles').select('*', { count: 'exact', head: true }),
         this.supabase.admin.from('profiles').select('*', { count: 'exact', head: true }).eq('role', ProfileRole.DOCTOR),
         this.supabase.admin.from('profiles').select('*', { count: 'exact', head: true }).eq('role', ProfileRole.PATIENT),
-        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }),
-        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).eq('status', AppointmentStatus.DONE),
+        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('status', AppointmentStatus.DONE),
         this.supabase.admin.from('profiles').select('*', { count: 'exact', head: true }).eq('role', ProfileRole.DOCTOR).eq('kyc_verified', false),
         this.supabase.admin.from('support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'Open'),
         this.supabase.admin.from('refund_requests').select('*', { count: 'exact', head: true }).eq('status', 'Pending'),
       ]);
 
-      const { data: doneAppointments } = await this.supabase.admin.from('appointments').select('doctor_id').eq('status', AppointmentStatus.DONE);
-      let totalRevenue = 0;
-      if (doneAppointments && doneAppointments.length > 0) {
-        const doctorIds = [...new Set(doneAppointments.map(a => a.doctor_id))];
-        const { data: doctors } = await this.supabase.admin.from('profiles').select('id, consultation_fee').in('id', doctorIds);
-        const feeByDoctor = new Map((doctors || []).map(d => [d.id, d.consultation_fee]));
-        for (const a of doneAppointments) totalRevenue += Number(feeByDoctor.get(a.doctor_id) || 0);
-      }
+      const { data: totalRevenue } = await this.supabase.admin.rpc('get_dashboard_revenue');
 
       return {
         totalUsers: totalUsers || 0,
@@ -117,209 +110,11 @@ export class AdminService {
   // ─── Analytics ───────────────────────────────────────────────────
   async getAnalytics() {
     try {
-      const now = new Date();
-      const months: string[] = [];
-      for (let i = 11; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        months.push(d.toISOString().slice(0, 7)); // "YYYY-MM"
+      const { data, error } = await this.supabase.admin.rpc('get_admin_analytics');
+      if (error) {
+        throw new InternalServerErrorException('Failed to fetch admin analytics from database');
       }
-
-      // Run independent queries concurrently
-      const [
-        { data: completedApts },
-        { data: allApts },
-        { data: allPatients },
-        { data: allDoctors },
-        { data: paidPayments },
-        { data: allLeads },
-      ] = await Promise.all([
-        this.supabase.admin
-          .from('appointments')
-          .select('doctor_id, scheduled_date, country, currency')
-          .eq('status', AppointmentStatus.DONE),
-        this.supabase.admin
-          .from('appointments')
-          .select('status, type, country, currency, scheduled_date'),
-        this.supabase.admin
-          .from('profiles')
-          .select('created_at, country, currency')
-          .eq('role', ProfileRole.PATIENT),
-        this.supabase.admin
-          .from('profiles')
-          .select('id, created_at, consultation_fee, specialty, country, currency')
-          .eq('role', ProfileRole.DOCTOR),
-        this.supabase.admin
-          .from('payments')
-          .select('amount, currency, gateway, status, created_at')
-          .eq('status', 'Paid'),
-        this.supabase.admin
-          .from('consultation_requests')
-          .select('country, currency, fee, created_at'),
-      ]);
-
-      const doctorFeeMap = new Map((allDoctors || []).map(d => [d.id, { fee: Number(d.consultation_fee || 0), specialty: d.specialty || 'General', currency: d.currency || 'USD' }]));
-
-      // Multi-Currency Revenue Aggregation
-      const currencySumMap: Record<string, { amount: number; count: number }> = {
-        USD: { amount: 0, count: 0 },
-        GBP: { amount: 0, count: 0 },
-        AED: { amount: 0, count: 0 },
-        EUR: { amount: 0, count: 0 },
-        INR: { amount: 0, count: 0 },
-        CAD: { amount: 0, count: 0 },
-        AUD: { amount: 0, count: 0 },
-      };
-
-      (paidPayments || []).forEach(p => {
-        const c = p.currency || 'USD';
-        if (!currencySumMap[c]) currencySumMap[c] = { amount: 0, count: 0 };
-        currencySumMap[c].amount += Number(p.amount || 0);
-        currencySumMap[c].count += 1;
-      });
-
-      const CURRENCY_METADATA: Record<string, { name: string; symbol: string; flag: string }> = {
-        USD: { name: 'US Dollar', symbol: '$', flag: '🇺🇸' },
-        GBP: { name: 'British Pound', symbol: '£', flag: '🇬🇧' },
-        AED: { name: 'UAE Dirham', symbol: 'AED', flag: '🇦🇪' },
-        EUR: { name: 'Euro', symbol: '€', flag: '🇪🇺' },
-        INR: { name: 'Indian Rupee', symbol: '₹', flag: '🇮🇳' },
-        CAD: { name: 'Canadian Dollar', symbol: 'CA$', flag: '🇨🇦' },
-        AUD: { name: 'Australian Dollar', symbol: 'A$', flag: '🇦🇺' },
-      };
-
-      const revenueByCurrency = Object.entries(currencySumMap)
-        .filter(([, data]) => data.count > 0 || data.amount > 0)
-        .map(([curr, data]) => ({
-          currency: curr,
-          name: CURRENCY_METADATA[curr]?.name || curr,
-          symbol: CURRENCY_METADATA[curr]?.symbol || curr,
-          flag: CURRENCY_METADATA[curr]?.flag || '🌍',
-          amount: data.amount,
-          count: data.count,
-        }));
-
-      // Geographic Distribution & Market Penetration
-      const countryVolumeMap: Record<string, number> = {};
-      const COUNTRY_NAMES: Record<string, { name: string; flag: string }> = {
-        US: { name: 'United States', flag: '🇺🇸' },
-        GB: { name: 'United Kingdom', flag: '🇬🇧' },
-        AE: { name: 'United Arab Emirates', flag: '🇦🇪' },
-        IN: { name: 'India', flag: '🇮🇳' },
-        CA: { name: 'Canada', flag: '🇨🇦' },
-        AU: { name: 'Australia', flag: '🇦🇺' },
-        EU: { name: 'European Union', flag: '🇪🇺' },
-        GLOBAL: { name: 'Other International', flag: '🌍' },
-      };
-
-      (allPatients || []).forEach(p => {
-        const c = p.country || 'US';
-        countryVolumeMap[c] = (countryVolumeMap[c] || 0) + 1;
-      });
-
-      const geographicDistribution = Object.entries(COUNTRY_NAMES).map(([code, meta]) => {
-        const count = countryVolumeMap[code] || 0;
-        return {
-          code,
-          name: meta.name,
-          flag: meta.flag,
-          patientCount: count,
-          percentage: allPatients?.length ? Math.round((count / allPatients.length) * 100) : 0,
-        };
-      }).sort((a, b) => b.patientCount - a.patientCount);
-
-      // Cross-Border Growth: International vs Domestic
-      const internationalCount = (allPatients || []).filter(p => p.country !== 'IN').length;
-      const domesticCount = (allPatients || []).filter(p => p.country === 'IN').length;
-      const crossBorderSplit = {
-        international: internationalCount,
-        domestic: domesticCount,
-        internationalPercentage: allPatients?.length ? Math.round((internationalCount / allPatients.length) * 100) : 65,
-      };
-
-      // Build monthly revenue data
-      const revenueByMonth: Record<string, number> = {};
-      for (const apt of (completedApts || [])) {
-        const month = (apt.scheduled_date || '').slice(0, 7);
-        if (!revenueByMonth[month]) revenueByMonth[month] = 0;
-        revenueByMonth[month] += doctorFeeMap.get(apt.doctor_id)?.fee || 0;
-      }
-
-      // Build user growth data
-      const patientsByMonth: Record<string, number> = {};
-      for (const p of (allPatients || [])) {
-        const month = (p.created_at || '').slice(0, 7);
-        patientsByMonth[month] = (patientsByMonth[month] || 0) + 1;
-      }
-      const doctorsByMonth: Record<string, number> = {};
-      for (const d of (allDoctors || [])) {
-        const month = (d.created_at || '').slice(0, 7);
-        doctorsByMonth[month] = (doctorsByMonth[month] || 0) + 1;
-      }
-
-      // Specialty revenue
-      const specialtyRevMap: Record<string, number> = {};
-      for (const apt of (completedApts || [])) {
-        const info = doctorFeeMap.get(apt.doctor_id);
-        if (info) {
-          specialtyRevMap[info.specialty] = (specialtyRevMap[info.specialty] || 0) + info.fee;
-        }
-      }
-
-      const COLORS = ['#6B46C1', '#10b981', '#0ea5e9', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4'];
-      const specialtyRevenue = Object.entries(specialtyRevMap).map(([name, value], i) => ({
-        name, value, color: COLORS[i % COLORS.length],
-      }));
-
-      // Appointment status breakdown
-      const statusCounts: Record<string, number> = {};
-      for (const a of (allApts || [])) {
-        statusCounts[a.status] = (statusCounts[a.status] || 0) + 1;
-      }
-      const appointmentStatusBreakdown = Object.entries(statusCounts).map(([status, count]) => ({ status, count }));
-
-      // Consultation delivery mode split
-      const consultTypeSplit = {
-        video: (allApts || []).filter(a => a.type === 'video').length,
-        clinic: (allApts || []).filter(a => a.type === 'clinic').length,
-      };
-
-      const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-      let cumulativePatients = 0;
-      let cumulativeDoctors = 0;
-      const financialData = months.map(m => {
-        const [, mo] = m.split('-');
-        const label = MONTH_LABELS[parseInt(mo) - 1];
-        cumulativePatients += patientsByMonth[m] || 0;
-        cumulativeDoctors += doctorsByMonth[m] || 0;
-        const revenue = revenueByMonth[m] || 0;
-        const payout = Math.round(revenue * 0.90);
-        return { name: label, revenue, payout, margin: revenue - payout, patients: cumulativePatients, doctors: cumulativeDoctors };
-      });
-
-      return {
-        financialData,
-        revenueByCurrency: revenueByCurrency.length ? revenueByCurrency : [
-          { currency: 'USD', name: 'US Dollar', symbol: '$', flag: '🇺🇸', amount: 4850, count: 167 },
-          { currency: 'GBP', name: 'British Pound', symbol: '£', flag: '🇬🇧', amount: 2400, count: 98 },
-          { currency: 'AED', name: 'UAE Dirham', symbol: 'AED', flag: '🇦🇪', amount: 8900, count: 81 },
-          { currency: 'EUR', name: 'Euro', symbol: '€', flag: '🇪🇺', amount: 1680, count: 60 },
-          { currency: 'INR', name: 'Indian Rupee', symbol: '₹', flag: '🇮🇳', amount: 148500, count: 186 },
-        ],
-        geographicDistribution: geographicDistribution.some(g => g.patientCount > 0) ? geographicDistribution : [
-          { code: 'US', name: 'United States', flag: '🇺🇸', patientCount: 342, percentage: 38 },
-          { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', patientCount: 198, percentage: 22 },
-          { code: 'AE', name: 'United Arab Emirates', flag: '🇦🇪', patientCount: 165, percentage: 18 },
-          { code: 'IN', name: 'India', flag: '🇮🇳', patientCount: 120, percentage: 13 },
-          { code: 'EU', name: 'European Union', flag: '🇪🇺', patientCount: 82, percentage: 9 },
-        ],
-        crossBorderSplit,
-        specialtyRevenue: specialtyRevenue.length > 0 ? specialtyRevenue : [{ name: 'PCOS & Hormones', value: 45, color: '#6B46C1' }, { name: 'Fertility & IVF', value: 30, color: '#10b981' }, { name: 'Thyroid & Weight', value: 25, color: '#0ea5e9' }],
-        totalDoctors: allDoctors?.length || 0,
-        totalPatients: allPatients?.length || 0,
-        appointmentStatusBreakdown,
-        consultTypeSplit,
-      };
+      return data;
     } catch (error) {
       console.error(error);
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
@@ -370,7 +165,7 @@ export class AdminService {
       if (!profile) throw new NotFoundException('User not found');
 
       const [{ data: appointments }, { data: payments }] = await Promise.all([
-        this.supabase.admin.from('appointments').select('id, doctor_id, specialty, type, status, scheduled_date').eq('patient_id', id).order('scheduled_date', { ascending: false }).limit(20),
+        this.supabase.admin.from('appointments').select('id, doctor_id, specialty, type, status, scheduled_date').is('deleted_at', null).eq('patient_id', id).order('scheduled_date', { ascending: false }).limit(20),
         this.supabase.admin.from('payments').select('id, doctor_id, appointment_id, amount, status, category, service, created_at').eq('patient_id', id).order('created_at', { ascending: false }),
       ]);
 
@@ -499,7 +294,7 @@ export class AdminService {
       if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
 
       const [{ data: appointments }, { data: payments }] = await Promise.all([
-        this.supabase.admin.from('appointments').select('id, patient_id, type, status, scheduled_date').eq('doctor_id', id).order('scheduled_date', { ascending: false }),
+        this.supabase.admin.from('appointments').select('id, patient_id, type, status, scheduled_date').is('deleted_at', null).eq('doctor_id', id).order('scheduled_date', { ascending: false }),
         this.supabase.admin.from('payments').select('id, patient_id, amount, status, service, created_at').eq('doctor_id', id).order('created_at', { ascending: false }),
       ]);
 
@@ -755,8 +550,8 @@ export class AdminService {
         { data: doneAppointments },
         { data: paidPayments },
       ] = await Promise.all([
-        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).eq('status', AppointmentStatus.DONE),
-        this.supabase.admin.from('appointments').select('doctor_id, country, currency').eq('status', AppointmentStatus.DONE),
+        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('status', AppointmentStatus.DONE),
+        this.supabase.admin.from('appointments').select('doctor_id, doctor:profiles!appointments_doctor_id_fkey(consultation_fee, specialty, currency)').is('deleted_at', null).eq('status', AppointmentStatus.DONE),
         this.supabase.admin.from('payments').select('amount, currency, gateway, status, created_at').eq('status', 'Paid'),
       ]);
 
@@ -774,15 +569,12 @@ export class AdminService {
       });
 
       if (doneAppointments && doneAppointments.length > 0) {
-        const doctorIds = [...new Set(doneAppointments.map(a => a.doctor_id))];
-        const { data: doctors } = await this.supabase.admin.from('profiles').select('id, consultation_fee, specialty, currency').in('id', doctorIds);
-        const doctorInfo = new Map((doctors || []).map(d => [d.id, d]));
         for (const a of doneAppointments) {
-          const doc = doctorInfo.get(a.doctor_id);
+          const doc = a.doctor as any;
           if (doc) {
-            totalRevenue += Number(doc.consultation_fee);
+            totalRevenue += Number(doc.consultation_fee || 0);
             const specialty = doc.specialty || 'General';
-            bySpecialtyMap.set(specialty, (bySpecialtyMap.get(specialty) || 0) + Number(doc.consultation_fee));
+            bySpecialtyMap.set(specialty, (bySpecialtyMap.get(specialty) || 0) + Number(doc.consultation_fee || 0));
           }
         }
       }
@@ -913,9 +705,9 @@ export class AdminService {
         { count: cancelledAppointments },
       ] = await Promise.all([
         this.supabase.admin.from('profiles').select('*', { count: 'exact', head: true }),
-        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }),
-        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).eq('status', AppointmentStatus.DONE),
-        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).eq('status', AppointmentStatus.CANCELLED),
+        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).is('deleted_at', null),
+        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('status', AppointmentStatus.DONE),
+        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('status', AppointmentStatus.CANCELLED),
       ]);
 
       const { data: history } = await this.supabase.admin.from('reports_history').select().order('created_at', { ascending: false });

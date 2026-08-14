@@ -41,8 +41,8 @@ export class RecordsService {
    * appointment yet). */
   private async hasCareRelationship(doctorId: string, patientId: string): Promise<boolean> {
     const [{ count: apptCount }, { data: record }] = await Promise.all([
-      this.supabase.admin.from('appointments').select('id', { count: 'exact', head: true }).eq('doctor_id', doctorId).eq('patient_id', patientId),
-      this.supabase.admin.from('patient_records').select('created_by_doctor_id').eq('patient_id', patientId).maybeSingle(),
+      this.supabase.admin.from('appointments').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('doctor_id', doctorId).eq('patient_id', patientId),
+      this.supabase.admin.from('patient_records').select('created_by_doctor_id').is('deleted_at', null).eq('patient_id', patientId).maybeSingle(),
     ]);
     if ((apptCount || 0) > 0) return true;
     return record?.created_by_doctor_id === doctorId;
@@ -53,14 +53,14 @@ export class RecordsService {
    * patientId) that used to return every patient's data platform-wide. */
   private async getDoctorPatientIds(doctorId: string): Promise<string[]> {
     const [{ data: appts }, { data: records }] = await Promise.all([
-      this.supabase.admin.from('appointments').select('patient_id').eq('doctor_id', doctorId),
-      this.supabase.admin.from('patient_records').select('patient_id').eq('created_by_doctor_id', doctorId),
+      this.supabase.admin.from('appointments').select('patient_id').is('deleted_at', null).eq('doctor_id', doctorId),
+      this.supabase.admin.from('patient_records').select('patient_id').is('deleted_at', null).eq('created_by_doctor_id', doctorId),
     ]);
     return [...new Set([...(appts || []).map((a: any) => a.patient_id), ...(records || []).map((r: any) => r.patient_id)])];
   }
 
   async getPrescriptions(user: AuthUser) {
-    const query = this.supabase.admin.from('prescriptions').select().order('created_at', { ascending: false });
+    const query = this.supabase.admin.from('prescriptions').select().is('deleted_at', null).order('created_at', { ascending: false });
     if (user.profile.role === ProfileRole.DOCTOR) {
       this.requireVerifiedDoctor(user);
       query.eq('doctor_id', user.id);
@@ -82,14 +82,29 @@ export class RecordsService {
     const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
 
-    const groupId = randomUUID();
+    if (body.idempotencyKey) {
+      const { data: existing } = await this.supabase.admin.from('prescriptions').select().is('deleted_at', null).eq('group_id', body.idempotencyKey);
+      if (existing && existing.length > 0) return existing;
+    }
+
+    const groupId = body.idempotencyKey || randomUUID();
     const prescribedAt = new Date().toISOString().slice(0, 10);
-    const rows = body.medicines.map((m) => ({
+
+    // Deduplicate medicine lines if same medicine is entered multiple times in the same payload
+    const seenMeds = new Set<string>();
+    const uniqueMedicines = body.medicines.filter((m) => {
+      const normalized = (m.medName || '').trim().toLowerCase();
+      if (!normalized || seenMeds.has(normalized)) return false;
+      seenMeds.add(normalized);
+      return true;
+    });
+
+    const rows = uniqueMedicines.map((m) => ({
       patient_id: body.patientId,
       doctor_id: user.id,
       group_id: groupId,
       diagnosis: body.diagnosis,
-      med_name: m.medName,
+      med_name: m.medName.trim(),
       dosage: m.dosage,
       schedule: m.schedule,
       duration: m.duration,
@@ -97,7 +112,7 @@ export class RecordsService {
       prescribed_at: prescribedAt,
     }));
 
-    const { data: prescriptions } = await this.supabase.admin.from('prescriptions').insert(rows).select();
+    const { data: prescriptions } = await this.supabase.admin.from('prescriptions').insert(rows).select().is('deleted_at', null);
 
     this.notifications.create(body.patientId, {
       type: 'prescription_issued',
@@ -110,17 +125,17 @@ export class RecordsService {
   }
 
   async requestRefill(user: AuthUser, id: string) {
-    const { data: rx } = await this.supabase.admin.from('prescriptions').select().eq('id', id).eq('patient_id', user.id).single();
+    const { data: rx } = await this.supabase.admin.from('prescriptions').select().is('deleted_at', null).eq('id', id).eq('patient_id', user.id).single();
     if (!rx) throw new NotFoundException(ERROR_MESSAGES.PRESCRIPTION_NOT_FOUND);
     
-    const { data: updated } = await this.supabase.admin.from('prescriptions').update({ refill_requested: true }).eq('id', id).select().single();
+    const { data: updated } = await this.supabase.admin.from('prescriptions').update({ refill_requested: true }).eq('id', id).select().is('deleted_at', null).single();
     return updated;
   }
 
   async handleRefill(user: AuthUser, id: string, action: 'approve' | 'reject') {
     this.requireVerifiedDoctor(user);
 
-    const { data: rx } = await this.supabase.admin.from('prescriptions').select().eq('id', id).single();
+    const { data: rx } = await this.supabase.admin.from('prescriptions').select().is('deleted_at', null).eq('id', id).single();
     if (!rx) throw new NotFoundException(ERROR_MESSAGES.PRESCRIPTION_NOT_FOUND);
     // Only the prescribing doctor may action a refill on their own line —
     // unassigned (legacy) prescriptions with no doctor_id remain open to any
@@ -135,7 +150,7 @@ export class RecordsService {
       patch.valid_till = validTill.toISOString().slice(0, 10);
     }
 
-    const { data: updated } = await this.supabase.admin.from('prescriptions').update(patch).eq('id', id).select().single();
+    const { data: updated } = await this.supabase.admin.from('prescriptions').update(patch).eq('id', id).select().is('deleted_at', null).single();
     return updated;
   }
 
@@ -146,20 +161,22 @@ export class RecordsService {
     // patients they actually have a relationship with, not every patient on
     // the platform (see AUDIT_REPORT.md SEC-1).
     const scopedPatientId = user.profile.role === ProfileRole.PATIENT ? user.id : patientId;
-    let doctorPatientIds: string[] | null = null;
     if (scopedPatientId) {
       await this.guardPatientAccess(user, scopedPatientId);
+      const { data } = await this.supabase.admin
+        .from('lab_reports')
+        .select()
+        .is('deleted_at', null)
+        .eq('patient_id', scopedPatientId)
+        .order('created_at', { ascending: false });
+      return data || [];
     } else {
       this.requireVerifiedDoctor(user);
-      doctorPatientIds = await this.getDoctorPatientIds(user.id);
-      if (!doctorPatientIds.length) return [];
+      // N+1 Optimization: Using RPC to perform the patient_id join directly in the DB
+      // rather than fetching all patient IDs and passing them back in an IN clause.
+      const { data } = await this.supabase.admin.rpc('get_doctor_lab_reports', { p_doctor_id: user.id });
+      return data || [];
     }
-
-    const query = this.supabase.admin.from('lab_reports').select().order('created_at', { ascending: false });
-    if (scopedPatientId) query.eq('patient_id', scopedPatientId);
-    else query.in('patient_id', doctorPatientIds as string[]);
-    const { data } = await query;
-    return data || [];
   }
 
   async uploadLabReport(user: AuthUser, file: Express.Multer.File, body: UploadLabReportDto) {
@@ -219,7 +236,7 @@ export class RecordsService {
   }
 
   async getSignedUrl(user: AuthUser, id: string) {
-    const { data: report } = await this.supabase.admin.from('lab_reports').select().eq('id', id).single();
+    const { data: report } = await this.supabase.admin.from('lab_reports').select().is('deleted_at', null).eq('id', id).single();
     if (!report) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
     await this.guardPatientAccess(user, report.patient_id);
     if (!report.file_path) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
@@ -230,7 +247,7 @@ export class RecordsService {
   }
 
   async deleteLabReport(user: AuthUser, id: string) {
-    const { data: report } = await this.supabase.admin.from('lab_reports').select().eq('id', id).single();
+    const { data: report } = await this.supabase.admin.from('lab_reports').select().is('deleted_at', null).eq('id', id).single();
     if (!report) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
     if (user.profile.role !== ProfileRole.PATIENT || report.patient_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     if (report.status !== 'Uploaded') throw new ForbiddenException(ERROR_MESSAGES.LAB_REPORT_ALREADY_REVIEWED);
@@ -326,7 +343,7 @@ export class RecordsService {
     // patient may review it.
     this.requireVerifiedDoctor(user);
 
-    const { data: report } = await this.supabase.admin.from('lab_reports').select().eq('id', id).single();
+    const { data: report } = await this.supabase.admin.from('lab_reports').select().is('deleted_at', null).eq('id', id).single();
     if (!report) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
     if (!(await this.hasCareRelationship(user.id, report.patient_id))) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 

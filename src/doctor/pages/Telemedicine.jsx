@@ -586,6 +586,13 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
     toast('Protocol applied successfully!', 'success');
   };
 
+  const handleAddCustomLab = (e) => {
+    e.preventDefault();
+    if (!customLabInput.trim()) return;
+    setDraftLabs(prev => Array.from(new Set([...prev, customLabInput.trim()])));
+    setCustomLabInput('');
+  };
+
   // Dictation & AI State
   const [isDictating, setIsDictating] = useState(false);
   const [isCheckingSafety, setIsCheckingSafety] = useState(false);

@@ -5,6 +5,7 @@ import { CashfreeService } from '@/core/cashfree/cashfree.service';
 import { InvoiceService } from '@/modules/billing/services/invoice.service';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { EmailService } from '@/core/email/email.service';
+import { AppointmentsService } from '@/modules/appointments/services/appointments.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
@@ -33,6 +34,7 @@ export class BillingService {
     private readonly invoices: InvoiceService,
     private readonly notifications: NotificationsService,
     private readonly email: EmailService,
+    private readonly appointmentsService: AppointmentsService,
   ) { }
 
   private async withNames(payments: any[]) {
@@ -124,7 +126,7 @@ export class BillingService {
   async createPaymentOrder(user: AuthUser, appointmentId: string) {
     if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
-    const { data: appointment } = await this.supabase.admin.from('appointments').select().eq('id', appointmentId).eq('patient_id', user.id).single();
+    const { data: appointment } = await this.supabase.admin.from('appointments').select().is('deleted_at', null).eq('id', appointmentId).eq('patient_id', user.id).single();
     if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
 
     const { data: doctor } = await this.supabase.admin.from('profiles').select('consultation_fee, currency').eq('id', appointment.doctor_id).single();
@@ -216,6 +218,19 @@ export class BillingService {
         cf_payment_id: successful?.cf_payment_id ? String(successful.cf_payment_id) : null,
       }).eq('id', payment.id).select().single();
       const named = (await this.withNames([updated]))[0];
+
+      // Appointment synchronization logic
+      const { data: appointment } = await this.supabase.admin.from('appointments').select().eq('id', payment.appointment_id).single();
+      if (appointment?.status === 'Cancelled' || appointment?.status === 'No Show') {
+        // If the appointment was already cancelled (e.g. by the 5-min timeout or manually),
+        // we must automatically trigger a refund for this successful payment.
+        await this.appointmentsService.initiateRefundIfPaid({ ...appointment, patientName: named.patientName });
+        this.logger.warn(`Payment settled for cancelled appointment ${appointment.id}. Automatic refund initiated.`);
+      } else {
+        // Otherwise, successfully confirm the appointment!
+        await this.appointmentsService.confirmPaidAppointment(payment.appointment_id);
+      }
+
       this.onPaymentSettled(named).catch((err) => this.logger.warn(`Post-payment side effects failed for ${updated.id}: ${err.message}`));
       return named;
     }

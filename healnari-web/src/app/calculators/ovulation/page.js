@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { APP_URL } from '@/config/env';
 
 export default function OvulationCalculator() {
   const [lastPeriod, setLastPeriod] = useState('');
@@ -42,7 +43,7 @@ export default function OvulationCalculator() {
             Healnari<span className="text-emerald-500">.</span>
           </Link>
           <div className="flex items-center gap-4">
-            <a href="http://localhost:5173" className="font-bold text-sm text-slate-600 hover:text-aubergine-600">Login</a>
+            <a href={APP_URL} className="font-bold text-sm text-slate-600 hover:text-aubergine-600">Login</a>
           </div>
         </div>
       </header>
@@ -108,7 +109,7 @@ export default function OvulationCalculator() {
                 <p className="text-sm text-emerald-800 mb-4">
                   Want to track your cycle daily and get personalized health insights?
                 </p>
-                <a href="http://localhost:5173" className="block text-center w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-colors">
+                <a href={APP_URL} className="block text-center w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-colors">
                   Create a Free Account
                 </a>
               </div>

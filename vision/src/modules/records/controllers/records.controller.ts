@@ -22,6 +22,7 @@ export class CreatePrescriptionDto {
   @ApiProperty() @IsUUID() patientId: string;
   @ApiProperty({ required: false, example: 'PCOS — IR Subtype' }) @IsOptional() @IsString() diagnosis?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() instructions?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsUUID() idempotencyKey?: string;
   @ApiProperty({ required: false, description: 'Base64 image or URL of handwritten/scanned prescription canvas' })
   @IsOptional() @IsString() handwrittenImage?: string;
   @ApiProperty({

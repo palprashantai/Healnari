@@ -23,7 +23,7 @@ export class CommunicationsService {
    * patient ids scoped to this doctor's own appointments — used when the
    * caller doesn't already hand over an explicit `patientIds` selection. */
   private async resolveDoctorAudience(doctorId: string, audience: string): Promise<string[]> {
-    let query = this.supabase.admin.from('appointments').select('patient_id').eq('doctor_id', doctorId);
+    let query = this.supabase.admin.from('appointments').select('patient_id').is('deleted_at', null).eq('doctor_id', doctorId);
 
     if (audience === 'upcoming') {
       query = query.in('status', ['Upcoming', 'Waiting']);

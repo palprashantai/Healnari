@@ -739,6 +739,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
   const [selectedRxDoc, setSelectedRxDoc] = useState(null);
   const [selectedLabDoc, setSelectedLabDoc] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [showAiBrief, setShowAiBrief] = useState(false);
 
   const loadLabRequests = () => {
     if (!patient) return;
@@ -810,8 +811,6 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
       toast(err.message || 'Failed to save clinical note', 'error');
     }
   };
-
-  const [showAiBrief, setShowAiBrief] = useState(false);
   const filteredReports = patient.reports.filter((r) => {
     if (labFilter === 'all') return true;
     if (labFilter === 'awaiting') return r.status === 'Uploaded';

@@ -21,6 +21,7 @@ export class TelemedicineService {
     const { data: sessions } = await this.supabase.admin
       .from('appointments')
       .select()
+      .is('deleted_at', null)
       .eq('doctor_id', user.id)
       .eq('type', 'video')
       .gte('scheduled_date', today)
@@ -33,7 +34,7 @@ export class TelemedicineService {
     const patientIds = [...new Set(sessions.map(s => s.patient_id))];
     const [{ data: profiles }, { data: records }] = await Promise.all([
       this.supabase.admin.from('profiles').select('id, full_name, phone').in('id', patientIds),
-      this.supabase.admin.from('patient_records').select('patient_id, dob').in('patient_id', patientIds),
+      this.supabase.admin.from('patient_records').select('patient_id, dob').is('deleted_at', null).in('patient_id', patientIds),
     ]);
     const profileById = new Map((profiles || []).map(p => [p.id, p]));
     const dobById = new Map((records || []).map(r => [r.patient_id, r.dob]));
@@ -51,7 +52,7 @@ export class TelemedicineService {
   }
 
   private async guardAppointmentAccess(user: AuthUser, appointmentId: string) {
-    const { data: appointment } = await this.supabase.admin.from('appointments').select().eq('id', appointmentId).single();
+    const { data: appointment } = await this.supabase.admin.from('appointments').select().is('deleted_at', null).eq('id', appointmentId).single();
     if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
     if (appointment.patient_id !== user.id && appointment.doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     return appointment;

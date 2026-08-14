@@ -8,8 +8,10 @@ import { CashfreeModule } from '@/core/cashfree/cashfree.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { EmailModule } from '@/core/email/email.module';
 
+import { AppointmentsModule } from '@/modules/appointments/appointments.module';
+
 @Module({
-  imports: [SupabaseModule, CashfreeModule, NotificationsModule, EmailModule],
+  imports: [SupabaseModule, CashfreeModule, NotificationsModule, EmailModule, AppointmentsModule],
   controllers: [BillingController],
   providers: [BillingService, InvoiceService, BillingCronService],
   exports: [BillingService],

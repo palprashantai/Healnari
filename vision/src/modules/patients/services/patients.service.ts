@@ -60,26 +60,20 @@ export class PatientsService {
    * duplicated between these two services in this codebase. */
   private async hasCareRelationship(doctorId: string, patientId: string): Promise<boolean> {
     const [{ count: apptCount }, { data: record }] = await Promise.all([
-      this.supabase.admin.from('appointments').select('id', { count: 'exact', head: true }).eq('doctor_id', doctorId).eq('patient_id', patientId),
-      this.supabase.admin.from('patient_records').select('created_by_doctor_id').eq('patient_id', patientId).maybeSingle(),
+      this.supabase.admin.from('appointments').select('id', { count: 'exact', head: true }).is('deleted_at', null).eq('doctor_id', doctorId).eq('patient_id', patientId),
+      this.supabase.admin.from('patient_records').select('created_by_doctor_id').is('deleted_at', null).eq('patient_id', patientId).maybeSingle(),
     ]);
     if ((apptCount || 0) > 0) return true;
     return record?.created_by_doctor_id === doctorId;
   }
 
-  private async getDoctorPatientIds(doctorId: string): Promise<string[]> {
-    const [{ data: appts }, { data: records }] = await Promise.all([
-      this.supabase.admin.from('appointments').select('patient_id').eq('doctor_id', doctorId),
-      this.supabase.admin.from('patient_records').select('patient_id').eq('created_by_doctor_id', doctorId),
-    ]);
-    return [...new Set([...(appts || []).map((a: any) => a.patient_id), ...(records || []).map((r: any) => r.patient_id)])];
-  }
+
 
   private async assemble(profile: Profile, record: PatientRecord | null) {
     const [medsRes, reportsRes, notesRes, paymentsRes] = await Promise.all([
-      this.supabase.admin.from('prescriptions').select().eq('patient_id', profile.id).order('created_at', { ascending: false }),
-      this.supabase.admin.from('lab_reports').select().eq('patient_id', profile.id).order('created_at', { ascending: false }),
-      this.supabase.admin.from('clinical_notes').select().eq('patient_id', profile.id).order('created_at', { ascending: false }),
+      this.supabase.admin.from('prescriptions').select().is('deleted_at', null).eq('patient_id', profile.id).order('created_at', { ascending: false }),
+      this.supabase.admin.from('lab_reports').select().is('deleted_at', null).eq('patient_id', profile.id).order('created_at', { ascending: false }),
+      this.supabase.admin.from('clinical_notes').select().is('deleted_at', null).eq('patient_id', profile.id).order('created_at', { ascending: false }),
       this.supabase.admin.from('payments').select().eq('patient_id', profile.id).order('created_at', { ascending: false }),
     ]);
     const prescriptions = medsRes.data || [];
@@ -112,16 +106,39 @@ export class PatientsService {
 
   async list(user: AuthUser) {
     this.requireVerifiedDoctor(user);
-    const patientIds = await this.getDoctorPatientIds(user.id);
-    if (!patientIds.length) return [];
+    
+    const { data, error } = await this.supabase.admin.rpc('get_doctor_patients', { p_doctor_id: user.id });
+    if (error || !data || !data.length) return [];
 
-    const { data: patients } = await this.supabase.admin.from('profiles').select().eq('role', ProfileRole.PATIENT).in('id', patientIds);
-    if (!patients || !patients.length) return [];
+    // Collect all unique doctor IDs to fetch doctor profiles once
+    const allDoctorIds = new Set<string>();
+    data.forEach(row => {
+      (row.prescriptions || []).forEach((p: any) => { if (p.doctor_id) allDoctorIds.add(p.doctor_id); });
+      (row.clinical_notes || []).forEach((n: any) => { if (n.doctor_id) allDoctorIds.add(n.doctor_id); });
+    });
 
-    const { data: records } = await this.supabase.admin.from('patient_records').select().in('patient_id', patients.map(p => p.id));
-    const recordByPatient = new Map((records || []).map(r => [r.patient_id, r]));
+    let doctorById = new Map<string, any>();
+    if (allDoctorIds.size > 0) {
+      const { data: doctors } = await this.supabase.admin.from('profiles').select('id, full_name, specialty, registration_no').in('id', Array.from(allDoctorIds));
+      doctorById = new Map((doctors || []).map(d => [d.id, d]));
+    }
 
-    return Promise.all(patients.map(p => this.assemble(p, recordByPatient.get(p.id) || null)));
+    return data.map(row => ({
+      profile: row.profile,
+      record: row.record,
+      prescriptions: (row.prescriptions || []).map((p: any) => ({
+        ...p,
+        doctor_name: (p.doctor_id && doctorById.get(p.doctor_id)?.full_name) || 'Your Doctor',
+        doctor_specialty: (p.doctor_id && doctorById.get(p.doctor_id)?.specialty) || null,
+        doctor_registration_no: (p.doctor_id && doctorById.get(p.doctor_id)?.registration_no) || null,
+      })),
+      lab_reports: row.lab_reports || [],
+      clinical_notes: (row.clinical_notes || []).map((n: any) => ({
+        ...n,
+        doctor_name: (n.doctor_id && doctorById.get(n.doctor_id)?.full_name) || 'Your Doctor',
+      })),
+      payments: row.payments || [],
+    }));
   }
 
   async create(user: AuthUser, body: CreatePatientDto) {
@@ -273,12 +290,12 @@ export class PatientsService {
   async logCycle(user: AuthUser, date: string, body: LogCycleDto) {
     if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
-    let { data: log } = await this.supabase.admin.from('cycle_logs').select().eq('patient_id', user.id).eq('log_date', date).single();
+    let { data: log } = await this.supabase.admin.from('cycle_logs').select().is('deleted_at', null).eq('patient_id', user.id).eq('log_date', date).single();
     if (!log) {
-      const { data: newLog } = await this.supabase.admin.from('cycle_logs').insert({ patient_id: user.id, log_date: date, symptoms: [], ...body }).select().single();
+      const { data: newLog } = await this.supabase.admin.from('cycle_logs').insert({ patient_id: user.id, log_date: date, symptoms: [], ...body }).select().is('deleted_at', null).single();
       return newLog;
     } else {
-      const { data: updatedLog } = await this.supabase.admin.from('cycle_logs').update(body).eq('id', log.id).select().single();
+      const { data: updatedLog } = await this.supabase.admin.from('cycle_logs').update(body).eq('id', log.id).select().is('deleted_at', null).single();
       return updatedLog;
     }
   }

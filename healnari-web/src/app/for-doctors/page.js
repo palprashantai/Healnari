@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { APP_URL } from '@/config/env';
 
 export const metadata = {
   title: 'Healnari for Doctors | Grow Your Telemedicine Practice',
@@ -15,8 +16,8 @@ export default function ForDoctors() {
             <span className="text-sm text-slate-500 ml-2 font-bold tracking-normal">For Doctors</span>
           </Link>
           <div className="flex items-center gap-4">
-            <a href="http://localhost:5173" className="font-bold text-sm text-slate-600 hover:text-aubergine-600">Patient Portal</a>
-            <a href="http://localhost:5173/for-doctors" className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2 px-5 rounded-full text-sm transition-colors shadow-lg">
+            <a href={APP_URL} className="font-bold text-sm text-slate-600 hover:text-aubergine-600">Patient Portal</a>
+            <a href={`${APP_URL}/for-doctors`} className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2 px-5 rounded-full text-sm transition-colors shadow-lg">
               Doctor Login
             </a>
           </div>
@@ -36,7 +37,7 @@ export default function ForDoctors() {
             Join thousands of experts using Healnari to provide continuous, data-driven care to women. We handle the technology and compliance, so you can focus on medicine.
           </p>
           <div className="flex justify-center gap-4">
-            <a href="http://localhost:5173/for-doctors" className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-4 px-8 rounded-full text-lg transition-all shadow-xl hover:-translate-y-0.5">
+            <a href={`${APP_URL}/for-doctors`} className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-4 px-8 rounded-full text-lg transition-all shadow-xl hover:-translate-y-0.5">
               Apply to Join Network
             </a>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { APP_URL } from '@/config/env';
 
 const questions = [
   { id: 'irregular', text: 'Do you have irregular periods (fewer than 8 periods a year, or cycles longer than 35 days)?' },
@@ -46,7 +47,7 @@ export default function PcosAssessment() {
             Healnari<span className="text-emerald-500">.</span>
           </Link>
           <div className="flex items-center gap-4">
-            <a href="http://localhost:5173" className="font-bold text-sm text-slate-600 hover:text-aubergine-600">Login</a>
+            <a href={APP_URL} className="font-bold text-sm text-slate-600 hover:text-aubergine-600">Login</a>
           </div>
         </div>
       </header>

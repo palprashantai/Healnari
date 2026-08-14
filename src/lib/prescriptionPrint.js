@@ -49,54 +49,68 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
       <meta charset="utf-8" />
       <title>Prescription — ${escapeHtml(patient?.name)}</title>
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
         
         * { box-sizing: border-box; }
         body { 
           font-family: 'Inter', system-ui, -apple-system, sans-serif; 
-          color: #0f172a; 
+          color: #1e293b; 
           padding: 0; 
           margin: 0 auto; 
-          background: #ffffff;
+          background: #f8fafc;
         }
         
         .page-container {
           max-width: 800px;
-          margin: 0 auto;
+          margin: 40px auto;
           position: relative;
+          background: #ffffff;
+          box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+          border-radius: 16px;
+          overflow: hidden;
         }
 
         /* Top Banner */
         .banner {
-          background-color: #f8fafc;
-          border-bottom: 4px solid #6B46C1;
-          padding: 40px 50px 30px;
+          background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 100%);
+          color: white;
+          padding: 45px 55px;
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
+          align-items: center;
+          position: relative;
+        }
+        
+        .banner::after {
+          content: '';
+          position: absolute;
+          top: 0; right: 0; bottom: 0; left: 0;
+          background-image: radial-gradient(circle at 100% 0%, rgba(255,255,255,0.12) 0%, transparent 60%);
+          pointer-events: none;
         }
 
-        .brand-col { max-width: 60%; }
-        .brand { font-size: 32px; font-weight: 900; color: #6B46C1; letter-spacing: -0.5px; margin-bottom: 5px; }
-        .clinic-line { font-size: 13px; font-weight: 700; color: #475569; }
-        .clinic-address { font-size: 11px; color: #64748b; margin-top: 4px; }
+        .brand-col { max-width: 55%; position: relative; z-index: 1; }
+        .brand-logo-text { font-family: 'Playfair Display', serif; font-size: 38px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px; margin-bottom: 8px; line-height: 1; }
+        .clinic-line { font-size: 14px; font-weight: 600; color: #d8b4fe; letter-spacing: 1.5px; text-transform: uppercase; }
+        .clinic-address { font-size: 12px; color: #e2e8f0; margin-top: 10px; line-height: 1.6; opacity: 0.9; }
         
-        .doc-col { max-width: 40%; text-align: right; }
-        .doctor-name { font-size: 18px; font-weight: 800; color: #0f172a; }
-        .doctor-meta { font-size: 12px; color: #64748b; margin-top: 4px; line-height: 1.4; }
+        .doc-col { max-width: 45%; text-align: right; position: relative; z-index: 1; }
+        .doctor-name { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: #ffffff; margin-bottom: 6px; }
+        .doctor-meta { font-size: 14px; color: #c4b5fd; line-height: 1.5; font-weight: 500; }
 
-        .content { padding: 40px 50px; position: relative; }
+        .content { padding: 55px; position: relative; background: #ffffff; }
         
         /* Rx Watermark */
         .watermark {
           position: absolute;
-          top: 150px;
+          top: 50%;
           left: 50%;
-          transform: translateX(-50%);
-          font-size: 400px;
-          font-weight: 900;
-          color: #6B46C1;
-          opacity: 0.03;
+          transform: translate(-50%, -50%);
+          font-family: 'Playfair Display', serif;
+          font-size: 500px;
+          font-weight: 700;
+          color: #8b5cf6;
+          opacity: 0.02;
           z-index: 0;
           pointer-events: none;
         }
@@ -105,95 +119,143 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
         .meta-grid {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 30px;
+          margin-bottom: 40px;
           position: relative;
           z-index: 1;
+          padding-bottom: 20px;
+          border-bottom: 2px dashed #f1f5f9;
         }
 
-        .meta-item { margin-bottom: 15px; }
-        .meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; font-weight: 700; margin-bottom: 4px; }
-        .meta-value { font-size: 14px; font-weight: 600; color: #0f172a; }
+        .meta-item { display: flex; flex-direction: column; gap: 6px; }
+        .meta-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; font-weight: 800; }
+        .meta-value { font-size: 15px; font-weight: 700; color: #0f172a; }
         
-        /* Patient & Diagnosis Box */
+        /* Patient Box */
         .patient-box {
           display: flex;
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          padding: 20px 25px;
-          margin-bottom: 35px;
-          box-shadow: 0 4px 12px rgba(107, 70, 193, 0.03);
+          background: linear-gradient(to right, #f8fafc, #ffffff);
+          border-left: 4px solid #8b5cf6;
+          border-radius: 0 16px 16px 0;
+          padding: 28px 32px;
+          margin-bottom: 50px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.02);
           position: relative;
           z-index: 1;
         }
-        .patient-box > div { flex: 1; border-right: 1px solid #e2e8f0; padding-right: 20px; }
-        .patient-box > div:last-child { border-right: none; padding-right: 0; padding-left: 20px; }
+        .patient-box > div { flex: 1; border-right: 2px solid #f1f5f9; padding-right: 32px; }
+        .patient-box > div:last-child { border-right: none; padding-right: 0; padding-left: 32px; }
         
-        .patient-name { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
-        .patient-details { font-size: 13px; color: #64748b; }
+        .patient-name { font-size: 22px; font-weight: 800; color: #1e293b; margin-bottom: 6px; letter-spacing: -0.3px; }
+        .patient-details { font-size: 15px; color: #64748b; font-weight: 500; }
+        .diagnosis-val { font-size: 17px; font-weight: 700; color: #4c1d95; margin-top: 8px; line-height: 1.4; }
 
         /* Medicines List */
-        .rx-symbol { font-size: 36px; font-weight: 900; color: #6B46C1; margin-bottom: 20px; position: relative; z-index: 1; }
-        .meds { position: relative; z-index: 1; margin-bottom: 40px; }
+        .rx-symbol { 
+          font-family: 'Playfair Display', serif;
+          font-size: 48px; 
+          font-weight: 700; 
+          color: #1e1b4b; 
+          margin-bottom: 35px; 
+          position: relative; 
+          z-index: 1; 
+          line-height: 1;
+        }
+        .meds { position: relative; z-index: 1; margin-bottom: 50px; }
         
         .med-row {
           display: flex;
-          gap: 20px;
-          padding: 16px 0;
-          border-bottom: 1px solid #f1f5f9;
+          gap: 25px;
+          padding: 22px 28px;
+          margin-bottom: 16px;
+          background: #ffffff;
+          border: 1px solid #f1f5f9;
+          border-radius: 16px;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.02);
           page-break-inside: avoid;
         }
-        .med-row:last-child { border-bottom: none; }
+        .med-row:nth-child(even) { background: #fafaf9; }
         
         .med-num { 
-          font-weight: 800; 
-          color: #cbd5e1; 
-          font-size: 20px;
-          width: 30px;
+          font-weight: 900; 
+          color: #e2e8f0; 
+          font-size: 26px;
+          width: 40px;
           text-align: right;
-          padding-top: 2px;
+          line-height: 1;
         }
         .med-body { flex: 1; }
-        .med-name { font-weight: 700; font-size: 16px; color: #0f172a; margin-bottom: 6px; }
-        .med-detail { display: flex; align-items: center; gap: 8px; }
-        .med-schedule { background: #f8fafc; border: 1px solid #e2e8f0; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; color: #475569; }
-        .med-duration { font-size: 13px; color: #64748b; font-weight: 500; }
+        .med-name { font-weight: 800; font-size: 18px; color: #0f172a; margin-bottom: 10px; letter-spacing: -0.2px; }
+        .med-detail { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+        .med-schedule { background: #ede9fe; border: 1px solid #ddd6fe; padding: 6px 14px; border-radius: 8px; font-size: 14px; font-weight: 700; color: #5b21b6; }
+        .med-duration { font-size: 14px; color: #64748b; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .med-duration::before { content: ''; display: block; width: 5px; height: 5px; border-radius: 50%; background: #cbd5e1; }
 
-        /* Instructions */
-        .instructions {
-          margin-top: 20px;
-          background: #fefce8;
-          border: 1px solid #fef08a;
-          border-left: 4px solid #eab308;
-          border-radius: 8px;
-          padding: 16px 20px;
-          font-size: 13px;
-          line-height: 1.6;
-          color: #854d0e;
+        /* Instructions & Labs */
+        .instructions-container {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 24px;
+          margin-bottom: 40px;
+        }
+        
+        .callout-box {
+          border-radius: 16px;
+          padding: 28px;
           position: relative;
           z-index: 1;
         }
+        
+        .labs-box {
+          background: #f0fdf4;
+          border: 1px solid #bbf7d0;
+          border-left: 6px solid #22c55e;
+        }
+        
+        .notes-box {
+          background: #fffbeb;
+          border: 1px solid #fde68a;
+          border-left: 6px solid #f59e0b;
+        }
+
+        .callout-title { font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; margin-bottom: 14px; }
+        .labs-box .callout-title { color: #166534; }
+        .notes-box .callout-title { color: #92400e; }
+        
+        .callout-content { font-size: 15px; line-height: 1.6; font-weight: 500; }
+        .labs-box .callout-content { color: #14532d; }
+        .notes-box .callout-content { color: #78350f; }
+        
+        .callout-content ul { margin: 0; padding-left: 20px; }
+        .callout-content li { margin-bottom: 8px; }
+        .callout-content li:last-child { margin-bottom: 0; }
 
         /* Footer */
         .footer {
-          margin-top: 60px;
-          padding-top: 30px;
-          border-top: 1px solid #e2e8f0;
+          margin-top: 70px;
+          padding-top: 40px;
+          border-top: 2px solid #f1f5f9;
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
           position: relative;
           z-index: 1;
         }
-        .disclaimer { font-size: 11px; color: #94a3b8; max-width: 350px; line-height: 1.5; font-weight: 500; }
-        .sign-box { text-align: center; }
-        .sign-line { border-top: 1px dashed #94a3b8; width: 220px; padding-top: 8px; font-size: 12px; color: #475569; font-weight: 600; }
-        .sign-doc { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 25px; font-family: 'Playfair Display', serif; font-style: italic; }
+        
+        .disclaimer-box { max-width: 420px; }
+        .disclaimer { font-size: 13px; color: #64748b; line-height: 1.6; font-weight: 500; }
+        .disclaimer strong { color: #0f172a; font-weight: 700; }
+        
+        .sign-box { text-align: center; min-width: 260px; }
+        .sign-doc { font-family: 'Playfair Display', serif; font-size: 34px; font-weight: 700; color: #1e1b4b; margin-bottom: 15px; font-style: italic; }
+        .sign-line { border-top: 2px dashed #cbd5e1; padding-top: 14px; font-size: 13px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
 
         @media print {
-          @page { margin: 0; }
+          @page { margin: 0; size: auto; }
+          body { background: #ffffff; padding: 0; }
+          .page-container { margin: 0; border-radius: 0; box-shadow: none; max-width: 100%; }
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .banner { border-bottom-width: 4px; }
+          .med-row { break-inside: avoid; }
+          .callout-box { break-inside: avoid; }
         }
       </style>
     </head>
@@ -201,10 +263,9 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
       <div class="page-container">
         <div class="banner">
           <div class="brand-col">
-            <img src="/brand/logo-full.jpg" alt="HealNari" style="height: 38px; margin-bottom: 8px; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
-            <div class="brand" style="display: none;">HealNari</div>
-            <div class="clinic-line">Digital Health Clinic</div>
-            <div class="clinic-address">123 Wellness Avenue, Health City<br/>support@healnari.app | +91 80000 00000</div>
+            <div class="brand-logo-text">HealNari</div>
+            <div class="clinic-line">Advanced Telehealth Center</div>
+            <div class="clinic-address">123 Wellness Avenue, Health City<br/>support@healnari.com &nbsp;&bull;&nbsp; +91 80000 00000</div>
           </div>
           <div class="doc-col">
             <div class="doctor-name">Dr. ${escapeHtml(doctor?.name)}</div>
@@ -216,61 +277,64 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
           <div class="watermark">&#8478;</div>
 
           <div class="meta-grid">
-            <div>
-              <div class="meta-item">
-                <div class="meta-label">Date of Issue</div>
-                <div class="meta-value">${escapeHtml(date)}</div>
-              </div>
+            <div class="meta-item">
+              <div class="meta-label">Date of Consultation</div>
+              <div class="meta-value">${escapeHtml(date)}</div>
             </div>
-            <div style="text-align: right;">
-              <div class="meta-item">
-                <div class="meta-label">Prescription ID</div>
-                <div class="meta-value" style="font-family: monospace; color: #475569;">${escapeHtml(rxId)}</div>
-              </div>
+            <div class="meta-item" style="text-align: right;">
+              <div class="meta-label">Prescription ID</div>
+              <div class="meta-value" style="font-family: monospace; color: #475569; letter-spacing: 0.5px;">${escapeHtml(rxId)}</div>
             </div>
           </div>
 
           <div class="patient-box">
             <div>
-              <div class="meta-label">Billed To (Patient)</div>
+              <div class="meta-label">Patient Details</div>
               <div class="patient-name">${escapeHtml(patient?.name)}</div>
               <div class="patient-details">${patientMeta ? escapeHtml(patientMeta) : 'Telehealth Member'}</div>
             </div>
             <div>
               <div class="meta-label">Clinical Diagnosis</div>
-              <div class="meta-value" style="margin-top: 4px;">${escapeHtml(diagnosis || 'General Consultation')}</div>
+              <div class="diagnosis-val">${escapeHtml(diagnosis || 'General Consultation')}</div>
             </div>
           </div>
 
           ${handwrittenImage ? `
-          <div style="margin: 20px 0; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; background: #faf8f5; padding: 4px;">
+          <div style="margin: 30px 0; border: 2px solid #f1f5f9; border-radius: 20px; overflow: hidden; background: #faf8f5; padding: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
             <img src="${handwrittenImage}" alt="Handwritten Clinical Prescription" style="width: 100%; border-radius: 12px; display: block;" />
           </div>` : `
           <div class="rx-symbol">&#8478;</div>
           <div class="meds">${medsHtml}</div>`}
 
-          ${(labTests && labTests.length > 0) ? `
-          <div class="instructions" style="background: #f0f9ff; border-color: #bae6fd; border-left-color: #0284c7; margin-bottom: 20px;">
-            <div class="meta-label" style="color: #0369a1; margin-bottom: 6px;">Suggested Lab Tests</div>
-            <ul style="margin: 0; padding-left: 20px; color: #0c4a6e; font-weight: 500;">
-              ${labTests.map(t => `<li>${escapeHtml(t)}</li>`).join('')}
-            </ul>
-          </div>` : ''}
+          <div class="instructions-container">
+            ${(labTests && labTests.length > 0) ? `
+            <div class="callout-box labs-box">
+              <div class="callout-title">Suggested Investigations (Labs)</div>
+              <div class="callout-content">
+                <ul>
+                  ${labTests.map(t => `<li>${escapeHtml(t)}</li>`).join('')}
+                </ul>
+              </div>
+            </div>` : ''}
 
-          ${instructions ? `
-          <div class="instructions">
-            <div class="meta-label" style="color: #a16207; margin-bottom: 6px;">Special Instructions</div>
-            ${escapeHtml(instructions)}
-          </div>` : ''}
+            ${instructions ? `
+            <div class="callout-box notes-box">
+              <div class="callout-title">Special Instructions</div>
+              <div class="callout-content">
+                ${escapeHtml(instructions)}
+              </div>
+            </div>` : ''}
+          </div>
 
           <div class="footer">
-            <div class="disclaimer">
-              <strong>Note:</strong> This is a digitally generated prescription.<br/>
-              Valid only with the prescribing doctor's e-signature on file. Dispense as written.
+            <div class="disclaimer-box">
+              <div class="disclaimer">
+                <strong>Important Note:</strong> This is a digitally generated electronic prescription under the Telemedicine Practice Guidelines. Valid only with the prescribing doctor's e-signature on file. Dispense as written.
+              </div>
             </div>
             <div class="sign-box">
               <div class="sign-doc">${escapeHtml(doctor?.name)}</div>
-              <div class="sign-line">Doctor's Signature</div>
+              <div class="sign-line">Digital Signature</div>
             </div>
           </div>
         </div>

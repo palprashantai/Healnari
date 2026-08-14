@@ -1,17 +1,19 @@
 import Link from 'next/link';
+import { APP_URL } from '@/config/env';
 
 export const metadata = {
-  title: 'Healnari - Complete Women\'s Healthcare & Telemedicine',
-  description: 'Track your menstrual cycle, manage PCOS symptoms, and consult board-certified gynecologists online—all in one secure, HIPAA-compliant app.',
+  title: 'Healnari - Women\'s Health & Telehealth Clinic | Period Tracker & PCOS Care',
+  description: 'The complete women\'s health platform. Track menstrual cycles, assess PCOS risks, calculate ovulation, and consult top gynecologists online securely.',
   openGraph: {
-    title: 'Healnari - The Complete Period Tracker & Telehealth Clinic for Women',
-    description: 'Track your menstrual cycle, manage PCOS symptoms, and consult board-certified gynecologists online.',
-  }
+    title: 'Healnari - Women\'s Health & Telehealth Clinic',
+    description: 'Track cycles, calculate ovulation, and connect with certified gynecologists online.',
+    type: 'website',
+  },
 };
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col font-sans text-slate-800 bg-slate-50">
+    <div className="min-h-screen flex flex-col font-sans text-slate-800 bg-slate-50 selection:bg-aubergine-500 selection:text-white">
       
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
@@ -25,8 +27,8 @@ export default function Home() {
             <Link href="/calculators/pcos-risk" className="text-slate-600 hover:text-aubergine-600 transition-colors">PCOS Assessment</Link>
           </nav>
           <div className="flex items-center gap-4">
-            <a href="http://localhost:5173" className="font-bold text-sm text-slate-600 hover:text-aubergine-600">Login</a>
-            <a href="http://localhost:5173" className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2 px-5 rounded-full text-sm transition-colors shadow-lg shadow-aubergine-200">
+            <a href={APP_URL} className="font-bold text-sm text-slate-600 hover:text-aubergine-600">Login</a>
+            <a href={APP_URL} className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2 px-5 rounded-full text-sm transition-colors shadow-lg shadow-aubergine-200">
               Get Started
             </a>
           </div>
@@ -49,7 +51,7 @@ export default function Home() {
             </p>
             <div className="flex flex-col items-center justify-center gap-4">
               <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                <a href="http://localhost:5173" className="w-full sm:w-auto bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-4 px-8 rounded-full text-lg transition-all shadow-xl shadow-aubergine-200 hover:-translate-y-0.5">
+                <a href={APP_URL} className="w-full sm:w-auto bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-4 px-8 rounded-full text-lg transition-all shadow-xl shadow-aubergine-200 hover:-translate-y-0.5">
                   Get Started Free
                 </a>
                 <Link href="/doctors/search" className="w-full sm:w-auto bg-white border-2 border-slate-200 hover:border-slate-300 text-slate-700 font-bold py-4 px-8 rounded-full text-lg transition-all">
@@ -146,7 +148,7 @@ export default function Home() {
           <div className="flex justify-center gap-6 mb-8 text-sm font-bold">
             <Link href="/doctors/search" className="hover:text-white transition-colors">Doctors</Link>
             <Link href="/calculators/ovulation" className="hover:text-white transition-colors">Calculators</Link>
-            <a href="http://localhost:5173" className="hover:text-white transition-colors">Login</a>
+            <a href={APP_URL} className="hover:text-white transition-colors">Login</a>
           </div>
           <p className="text-sm">© {new Date().getFullYear()} Healnari Healthcare. All rights reserved.</p>
         </div>

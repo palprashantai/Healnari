@@ -55,107 +55,11 @@ export class DoctorsService {
     this.requireVerifiedDoctor(user);
     const doctorId = user.id;
 
-    const [{ data: appointments }, { data: payments }] = await Promise.all([
-      this.supabase.admin.from('appointments').select('patient_id, type, status, scheduled_date').eq('doctor_id', doctorId),
-      this.supabase.admin.from('payments').select('amount, created_at, status, method').eq('doctor_id', doctorId).eq('status', 'Paid'),
-    ]);
-
-    const apts = appointments || [];
-    const pays = payments || [];
-
-    // Revenue by month (last 12 months, oldest first)
-    const revenueByMonth = new Map<string, number>();
-    pays.forEach((p) => {
-      const d = new Date(p.created_at);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      revenueByMonth.set(key, (revenueByMonth.get(key) || 0) + Number(p.amount));
-    });
-    const consultsByMonth = new Map<string, number>();
-    apts.forEach((a) => {
-      const d = new Date(a.scheduled_date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      consultsByMonth.set(key, (consultsByMonth.get(key) || 0) + 1);
-    });
-    const now = new Date();
-    const monthlyTrend = Array.from({ length: 12 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      return {
-        month: d.toLocaleString('en-US', { month: 'short' }),
-        revenue: revenueByMonth.get(key) || 0,
-        consultations: consultsByMonth.get(key) || 0,
-      };
-    });
-
-    // Consultation delivery mode split
-    const consultTypeSplit = {
-      video: apts.filter((a) => a.type === 'video').length,
-      clinic: apts.filter((a) => a.type === 'clinic').length,
-    };
-
-    // Weekly appointment load (Mon-first)
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const weeklyLoadMap = new Map<string, number>(dayNames.map((d) => [d, 0]));
-    apts.forEach((a) => {
-      const day = dayNames[new Date(a.scheduled_date).getDay()];
-      weeklyLoadMap.set(day, (weeklyLoadMap.get(day) || 0) + 1);
-    });
-    const weeklyLoad = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => ({ day, consultations: weeklyLoadMap.get(day) || 0 }));
-
-    // No-show rate
-    const totalAppointments = apts.length;
-    const noShows = apts.filter((a) => a.status === 'No Show').length;
-    const noShowRate = totalAppointments ? Number(((noShows / totalAppointments) * 100).toFixed(1)) : 0;
-
-    // Patient age demographics + top chronic conditions, from patients this doctor has actually seen
-    const patientIds = [...new Set(apts.map((a) => a.patient_id))];
-    const { data: records } = patientIds.length
-      ? await this.supabase.admin.from('patient_records').select('patient_id, dob, chronic_conditions').in('patient_id', patientIds)
-      : { data: [] as { patient_id: string; dob: string | null; chronic_conditions: string[] }[] };
-
-    const ageBuckets: Record<string, number> = { '18-25': 0, '26-35': 0, '36-45': 0, '46-55': 0, '56+': 0 };
-    const diagnosisCounts = new Map<string, number>();
-    (records || []).forEach((r) => {
-      if (r.dob) {
-        const age = Math.floor((Date.now() - new Date(r.dob).getTime()) / 31557600000);
-        if (age <= 25) ageBuckets['18-25']++;
-        else if (age <= 35) ageBuckets['26-35']++;
-        else if (age <= 45) ageBuckets['36-45']++;
-        else if (age <= 55) ageBuckets['46-55']++;
-        else ageBuckets['56+']++;
-      }
-      (r.chronic_conditions || []).forEach((c) => diagnosisCounts.set(c, (diagnosisCounts.get(c) || 0) + 1));
-    });
-    const topDiagnoses = [...diagnosisCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([condition, count]) => ({ condition, count }));
-
-    // Appointment status split
-    const appointmentStatusSplit = {
-      Completed: apts.filter((a) => a.status === 'Done').length,
-      Scheduled: apts.filter((a) => ['Upcoming', 'Waiting'].includes(a.status)).length,
-      Cancelled: apts.filter((a) => a.status === 'Cancelled').length,
-      NoShow: noShows,
-    };
-
-    // Payment method split (revenue by method)
-    const paymentMethodSplit = {
-      UPI: pays.filter((p) => p.method === 'UPI').reduce((sum, p) => sum + Number(p.amount), 0),
-      Card: pays.filter((p) => p.method === 'Card').reduce((sum, p) => sum + Number(p.amount), 0),
-      Cash: pays.filter((p) => p.method === 'Cash').reduce((sum, p) => sum + Number(p.amount), 0),
-    };
-
-    return {
-      totalRevenue: pays.reduce((sum, p) => sum + Number(p.amount), 0),
-      totalConsultations: totalAppointments,
-      totalPatients: patientIds.length,
-      noShowRate,
-      monthlyTrend,
-      consultTypeSplit,
-      weeklyLoad,
-      ageDemographics: Object.entries(ageBuckets).map(([age, count]) => ({ age, count })),
-      topDiagnoses,
-      appointmentStatusSplit,
-      paymentMethodSplit,
-    };
+    const { data, error } = await this.supabase.admin.rpc('get_doctor_analytics', { p_doctor_id: doctorId });
+    if (error) {
+      throw new InternalServerErrorException('Failed to aggregate doctor analytics');
+    }
+    return data;
   }
 
   async getMyAuditLogs(user: AuthUser) {
@@ -177,17 +81,52 @@ export class DoctorsService {
 
   async getAvailableSlots(doctorId: string, date: string) {
     const { data: doctor } = await this.supabase.admin.from('profiles').select().eq('id', doctorId).eq('role', ProfileRole.DOCTOR).single();
-    if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
+    if (!doctor || !doctor.kyc_verified) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
+
+    // If doctor is on approved leave on this date, no slots are available
+    const { data: leaves } = await this.supabase.admin
+      .from('leave_requests')
+      .select('id')
+      .eq('doctor_id', doctorId)
+      .eq('status', 'Approved')
+      .lte('from_date', date)
+      .gte('to_date', date);
+
+    if (leaves && leaves.length > 0) {
+      return { doctorId, date, availableSlots: [] };
+    }
 
     const { data: booked } = await this.supabase.admin
       .from('appointments')
       .select('scheduled_time')
+      .is('deleted_at', null)
       .eq('doctor_id', doctorId)
       .eq('scheduled_date', date)
       .not('status', 'in', '("Cancelled","No Show")');
 
     const bookedTimes = new Set((booked || []).map((b) => b.scheduled_time));
-    const availableSlots = STATIC_SLOTS.filter((slot) => !bookedTimes.has(slot));
+    const now = new Date();
+    const isToday = now.toISOString().slice(0, 10) === date;
+
+    const availableSlots = STATIC_SLOTS.filter((slot) => {
+      if (bookedTimes.has(slot)) return false;
+
+      if (isToday) {
+        const isPM = slot.toLowerCase().includes('pm');
+        const timeMatches = slot.match(/(\d+):(\d+)/);
+        if (timeMatches) {
+          let hour = parseInt(timeMatches[1], 10);
+          const min = parseInt(timeMatches[2], 10);
+          if (isPM && hour < 12) hour += 12;
+          if (!isPM && hour === 12) hour = 0;
+          const slotTime = new Date(`${date}T${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}:00`);
+          if (slotTime < now) return false;
+        }
+      }
+
+      return true;
+    });
+
     return { doctorId, date, availableSlots };
   }
 }
