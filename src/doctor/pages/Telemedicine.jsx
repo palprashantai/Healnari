@@ -526,6 +526,18 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
   });
   const [savingCustomMed, setSavingCustomMed] = useState(false);
 
+  // ── EMR Quick Drawer ──
+  const [showEmrDrawer, setShowEmrDrawer] = useState(false);
+
+  // ── Draft Auto-Save ──
+  const draftKey = `healnari_rx_draft_${session.id}`;
+  const [draftSavedAt, setDraftSavedAt] = useState(null);
+
+  // ── WebRTC Reconnect ──
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [audioOnlyMode, setAudioOnlyMode] = useState(false);
+  const reconnectTimerRef = useRef(null);
+
   // Fetch live catalog items
   useEffect(() => {
     apiFetch('/records/catalog?type=medicine')
@@ -654,6 +666,59 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
   useEffect(() => {
     if (call.error) toast(call.error, 'error');
   }, [call.error, toast]);
+
+  // ── Debounced Draft Auto-Save ──
+  useEffect(() => {
+    if (!clinicalNotes && draftMeds.length === 0) return;
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(draftKey, JSON.stringify({
+          clinicalNotes,
+          draftMeds,
+          draftLabs,
+          diagnosis,
+          followUpAdvice,
+          savedAt: new Date().toISOString(),
+        }));
+        setDraftSavedAt(new Date());
+      } catch (_) {}
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [clinicalNotes, draftMeds, draftLabs, diagnosis, followUpAdvice]);
+
+  // Restore draft on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(draftKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.clinicalNotes) setClinicalNotes(parsed.clinicalNotes);
+        if (parsed.draftMeds?.length) setDraftMeds(parsed.draftMeds);
+        if (parsed.draftLabs?.length) setDraftLabs(parsed.draftLabs);
+        if (parsed.diagnosis) setDiagnosis(parsed.diagnosis);
+        if (parsed.followUpAdvice) setFollowUpAdvice(parsed.followUpAdvice);
+        toast('📋 Draft session restored', 'info');
+      }
+    } catch (_) {}
+  }, []);
+
+  // ── WebRTC Auto-Reconnect ──
+  useEffect(() => {
+    const badStates = ['connecting', 'failed'];
+    if (badStates.includes(call.connectionState) && joined) {
+      setIsReconnecting(true);
+      reconnectTimerRef.current = setTimeout(() => {
+        // After 8s still bad → suggest audio only
+        if (audioOnlyMode) return;
+        setAudioOnlyMode(true);
+        toast('📶 Connection poor — switched to Audio Only mode', 'info');
+      }, 8000);
+    } else {
+      setIsReconnecting(false);
+      clearTimeout(reconnectTimerRef.current);
+    }
+    return () => clearTimeout(reconnectTimerRef.current);
+  }, [call.connectionState, joined]);
 
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
@@ -983,6 +1048,28 @@ PLAN:
 
           {/* Quick Layout & Actions */}
           <div className="flex items-center gap-2.5 shrink-0">
+            {/* Draft Saved Pill */}
+            {draftSavedAt && (
+              <span className="hidden md:flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full animate-fade-in">
+                <i className="fas fa-cloud-check text-[9px]"></i>
+                Draft Saved {draftSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+
+            {/* Quick EMR Drawer Toggle */}
+            <button
+              onClick={() => setShowEmrDrawer(p => !p)}
+              title="Open Quick EMR Drawer — view patient vitals, allergies & past notes without leaving the call"
+              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border ${
+                showEmrDrawer
+                  ? 'bg-[#6B46C1] text-white border-[#6B46C1] shadow-md shadow-purple-500/30'
+                  : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:border-purple-500/50 hover:text-white'
+              }`}
+            >
+              <i className="fas fa-notes-medical"></i>
+              <span className="hidden sm:inline">EMR</span>
+            </button>
+
             {/* View Layout Controls */}
             <div className="hidden lg:flex items-center bg-slate-800/90 rounded-xl p-1 border border-slate-700 text-xs">
               <button
@@ -1025,7 +1112,123 @@ PLAN:
         </div>
 
         {/* ── Main Workspace Body ── */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0 overflow-hidden">
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-3 min-h-0 overflow-hidden relative">
+
+          {/* ── Quick EMR Drawer (Slide-in from right) ── */}
+          {showEmrDrawer && (
+            <div className="absolute inset-y-0 right-0 w-80 bg-slate-900/98 backdrop-blur-2xl border-l border-slate-700/80 z-50 flex flex-col shadow-2xl shadow-black/40 rounded-l-3xl overflow-hidden">
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-800 shrink-0">
+                <div>
+                  <h3 className="text-sm font-black text-white flex items-center gap-2">
+                    <i className="fas fa-notes-medical text-[#A78BFA]"></i> Quick EMR
+                  </h3>
+                  <p className="text-[11px] text-slate-400 font-medium mt-0.5">{session.patient}</p>
+                </div>
+                <button
+                  onClick={() => setShowEmrDrawer(false)}
+                  className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-xs transition-all"
+                >
+                  <i className="fas fa-xmark"></i>
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4">
+
+                {/* Allergies */}
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
+                    <i className="fas fa-triangle-exclamation text-rose-400"></i> Known Allergies
+                  </p>
+                  {patientRecord?.allergies?.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {patientRecord.allergies.map((a, i) => (
+                        <span key={i} className="text-[11px] font-bold bg-rose-500/15 border border-rose-500/30 text-rose-300 px-2.5 py-1 rounded-full">{a}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1.5">
+                      <i className="fas fa-shield-check text-[10px]"></i> No documented allergies
+                    </span>
+                  )}
+                </div>
+
+                {/* Vitals */}
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
+                    <i className="fas fa-heart-pulse text-pink-400"></i> Latest Vitals
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: 'BP', value: patientRecord?.bp || '—', icon: 'fa-gauge', color: 'text-blue-400' },
+                      { label: 'BMI', value: patientRecord?.bmi || '—', icon: 'fa-weight-scale', color: 'text-purple-400' },
+                      { label: 'Blood Sugar', value: patientRecord?.bloodSugar || '—', icon: 'fa-droplet', color: 'text-amber-400' },
+                      { label: 'Weight', value: patientRecord?.weight || '—', icon: 'fa-person', color: 'text-teal-400' },
+                    ].map(v => (
+                      <div key={v.label} className="bg-slate-800/60 rounded-xl p-2.5 border border-slate-700/50">
+                        <p className={`text-[9px] font-bold uppercase tracking-wide ${v.color} flex items-center gap-1 mb-0.5`}>
+                          <i className={`fas ${v.icon} text-[8px]`}></i> {v.label}
+                        </p>
+                        <p className="text-sm font-black text-white">{v.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Past Lab Reports */}
+                {patientRecord?.reports?.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
+                      <i className="fas fa-flask text-teal-400"></i> Recent Lab Results
+                    </p>
+                    <div className="space-y-2">
+                      {patientRecord.reports.map((r, i) => (
+                        <div key={i} className="bg-slate-800/60 rounded-xl p-3 border border-slate-700/40">
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <p className="text-[11px] font-black text-white line-clamp-1">{r.testName}</p>
+                            <span className="text-[9px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">{r.status}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 leading-relaxed line-clamp-2">{r.results}</p>
+                          <p className="text-[10px] text-slate-600 font-medium mt-1">{r.date}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Current Medications */}
+                {patientRecord?.meds?.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
+                      <i className="fas fa-pills text-[#E23E8C]"></i> Active Medications
+                    </p>
+                    <div className="space-y-1.5">
+                      {patientRecord.meds.map((m, i) => (
+                        <div key={i} className="flex items-center justify-between bg-slate-800/60 rounded-xl px-3 py-2 border border-slate-700/40">
+                          <span className="text-[11px] font-bold text-white">{m.name}</span>
+                          <span className="text-[10px] font-mono text-slate-400">{m.dosage}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Clinical Notes Preview */}
+                {clinicalNotes && (
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
+                      <i className="fas fa-file-medical text-amber-400"></i> Current Session Notes
+                    </p>
+                    <div className="bg-slate-800/60 rounded-xl p-3 border border-slate-700/40">
+                      <p className="text-[11px] text-slate-300 leading-relaxed whitespace-pre-line line-clamp-6">{clinicalNotes}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           
           {/* ── Left Column: Video Call Stage ── */}
           <div className={`${viewLayout === 'video-focus' ? 'lg:col-span-8' : viewLayout === 'pad-focus' ? 'lg:col-span-4' : 'lg:col-span-5 xl:col-span-6'} flex flex-col min-h-0 relative transition-all duration-300`}>
@@ -1044,6 +1247,42 @@ PLAN:
                     )}
                     {STATUS_COPY[call.connectionState] || 'Connecting Encrypted Stream...'}
                   </p>
+                </div>
+              )}
+
+              {/* ── WebRTC Auto-Reconnect Overlay ── */}
+              {isReconnecting && (
+                <div className="absolute inset-0 z-40 bg-black/70 backdrop-blur-md flex flex-col items-center justify-center gap-5 rounded-[2rem]">
+                  <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center">
+                    <i className="fas fa-wifi text-2xl text-amber-400 animate-pulse"></i>
+                  </div>
+                  <div className="text-center space-y-1">
+                    <h4 className="text-white font-black text-base">Reconnecting…</h4>
+                    <p className="text-slate-300 text-xs">Encrypted stream lost. Attempting to re-establish.</p>
+                  </div>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      {[0,1,2,3,4].map(i => (
+                        <div key={i} className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: `${i * 0.12}s` }}></div>
+                      ))}
+                    </div>
+                    {audioOnlyMode ? (
+                      <span className="text-[11px] font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full">
+                        <i className="fas fa-microphone mr-1.5"></i>Audio Only Mode Active
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setAudioOnlyMode(true);
+                          if (call.isVideoOff === false) call.toggleVideo();
+                          toast('Switched to Audio Only mode', 'info');
+                        }}
+                        className="text-[11px] font-bold text-slate-300 hover:text-white bg-slate-800/80 border border-slate-600 hover:border-slate-400 px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
+                      >
+                        <i className="fas fa-microphone"></i> Switch to Audio Only
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 

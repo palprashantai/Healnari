@@ -2,7 +2,7 @@ import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, Q
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { ApiTags, ApiOperation, ApiParam, ApiProperty, ApiConsumes } from '@nestjs/swagger';
-import { ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Min, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { RecordsService } from '@/modules/records/services/records.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
@@ -99,6 +99,27 @@ export class CreateCatalogItemDto {
   @ApiProperty({ required: false, example: '🌸 PCOS' }) @IsOptional() @IsString() badge?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() instructions?: string;
   @ApiProperty({ required: false, description: 'Admin-only: true to make item global' }) @IsOptional() @IsBoolean() isGlobal?: boolean;
+}
+
+export class ProtocolMedDto {
+  @ApiProperty({ example: 'Metformin ER 500mg' }) @IsString() name: string;
+  @ApiProperty({ required: false, example: '1-0-1' }) @IsOptional() @IsString() schedule?: string;
+  @ApiProperty({ required: false, example: '30 Days' }) @IsOptional() @IsString() duration?: string;
+  @ApiProperty({ required: false, example: 'After Food' }) @IsOptional() @IsString() timing?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() instructions?: string;
+}
+
+export class CreateProtocolDto {
+  @ApiProperty({ example: '🌸 PCOS Protocol' }) @IsString() name: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() shortName?: string;
+  @ApiProperty({ required: false, example: 'PCOS' }) @IsOptional() @IsString() category?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() badge?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() description?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() diagnosis?: string;
+  @ApiProperty({ required: false, type: [ProtocolMedDto] }) @IsOptional() @IsArray() @ValidateNested({ each: true }) @Type(() => ProtocolMedDto) meds?: ProtocolMedDto[];
+  @ApiProperty({ required: false, type: [String] }) @IsOptional() @IsArray() @IsString({ each: true }) labs?: string[];
+  @ApiProperty({ required: false }) @IsOptional() @IsString() clinicalNotes?: string;
+  @ApiProperty({ required: false, description: 'Admin only: make protocol global' }) @IsOptional() @IsBoolean() isGlobal?: boolean;
 }
 
 @ApiTags('Medical Records')
@@ -285,6 +306,22 @@ export class RecordsController {
   async deleteCatalogItem(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const data = await this.recordsService.deleteCatalogItem(user, id);
     return ResponseHelper.success(data, 'Catalog item removed successfully');
+  }
+
+  // ── Clinical Protocol Bundles ──
+
+  @ApiOperation({ summary: 'Get clinical protocol bundles (global + doctor-custom)' })
+  @Get('protocols')
+  async getProtocols(@CurrentUser() user: AuthUser) {
+    const data = await this.recordsService.getProtocols(user);
+    return ResponseHelper.success(data);
+  }
+
+  @ApiOperation({ summary: 'Create a custom clinical protocol bundle' })
+  @Post('protocols')
+  async createProtocol(@CurrentUser() user: AuthUser, @Body() body: CreateProtocolDto) {
+    const data = await this.recordsService.createProtocol(user, body);
+    return ResponseHelper.success(data, 'Protocol created successfully');
   }
 }
 

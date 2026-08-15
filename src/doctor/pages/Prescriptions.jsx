@@ -59,12 +59,46 @@ const SCHEDULE_PRESETS = ['1-0-1', '1-1-1', '1-0-0', '0-0-1', '0-1-0', 'SOS'];
 
 const STATUS_TABS = ['All', 'Active', 'Expiring Soon', 'Refill Requested', 'Expired'];
 
-const TEMPLATES = [
-  { name: 'PCOS First-Line Protocol',     meds: ['Metformin 500mg BD', 'Myo-Inositol 2g OD', 'Vitamin D3 60K IU weekly'] },
-  { name: 'Cycle Regulation (Norethisterone)', meds: ['Norethisterone 5mg OD (Day 16–25)'] },
-  { name: 'Endometriosis (GnRH + Dienogest)', meds: ['Dienogest 2mg OD', 'Calcium + Vit D supplement OD'] },
-  { name: 'Fertility — Clomiphene Cycle',  meds: ['Clomiphene Citrate 50mg (Day 2–6)', 'Progesterone 400mg (Day 15–25)'] },
-];
+const ALLERGY_DRUG_MAP = {
+  penicillin: ['penicillin', 'amoxicillin', 'augmentin', 'ampicillin', 'piperacillin', 'cloxacillin', 'amox'],
+  sulfa: ['sulfamethoxazole', 'bactrim', 'septra', 'sulfasalazine', 'dapsone', 'sulfa'],
+  nsaids: ['aspirin', 'ibuprofen', 'naproxen', 'diclofenac', 'mefenamic', 'indomethacin', 'ketorolac', 'combiflam'],
+  macrolides: ['azithromycin', 'clarithromycin', 'erythromycin', 'roxithromycin'],
+  cephalosporins: ['cefixime', 'cefpodoxime', 'cephalexin', 'ceftriaxone', 'cefuroxime'],
+  iodine: ['povidone-iodine', 'betadine', 'iodine'],
+};
+
+export function checkAllergyConflict(drugName = '', patientAllergies = []) {
+  if (!drugName || !patientAllergies || patientAllergies.length === 0) return null;
+  const dLower = drugName.toLowerCase().trim();
+  
+  for (const allergy of patientAllergies) {
+    const aLower = allergy.toLowerCase().trim();
+    if (!aLower) continue;
+
+    // Direct name match or substring
+    if (dLower.includes(aLower) || aLower.includes(dLower)) {
+      return { allergy, matchedDrug: drugName, reason: `Direct match with documented allergy "${allergy}"` };
+    }
+
+    // Check allergy group mappings
+    for (const [group, drugs] of Object.entries(ALLERGY_DRUG_MAP)) {
+      const allergyMatchesGroup = aLower.includes(group) || drugs.some(d => aLower.includes(d));
+      const drugMatchesGroup = drugs.some(d => dLower.includes(d));
+
+      if (allergyMatchesGroup && drugMatchesGroup) {
+        return {
+          allergy,
+          matchedDrug: drugName,
+          reason: `"${drugName}" belongs to the ${group.toUpperCase()} drug class contraindicated for allergy: "${allergy}"`,
+        };
+      }
+    }
+  }
+  return null;
+}
+
+
 
 /**
  * Smart medical search filter that ranks prefix matches (e.g. typing "N" or "Nor" returns "Norethisterone" first)
@@ -390,6 +424,9 @@ function WriteRxPage({ onBack, onSave, patients }) {
   const [isLabDropdownOpen, setIsLabDropdownOpen] = useState(false);
   const [selectedLabCat, setSelectedLabCat] = useState('All');
 
+  // Dynamic Protocol Bundles (fetched from /api/records/protocols)
+  const [protocols, setProtocols] = useState([]);
+
   const [activeDropdownIndex, setActiveDropdownIndex] = useState(null);
   const [showAddMedModal, setShowAddMedModal] = useState(false);
   const [targetMedIndex, setTargetMedIndex] = useState(null);
@@ -406,6 +443,15 @@ function WriteRxPage({ onBack, onSave, patients }) {
   const [savingCustomMed, setSavingCustomMed] = useState(false);
 
   useEffect(() => {
+    // Fetch protocol bundles from DB
+    apiFetch('/records/protocols')
+      .then(res => {
+        const items = Array.isArray(res) ? res : (res?.data || []);
+        setProtocols(items);
+      })
+      .catch(() => {});
+
+    // Fetch medicine catalog
     apiFetch('/records/catalog?type=medicine')
       .then(res => {
         const items = Array.isArray(res) ? res : (res?.data || []);
@@ -426,6 +472,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
       })
       .catch(() => {});
 
+    // Fetch lab test catalog
     apiFetch('/records/catalog?type=lab_test')
       .then(res => {
         const items = Array.isArray(res) ? res : (res?.data || []);
@@ -537,21 +584,46 @@ function WriteRxPage({ onBack, onSave, patients }) {
   };
 
   const selectedPatient = patients.find(p => p.id === form.patientId) || null;
-  const hasPenicillinAllergy = selectedPatient?.allergies?.some(a => a.toLowerCase().includes('penicillin'));
+  const patientAllergies = useMemo(() => selectedPatient?.allergies || [], [selectedPatient]);
   const filledMeds = form.meds.filter(m => m.name.trim());
   
+  // Real-time clinical cross-check: map all prescribed medications against patient allergy profile
+  const allergyConflicts = useMemo(() => {
+    if (!patientAllergies.length) return [];
+    return form.meds
+      .map((med, idx) => {
+        const conflict = checkAllergyConflict(med.name, patientAllergies);
+        return conflict ? { ...conflict, index: idx, medName: med.name } : null;
+      })
+      .filter(Boolean);
+  }, [form.meds, patientAllergies]);
+
   const isValid = rxMode === 'handwritten' 
     ? (form.patient && form.diagnosis.trim() && !!form.handwrittenImage)
     : rxMode === 'upload'
     ? (form.patient && form.diagnosis.trim() && !!uploadedFile)
     : (form.patient && form.diagnosis.trim() && filledMeds.length > 0);
 
-  const applyTemplate = (tmpl) => {
-    const found = TEMPLATES.find(t => t.name === tmpl);
-    if (found) {
-      setForm(prev => ({ ...prev, meds: found.meds.map(m => ({ name: m, schedule: '', duration: '30 Days' })) }));
-      setTemplate(tmpl);
-    }
+  const applyTemplate = (tmplName) => {
+    const found = protocols.find(t => t.name === tmplName || t.shortName === tmplName);
+    if (found) applyProtocol(found);
+  };
+
+  const applyProtocol = (protocol) => {
+    if (!protocol) return;
+    setForm(prev => ({
+      ...prev,
+      diagnosis: protocol.diagnosis || prev.diagnosis,
+      meds: protocol.meds.map(m => ({
+        name: m.name,
+        schedule: m.schedule || '1-0-1',
+        duration: m.duration || '30 Days',
+        timing: m.timing || 'After Food',
+      })),
+      instructions: protocol.meds.map(m => `• ${m.name}: ${m.instructions || m.timing}`).join('\n'),
+    }));
+    setTemplate(protocol.name);
+    toast(`Applied "${protocol.shortName || protocol.name}" (${protocol.meds.length} medications loaded)`, 'success');
   };
 
   const addMed = () => setForm(p => ({ ...p, meds: [...p.meds, { name: '', schedule: '', duration: '' }] }));
@@ -750,14 +822,78 @@ function WriteRxPage({ onBack, onSave, patients }) {
         <div className="grid lg:grid-cols-5 gap-6 items-start">
           {/* ── Form column ── */}
           <div className="lg:col-span-3 space-y-5">
-            {/* Template */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <label className="text-xs font-black text-slate-500 uppercase tracking-wide mb-2 block">Quick Clinical Protocol</label>
-              <select value={template} onChange={e => applyTemplate(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
-                <option value="">— Start from scratch or choose a template —</option>
-                {TEMPLATES.map(t => <option key={t.name}>{t.name}</option>)}
-              </select>
+            {/* ── 1-Click Clinical Protocol Bundles & Templates ── */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <label className="text-xs font-black text-slate-700 uppercase tracking-wide flex items-center gap-2">
+                    <i className="fas fa-wand-magic-sparkles text-aubergine-600"></i> 1-Click Clinical Protocol Bundles
+                  </label>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Pre-configured evidence-based medication bundles with standard dosages &amp; schedules</p>
+                </div>
+                {template && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTemplate('');
+                      setForm(p => ({ ...p, meds: [{ name: '', schedule: '', duration: '' }], instructions: '' }));
+                    }}
+                    className="text-[10px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 px-2 py-0.5 rounded-lg transition-colors"
+                  >
+                    Reset Form
+                  </button>
+                )}
+              </div>
+
+              {/* Protocol Quick-Select Cards */}
+              <div className="grid sm:grid-cols-2 gap-2.5 pt-1">
+                {protocols.length === 0 ? (
+                  <div className="col-span-2 flex items-center justify-center gap-2 py-4 text-slate-400 text-xs">
+                    <i className="fas fa-spinner fa-spin"></i> Loading protocol bundles...
+                  </div>
+                ) : protocols.map((protocol) => {
+                  const isSelected = template === protocol.name;
+                  return (
+                    <button
+                      key={protocol.id || protocol.name}
+                      type="button"
+                      onClick={() => applyProtocol(protocol)}
+                      className={`text-left p-3 rounded-2xl border transition-all relative overflow-hidden group ${
+                        isSelected 
+                          ? 'border-aubergine-500 bg-aubergine-50/70 ring-2 ring-aubergine-500/20 shadow-sm' 
+                          : 'border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-aubergine-300 hover:shadow-xs'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-700 font-mono">
+                          {protocol.badge}
+                        </span>
+                        <span className="text-[10px] font-bold text-aubergine-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
+                          1-Click Apply <i className="fas fa-arrow-right text-[8px]"></i>
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-xs text-slate-900 line-clamp-1">{protocol.name}</h4>
+                      <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5 leading-snug">{protocol.description}</p>
+                      <div className="flex items-center gap-1.5 mt-2 text-[10px] font-mono text-slate-600">
+                        <i className="fas fa-pills text-aubergine-600 text-[9px]"></i>
+                        <span>{(protocol.meds || []).length} drugs: {(protocol.meds || []).map(m => m.name.split(' ')[0]).join(', ')}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Dropdown Fallback */}
+              <div className="pt-2">
+                <select 
+                  value={template} 
+                  onChange={e => applyTemplate(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2 text-xs bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-aubergine-300 font-medium"
+                >
+                  <option value="">— Or choose from protocol dropdown list —</option>
+                  {protocols.map(t => <option key={t.id || t.name} value={t.name}>{t.name}</option>)}
+                </select>
+              </div>
             </div>
 
             {/* Medicines */}
@@ -779,164 +915,208 @@ function WriteRxPage({ onBack, onSave, patients }) {
                 </button>
               </div>
 
-              {/* CDSS Safety Checker Banner */}
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2.5">
-                <i className="fas fa-shield-virus text-amber-600 text-sm mt-0.5 shrink-0"></i>
-                <div>
-                  <p className="font-bold">CDSS Safety Check Active</p>
-                  <p className="text-[11px] text-amber-700 mt-0.5">Automated allergy &amp; drug-drug interaction (DDI) validation enabled for patient: <span className="font-bold">{form.patient || 'Not Selected'}</span></p>
+              {/* Real-time Critical Allergy Alert Banner */}
+              {allergyConflicts.length > 0 ? (
+                <div className="p-4 bg-rose-50 border-2 border-rose-400 rounded-2xl text-xs text-rose-950 flex items-start gap-3 shadow-md animate-pulse">
+                  <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <i className="fas fa-triangle-exclamation text-base"></i>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-black text-sm text-rose-900 flex items-center gap-2">
+                      <span>CRITICAL CONTRAINDICATION: ALLERGY DETECTED</span>
+                      <span className="text-[10px] uppercase font-bold bg-rose-200 text-rose-900 px-2 py-0.5 rounded-full border border-rose-300">
+                        {allergyConflicts.length} Conflict{allergyConflicts.length > 1 ? 's' : ''}
+                      </span>
+                    </p>
+                    <p className="text-rose-800 text-[11px] leading-relaxed">
+                      Patient <strong>{form.patient || 'Selected Patient'}</strong> has documented allergies to: <strong className="underline font-black">{patientAllergies.join(', ')}</strong>.
+                    </p>
+                    <ul className="text-rose-900 font-bold text-[11px] list-disc list-inside space-y-0.5 pt-0.5">
+                      {allergyConflicts.map((c, i) => (
+                        <li key={i}>{c.reason}</li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                /* CDSS Safety Checker Banner (Normal) */
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2.5">
+                  <i className="fas fa-shield-virus text-amber-600 text-sm mt-0.5 shrink-0"></i>
+                  <div>
+                    <p className="font-bold">CDSS Safety Check Active</p>
+                    <p className="text-[11px] text-amber-700 mt-0.5">
+                      Automated allergy &amp; drug-drug interaction (DDI) validation enabled for patient: <span className="font-bold">{form.patient || 'Not Selected'}</span>
+                      {patientAllergies.length > 0 && (
+                        <span className="ml-1 text-slate-600">(Known Allergies: <strong className="text-rose-700">{patientAllergies.join(', ')}</strong>)</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-3">
-                {form.meds.map((med, i) => (
-                  <div key={i} className="border border-slate-100 rounded-xl p-3 bg-slate-50/60 space-y-2 relative">
-                    <div className="grid grid-cols-12 gap-2 items-start">
-                      <div className="col-span-5 relative">
-                        <input
-                          value={med.name}
-                          onChange={e => {
-                            updateMed(i, 'name', e.target.value);
-                            setActiveDropdownIndex(i);
-                          }}
-                          onFocus={() => setActiveDropdownIndex(i)}
-                          placeholder="Search or enter medicine name..."
-                          className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300 font-semibold"
-                        />
-                        {med.name && (
-                          <button
-                            type="button"
-                            onClick={() => updateMed(i, 'name', '')}
-                            className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
-                          >
-                            <i className="fas fa-xmark text-xs"></i>
-                          </button>
-                        )}
+                {form.meds.map((med, i) => {
+                  const medConflict = checkAllergyConflict(med.name, patientAllergies);
+                  return (
+                    <div 
+                      key={i} 
+                      className={`border rounded-xl p-3 space-y-2 relative transition-all ${
+                        medConflict 
+                          ? 'border-rose-400 bg-rose-50/80 ring-2 ring-rose-400/30' 
+                          : 'border-slate-100 bg-slate-50/60'
+                      }`}
+                    >
+                      <div className="grid grid-cols-12 gap-2 items-start">
+                        <div className="col-span-5 relative">
+                          <input
+                            value={med.name}
+                            onChange={e => {
+                              updateMed(i, 'name', e.target.value);
+                              setActiveDropdownIndex(i);
+                            }}
+                            onFocus={() => setActiveDropdownIndex(i)}
+                            placeholder="Search or enter medicine name..."
+                            className={`w-full border rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 font-semibold ${
+                              medConflict 
+                                ? 'border-rose-400 focus:ring-rose-300 text-rose-900' 
+                                : 'border-slate-200 focus:ring-aubergine-300'
+                            }`}
+                          />
+                          {med.name && (
+                            <button
+                              type="button"
+                              onClick={() => updateMed(i, 'name', '')}
+                              className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+                            >
+                              <i className="fas fa-xmark text-xs"></i>
+                            </button>
+                          )}
 
-                        {/* Smart Dynamic Dropdown */}
-                        {activeDropdownIndex === i && (
-                          <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-64 overflow-y-auto custom-scrollbar z-50 p-1.5 space-y-0.5">
-                            <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
-                              <span>Matches ({filterAndRankCatalog(medCatalog, med.name).length})</span>
-                              <span className="text-[9px] text-aubergine-600 font-bold">Prefix &amp; Keyword Match</span>
-                            </div>
-                            {filterAndRankCatalog(medCatalog, med.name).slice(0, 30).map((item) => (
-                              <button
-                                key={item.id || item.name}
-                                type="button"
-                                onClick={() => handleSelectCatalogMed(i, item)}
-                                className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-aubergine-50 text-xs font-bold text-slate-700 hover:text-aubergine-900 flex items-center justify-between transition-colors group"
-                              >
-                                <span className="flex items-center gap-1.5 flex-1 min-w-0 pr-2">
-                                  {item.isCustom && (
-                                    <span className="text-[9px] bg-purple-100 text-purple-800 border border-purple-200 px-1.5 py-0.2 rounded font-black shrink-0">Custom</span>
-                                  )}
-                                  <span className="truncate">
-                                    {/* Highlight prefix match if typing */}
-                                    {med.name && item.name.toLowerCase().startsWith(med.name.trim().toLowerCase()) ? (
-                                      <>
-                                        <span className="text-aubergine-700 bg-aubergine-100/80 px-0.5 rounded font-black">{item.name.slice(0, med.name.trim().length)}</span>
-                                        <span>{item.name.slice(med.name.trim().length)}</span>
-                                      </>
-                                    ) : (
-                                      item.name
+                          {/* Smart Dynamic Dropdown */}
+                          {activeDropdownIndex === i && (
+                            <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-64 overflow-y-auto custom-scrollbar z-50 p-1.5 space-y-0.5">
+                              <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
+                                <span>Matches ({filterAndRankCatalog(medCatalog, med.name).length})</span>
+                                <span className="text-[9px] text-aubergine-600 font-bold">Prefix &amp; Keyword Match</span>
+                              </div>
+                              {filterAndRankCatalog(medCatalog, med.name).slice(0, 30).map((item) => (
+                                <button
+                                  key={item.id || item.name}
+                                  type="button"
+                                  onClick={() => handleSelectCatalogMed(i, item)}
+                                  className="w-full text-left px-2.5 py-2 rounded-xl hover:bg-aubergine-50 text-xs font-bold text-slate-700 hover:text-aubergine-900 flex items-center justify-between transition-colors group"
+                                >
+                                  <span className="flex items-center gap-1.5 flex-1 min-w-0 pr-2">
+                                    {item.isCustom && (
+                                      <span className="text-[9px] bg-purple-100 text-purple-800 border border-purple-200 px-1.5 py-0.2 rounded font-black shrink-0">Custom</span>
                                     )}
-                                  </span>
-                                </span>
-                                <div className="flex items-center gap-1 shrink-0">
-                                  {item.category && (
-                                    <span className="text-[9px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 hidden sm:inline-block font-semibold">
-                                      {item.category}
+                                    <span className="truncate">
+                                      {/* Highlight prefix match if typing */}
+                                      {med.name && item.name.toLowerCase().startsWith(med.name.trim().toLowerCase()) ? (
+                                        <>
+                                          <span className="text-aubergine-700 bg-aubergine-100/80 px-0.5 rounded font-black">{item.name.slice(0, med.name.trim().length)}</span>
+                                          <span>{item.name.slice(med.name.trim().length)}</span>
+                                        </>
+                                      ) : (
+                                        item.name
+                                      )}
                                     </span>
-                                  )}
-                                  <span className="text-[10px] font-mono text-aubergine-700 bg-aubergine-50 px-2 py-0.5 rounded-md border border-aubergine-100">
-                                    {item.defaultDose} • {item.defaultFreq}
                                   </span>
-                                </div>
-                              </button>
-                            ))}
-                            {med.name && !medCatalog.some(m => m.name.toLowerCase() === med.name.toLowerCase()) && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setTargetMedIndex(i);
-                                  setNewMedForm(prev => ({ ...prev, name: med.name }));
-                                  setShowAddMedModal(true);
-                                  setActiveDropdownIndex(null);
-                                }}
-                                className="w-full text-left px-2.5 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-xs font-bold text-purple-800 flex items-center justify-between transition-colors mt-1 shadow-xs"
-                              >
-                                <span className="flex items-center gap-1.5">
-                                  <i className="fas fa-plus-circle text-purple-600"></i>
-                                  <span>Add &ldquo;{med.name}&rdquo; to Catalog</span>
-                                </span>
-                                <span className="text-[10px] font-mono text-purple-700 font-bold bg-white px-2 py-0.5 rounded border border-purple-200">Save Preset</span>
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <input value={med.schedule} onChange={e => updateMed(i, 'schedule', e.target.value)} placeholder="Schedule (e.g. 1-0-1)"
-                        className="col-span-3 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
-                      <input value={med.duration} onChange={e => updateMed(i, 'duration', e.target.value)} placeholder="Duration"
-                        className="col-span-2 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
-                      
-                      <div className="col-span-1 flex items-center justify-center">
-                        <AiButton
-                          variant="compact"
-                          size="sm"
-                          icon="fa-wand-magic-sparkles"
-                          title="AI Auto-Complete standard dosage and frequency"
-                          className="h-8 w-8 !p-0"
-                          onClick={async () => {
-                            if (!med.name.trim()) return;
-                            try {
-                              const res = await apiFetch('/ai/rx-autocomplete', { method: 'POST', body: { query: med.name } });
-                              const data = res?.data || res;
-                              if (data) {
-                                updateMed(i, 'name', data.drugName || med.name);
-                                updateMed(i, 'schedule', data.frequency || med.schedule);
-                                updateMed(i, 'duration', data.duration || med.duration);
-                                if (data.instructions && !form.instructions.includes(data.instructions)) {
-                                  setForm(prev => ({
-                                    ...prev,
-                                    instructions: prev.instructions ? `${prev.instructions}\n• ${data.drugName}: ${data.instructions}` : `• ${data.drugName}: ${data.instructions}`
-                                  }));
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {item.category && (
+                                      <span className="text-[9px] text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 hidden sm:inline-block font-semibold">
+                                        {item.category}
+                                      </span>
+                                    )}
+                                    <span className="text-[10px] font-mono text-aubergine-700 bg-aubergine-50 px-2 py-0.5 rounded-md border border-aubergine-100">
+                                      {item.defaultDose} • {item.defaultFreq}
+                                    </span>
+                                  </div>
+                                </button>
+                              ))}
+                              {med.name && !medCatalog.some(m => m.name.toLowerCase() === med.name.toLowerCase()) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setTargetMedIndex(i);
+                                    setNewMedForm(prev => ({ ...prev, name: med.name }));
+                                    setShowAddMedModal(true);
+                                    setActiveDropdownIndex(null);
+                                  }}
+                                  className="w-full text-left px-2.5 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-xs font-bold text-purple-800 flex items-center justify-between transition-colors mt-1 shadow-xs"
+                                >
+                                  <span className="flex items-center gap-1.5">
+                                    <i className="fas fa-plus-circle text-purple-600"></i>
+                                    <span>Add &ldquo;{med.name}&rdquo; to Catalog</span>
+                                  </span>
+                                  <span className="text-[10px] font-mono text-purple-700 font-bold bg-white px-2 py-0.5 rounded border border-purple-200">Save Preset</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <input value={med.schedule} onChange={e => updateMed(i, 'schedule', e.target.value)} placeholder="Schedule (e.g. 1-0-1)"
+                          className="col-span-3 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+                        <input value={med.duration} onChange={e => updateMed(i, 'duration', e.target.value)} placeholder="Duration"
+                          className="col-span-2 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+                        
+                        <div className="col-span-1 flex items-center justify-center">
+                          <AiButton
+                            variant="compact"
+                            size="sm"
+                            icon="fa-wand-magic-sparkles"
+                            title="AI Auto-Complete standard dosage and frequency"
+                            className="h-8 w-8 !p-0"
+                            onClick={async () => {
+                              if (!med.name.trim()) return;
+                              try {
+                                const res = await apiFetch('/ai/rx-autocomplete', { method: 'POST', body: { query: med.name } });
+                                const data = res?.data || res;
+                                if (data) {
+                                  updateMed(i, 'name', data.drugName || med.name);
+                                  updateMed(i, 'schedule', data.frequency || med.schedule);
+                                  updateMed(i, 'duration', data.duration || med.duration);
+                                  if (data.instructions && !form.instructions.includes(data.instructions)) {
+                                    setForm(prev => ({
+                                      ...prev,
+                                      instructions: prev.instructions ? `${prev.instructions}\n• ${data.drugName}: ${data.instructions}` : `• ${data.drugName}: ${data.instructions}`
+                                    }));
+                                  }
                                 }
+                              } catch {
+                                // Silent fallback
                               }
-                            } catch {
-                              // Silent fallback
-                            }
-                          }}
-                        />
-                      </div>
+                            }}
+                          />
+                        </div>
 
-                      <button onClick={() => removeMed(i)} disabled={form.meds.length === 1}
-                        className="col-span-1 h-8 rounded-xl bg-rose-50 text-rose-500 text-xs flex items-center justify-center hover:bg-rose-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-rose-100">
-                        <i className="fas fa-trash-can"></i>
-                      </button>
-                    </div>
-
-                    {/* Quick schedule presets */}
-                    <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
-                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Quick set:</span>
-                      {SCHEDULE_PRESETS.map(preset => (
-                        <button key={preset} type="button" onClick={() => updateMed(i, 'schedule', preset)}
-                          className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${med.schedule.startsWith(preset) ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-white text-slate-500 border-slate-200 hover:border-aubergine-300 hover:text-aubergine-600'}`}>
-                          {preset}
+                        <button onClick={() => removeMed(i)} disabled={form.meds.length === 1}
+                          className="col-span-1 h-8 rounded-xl bg-rose-50 text-rose-500 text-xs flex items-center justify-center hover:bg-rose-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-rose-100">
+                          <i className="fas fa-trash-can"></i>
                         </button>
-                      ))}
-                    </div>
-
-                    {/* Real-time Allergy Alert */}
-                    {hasPenicillinAllergy && med.name.toLowerCase().includes('penicillin') && (
-                      <div className="px-3 py-1 bg-rose-100 border border-rose-300 text-rose-800 text-[11px] rounded-lg font-bold flex items-center gap-1.5">
-                        <i className="fas fa-triangle-exclamation text-rose-600"></i>
-                        <span>CRITICAL ALLERGY ALERT: {form.patient} is allergic to Penicillin.</span>
                       </div>
-                    )}
-                  </div>
-                ))}
+
+                      {/* Quick schedule presets */}
+                      <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Quick set:</span>
+                        {SCHEDULE_PRESETS.map(preset => (
+                          <button key={preset} type="button" onClick={() => updateMed(i, 'schedule', preset)}
+                            className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${med.schedule.startsWith(preset) ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-white text-slate-500 border-slate-200 hover:border-aubergine-300 hover:text-aubergine-600'}`}>
+                            {preset}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Dynamic Real-time Allergy Alert per medication */}
+                      {medConflict && (
+                        <div className="px-3 py-1.5 bg-rose-100 border border-rose-300 text-rose-900 text-[11px] rounded-lg font-bold flex items-center gap-2 shadow-xs">
+                          <i className="fas fa-triangle-exclamation text-rose-600 text-sm"></i>
+                          <span>⚠️ <strong>Contraindication Alert:</strong> {medConflict.reason}</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <button onClick={addMed} className="text-xs text-aubergine-600 font-bold flex items-center gap-1 hover:underline">
                 <i className="fas fa-plus"></i> Add Medicine

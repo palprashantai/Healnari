@@ -222,6 +222,51 @@ function DoctorAppointments() {
   const [bulkModalParams, setBulkModalParams] = useState({ isOpen: false, channel: '' });
   const actionsMenuRef = useRef(null);
 
+  // ── Dynamic Wait-Time Projection ──
+  // Average consultation = 12 minutes per patient
+  const AVG_CONSULT_MINS = 12;
+  const computeEstWait = (tokenIndex) => {
+    const waitingAhead = tokenIndex; // number of patients ahead
+    const nowMs = Date.now();
+    const estMs = nowMs + waitingAhead * AVG_CONSULT_MINS * 60 * 1000;
+    const estDate = new Date(estMs);
+    const timeStr = estDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const waitMins = waitingAhead * AVG_CONSULT_MINS;
+    return { timeStr, waitMins };
+  };
+
+  // ── 1-Click Delay Broadcast ──
+  const [delayBroadcastLoading, setDelayBroadcastLoading] = useState(null);
+  const sendDelayBroadcast = async (delayMins) => {
+    const waitingPatients = queue.filter(p => p.status === 'Waiting');
+    if (!waitingPatients.length) {
+      toast('No waiting patients to notify.', 'info');
+      return;
+    }
+    setDelayBroadcastLoading(delayMins);
+    const patientIds = [...new Set(waitingPatients.map(p => p.patientId).filter(Boolean))];
+    const subject = `⏰ Queue Delay Notice: +${delayMins} Minutes`;
+    const body = `Dear Patient, We regret to inform you that Dr. ${'your'} clinic is running approximately ${delayMins} minutes behind schedule. We appreciate your patience. Your token will be called as soon as possible. Thank you.`;
+    try {
+      await apiFetch('/communications/broadcasts', {
+        method: 'POST',
+        body: {
+          subject,
+          body,
+          audience: `Waiting Queue — ${waitingPatients.length} patient(s)`,
+          channels: ['Push Notification', 'WhatsApp Message', 'Bulk Email'],
+          scheduleType: 'immediate',
+          patientIds,
+        },
+      });
+      toast(`⏰ +${delayMins} min delay alert sent to ${waitingPatients.length} waiting patient(s)`, 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to send delay broadcast', 'error');
+    } finally {
+      setDelayBroadcastLoading(null);
+    }
+  };
+
   // Clear selections when tab changes
   useEffect(() => {
     setSelectedIds([]);
@@ -386,69 +431,99 @@ function DoctorAppointments() {
           ))}
         </div>
 
-        {/* Filters */}
-        <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row gap-4 bg-white justify-between items-center">
-          <div className="flex flex-col sm:flex-row gap-3 flex-1 w-full max-w-2xl">
-            <div className="relative flex-1 group">
-              <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-aubergine-500 transition-colors"></i>
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient name or token..."
-                className="w-full border border-slate-200 rounded-xl pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50 focus:bg-white transition-all shadow-inner" />
+        {/* Filters & Delay Broadcast Toolbar */}
+        <div className="p-4 border-b border-slate-100 flex flex-col gap-3 bg-white">
+          <div className="flex flex-col lg:flex-row gap-4 justify-between items-center">
+            <div className="flex flex-col sm:flex-row gap-3 flex-1 w-full max-w-2xl">
+              <div className="relative flex-1 group">
+                <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-aubergine-500 transition-colors"></i>
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient name or token..."
+                  className="w-full border border-slate-200 rounded-xl pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50 focus:bg-white transition-all shadow-inner" />
+              </div>
+              <div className="relative group min-w-[160px]">
+                <i className="fas fa-filter absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-aubergine-500 transition-colors z-10"></i>
+                <select value={modeFilter} onChange={e => setModeFilter(e.target.value)} className="w-full border border-slate-200 rounded-xl pl-10 pr-8 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50 focus:bg-white transition-all appearance-none cursor-pointer">
+                  <option value="All Modes">All Modes</option>
+                  <option value="Video">Video Consult</option>
+                  <option value="Clinic">Clinic Visit</option>
+                </select>
+                <i className="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+              </div>
             </div>
-            <div className="relative group min-w-[160px]">
-              <i className="fas fa-filter absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-aubergine-500 transition-colors z-10"></i>
-              <select value={modeFilter} onChange={e => setModeFilter(e.target.value)} className="w-full border border-slate-200 rounded-xl pl-10 pr-8 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50 focus:bg-white transition-all appearance-none cursor-pointer">
-                <option value="All Modes">All Modes</option>
-                <option value="Video">Video Consult</option>
-                <option value="Clinic">Clinic Visit</option>
-              </select>
-              <i className="fas fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs"></i>
+
+            <div className="relative w-full sm:w-auto" ref={actionsMenuRef}>
+              <button 
+                onClick={() => setShowActionsMenu(!showActionsMenu)}
+                className="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
+              >
+                Bulk Actions <i className={`fas fa-chevron-down text-[10px] transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}></i>
+              </button>
+              {showActionsMenu && (
+                <div className="absolute right-0 sm:right-0 left-0 sm:left-auto top-full mt-2 w-full sm:w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-fade-in origin-top-right">
+                  <div className="px-4 py-2 mb-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Messaging Channels</p>
+                  </div>
+                  <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-sky-50 hover:text-sky-700 flex items-center gap-3 transition-colors group">
+                    <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                      <i className="fas fa-envelope text-sky-500"></i>
+                    </div>
+                    Bulk Email
+                  </button>
+                  <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors group">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                      <i className="fas fa-bell text-amber-500"></i>
+                    </div>
+                    Push Notification
+                  </button>
+                  <button onClick={() => handleBulkAction('WhatsApp Message')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-3 transition-colors group">
+                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                      <i className="fab fa-whatsapp text-emerald-500 text-lg"></i>
+                    </div>
+                    WhatsApp Message
+                  </button>
+                  {tab === 'requests' && (
+                    <>
+                      <div className="h-px bg-slate-100 my-2 mx-4"></div>
+                      <button onClick={() => handleBulkAction('Approve Selected')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-3 transition-colors group">
+                        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                          <i className="fas fa-check-double text-emerald-600"></i>
+                        </div>
+                        Approve Selected
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="relative w-full sm:w-auto" ref={actionsMenuRef}>
-            <button 
-              onClick={() => setShowActionsMenu(!showActionsMenu)}
-              className="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
-            >
-              Bulk Actions <i className={`fas fa-chevron-down text-[10px] transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}></i>
-            </button>
-            {showActionsMenu && (
-              <div className="absolute right-0 sm:right-0 left-0 sm:left-auto top-full mt-2 w-full sm:w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-fade-in origin-top-right">
-                <div className="px-4 py-2 mb-1">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Messaging Channels</p>
-                </div>
-                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-sky-50 hover:text-sky-700 flex items-center gap-3 transition-colors group">
-                  <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center group-hover:bg-white transition-colors">
-                    <i className="fas fa-envelope text-sky-500"></i>
-                  </div>
-                  Bulk Email
-                </button>
-                <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors group">
-                  <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center group-hover:bg-white transition-colors">
-                    <i className="fas fa-bell text-amber-500"></i>
-                  </div>
-                  Push Notification
-                </button>
-                <button onClick={() => handleBulkAction('WhatsApp Message')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-3 transition-colors group">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-white transition-colors">
-                    <i className="fab fa-whatsapp text-emerald-500 text-lg"></i>
-                  </div>
-                  WhatsApp Message
-                </button>
-                {tab === 'requests' && (
-                  <>
-                    <div className="h-px bg-slate-100 my-2 mx-4"></div>
-                    <button onClick={() => handleBulkAction('Approve Selected')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-3 transition-colors group">
-                      <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-white transition-colors">
-                        <i className="fas fa-check-double text-emerald-600"></i>
-                      </div>
-                      Approve Selected
-                    </button>
-                  </>
-                )}
+          {/* ── 1-Click Delay Broadcast Toolbar (Queue only) ── */}
+          {tab === 'queue' && (
+            <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              <div className="flex items-center gap-1.5 text-[11px] font-black text-slate-500 uppercase tracking-widest">
+                <i className="fas fa-clock-rotate-left text-amber-500"></i>
+                Delay Alert:
               </div>
-            )}
-          </div>
+              {[10, 20, 30].map(mins => (
+                <button
+                  key={mins}
+                  onClick={() => sendDelayBroadcast(mins)}
+                  disabled={!!delayBroadcastLoading}
+                  className="flex items-center gap-1.5 text-[11px] font-bold px-3.5 py-1.5 rounded-xl border transition-all shadow-xs disabled:opacity-60 disabled:cursor-not-allowed bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100 hover:border-amber-400 hover:-translate-y-0.5"
+                >
+                  {delayBroadcastLoading === mins ? (
+                    <i className="fas fa-spinner fa-spin text-[10px]"></i>
+                  ) : (
+                    <i className="fas fa-broadcast-tower text-[10px]"></i>
+                  )}
+                  +{mins} Min Delay
+                </button>
+              ))}
+              <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                Broadcasts to all <strong className="text-amber-700">{queue.filter(p => p.status === 'Waiting').length}</strong> waiting patients via Push, WhatsApp &amp; Email
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="overflow-x-auto px-4 pb-4">
@@ -467,67 +542,95 @@ function DoctorAppointments() {
                 <th className="px-4 py-2 font-bold">Patient</th>
                 <th className="px-4 py-2 font-bold">Purpose</th>
                 <th className="px-4 py-2 font-bold">{tab === 'past' ? 'Date' : 'Time'}</th>
+                {tab === 'queue' && <th className="px-4 py-2 font-bold">Est. Wait</th>}
                 <th className="px-4 py-2 font-bold">Format</th>
                 {tab === 'queue' && <th className="px-4 py-2 font-bold">Status</th>}
                 <th className="px-4 py-2 font-bold text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {tab === 'queue' && filteredData.map(p => (
-                <tr key={p.id} className={`group bg-white hover:bg-slate-50/80 transition-all duration-300 shadow-sm hover:shadow-md ${selectedIds.includes(p.id) ? 'ring-1 ring-aubergine-400 bg-aubergine-50/20' : 'ring-1 ring-slate-100'} ${p.status === 'In Progress' ? 'ring-1 ring-emerald-400 bg-emerald-50/20' : ''}`}>
-                  <td className="px-4 py-3 rounded-l-2xl align-middle">
-                    <label className="flex items-center justify-center cursor-pointer">
-                      <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${selectedIds.includes(p.id) ? 'bg-aubergine-600 shadow-sm text-white' : 'bg-slate-100/80 group-hover:bg-slate-200 ring-1 ring-slate-200/80 ring-inset group-hover:ring-aubergine-300'}`}>
-                        {selectedIds.includes(p.id) && <i className="fas fa-check text-[9px]"></i>}
+              {tab === 'queue' && filteredData.map((p, tokenIndex) => {
+                const waiting = queue.filter(q => q.status === 'Waiting');
+                const waitingIndex = waiting.findIndex(w => w.id === p.id);
+                const estWait = p.status === 'Waiting' && waitingIndex >= 0
+                  ? computeEstWait(waitingIndex)
+                  : null;
+                return (
+                  <tr key={p.id} className={`group bg-white hover:bg-slate-50/80 transition-all duration-300 shadow-sm hover:shadow-md ${selectedIds.includes(p.id) ? 'ring-1 ring-aubergine-400 bg-aubergine-50/20' : 'ring-1 ring-slate-100'} ${p.status === 'In Progress' ? 'ring-1 ring-emerald-400 bg-emerald-50/20' : ''}`}>
+                    <td className="px-4 py-3 rounded-l-2xl align-middle">
+                      <label className="flex items-center justify-center cursor-pointer">
+                        <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${selectedIds.includes(p.id) ? 'bg-aubergine-600 shadow-sm text-white' : 'bg-slate-100/80 group-hover:bg-slate-200 ring-1 ring-slate-200/80 ring-inset group-hover:ring-aubergine-300'}`}>
+                          {selectedIds.includes(p.id) && <i className="fas fa-check text-[9px]"></i>}
+                        </div>
+                        <input type="checkbox" className="hidden" checked={selectedIds.includes(p.id)} onChange={() => toggleSelect(p.id)} />
+                      </label>
+                    </td>
+                    <td className="px-4 py-3 align-middle">
+                      <span className={`text-[11px] font-black px-2.5 py-1 rounded-lg font-mono tracking-widest ${p.status === 'In Progress' ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30' : 'bg-slate-800 text-white shadow-sm shadow-slate-800/30'}`}>{p.token}</span>
+                    </td>
+                    <td className="px-4 py-3 align-middle">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-aubergine-100 flex items-center justify-center text-aubergine-700 font-bold text-sm shadow-inner shrink-0">
+                          {p.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="font-bold text-slate-800 tracking-tight">{p.name}</div>
+                          <div className="text-[11px] text-slate-500 font-medium">{p.age}</div>
+                        </div>
                       </div>
-                      <input type="checkbox" className="hidden" checked={selectedIds.includes(p.id)} onChange={() => toggleSelect(p.id)} />
-                    </label>
-                  </td>
-                  <td className="px-4 py-3 align-middle">
-                    <span className={`text-[11px] font-black px-2.5 py-1 rounded-lg font-mono tracking-widest ${p.status === 'In Progress' ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30' : 'bg-slate-800 text-white shadow-sm shadow-slate-800/30'}`}>{p.token}</span>
-                  </td>
-                  <td className="px-4 py-3 align-middle">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-aubergine-100 flex items-center justify-center text-aubergine-700 font-bold text-sm shadow-inner shrink-0">
-                        {p.name.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="font-bold text-slate-800 tracking-tight">{p.name}</div>
-                        <div className="text-[11px] text-slate-500 font-medium">{p.age}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 align-middle">
-                    <span className="text-[11px] font-bold text-slate-600 bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200/50 inline-block">{p.type}</span>
-                  </td>
-                  <td className="px-4 py-3 align-middle font-bold text-aubergine-700 text-[13px] whitespace-nowrap">{p.time}</td>
-                  <td className="px-4 py-3 align-middle">
-                    <span className={`flex items-center gap-1.5 text-[11px] font-bold w-max px-2.5 py-1 rounded-lg ${p.mode === 'Video' ? 'bg-sky-50 text-sky-700' : 'bg-slate-50 text-slate-600'}`}>
-                      <i className={`fas ${p.mode === 'Video' ? 'fa-video' : 'fa-hospital'} text-[10px]`}></i> {p.mode}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 align-middle">
-                    <span className={`text-[11px] font-bold px-3 py-1 rounded-full ${STATUS_BADGE[p.status] || 'bg-slate-100 text-slate-500 border-slate-200'}`}>{p.status}</span>
-                  </td>
-                  <td className="px-4 py-3 rounded-r-2xl align-middle text-right">
-                    <div className="flex justify-end gap-2 items-center">
-                      {p.status !== 'Done' && (
-                        <button onClick={() => setCancelTarget(p)} title="Cancel Appointment" className="text-rose-400 hover:text-rose-600 hover:bg-rose-50 w-8 h-8 rounded-full flex items-center justify-center transition-colors">
-                          <i className="fas fa-times"></i>
-                        </button>
+                    </td>
+                    <td className="px-4 py-3 align-middle">
+                      <span className="text-[11px] font-bold text-slate-600 bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200/50 inline-block">{p.type}</span>
+                    </td>
+                    <td className="px-4 py-3 align-middle font-bold text-aubergine-700 text-[13px] whitespace-nowrap">{p.time}</td>
+                    {/* Dynamic Wait-Time Projection */}
+                    <td className="px-4 py-3 align-middle">
+                      {p.status === 'In Progress' ? (
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                          <i className="fas fa-stethoscope text-[9px] animate-pulse"></i> In Session
+                        </span>
+                      ) : p.status === 'Done' ? (
+                        <span className="text-[11px] font-bold text-slate-400">Done</span>
+                      ) : estWait ? (
+                        <div className="space-y-0.5">
+                          <div className="text-[12px] font-black text-slate-800">{estWait.timeStr}</div>
+                          <div className="text-[10px] font-bold text-amber-600 flex items-center gap-1">
+                            <i className="fas fa-hourglass-half text-[8px]"></i>
+                            ~{estWait.waitMins}m wait
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-slate-400 font-medium">—</span>
                       )}
-                      <button onClick={() => setNotesTarget(p)} className="text-aubergine-600 font-bold text-[11px] px-3 py-1.5 rounded-lg hover:bg-aubergine-50 transition-colors border border-aubergine-100 flex items-center gap-1.5 shadow-sm">
-                        <i className={`fas ${p.status === 'Done' ? 'fa-file-lines' : 'fa-pen'}`}></i> {p.status === 'Done' ? 'Notes' : 'Notes'}
-                      </button>
-                      {p.mode === 'Video' && p.status !== 'Done' && (
-                        <button onClick={() => navigate(`/doctor-dashboard/telemedicine?startCall=${p.id}`)} className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold text-[11px] px-3 py-1.5 rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm shadow-emerald-500/20">
-                          <i className="fas fa-video animate-pulse"></i> Join
+                    </td>
+                    <td className="px-4 py-3 align-middle">
+                      <span className={`flex items-center gap-1.5 text-[11px] font-bold w-max px-2.5 py-1 rounded-lg ${p.mode === 'Video' ? 'bg-sky-50 text-sky-700' : 'bg-slate-50 text-slate-600'}`}>
+                        <i className={`fas ${p.mode === 'Video' ? 'fa-video' : 'fa-hospital'} text-[10px]`}></i> {p.mode}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 align-middle">
+                      <span className={`text-[11px] font-bold px-3 py-1 rounded-full ${STATUS_BADGE[p.status] || 'bg-slate-100 text-slate-500 border-slate-200'}`}>{p.status}</span>
+                    </td>
+                    <td className="px-4 py-3 rounded-r-2xl align-middle text-right">
+                      <div className="flex justify-end gap-2 items-center">
+                        {p.status !== 'Done' && (
+                          <button onClick={() => setCancelTarget(p)} title="Cancel Appointment" className="text-rose-400 hover:text-rose-600 hover:bg-rose-50 w-8 h-8 rounded-full flex items-center justify-center transition-colors">
+                            <i className="fas fa-times"></i>
+                          </button>
+                        )}
+                        <button onClick={() => setNotesTarget(p)} className="text-aubergine-600 font-bold text-[11px] px-3 py-1.5 rounded-lg hover:bg-aubergine-50 transition-colors border border-aubergine-100 flex items-center gap-1.5 shadow-sm">
+                          <i className={`fas ${p.status === 'Done' ? 'fa-file-lines' : 'fa-pen'}`}></i> {p.status === 'Done' ? 'Notes' : 'Notes'}
                         </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        {p.mode === 'Video' && p.status !== 'Done' && (
+                          <button onClick={() => navigate(`/doctor-dashboard/telemedicine?startCall=${p.id}`)} className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold text-[11px] px-3 py-1.5 rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-colors flex items-center gap-1.5 shadow-sm shadow-emerald-500/20">
+                            <i className="fas fa-video animate-pulse"></i> Join
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
               {tab === 'queue' && filteredData.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-5 py-16 text-center">

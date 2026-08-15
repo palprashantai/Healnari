@@ -533,4 +533,76 @@ export class RecordsService {
 
     return { id };
   }
+
+  // ── Clinical Protocol Bundles ──
+
+  async getProtocols(user: AuthUser) {
+    const query = this.supabase.admin
+      .from('clinical_protocols')
+      .select('*')
+      .is('deleted_at', null)
+      .eq('is_active', true);
+
+    // Doctors see global (doctor_id is null) + their own custom protocols
+    // Admins see everything
+    const isAdmin = user.profile.role === ProfileRole.ADMIN;
+    const filtered = isAdmin
+      ? query
+      : query.or(`doctor_id.is.null,doctor_id.eq.${user.id}`);
+
+    const { data, error } = await filtered.order('category', { ascending: true }).order('name', { ascending: true });
+    if (error) return [];
+    return (data || []).map(p => ({
+      id: p.id,
+      name: p.name,
+      shortName: p.short_name,
+      category: p.category,
+      badge: p.badge,
+      description: p.description,
+      diagnosis: p.diagnosis,
+      meds: p.meds || [],
+      labs: p.labs || [],
+      clinicalNotes: p.clinical_notes,
+      isCustom: !!p.doctor_id,
+    }));
+  }
+
+  async createProtocol(user: AuthUser, body: {
+    name: string;
+    shortName?: string;
+    category?: string;
+    badge?: string;
+    description?: string;
+    diagnosis?: string;
+    meds?: any[];
+    labs?: string[];
+    clinicalNotes?: string;
+    isGlobal?: boolean;
+  }) {
+    const isAdmin = user.profile.role === ProfileRole.ADMIN;
+    const isDoctor = user.profile.role === ProfileRole.DOCTOR;
+    if (!isAdmin && !isDoctor) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+
+    const doctorId = (isAdmin && body.isGlobal) ? null : user.id;
+
+    const { data, error } = await this.supabase.admin
+      .from('clinical_protocols')
+      .insert({
+        doctor_id: doctorId,
+        name: body.name,
+        short_name: body.shortName,
+        category: body.category || 'General',
+        badge: body.badge,
+        description: body.description,
+        diagnosis: body.diagnosis,
+        meds: body.meds || [],
+        labs: body.labs || [],
+        clinical_notes: body.clinicalNotes,
+      })
+      .select()
+      .single();
+
+    if (error) throw new BadRequestException(error.message || 'Failed to create protocol');
+    return data;
+  }
 }
