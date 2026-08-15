@@ -776,10 +776,107 @@ export class AdminService {
     }
   }
 
+  async updateCmsArticle(id: string, body: any) {
+    try {
+      const { data } = await this.supabase.admin.from('cms_articles').update({
+        title: body.title,
+        author: body.author,
+        category: body.category,
+        summary: body.summary,
+        content: body.content,
+        status: body.status
+      }).eq('id', id).select().single();
+      return data;
+    } catch (error) {
+      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   async deleteCmsArticle(id: string) {
     try {
       await this.supabase.admin.from('cms_articles').delete().eq('id', id);
     } catch (error) {
+      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  // ─── Landing Page Settings (Database) ─────────────────────────────
+  
+  async getLandingSettings() {
+    try {
+      const { data, error } = await this.supabase.admin.from('landing_settings').select('*').eq('id', 1).single();
+      if (error || !data) {
+        return {
+          heroTitle: 'Your Premier Partner in Women\'s Health',
+          heroSubtitle: 'Empowering women through comprehensive, compassionate, and cutting-edge medical care. Book consultations instantly.',
+          providerHeroTitle: 'Empower Your Practice with HealNari',
+          providerHeroSubtitle: 'Join the leading digital platform for women\'s endocrinology and reproductive health. Focus on what you do best—delivering world-class clinical outcomes—while our AI EMR and automated patient acquisition handles the rest.',
+          pricingAmount: 799,
+          toggles: {
+            showEmergencyBanner: false,
+            showFeaturedDoctors: true,
+            showTestimonials: true,
+            showPricing: false,
+            showNewsletter: true,
+            showProviderTestimonials: true,
+            showProviderCalculator: true,
+            showProviderComparison: true
+          },
+          promoText: 'Use code HEALTH20 for 20% off your first consultation!'
+        };
+      }
+      return {
+        heroTitle: data.hero_title,
+        heroSubtitle: data.hero_subtitle,
+        providerHeroTitle: data.provider_hero_title,
+        providerHeroSubtitle: data.provider_hero_subtitle,
+        pricingAmount: data.pricing_amount,
+        toggles: data.toggles,
+        promoText: data.promo_text
+      };
+    } catch (error) {
+      console.error('Failed to fetch landing settings:', error);
+      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  async updateLandingSettings(settings: any) {
+    try {
+      // First try to fetch the existing settings
+      const existingSettings = await this.getLandingSettings();
+      
+      const updatedSettings = {
+        hero_title: settings.heroTitle !== undefined ? settings.heroTitle : existingSettings.heroTitle,
+        hero_subtitle: settings.heroSubtitle !== undefined ? settings.heroSubtitle : existingSettings.heroSubtitle,
+        provider_hero_title: settings.providerHeroTitle !== undefined ? settings.providerHeroTitle : existingSettings.providerHeroTitle,
+        provider_hero_subtitle: settings.providerHeroSubtitle !== undefined ? settings.providerHeroSubtitle : existingSettings.providerHeroSubtitle,
+        pricing_amount: settings.pricingAmount !== undefined ? settings.pricingAmount : existingSettings.pricingAmount,
+        promo_text: settings.promoText !== undefined ? settings.promoText : existingSettings.promoText,
+        toggles: settings.toggles !== undefined ? settings.toggles : existingSettings.toggles
+      };
+
+      const { data, error } = await this.supabase.admin
+        .from('landing_settings')
+        .upsert({ id: 1, ...updatedSettings })
+        .select()
+        .single();
+        
+      if (error) {
+        console.error('Failed to update landing settings:', error);
+        throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      }
+      
+      return {
+        heroTitle: data.hero_title,
+        heroSubtitle: data.hero_subtitle,
+        providerHeroTitle: data.provider_hero_title,
+        providerHeroSubtitle: data.provider_hero_subtitle,
+        pricingAmount: data.pricing_amount,
+        toggles: data.toggles,
+        promoText: data.promo_text
+      };
+    } catch (error) {
+      console.error('Failed to update landing settings:', error);
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
     }
   }

@@ -3,7 +3,7 @@ import Reveal from '../../components/Reveal.jsx';
 import Tilt3D from '../../components/Tilt3D.jsx';
 import { useToast } from '../../components/Toast.jsx';
 
-function ProviderHero({ onApply, onOpenLogin }) {
+function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
   const [activeWorkflow, setActiveWorkflow] = useState('queue');
   const [activeSession, setActiveSession] = useState({
     token: 'T-01',
@@ -69,10 +69,13 @@ function ProviderHero({ onApply, onOpenLogin }) {
       status: 'In Video Call',
       elapsed: 1,
     });
-    toast.success(`Video room connected with ${nextPatient.patient} (${nextPatient.token})`, {
-      icon: 'fa-video',
-      duration: 4000
-    });
+    if (toast) {
+      if (typeof toast.success === 'function') {
+        toast.success(`Video room connected with ${nextPatient.patient} (${nextPatient.token})`, 4000);
+      } else if (typeof toast === 'function') {
+        toast(`Video room connected with ${nextPatient.patient} (${nextPatient.token})`, 'success', 4000);
+      }
+    }
   };
 
   return (
@@ -92,19 +95,23 @@ function ProviderHero({ onApply, onOpenLogin }) {
             <span>Now Onboarding Gynaecologists, Endocrinologists &amp; Fertility Experts</span>
           </div>
 
-          {/* Dynamic Typewriter Heading */}
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 font-display leading-[1.14] min-h-[120px] sm:min-h-[145px]">
-            Expand Your Clinical Practice with <br className="hidden sm:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-aubergine-700 via-magenta-600 to-indigo-700 inline-block">
-              {displayedText}
-            </span>
-            <span className="inline-block w-[3.5px] h-[0.85em] bg-magenta-600 align-middle ml-1.5 animate-pulse rounded-full shadow-xs"></span>
-          </h1>
-
-          {/* Subtitle */}
-          <p className="text-slate-600 text-base sm:text-lg md:text-xl leading-relaxed max-w-2xl mx-auto font-normal">
-            HealNari gives women's health specialists a dedicated digital clinic: smart tokenized queues, AI-assisted CDSS, longitudinal patient EMR, and pre-screened patient referrals with weekly direct payouts.
-          </p>
+          {/* Typography Section */}
+          <div className="space-y-5 relative z-10">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 font-display leading-[1.14]">
+              {title || (
+                <>
+                  Expand Your Clinical Practice with <br className="hidden sm:block" />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-aubergine-700 via-magenta-600 to-indigo-700 inline-block">
+                    {displayedText}
+                  </span>
+                  <span className="inline-block w-[3.5px] h-[0.85em] bg-magenta-600 align-middle ml-1.5 animate-pulse rounded-full shadow-xs"></span>
+                </>
+              )}
+            </h1>
+            <p className="text-slate-600 text-base sm:text-lg md:text-xl leading-relaxed max-w-2xl mx-auto font-normal">
+              {subtitle || "HealNari gives women's health specialists a dedicated digital clinic: smart tokenized queues, AI-assisted CDSS, longitudinal patient EMR, and pre-screened patient referrals with weekly direct payouts."}
+            </p>
+          </div>
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
@@ -266,7 +273,12 @@ function ProviderHero({ onApply, onOpenLogin }) {
                         </p>
                       </div>
                       <button 
-                        onClick={() => toast.info("Viewing patient lab report details.")}
+                        onClick={() => {
+                          if (toast) {
+                            if (typeof toast.info === 'function') toast.info("Viewing patient lab report details.");
+                            else if (typeof toast === 'function') toast("Viewing patient lab report details.", 'info');
+                          }
+                        }}
                         className="w-full bg-rose-600 text-white font-bold py-2 rounded-xl text-xs hover:bg-rose-700 shadow-sm flex items-center justify-center gap-1.5 transition-colors"
                       >
                         <i className="fas fa-flask"></i> Review Biomarkers

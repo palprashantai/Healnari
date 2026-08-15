@@ -74,6 +74,40 @@ function AdminDoctorManager() {
     setSelectedTemplate('');
   };
 
+  const handleExport = () => {
+    if (filteredDoctors.length === 0) {
+      toast('No data to export', 'error');
+      return;
+    }
+    const headers = ['ID', 'Name', 'Email', 'Specialty', 'Status', 'Verified', 'Consultations', 'Commission Rate (%)', 'Platform Earnings', 'Total Gross Revenue'];
+    const rows = filteredDoctors.map(d => {
+      const platformEarnings = d.totalGross * (d.commissionRate / 100);
+      return [
+        d.id,
+        `"${d.name || ''}"`,
+        `"${d.email || ''}"`,
+        `"${d.specialty || ''}"`,
+        d.status,
+        d.verified ? 'Yes' : 'No',
+        d.totalConsults,
+        d.commissionRate,
+        platformEarnings,
+        d.totalGross
+      ].join(',');
+    });
+    
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `doctors_commission_report_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast('Report exported successfully', 'success');
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -94,7 +128,7 @@ function AdminDoctorManager() {
               </div>
             )}
           </div>
-          <button onClick={() => toast('Exporting commission report...', 'info')}
+          <button onClick={handleExport}
             className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm">
             <i className="fas fa-file-csv"></i> Export
           </button>

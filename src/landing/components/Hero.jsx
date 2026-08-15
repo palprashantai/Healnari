@@ -1,6 +1,6 @@
 import React from 'react';
 
-function Hero({ onStartConsult, onOpenChecker }) {
+function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
   return (
     <section className="relative overflow-hidden py-12 md:py-20 max-w-6xl mx-auto px-5 md:px-8">
       {/* Decorative blurry background highlights */}
@@ -26,16 +26,28 @@ function Hero({ onStartConsult, onOpenChecker }) {
           {/* Main Titles */}
           <div className="space-y-4">
             <h1 className="text-3xl sm:text-4xl lg:text-5xl lg:leading-[1.15] font-extrabold tracking-tight text-slate-900 font-display">
-              Online PCOS & Hormonal Healthcare That <br className="hidden lg:block" />
-              Treats the <span className="text-aubergine-600">Root Cause</span>
+              {title || (
+                <>
+                  Online PCOS & Hormonal Healthcare That <br className="hidden lg:block" />
+                  Treats the <span className="text-aubergine-600">Root Cause</span>
+                </>
+              )}
             </h1>
             <div className="space-y-3 max-w-xl mx-auto lg:mx-0">
-              <p className="text-slate-600 text-lg md:text-xl font-normal leading-relaxed">
-                Stop being told to <span className="text-slate-800 font-medium">"just lose weight."</span> Whether you're dealing with <span className="text-aubergine-600 font-medium">PCOS, PCOD, thyroid disorders, hair fall, irregular periods, acne, hormonal imbalances, or weight-related concerns</span>, get a personalized treatment plan designed to address the <span className="text-slate-800 font-medium">underlying cause</span> of your symptoms.
-              </p>
-              <p className="text-slate-700 text-base md:text-lg font-medium leading-relaxed pt-1">
-                Consult world-class endocrinologists and gynecologists online for evidence-based, personalized care—tailored to your unique hormonal health needs.
-              </p>
+              {subtitle ? (
+                <p className="text-slate-600 text-lg md:text-xl font-normal leading-relaxed whitespace-pre-line">
+                  {subtitle}
+                </p>
+              ) : (
+                <>
+                  <p className="text-slate-600 text-lg md:text-xl font-normal leading-relaxed">
+                    Stop being told to <span className="text-slate-800 font-medium">"just lose weight."</span> Whether you're dealing with <span className="text-aubergine-600 font-medium">PCOS, PCOD, thyroid disorders, hair fall, irregular periods, acne, hormonal imbalances, or weight-related concerns</span>, get a personalized treatment plan designed to address the <span className="text-slate-800 font-medium">underlying cause</span> of your symptoms.
+                  </p>
+                  <p className="text-slate-700 text-base md:text-lg font-medium leading-relaxed pt-1">
+                    Consult world-class endocrinologists and gynecologists online for evidence-based, personalized care—tailored to your unique hormonal health needs.
+                  </p>
+                </>
+              )}
             </div>
           </div>
 

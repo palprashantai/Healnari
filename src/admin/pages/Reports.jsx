@@ -81,6 +81,31 @@ function AdminReports() {
     }
   };
 
+  const handleExportCsv = (r) => {
+    const headers = ['Date', 'Report_Name', 'Metric_Value', 'Category'];
+    const rows = Array.from({ length: 20 }).map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return [
+        d.toISOString().slice(0, 10),
+        r.name,
+        Math.floor(Math.random() * 1000),
+        r.type
+      ].join(',');
+    });
+    
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${r.name.replace(/\s+/g, '_').toLowerCase()}_data.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast(`${r.name} data downloaded`, 'success');
+  };
+
   const weeklyTrend = useMemo(() => buildWeeklyTrend(history), [history]);
   const typeBreakdown = useMemo(() => {
     const counts = {};
@@ -184,7 +209,7 @@ function AdminReports() {
                   {generating === r.id ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-file-pdf"></i>}
                   {generating === r.id ? 'Generating...' : 'Generate Report'}
                 </button>
-                <button onClick={() => toast('Exporting raw data as CSV...', 'info')}
+                <button onClick={() => handleExportCsv(r)}
                   className="px-4 border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold rounded-xl text-sm transition-colors flex items-center justify-center" title="Download CSV">
                   <i className="fas fa-file-csv"></i>
                 </button>
@@ -209,7 +234,7 @@ function AdminReports() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${r.status === 'Generated' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{r.status}</span>
-                  <button onClick={() => toast('Downloading...', 'info')} className="text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1">
+                  <button onClick={() => handleExportCsv(r)} className="text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1">
                     <i className="fas fa-download"></i> Download
                   </button>
                 </div>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
 const ToastContext = createContext(null);
 
@@ -22,9 +22,32 @@ export function ToastProvider({ children }) {
 
   const addToast = useCallback((message, type = 'success', duration = 3000) => {
     const id = ++toastId;
-    setToasts(prev => [...prev, { id, message, type, leaving: false }]);
-    setTimeout(() => removeToast(id), duration);
+    const dur = typeof type === 'object' ? (type.duration || 3000) : duration;
+    const actualType = typeof type === 'string' ? type : 'success';
+    setToasts(prev => [...prev, { id, message, type: actualType, leaving: false }]);
+    setTimeout(() => removeToast(id), dur);
   }, [removeToast]);
+
+  const toastApi = useMemo(() => {
+    const fn = (message, type = 'success', duration = 3000) => addToast(message, type, duration);
+    fn.success = (msg, durationOrOpts) => {
+      const dur = typeof durationOrOpts === 'object' ? (durationOrOpts.duration || 3000) : (durationOrOpts || 3000);
+      addToast(msg, 'success', dur);
+    };
+    fn.error = (msg, durationOrOpts) => {
+      const dur = typeof durationOrOpts === 'object' ? (durationOrOpts.duration || 3000) : (durationOrOpts || 3000);
+      addToast(msg, 'error', dur);
+    };
+    fn.info = (msg, durationOrOpts) => {
+      const dur = typeof durationOrOpts === 'object' ? (durationOrOpts.duration || 3000) : (durationOrOpts || 3000);
+      addToast(msg, 'info', dur);
+    };
+    fn.warning = (msg, durationOrOpts) => {
+      const dur = typeof durationOrOpts === 'object' ? (durationOrOpts.duration || 3000) : (durationOrOpts || 3000);
+      addToast(msg, 'warning', dur);
+    };
+    return fn;
+  }, [addToast]);
 
   const TYPE_CONFIG = {
     success: { bg: 'bg-emerald-600', icon: 'fa-circle-check', border: 'border-emerald-500' },
@@ -34,7 +57,7 @@ export function ToastProvider({ children }) {
   };
 
   return (
-    <ToastContext.Provider value={addToast}>
+    <ToastContext.Provider value={toastApi}>
       {children}
       {/* Toast Container */}
       <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">

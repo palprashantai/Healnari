@@ -5,6 +5,8 @@ import ProviderApplyModal from '../components/ProviderApplyModal.jsx';
 import ScrollProgressBar from '../../components/ScrollProgressBar.jsx';
 import AuthModal from '../../tools/AuthModal.jsx';
 import Reveal from '../../components/Reveal.jsx';
+import PromoBanner from '../components/PromoBanner.jsx';
+import { apiFetch } from '../../lib/apiClient.js';
 
 // Lazy load below-the-fold components
 const ProviderBenefits = lazy(() => import('../components/ProviderBenefits.jsx'));
@@ -19,6 +21,7 @@ function DoctorLandingPage() {
   const [isApplyOpen, setIsApplyOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState(null);
   const [showMobileBar, setShowMobileBar] = useState(false);
+  const [adminSettings, setAdminSettings] = useState(null);
 
   // Dynamic SEO, OpenGraph & Structured Data Schema Injection
   useEffect(() => {
@@ -111,6 +114,13 @@ function DoctorLandingPage() {
     };
   }, []);
 
+  useEffect(() => {
+    // Fetch landing settings
+    apiFetch('/admin/public/landing-settings')
+      .then(d => setAdminSettings(d))
+      .catch(console.error);
+  }, []);
+
   const toggleFaq = (idx) => {
     setActiveFaq(prev => (prev === idx ? null : idx));
   };
@@ -142,6 +152,13 @@ function DoctorLandingPage() {
     <div className="min-h-screen flex flex-col font-sans selection:bg-aubergine-100 selection:text-aubergine-900 overflow-x-hidden w-full max-w-[100vw] bg-[#FDFBF7]">
       <ScrollProgressBar />
 
+      {adminSettings?.toggles?.showEmergencyBanner && (
+        <PromoBanner text="Emergency telemedicine slots are currently available." type="emergency" />
+      )}
+      {adminSettings?.promoText && (
+        <PromoBanner text={adminSettings.promoText} type="promo" />
+      )}
+
       {/* Dedicated Doctor Header */}
       <ProviderHeader
         onApply={() => setIsApplyOpen(true)} 
@@ -154,6 +171,8 @@ function DoctorLandingPage() {
         <ProviderHero 
           onApply={() => setIsApplyOpen(true)} 
           onOpenLogin={() => setIsAuthOpen(true)}
+          title={adminSettings?.providerHeroTitle}
+          subtitle={adminSettings?.providerHeroSubtitle}
         />
         
         <Suspense fallback={<div className="h-32 flex items-center justify-center text-slate-400 text-sm">Loading Platform Features...</div>}>
@@ -162,17 +181,23 @@ function DoctorLandingPage() {
           <ProviderBenefits />
 
           {/* Interactive Earnings Calculator */}
-          <ProviderCalculator onApply={() => setIsApplyOpen(true)} />
+          {adminSettings?.toggles?.showProviderCalculator !== false && (
+            <ProviderCalculator onApply={() => setIsApplyOpen(true)} />
+          )}
 
           {/* Comparison Matrix: Physical Clinic vs HealNari Digital Practice */}
-          <div id="comparison" className="scroll-mt-20">
-            <ProviderComparison />
-          </div>
+          {adminSettings?.toggles?.showProviderComparison !== false && (
+            <div id="comparison" className="scroll-mt-20">
+              <ProviderComparison />
+            </div>
+          )}
 
           {/* Peer Testimonials with Real Verified Doctors */}
-          <div id="testimonials" className="scroll-mt-20">
-            <ProviderTestimonials />
-          </div>
+          {adminSettings?.toggles?.showProviderTestimonials !== false && (
+            <div id="testimonials" className="scroll-mt-20">
+              <ProviderTestimonials />
+            </div>
+          )}
 
           {/* Clinical Security & Standards Section */}
           <section id="security" className="max-w-7xl mx-auto px-5 md:px-8 py-12 md:py-16 scroll-mt-20">

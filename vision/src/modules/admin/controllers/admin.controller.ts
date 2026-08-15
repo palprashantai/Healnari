@@ -8,6 +8,7 @@ import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
+import { Public } from '@/core/decorators/public.decorator';
 
 export class UpdateVerificationDto {
   @ApiProperty({ enum: ['approved', 'rejected'] }) @IsIn(['approved', 'rejected']) status: string;
@@ -19,7 +20,26 @@ export class CmsArticleDto {
   @ApiProperty() @IsString() title: string;
   @ApiProperty() @IsString() author: string;
   @ApiProperty() @IsString() category: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() summary?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() content?: string;
   @ApiProperty({ enum: ['Draft', 'Published', 'Archived'], required: false }) @IsOptional() @IsIn(['Draft', 'Published', 'Archived']) status?: string;
+}
+export class UpdateCmsArticleDto {
+  @ApiProperty({ required: false }) @IsOptional() @IsString() title?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() author?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() category?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() summary?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() content?: string;
+  @ApiProperty({ enum: ['Draft', 'Published', 'Archived'], required: false }) @IsOptional() @IsIn(['Draft', 'Published', 'Archived']) status?: string;
+}
+export class UpdateLandingSettingsDto {
+  @ApiProperty({ required: false }) @IsOptional() @IsString() heroTitle?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() heroSubtitle?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() providerHeroTitle?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() providerHeroSubtitle?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsNumber() pricingAmount?: number;
+  @ApiProperty({ required: false }) @IsOptional() toggles?: any;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() promoText?: string;
 }
 export class MessageTemplateDto {
   @ApiProperty() @IsString() name: string;
@@ -274,12 +294,44 @@ export class AdminController {
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
   }
 
+  @Put('cms/:id')
+  @ApiOperation({ summary: 'Update a CMS article' })
+  async updateCmsArticle(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: UpdateCmsArticleDto) {
+    this.checkAdmin(user);
+    const data = await this.adminService.updateCmsArticle(id, body);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
   @Delete('cms/:id')
   @ApiOperation({ summary: 'Delete a CMS article' })
   async deleteCmsArticle(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     this.checkAdmin(user);
     await this.adminService.deleteCmsArticle(id);
     return ResponseHelper.success(null, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  // ─── Landing Settings ─────────────────────────────────────────────
+  @Get('landing-settings')
+  @ApiOperation({ summary: 'Get landing page settings' })
+  async getLandingSettings(@CurrentUser() user: AuthUser) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getLandingSettings();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Put('landing-settings')
+  @ApiOperation({ summary: 'Update landing page settings' })
+  async updateLandingSettings(@CurrentUser() user: AuthUser, @Body() dto: UpdateLandingSettingsDto) {
+    this.checkAdmin(user);
+    const data = await this.adminService.updateLandingSettings(dto);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  @Public()
+  @Get('public/landing-settings')
+  @ApiOperation({ summary: 'Get landing page settings (Public)' })
+  async getPublicLandingSettings() {
+    return this.adminService.getLandingSettings();
   }
 
   // ─── Message Templates ────────────────────────────────────────────

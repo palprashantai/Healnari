@@ -11,6 +11,11 @@ function AdminCMS() {
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
+  // Edit Article State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingArticle, setEditingArticle] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
   // AI CMS Article Generator State
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiTopic, setAiTopic] = useState('');
@@ -45,14 +50,22 @@ function AdminCMS() {
   const handleSaveGeneratedArticle = async () => {
     if (!aiGeneratedArticle) return;
     try {
-      const newArticle = {
+      const payload = {
         title: aiGeneratedArticle.title,
         category: aiCategory,
         author: 'HealNari Clinical Team (AI Assisted)',
         status: 'Published',
-        views: 0,
         content: aiGeneratedArticle.content,
         summary: aiGeneratedArticle.summary,
+      };
+      const created = await apiFetch('/admin/cms', {
+        method: 'POST',
+        body: payload,
+      });
+      const newArticle = created || {
+        ...payload,
+        id: `temp-${Date.now()}`,
+        views: 0,
         date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
       };
       setArticles(prev => [newArticle, ...prev]);
@@ -60,8 +73,30 @@ function AdminCMS() {
       setAiGeneratedArticle(null);
       setAiTopic('');
       toast('Article saved to CMS library!', 'success');
-    } catch {
-      toast('Failed to save article', 'error');
+    } catch (err) {
+      toast(err.message || 'Failed to save article', 'error');
+    }
+  };
+
+  const handleEditSave = async () => {
+    if (!editingArticle.title?.trim()) {
+      toast('Title is required', 'error');
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const { id, title, category, summary, content, status, author } = editingArticle;
+      await apiFetch(`/admin/cms/${id}`, {
+        method: 'PUT',
+        body: { title, category, summary, content, status, author }
+      });
+      setArticles(prev => prev.map(a => a.id === id ? { ...a, title, category, summary, content, status, author } : a));
+      setEditModalOpen(false);
+      toast('Article updated successfully', 'success');
+    } catch (err) {
+      toast('Failed to update article', 'error');
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -171,7 +206,7 @@ function AdminCMS() {
                 <button onClick={() => toggleStatus(a)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center transition-colors" title={a.status === 'Published' ? 'Unpublish' : 'Publish'}>
                   <i className={`fas ${a.status === 'Published' ? 'fa-eye-slash' : 'fa-upload'} text-xs`}></i>
                 </button>
-                <button onClick={() => toast('Editor coming soon', 'info')} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center transition-colors" title="Edit">
+                <button onClick={() => { setEditingArticle({ ...a }); setEditModalOpen(true); }} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center transition-colors" title="Edit">
                   <i className="fas fa-pen text-xs"></i>
                 </button>
                 <button onClick={() => setDeleteTarget(a)} className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 hover:bg-rose-100 flex items-center justify-center transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100" title="Delete">
@@ -266,6 +301,72 @@ function AdminCMS() {
             </div>
           )}
         </div>
+      </Modal>
+
+      {/* ── Edit Article Modal ── */}
+      <Modal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} title="Edit Article" size="lg">
+        {editingArticle && (
+          <div className="space-y-4">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1.5 block">Title</label>
+                <input 
+                  value={editingArticle.title}
+                  onChange={e => setEditingArticle({ ...editingArticle, title: e.target.value })}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 mb-1.5 block">Category</label>
+                <select 
+                  value={editingArticle.category} 
+                  onChange={e => setEditingArticle({ ...editingArticle, category: e.target.value })}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+                >
+                  <option value="Health Guide">Health Guide</option>
+                  <option value="Symptom Checker">Symptom Checker</option>
+                  <option value="Announcement">Announcement</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1.5 block">Summary</label>
+              <textarea 
+                value={editingArticle.summary || ''}
+                onChange={e => setEditingArticle({ ...editingArticle, summary: e.target.value })}
+                rows="2"
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1.5 block">Content (HTML)</label>
+              <textarea 
+                value={editingArticle.content || ''}
+                onChange={e => setEditingArticle({ ...editingArticle, content: e.target.value })}
+                rows="6"
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 font-mono"
+              />
+            </div>
+            <div className="flex gap-3 pt-4 border-t border-slate-100">
+              <button 
+                type="button" 
+                onClick={() => setEditModalOpen(false)} 
+                className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold py-2.5 rounded-xl text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                onClick={handleEditSave}
+                disabled={savingEdit}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+              >
+                {savingEdit ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-save"></i>}
+                <span>Save Changes</span>
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       <ConfirmModal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete}

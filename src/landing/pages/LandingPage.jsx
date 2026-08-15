@@ -9,6 +9,8 @@ import AppInstallToast from '../components/AppInstallToast.jsx';
 import FloatingCTA from '../../tools/FloatingCTA.jsx';
 import Reveal from '../../components/Reveal.jsx';
 import ScrollProgressBar from '../../components/ScrollProgressBar.jsx';
+import PromoBanner from '../components/PromoBanner.jsx';
+import { apiFetch } from '../../lib/apiClient.js';
 
 // Lazy load below-the-fold and modal components
 const Stats = lazy(() => import('../components/Stats.jsx'));
@@ -35,12 +37,19 @@ function LandingPage() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [confirmedDetails, setConfirmedDetails] = useState(null);
   const [showMobileBar, setShowMobileBar] = useState(false);
+  const [adminSettings, setAdminSettings] = useState(null);
 
   useEffect(() => {
     const handleScroll = () => {
       setShowMobileBar(window.scrollY > 450);
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // Fetch landing settings
+    apiFetch('/admin/public/landing-settings')
+      .then(d => setAdminSettings(d))
+      .catch(console.error);
+      
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -69,6 +78,13 @@ function LandingPage() {
     <div className="min-h-screen flex flex-col font-sans selection:bg-brand-100 selection:text-brand-900 overflow-x-hidden w-full max-w-[100vw]">
       <ScrollProgressBar />
 
+      {adminSettings?.toggles?.showEmergencyBanner && (
+        <PromoBanner text="Emergency telemedicine slots are currently available." type="emergency" />
+      )}
+      {adminSettings?.promoText && (
+        <PromoBanner text={adminSettings.promoText} type="promo" />
+      )}
+
       <Header
         onStartConsult={() => openBooking('')} 
         onOpenAuth={() => setIsAuthOpen(true)}
@@ -78,6 +94,8 @@ function LandingPage() {
         <Hero 
           onStartConsult={() => openBooking('')} 
           onOpenChecker={() => setIsSymptomOpen(true)} 
+          title={adminSettings?.heroTitle}
+          subtitle={adminSettings?.heroSubtitle}
         />
         
         <Suspense fallback={<div className="h-32 flex items-center justify-center text-slate-400 text-sm">Loading...</div>}>
@@ -89,11 +107,15 @@ function LandingPage() {
 
           <Reveal><HowItWorks /></Reveal>
 
-          <Doctors onSelectDoctor={openBooking} />
+          {adminSettings?.toggles?.showFeaturedDoctors !== false && (
+            <Doctors onSelectDoctor={openBooking} />
+          )}
 
           <Reveal><Outcomes /></Reveal>
 
-          <Reveal><Testimonials /></Reveal>
+          {adminSettings?.toggles?.showTestimonials !== false && (
+            <Reveal><Testimonials /></Reveal>
+          )}
 
           <Reveal><CycleTracker /></Reveal>
 
@@ -102,55 +124,56 @@ function LandingPage() {
           <Reveal><HealthTips onStartConsult={() => openBooking('')} /></Reveal>
 
           {/* Customized Premium Inline CTA Section */}
-          <section className="max-w-6xl mx-auto px-5 md:px-8 py-10">
-          <Reveal>
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-600 to-brand-700 px-8 py-12 md:p-16 text-center text-white shadow-xl glow-purple">
-              {/* Background design accents */}
-              <div className="absolute top-0 right-0 -mt-12 -mr-12 w-48 h-48 rounded-full bg-violet-600/10 blur-2xl"></div>
-              <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-48 h-48 rounded-full bg-indigo-500/15 blur-2xl"></div>
-              
-              <div className="relative z-10 space-y-6 max-w-3xl mx-auto">
-                <span className="inline-flex items-center gap-1.5 bg-brand-800/60 backdrop-blur border border-brand-700 text-brand-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                  <i className="fas fa-percent text-emerald-400"></i> Introductory Offer
-                </span>
-                <div className="text-2xl sm:text-3xl md:text-4xl font-black leading-tight text-white font-display">
-                  Discuss your concerns with an expert for just <span className="underline decoration-white/40 decoration-wavy">₹799</span>
-                </div>
-                <p className="text-white/90 text-base max-w-xl mx-auto leading-relaxed font-medium">
-                  Receive a provisional clinical assessment, personalized lab-testing roadmap, and initial lifestyle protocols. No judgment, 100% private. <br/> <span className="text-brand-100 text-sm mt-1 inline-block"><i className="fas fa-globe-americas"></i> Consultations available in all global timezones.</span>
-                </p>
+          {adminSettings?.toggles?.showPricing !== false && (
+            <section className="max-w-6xl mx-auto px-5 md:px-8 py-10">
+            <Reveal>
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-600 to-brand-700 px-8 py-12 md:p-16 text-center text-white shadow-xl glow-purple">
+                {/* Background design accents */}
+                <div className="absolute top-0 right-0 -mt-12 -mr-12 w-48 h-48 rounded-full bg-violet-600/10 blur-2xl"></div>
+                <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-48 h-48 rounded-full bg-indigo-500/15 blur-2xl"></div>
                 
-                <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-2">
-                  <button 
-                    onClick={() => openBooking('')}
-                    className="w-full sm:w-auto bg-white text-brand-900 hover:bg-indigo-50 font-bold px-8 py-3.5 rounded-xl shadow-lg transition-all btn-interactive flex items-center justify-center gap-2 text-base md:text-lg"
-                  >
-                    <i className="fas fa-calendar-check"></i> Reserve My Slot
-                  </button>
-                  <button
-                    onClick={() => setIsSymptomOpen(true)}
-                    className="w-full sm:w-auto bg-brand-800/40 hover:bg-brand-800/60 border border-brand-700 text-white font-semibold px-8 py-3.5 rounded-xl transition-all btn-interactive flex items-center justify-center gap-2 text-base md:text-lg"
-                  >
-                    <i className="fas fa-heart-pulse"></i> Not sure yet? Check symptoms first
-                  </button>
-                </div>
+                <div className="relative z-10 space-y-6 max-w-3xl mx-auto">
+                  <span className="inline-flex items-center gap-1.5 bg-brand-800/60 backdrop-blur border border-brand-700 text-brand-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                    <i className="fas fa-percent text-emerald-400"></i> Introductory Offer
+                  </span>
+                  <div className="text-2xl sm:text-3xl md:text-4xl font-black leading-tight text-white font-display">
+                    Discuss your concerns with an expert for just <span className="underline decoration-white/40 decoration-wavy">₹{adminSettings?.pricingAmount || 799}</span>
+                  </div>
+                  <p className="text-white/90 text-base max-w-xl mx-auto leading-relaxed font-medium">
+                    Receive a provisional clinical assessment, personalized lab-testing roadmap, and initial lifestyle protocols. No judgment, 100% private. <br/> <span className="text-brand-100 text-sm mt-1 inline-block"><i className="fas fa-globe-americas"></i> Consultations available in all global timezones.</span>
+                  </p>
+                  
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-2">
+                    <button 
+                      onClick={() => openBooking('')}
+                      className="w-full sm:w-auto bg-white text-brand-900 hover:bg-indigo-50 font-bold px-8 py-3.5 rounded-xl shadow-lg transition-all btn-interactive flex items-center justify-center gap-2 text-base md:text-lg"
+                    >
+                      <i className="fas fa-calendar-check"></i> Reserve My Slot
+                    </button>
+                    <button
+                      onClick={() => setIsSymptomOpen(true)}
+                      className="w-full sm:w-auto bg-brand-800/40 hover:bg-brand-800/60 border border-brand-700 text-white font-semibold px-8 py-3.5 rounded-xl transition-all btn-interactive flex items-center justify-center gap-2 text-base md:text-lg"
+                    >
+                      <i className="fas fa-heart-pulse"></i> Not sure yet? Check symptoms first
+                    </button>
+                  </div>
 
-                <div className="flex flex-wrap justify-center gap-6 pt-4 text-xs font-semibold text-white/90">
-                  <span className="flex items-center gap-1.5"><i className="fas fa-microscope text-brand-100"></i> Root-Cause Analysis</span>
-                  <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-brand-100"></i> Encrypted & Confidential</span>
-                  <span className="flex items-center gap-1.5"><i className="fas fa-clock-rotate-left text-brand-100"></i> Inclusive & Patient-First Care</span>
+                  <div className="flex flex-wrap justify-center gap-6 pt-4 text-xs font-semibold text-white/90">
+                    <span className="flex items-center gap-1.5"><i className="fas fa-microscope text-brand-100"></i> Root-Cause Analysis</span>
+                    <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-brand-100"></i> Encrypted & Confidential</span>
+                    <span className="flex items-center gap-1.5"><i className="fas fa-clock-rotate-left text-brand-100"></i> Inclusive & Patient-First Care</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Reveal>
-          
-          {/* CRO Social Proof Trust Ribbon - Removed per user request */}
-
-          </section>
+            </Reveal>
+            </section>
+          )}
 
           <Reveal><Faq /></Reveal>
 
-          <Reveal><NewsletterSignup /></Reveal>
+          {adminSettings?.toggles?.showNewsletter !== false && (
+            <Reveal><NewsletterSignup /></Reveal>
+          )}
         </Suspense>
       </main>
 
