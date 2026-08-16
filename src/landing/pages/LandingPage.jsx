@@ -127,7 +127,7 @@ function LandingPage() {
           {adminSettings?.toggles?.showPricing !== false && (
             <section className="max-w-6xl mx-auto px-5 md:px-8 py-10">
             <Reveal>
-              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-600 to-brand-700 px-8 py-12 md:p-16 text-center text-white shadow-xl glow-purple">
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-600 to-brand-700 px-5 py-10 sm:px-8 sm:py-12 md:p-16 text-center text-white shadow-xl glow-purple">
                 {/* Background design accents */}
                 <div className="absolute top-0 right-0 -mt-12 -mr-12 w-48 h-48 rounded-full bg-violet-600/10 blur-2xl"></div>
                 <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-48 h-48 rounded-full bg-indigo-500/15 blur-2xl"></div>

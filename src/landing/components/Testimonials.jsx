@@ -57,7 +57,7 @@ function Testimonials() {
       <div className="relative max-w-3xl mx-auto">
 
         {/* Carousel Card Container */}
-        <div className="rounded-3xl p-8 md:p-12 border border-sand-200 shadow-lg relative overflow-hidden transition-all duration-300" style={{ backgroundColor: 'var(--color-surface-card)' }}>
+        <div className="rounded-3xl p-5 sm:p-8 md:p-12 border border-sand-200 shadow-lg relative overflow-hidden transition-all duration-300" style={{ backgroundColor: 'var(--color-surface-card)' }}>
           {/* Quote Mark Accent */}
           <div className="absolute top-6 left-6 text-aubergine-50 text-7xl font-serif pointer-events-none select-none">
             “
@@ -124,8 +124,16 @@ function Testimonials() {
 
           </div>
 
-          {/* Slide Indicator Dots */}
-          <div className="flex justify-center gap-1.5 mt-8 md:mt-4">
+          {/* Slide Indicator Dots + Mobile Nav */}
+          <div className="flex justify-center items-center gap-3 mt-6 md:mt-4">
+            <button
+              onClick={handlePrev}
+              className="md:hidden w-9 h-9 rounded-full border border-sand-200 shadow-md flex items-center justify-center text-slate-500 hover:text-aubergine-600 hover:border-aubergine-200 transition-colors btn-interactive" style={{ backgroundColor: 'var(--color-surface-card)' }}
+              aria-label="Previous review"
+            >
+              <i className="fas fa-arrow-left text-sm"></i>
+            </button>
+            <div className="flex gap-1.5">
             {reviews.map((_, idx) => (
               <button
                 key={idx}
@@ -135,6 +143,14 @@ function Testimonials() {
                 aria-label={`Go to slide ${idx + 1}`}
               ></button>
             ))}
+            </div>
+            <button
+              onClick={handleNext}
+              className="md:hidden w-9 h-9 rounded-full border border-sand-200 shadow-md flex items-center justify-center text-slate-500 hover:text-aubergine-600 hover:border-aubergine-200 transition-colors btn-interactive" style={{ backgroundColor: 'var(--color-surface-card)' }}
+              aria-label="Next review"
+            >
+              <i className="fas fa-arrow-right text-sm"></i>
+            </button>
           </div>
 
           {/* Testimonial Legal Disclaimer */}

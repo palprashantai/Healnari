@@ -2,14 +2,14 @@ import React from 'react';
 
 function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
   return (
-    <section className="relative overflow-hidden py-12 md:py-20 max-w-6xl mx-auto px-5 md:px-8">
+    <section className="relative overflow-hidden py-8 md:py-20 max-w-6xl mx-auto px-4 sm:px-5 md:px-8">
       {/* Decorative blurry background highlights */}
       <div className="absolute top-1/4 left-1/10 w-72 h-72 rounded-full bg-indigo-200/40 blur-3xl -z-10"></div>
       <div className="absolute top-1/3 right-1/10 w-80 h-80 rounded-full bg-violet-200/30 blur-3xl -z-10"></div>
 
-      <div className="grid lg:grid-cols-12 gap-12 items-center">
+      <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center">
         {/* Left Column: Copy & Actions */}
-        <div className="lg:col-span-7 space-y-8 text-center lg:text-left animate-slide-up order-2 lg:order-1">
+        <div className="lg:col-span-7 space-y-5 sm:space-y-8 text-center lg:text-left animate-slide-up order-2 lg:order-1">
           {/* Trust Badges */}
           <div className="flex flex-wrap justify-center lg:justify-start gap-2.5">
             <span className="inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
@@ -52,29 +52,29 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
           </div>
 
           {/* Pricing Banner */}
-          <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-sm sm:text-base font-semibold text-slate-700">
-            <span className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1 rounded-full text-emerald-800 border border-emerald-100 shadow-xs">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-6 justify-center lg:justify-start text-sm sm:text-base font-semibold text-slate-700">
+            <span className="inline-flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full text-emerald-800 border border-emerald-100 shadow-xs text-xs sm:text-sm">
               <i className="fas fa-tag text-emerald-600"></i> Consultations starting at just ₹799
             </span>
           </div>
 
           {/* Dual Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
             {/* Primary Action Button */}
-            <div className="relative group">
-              <div className="absolute -top-3 -right-3 z-10 bg-rose-500 text-white text-[10px] font-black uppercase tracking-wider py-1 px-2.5 rounded-full shadow-md shadow-rose-200/50 animate-bounce flex items-center gap-1">
-                <i className="fas fa-calendar-day"></i> Next Slot: Today in your timezone
+            <div className="relative group w-full sm:w-auto">
+              <div className="absolute -top-3 right-2 sm:-right-3 z-10 bg-rose-500 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider py-0.5 sm:py-1 px-2 sm:px-2.5 rounded-full shadow-md shadow-rose-200/50 animate-bounce flex items-center gap-1">
+                <i className="fas fa-calendar-day"></i> Next Slot: Today
               </div>
               <button 
                 onClick={onStartConsult}
-                className="w-full sm:w-auto relative bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 hover:from-aubergine-700 hover:via-magenta-700 hover:to-indigo-700 text-white font-extrabold px-8 sm:px-10 py-4 sm:py-5 rounded-2xl sm:rounded-3xl shadow-xl shadow-aubergine-200 hover:shadow-2xl hover:shadow-aubergine-300 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 text-lg sm:text-xl group-hover:ring-4 ring-aubergine-100"
+                className="w-full sm:w-auto relative bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 hover:from-aubergine-700 hover:via-magenta-700 hover:to-indigo-700 text-white font-extrabold px-6 sm:px-10 py-4 sm:py-5 rounded-2xl sm:rounded-3xl shadow-xl shadow-aubergine-200 hover:shadow-2xl hover:shadow-aubergine-300 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 sm:gap-3 text-base sm:text-xl group-hover:ring-4 ring-aubergine-100"
               >
-                <i className="fas fa-stethoscope text-base"></i> Book My ₹799 Consult
+                <i className="fas fa-stethoscope text-sm sm:text-base"></i> Book My ₹799 Consult
               </button>
             </div>
             <button
               onClick={onOpenChecker}
-              className="bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-4 px-8 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2.5 text-lg h-full sm:h-[60px] mt-2 sm:mt-0"
+              className="w-full sm:w-auto bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-3.5 sm:py-4 px-6 sm:px-8 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2 text-base sm:text-lg"
             >
               <i className="fas fa-heart-pulse text-rose-500"></i> 2-Min Symptom Check
             </button>
@@ -99,7 +99,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
         {/* Right Column: Visual Component */}
         <div className="lg:col-span-5 relative flex justify-center lg:justify-end order-1 lg:order-2">
           {/* Main Visual Frame */}
-          <div className="relative w-64 h-64 sm:w-80 sm:h-80 lg:w-96 lg:h-96">
+          <div className="relative w-52 h-52 sm:w-72 sm:h-72 lg:w-96 lg:h-96">
             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-aubergine-600 via-magenta-400 to-indigo-300 opacity-25 blur-2xl animate-pulse-subtle"></div>
             
             {/* Beautiful Profile Image with Soft Vignette */}

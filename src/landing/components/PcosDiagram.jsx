@@ -19,23 +19,23 @@ function PcosDiagram() {
 
       <div className="bg-white rounded-3xl shadow-xl shadow-indigo-100/40 border border-slate-100 overflow-hidden">
         {/* Controls */}
-        <div className="flex justify-center p-6 bg-slate-50 border-b border-slate-100">
-          <div className="flex bg-slate-200/60 p-1.5 rounded-2xl gap-1">
+        <div className="flex justify-center p-4 sm:p-6 bg-slate-50 border-b border-slate-100">
+          <div className="flex bg-slate-200/60 p-1 sm:p-1.5 rounded-2xl gap-0.5 sm:gap-1">
             <button 
               onClick={() => setActiveTab('normal')}
-              className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'normal' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+              className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${activeTab === 'normal' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
             >
               Normal Ovary
             </button>
             <button 
               onClick={() => setActiveTab('compare')}
-              className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'compare' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+              className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${activeTab === 'compare' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
             >
               Side-by-Side
             </button>
             <button 
               onClick={() => setActiveTab('pcos')}
-              className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'pcos' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+              className={`px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${activeTab === 'pcos' ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
             >
               Polycystic Ovary
             </button>
@@ -43,7 +43,7 @@ function PcosDiagram() {
         </div>
 
         {/* Diagram Area */}
-        <div className="p-8 md:p-12 bg-gradient-to-b from-white to-slate-50/50 relative">
+        <div className="p-5 sm:p-8 md:p-12 bg-gradient-to-b from-white to-slate-50/50 relative">
           <div className={`flex flex-row md:grid gap-12 lg:gap-8 items-center transition-all duration-500 ${activeTab === 'compare' ? 'md:grid-cols-2 overflow-x-auto snap-x snap-mandatory pb-8 -mx-8 px-8 md:mx-0 md:px-0 md:pb-0 md:overflow-visible hide-scrollbar' : 'max-w-2xl mx-auto'}`}>
             
             {/* Normal Ovary Panel */}

@@ -79,7 +79,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
   };
 
   return (
-    <section className="relative overflow-hidden pt-8 pb-16 md:pt-14 md:pb-24 bg-gradient-to-b from-aubergine-50/50 via-[#FDFBF7] to-white">
+    <section className="relative overflow-hidden pt-6 pb-12 sm:pt-8 sm:pb-16 md:pt-14 md:pb-24 bg-gradient-to-b from-aubergine-50/50 via-[#FDFBF7] to-white">
       {/* Decorative Warm Highlights */}
       <div className="absolute top-12 left-1/10 w-96 h-96 rounded-full bg-aubergine-200/30 blur-3xl -z-10"></div>
       <div className="absolute top-24 right-1/10 w-96 h-96 rounded-full bg-pink-100/40 blur-3xl -z-10"></div>
@@ -90,8 +90,8 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
         <div className="text-center max-w-3xl mx-auto space-y-6 animate-slide-up">
           
           {/* Trust Pill */}
-          <div className="inline-flex items-center gap-2 bg-white border border-aubergine-200/80 shadow-xs text-aubergine-800 text-xs font-semibold px-4 py-1.5 rounded-full">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <div className="inline-flex items-center gap-2 bg-white border border-aubergine-200/80 shadow-xs text-aubergine-800 text-xs font-semibold px-3 sm:px-4 py-1.5 rounded-full text-center">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
             <span>Now Onboarding Gynaecologists, Endocrinologists &amp; Fertility Experts</span>
           </div>
 
@@ -141,7 +141,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
         <div className="mt-14 md:mt-20 max-w-5xl mx-auto">
           <Reveal delay={150}>
             <Tilt3D max={3}>
-              <div className="rounded-[2.5rem] bg-white border border-sand-300 shadow-2xl p-4 sm:p-7 relative overflow-hidden">
+              <div className="rounded-[2rem] sm:rounded-[2.5rem] bg-white border border-sand-300 shadow-2xl p-3 sm:p-5 md:p-7 relative overflow-hidden">
                 
                 {/* Top Control Header */}
                 <div className="flex flex-wrap items-center justify-between gap-3 pb-5 mb-5 border-b border-slate-100">
@@ -161,24 +161,24 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                   </div>
 
                   {/* Interactive Workflow Switcher */}
-                  <div className="flex gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                  <div className="flex gap-1 sm:gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-bold overflow-x-auto">
                     <button
                       onClick={() => setActiveWorkflow('queue')}
-                      className={`px-3 py-1.5 rounded-lg transition-all ${activeWorkflow === 'queue' ? 'bg-white text-aubergine-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${activeWorkflow === 'queue' ? 'bg-white text-aubergine-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                     >
-                      <i className="fas fa-hospital-user mr-1.5"></i> Live Queue
+                      <i className="fas fa-hospital-user mr-1 sm:mr-1.5"></i> Live Queue
                     </button>
                     <button
                       onClick={() => setActiveWorkflow('cdss')}
-                      className={`px-3 py-1.5 rounded-lg transition-all ${activeWorkflow === 'cdss' ? 'bg-white text-aubergine-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${activeWorkflow === 'cdss' ? 'bg-white text-aubergine-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                     >
-                      <i className="fas fa-wand-magic-sparkles mr-1.5 text-indigo-500"></i> AI Insights
+                      <i className="fas fa-wand-magic-sparkles mr-1 sm:mr-1.5 text-indigo-500"></i> AI Insights
                     </button>
                     <button
                       onClick={() => setActiveWorkflow('earnings')}
-                      className={`px-3 py-1.5 rounded-lg transition-all ${activeWorkflow === 'earnings' ? 'bg-white text-aubergine-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${activeWorkflow === 'earnings' ? 'bg-white text-aubergine-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
                     >
-                      <i className="fas fa-wallet mr-1.5 text-emerald-500"></i> Earnings
+                      <i className="fas fa-wallet mr-1 sm:mr-1.5 text-emerald-500"></i> Earnings
                     </button>
                   </div>
                 </div>

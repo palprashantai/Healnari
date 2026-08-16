@@ -35,7 +35,7 @@ function NewsletterSignup() {
 
   return (
     <section className="max-w-6xl mx-auto px-5 md:px-8 py-10">
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-aubergine-900 via-aubergine-800 to-aubergine-700 p-8 md:p-14 text-white shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-aubergine-900 via-aubergine-800 to-aubergine-700 p-6 sm:p-8 md:p-14 text-white shadow-2xl">
         {/* Background Blobs */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-aubergine-400/10 rounded-full blur-3xl -z-0"></div>
         <div className="absolute bottom-0 left-0 w-72 h-72 bg-sage-500/10 rounded-full blur-3xl -z-0"></div>

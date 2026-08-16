@@ -202,7 +202,7 @@ function DoctorLandingPage() {
           {/* Clinical Security & Standards Section */}
           <section id="security" className="max-w-7xl mx-auto px-5 md:px-8 py-12 md:py-16 scroll-mt-20">
             <Reveal>
-              <div className="bg-gradient-to-br from-aubergine-900 via-slate-900 to-slate-950 rounded-[2.5rem] p-8 md:p-14 text-white relative overflow-hidden shadow-2xl">
+              <div className="bg-gradient-to-br from-aubergine-900 via-slate-900 to-slate-950 rounded-[1.5rem] sm:rounded-[2.5rem] p-5 sm:p-8 md:p-14 text-white relative overflow-hidden shadow-2xl">
                 <div className="absolute -right-16 -top-16 w-80 h-80 bg-magenta-500/20 rounded-full blur-3xl pointer-events-none"></div>
                 <div className="max-w-3xl space-y-4 relative z-10">
                   <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider bg-emerald-950/80 border border-emerald-700/60 px-3.5 py-1 rounded-full">
@@ -215,7 +215,7 @@ function DoctorLandingPage() {
                     Patient confidentiality and medical compliance are non-negotiable. All telemedicine sessions, electronic health records, and laboratory data are protected with bank-grade 256-bit encryption.
                   </p>
                   
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 text-xs font-semibold text-slate-200">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-6 text-xs font-semibold text-slate-200">
                     <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
                       <i className="fas fa-lock text-emerald-400 text-xl mb-2 block"></i>
                       <span>256-Bit TLS & AES Encryption</span>
@@ -281,7 +281,7 @@ function DoctorLandingPage() {
           {/* Final Call to Action Card */}
           <section className="max-w-5xl mx-auto px-5 md:px-8 py-12 md:py-20 text-center">
             <Reveal>
-              <div className="bg-gradient-to-r from-aubergine-700 via-magenta-700 to-indigo-800 rounded-[2.5rem] p-10 md:p-16 text-white shadow-2xl relative overflow-hidden">
+              <div className="bg-gradient-to-r from-aubergine-700 via-magenta-700 to-indigo-800 rounded-[2rem] sm:rounded-[2.5rem] p-7 sm:p-10 md:p-16 text-white shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
                 <div className="relative z-10 space-y-6 max-w-2xl mx-auto">
                   <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-xs font-semibold px-4 py-1.5 rounded-full uppercase tracking-wider">

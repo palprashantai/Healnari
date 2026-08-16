@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import Tilt3D from '../../components/Tilt3D.jsx';
 import Reveal from '../../components/Reveal.jsx';
 
 function Conditions() {
+  const scrollRef = useRef(null);
+
   const list = [
     { name: 'PCOS / PCOD', icon: 'fa-venus-double', color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
     { name: 'Hair fall & thinning', icon: 'fa-spa', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
@@ -13,6 +15,77 @@ function Conditions() {
     { name: 'Thyroid disorders', icon: 'fa-shield-heart', color: 'text-sky-600 bg-sky-50 border-sky-100' },
     { name: 'Preconception planning', icon: 'fa-baby-carriage', color: 'text-sage-600 bg-sage-50 border-sage-100' }
   ];
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    let intervalId;
+    let isPaused = false;
+
+    const slide = () => {
+      if (isPaused || window.innerWidth >= 640) return;
+      
+      const maxScroll = container.scrollWidth - container.clientWidth;
+      if (container.scrollLeft >= maxScroll - 10) {
+        container.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        const firstChild = container.firstElementChild;
+        // First child might be a Reveal wrapper, so let's find the inner card or use standard width
+        const scrollAmount = firstChild ? firstChild.clientWidth + 20 : 300;
+        container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      }
+    };
+
+    const startInterval = () => {
+      clearInterval(intervalId);
+      intervalId = setInterval(slide, 3000);
+    };
+
+    const handleTouchStart = () => {
+      isPaused = true;
+    };
+
+    const handleTouchEnd = () => {
+      // Resume after a delay
+      setTimeout(() => {
+        isPaused = false;
+      }, 1500);
+    };
+
+    const handleMouseEnter = () => {
+      isPaused = true;
+    };
+
+    const handleMouseLeave = () => {
+      isPaused = false;
+    };
+
+    startInterval();
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    container.addEventListener('mouseenter', handleMouseEnter);
+    container.addEventListener('mouseleave', handleMouseLeave);
+
+    const handleResize = () => {
+      if (window.innerWidth >= 640) {
+        clearInterval(intervalId);
+      } else {
+        startInterval();
+      }
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('resize', handleResize);
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchend', handleTouchEnd);
+      container.removeEventListener('mouseenter', handleMouseEnter);
+      container.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, []);
 
   return (
     <section id="conditions" className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20 scroll-mt-20">
@@ -30,7 +103,10 @@ function Conditions() {
       </Reveal>
 
       {/* Responsive Grid / Horizontal Scroll */}
-      <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-5 overflow-x-auto snap-x snap-mandatory pb-6 -mx-5 px-5 sm:mx-0 sm:px-0 sm:pb-0 hide-scrollbar sm:overflow-visible">
+      <div 
+        ref={scrollRef}
+        className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-5 overflow-x-auto snap-x snap-mandatory pb-6 -mx-5 px-5 sm:mx-0 sm:px-0 sm:pb-0 hide-scrollbar sm:overflow-visible"
+      >
         {list.map((cond, idx) => (
           <Reveal key={idx} delay={(idx % 4) * 70} className="w-72 sm:w-auto flex-shrink-0 snap-center sm:flex-shrink-1">
           <Tilt3D max={4}>

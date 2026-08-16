@@ -44,8 +44,8 @@ function ProviderFooter({ onApply, onOpenAuth }) {
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-pink-600/10 rounded-full blur-3xl pointer-events-none"></div>
 
-      <div className="relative z-10 max-w-7xl mx-auto px-5 md:px-8 pt-16 pb-12">
-        <div className="grid md:grid-cols-[1.4fr_1fr_1.2fr_1fr] gap-10 md:gap-8">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-5 md:px-8 pt-12 sm:pt-16 pb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-8">
           
           {/* Brand Column */}
           <div className="space-y-4">

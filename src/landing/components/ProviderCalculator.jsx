@@ -84,21 +84,21 @@ function ProviderCalculator({ onApply }) {
       <Reveal delay={100}>
         <div className="max-w-5xl mx-auto bg-white border border-sand-200 rounded-[2.5rem] p-6 sm:p-10 md:p-12 shadow-2xl relative overflow-hidden">
           
-          <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-start">
             
             {/* Left Column: Input Controls */}
             <div className="lg:col-span-7 space-y-8">
               
               {/* Input 1: Consultation Fee */}
               <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <div>
+                <div className="flex justify-between items-start sm:items-center gap-2">
+                  <div className="min-w-0">
                     <label className="text-sm font-extrabold text-slate-900">1. Your Consultation Fee (Per Patient)</label>
                     <p className="text-xs text-slate-500 mt-0.5">
                       Your 90% Take-Home: <strong className="text-emerald-700 font-black">{currencySymbol}{netPerConsultFee}</strong> · Platform: {currencySymbol}{Math.round(fee * 0.1)}
                     </p>
                   </div>
-                  <span className="text-xl font-black text-white bg-aubergine-700 px-4 py-1.5 rounded-2xl shadow-md font-sans">
+                  <span className="text-base sm:text-xl font-black text-white bg-aubergine-700 px-3 sm:px-4 py-1 sm:py-1.5 rounded-2xl shadow-md font-sans shrink-0">
                     {currencySymbol}{fee.toLocaleString()}
                   </span>
                 </div>
@@ -133,13 +133,13 @@ function ProviderCalculator({ onApply }) {
 
               {/* Input 2: Consultations per Day */}
               <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <div>
+                <div className="flex justify-between items-start sm:items-center gap-2">
+                  <div className="min-w-0">
                     <label className="text-sm font-extrabold text-slate-900">2. Consultations Per Day</label>
                     <p className="text-xs text-slate-500 mt-0.5">Patient volume you wish to consult on clinic days</p>
                   </div>
-                  <span className="text-lg font-black text-white bg-indigo-700 px-4 py-1.5 rounded-2xl shadow-md font-sans">
-                    {consultsPerDay} patients / day
+                  <span className="text-base sm:text-lg font-black text-white bg-indigo-700 px-3 sm:px-4 py-1 sm:py-1.5 rounded-2xl shadow-md font-sans shrink-0 whitespace-nowrap">
+                    {consultsPerDay} / day
                   </span>
                 </div>
 
@@ -229,7 +229,7 @@ function ProviderCalculator({ onApply }) {
             </div>
 
             {/* Right Column: High-Contrast Results Card */}
-            <div className="lg:col-span-5 bg-gradient-to-br from-[#1E1035] via-[#2A1647] to-[#160B28] border border-aubergine-500/40 text-white rounded-[2.5rem] p-7 sm:p-9 shadow-2xl relative flex flex-col justify-between space-y-7">
+            <div className="lg:col-span-5 bg-gradient-to-br from-[#1E1035] via-[#2A1647] to-[#160B28] border border-aubergine-500/40 text-white rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-7 lg:p-9 shadow-2xl relative flex flex-col justify-between space-y-5 sm:space-y-7">
               
               {/* Header Badge & Hero Number */}
               <div className="space-y-2">

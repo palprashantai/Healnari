@@ -53,7 +53,7 @@ function Outcomes() {
         </div>
 
         {/* Interactive Comparison Sandbox */}
-        <div className="grid md:grid-cols-12 gap-8 items-center">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 items-start">
           
           {/* Left Block: Case Study Details */}
           <div className="md:col-span-7 space-y-5">
