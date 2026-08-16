@@ -1073,4 +1073,78 @@ export class AdminService {
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
     }
   }
+
+  // ─── Specialties Management ─────────────────────────────────────────
+  async getSpecialties() {
+    try {
+      const { data, error } = await this.supabase.admin
+        .from('specialties')
+        .select('id, name, created_at')
+        .order('name', { ascending: true });
+      if (error) throw new InternalServerErrorException(error.message);
+      return data || [];
+    } catch (error) {
+      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  async createSpecialty(name: string) {
+    try {
+      const { data, error } = await this.supabase.admin
+        .from('specialties')
+        .insert({ name })
+        .select()
+        .single();
+      if (error) throw new InternalServerErrorException(error.message);
+      return data;
+    } catch (error) {
+      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  async updateSpecialty(id: string, name: string) {
+    try {
+      const { data, error } = await this.supabase.admin
+        .from('specialties')
+        .update({ name })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw new InternalServerErrorException(error.message);
+      return data;
+    } catch (error) {
+      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  async deleteSpecialty(id: string) {
+    try {
+      const { error } = await this.supabase.admin
+        .from('specialties')
+        .delete()
+        .eq('id', id);
+      if (error) throw new InternalServerErrorException(error.message);
+    } catch (error) {
+      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /** Public landing page — returns KYC-verified doctors with display-safe fields only */
+  async getPublicDoctors() {
+    try {
+      const { data, error } = await this.supabase.admin
+        .from('profiles')
+        .select('id, full_name, avatar_url, specialty, registration_no, bio, experience_years, languages, location, ethos, availability')
+        .eq('role', 'doctor')
+        .eq('kyc_verified', true)
+        .order('created_at', { ascending: true });
+      if (error) throw new InternalServerErrorException(error.message);
+      return data ?? [];
+    } catch (error) {
+      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+    }
+  }
 }
+
+
+

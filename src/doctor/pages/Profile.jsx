@@ -55,9 +55,16 @@ function DoctorProfile() {
     Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false, Sun: false,
   });
   const [leaveMode, setLeaveMode] = useState(false);
+  const [specialtyOptions, setSpecialtyOptions] = useState([]);
 
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditLogsLoading, setAuditLogsLoading] = useState(false);
+
+  React.useEffect(() => {
+    apiFetch('/admin/public/specialties')
+      .then(res => setSpecialtyOptions(res || []))
+      .catch(console.error);
+  }, []);
 
   React.useEffect(() => {
     if (tab === 'security') {
@@ -68,6 +75,7 @@ function DoctorProfile() {
         .finally(() => setAuditLogsLoading(false));
     }
   }, [tab]);
+
 
   const handleSave = async () => {
     try {
@@ -193,10 +201,25 @@ function DoctorProfile() {
                     <label htmlFor={`doctor-profile-${f.key}`} className="text-xs font-bold text-slate-500 mb-1.5 block">
                       <i className={`fas ${f.icon} mr-1.5 text-aubergine-400`}></i>{f.label}
                     </label>
-                    <input id={`doctor-profile-${f.key}`} type={f.type || 'text'} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50" />
+                    {f.key === 'specialty' ? (
+                      <select 
+                        id={`doctor-profile-${f.key}`} 
+                        value={form[f.key]} 
+                        onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50 outline-none"
+                      >
+                        <option value="">Select Specialty</option>
+                        {specialtyOptions.map(opt => (
+                          <option key={opt.id} value={opt.name}>{opt.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input id={`doctor-profile-${f.key}`} type={f.type || 'text'} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50" />
+                    )}
                   </div>
                 ))}
+
               </div>
               <div>
                 <label htmlFor="doctor-profile-clinicAddress" className="text-xs font-bold text-slate-500 mb-1.5 block"><i className="fas fa-location-dot mr-1.5 text-aubergine-400"></i>Clinic Address</label>

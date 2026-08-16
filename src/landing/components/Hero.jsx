@@ -13,13 +13,16 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
           {/* Trust Badges */}
           <div className="flex flex-wrap justify-center lg:justify-start gap-2.5">
             <span className="inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-lock text-aubergine-500"></i> 100% private &amp; confidential
+              <i className="fas fa-lock text-aubergine-500"></i> 100% Private & Confidential
             </span>
             <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-user-md text-emerald-500"></i> Backed by doctors
+              <i className="fas fa-user-md text-emerald-500"></i> Qualified Indian Doctors
             </span>
             <span className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-microscope text-amber-600"></i> Science-backed
+              <i className="fas fa-microscope text-amber-600"></i> Evidence-Based Medicine
+            </span>
+            <span className="inline-flex items-center gap-1.5 bg-sky-50 border border-sky-100 text-sky-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
+              <i className="fas fa-video text-sky-500"></i> Book in 2 Minutes
             </span>
           </div>
 
@@ -41,10 +44,10 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
               ) : (
                 <>
                   <p className="text-slate-600 text-lg md:text-xl font-normal leading-relaxed">
-                    Stop being told to <span className="text-slate-800 font-medium">"just lose weight."</span> Whether you're dealing with <span className="text-aubergine-600 font-medium">PCOS, PCOD, thyroid disorders, hair fall, irregular periods, acne, hormonal imbalances, or weight-related concerns</span>, get a personalized treatment plan designed to address the <span className="text-slate-800 font-medium">underlying cause</span> of your symptoms.
+                    Tired of being told to <span className="text-slate-800 font-medium">"just lose weight"</span> or given a quick 5-minute prescription? HealNari connects you with specialist doctors — gynaecologists, endocrinologists, trichologists — for <span className="text-aubergine-600 font-medium">PCOS, thyroid issues, hormonal hair fall, acne, irregular periods, and weight management</span>. We find the root cause, not just the symptom.
                   </p>
                   <p className="text-slate-700 text-base md:text-lg font-medium leading-relaxed pt-1">
-                    Consult world-class endocrinologists and gynecologists online for evidence-based, personalized care—tailored to your unique hormonal health needs.
+                    <span className="text-aubergine-700 font-bold">What you get:</span> A 45-minute 1-on-1 video consultation + personalised lab-test plan + diet & lifestyle protocol + 14-day free chat follow-up. All from home.
                   </p>
                 </>
               )}
@@ -87,10 +90,11 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
 
           {/* Consultation trust statement */}
           <div className="flex items-center justify-center lg:justify-start gap-2 text-sm text-slate-500">
-            <div className="flex -space-x-1">
+            <div className="flex -space-x-1 shrink-0">
               <span className="w-5 h-5 rounded-full bg-aubergine-500 flex items-center justify-center text-[10px] text-white font-bold border border-white">✓</span>
+              <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-[10px] text-white font-bold border border-white">✓</span>
             </div>
-            <span>45-min detailed video consultation • Includes free 14-day chat follow-up</span>
+            <span>45-min detailed video consult • Free 14-day chat follow-up • Prescription included</span>
           </div>
 
 

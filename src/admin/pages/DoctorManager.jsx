@@ -15,8 +15,8 @@ function AdminDoctorManager() {
   const [messageText, setMessageText] = useState('');
   const [isActionsDropdownOpen, setIsActionsDropdownOpen] = useState(false);
   const [messageType, setMessageType] = useState('email');
-  const [selectedTemplate, setSelectedTemplate] = useState('');
   const [templates, setTemplates] = useState([]);
+  const [dbSpecialties, setDbSpecialties] = useState([]);
 
   useEffect(() => {
     apiFetch('/admin/clinics')
@@ -26,9 +26,13 @@ function AdminDoctorManager() {
     apiFetch('/admin/communications/templates')
       .then(d => setTemplates(d || []))
       .catch(console.error);
+    apiFetch('/admin/specialties')
+      .then(d => setDbSpecialties(d || []))
+      .catch(console.error);
   }, []);
 
-  const specialties = ['All', ...new Set(doctors.map(d => d.specialty).filter(Boolean))];
+  const specialties = ['All', ...dbSpecialties.map(s => s.name)];
+
 
   const filteredDoctors = doctors.filter(d => {
     const ms = !search || d.name.toLowerCase().includes(search.toLowerCase()) || d.id.toLowerCase().includes(search.toLowerCase());

@@ -92,7 +92,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
           {/* Trust Pill */}
           <div className="inline-flex items-center gap-2 bg-white border border-aubergine-200/80 shadow-xs text-aubergine-800 text-xs font-semibold px-3 sm:px-4 py-1.5 rounded-full text-center">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-            <span>Now Onboarding Gynaecologists, Endocrinologists &amp; Fertility Experts</span>
+            <span>Now Onboarding Gynaecologists, Endocrinologists, Trichologists &amp; Fertility Experts</span>
           </div>
 
           {/* Typography Section */}
@@ -109,7 +109,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
               )}
             </h1>
             <p className="text-slate-600 text-base sm:text-lg md:text-xl leading-relaxed max-w-2xl mx-auto font-normal">
-              {subtitle || "HealNari gives women's health specialists a dedicated digital clinic: smart tokenized queues, AI-assisted CDSS, longitudinal patient EMR, and pre-screened patient referrals with weekly direct payouts."}
+              {subtitle || "Run your own digital clinic on HealNari — no rent, no staff, no commute. You get pre-screened patients sent to you, a smart clinical dashboard (EMR, lab triage, AI insights), and 90% of every consultation fee paid out weekly to your bank account. Takes 3 minutes to apply."}
             </p>
           </div>
 
@@ -130,10 +130,11 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
           </div>
 
           {/* Trust Guarantees */}
-          <div className="flex flex-wrap justify-center items-center gap-6 pt-4 text-xs font-medium text-slate-500">
-            <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-emerald-600"></i> NMC &amp; Council Verified</span>
-            <span className="flex items-center gap-1.5"><i className="fas fa-circle-dollar-to-slot text-emerald-600"></i> Zero Monthly Software Fees</span>
+          <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 pt-4 text-xs font-medium text-slate-500">
+            <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-emerald-600"></i> NMC &amp; State Council Verified</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-circle-dollar-to-slot text-emerald-600"></i> Zero Fees — 90% Net Payout</span>
             <span className="flex items-center gap-1.5"><i className="fas fa-lock text-emerald-600"></i> 100% Clinical Autonomy</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-users text-emerald-600"></i> 200+ Doctors Already On Platform</span>
           </div>
         </div>
 

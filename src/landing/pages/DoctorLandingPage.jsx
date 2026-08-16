@@ -127,24 +127,28 @@ function DoctorLandingPage() {
 
   const doctorFaqs = [
     {
-      q: "How do payouts work, and how frequently do I receive funds?",
-      a: "All consultation fees are tracked automatically in your Earnings & Payouts dashboard. Earnings are disbursed weekly directly to your registered bank account with complete transparency, downloadable GST/tax invoices, and zero hidden deductions."
+      q: "What exactly is HealNari and who is it for?",
+      a: "HealNari is a dedicated digital clinic platform for women's health specialists in India. If you are a licensed Gynaecologist, Endocrinologist, Trichologist, or Fertility Expert, you can join and run a fully online practice. Patients with PCOS, thyroid issues, hormonal hair fall, irregular periods, acne, and weight concerns come to you through our platform — pre-screened and ready for consultation."
     },
     {
-      q: "Are there any upfront software costs or monthly subscription fees?",
-      a: "No. HealNari charges zero upfront onboarding fees and zero monthly software subscriptions. We operate on a transparent 90/10 revenue share model where you retain 90% of every completed consultation fee, and a 10% platform fee covers HIPAA video servers, payment gateway processing, and AI EMR maintenance."
+      q: "How much can I earn and how does the payout model work?",
+      a: "You set your own consultation fee (starting ₹799). You keep 90% of every completed consultation — the 10% platform fee covers HIPAA video servers, payment gateway processing, and EMR/AI infrastructure. Earnings are tracked in real-time in your dashboard and paid directly to your registered bank account every Monday. There are no hidden commissions, deductions, or caps."
     },
     {
-      q: "Do I retain 100% clinical autonomy over prescriptions and protocols?",
-      a: "Yes, absolutely. You retain complete clinical decision-making authority for all diagnoses, lab test recommendations, prescription medications, and lifestyle protocols. HealNari provides diagnostic intelligence and EMR tooling, never prescriptive mandates."
+      q: "Are there any upfront fees, monthly software subscriptions, or lock-in contracts?",
+      a: "Zero. No setup fees, no monthly software subscription, no annual contract. You simply apply, get verified, and start earning. You can pause or deactivate your account at any time. We only succeed when you succeed."
     },
     {
-      q: "How does HealNari ensure patient pre-qualification?",
-      a: "Every patient completes a comprehensive clinical intake covering hormonal symptoms, menstrual timeline, current medications, and past lab records. You review structured, high-signal clinical summaries prior to entering the consultation."
+      q: "How do I get patients? Do I need to bring my own?",
+      a: "No — we bring pre-screened patients to you. Every patient on HealNari completes a detailed intake (symptoms, menstrual history, medications, past labs) before booking. You receive a structured clinical summary before each session so you can walk in prepared. You may also share your HealNari profile link to refer your existing patients for follow-ups."
     },
     {
-      q: "What credentials and documents are required to be verified?",
-      a: "To maintain the highest standards of care, we verify your Medical Registration Certificate (NMC, State Medical Council, or international equivalent), degree certificates, and valid government ID proof through our clinical credentialing committee."
+      q: "Do I retain full clinical autonomy over my prescriptions and treatment protocols?",
+      a: "Yes, completely. You have 100% clinical decision-making authority — all diagnoses, lab recommendations, prescriptions, and lifestyle protocols are entirely yours. HealNari's AI tools provide non-prescriptive diagnostic intelligence and clinical summaries to support your judgment, never override it."
+    },
+    {
+      q: "What documents do I need to get verified?",
+      a: "The verification process is simple and quick (typically under 48 hours). You'll need: your Medical Registration Certificate (NMC, State Medical Council, or international equivalent), degree certificates, and a valid government photo ID. Our credentialing team reviews and approves your application — no in-person visit required."
     }
   ];
 
@@ -285,13 +289,13 @@ function DoctorLandingPage() {
                 <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
                 <div className="relative z-10 space-y-6 max-w-2xl mx-auto">
                   <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-xs font-semibold px-4 py-1.5 rounded-full uppercase tracking-wider">
-                    <i className="fas fa-stethoscope text-emerald-300"></i> Join 200+ Verified Specialists
+                    <i className="fas fa-stethoscope text-emerald-300"></i> Join 200+ Verified Indian Specialists
                   </span>
                   <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-display leading-tight">
-                    Ready to Expand Your Clinical Practice?
+                    Start Your Digital Clinic Today
                   </h2>
                   <p className="text-pink-100 text-base md:text-lg leading-relaxed font-normal">
-                    Deliver evidence-based, root-cause hormonal care on your own schedule. Onboarding takes less than 3 minutes.
+                    No upfront fees. No monthly subscriptions. Apply in 3 minutes, get verified in 48 hours, and start seeing pre-screened patients from Day 1. Keep 90% of every consultation — paid weekly.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
                     <button 

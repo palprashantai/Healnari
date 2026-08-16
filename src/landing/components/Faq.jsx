@@ -5,22 +5,31 @@ function Faq() {
 
   const faqs = [
     {
-      q: "How is HealNari different from a regular gynaecologist visit?",
-      a: "We take an integrated, root-cause clinical approach combining gynaecology, endocrinology, dermatology, and clinical nutrition. Instead of quick 5-minute visits, we offer comprehensive 45-minute video consults, customized lifestyle-medical treatment plans, and continuous daily chat support with a dedicated care team."
+      q: "What exactly do I get in a ₹799 consultation?",
+      a: "Your ₹799 consultation includes a full 45-minute 1-on-1 video call with a specialist doctor (gynaecologist, endocrinologist, or trichologist depending on your concern), a personalised lab-test roadmap, initial diet & lifestyle protocol, a digital prescription where applicable, and 14 days of free follow-up chat with your doctor's care team — all from the comfort of your home."
     },
     {
-      q: "Can hair fall due to PCOS be improved?",
-      a: "For many patients, yes. Correcting the underlying hormonal driver, alongside nutritional support and — when appropriate — topical or medical therapy, often reduces shedding and supports regrowth. Timelines vary, but most patients who respond see visible change within 4 to 6 months of consistent clinical care."
+      q: "How is HealNari different from a regular hospital or clinic visit?",
+      a: "Unlike a busy OPD that gives you 5 minutes, HealNari gives you 45 minutes with a specialist who actually listens. We take a root-cause, integrative approach combining gynaecology, endocrinology, trichology, and clinical nutrition. No queues, no travel, no judgment — consult from home in your preferred language."
+    },
+    {
+      q: "Which conditions do your doctors treat?",
+      a: "Our specialists treat PCOS / PCOD, irregular or painful periods, hormonal hair fall & thinning, acne & hirsutism, thyroid disorders (hypothyroidism, hyperthyroidism), hormonal weight gain, insulin resistance, fertility & preconception planning, and general hormonal imbalances. If you're unsure, use our free 2-minute symptom checker to find out which specialist you need."
     },
     {
       q: "Is the video consultation completely secure & confidential?",
-      a: "Yes. All video consultations, health records, lab documents, and care team chats are fully encrypted. We are built on patient-first privacy principles and never share your clinical parameters or contact details with third parties without your explicit, written consent."
+      a: "Yes — completely. All consultations, health records, chat messages, and lab documents are fully end-to-end encrypted. We are built on patient-first privacy principles and never share your health information or contact details with any third party without your explicit written consent."
+    },
+    {
+      q: "Can PCOS and hormonal hair fall actually be improved?",
+      a: "For most patients, yes. By identifying and correcting the underlying hormonal driver — whether it's insulin resistance, elevated androgens, or thyroid dysfunction — alongside targeted nutrition and medical support, symptoms typically improve significantly. Most patients on a consistent HealNari protocol see measurable change within 8–12 weeks, with visible hair results in 4–6 months."
     },
     {
       q: "What if I need to cancel or reschedule my booking?",
-      a: "We offer completely free, hassle-free rescheduling or cancellations up to 4 hours before your scheduled appointment time. You can easily modify your slot instantly from your patient dashboard or by messaging our support line."
+      a: "No problem at all. We offer completely free, hassle-free rescheduling or cancellation up to 4 hours before your appointment. You can modify your slot directly from your patient dashboard or by messaging our support team anytime."
     }
   ];
+
 
   const toggleAccordion = (idx) => {
     setActiveIndex((prev) => (prev === idx ? null : idx));

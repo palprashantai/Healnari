@@ -140,7 +140,7 @@ function LandingPage() {
                     Discuss your concerns with an expert for just <span className="underline decoration-white/40 decoration-wavy">₹{adminSettings?.pricingAmount || 799}</span>
                   </div>
                   <p className="text-white/90 text-base max-w-xl mx-auto leading-relaxed font-medium">
-                    Receive a provisional clinical assessment, personalized lab-testing roadmap, and initial lifestyle protocols. No judgment, 100% private. <br/> <span className="text-brand-100 text-sm mt-1 inline-block"><i className="fas fa-globe-americas"></i> Consultations available in all global timezones.</span>
+                    Includes: <strong>45-min video call</strong> with a specialist doctor + personalised <strong>lab-test roadmap</strong> + <strong>diet & lifestyle protocol</strong> + <strong>digital prescription</strong> + 14-day free chat follow-up. No surprise charges. <br/> <span className="text-brand-100 text-sm mt-1 inline-block"><i className="fas fa-globe-americas"></i> Available across all Indian cities & global timezones.</span>
                   </p>
                   
                   <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-2">
@@ -148,21 +148,22 @@ function LandingPage() {
                       onClick={() => openBooking('')}
                       className="w-full sm:w-auto bg-white text-brand-900 hover:bg-indigo-50 font-bold px-8 py-3.5 rounded-xl shadow-lg transition-all btn-interactive flex items-center justify-center gap-2 text-base md:text-lg"
                     >
-                      <i className="fas fa-calendar-check"></i> Reserve My Slot
+                      <i className="fas fa-calendar-check"></i> Book My ₹799 Consult
                     </button>
                     <button
                       onClick={() => setIsSymptomOpen(true)}
                       className="w-full sm:w-auto bg-brand-800/40 hover:bg-brand-800/60 border border-brand-700 text-white font-semibold px-8 py-3.5 rounded-xl transition-all btn-interactive flex items-center justify-center gap-2 text-base md:text-lg"
                     >
-                      <i className="fas fa-heart-pulse"></i> Not sure yet? Check symptoms first
+                      <i className="fas fa-heart-pulse"></i> Not sure? Check symptoms free
                     </button>
                   </div>
 
                   <div className="flex flex-wrap justify-center gap-6 pt-4 text-xs font-semibold text-white/90">
-                    <span className="flex items-center gap-1.5"><i className="fas fa-microscope text-brand-100"></i> Root-Cause Analysis</span>
+                    <span className="flex items-center gap-1.5"><i className="fas fa-video text-brand-100"></i> 45-Min Video Consult</span>
                     <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-brand-100"></i> Encrypted & Confidential</span>
-                    <span className="flex items-center gap-1.5"><i className="fas fa-clock-rotate-left text-brand-100"></i> Inclusive & Patient-First Care</span>
+                    <span className="flex items-center gap-1.5"><i className="fas fa-comment-medical text-brand-100"></i> 14-Day Free Chat Follow-Up</span>
                   </div>
+
                 </div>
               </div>
             </Reveal>

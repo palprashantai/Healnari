@@ -367,6 +367,62 @@ export class AdminController {
     return ResponseHelper.success(null, SUCCESS_MESSAGES.DATA_UPDATED);
   }
 
+  // ─── Public Doctors Listing ──────────────────────────────────────────
+  @Public()
+  @Get('public/doctors')
+  @ApiOperation({ summary: 'Get verified doctors for landing page (Public)' })
+  async getPublicDoctors() {
+    const data = await this.adminService.getPublicDoctors();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  // ─── Specialties Management ─────────────────────────────────────────
+  @Public()
+  @Get('public/specialties')
+  @ApiOperation({ summary: 'Get all specialties (Public)' })
+  async getPublicSpecialties() {
+    const data = await this.adminService.getSpecialties();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+
+  @Get('specialties')
+  @ApiOperation({ summary: 'Get all specialties' })
+  async getSpecialties(@CurrentUser() user: AuthUser) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getSpecialties();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Post('specialties')
+  @ApiOperation({ summary: 'Create a specialty' })
+  async createSpecialty(@CurrentUser() user: AuthUser, @Body() body: { name: string }) {
+    this.checkAdmin(user);
+    const data = await this.adminService.createSpecialty(body.name);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  @Put('specialties/:id')
+  @ApiOperation({ summary: 'Update a specialty' })
+  async updateSpecialty(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: { name: string },
+  ) {
+    this.checkAdmin(user);
+    const data = await this.adminService.updateSpecialty(id, body.name);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  @Delete('specialties/:id')
+  @ApiOperation({ summary: 'Delete a specialty' })
+  async deleteSpecialty(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    this.checkAdmin(user);
+    await this.adminService.deleteSpecialty(id);
+    return ResponseHelper.success(null, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+
   // ─── Broadcasts ───────────────────────────────────────────────────
   @Get('communications/broadcasts')
   @ApiOperation({ summary: 'Broadcast history' })

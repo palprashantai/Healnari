@@ -226,6 +226,7 @@ function PatientDiscovery() {
   const toast = useToast();
   const { addAppointment, favorites, toggleFavorite, syncPayment } = useClinicData();
   const [rawDoctors, setRawDoctors] = useState([]);
+  const [dbSpecialties, setDbSpecialties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [search, setSearch] = useState('');
@@ -249,6 +250,10 @@ function PatientDiscovery() {
       .then(setRawDoctors)
       .catch(() => setRawDoctors([]))
       .finally(() => setLoading(false));
+
+    apiFetch('/admin/public/specialties')
+      .then(res => setDbSpecialties(res || []))
+      .catch(console.error);
   }, []);
 
   const doctors = useMemo(() => rawDoctors.map(d => ({
@@ -260,7 +265,8 @@ function PatientDiscovery() {
     verified: !!d.kyc_verified,
   })), [rawDoctors]);
 
-  const specialties = useMemo(() => ['All', ...new Set(doctors.map(d => d.specialty).filter(Boolean))], [doctors]);
+  const specialties = useMemo(() => ['All', ...dbSpecialties.map(s => s.name)], [dbSpecialties]);
+
 
   const handleFavorite = async (id) => {
     const wasFav = favorites.includes(id);

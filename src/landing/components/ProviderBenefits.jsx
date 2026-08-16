@@ -55,16 +55,36 @@ function ProviderBenefits() {
 
   return (
     <section id="benefits" className="py-20 md:py-28 bg-white max-w-7xl mx-auto px-5 md:px-8">
-      <Reveal className="text-center max-w-3xl mx-auto mb-16 space-y-4">
+      <Reveal className="text-center max-w-3xl mx-auto mb-12 space-y-4">
         <span className="text-xs font-semibold text-aubergine-700 uppercase tracking-wider bg-aubergine-50 px-3.5 py-1 rounded-full border border-aubergine-100 shadow-xs">
-          Authentic Provider Capabilities
+          What You Get on Day 1
         </span>
         <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-slate-900 leading-tight font-display">
-          Everything You Need to Power Your Clinical Practice
+          Your Full Digital Clinic — Included Free
         </h2>
         <p className="text-slate-600 text-base md:text-lg leading-relaxed font-normal">
-          HealNari is built with deep respect for doctor time and patient safety. Here are the exact tools you get from Day 1.
+          No software license fees. No setup costs. Every feature below is available from Day 1, included as part of your HealNari provider account at zero additional cost.
         </p>
+      </Reveal>
+
+      {/* 3-Step Join Process Strip */}
+      <Reveal>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-14 text-center">
+          {[
+            { step: '01', icon: 'fa-file-medical', label: 'Apply in 3 Minutes', desc: 'Fill a short form with your specialty & registration number. No long paperwork.' },
+            { step: '02', icon: 'fa-certificate', label: 'Credential Verified (48 hrs)', desc: 'Our clinical team verifies your NMC / State Medical Council registration.' },
+            { step: '03', icon: 'fa-circle-play', label: 'Go Live & Start Earning', desc: 'Your profile goes live, patients start booking, payouts go weekly to your bank.' },
+          ].map((s) => (
+            <div key={s.step} className="flex flex-col items-center gap-3 bg-aubergine-50/60 border border-aubergine-100 rounded-3xl p-6">
+              <div className="w-12 h-12 rounded-2xl bg-aubergine-700 text-white flex items-center justify-center text-lg">
+                <i className={`fas ${s.icon}`}></i>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-aubergine-400">Step {s.step}</span>
+              <h3 className="font-bold text-slate-900 text-base">{s.label}</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">{s.desc}</p>
+            </div>
+          ))}
+        </div>
       </Reveal>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
