@@ -146,7 +146,7 @@ function HowItWorks() {
                 ref={(el) => (stepRefs.current[idx] = el)}
                 onClick={() => setActiveStep(idx)}
                 onMouseEnter={() => setActiveStep(idx)}
-                className={`w-full text-left relative overflow-hidden flex flex-col p-6 sm:p-8 rounded-3xl transition-all duration-500 ease-out cursor-pointer border-2 hover:-translate-y-1 ${
+                className={`w-full text-left relative overflow-hidden flex flex-col p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl transition-all duration-500 ease-out cursor-pointer border-2 hover:-translate-y-1 ${
                   isActive
                     ? 'bg-white shadow-card-hover border-brand-200'
                     : 'bg-slate-50/50 hover:bg-white border-transparent hover:border-brand-200/60 opacity-70 hover:opacity-100 hover:shadow-soft'
@@ -169,12 +169,12 @@ function HowItWorks() {
                   
                   {/* Title */}
                   <div className="flex-grow">
-                    <h3 className={`font-extrabold text-xl md:text-2xl leading-tight font-display transition-colors duration-300 ${
+                    <h3 className={`font-extrabold text-lg sm:text-xl md:text-2xl leading-tight font-display transition-colors duration-300 ${
                       isActive ? 'text-slate-900' : 'text-slate-600'
                     }`}>
                       {step.title}
                       {step.price && isActive && (
-                        <span className="ml-2 text-lg font-black" style={{ color: step.accent }}>
+                        <span className="ml-2 text-base sm:text-lg font-black" style={{ color: step.accent }}>
                           ({step.price})
                         </span>
                       )}
@@ -189,7 +189,7 @@ function HowItWorks() {
                   }`}
                 >
                   <div className="overflow-hidden">
-                    <div className="pl-12 sm:pl-16">
+                    <div className="pl-10 sm:pl-14 md:pl-16">
                       {/* Description */}
                       <p className="text-slate-600 text-sm sm:text-base leading-relaxed mb-5">
                         {step.desc}

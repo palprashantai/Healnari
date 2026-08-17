@@ -26,6 +26,15 @@ const MENU_ITEMS = [
   { name: 'My Profile',         icon: 'fa-circle-user',    path: '/patient-dashboard/profile',       color: '#64748b' },
 ];
 
+// Bottom 5 tabs shown on mobile
+const BOTTOM_TABS = [
+  { name: 'Home',         icon: 'fa-house',          path: '/patient-dashboard' },
+  { name: 'Appointments', icon: 'fa-calendar-check', path: '/patient-dashboard/appointments' },
+  { name: 'Records',      icon: 'fa-file-medical',   path: '/patient-dashboard/records' },
+  { name: 'Tracking',     icon: 'fa-heart-pulse',    path: '/patient-dashboard/tracking' },
+  { name: 'Profile',      icon: 'fa-circle-user',    path: '/patient-dashboard/profile' },
+];
+
 /** "2 hours ago" style relative timestamp for a notification's created_at. */
 function timeAgo(iso) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -136,12 +145,13 @@ function Sidebar({ onClose, onItemHover }) {
   );
 }
 
+        {/* Notification panel: constrained width on mobile */}
 function NotificationsPanel({ notifications, onMarkAllRead, onMarkRead, onClose, panelRef }) {
   const unread = notifications.filter(n => !n.read).length;
 
   return (
     <div ref={panelRef}
-      className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden"
+      className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-[20rem] bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden"
       style={{ animation: 'slideUp 0.2s ease-out' }}>
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
         <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
@@ -314,12 +324,41 @@ function PatientLayout() {
         </header>
 
         {/* Dynamic Content */}
-        <main className={`flex-1 overflow-y-auto p-4 md:p-6 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}>
+        <main className={`flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}>
           {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
           <PageTransition />
         </main>
       </div>
-      
+
+      {/* Mobile Bottom Tab Bar */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] safe-area-pb">
+        <div className="flex items-center justify-around h-16">
+          {BOTTOM_TABS.map(tab => (
+            <NavLink
+              key={tab.path}
+              to={tab.path}
+              end={tab.path === '/patient-dashboard'}
+              className={({ isActive }) =>
+                `flex flex-col items-center justify-center gap-1 w-full h-full text-center transition-all ${
+                  isActive ? 'text-aubergine-700' : 'text-slate-400'
+                }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <div className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all ${
+                    isActive ? 'bg-aubergine-100' : ''
+                  }`}>
+                    <i className={`fas ${tab.icon} text-base`}></i>
+                  </div>
+                  <span className="text-[10px] font-bold leading-none">{tab.name}</span>
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
+
       <AiChatWidget context="patient" />
     </div>
   );

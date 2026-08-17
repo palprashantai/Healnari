@@ -107,12 +107,12 @@ function LabTests({ onBook }) {
       </div>
 
       {/* Concern Selector */}
-      <div className="flex flex-wrap justify-center gap-2 mb-10">
+      <div className="flex overflow-x-auto hide-scrollbar gap-2 mb-10 pb-1 -mx-5 px-5 sm:mx-0 sm:px-0 sm:flex-wrap sm:justify-center sm:overflow-visible">
         {concerns.map((concern) => (
           <button
             key={concern}
             onClick={() => setSelectedConcern(concern)}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 btn-interactive border ${
+            className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 btn-interactive border ${
               selectedConcern === concern
                 ? 'bg-brand-700 border-brand-700 text-white shadow-md'
                 : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
@@ -126,7 +126,7 @@ function LabTests({ onBook }) {
       {/* Results Panel */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden animate-fade-in">
         {/* Panel Header */}
-        <div className={`bg-gradient-to-r ${c.header} to-white border-b border-slate-100 p-6 flex items-center justify-between`}>
+        <div className={`bg-gradient-to-r ${c.header} to-white border-b border-slate-100 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
           <div className="flex items-center gap-3">
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl ${c.icon}`}>
               <i className={`fas ${current.icon}`}></i>

@@ -90,14 +90,14 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
         <div className="text-center max-w-3xl mx-auto space-y-6 animate-slide-up">
           
           {/* Trust Pill */}
-          <div className="inline-flex items-center gap-2 bg-white border border-aubergine-200/80 shadow-xs text-aubergine-800 text-xs font-semibold px-3 sm:px-4 py-1.5 rounded-full text-center">
+          <div className="inline-flex items-center gap-2 bg-white border border-aubergine-200/80 shadow-xs text-aubergine-800 text-xs font-semibold px-3 sm:px-4 py-1.5 rounded-full text-center max-w-[90vw]">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-            <span>Now Onboarding Gynaecologists, Endocrinologists, Trichologists &amp; Fertility Experts</span>
+            <span className="truncate">Now Onboarding Gynaecologists, Endocrinologists, Trichologists &amp; Fertility Experts</span>
           </div>
 
           {/* Typography Section */}
           <div className="space-y-5 relative z-10">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 font-display leading-[1.14]">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 font-display leading-[1.14]">
               {title || (
                 <>
                   Expand Your Clinical Practice with <br className="hidden sm:block" />
@@ -114,35 +114,37 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
           </div>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 pt-2">
             <button
               onClick={onApply}
-              className="w-full sm:w-auto bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-8 py-4 rounded-2xl shadow-lg shadow-aubergine-200 transition-all hover:scale-[1.02] flex items-center justify-center gap-2.5 text-base"
+              className="w-full sm:w-auto bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-7 py-3.5 sm:py-4 rounded-2xl shadow-lg shadow-aubergine-200 transition-all hover:scale-[1.02] flex items-center justify-center gap-2.5 text-sm sm:text-base"
             >
-              <i className="fas fa-stethoscope"></i> Apply as a Specialist
+              <i className="fas fa-stethoscope"></i>
+              <span className="sm:hidden">Apply as Specialist</span>
+              <span className="hidden sm:inline">Apply as a Specialist</span>
             </button>
             <button
               onClick={onOpenLogin}
-              className="w-full sm:w-auto bg-white hover:bg-slate-50 border border-sand-300 text-slate-700 font-semibold px-7 py-4 rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 text-base"
+              className="w-full sm:w-auto bg-white hover:bg-slate-50 border border-sand-300 text-slate-700 font-semibold px-6 py-3.5 sm:py-4 rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <i className="fas fa-arrow-right-to-bracket text-aubergine-600"></i> Provider Login
             </button>
           </div>
 
           {/* Trust Guarantees */}
-          <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 pt-4 text-xs font-medium text-slate-500">
-            <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-emerald-600"></i> NMC &amp; State Council Verified</span>
-            <span className="flex items-center gap-1.5"><i className="fas fa-circle-dollar-to-slot text-emerald-600"></i> Zero Fees — 90% Net Payout</span>
+          <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-6 pt-4 text-xs font-medium text-slate-500">
+            <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-emerald-600"></i> NMC Verified</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-circle-dollar-to-slot text-emerald-600"></i> 90% Net Payout</span>
             <span className="flex items-center gap-1.5"><i className="fas fa-lock text-emerald-600"></i> 100% Clinical Autonomy</span>
-            <span className="flex items-center gap-1.5"><i className="fas fa-users text-emerald-600"></i> 200+ Doctors Already On Platform</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-users text-emerald-600"></i> 200+ Doctors on Platform</span>
           </div>
         </div>
 
         {/* Interactive Clinic Dashboard Showcase (Light, Premium, High-Fidelity) */}
-        <div className="mt-14 md:mt-20 max-w-5xl mx-auto">
+        <div className="mt-10 sm:mt-14 md:mt-20 max-w-5xl mx-auto">
           <Reveal delay={150}>
             <Tilt3D max={3}>
-              <div className="rounded-[2rem] sm:rounded-[2.5rem] bg-white border border-sand-300 shadow-2xl p-3 sm:p-5 md:p-7 relative overflow-hidden">
+              <div className="rounded-2xl sm:rounded-[2rem] bg-white border border-sand-300 shadow-2xl p-3 sm:p-5 md:p-7 relative overflow-hidden">
                 
                 {/* Top Control Header */}
                 <div className="flex flex-wrap items-center justify-between gap-3 pb-5 mb-5 border-b border-slate-100">

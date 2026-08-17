@@ -82,9 +82,9 @@ function ProviderCalculator({ onApply }) {
 
       {/* Main Interactive Calculator Card */}
       <Reveal delay={100}>
-        <div className="max-w-5xl mx-auto bg-white border border-sand-200 rounded-[2.5rem] p-6 sm:p-10 md:p-12 shadow-2xl relative overflow-hidden">
+        <div className="max-w-5xl mx-auto bg-white border border-sand-200 rounded-[2rem] sm:rounded-[2.5rem] p-4 sm:p-8 md:p-12 shadow-2xl relative overflow-hidden">
           
-          <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+          <div className="grid lg:grid-cols-12 gap-6 lg:gap-12 items-start">
             
             {/* Left Column: Input Controls */}
             <div className="lg:col-span-7 space-y-8">
@@ -202,7 +202,7 @@ function ProviderCalculator({ onApply }) {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 text-center pt-2 border-t border-slate-200">
+                <div className="grid grid-cols-3 sm:grid-cols-3 gap-2 text-center pt-2 border-t border-slate-200">
                   <div className="bg-white p-2.5 rounded-xl border border-slate-200">
                     <span className="text-[10px] uppercase font-bold text-slate-400 block">Gross Billings</span>
                     <strong className="text-sm font-black text-slate-800 font-sans block mt-0.5">
@@ -229,7 +229,7 @@ function ProviderCalculator({ onApply }) {
             </div>
 
             {/* Right Column: High-Contrast Results Card */}
-            <div className="lg:col-span-5 bg-gradient-to-br from-[#1E1035] via-[#2A1647] to-[#160B28] border border-aubergine-500/40 text-white rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-7 lg:p-9 shadow-2xl relative flex flex-col justify-between space-y-5 sm:space-y-7">
+            <div className="lg:col-span-5 bg-gradient-to-br from-[#1E1035] via-[#2A1647] to-[#160B28] border border-aubergine-500/40 text-white rounded-[1.5rem] sm:rounded-[2rem] p-5 sm:p-7 lg:p-9 shadow-2xl relative flex flex-col justify-between space-y-5 sm:space-y-7">
               
               {/* Header Badge & Hero Number */}
               <div className="space-y-2">
@@ -243,7 +243,7 @@ function ProviderCalculator({ onApply }) {
                 </div>
 
                 {/* Big Metric Number with Crisp Sans Typography */}
-                <div className="text-4xl sm:text-5xl font-black text-white font-sans tracking-tight pt-1">
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white font-sans tracking-tight pt-1">
                   <span className="text-emerald-400 mr-1">{currencySymbol}</span>
                   {netMonthlyIncome.toLocaleString()}
                 </div>

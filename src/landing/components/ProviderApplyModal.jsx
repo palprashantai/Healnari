@@ -91,15 +91,15 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 sm:p-6" role="dialog" aria-modal="true">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md transition-opacity animate-fade-in" onClick={onClose}></div>
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[92vh] border border-slate-100">
+      <div className="relative w-full max-w-xl bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[96dvh] sm:max-h-[92vh] border-0 sm:border border-slate-100">
         
         {/* Header */}
-        <div className="px-6 sm:px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-aubergine-900 to-slate-950 text-white">
+        <div className="px-4 sm:px-8 py-4 sm:py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-aubergine-900 to-slate-950 text-white">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-emerald-400 font-bold text-lg">
               <i className="fas fa-user-doctor"></i>
@@ -116,7 +116,7 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
 
         {/* Multi-step progress indicator */}
         {!isSuccess && (
-          <div className="px-6 sm:px-8 pt-5 pb-3 bg-slate-50 border-b border-slate-100">
+          <div className="px-4 sm:px-8 pt-4 pb-3 bg-slate-50 border-b border-slate-100">
             <div className="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
               <span className={step >= 1 ? 'text-aubergine-700 font-bold' : ''}>1. Credentials &amp; Country</span>
               <span className={step >= 2 ? 'text-aubergine-700 font-bold' : ''}>2. Fee &amp; Payout Rails</span>
@@ -132,7 +132,7 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
         )}
 
         {/* Body Content */}
-        <div className="p-6 sm:p-8 overflow-y-auto flex-1">
+        <div className="px-4 sm:px-8 py-4 sm:py-6 overflow-y-auto flex-1">
           {isSuccess ? (
             <div className="text-center py-6 space-y-4 animate-fade-in">
               <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-3xl mx-auto shadow-inner">

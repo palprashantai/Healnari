@@ -70,21 +70,23 @@ function ProviderTestimonials() {
           Read why top gynaecologists and endocrinologists chose HealNari to expand their digital practice.
         </p>
 
-        {/* Filter Pills */}
-        <div className="flex flex-wrap justify-center gap-2 pt-4">
-          {filterTabs.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => setSelectedSpecialty(tab.value)}
-              className={`text-xs font-semibold px-4 py-1.5 rounded-xl border transition-all ${
-                selectedSpecialty === tab.value
-                  ? 'bg-aubergine-700 text-white border-aubergine-700 shadow-md scale-105'
-                  : 'bg-white text-slate-600 border-sand-300 hover:border-aubergine-300 hover:bg-slate-50'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* Filter Pills — horizontal scroll on mobile */}
+        <div className="-mx-5 px-5 sm:mx-0 sm:px-0">
+          <div className="flex sm:flex-wrap sm:justify-center gap-2 pt-4 overflow-x-auto hide-scrollbar pb-1">
+            {filterTabs.map((tab) => (
+              <button
+                key={tab.value}
+                onClick={() => setSelectedSpecialty(tab.value)}
+                className={`text-xs font-semibold px-4 py-1.5 rounded-xl border transition-all whitespace-nowrap flex-shrink-0 ${
+                  selectedSpecialty === tab.value
+                    ? 'bg-aubergine-700 text-white border-aubergine-700 shadow-md scale-105'
+                    : 'bg-white text-slate-600 border-sand-300 hover:border-aubergine-300 hover:bg-slate-50'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
       </Reveal>
 

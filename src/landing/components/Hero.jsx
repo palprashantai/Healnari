@@ -28,7 +28,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
 
           {/* Main Titles */}
           <div className="space-y-4">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl lg:leading-[1.15] font-extrabold tracking-tight text-slate-900 font-display">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl lg:leading-[1.15] font-extrabold tracking-tight text-slate-900 font-display">
               {title || (
                 <>
                   Online PCOS & Hormonal Healthcare That <br className="hidden lg:block" />
@@ -65,7 +65,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
             {/* Primary Action Button */}
             <div className="relative group w-full sm:w-auto">
-              <div className="absolute -top-3 right-2 sm:-right-3 z-10 bg-rose-500 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider py-0.5 sm:py-1 px-2 sm:px-2.5 rounded-full shadow-md shadow-rose-200/50 animate-bounce flex items-center gap-1">
+              <div className="absolute -top-3 right-2 sm:-right-3 z-10 bg-rose-500 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider py-0.5 sm:py-1 px-2 sm:px-2.5 rounded-full shadow-md shadow-rose-200/50 animate-bounce flex items-center gap-1 whitespace-nowrap">
                 <i className="fas fa-calendar-day"></i> Next Slot: Today
               </div>
               <button 
@@ -103,7 +103,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
         {/* Right Column: Visual Component */}
         <div className="lg:col-span-5 relative flex justify-center lg:justify-end order-1 lg:order-2">
           {/* Main Visual Frame */}
-          <div className="relative w-52 h-52 sm:w-72 sm:h-72 lg:w-96 lg:h-96">
+          <div className="relative w-44 h-44 sm:w-72 sm:h-72 lg:w-96 lg:h-96">
             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-aubergine-600 via-magenta-400 to-indigo-300 opacity-25 blur-2xl animate-pulse-subtle"></div>
             
             {/* Beautiful Profile Image with Soft Vignette */}

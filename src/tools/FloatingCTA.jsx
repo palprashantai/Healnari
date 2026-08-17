@@ -17,7 +17,7 @@ function FloatingCTA({ onBook }) {
 
   return (
     <div
-      className={`fixed bottom-24 md:bottom-6 left-4 md:left-5 z-50 flex flex-col items-start gap-3 transition-all duration-500 ${
+      className={`fixed bottom-20 md:bottom-6 left-4 md:left-5 z-50 flex flex-col items-start gap-3 transition-all duration-500 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'
       }`}
     >

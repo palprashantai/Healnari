@@ -47,13 +47,15 @@
     font-family: 'Inter', sans-serif;
     background-color: var(--color-surface-page);
     color: var(--color-navy);
-    font-size: 14px; /* Standard CRM text size */
+    font-size: 14px;
     line-height: 1.5;
     letter-spacing: -0.01em;
     @apply antialiased overflow-x-hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    /* Prevent horizontal scroll caused by full-width children */
+    max-width: 100vw;
   }
 
   /* HealNari Serif Headings */
@@ -67,11 +69,17 @@
     color: var(--color-primary);
   }
 
-  /* Global smooth transitions */
+  /* Global smooth transitions + remove 300ms tap delay on mobile */
   a, button, [role="button"] {
     transition-property: color, background-color, border-color, box-shadow, opacity, transform, filter;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 150ms;
+    touch-action: manipulation;
+  }
+
+  /* Momentum scrolling on iOS for all scroll containers */
+  .overflow-y-auto, .overflow-x-auto, .overflow-y-scroll {
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Custom Scrollbar — Royal Purple & Magenta */

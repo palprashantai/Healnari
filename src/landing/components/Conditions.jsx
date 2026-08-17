@@ -108,7 +108,7 @@ function Conditions() {
         className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-5 overflow-x-auto snap-x snap-mandatory pb-6 -mx-5 px-5 sm:mx-0 sm:px-0 sm:pb-0 hide-scrollbar sm:overflow-visible"
       >
         {list.map((cond, idx) => (
-          <Reveal key={idx} delay={(idx % 4) * 70} className="w-72 sm:w-auto flex-shrink-0 snap-center sm:flex-shrink-1">
+          <Reveal key={idx} delay={(idx % 4) * 70} className="w-[80vw] max-w-[16rem] sm:w-auto sm:max-w-none flex-shrink-0 snap-start sm:flex-shrink-1">
           <Tilt3D max={4}>
           <div
             className="group rounded-3xl p-5 border border-sand-200 shadow-sm flex items-center gap-4 transition-all duration-300 hover:shadow-md hover:border-aubergine-100" style={{ backgroundColor: 'var(--color-surface-card)' }}

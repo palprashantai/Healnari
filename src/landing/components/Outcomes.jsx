@@ -37,7 +37,7 @@ function Outcomes() {
 
   return (
     <section id="results" className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20 scroll-mt-20">
-      <div className="bg-white rounded-3xl p-6 md:p-12 shadow-sm border border-slate-100/90">
+      <div className="bg-white rounded-3xl p-5 sm:p-8 md:p-12 shadow-sm border border-slate-100/90">
         
         {/* Title Block */}
         <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">

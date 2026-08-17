@@ -87,7 +87,7 @@ function ProviderBenefits() {
         </div>
       </Reveal>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-8">
         {clinicalFeatures.map((feat, idx) => (
           <Reveal key={idx} delay={idx * 80}>
             <div className="h-full bg-slate-50/80 hover:bg-white border border-slate-200/80 hover:border-aubergine-200 rounded-3xl p-7 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col justify-between group">

@@ -260,12 +260,12 @@ function Doctors({ onSelectDoctor }) {
       </Reveal>
 
       {/* Filter Tabs — dynamic from DB */}
-      <div className="flex flex-wrap justify-center gap-2 mb-10">
+      <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 mb-8 sm:mb-10">
         {filterTabs.map(tab => (
           <button
             key={tab}
             onClick={() => setActiveFilter(tab)}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 border ${
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-[11px] sm:text-sm font-semibold transition-all duration-200 border ${
               activeFilter === tab
                 ? 'bg-aubergine-600 border-aubergine-600 text-white shadow-md shadow-aubergine-100'
                 : 'bg-white border-sand-200 text-slate-600 hover:bg-aubergine-50 hover:border-aubergine-200 hover:text-aubergine-700'
@@ -293,13 +293,13 @@ function Doctors({ onSelectDoctor }) {
           </button>
         </div>
       ) : (
-        /* Mobile: horizontal scroll snap; md+: grid */
-        <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-5 overflow-x-auto snap-x snap-mandatory pb-6 -mx-5 px-5 sm:mx-0 sm:px-0 sm:pb-0 sm:overflow-visible hide-scrollbar">
+        /* Mobile: horizontal scroll snap showing ~1.15 cards; sm+: 2-col grid; lg+: 4-col grid */
+        <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 overflow-x-auto snap-x snap-mandatory pb-5 -mx-5 px-5 sm:mx-0 sm:px-0 sm:pb-0 sm:overflow-visible hide-scrollbar">
           {filteredDoctors.map((doc, idx) => (
             <Reveal
               key={doc.id || idx}
               delay={(idx % 4) * 80}
-              className="w-[15rem] sm:w-auto flex-shrink-0 snap-center sm:flex-shrink sm:flex-1 h-full"
+              className="w-[80vw] max-w-[17rem] sm:w-auto sm:max-w-none flex-shrink-0 snap-start sm:flex-shrink sm:flex-1 h-full"
             >
               <DoctorCard doc={doc} onSelect={onSelectDoctor} />
             </Reveal>

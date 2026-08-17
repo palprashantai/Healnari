@@ -185,12 +185,12 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
       aria-modal="true"
       aria-labelledby="booking-modal-title"
     >
-      <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-100 animate-slide-up flex flex-col my-auto max-h-[92vh]">
+      <div className="bg-white rounded-none sm:rounded-3xl w-full max-w-md sm:mx-auto shadow-2xl overflow-hidden border-0 sm:border border-slate-100 animate-slide-up flex flex-col my-auto max-h-[100dvh] sm:max-h-[92vh]">
 
-        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 z-10">
+        <div className="sticky top-0 bg-white border-b border-slate-100 px-4 sm:px-6 py-3 sm:py-4 z-10">
           <div className="flex justify-between items-center">
             <div>
-              <h3 id="booking-modal-title" className="font-bold text-xl text-slate-800 font-display tracking-tight">
+              <h3 id="booking-modal-title" className="font-bold text-lg sm:text-xl text-slate-800 font-display tracking-tight">
                 Book Your Consultation
               </h3>
               <p className="text-slate-400 text-xs font-medium mt-0.5">
@@ -220,7 +220,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-grow space-y-4">
+        <form onSubmit={handleSubmit} className="px-4 sm:px-6 py-4 sm:py-5 overflow-y-auto flex-grow space-y-4">
 
           {step === 1 && (
             <>

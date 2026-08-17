@@ -56,7 +56,7 @@ function AuthModal({ onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
@@ -68,9 +68,9 @@ function AuthModal({ onClose }) {
       ></div>
 
       {/* Modal Content */}
-      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[96dvh] sm:max-h-[90vh]">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl overflow-hidden bg-white shadow-sm border border-slate-100 shrink-0">
               <img src="/brand/logo-icon.jpg" alt="HealNari" className="w-full h-full object-cover" />
@@ -93,7 +93,7 @@ function AuthModal({ onClose }) {
         </div>
 
         {/* Scrollable Body */}
-        <div className="p-6 overflow-y-auto">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 overflow-y-auto">
 
           {/* Role Toggle — only meaningful at registration. Login is account-bound:
               your role comes from your account, not from a tab you click, so

@@ -189,11 +189,11 @@ function SymptomChecker({ onClose, onBook }) {
       aria-modal="true"
       aria-labelledby="symptom-title"
     >
-      <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-100 animate-slide-up flex flex-col my-auto max-h-[90vh]">
+      <div className="bg-white rounded-none sm:rounded-3xl w-full max-w-lg sm:mx-auto shadow-2xl overflow-hidden border-0 sm:border border-slate-100 animate-slide-up flex flex-col my-auto max-h-[100dvh] sm:max-h-[90vh]">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex justify-between items-center z-10">
+        <div className="sticky top-0 bg-white border-b border-slate-100 px-4 sm:px-6 py-3 sm:py-4 flex justify-between items-center z-10">
           <div>
-            <h3 id="symptom-title" className="font-extrabold text-xl text-slate-800 font-display">
+            <h3 id="symptom-title" className="font-extrabold text-lg sm:text-xl text-slate-800 font-display">
               Health Assessment Wizard
             </h3>
             <p className="text-slate-400 text-xs font-semibold mt-0.5">
@@ -217,7 +217,7 @@ function SymptomChecker({ onClose, onBook }) {
         </div>
 
         {/* Content Body */}
-        <div className="p-6 overflow-y-auto flex-grow space-y-6">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 overflow-y-auto flex-grow space-y-5">
 
           {/* STEP 1: CONCERN SELECT */}
           {step === 1 && (

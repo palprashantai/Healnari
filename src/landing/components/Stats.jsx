@@ -22,7 +22,7 @@ function Stats() {
               <i className={`fas ${stat.icon}`}></i>
             </div>
 
-            <div className="text-3xl md:text-4.5xl font-black text-aubergine-800 tracking-tight bg-gradient-to-r from-aubergine-800 to-aubergine-600 bg-clip-text text-transparent">
+            <div className="text-2xl sm:text-3xl md:text-4xl font-black text-aubergine-800 tracking-tight bg-gradient-to-r from-aubergine-800 to-aubergine-600 bg-clip-text text-transparent">
               {stat.value}
             </div>
 
