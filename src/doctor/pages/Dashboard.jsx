@@ -609,9 +609,23 @@ function DoctorDashboard() {
   const nextPatient = queue.find(q => q.status === 'Waiting');
 
   const callNext = async () => {
+    if (!nextPatient) {
+      if (currentPatient) {
+        try {
+          await callNextForDoctor(doctorName);
+          toast(`Marked ${currentPatient.name} as done. Queue is now clear!`, 'success');
+        } catch (err) {
+          toast(err.message || 'Failed to update queue', 'error');
+        }
+      } else {
+        toast('No waiting patients in the queue right now.', 'info');
+      }
+      return;
+    }
+
     try {
       await callNextForDoctor(doctorName);
-      toast(`Calling ${nextPatient?.name || 'next patient'} — ${nextPatient?.token}`, 'success');
+      toast(`Calling next patient: ${nextPatient.name} (${nextPatient.token})`, 'success');
     } catch (err) {
       toast(err.message || 'Failed to call next patient', 'error');
     }

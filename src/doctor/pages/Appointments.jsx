@@ -191,6 +191,7 @@ function DoctorAppointments() {
 
   const queue = useMemo(() => appointments
     .filter(a => a.date === todayStr && a.status !== 'Requested' && a.status !== 'Cancelled')
+    .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
     .map(toRow)
     .map((r, i) => ({ ...r, token: `T-${String(i + 1).padStart(2, '0')}` })),
     [appointments, todayStr, ageByPatientId]);
@@ -333,9 +334,23 @@ function DoctorAppointments() {
 
   const callNext = async () => {
     const nxt = queue.find(p => p.status === 'Waiting');
+    if (!nxt) {
+      const inProgress = queue.find(p => p.status === 'In Progress');
+      if (inProgress) {
+        try {
+          await callNextForDoctor();
+          toast(`Marked ${inProgress.name} as done. Queue clear!`, 'success');
+        } catch (err) {
+          toast(err.message || 'Failed to update queue', 'error');
+        }
+      } else {
+        toast('No waiting patients in the queue right now.', 'info');
+      }
+      return;
+    }
     try {
       await callNextForDoctor();
-      toast(nxt ? `Called ${nxt.name} (${nxt.token})` : 'Queue advanced', 'success');
+      toast(`Called next patient: ${nxt.name} (${nxt.token})`, 'success');
     } catch (err) {
       toast(err.message || 'Failed to advance the queue', 'error');
     }

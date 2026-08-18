@@ -101,13 +101,13 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
         </div>
 
         {/* Right Column: Visual Component */}
-        <div className="lg:col-span-5 relative flex justify-center lg:justify-end order-1 lg:order-2">
+        <div className="lg:col-span-5 relative flex justify-center lg:justify-end order-1 lg:order-2 mt-4 sm:mt-0">
           {/* Main Visual Frame */}
-          <div className="relative w-44 h-44 sm:w-72 sm:h-72 lg:w-96 lg:h-96">
+          <div className="relative w-56 h-56 sm:w-72 sm:h-72 lg:w-96 lg:h-96">
             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-aubergine-600 via-magenta-400 to-indigo-300 opacity-25 blur-2xl animate-pulse-subtle"></div>
             
             {/* Beautiful Profile Image with Soft Vignette */}
-            <div className="w-full h-full rounded-full overflow-hidden border-8 border-white shadow-2xl relative">
+            <div className="w-full h-full rounded-full overflow-hidden border-4 sm:border-8 border-white shadow-2xl relative">
               <img
                 src="/generated/hero.webp"
                 alt="Patient consulting an online gynaecologist for PCOS and hormonal health at HealNari"
@@ -121,25 +121,25 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
             </div>
 
             {/* Interactive Rating Badge Overlay */}
-            <div className="absolute -bottom-3 sm:-bottom-4 right-2 sm:right-4 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-sand-200 p-3 sm:p-3.5 flex items-center gap-2.5 sm:gap-3 animate-float z-10">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500 text-base sm:text-lg shrink-0">
+            <div className="absolute -bottom-2 sm:-bottom-4 -right-2 sm:right-4 bg-white/95 backdrop-blur-md rounded-xl sm:rounded-2xl shadow-xl border border-sand-200 p-2 sm:p-3.5 flex items-center gap-1.5 sm:gap-3 animate-float z-10 scale-90 sm:scale-100 origin-bottom-right">
+              <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-amber-50 flex items-center justify-center text-amber-500 text-xs sm:text-lg shrink-0">
                 <i className="fas fa-star"></i>
               </div>
               <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-extrabold text-slate-800 text-sm sm:text-base leading-none">4.98</span>
-                  <span className="text-[11px] text-slate-400 font-bold">/ 5.0</span>
+                <div className="flex items-center gap-1 sm:gap-1.5">
+                  <span className="font-extrabold text-slate-800 text-xs sm:text-base leading-none">4.98</span>
+                  <span className="text-[9px] sm:text-[11px] text-slate-400 font-bold">/ 5.0</span>
                 </div>
-                <p className="text-[10px] sm:text-[11px] text-slate-500 font-bold mt-0.5">2,000+ verified consults</p>
+                <p className="text-[9px] sm:text-[11px] text-slate-500 font-bold mt-0.5">2,000+ verified consults</p>
               </div>
             </div>
 
             {/* Mini Trust Bubble */}
-            <div className="absolute -top-2 sm:-top-3 -left-2 sm:-left-3 bg-white/95 backdrop-blur-md rounded-2xl shadow-lg border border-sand-200 p-2 sm:p-2.5 flex items-center gap-2 animate-bounce-subtle z-10">
-              <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-xs shrink-0">
+            <div className="absolute -top-1 sm:-top-3 -left-1 sm:-left-3 bg-white/95 backdrop-blur-md rounded-xl sm:rounded-2xl shadow-lg border border-sand-200 p-1.5 sm:p-2.5 flex items-center gap-1.5 sm:gap-2 animate-bounce-subtle z-10 scale-90 sm:scale-100 origin-top-left">
+              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-[10px] sm:text-xs shrink-0">
                 <i className="fas fa-shield-heart"></i>
               </div>
-              <span className="text-[10px] sm:text-[11px] font-bold text-slate-800">100% Doctor-Led</span>
+              <span className="text-[9px] sm:text-[11px] font-bold text-slate-800">100% Doctor-Led</span>
             </div>
           </div>
         </div>
