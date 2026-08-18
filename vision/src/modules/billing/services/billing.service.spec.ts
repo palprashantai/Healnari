@@ -15,6 +15,7 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
   const notifications = { create: jest.fn() };
   const email = { isConfigured: false, sendMail: jest.fn() };
   const invoices = { generatePdf: jest.fn() };
+  const appointments = { confirmPaidAppointment: jest.fn(), initiateRefundIfPaid: jest.fn() };
 
   const paidPayment = {
     id: 'pay-1', cf_order_id: 'cf-order-1', status: 'Paid', amount: 799,
@@ -29,7 +30,7 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
       payments: [{ data: paidPayment }],
       profiles: [profileNames],
     });
-    const service = new BillingService(supabase as any, cashfree as any, invoices as any, notifications as any, email as any);
+    const service = new BillingService(supabase as any, cashfree as any, invoices as any, notifications as any, email as any, appointments as any);
 
     const result = await service.reconcileCashfreeOrder('cf-order-1');
 
@@ -50,7 +51,7 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
       payments: [{ data: pendingPayment }, { data: paidPayment }, { data: paidPayment }],
       profiles: [profileNames, profileNames],
     });
-    const service = new BillingService(supabase as any, cashfree as any, invoices as any, notifications as any, email as any);
+    const service = new BillingService(supabase as any, cashfree as any, invoices as any, notifications as any, email as any, appointments as any);
 
     const first = await service.reconcileCashfreeOrder('cf-order-1');
     expect(first.status).toBe('Paid');
@@ -65,7 +66,7 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
   it('returns null for an order id with no matching payment, without calling Cashfree', async () => {
     const cashfree = { getOrder: jest.fn(), getOrderPayments: jest.fn(), createRefund: jest.fn() };
     const { supabase } = createSupabaseMock({ payments: [{ data: null }] });
-    const service = new BillingService(supabase as any, cashfree as any, invoices as any, notifications as any, email as any);
+    const service = new BillingService(supabase as any, cashfree as any, invoices as any, notifications as any, email as any, appointments as any);
 
     const result = await service.reconcileCashfreeOrder('unknown-order');
 

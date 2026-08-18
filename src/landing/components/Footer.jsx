@@ -19,9 +19,9 @@ function Footer() {
   ];
 
   const legalLinks = [
-    { label: 'Terms of Service' },
-    { label: 'Privacy Policy' },
-    { label: 'Refund & Cancellation' },
+    { label: 'Terms of Service', href: '/legal/terms' },
+    { label: 'Privacy Policy', href: '/legal/privacy' },
+    { label: 'Refund & Cancellation', href: '/legal/refund' },
     { label: 'Medical Disclaimer', href: '#medical-disclaimer' },
   ];
 
@@ -92,17 +92,25 @@ function Footer() {
           <div>
             <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Global Compliance</h3>
             <ul className="space-y-3 text-sm">
-              <li className="flex items-center gap-2 text-aubergine-200" title="Health Insurance Portability and Accountability Act (USA)">
-                <i className="fas fa-shield-virus text-emerald-400"></i> HIPAA Compliant (USA)
+              <li>
+                <a href="/legal/compliance" className="flex items-center gap-2 text-aubergine-200 hover:text-white transition-colors" title="Health Insurance Portability and Accountability Act (USA)">
+                  <i className="fas fa-shield-virus text-emerald-400"></i> HIPAA Compliant (USA)
+                </a>
               </li>
-              <li className="flex items-center gap-2 text-aubergine-200" title="General Data Protection Regulation (UK / EU)">
-                <i className="fas fa-user-lock text-emerald-400"></i> GDPR Ready (UK &amp; EU)
+              <li>
+                <a href="/legal/compliance" className="flex items-center gap-2 text-aubergine-200 hover:text-white transition-colors" title="General Data Protection Regulation (UK / EU)">
+                  <i className="fas fa-user-lock text-emerald-400"></i> GDPR Ready (UK &amp; EU)
+                </a>
               </li>
-              <li className="flex items-center gap-2 text-aubergine-200" title="Dubai Health Authority & MOHAP Standards">
-                <i className="fas fa-certificate text-emerald-400"></i> DHA &amp; GCC Aligned
+              <li>
+                <a href="/legal/compliance" className="flex items-center gap-2 text-aubergine-200 hover:text-white transition-colors" title="Dubai Health Authority & MOHAP Standards">
+                  <i className="fas fa-certificate text-emerald-400"></i> DHA &amp; GCC Aligned
+                </a>
               </li>
-              <li className="flex items-center gap-2 text-aubergine-200">
-                <i className="fas fa-lock text-emerald-400"></i> 256-Bit Encrypted Video
+              <li>
+                <a href="/legal/compliance" className="flex items-center gap-2 text-aubergine-200 hover:text-white transition-colors">
+                  <i className="fas fa-lock text-emerald-400"></i> 256-Bit Encrypted Video
+                </a>
               </li>
             </ul>
           </div>

@@ -18,7 +18,7 @@ export function createSupabaseMock(tableResponses: Record<string, any[]>) {
     const result = queue.length > 0 ? queue.shift() : { data: null, error: null };
 
     const builder: any = {};
-    const chainMethods = ['select', 'eq', 'neq', 'in', 'order', 'limit', 'insert', 'update', 'delete', 'gte', 'lte'];
+    const chainMethods = ['select', 'eq', 'neq', 'in', 'order', 'limit', 'insert', 'update', 'delete', 'gte', 'lte', 'is', 'or', 'upsert'];
     for (const method of chainMethods) {
       builder[method] = jest.fn((...args: any[]) => {
         calls.push({ table, method, args });

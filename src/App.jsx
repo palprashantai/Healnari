@@ -14,6 +14,7 @@ const queryClient = new QueryClient();
 const LandingPage = lazy(() => import('./landing/pages/LandingPage.jsx'));
 const DoctorLandingPage = lazy(() => import('./landing/pages/DoctorLandingPage.jsx'));
 const GuidePage = lazy(() => import('./landing/pages/GuidePage.jsx'));
+const LegalPage = lazy(() => import('./landing/pages/LegalPage.jsx'));
 const PatientLayout = lazy(() => import('./patient/layouts/PatientLayout.jsx'));
 const DoctorLayout = lazy(() => import('./doctor/layouts/DoctorLayout.jsx'));
 const AdminLayout = lazy(() => import('./admin/layouts/AdminLayout.jsx'));
@@ -139,6 +140,7 @@ function App() {
               <Route path="/" element={<RootRoute />} />
               <Route path="/for-doctors" element={<DoctorLandingPage />} />
               <Route path="/guide/:guideId" element={<GuidePage />} />
+              <Route path="/legal/:document" element={<LegalPage />} />
 
               <Route
                 path="/patient-dashboard"
