@@ -262,7 +262,7 @@ function SymptomChecker({ onClose, onBook }) {
                     required
                     value={answers.lmp}
                     onChange={e => setAnswers(prev => ({ ...prev, lmp: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
                   />
                 </div>
 
@@ -274,7 +274,7 @@ function SymptomChecker({ onClose, onBook }) {
                     max="90"
                     value={answers.cycleLength}
                     onChange={e => setAnswers(prev => ({ ...prev, cycleLength: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
                   />
                 </div>
 
@@ -389,7 +389,7 @@ function SymptomChecker({ onClose, onBook }) {
                 <select
                   value={answers.duration}
                   onChange={e => setAnswers(prev => ({ ...prev, duration: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-300"
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-base sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-300"
                 >
                   <option value="">Select duration...</option>
                   {durationOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}

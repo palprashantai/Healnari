@@ -140,7 +140,7 @@ function CycleTracker() {
                   value={data.lastPeriodDate}
                   max={todayLocalStr()}
                   onChange={(e) => setData({...data, lastPeriodDate: e.target.value})}
-                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                  className="w-full border border-slate-200 rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 outline-none"
                 />
               </div>
               <div>
@@ -194,7 +194,7 @@ function CycleTracker() {
               </div>
               <div>
                 <label className="text-xs font-bold text-slate-500 block mb-2">Stress Level</label>
-                <select value={data.stress} onChange={(e) => setData({...data, stress: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                <select value={data.stress} onChange={(e) => setData({...data, stress: e.target.value})} className="w-full border border-slate-200 rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 outline-none">
                   <option>Low</option><option>Moderate</option><option>High</option><option>Severe</option>
                 </select>
               </div>
@@ -226,7 +226,7 @@ function CycleTracker() {
 
             <div>
               <label className="text-xs font-bold text-slate-500 block mb-2">Current Weight (kg) - Optional</label>
-              <input type="number" placeholder="e.g. 65" value={data.weight} onChange={(e) => setData({...data, weight: e.target.value})} className="w-full md:w-1/2 border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
+              <input type="number" placeholder="e.g. 65" value={data.weight} onChange={(e) => setData({...data, weight: e.target.value})} className="w-full md:w-1/2 border border-slate-200 rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 outline-none" />
             </div>
 
             <div className="flex gap-3 pt-4">

@@ -231,7 +231,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                 <select
                   value={countryCode}
                   onChange={e => handleCountrySelect(e.target.value)}
-                  className="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white border-slate-200 font-semibold"
+                  className="w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white border-slate-200 font-semibold"
                 >
                   {COUNTRIES.map(c => (
                     <option key={c.code} value={c.code}>
@@ -284,7 +284,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                   required
                   value={formData.concern}
                   onChange={handleInputChange}
-                  className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white ${errors.concern ? 'border-red-400' : 'border-slate-200'
+                  className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white ${errors.concern ? 'border-red-400' : 'border-slate-200'
                     }`}
                 >
                   <option value="" disabled>Select primary symptom</option>
@@ -313,7 +313,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                   placeholder="Jane Doe"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.name ? 'border-red-400' : 'border-slate-200'
+                  className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.name ? 'border-red-400' : 'border-slate-200'
                     }`}
                 />
                 {errors.name && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.name}</p>}
@@ -330,7 +330,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                   placeholder="jane@example.com"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.email ? 'border-red-400' : 'border-slate-200'
+                  className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.email ? 'border-red-400' : 'border-slate-200'
                     }`}
                 />
                 {errors.email && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.email}</p>}
@@ -350,7 +350,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                     placeholder="26"
                     value={formData.age}
                     onChange={handleInputChange}
-                    className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.age ? 'border-red-400' : 'border-slate-200'
+                    className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.age ? 'border-red-400' : 'border-slate-200'
                       }`}
                   />
                   {errors.age && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.age}</p>}
@@ -364,7 +364,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                     <select
                       value={countryCode}
                       onChange={(e) => handleCountrySelect(e.target.value)}
-                      className="px-2.5 py-3 bg-slate-100/90 hover:bg-slate-200/80 border-r border-slate-200 text-xs sm:text-sm font-bold text-slate-700 outline-none cursor-pointer max-w-[110px] sm:max-w-[125px]"
+                      className="px-2.5 py-3 bg-slate-100/90 hover:bg-slate-200/80 border-r border-slate-200 text-base sm:text-sm font-bold text-slate-700 outline-none cursor-pointer max-w-[110px] sm:max-w-[125px]"
                       aria-label="Country Dial Code"
                     >
                       {COUNTRY_DIAL_CODES.map((item) => (
@@ -384,7 +384,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                         setFormData(prev => ({ ...prev, mobile: `${currentCountry.phonePrefix} ${val}`.trim() }));
                         if (errors.mobile) setErrors(prev => ({ ...prev, mobile: null }));
                       }}
-                      className="flex-1 px-3.5 py-3 bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                      className="flex-1 px-3.5 py-3 bg-transparent text-base sm:text-sm text-slate-800 outline-none placeholder:text-slate-400"
                     />
                   </div>
                   {errors.mobile && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.mobile}</p>}
@@ -418,7 +418,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                     required
                     value={formData.date}
                     onChange={handleInputChange}
-                    className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.date ? 'border-red-400' : 'border-slate-200'
+                    className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.date ? 'border-red-400' : 'border-slate-200'
                       }`}
                   />
                   {errors.date && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.date}</p>}
@@ -433,7 +433,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                     required
                     value={formData.time}
                     onChange={handleInputChange}
-                    className={`w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white ${errors.time ? 'border-red-400' : 'border-slate-200'
+                    className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white ${errors.time ? 'border-red-400' : 'border-slate-200'
                       }`}
                   >
                     <option value="" disabled>Select slot</option>

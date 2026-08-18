@@ -172,10 +172,10 @@ function GuidePage() {
           {/* Dynamic Article Sections */}
           {guide.sections?.map((sec, idx) => (
             <section key={idx} className="space-y-4 pt-2">
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 font-display">
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 font-display break-words">
                 {sec.heading}
               </h2>
-              <p className="text-base sm:text-lg text-slate-650 leading-relaxed font-normal">
+              <p className="text-base sm:text-lg text-slate-650 leading-relaxed font-normal break-words">
                 {sec.content}
               </p>
             </section>

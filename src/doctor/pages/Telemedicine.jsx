@@ -2366,7 +2366,7 @@ PLAN:
         <div className="bg-[#FAF9F6] rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-300/80 text-slate-800 relative max-h-[90vh] flex flex-col font-sans">
           
           {/* Modal Header */}
-          <div className="bg-slate-900 text-white p-6 flex justify-between items-center relative z-10 border-b border-slate-800 shrink-0">
+          <div className="bg-slate-900 text-white p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10 border-b border-slate-800 shrink-0">
             <div className="flex items-center gap-3.5">
               <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#6B46C1] to-[#E23E8C] flex items-center justify-center text-xl text-white shadow-lg ring-2 ring-white/10">
                 <i className="fas fa-file-signature"></i>
@@ -2384,7 +2384,7 @@ PLAN:
           {/* Prescription Document Sheet */}
           <div className="flex-1 p-6 md:p-8 overflow-y-auto custom-scrollbar space-y-6">
             {/* Letterhead */}
-            <div className="border-b-2 border-slate-200 pb-5 flex justify-between items-start">
+            <div className="border-b-2 border-slate-200 pb-5 flex flex-col sm:flex-row justify-between items-start gap-4">
               <div>
                 <h2 className="font-serif font-black text-3xl text-slate-900 tracking-tight">
                   Healnari<span className="text-[#E23E8C]">.</span>

@@ -92,7 +92,7 @@ function Header({ onStartConsult, onOpenAuth }) {
           {/* Mobile Menu Button */}
           <button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors btn-interactive"
+            className="lg:hidden w-11 h-11 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors btn-interactive"
             aria-label="Toggle menu"
           >
             <i className={`fas ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'} text-lg`}></i>
