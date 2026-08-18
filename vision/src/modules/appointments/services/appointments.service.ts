@@ -599,6 +599,58 @@ export class AppointmentsService {
     return { ...facts, aiSummary, aiConfigured: aiSummary !== null };
   }
 
+  @Cron(CronExpression.EVERY_HOUR, { name: 'appointments_reminder_24h' })
+  async send24HourReminders() {
+    const now = new Date();
+    const windowStart = new Date(now.getTime() + 23 * 60 * 60 * 1000); // 23h from now
+    const windowEnd = new Date(now.getTime() + 25 * 60 * 60 * 1000);   // 25h from now
+
+    const { data: due, error } = await this.supabase.admin
+      .from('appointments')
+      .select('id, patient_id, doctor_id, scheduled_date, scheduled_time, type')
+      .in('status', [AppointmentStatus.UPCOMING])
+      .is('reminder_24h_sent_at', null)
+      .gte('scheduled_at', windowStart.toISOString())
+      .lte('scheduled_at', windowEnd.toISOString());
+
+    if (error || !due?.length) return;
+
+    const { data: claimed } = await this.supabase.admin
+      .from('appointments')
+      .update({ reminder_24h_sent_at: new Date().toISOString() })
+      .in('id', due.map(a => a.id))
+      .is('reminder_24h_sent_at', null)
+      .select('id, patient_id, doctor_id, scheduled_time, type');
+
+    if (!claimed?.length) return;
+
+    for (const apt of claimed) {
+      this.notifications.create(apt.patient_id, {
+        type: 'appointment_reminder',
+        title: 'Upcoming Appointment (24h)',
+        message: `You have a ${apt.type} appointment tomorrow at ${apt.scheduled_time}.`,
+        data: { appointmentId: apt.id },
+      }).catch(() => {});
+    }
+  }
+
+  @Cron('0,30 * * * *', { name: 'appointments_no_show_processor' }) // Every 30 minutes
+  async processNoShows() {
+    const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
+
+    const { data: noShows, error } = await this.supabase.admin
+      .from('appointments')
+      .select('id, patient_id')
+      .in('status', [AppointmentStatus.UPCOMING, AppointmentStatus.WAITING])
+      .lte('scheduled_at', cutoff.toISOString());
+
+    if (error || !noShows?.length) return;
+
+    for (const apt of noShows) {
+      await this.updateStatus({ id: apt.patient_id } as AuthUser, apt.id, AppointmentStatus.NO_SHOW).catch(() => {});
+    }
+  }
+
   /** Runs every 5 minutes, pushes a reminder to any patient whose upcoming
    * appointment starts in the next ~30 minutes and hasn't been reminded yet
    * (reminder_sent_at is the idempotency guard — without it every run would

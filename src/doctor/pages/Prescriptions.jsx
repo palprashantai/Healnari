@@ -6,7 +6,7 @@ import { RxStatusBadge, resolveRxStatus } from '../../components/RxStatus.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
-import { openPrescriptionPrintWindow } from '../../lib/prescriptionPrint.js';
+import { openPrescriptionPrintWindow, openLifestylePlanPrintWindow } from '../../lib/prescriptionPrint.js';
 import { AiButton } from '../../components/AiButton.jsx';
 
 /* ─── Bulk Message Modal ──────────────────────── */
@@ -1588,6 +1588,16 @@ function DoctorPrescriptions() {
   };
 
   const downloadRxPdf = (rx) => {
+    let finalInstructions = rx.instructions;
+    try {
+      if (rx.instructions && rx.instructions.startsWith('{')) {
+        const parsed = JSON.parse(rx.instructions);
+        if (parsed.type === 'healnari-holistic-v1') {
+          finalInstructions = [parsed.clinicalNotes, parsed.followUpAdvice ? `Next Follow-up: ${parsed.followUpAdvice}` : ''].filter(Boolean).join('\n\n');
+        }
+      }
+    } catch(e) {}
+
     const patient = patients.find(p => p.id === rx.patientId);
     openPrescriptionPrintWindow({
       rxId: `RX-${rx.id.slice(0, 8).toUpperCase()}`,
@@ -1596,7 +1606,29 @@ function DoctorPrescriptions() {
       patient: { name: rx.patient, age: patient?.age !== '—' ? patient?.age : null },
       diagnosis: rx.diagnosis,
       medicines: rx.meds,
-      instructions: rx.instructions,
+      instructions: finalInstructions,
+    });
+  };
+
+  const downloadLifestylePdf = (rx) => {
+    let parsedNotes = null;
+    try {
+      if (rx.instructions && rx.instructions.startsWith('{')) {
+        const parsed = JSON.parse(rx.instructions);
+        if (parsed.type === 'healnari-holistic-v1') parsedNotes = parsed;
+      }
+    } catch(e) {}
+
+    if (!parsedNotes || (!parsedNotes.dietPlan && !parsedNotes.exercisePlan)) return;
+
+    const patient = patients.find(p => p.id === rx.patientId);
+    openLifestylePlanPrintWindow({
+      rxId: `HN-${rx.id.slice(0, 8).toUpperCase()}`,
+      date: rx.date,
+      doctor: { name: user?.name, specialty: user?.specialty, regNo: user?.regNo },
+      patient: { name: rx.patient, age: patient?.age !== '—' ? patient?.age : null },
+      dietPlan: parsedNotes.dietPlan,
+      exercisePlan: parsedNotes.exercisePlan
     });
   };
   const toggleSelectAll = () => {
@@ -1793,8 +1825,24 @@ function DoctorPrescriptions() {
               <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
                 <button onClick={() => downloadRxPdf(rx)}
                   className="text-xs font-bold text-aubergine-600 border border-aubergine-200 px-4 py-2 rounded-xl hover:bg-aubergine-50 transition-colors flex items-center gap-1.5">
-                  <i className="fas fa-download"></i> Download PDF
+                  <i className="fas fa-download"></i> Download Medical Rx
                 </button>
+                {(() => {
+                  try {
+                    if (rx.instructions && rx.instructions.startsWith('{')) {
+                      const parsed = JSON.parse(rx.instructions);
+                      if (parsed.type === 'healnari-holistic-v1' && (parsed.dietPlan || parsed.exercisePlan)) {
+                        return (
+                          <button onClick={() => downloadLifestylePdf(rx)}
+                            className="text-xs font-bold text-emerald-600 border border-emerald-200 px-4 py-2 rounded-xl hover:bg-emerald-50 transition-colors flex items-center gap-1.5">
+                            <i className="fas fa-leaf"></i> Download Lifestyle Plan
+                          </button>
+                        );
+                      }
+                    }
+                  } catch(e) {}
+                  return null;
+                })()}
                 <button onClick={() => resendRx(rx)}
                   className="text-xs font-bold text-sky-600 border border-sky-200 px-4 py-2 rounded-xl hover:bg-sky-50 transition-colors flex items-center gap-1.5">
                   <i className="fas fa-paper-plane"></i> Resend to Patient

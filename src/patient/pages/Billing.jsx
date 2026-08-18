@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { ConfirmModal } from '../../components/Modal.jsx';
 import { PaymentModal } from '../../components/PaymentModal.jsx';
@@ -23,6 +24,7 @@ const METHOD_ICON = { UPI: 'fa-mobile-screen-button', Card: 'fa-credit-card', 'N
 
 /* ─── Main Component ─────────────────────────── */
 function PatientBilling() {
+  const { user } = useAuth();
   const toast = useToast();
   // transactions is shared via ClinicDataContext (not fetched locally) so a
   // payment made from the Appointments page shows up here immediately, and
@@ -106,6 +108,16 @@ function PatientBilling() {
   const handlePaid = (payment) => {
     syncPayment(payment);
     toast(`Payment of ${formatCurrency(payFor.amount, payFor.currency)} successful!`, 'success');
+    apiFetch('/communications/broadcasts', {
+      method: 'POST',
+      body: {
+        subject: `Payment Confirmed — ${formatCurrency(payFor.amount, payFor.currency)}`,
+        body: `Thank you for your payment of ${formatCurrency(payFor.amount, payFor.currency)}.\n\nYou can download your invoice from your portal:\nhttps://app.healnari.com/patient-dashboard/billing`,
+        channels: ['Push Notification', 'Email'],
+        scheduleType: 'immediate',
+        patientIds: [user.id],
+      },
+    }).catch(() => {});
   };
 
   // Real client-side CSV built from the already-loaded transaction list — no

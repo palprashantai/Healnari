@@ -4,7 +4,7 @@ import { Modal } from '../../components/Modal.jsx';
 import { DoseSchedule, parseDoseSchedule } from '../../components/DoseSchedule.jsx';
 import { RxStatusBadge, resolveRxStatus, daysUntil } from '../../components/RxStatus.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
-import { openPrescriptionPrintWindow } from '../../lib/prescriptionPrint.js';
+import { openPrescriptionPrintWindow, openLifestylePlanPrintWindow } from '../../lib/prescriptionPrint.js';
 import { apiFetch } from '../../lib/apiClient.js';
 import { AIButton } from '../../components/AiButton.jsx';
 
@@ -314,6 +314,16 @@ function PatientPrescriptions() {
   };
 
   const handleDownload = (rx) => {
+    let finalInstructions = rx.instructions;
+    try {
+      if (rx.instructions && rx.instructions.startsWith('{')) {
+        const parsed = JSON.parse(rx.instructions);
+        if (parsed.type === 'healnari-holistic-v1') {
+          finalInstructions = [parsed.clinicalNotes, parsed.followUpAdvice ? `Next Follow-up: ${parsed.followUpAdvice}` : ''].filter(Boolean).join('\n\n');
+        }
+      }
+    } catch(e) {}
+
     const me = patients[0];
     const matchingLabTests = labRequests.filter(r => 
       (r.created_at ? new Date(r.created_at).toLocaleDateString() : '') === rx.date
@@ -326,19 +336,35 @@ function PatientPrescriptions() {
       diagnosis: rx.diagnosis,
       medicines: rx.medicines,
       labTests: matchingLabTests.map(r => r.requested_tests),
-      instructions: rx.instructions,
+      instructions: finalInstructions,
       handwrittenImage: rx.handwrittenImage,
     });
   };
 
-  // Sharing (e.g. to a pharmacy over WhatsApp) needs a hosted file URL —
-  // there's no PDF storage on the backend yet, so this stays a stated
-  // limitation rather than a fake "shared!" confirmation.
+  const handleDownloadLifestyle = (rx) => {
+    let parsedNotes = null;
+    try {
+      if (rx.instructions && rx.instructions.startsWith('{')) {
+        const parsed = JSON.parse(rx.instructions);
+        if (parsed.type === 'healnari-holistic-v1') parsedNotes = parsed;
+      }
+    } catch(e) {}
+
+    if (!parsedNotes || (!parsedNotes.dietPlan && !parsedNotes.exercisePlan)) return;
+
+    const me = patients[0];
+    openLifestylePlanPrintWindow({
+      rxId: `HN-${rx.id.slice(0, 8).toUpperCase()}`,
+      date: rx.date,
+      doctor: { name: rx.doctor, specialty: rx.doctorSpecialty, regNo: rx.doctorRegNo },
+      patient: { name: me?.name, age: me?.age !== '—' ? me?.age : null },
+      dietPlan: parsedNotes.dietPlan,
+      exercisePlan: parsedNotes.exercisePlan
+    });
+  };
+
   const handleShare = () => toast('Sharing prescriptions is coming soon.', 'info');
 
-  // Real per-medicine dosing times, parsed from each active prescription's
-  // schedule — replaces a previous card that showed two fixed medicine names
-  // ("Myo-Inositol", "Metformin") that had nothing to do with this patient's
   // actual prescriptions.
   const doseSlots = useMemo(() => {
     const bySlot = { morning: [], afternoon: [], night: [] };
@@ -373,8 +399,8 @@ function PatientPrescriptions() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">My Prescriptions</h1>
-          <p className="text-sm text-slate-500">View your prescriptions, track dosing, and request refills.</p>
+          <h1 className="text-2xl font-black text-slate-800">My Care Plan</h1>
+          <p className="text-sm text-slate-500">View your prescriptions, diet & yoga protocols, and request refills.</p>
         </div>
         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl text-emerald-700 text-xs font-bold">
           <i className="fas fa-shield-halved"></i> Digitally Signed
@@ -440,6 +466,52 @@ function PatientPrescriptions() {
                     ))}
                   </div>
 
+                  {/* Lifestyle Plan — shown inline if the doctor set one */}
+                  {(() => {
+                    try {
+                      if (rx.instructions && rx.instructions.startsWith('{')) {
+                        const parsed = JSON.parse(rx.instructions);
+                        if (parsed.type === 'healnari-holistic-v1' && (parsed.dietPlan || parsed.exercisePlan)) {
+                          return (
+                            <div className="mb-5 space-y-3">
+                              <div className="flex items-center gap-2 text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                                <i className="fas fa-spa text-emerald-500"></i> Your Personalised Lifestyle Protocol
+                              </div>
+
+                              {parsed.dietPlan && (
+                                <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100 p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-xl">🥗</span>
+                                    <span className="text-xs font-black text-emerald-800 uppercase tracking-wider">Diet & Nutrition Plan</span>
+                                  </div>
+                                  <p className="text-sm text-emerald-900 leading-relaxed whitespace-pre-wrap font-medium">{parsed.dietPlan}</p>
+                                </div>
+                              )}
+
+                              {parsed.exercisePlan && (
+                                <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 p-4">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-xl">🧘‍♀️</span>
+                                    <span className="text-xs font-black text-amber-800 uppercase tracking-wider">Yoga & Exercise Protocol</span>
+                                  </div>
+                                  <p className="text-sm text-amber-900 leading-relaxed whitespace-pre-wrap font-medium">{parsed.exercisePlan}</p>
+                                </div>
+                              )}
+
+                              <button
+                                onClick={() => handleDownloadLifestyle(rx)}
+                                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold py-3 px-5 rounded-xl text-sm transition-all shadow-md shadow-emerald-500/20 hover:shadow-lg hover:-translate-y-0.5"
+                              >
+                                <i className="fas fa-download"></i> Download Lifestyle Plan PDF
+                              </button>
+                            </div>
+                          );
+                        }
+                      }
+                    } catch(e) {}
+                    return null;
+                  })()}
+
                   {/* Actions */}
                   <div className="flex flex-wrap justify-between items-center gap-2 border-t border-slate-100 pt-4">
                     <div className="flex items-center gap-2">
@@ -460,8 +532,24 @@ function PatientPrescriptions() {
                     <div className="flex gap-2 flex-wrap">
                       <button onClick={() => handleDownload(rx)}
                         className="bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-700 font-bold px-4 py-2 rounded-xl text-sm shadow-sm transition-colors border border-aubergine-200 flex items-center gap-1.5">
-                        <i className="fas fa-download"></i> PDF
+                        <i className="fas fa-download"></i> Medical Rx PDF
                       </button>
+                      {(() => {
+                        try {
+                          if (rx.instructions && rx.instructions.startsWith('{')) {
+                            const parsed = JSON.parse(rx.instructions);
+                            if (parsed.type === 'healnari-holistic-v1' && (parsed.dietPlan || parsed.exercisePlan)) {
+                              return (
+                                <button onClick={() => handleDownloadLifestyle(rx)}
+                                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-4 py-2 rounded-xl text-sm shadow-sm transition-colors border border-emerald-200 flex items-center gap-1.5">
+                                  <i className="fas fa-leaf"></i> Lifestyle Plan
+                                </button>
+                              );
+                            }
+                          }
+                        } catch(e) {}
+                        return null;
+                      })()}
                       <button onClick={handleShare}
                         className="bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold px-4 py-2 rounded-xl text-sm shadow-sm transition-colors border border-sky-200 flex items-center gap-1.5">
                         <i className="fas fa-share-nodes"></i> Share
@@ -544,6 +632,30 @@ function PatientPrescriptions() {
               </div>
             </div>
           )}
+
+          {/* Holistic Care Reminder */}
+          <div className="bg-gradient-to-br from-emerald-900 to-teal-900 rounded-2xl shadow-sm border border-emerald-800 p-6 text-white">
+            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-xl mb-4">
+              <i className="fas fa-spa"></i>
+            </div>
+            <h3 className="font-bold text-lg mb-1.5">Your Holistic Care</h3>
+            <p className="text-emerald-200 text-xs mb-5 leading-relaxed">Your doctor may have prescribed a Diet Plan and Yoga Protocol alongside your medicines. Check your prescription cards for your personalised lifestyle advice.</p>
+            <div className="space-y-2">
+              {[
+                { icon: '🥗', label: 'Diet & Nutrition', desc: 'Low-GI foods & hydration' },
+                { icon: '🧘‍♀️', label: 'Yoga & Exercise', desc: 'Movement for hormonal health' },
+                { icon: '💊', label: 'Medications', desc: 'Taken on schedule' }
+              ].map(pillar => (
+                <div key={pillar.label} className="flex items-center gap-3 bg-white/10 rounded-xl p-2.5 border border-white/10">
+                  <span className="text-xl">{pillar.icon}</span>
+                  <div>
+                    <div className="text-xs font-black">{pillar.label}</div>
+                    <div className="text-[11px] text-emerald-300">{pillar.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 

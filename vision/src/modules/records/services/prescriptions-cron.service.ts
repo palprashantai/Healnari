@@ -124,6 +124,44 @@ export class PrescriptionsCronService {
     this.logger.log(`Sent ${claimed.length} prescription refill reminder(s) & emails.`);
   }
 
+  @Cron(CronExpression.EVERY_DAY_AT_8AM, { name: 'lifestyle_daily_habit_reminder' })
+  async sendLifestyleDailyReminder() {
+    this.logger.log('Starting daily lifestyle habit reminder sweep...');
+    const today = new Date().toISOString().slice(0, 10);
+    
+    // Find all active holistic prescriptions
+    const { data: activePlans, error } = await this.supabase.admin
+      .from('prescriptions')
+      .select('patient_id, instructions')
+      .is('deleted_at', null)
+      .filter('instructions', 'ilike', '%"type":"healnari-holistic-v1"%');
+
+    if (error || !activePlans?.length) return;
+
+    // Filter to unique patients who haven't logged today
+    const patientIds = [...new Set(activePlans.map(p => p.patient_id))];
+    const { data: logs } = await this.supabase.admin
+      .from('lifestyle_logs')
+      .select('patient_id')
+      .in('patient_id', patientIds)
+      .eq('date', today);
+      
+    const loggedPatients = new Set(logs?.map(l => l.patient_id) || []);
+    const dueToNotify = patientIds.filter(id => !loggedPatients.has(id));
+
+    if (dueToNotify.length === 0) return;
+
+    for (const patientId of dueToNotify) {
+      this.notifications.create(patientId, {
+        type: 'lifestyle_daily_reminder',
+        title: 'Daily Wellness Check-in',
+        message: 'Remember to log your diet and yoga routines for today!',
+      }).catch(() => {});
+    }
+
+    this.logger.log(`Sent ${dueToNotify.length} daily lifestyle habit reminder(s).`);
+  }
+
   /**
    * Runs daily at 10:00 AM.
    * Scans completed teleconsultations with a recommended follow-up timeline

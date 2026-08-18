@@ -6,6 +6,7 @@ import { ClinicDataProvider } from './context/ClinicDataContext.jsx';
 import { NotificationsProvider } from './context/NotificationsContext.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 import { IncomingCallModal } from './components/IncomingCallModal.jsx';
+import { IosInstallPrompt } from './components/IosInstallPrompt.jsx';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -13,6 +14,8 @@ const queryClient = new QueryClient();
 
 const LandingPage = lazy(() => import('./landing/pages/LandingPage.jsx'));
 const DoctorLandingPage = lazy(() => import('./landing/pages/DoctorLandingPage.jsx'));
+const ConditionPage = lazy(() => import('./landing/pages/ConditionPage.jsx'));
+const GlossaryArticle = lazy(() => import('./landing/pages/GlossaryArticle.jsx'));
 const GuidePage = lazy(() => import('./landing/pages/GuidePage.jsx'));
 const LegalPage = lazy(() => import('./landing/pages/LegalPage.jsx'));
 const PatientLayout = lazy(() => import('./patient/layouts/PatientLayout.jsx'));
@@ -127,6 +130,7 @@ function App() {
       <NotificationsProvider>
         <Router>
           <PWASplashScreen />
+          <IosInstallPrompt />
           <IncomingCallModal />
           <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -141,6 +145,8 @@ function App() {
               <Route path="/for-doctors" element={<DoctorLandingPage />} />
               <Route path="/guide/:guideId" element={<GuidePage />} />
               <Route path="/legal/:document" element={<LegalPage />} />
+              <Route path="/:conditionId" element={<ConditionPage />} />
+              <Route path="/learn/:slug" element={<GlossaryArticle />} />
 
               <Route
                 path="/patient-dashboard"

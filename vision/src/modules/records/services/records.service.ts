@@ -130,6 +130,16 @@ export class RecordsService {
     if (!rx) throw new NotFoundException(ERROR_MESSAGES.PRESCRIPTION_NOT_FOUND);
     
     const { data: updated } = await this.supabase.admin.from('prescriptions').update({ refill_requested: true }).eq('id', id).select().is('deleted_at', null).single();
+    
+    if (rx.doctor_id) {
+      this.notifications.create(rx.doctor_id, {
+        type: 'refill_requested',
+        title: 'Prescription Refill Requested',
+        message: `${user.profile?.full_name || 'A patient'} requested a refill for ${rx.med_name}.`,
+        data: { prescriptionId: id, patientId: user.id },
+      }).catch(() => {});
+    }
+    
     return updated;
   }
 
@@ -231,6 +241,24 @@ export class RecordsService {
         message: `A new report for "${testName}" was uploaded.`,
         data: { labReportId: report.id, requestId: request.id },
       }).catch(() => {});
+    } else {
+      // Find the patient's most recent doctor to notify
+      const { data: recentAppt } = await this.supabase.admin
+        .from('appointments')
+        .select('doctor_id')
+        .eq('patient_id', body.patientId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (recentAppt?.doctor_id) {
+        this.notifications.create(recentAppt.doctor_id, {
+          type: 'lab_report_uploaded',
+          title: 'Lab report uploaded',
+          message: `A patient uploaded a new lab report ("${testName}").`,
+          data: { labReportId: report.id, patientId: body.patientId },
+        }).catch(() => {});
+      }
     }
 
     return report;

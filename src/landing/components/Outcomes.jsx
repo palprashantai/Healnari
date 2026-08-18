@@ -42,13 +42,13 @@ function Outcomes() {
         {/* Title Block */}
         <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
           <span className="text-xs font-bold text-brand-600 uppercase tracking-widest bg-brand-50 px-3 py-1 rounded-full">
-            Clinical Outcomes
+            Illustrative Progress Journey
           </span>
           <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight font-display">
             Concerns into Measurable Improvement
           </h2>
           <p className="text-slate-500 text-sm md:text-base">
-            Witness how structured, doctor-led clinical protocols improve hormonal and metabolic health over time.
+            This interactive example shows the kind of improvements our patients report at different stages of their personalised protocol. Individual journeys vary &mdash; your doctor will set realistic expectations during your consultation.
           </p>
         </div>
 

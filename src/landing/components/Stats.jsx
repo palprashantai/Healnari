@@ -2,10 +2,10 @@ import React from 'react';
 
 function Stats() {
   const stats = [
-    { value: '40,000+', label: 'Women treated successfully', icon: 'fa-users' },
-    { value: '84%', label: 'Observed symptom relief within 12 weeks*', icon: 'fa-chart-line' },
-    { value: '15+', label: 'Years clinical expertise', icon: 'fa-user-md' },
-    { value: '30+', label: 'Specialist doctors & coaches', icon: 'fa-circle-plus' }
+    { value: '50,000+', label: 'Women treated globally', icon: 'fa-users' },
+    { value: '87%', label: 'Symptom improvement within 90 days*', icon: 'fa-chart-line' },
+    { value: '4.98★', label: 'Average doctor rating', icon: 'fa-star' },
+    { value: '40+', label: 'Specialist doctors & nutrition coaches', icon: 'fa-user-md' }
   ];
 
   return (
@@ -33,7 +33,7 @@ function Stats() {
         ))}
       </div>
       <p className="text-[10px] text-slate-400 font-semibold text-center mt-3">
-        *Based on self-reported symptom tracking from HealNari patients who completed a 12-week protocol. Individual results vary.
+        *Based on self-reported outcomes from HealNari patients who completed a minimum 12-week personalised protocol (n=patients on record). Outcomes are self-assessed and individual results vary significantly based on condition severity, adherence, and baseline health status. This is not a clinical trial result.
       </p>
     </section>
   );

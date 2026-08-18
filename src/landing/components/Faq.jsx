@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function Faq() {
   const [activeIndex, setActiveIndex] = useState(null);
@@ -6,23 +6,27 @@ function Faq() {
   const faqs = [
     {
       q: "What exactly do I get in a ₹799 consultation?",
-      a: "Your ₹799 consultation includes a full 45-minute 1-on-1 video call with a specialist doctor (gynaecologist, endocrinologist, or trichologist depending on your concern), a personalised lab-test roadmap, initial diet & lifestyle protocol, a digital prescription where applicable, and 14 days of free follow-up chat with your doctor's care team — all from the comfort of your home."
+      a: "Your ₹799 consultation includes a full 45-minute 1-on-1 video call with a specialist doctor (gynaecologist, endocrinologist, or trichologist depending on your concern), a personalised lab-test roadmap, a custom diet & yoga protocol designed for your hormonal profile, a digital prescription where applicable, and 14 days of free follow-up chat — all from the comfort of your home."
+    },
+    {
+      q: "Why does HealNari focus on diet and yoga over medication?",
+      a: "Because research shows diet and lifestyle are the most powerful tools for reversing PCOS, insulin resistance, and hormonal imbalances — far more effective long-term than medication alone. Most pills just manage symptoms. Our approach corrects the hormonal root cause so the symptoms disappear naturally. Medication is prescribed only when medically necessary, not as the first line of treatment."
     },
     {
       q: "How is HealNari different from a regular hospital or clinic visit?",
-      a: "Unlike a busy OPD that gives you 5 minutes, HealNari gives you 45 minutes with a specialist who actually listens. We take a root-cause, integrative approach combining gynaecology, endocrinology, trichology, and clinical nutrition. No queues, no travel, no judgment — consult from home in your preferred language."
+      a: "Unlike a busy OPD that gives you 5 minutes, HealNari gives you 45 minutes with a specialist who actually listens. We take a root-cause, integrative approach combining gynaecology, endocrinology, nutrition, and yoga. No queues, no travel, no judgment — consult from home in your preferred language."
     },
     {
       q: "Which conditions do your doctors treat?",
       a: "Our specialists treat PCOS / PCOD, irregular or painful periods, hormonal hair fall & thinning, acne & hirsutism, thyroid disorders (hypothyroidism, hyperthyroidism), hormonal weight gain, insulin resistance, fertility & preconception planning, and general hormonal imbalances. If you're unsure, use our free 2-minute symptom checker to find out which specialist you need."
     },
     {
-      q: "Is the video consultation completely secure & confidential?",
-      a: "Yes — completely. All consultations, health records, chat messages, and lab documents are fully end-to-end encrypted. We are built on patient-first privacy principles and never share your health information or contact details with any third party without your explicit written consent."
+      q: "Can PCOS symptoms really improve through diet, yoga, and treatment?",
+      a: "For many women, yes — significantly. PCOS is a lifelong hormonal condition, but its symptoms (irregular cycles, hair fall, acne, weight gain) can often be greatly reduced or even brought under control with the right combination of diet, lifestyle changes, and medical support. Most patients on a consistent protocol see meaningful improvements within 8–12 weeks. Individual results vary based on your specific hormonal profile and consistency of the plan."
     },
     {
-      q: "Can PCOS and hormonal hair fall actually be improved?",
-      a: "For most patients, yes. By identifying and correcting the underlying hormonal driver — whether it's insulin resistance, elevated androgens, or thyroid dysfunction — alongside targeted nutrition and medical support, symptoms typically improve significantly. Most patients on a consistent HealNari protocol see measurable change within 8–12 weeks, with visible hair results in 4–6 months."
+      q: "Is the video consultation completely secure & confidential?",
+      a: "Yes — completely. All consultations, health records, and lab documents are end-to-end encrypted. We are built on patient-first privacy principles and never share your health information with any third party without your explicit consent."
     },
     {
       q: "What if I need to cancel or reschedule my booking?",
@@ -34,6 +38,35 @@ function Faq() {
   const toggleAccordion = (idx) => {
     setActiveIndex((prev) => (prev === idx ? null : idx));
   };
+
+  useEffect(() => {
+    const schemaScript = document.createElement('script');
+    schemaScript.type = 'application/ld+json';
+    schemaScript.id = 'faq-schema';
+    
+    const schemaData = {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": faqs.map(faq => ({
+        "@type": "Question",
+        "name": faq.q,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": faq.a
+        }
+      }))
+    };
+    
+    schemaScript.text = JSON.stringify(schemaData);
+    document.head.appendChild(schemaScript);
+    
+    return () => {
+      const existingScript = document.getElementById('faq-schema');
+      if (existingScript) {
+        document.head.removeChild(existingScript);
+      }
+    };
+  }, []);
 
   return (
     <section id="faq" className="max-w-4xl mx-auto px-5 md:px-8 py-16 md:py-20 scroll-mt-20">

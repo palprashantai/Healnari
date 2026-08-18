@@ -169,7 +169,7 @@ function LabTests({ onBook }) {
             </div>
             <div>
               <strong className="block text-slate-900 font-extrabold text-xs sm:text-sm">Worldwide Lab Compatibility &amp; At-Home Kits</strong>
-              <span className="text-slate-600 text-xs">Upload recent bloodwork from any certified global lab: LabCorp &amp; Quest (US), Medichecks (UK), Al Borg (UAE), or Thyrocare (India).</span>
+              <span className="text-slate-600 text-xs">Upload recent bloodwork from any certified global lab: LabCorp &amp; Quest (US), Medichecks (UK), Al Borg (UAE), or local certified labs.</span>
             </div>
           </div>
           <span className="bg-emerald-700 text-white font-extrabold text-[11px] px-3.5 py-1.5 rounded-xl shrink-0 shadow-xs">

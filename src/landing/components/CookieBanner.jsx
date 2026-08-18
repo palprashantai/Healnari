@@ -41,7 +41,7 @@ function CookieBanner() {
             </h3>
             <p className="text-sm text-slate-500 leading-relaxed pr-4">
               We use strictly necessary cookies to ensure the core functionality of our clinical platform. 
-              With your consent, we also use performance cookies to understand usage and securely improve your telemedicine experience in compliance with India's DPDP Act, 2023.
+              With your consent, we also use performance cookies to understand usage and securely improve your telemedicine experience in compliance with global privacy laws (GDPR, HIPAA, DPDP).
               <a href="#" className="text-aubergine-600 hover:underline font-semibold ml-1">Read our Privacy Policy</a>.
             </p>
           </div>

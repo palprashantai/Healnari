@@ -89,7 +89,7 @@ function ExitIntentModal() {
             <>
               <h2 id="exit-intent-title" className="text-2xl font-black text-slate-900 mb-2 font-display">Wait! Don't leave empty handed.</h2>
               <p className="text-sm text-slate-500 mb-6 leading-relaxed">
-                Before you go, get our doctor-approved 14-day anti-inflammatory protocol tailored for hormonal balance.
+                Before you go, get our free guide: <em>How Diet &amp; Lifestyle Help with PCOS &mdash; A Doctor's Overview</em>. Written by our specialist team.
               </p>
               
               <form onSubmit={handleSubmit} className="space-y-3">
@@ -103,6 +103,12 @@ function ExitIntentModal() {
                     required
                   />
                 </div>
+                <div className="flex items-start gap-2 mt-2">
+                  <input type="checkbox" id="consent" required className="mt-1" />
+                  <label htmlFor="consent" className="text-[10px] text-slate-500 leading-tight">
+                    I agree to receive educational content from HealNari. I understand this is not personalised medical advice. Unsubscribe anytime.
+                  </label>
+                </div>
                 <button 
                   type="submit" 
                   disabled={isSubmitting}
@@ -111,7 +117,7 @@ function ExitIntentModal() {
                   {isSubmitting ? (
                     <><i className="fas fa-spinner fa-spin"></i> Sending...</>
                   ) : (
-                    <>Send me the Protocol <i className="fas fa-arrow-right text-xs"></i></>
+                    <>Send me the Guide <i className="fas fa-arrow-right text-xs"></i></>
                   )}
                 </button>
               </form>
@@ -122,7 +128,7 @@ function ExitIntentModal() {
               <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-3xl mb-4 shadow-inner">
                 <i className="fas fa-check"></i>
               </div>
-              <h2 className="text-xl font-black text-slate-900 mb-2">Protocol Sent!</h2>
+              <h2 className="text-xl font-black text-slate-900 mb-2">Guide Sent!</h2>
               <p className="text-sm text-slate-500">Check your inbox in a few minutes.</p>
             </div>
           )}

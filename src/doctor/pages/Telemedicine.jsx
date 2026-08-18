@@ -9,7 +9,7 @@ import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
 import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
 import { useFullscreen } from '../../hooks/useFullscreen.js';
-import { openPrescriptionPrintWindow } from '../../lib/prescriptionPrint.js';
+import { openPrescriptionPrintWindow, openLifestylePlanPrintWindow } from '../../lib/prescriptionPrint.js';
 import { AIButton } from '../../components/AiButton.jsx';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
@@ -495,6 +495,8 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
   const [draftMeds, setDraftMeds] = useState([]);
   const [draftLabs, setDraftLabs] = useState([]);
   const [clinicalNotes, setClinicalNotes] = useState('');
+  const [dietPlan, setDietPlan] = useState('');
+  const [exercisePlan, setExercisePlan] = useState('');
   const [followUpAdvice, setFollowUpAdvice] = useState('Follow up in 2 weeks with lab reports');
   const [freehandRx, setFreehandRx] = useState(''); // Holds image dataUrl or typed text
   const [handwritingStrokes, setHandwritingStrokes] = useState([]); // Preserves stylus strokes across tab switches
@@ -884,7 +886,7 @@ PLAN:
     }, 1400);
   };
 
-  // Trigger Print / PDF Download
+  // Trigger Print / PDF Download for Medical Rx
   const handlePrintPrescription = () => {
     const fullInstructions = [clinicalNotes, followUpAdvice ? `Next Follow-up: ${followUpAdvice}` : ''].filter(Boolean).join('\n\n');
     openPrescriptionPrintWindow({
@@ -908,6 +910,26 @@ PLAN:
       })),
       labTests: draftLabs,
       instructions: fullInstructions,
+    });
+  };
+
+  // Trigger Print / PDF Download for Lifestyle Protocol
+  const handlePrintLifestylePlan = () => {
+    openLifestylePlanPrintWindow({
+      rxId: `HN-${session.id?.slice(0, 6).toUpperCase() || 'TELE'}`,
+      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      doctor: {
+        name: user?.name || 'Dr. Consultant Gynecologist',
+        specialty: 'Obstetrics & Gynecology',
+        regNo: 'HN-88421',
+      },
+      patient: {
+        name: session.patient,
+        age: session.age || '28',
+        gender: 'Female',
+      },
+      dietPlan,
+      exercisePlan
     });
   };
 
@@ -935,8 +957,14 @@ PLAN:
         rawText: typedPadText.trim(),
       });
     }
-    const fullNotes = [clinicalNotes, followUpAdvice ? `📅 Recommended Follow-Up: ${followUpAdvice}` : ''].filter(Boolean).join('\n\n');
-    onEnd(fullNotes, finalMeds, draftLabs);
+    const structuredNotes = JSON.stringify({
+      type: 'healnari-holistic-v1',
+      clinicalNotes,
+      dietPlan,
+      exercisePlan,
+      followUpAdvice
+    });
+    onEnd(structuredNotes, finalMeds, draftLabs);
   };
 
   const STATUS_COPY = {
@@ -1937,6 +1965,62 @@ PLAN:
                     </div>
                   </div>
 
+                  {/* Diet & Nutrition Plan Box */}
+                  <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                        <i className="fas fa-seedling text-emerald-400"></i> Diet & Nutrition Plan
+                      </label>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={dietPlan}
+                      onChange={(e) => setDietPlan(e.target.value)}
+                      placeholder="e.g. Low glycemic index diet, avoid dairy and gluten, increase protein intake..."
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3.5 text-xs font-medium text-slate-200 focus:outline-none focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/50 resize-none leading-relaxed"
+                    />
+                    <div className="flex items-center gap-1.5 flex-wrap pt-1 text-[11px]">
+                      <span className="text-slate-500 font-bold text-[10px] uppercase">Quick Add:</span>
+                      {['Low GI Diet', 'High Protein, Low Carb', 'Avoid Dairy/Gluten', 'Intermittent Fasting (16:8)', 'Increase Hydration'].map(tag => (
+                        <button
+                          key={tag}
+                          onClick={() => setDietPlan(p => (p ? `${p}, ${tag}` : tag))}
+                          className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors"
+                        >
+                          + {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Yoga & Exercise Protocol Box */}
+                  <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-black text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                        <i className="fas fa-om text-amber-400"></i> Yoga & Exercise Protocol
+                      </label>
+                    </div>
+                    <textarea
+                      rows={3}
+                      value={exercisePlan}
+                      onChange={(e) => setExercisePlan(e.target.value)}
+                      placeholder="e.g. 30 mins brisk walking daily, Surya Namaskar, specific PCOS asanas..."
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3.5 text-xs font-medium text-slate-200 focus:outline-none focus:border-amber-400/80 focus:ring-1 focus:ring-amber-400/50 resize-none leading-relaxed"
+                    />
+                    <div className="flex items-center gap-1.5 flex-wrap pt-1 text-[11px]">
+                      <span className="text-slate-500 font-bold text-[10px] uppercase">Quick Add:</span>
+                      {['30m Brisk Walk/Day', 'PCOS Yoga Routine', 'Strength Training (3x/week)', 'Surya Namaskar (10 rounds)', 'Pelvic Floor Exercises'].map(tag => (
+                        <button
+                          key={tag}
+                          onClick={() => setExercisePlan(p => (p ? `${p}, ${tag}` : tag))}
+                          className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors"
+                        >
+                          + {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* 📅 1-Tap Follow-Up Recommendation Box */}
                   <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-2.5">
                     <div className="flex items-center justify-between">
@@ -2544,12 +2628,23 @@ PLAN:
             </button>
 
             {/* 🖨️ 1-Click Print / Download PDF */}
-            <button
-              onClick={handlePrintPrescription}
-              className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-5 rounded-2xl transition-all text-xs flex items-center gap-2 shadow-sm"
-            >
-              <i className="fas fa-print"></i> Print / Download PDF
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handlePrintPrescription}
+                className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-5 rounded-2xl transition-all text-xs flex items-center gap-2 shadow-sm"
+              >
+                <i className="fas fa-print"></i> Print Medical Rx
+              </button>
+
+              {(dietPlan || exercisePlan) && (
+                <button
+                  onClick={handlePrintLifestylePlan}
+                  className="bg-emerald-900 hover:bg-emerald-800 text-white font-bold py-3.5 px-5 rounded-2xl transition-all text-xs flex items-center gap-2 shadow-sm"
+                >
+                  <i className="fas fa-leaf text-emerald-400"></i> Print Lifestyle Plan
+                </button>
+              )}
+            </div>
 
             <button
               onClick={() => {
@@ -2863,20 +2958,56 @@ function DoctorTelemedicine() {
       
       if (draftLabs && draftLabs.length > 0) {
         await requestLabReport(activeCall.patientId, { requestedTests: draftLabs.join(', ') });
-      }
-
-      if (notes || (draftMeds && draftMeds.length > 0) || (draftLabs && draftLabs.length > 0)) {
         await apiFetch('/communications/broadcasts', {
           method: 'POST',
           body: {
-            subject: 'Prescription Ready',
-            body: `Dear ${activeCall.patient}, your prescription and consultation notes from today's teleconsultation are now available in your portal.`,
-            audience: `Patient ${activeCall.patientId}`,
+            subject: 'Action Needed: Lab Test Requested',
+            body: `Dear ${activeCall.patient},\n\nDr. ${user?.name || 'your doctor'} has requested lab tests: ${draftLabs.join(', ')}.\n\nPlease upload the results to your portal once completed:\nhttps://app.healnari.com/patient-dashboard/records`,
             channels: ['Push Notification', 'Email'],
             scheduleType: 'immediate',
             patientIds: [activeCall.patientId],
           },
-        }).catch(() => {}); // silently fail if broadcast fails, don't crash the end call
+        }).catch(() => {});
+      }
+
+      if (notes || (draftMeds && draftMeds.length > 0) || (draftLabs && draftLabs.length > 0)) {
+        let hasLifestylePlan = false;
+        try {
+          if (notes && notes.startsWith('{')) {
+            const parsed = JSON.parse(notes);
+            if (parsed.type === 'healnari-holistic-v1' && (parsed.dietPlan || parsed.exercisePlan)) {
+              hasLifestylePlan = true;
+            }
+          }
+        } catch (e) {}
+
+        if (hasLifestylePlan) {
+          await apiFetch('/communications/broadcasts', {
+            method: 'POST',
+            body: {
+              subject: '🥗 Your Lifestyle Plan is Ready — HealNari',
+              body: `Dear ${activeCall.patient},\n\nDr. ${user?.name || 'your doctor'} has prescribed a personalised Diet & Yoga Protocol for you.\n\nLog in to view and download your Lifestyle Plan:\nhttps://app.healnari.com/patient-dashboard/prescriptions`,
+              audience: `Patient ${activeCall.patientId}`,
+              channels: ['Push Notification', 'Email'],
+              scheduleType: 'immediate',
+              patientIds: [activeCall.patientId],
+            },
+          }).catch(() => {});
+        } 
+        
+        if (!hasLifestylePlan || (draftMeds && draftMeds.length > 0) || (draftLabs && draftLabs.length > 0)) {
+          await apiFetch('/communications/broadcasts', {
+            method: 'POST',
+            body: {
+              subject: 'Prescription Ready',
+              body: `Dear ${activeCall.patient}, your prescription and consultation notes from today's teleconsultation are now available in your portal.\n\nView here: https://app.healnari.com/patient-dashboard/prescriptions`,
+              audience: `Patient ${activeCall.patientId}`,
+              channels: ['Push Notification', 'Email'],
+              scheduleType: 'immediate',
+              patientIds: [activeCall.patientId],
+            },
+          }).catch(() => {});
+        }
       }
 
       await updateAppointmentStatus(activeCall.id, 'Done');

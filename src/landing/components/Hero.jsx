@@ -16,7 +16,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
               <i className="fas fa-lock text-aubergine-500"></i> 100% Private & Confidential
             </span>
             <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-user-md text-emerald-500"></i> Qualified Indian Doctors
+              <i className="fas fa-user-md text-emerald-500"></i> Qualified Specialist Doctors
             </span>
             <span className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
               <i className="fas fa-microscope text-amber-600"></i> Evidence-Based Medicine
@@ -31,12 +31,12 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
             <h1 className="text-2xl sm:text-4xl lg:text-5xl lg:leading-[1.15] font-extrabold tracking-tight text-slate-900 font-display">
               {title || (
                 <>
-                  Online PCOS & Hormonal Healthcare That <br className="hidden lg:block" />
-                  Treats the <span className="text-aubergine-600">Root Cause</span>
+                  The Global Holistic Clinic for <br className="hidden lg:block" />
+                  <span className="text-aubergine-600">PCOS, PCOD, Hormones & Women's Health</span>
                 </>
               )}
             </h1>
-            <div className="space-y-3 max-w-xl mx-auto lg:mx-0">
+            <div className="space-y-4 max-w-xl mx-auto lg:mx-0">
               {subtitle ? (
                 <p className="text-slate-600 text-lg md:text-xl font-normal leading-relaxed whitespace-pre-line">
                   {subtitle}
@@ -44,10 +44,13 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
               ) : (
                 <>
                   <p className="text-slate-600 text-lg md:text-xl font-normal leading-relaxed">
-                    Tired of being told to <span className="text-slate-800 font-medium">"just lose weight"</span> or given a quick 5-minute prescription? HealNari connects you with specialist doctors — gynaecologists, endocrinologists, trichologists — for <span className="text-aubergine-600 font-medium">PCOS, thyroid issues, hormonal hair fall, acne, irregular periods, and weight management</span>. We find the root cause, not just the symptom.
+                    Your hormones control more than just your cycle &mdash; they dictate your energy, weight, skin, hair, and overall well-being. At <strong>HealNari</strong>, we treat the root cause, not just the symptoms.
                   </p>
-                  <p className="text-slate-700 text-base md:text-lg font-medium leading-relaxed pt-1">
-                    <span className="text-aubergine-700 font-bold">What you get:</span> A 45-minute 1-on-1 video consultation + personalised lab-test plan + diet & lifestyle protocol + 14-day free chat follow-up. All from home.
+                  <p className="text-slate-600 text-base md:text-lg font-normal leading-relaxed">
+                    Whether you're managing <strong>PCOS, PCOD, thyroid imbalances, or irregular periods</strong>, our specialist doctors, clinical dietitians, and yoga experts collaborate to build a protocol unique to your body. We combine evidence-based medicine with sustainable nutrition and lifestyle changes.
+                  </p>
+                  <p className="text-slate-700 text-base md:text-lg font-medium leading-relaxed pt-2">
+                    <span className="text-aubergine-700 font-bold">What's included:</span> 45-minute video consult • Custom diet & yoga plan • Lab-test roadmap • Digital prescription • 14-day free chat follow-up.
                   </p>
                 </>
               )}
@@ -85,7 +88,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
 
           {/* Risk Reversal */}
           <div className="text-center lg:text-left text-xs font-bold text-slate-500 mt-3 pt-1">
-             <i className="fas fa-shield-halved text-emerald-500 mr-1"></i> 100% Risk-Free. Don't love your doctor? Your next consult is on us.
+             <i className="fas fa-shield-halved text-emerald-500 mr-1"></i> Satisfaction Guaranteed. Don't love your doctor? Your next consult is on us.
           </div>
 
           {/* Consultation trust statement */}

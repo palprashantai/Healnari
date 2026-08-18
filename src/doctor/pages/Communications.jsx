@@ -79,13 +79,22 @@ function DoctorCommunications() {
     try {
       await apiFetch('/communications/broadcasts', {
         method: 'POST',
-        body: { subject: messageSubject, body: messageBody, audience, channels, scheduleType, scheduledFor: scheduleType === 'scheduled' ? scheduleDate : undefined },
+        body: { 
+          subject: messageSubject, 
+          body: messageBody, 
+          audience, 
+          channels, 
+          scheduleType, 
+          scheduledFor: scheduleType === 'scheduled' ? scheduleDate : undefined,
+          attachments: attachments.map(f => f.name) // Pass file names (real file upload requires FormData)
+        },
       });
       await loadBroadcasts();
       toast(scheduleType === 'scheduled' ? 'Message scheduled!' : 'Message successfully broadcasted to your patients!', 'success');
       setMessageSubject('');
       setMessageBody('');
       setSelectedTemplate('');
+      setAttachments([]);
     } catch (err) {
       toast(err.message || 'Failed to send broadcast', 'error');
     } finally {
@@ -236,10 +245,38 @@ function DoctorCommunications() {
                   className="w-full flex-1 min-h-[250px] border border-slate-200 rounded-xl p-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-100 transition-all resize-y"
                 ></textarea>
               </div>
-              <div className="pt-2">
-                <button onClick={() => toast('File dialog opened.', 'info')} className="text-sm font-bold text-sky-600 bg-sky-50 hover:bg-sky-100 px-4 py-2 rounded-xl transition-colors border border-sky-100 flex items-center gap-2 w-max">
+              <div className="pt-2 flex flex-col gap-2">
+                <label className="text-sm font-bold text-sky-600 bg-sky-50 hover:bg-sky-100 px-4 py-2 rounded-xl transition-colors border border-sky-100 flex items-center gap-2 w-max cursor-pointer">
                   <i className="fas fa-paperclip"></i> Attach File
-                </button>
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    multiple 
+                    onChange={(e) => {
+                      if (e.target.files?.length) {
+                        setAttachments(prev => [...prev, ...Array.from(e.target.files)]);
+                        toast(`Attached ${e.target.files.length} file(s)`, 'success');
+                      }
+                      e.target.value = null; // reset
+                    }}
+                  />
+                </label>
+                {attachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {attachments.map((file, idx) => (
+                      <div key={idx} className="flex items-center gap-2 bg-slate-100 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-700">
+                        <i className="fas fa-file text-slate-400"></i>
+                        <span className="max-w-[150px] truncate">{file.name}</span>
+                        <button 
+                          onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
+                          className="text-slate-400 hover:text-rose-500 ml-1 transition-colors"
+                        >
+                          <i className="fas fa-times"></i>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

@@ -215,7 +215,7 @@ function GuidePage() {
                 Need a Personalized Medical Protocol?
               </h3>
               <p className="text-sm text-slate-200 leading-relaxed">
-                Consult India's top endocrinologists & gynecologists to diagnose your root cause and start your clinical recovery plan.
+                Consult top endocrinologists & gynecologists to diagnose your root cause and start your clinical recovery plan.
               </p>
             </div>
             <button

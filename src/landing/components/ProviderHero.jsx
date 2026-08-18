@@ -23,7 +23,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
   // 3-Line Typewriter Animation Effect
   const rotatingLines = [
     'Zero Clinic Overhead',
-    '100% Clinical Autonomy',
+    'Full Clinical Autonomy',
     'Weekly Direct Payouts',
   ];
 
@@ -135,7 +135,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
           <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-6 pt-4 text-xs font-medium text-slate-500">
             <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-emerald-600"></i> NMC Verified</span>
             <span className="flex items-center gap-1.5"><i className="fas fa-circle-dollar-to-slot text-emerald-600"></i> 90% Net Payout</span>
-            <span className="flex items-center gap-1.5"><i className="fas fa-lock text-emerald-600"></i> 100% Clinical Autonomy</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-lock text-emerald-600"></i> Full Clinical Autonomy</span>
             <span className="flex items-center gap-1.5"><i className="fas fa-users text-emerald-600"></i> 200+ Doctors on Platform</span>
           </div>
         </div>

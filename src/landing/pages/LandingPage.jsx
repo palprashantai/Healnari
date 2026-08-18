@@ -27,6 +27,7 @@ const HealthTips = lazy(() => import('../../tools/HealthTips.jsx'));
 const CycleTracker = lazy(() => import('../../tools/CycleTracker.jsx'));
 const NewsletterSignup = lazy(() => import('../components/NewsletterSignup.jsx'));
 const LabTests = lazy(() => import('../components/LabTests.jsx'));
+const HolisticApproach = lazy(() => import('../components/HolisticApproach.jsx'));
 const AiChatWidget = lazy(() => import('../../tools/AiChatWidget.jsx'));
 
 function LandingPage() {
@@ -43,7 +44,7 @@ function LandingPage() {
     // Dynamic SEO, OpenGraph & Structured Data Schema Injection
     const originalTitle = document.title;
     const docTitle = "Online PCOS Treatment & Gynaecologist Consultations | HealNari";
-    const docDesc = "Consult India's top Gynaecologists & Endocrinologists online for PCOS, thyroid, irregular periods, and weight management. Get root-cause treatment with 100% privacy.";
+    const docDesc = "Consult top Gynaecologists & Endocrinologists online for PCOS, thyroid, irregular periods, and weight management. Get root-cause treatment with 100% privacy.";
     const docUrl = "https://healnari.care";
 
     document.title = docTitle;
@@ -70,7 +71,7 @@ function LandingPage() {
       "name": "HealNari",
       "url": "https://healnari.care",
       "logo": "https://healnari.care/brand/logo-full.jpg",
-      "description": "Premium digital healthcare platform for women in India. Specializing in root-cause treatment for PCOS, hormonal imbalances, and reproductive health.",
+      "description": "Premium digital healthcare platform for women globally. Specializing in root-cause treatment for PCOS, hormonal imbalances, and reproductive health.",
       "medicalSpecialty": ["Gynecologic", "Endocrine"],
       "availableService": [
         {
@@ -159,6 +160,8 @@ function LandingPage() {
 
           <Reveal><PcosDiagram /></Reveal>
 
+          <Reveal><HolisticApproach /></Reveal>
+
           <Reveal><HowItWorks /></Reveal>
 
           {adminSettings?.toggles?.showFeaturedDoctors !== false && (
@@ -194,7 +197,7 @@ function LandingPage() {
                     Discuss your concerns with an expert for just <span className="underline decoration-white/40 decoration-wavy">₹{adminSettings?.pricingAmount || 799}</span>
                   </div>
                   <p className="text-white/90 text-base max-w-xl mx-auto leading-relaxed font-medium">
-                    Includes: <strong>45-min video call</strong> with a specialist doctor + personalised <strong>lab-test roadmap</strong> + <strong>diet & lifestyle protocol</strong> + <strong>digital prescription</strong> + 14-day free chat follow-up. No surprise charges. <br/> <span className="text-brand-100 text-sm mt-1 inline-block"><i className="fas fa-globe-americas"></i> Available across all Indian cities & global timezones.</span>
+                    Includes: <strong>45-min video call</strong> with a specialist doctor + personalised <strong>lab-test roadmap</strong> + <strong>diet & lifestyle protocol</strong> + <strong>digital prescription</strong> + 14-day free chat follow-up. No surprise charges. <br/> <span className="text-brand-100 text-sm mt-1 inline-block"><i className="fas fa-globe-americas"></i> Available globally across all timezones.</span>
                   </p>
                   
                   <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-2">

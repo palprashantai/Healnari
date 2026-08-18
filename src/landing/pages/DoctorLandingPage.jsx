@@ -26,7 +26,7 @@ function DoctorLandingPage() {
   // Dynamic SEO, OpenGraph & Structured Data Schema Injection
   useEffect(() => {
     const originalTitle = document.title;
-    const docTitle = "Join HealNari as a Specialist Doctor | Digital Clinic for Gynaecologists & Endocrinologists";
+    const docTitle = "Telemedicine Platform for Gynaecologists | EMR Software | HealNari";
     const docDesc = "Expand your women's health practice with zero clinic overhead. Join HealNari's verified network of top Gynaecologists & Endocrinologists. AI-assisted EMR, tokenized queues, and 90% net weekly payouts.";
     const docUrl = "https://healnari.care/for-doctors";
 
@@ -128,7 +128,7 @@ function DoctorLandingPage() {
   const doctorFaqs = [
     {
       q: "What exactly is HealNari and who is it for?",
-      a: "HealNari is a dedicated digital clinic platform for women's health specialists in India. If you are a licensed Gynaecologist, Endocrinologist, Trichologist, or Fertility Expert, you can join and run a fully online practice. Patients with PCOS, thyroid issues, hormonal hair fall, irregular periods, acne, and weight concerns come to you through our platform — pre-screened and ready for consultation."
+      a: "HealNari is a dedicated digital clinic platform for women's health specialists worldwide. If you are a licensed Gynaecologist, Endocrinologist, Trichologist, or Fertility Expert, you can join and run a fully online practice. Patients with PCOS, thyroid issues, hormonal hair fall, irregular periods, acne, and weight concerns come to you through our platform — pre-screened and ready for consultation."
     },
     {
       q: "How much can I earn and how does the payout model work?",
@@ -289,7 +289,7 @@ function DoctorLandingPage() {
                 <div className="absolute top-0 right-0 -mt-10 -mr-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
                 <div className="relative z-10 space-y-6 max-w-2xl mx-auto">
                   <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-xs font-semibold px-4 py-1.5 rounded-full uppercase tracking-wider">
-                    <i className="fas fa-stethoscope text-emerald-300"></i> Join 200+ Verified Indian Specialists
+                    <i className="fas fa-stethoscope text-emerald-300"></i> Join 200+ Verified Specialists
                   </span>
                   <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-display leading-tight">
                     Start Your Digital Clinic Today

@@ -69,22 +69,22 @@ function ProviderBenefits() {
 
       {/* 3-Step Join Process Strip */}
       <Reveal>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-14 text-center">
+        <ol className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-14 text-center list-none p-0 m-0">
           {[
             { step: '01', icon: 'fa-file-medical', label: 'Apply in 3 Minutes', desc: 'Fill a short form with your specialty & registration number. No long paperwork.' },
             { step: '02', icon: 'fa-certificate', label: 'Credential Verified (48 hrs)', desc: 'Our clinical team verifies your NMC / State Medical Council registration.' },
             { step: '03', icon: 'fa-circle-play', label: 'Go Live & Start Earning', desc: 'Your profile goes live, patients start booking, payouts go weekly to your bank.' },
           ].map((s) => (
-            <div key={s.step} className="flex flex-col items-center gap-3 bg-aubergine-50/60 border border-aubergine-100 rounded-3xl p-6">
+            <li key={s.step} className="flex flex-col items-center gap-3 bg-aubergine-50/60 border border-aubergine-100 rounded-3xl p-6">
               <div className="w-12 h-12 rounded-2xl bg-aubergine-700 text-white flex items-center justify-center text-lg">
                 <i className={`fas ${s.icon}`}></i>
               </div>
               <span className="text-[10px] font-black uppercase tracking-widest text-aubergine-400">Step {s.step}</span>
               <h3 className="font-bold text-slate-900 text-base">{s.label}</h3>
               <p className="text-xs text-slate-500 leading-relaxed">{s.desc}</p>
-            </div>
+            </li>
           ))}
-        </div>
+        </ol>
       </Reveal>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-8">

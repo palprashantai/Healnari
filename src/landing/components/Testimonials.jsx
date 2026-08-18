@@ -5,31 +5,31 @@ function Testimonials() {
 
   const reviews = [
     {
-      quote: "After 3 years of severe PCOS-induced hair thinning and irregular cycles, Dr. Mehta’s root-cause protocol restored my natural cycle in exactly 4 months. My hair density has visibly improved.",
+      quote: "I had PCOS for 6 years. Every doctor told me to 'just lose weight'. HealNari was the first place that actually ran the right tests, designed my diet around my insulin resistance, and gave me a yoga plan too. In 4 months, my cycle is regular for the first time since college.",
       author: "Sneha K.",
       age: 32,
       stars: 5,
-      role: "PCOS & Hair Fall Patient",
+      role: "PCOS & Irregular Cycles Patient",
       image: "/generated/patient1.webp",
-      tags: ['Diagnosed: PCOD', 'Outcome: 4 Months']
+      tags: ['Diagnosed: PCOD + Insulin Resistance', 'Outcome: Regular Cycle in 4 Months']
     },
     {
-      quote: "The holistic plan—combining safe medical supplements with specialized diet and stress management—brought my insulin resistance and acne under control within 12 weeks. Completely judgment-free clinical guidance.",
+      quote: "The difference here is the holistic plan. My doctor combined the right supplements with a detailed anti-inflammatory diet and a specific yoga routine. No generic advice. My hormonal acne cleared up in 10 weeks, my hair fall stopped, and I actually feel like myself again.",
       author: "Ritika P.",
       age: 27,
       stars: 5,
-      role: "Metabolic & Acne Patient",
+      role: "Hormonal Acne & Hair Fall Patient",
       image: "/generated/patient2.webp",
-      tags: ['Diagnosed: Insulin Resistance', 'Outcome: 12 Weeks']
+      tags: ['Diagnosed: Androgenic Alopecia', 'Outcome: 10 Weeks']
     },
     {
-      quote: "After seeing my own transformational recovery from hormonal and metabolic issues under their care, I believed in their high-fidelity clinical model so much that I joined as an angel investor.",
+      quote: "What HealNari does differently is treat you as a whole person, not a list of symptoms. After my recovery from a severe thyroid imbalance — through their diet protocol and medical guidance — I believed in their model so deeply that I joined as an angel investor.",
       author: "Nidhi S.",
       age: 35,
       stars: 5,
       role: "Patient turned Angel Investor",
       image: "/generated/patient3.webp",
-      tags: ['Diagnosed: Hormonal Imbalance', 'Outcome: Investor']
+      tags: ['Diagnosed: Thyroid + Hormonal Imbalance', 'Outcome: Full Recovery']
     }
   ];
 

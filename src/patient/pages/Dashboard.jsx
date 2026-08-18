@@ -9,6 +9,7 @@ import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
 import { LIFESTYLE_ITEMS } from '../lifestyleConfig.js';
 import { formatCurrency } from '../../lib/currency.js';
+import { openLifestylePlanPrintWindow } from '../../lib/prescriptionPrint.js';
 
 /* ─── Reference config (not user data) ───────── */
 const CYCLE_PHASES = [
@@ -1057,6 +1058,122 @@ function VitalsSnapshot({ vitals, discreet, navigate }) {
   );
 }
 
+/* ─── Lifestyle Plan Widget ─── */
+function LifestylePlanWidget({ navigate, discreet }) {
+  const [plan, setPlan] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+
+  useEffect(() => {
+    apiFetch('/records/prescriptions?limit=20')
+      .then(res => {
+        const list = Array.isArray(res) ? res : (res?.data || []);
+        // Find the most recent prescription with a holistic lifestyle plan
+        for (const rx of list) {
+          try {
+            if (rx.instructions && rx.instructions.startsWith('{')) {
+              const parsed = JSON.parse(rx.instructions);
+              if (parsed.type === 'healnari-holistic-v1' && (parsed.dietPlan || parsed.exercisePlan)) {
+                setPlan({ ...parsed, rxId: rx.id, date: rx.date, doctor: rx.doctor });
+                return;
+              }
+            }
+          } catch(e) {}
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleDownload = () => {
+    if (!plan) return;
+    openLifestylePlanPrintWindow({
+      rxId: `HN-${plan.rxId?.slice(0, 8).toUpperCase() || 'PLAN'}`,
+      date: plan.date,
+      doctor: { name: plan.doctor },
+      patient: { name: user?.name, gender: 'Female' },
+      dietPlan: plan.dietPlan,
+      exercisePlan: plan.exercisePlan
+    });
+  };
+
+  return (
+    <div className={`glass-panel rounded-3xl p-6 lg:col-span-2 relative overflow-hidden ${discreet ? 'discreet-blur' : ''}`}>
+      {/* Decorative bg */}
+      <div className="absolute -top-8 -right-8 w-40 h-40 bg-emerald-100 rounded-full opacity-40 blur-2xl pointer-events-none"></div>
+      <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-amber-100 rounded-full opacity-40 blur-2xl pointer-events-none"></div>
+
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <i className="fas fa-spa text-emerald-500"></i>
+            <h3 className="font-bold text-slate-800 text-sm">My Lifestyle Protocol</h3>
+          </div>
+          <button
+            onClick={() => navigate('/patient-dashboard/prescriptions')}
+            className="text-[10px] font-bold text-emerald-600 hover:underline uppercase tracking-wide"
+          >
+            View All
+          </button>
+        </div>
+
+        {loading ? (
+          <p className="text-xs text-slate-400 text-center py-6"><i className="fas fa-spinner fa-spin mr-2"></i>Loading your plan…</p>
+        ) : !plan ? (
+          <div className="text-center py-8 space-y-3">
+            <div className="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-2xl border border-slate-100">🥗</div>
+            <div>
+              <p className="text-sm font-bold text-slate-700">No Lifestyle Plan Yet</p>
+              <p className="text-xs text-slate-500 mt-1">Your doctor will add a personalised Diet & Yoga plan during your next consultation.</p>
+            </div>
+            <button
+              onClick={() => navigate('/patient-dashboard/appointments')}
+              className="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-4 py-2 rounded-xl transition-colors"
+            >
+              Book a Consultation
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {plan.doctor && (
+              <p className="text-[10px] text-slate-400 font-medium">
+                <i className="fas fa-user-doctor mr-1"></i>Prescribed by {plan.doctor} • {plan.date}
+              </p>
+            )}
+
+            {plan.dietPlan && (
+              <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100 p-4">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-lg">🥗</span>
+                  <span className="text-xs font-black text-emerald-800 uppercase tracking-wider">Diet & Nutrition</span>
+                </div>
+                <p className="text-sm text-emerald-900 leading-relaxed whitespace-pre-wrap font-medium line-clamp-4">{plan.dietPlan}</p>
+              </div>
+            )}
+
+            {plan.exercisePlan && (
+              <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 p-4">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-lg">🧘‍♀️</span>
+                  <span className="text-xs font-black text-amber-800 uppercase tracking-wider">Yoga & Exercise</span>
+                </div>
+                <p className="text-sm text-amber-900 leading-relaxed whitespace-pre-wrap font-medium line-clamp-4">{plan.exercisePlan}</p>
+              </div>
+            )}
+
+            <button
+              onClick={handleDownload}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold py-3 px-5 rounded-xl text-sm transition-all shadow-md shadow-emerald-500/20 hover:shadow-lg hover:-translate-y-0.5"
+            >
+              <i className="fas fa-download"></i> Download Lifestyle Plan PDF
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main Dashboard ─────────────────────────── */
 function PatientDashboard() {
   const { user } = useAuth();
@@ -1249,6 +1366,9 @@ function PatientDashboard() {
           <VitalsSnapshot vitals={vitals} discreet={discreet} navigate={navigate} />
           <MoodEnergyLogger logCycle={logCycle} cycleLogs={cycleLogs} toast={toast} />
         </div>
+
+        {/* Lifestyle Plan Widget */}
+        <LifestylePlanWidget navigate={navigate} discreet={discreet} />
 
         {/* Row 3 - Quick Actions & Appointments */}
         <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-6">
