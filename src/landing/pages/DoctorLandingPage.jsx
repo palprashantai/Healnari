@@ -300,13 +300,13 @@ function DoctorLandingPage() {
                   <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
                     <button 
                       onClick={() => setIsApplyOpen(true)}
-                      className="bg-white text-aubergine-900 font-bold px-8 py-4 rounded-2xl shadow-xl hover:bg-slate-50 transition-all text-base hover:scale-105"
+                      className="bg-white text-aubergine-900 font-bold px-6 py-3.5 rounded-xl shadow-xl hover:bg-slate-50 transition-all text-sm sm:text-base hover:scale-105"
                     >
                       <i className="fas fa-user-plus mr-2 text-aubergine-700"></i> Apply as a Specialist
                     </button>
                     <button 
                       onClick={() => setIsAuthOpen(true)}
-                      className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-4 rounded-2xl transition-all text-base"
+                      className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-6 py-3.5 rounded-xl transition-all text-sm sm:text-base"
                     >
                       Provider Sign In
                     </button>

@@ -40,6 +40,51 @@ function LandingPage() {
   const [adminSettings, setAdminSettings] = useState(null);
 
   useEffect(() => {
+    // Dynamic SEO, OpenGraph & Structured Data Schema Injection
+    const originalTitle = document.title;
+    const docTitle = "Online PCOS Treatment & Gynaecologist Consultations | HealNari";
+    const docDesc = "Consult India's top Gynaecologists & Endocrinologists online for PCOS, thyroid, irregular periods, and weight management. Get root-cause treatment with 100% privacy.";
+    const docUrl = "https://healnari.care";
+
+    document.title = docTitle;
+
+    const updateMeta = (selector, content, attr = 'content') => {
+      let el = document.querySelector(selector);
+      const original = el ? el.getAttribute(attr) : null;
+      if (el) el.setAttribute(attr, content);
+      return { el, original };
+    };
+
+    const prevDesc = updateMeta('meta[name="description"]', docDesc);
+    const prevOgTitle = updateMeta('meta[property="og:title"]', docTitle);
+    const prevOgDesc = updateMeta('meta[property="og:description"]', docDesc);
+    const prevOgUrl = updateMeta('meta[property="og:url"]', docUrl);
+
+    // JSON-LD Structured Data Schema for Medical Clinic
+    const schemaScript = document.createElement('script');
+    schemaScript.type = 'application/ld+json';
+    schemaScript.id = 'healnari-patient-schema';
+    schemaScript.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "MedicalClinic",
+      "name": "HealNari",
+      "url": "https://healnari.care",
+      "logo": "https://healnari.care/brand/logo-full.jpg",
+      "description": "Premium digital healthcare platform for women in India. Specializing in root-cause treatment for PCOS, hormonal imbalances, and reproductive health.",
+      "medicalSpecialty": ["Gynecologic", "Endocrine"],
+      "availableService": [
+        {
+          "@type": "MedicalTest",
+          "name": "PCOS Advanced Panel"
+        },
+        {
+          "@type": "MedicalConsultation",
+          "name": "Specialist Video Consultation"
+        }
+      ]
+    });
+    document.head.appendChild(schemaScript);
+
     const handleScroll = () => {
       setShowMobileBar(window.scrollY > 450);
     };
@@ -50,7 +95,16 @@ function LandingPage() {
       .then(d => setAdminSettings(d))
       .catch(console.error);
       
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      document.title = originalTitle;
+      if (prevDesc.el && prevDesc.original) prevDesc.el.setAttribute('content', prevDesc.original);
+      if (prevOgTitle.el && prevOgTitle.original) prevOgTitle.el.setAttribute('content', prevOgTitle.original);
+      if (prevOgDesc.el && prevOgDesc.original) prevOgDesc.el.setAttribute('content', prevOgDesc.original);
+      if (prevOgUrl.el && prevOgUrl.original) prevOgUrl.el.setAttribute('content', prevOgUrl.original);
+      window.removeEventListener('scroll', handleScroll);
+      const existingSchema = document.getElementById('healnari-patient-schema');
+      if (existingSchema) existingSchema.remove();
+    };
   }, []);
 
   const openBooking = (docName = '') => {

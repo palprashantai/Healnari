@@ -2,7 +2,7 @@ import React from 'react';
 
 function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
   return (
-    <section className="relative overflow-hidden py-8 md:py-20 max-w-6xl mx-auto px-4 sm:px-5 md:px-8">
+    <section className="relative overflow-hidden pt-8 pb-12 md:pt-10 lg:pt-12 md:pb-20 max-w-6xl mx-auto px-4 sm:px-5 md:px-8">
       {/* Decorative blurry background highlights */}
       <div className="absolute top-1/4 left-1/10 w-72 h-72 rounded-full bg-indigo-200/40 blur-3xl -z-10"></div>
       <div className="absolute top-1/3 right-1/10 w-80 h-80 rounded-full bg-violet-200/30 blur-3xl -z-10"></div>
@@ -62,22 +62,22 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
           </div>
 
           {/* Dual Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mt-2">
             {/* Primary Action Button */}
             <div className="relative group w-full sm:w-auto">
-              <div className="absolute -top-3 right-2 sm:-right-3 z-10 bg-rose-500 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider py-0.5 sm:py-1 px-2 sm:px-2.5 rounded-full shadow-md shadow-rose-200/50 animate-bounce flex items-center gap-1 whitespace-nowrap">
+              <div className="absolute -top-3 right-2 sm:-right-2 z-10 bg-rose-500 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider py-0.5 sm:py-1 px-2 sm:px-2.5 rounded-full shadow-md shadow-rose-200/50 animate-bounce flex items-center gap-1 whitespace-nowrap">
                 <i className="fas fa-calendar-day"></i> Next Slot: Today
               </div>
               <button 
                 onClick={onStartConsult}
-                className="w-full sm:w-auto relative bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 hover:from-aubergine-700 hover:via-magenta-700 hover:to-indigo-700 text-white font-extrabold px-6 sm:px-10 py-4 sm:py-5 rounded-2xl sm:rounded-3xl shadow-xl shadow-aubergine-200 hover:shadow-2xl hover:shadow-aubergine-300 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 sm:gap-3 text-base sm:text-xl group-hover:ring-4 ring-aubergine-100"
+                className="w-full sm:w-auto relative bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 hover:from-aubergine-700 hover:via-magenta-700 hover:to-indigo-700 text-white font-extrabold px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl shadow-xl shadow-aubergine-200 hover:shadow-2xl hover:shadow-aubergine-300 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 sm:gap-2.5 text-base sm:text-lg group-hover:ring-4 ring-aubergine-100"
               >
-                <i className="fas fa-stethoscope text-sm sm:text-base"></i> Book My ₹799 Consult
+                <i className="fas fa-stethoscope text-sm"></i> Book My ₹799 Consult
               </button>
             </div>
             <button
               onClick={onOpenChecker}
-              className="w-full sm:w-auto bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-3.5 sm:py-4 px-6 sm:px-8 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2 text-base sm:text-lg"
+              className="w-full sm:w-auto bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-3 sm:py-3.5 px-6 sm:px-6 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <i className="fas fa-heart-pulse text-rose-500"></i> 2-Min Symptom Check
             </button>

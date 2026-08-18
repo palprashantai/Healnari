@@ -42,9 +42,9 @@ function Header({ onStartConsult, onOpenAuth }) {
         {/* Left Section: Logo + Nav */}
         <div className="flex items-center gap-6 xl:gap-12">
           {/* Brand Logo */}
-          <a href="#" className="shrink-0">
+          <NavLink to="/" className="shrink-0">
             <HealNariLogo size="md" />
-          </a>
+          </NavLink>
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-4 xl:gap-8">
