@@ -119,7 +119,7 @@ function Sidebar({ onClose, onItemHover }) {
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-aubergine-700/40 shrink-0 space-y-2">
+      <div className="p-4 border-t border-aubergine-700/40 shrink-0 space-y-2.5 pb-28 md:pb-4 safe-area-pb">
         {/* Discreet mode */}
         <button onClick={toggleDiscreet}
           className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all w-full ${discreet ? 'bg-aubergine-600/50 text-white' : 'text-aubergine-100/60 hover:bg-aubergine-700/40 hover:text-white'}`}>
@@ -128,19 +128,22 @@ function Sidebar({ onClose, onItemHover }) {
         </button>
 
         {/* Privacy badges */}
-        <div className="bg-aubergine-900/40 p-2.5 rounded-xl border border-aubergine-700/30">
+        <div className="bg-aubergine-950/60 p-2.5 rounded-xl border border-aubergine-700/40">
           <div className="flex items-center gap-2 text-[10px] font-semibold text-aubergine-200/70 uppercase tracking-wide">
-            <i className="fas fa-shield-halved text-sage-400"></i> DPDP Act, 2023 Compliant
+            <i className="fas fa-shield-halved text-emerald-400"></i> DPDP Act, 2023 Compliant
           </div>
           <div className="flex items-center gap-2 text-[10px] font-semibold text-aubergine-200/70 uppercase tracking-wide mt-1">
-            <i className="fas fa-lock text-sage-400"></i> Private, Doctor-Only Access
+            <i className="fas fa-lock text-emerald-400"></i> Private, Doctor-Only Access
           </div>
         </div>
 
-        <button onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm text-aubergine-200/70 hover:bg-red-900/30 hover:text-red-300 transition-all w-full">
-          <div className="w-5 text-center"><i className="fas fa-sign-out-alt"></i></div>
-          Logout
+        {/* High-Visibility Logout Button */}
+        <button 
+          onClick={handleLogout}
+          className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm bg-rose-500/20 text-rose-300 hover:bg-rose-600 hover:text-white border border-rose-500/30 transition-all w-full shadow-sm active:scale-95"
+        >
+          <i className="fas fa-arrow-right-from-bracket"></i>
+          <span>Sign Out / Logout</span>
         </button>
       </div>
     </div>

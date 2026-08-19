@@ -161,11 +161,13 @@ function SidebarContent({ user, onClose, onItemHover }) {
       </nav>
 
       {/* Logout */}
-      <div className="p-4 shrink-0">
-        <button onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-[13px] text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 border border-transparent transition-all w-full">
-          <div className="w-5 text-center"><i className="fas fa-right-from-bracket"></i></div>
-          Sign Out
+      <div className="p-4 shrink-0 pb-28 md:pb-4 safe-area-pb border-t border-aubergine-800/40">
+        <button 
+          onClick={handleLogout}
+          className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl font-bold text-sm bg-rose-500/20 text-rose-300 hover:bg-rose-600 hover:text-white border border-rose-500/30 transition-all w-full shadow-sm active:scale-95"
+        >
+          <i className="fas fa-arrow-right-from-bracket"></i>
+          <span>Sign Out / Logout</span>
         </button>
       </div>
     </div>
