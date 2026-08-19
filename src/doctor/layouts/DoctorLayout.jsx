@@ -12,6 +12,8 @@ import { NavHoverRail } from '../../components/NavHoverRail.jsx';
 import { ModuleAccentBar } from '../../components/ModuleAccentBar.jsx';
 import AiChatWidget from '../../tools/AiChatWidget.jsx';
 
+import { triggerHaptic } from '../../lib/haptics.js';
+
 const DEFAULT_ACCENT = '#6B46C1';
 
 const NAV_ITEMS = [
@@ -27,6 +29,14 @@ const NAV_ITEMS = [
   { name: 'Earnings & Payouts', icon: 'fa-file-invoice-dollar', path: '/doctor-dashboard/billing',      end: false, color: '#14b8a6' },
   { name: 'Staff Management', icon: 'fa-user-nurse',          path: '/doctor-dashboard/staff',        end: false, color: '#d946ef' },
   { name: 'My Profile',       icon: 'fa-circle-user',         path: '/doctor-dashboard/profile',      end: false, color: '#64748b' },
+];
+
+const DOCTOR_BOTTOM_TABS = [
+  { name: 'Overview',     icon: 'fa-chart-pie',         path: '/doctor-dashboard', end: true },
+  { name: 'Queue',        icon: 'fa-calendar-check',    path: '/doctor-dashboard/appointments' },
+  { name: 'Telemed',      icon: 'fa-video',             path: '/doctor-dashboard/telemedicine', isFab: true },
+  { name: 'Patients',     icon: 'fa-users',             path: '/doctor-dashboard/patients' },
+  { name: 'Prescribe',    icon: 'fa-file-prescription', path: '/doctor-dashboard/prescriptions' },
 ];
 
 /** "10 min ago" style relative timestamp for a notification's created_at. */
@@ -261,7 +271,7 @@ function DoctorLayout() {
   const crumbs = ['Doctor', ...location.pathname.split('/').filter(Boolean).slice(1)];
 
   return (
-    <div className="flex h-screen overflow-hidden font-sans bg-slate-50">
+    <div className="flex h-screen h-[100dvh] overflow-hidden font-sans bg-slate-50">
       {/* Desktop Sidebar */}
       <aside className="w-64 hidden md:flex flex-col flex-shrink-0 bg-aubergine-900 border-r border-aubergine-800">
         <SidebarContent user={user} onItemHover={setHoveredColor} />
@@ -483,11 +493,57 @@ function DoctorLayout() {
         )}
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6">
           {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
           <PageTransition />
         </main>
       </div>
+
+      {/* iOS/Android Styled Floating Frosted-Glass Mobile Bottom Dock for Doctors */}
+      <nav className="md:hidden fixed bottom-3 inset-x-3 z-50 pointer-events-none safe-area-pb">
+        <div className="mobile-floating-dock pointer-events-auto rounded-3xl border border-white/60 px-2 py-1.5 flex items-center justify-around shadow-[0_12px_35px_rgba(42,22,71,0.18)]">
+          {DOCTOR_BOTTOM_TABS.map(tab => (
+            <NavLink
+              key={tab.path}
+              to={tab.path}
+              end={tab.end}
+              onClick={() => triggerHaptic(tab.isFab ? 'medium' : 'light')}
+              className={({ isActive }) =>
+                `relative flex flex-col items-center justify-center transition-all duration-200 ${
+                  tab.isFab ? '-mt-5' : 'flex-1 py-1'
+                } ${isActive ? 'text-aubergine-700 font-extrabold' : 'text-slate-500 font-medium'}`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  {tab.isFab ? (
+                    <div className="flex flex-col items-center group">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-aubergine-600 to-magenta-600 text-white flex items-center justify-center text-lg shadow-lg shadow-indigo-500/30 ring-4 ring-white transition-transform active:scale-90">
+                        <i className={`fas ${tab.icon}`}></i>
+                      </div>
+                      <span className="text-[10px] font-black text-indigo-700 mt-1 tracking-tight">
+                        {tab.name}
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className={`w-9 h-8 rounded-xl flex items-center justify-center transition-all ${
+                        isActive ? 'bg-aubergine-100/90 text-aubergine-700 scale-105 shadow-2xs' : 'text-slate-500 active:scale-95'
+                      }`}>
+                        <i className={`fas ${tab.icon} text-sm`}></i>
+                      </div>
+                      <span className="text-[10px] tracking-tight leading-none mt-0.5">{tab.name}</span>
+                      {isActive && (
+                        <div className="w-1 h-1 rounded-full bg-aubergine-600 mt-0.5"></div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
 
       <AiChatWidget context="doctor" />
     </div>

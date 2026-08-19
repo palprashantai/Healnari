@@ -11,6 +11,7 @@ import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
 import { useFullscreen } from '../../hooks/useFullscreen.js';
 import { openPrescriptionPrintWindow, openLifestylePlanPrintWindow } from '../../lib/prescriptionPrint.js';
 import { AIButton } from '../../components/AiButton.jsx';
+import { triggerHaptic } from '../../lib/haptics.js';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
  * for srcObject, so this stays a thin imperative wrapper. */
@@ -481,6 +482,9 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
 
   // Layout View Mode: 'split' (side-by-side) | 'video-focus' (cinema video + mini pad) | 'pad-focus' (large pad + floating video)
   const [viewLayout, setViewLayout] = useState('split');
+
+  // Mobile Bottom-Sheet Drawer State
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   // Active Workspace Tab: 'smart_rx' | 'pen_pad' | 'labs' | 'notes' | 'patient_chart'
   const [activeTab, setActiveTab] = useState('smart_rx');
@@ -1367,12 +1371,33 @@ PLAN:
                   <i className="fas fa-desktop"></i>
                 </button>
 
+                {/* Mobile Drawer Trigger for Telemed Rx/Pad */}
+                <button
+                  onClick={() => {
+                    triggerHaptic('medium');
+                    setMobileDrawerOpen(prev => !prev);
+                  }}
+                  title={mobileDrawerOpen ? 'Minimize Prescription Drawer' : 'Open Mobile Prescription Drawer'}
+                  className={`lg:hidden w-11 h-11 rounded-full flex items-center justify-center text-base transition-all ${
+                    mobileDrawerOpen
+                      ? 'bg-gradient-to-r from-magenta-500 to-indigo-600 text-white shadow-lg ring-2 ring-white/30'
+                      : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'
+                  }`}
+                >
+                  <i className="fas fa-file-prescription"></i>
+                  {(draftMeds.length > 0 || draftLabs.length > 0) && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white rounded-full text-[9px] font-black flex items-center justify-center border-2 border-slate-900">
+                      {draftMeds.length + draftLabs.length}
+                    </span>
+                  )}
+                </button>
+
                 <div className="w-px h-6 bg-slate-700 mx-1"></div>
 
                 <button
                   onClick={() => setShowSignModal(true)}
                   title="End Call & Send Prescription"
-                  className="w-11 h-11 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center text-base transition-all shadow-lg shadow-rose-600/30 hover:scale-105"
+                  className="w-11 h-11 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center text-base transition-all shadow-lg shadow-rose-600/30 hover:scale-105 active:scale-95"
                 >
                   <i className="fas fa-phone-slash"></i>
                 </button>
@@ -1380,8 +1405,26 @@ PLAN:
             </div>
           </div>
 
-          {/* ── Right Column: Creative Medical Workspace & Prescription Pad ── */}
-          <div className={`${viewLayout === 'video-focus' ? 'lg:col-span-4' : viewLayout === 'pad-focus' ? 'lg:col-span-8' : 'lg:col-span-7 xl:col-span-6'} flex flex-col min-h-0 bg-slate-900/60 backdrop-blur-xl rounded-[2rem] border border-slate-800 shadow-2xl overflow-hidden transition-all duration-300`}>
+          {/* ── Right Column: Creative Medical Workspace & Prescription Pad (Desktop Grid + Mobile Bottom Sheet) ── */}
+          <div className={`
+            ${viewLayout === 'video-focus' ? 'lg:col-span-4' : viewLayout === 'pad-focus' ? 'lg:col-span-8' : 'lg:col-span-7 xl:col-span-6'}
+            flex flex-col min-h-0 bg-slate-900/95 lg:bg-slate-900/60 backdrop-blur-xl rounded-t-[2.5rem] lg:rounded-[2rem] border border-slate-800 shadow-2xl overflow-hidden transition-transform duration-300 ease-out will-change-transform transform-gpu
+            fixed lg:relative inset-x-0 bottom-0 z-40 lg:z-auto h-[82vh] h-[82dvh] lg:h-auto
+            ${mobileDrawerOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-full lg:translate-y-0 opacity-0 lg:opacity-100 pointer-events-none lg:pointer-events-auto'}
+          `}>
+            
+            {/* Mobile Sheet Handle Bar */}
+            <div className="lg:hidden w-full pt-3 pb-2 flex flex-col items-center justify-center bg-slate-950/80 cursor-pointer border-b border-slate-800/80" onClick={() => setMobileDrawerOpen(false)}>
+              <div className="w-12 h-1.5 rounded-full bg-slate-700"></div>
+              <div className="flex items-center justify-between w-full px-5 mt-2">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                  <i className="fas fa-stethoscope text-indigo-400"></i> Clinical Workspace ({session.patient})
+                </span>
+                <button onClick={() => setMobileDrawerOpen(false)} className="text-slate-400 hover:text-white text-xs px-2 py-0.5 rounded-lg bg-slate-800">
+                  <i className="fas fa-chevron-down mr-1"></i> Dock
+                </button>
+              </div>
+            </div>
             
             {/* 1-Click Smart Protocols Ribbon */}
             <div className="p-3 bg-slate-900/90 border-b border-slate-800 flex items-center gap-2 overflow-x-auto hide-scrollbar shrink-0">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { triggerHaptic } from '../lib/haptics.js';
 
 export default function PWASplashScreen() {
   const [mounted, setMounted] = useState(false);
@@ -7,7 +8,7 @@ export default function PWASplashScreen() {
   const [closing, setClosing] = useState(false);
 
   useEffect(() => {
-    // Check if running as a PWA
+    // Check if running as an installed PWA / standalone app
     const isStandalone = 
       window.matchMedia('(display-mode: standalone)').matches || 
       window.navigator.standalone || 
@@ -16,20 +17,23 @@ export default function PWASplashScreen() {
     if (isStandalone) {
       setIsPWA(true);
       
-      // Trigger entrance animation shortly after mount
+      // Initial subtle haptic on splash launch
+      triggerHaptic('light');
+
+      // Trigger entrance choreography
       const mountTimer = setTimeout(() => {
         setMounted(true);
-      }, 50);
+      }, 40);
 
-      // Trigger exit animation before removing
+      // Trigger closing animation
       const closingTimer = setTimeout(() => {
         setClosing(true);
-      }, 2500);
+      }, 2000);
 
       // Remove component completely
       const hideTimer = setTimeout(() => {
         setShowSplash(false);
-      }, 3000);
+      }, 2450);
       
       return () => {
         clearTimeout(mountTimer);
@@ -46,62 +50,107 @@ export default function PWASplashScreen() {
 
   return (
     <div 
-      className={`fixed inset-0 z-[9999] bg-[#F8F6FF] flex flex-col items-center justify-center transition-all duration-700 ease-in-out ${
-        closing ? 'opacity-0 scale-105 blur-sm' : 'opacity-100 scale-100 blur-none'
+      className={`fixed inset-0 z-[99999] bg-gradient-to-b from-[#2A1647] via-[#1E1133] to-[#120721] flex flex-col items-center justify-between py-12 px-6 overflow-hidden select-none transition-all duration-500 ease-in-out ${
+        closing ? 'opacity-0 scale-105 blur-sm pointer-events-none' : 'opacity-100 scale-100 blur-none'
       }`}
     >
-      <div className="flex flex-col items-center relative z-10">
+      {/* Background Animated Ambient Aurora Lighting */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className={`absolute top-1/4 -left-20 w-80 h-80 rounded-full bg-magenta-600/20 blur-[100px] transition-all duration-1000 ${
+          mounted && !closing ? 'opacity-80 scale-125' : 'opacity-0 scale-50'
+        }`}></div>
+        <div className={`absolute bottom-1/3 -right-20 w-96 h-96 rounded-full bg-aubergine-600/30 blur-[120px] transition-all duration-1000 delay-150 ${
+          mounted && !closing ? 'opacity-80 scale-125' : 'opacity-0 scale-50'
+        }`}></div>
+        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-indigo-500/20 blur-[90px] transition-all duration-1000 delay-300 ${
+          mounted && !closing ? 'opacity-90 scale-150' : 'opacity-0 scale-50'
+        }`}></div>
+      </div>
+
+      {/* Top Subtle App Tier Header */}
+      <div className={`relative z-10 flex items-center gap-2 transition-all duration-700 delay-100 ${
+        mounted && !closing ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-6'
+      }`}>
+        <span className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/15 px-3 py-1 rounded-full text-[11px] font-bold text-aubergine-200 shadow-sm">
+          <i className="fas fa-shield-heart text-emerald-400"></i> Encrypted Holistic Health Clinic
+        </span>
+      </div>
+
+      {/* Center Hero Icon & Typography Showcase (Like Flipkart / Swiggy / Uber App Launch) */}
+      <div className="flex flex-col items-center relative z-10 my-auto">
         
-        {/* Pulsing Aura Behind Logo */}
-        <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-40 h-40 bg-gradient-to-tr from-brand-300 to-aubergine-200 rounded-full blur-3xl transition-all duration-1000 ${
-          mounted && !closing ? 'opacity-40 scale-150 animate-pulse' : 'opacity-0 scale-50'
+        {/* Pulsing Backlight Halo */}
+        <div className={`absolute top-6 left-1/2 -translate-x-1/2 w-48 h-48 bg-gradient-to-tr from-magenta-500 via-aubergine-500 to-indigo-500 rounded-3xl blur-2xl transition-all duration-1000 ${
+          mounted && !closing ? 'opacity-60 scale-110 animate-pulse' : 'opacity-0 scale-50'
         }`}></div>
 
-        {/* Logo Container with 3D Float */}
-        <div className={`relative mb-8 transition-all duration-1000 delay-100 ease-out transform ${
-          mounted && !closing ? 'scale-100 opacity-100 translate-y-0' : 'scale-50 opacity-0 translate-y-12'
+        {/* 3D App Icon Container */}
+        <div className={`relative mb-6 transition-all duration-800 ease-out transform ${
+          mounted && !closing ? 'scale-100 opacity-100 translate-y-0 rotate-0' : 'scale-50 opacity-0 translate-y-10 -rotate-6'
         }`}>
-          <div className="absolute inset-0 bg-gradient-to-tr from-brand-400 to-brand-600 rounded-3xl blur-md opacity-30 animate-pulse"></div>
-          <img 
-            src="/brand/logo-icon.jpg" 
-            alt="HealNari Logo" 
-            className="relative h-28 w-28 rounded-3xl shadow-2xl object-cover border border-white/50"
-          />
+          <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-[2rem] p-1 bg-gradient-to-tr from-white/30 via-white/10 to-transparent shadow-[0_20px_60px_rgba(0,0,0,0.6)] backdrop-blur-md">
+            <img 
+              src="/brand/logo-icon.jpg" 
+              alt="HealNari Logo" 
+              className="w-full h-full rounded-[1.8rem] object-cover shadow-2xl border border-white/20"
+            />
+          </div>
+
+          {/* Verification Badge */}
+          <div className={`absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs shadow-lg border-2 border-[#1E1133] transition-all duration-500 delay-300 ${
+            mounted && !closing ? 'scale-100 opacity-100' : 'scale-0 opacity-0'
+          }`}>
+            <i className="fas fa-check"></i>
+          </div>
         </div>
         
-        {/* Sleek Progress Bar instead of generic spinner */}
-        <div className={`w-32 h-1 bg-brand-100 rounded-full overflow-hidden mb-6 transition-all duration-700 delay-400 ${
-          mounted && !closing ? 'opacity-100' : 'opacity-0'
-        }`}>
-          <div className="h-full bg-gradient-to-r from-aubergine-400 to-brand-600 rounded-full animate-[progress_2s_ease-in-out_forwards]" style={{
-            width: mounted ? '100%' : '0%',
-            transition: 'width 2.5s cubic-bezier(0.4, 0, 0.2, 1)'
-          }}></div>
+        {/* Brand Typography with Gradient & Shimmer */}
+        <div className="text-center space-y-1.5">
+          <h1 
+            className="text-4xl sm:text-5xl font-black tracking-tight text-white font-serif-brand transition-all duration-800 delay-200 ease-out"
+            style={{
+              opacity: mounted && !closing ? 1 : 0,
+              transform: mounted && !closing ? 'translateY(0)' : 'translateY(12px)',
+            }}
+          >
+            Heal<span className="bg-gradient-to-r from-magenta-400 to-indigo-300 bg-clip-text text-transparent">Nari</span>
+          </h1>
+          
+          <p 
+            className="text-aubergine-200/90 font-bold text-xs sm:text-sm tracking-wider uppercase transition-all duration-800 delay-300 ease-out"
+            style={{
+              opacity: mounted && !closing ? 1 : 0,
+              transform: mounted && !closing ? 'translateY(0)' : 'translateY(8px)',
+              letterSpacing: mounted && !closing ? '0.22em' : '0.05em'
+            }}
+          >
+            Root-Cause Women&apos;s Health
+          </p>
         </div>
-        
-        {/* Brand Name with tracking expansion */}
-        <h1 
-          className="text-4xl font-extrabold text-[#2A1647] font-display transition-all duration-1000 delay-500 ease-out transform"
-          style={{
-            opacity: mounted && !closing ? 1 : 0,
-            transform: mounted && !closing ? 'translateY(0)' : 'translateY(10px)',
-            letterSpacing: mounted && !closing ? '-0.02em' : '-0.1em'
-          }}
-        >
-          HealNari
-        </h1>
-        
-        {/* Tagline */}
-        <p 
-          className="mt-2 text-brand-600 font-bold text-xs uppercase transition-all duration-1000 delay-700 ease-out transform"
-          style={{
-            opacity: mounted && !closing ? 1 : 0,
-            transform: mounted && !closing ? 'translateY(0)' : 'translateY(10px)',
-            letterSpacing: mounted && !closing ? '0.25em' : '0em'
-          }}
-        >
-          Root-Cause Care
-        </p>
+
+        {/* High-Performance Neon Progress Line */}
+        <div className={`w-40 sm:w-48 h-1.5 bg-white/10 rounded-full overflow-hidden mt-7 transition-all duration-700 delay-300 border border-white/10 ${
+          mounted && !closing ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
+        }`}>
+          <div 
+            className="h-full bg-gradient-to-r from-magenta-500 via-indigo-400 to-emerald-400 rounded-full transition-all duration-[1800ms] ease-out shadow-[0_0_12px_rgba(226,62,140,0.8)]"
+            style={{
+              width: mounted ? '100%' : '0%',
+            }}
+          ></div>
+        </div>
+      </div>
+
+      {/* Footer Powered By & Compliance Badges (Like Flipkart/Google Pay) */}
+      <div className={`relative z-10 flex flex-col items-center gap-2 text-center transition-all duration-700 delay-400 safe-area-pb ${
+        mounted && !closing ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+      }`}>
+        <div className="flex items-center gap-3 text-white/50 text-[11px] font-semibold">
+          <span className="flex items-center gap-1"><i className="fas fa-lock text-emerald-400"></i> 256-bit HIPAA Ready</span>
+          <span>•</span>
+          <span className="flex items-center gap-1"><i className="fas fa-user-doctor text-indigo-400"></i> Doctor-Led Care</span>
+        </div>
+        <p className="text-[10px] font-bold text-white/30 tracking-widest uppercase">Version 2.0 • PWA Instant Engine</p>
       </div>
     </div>
   );

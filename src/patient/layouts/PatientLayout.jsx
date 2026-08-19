@@ -11,6 +11,8 @@ import { NavHoverRail } from '../../components/NavHoverRail.jsx';
 import { ModuleAccentBar } from '../../components/ModuleAccentBar.jsx';
 import AiChatWidget from '../../tools/AiChatWidget.jsx';
 
+import { triggerHaptic } from '../../lib/haptics.js';
+
 const DEFAULT_ACCENT = '#6B46C1';
 
 const MENU_ITEMS = [
@@ -26,13 +28,13 @@ const MENU_ITEMS = [
   { name: 'My Profile',         icon: 'fa-circle-user',    path: '/patient-dashboard/profile',       color: '#64748b' },
 ];
 
-// Bottom 5 tabs shown on mobile
+// Bottom 5 ergonomic tabs shown on mobile with elevated Center Consult
 const BOTTOM_TABS = [
   { name: 'Home',         icon: 'fa-house',          path: '/patient-dashboard' },
   { name: 'Appointments', icon: 'fa-calendar-check', path: '/patient-dashboard/appointments' },
-  { name: 'Records',      icon: 'fa-file-medical',   path: '/patient-dashboard/records' },
+  { name: 'Find Doctor',  icon: 'fa-user-doctor',    path: '/patient-dashboard/find-doctor', isFab: true },
   { name: 'Tracking',     icon: 'fa-heart-pulse',    path: '/patient-dashboard/tracking' },
-  { name: 'Profile',      icon: 'fa-circle-user',    path: '/patient-dashboard/profile' },
+  { name: 'Vault',        icon: 'fa-file-medical',   path: '/patient-dashboard/records' },
 ];
 
 /** "2 hours ago" style relative timestamp for a notification's created_at. */
@@ -230,7 +232,7 @@ function PatientLayout() {
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden font-sans" style={{ backgroundColor: 'var(--color-surface-page)' }}>
+    <div className="flex h-screen h-[100dvh] overflow-hidden font-sans" style={{ backgroundColor: 'var(--color-surface-page)' }}>
 
       {/* Mobile Overlay */}
       {mobileSidebarOpen && (
@@ -330,28 +332,45 @@ function PatientLayout() {
         </main>
       </div>
 
-      {/* Mobile Bottom Tab Bar */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur-lg border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] safe-area-pb">
-        <div className="flex items-center justify-around h-16">
+      {/* iOS/Android Styled Floating Frosted-Glass Mobile Bottom Dock */}
+      <nav className="md:hidden fixed bottom-3 inset-x-3 z-50 pointer-events-none safe-area-pb">
+        <div className="mobile-floating-dock pointer-events-auto rounded-3xl border border-white/60 px-2 py-1.5 flex items-center justify-around shadow-[0_12px_35px_rgba(42,22,71,0.18)]">
           {BOTTOM_TABS.map(tab => (
             <NavLink
               key={tab.path}
               to={tab.path}
               end={tab.path === '/patient-dashboard'}
+              onClick={() => triggerHaptic(tab.isFab ? 'medium' : 'light')}
               className={({ isActive }) =>
-                `flex flex-col items-center justify-center gap-1 w-full h-full text-center transition-all ${
-                  isActive ? 'text-aubergine-700' : 'text-slate-400'
-                }`
+                `relative flex flex-col items-center justify-center transition-all duration-200 ${
+                  tab.isFab ? '-mt-5' : 'flex-1 py-1'
+                } ${isActive ? 'text-aubergine-700 font-extrabold' : 'text-slate-500 font-medium'}`
               }
             >
               {({ isActive }) => (
                 <>
-                  <div className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all ${
-                    isActive ? 'bg-aubergine-100' : ''
-                  }`}>
-                    <i className={`fas ${tab.icon} text-base`}></i>
-                  </div>
-                  <span className="text-[10px] font-bold leading-none">{tab.name}</span>
+                  {tab.isFab ? (
+                    <div className="flex flex-col items-center group">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-aubergine-600 via-magenta-600 to-indigo-600 text-white flex items-center justify-center text-lg shadow-lg shadow-magenta-500/30 ring-4 ring-white transition-transform active:scale-90">
+                        <i className={`fas ${tab.icon}`}></i>
+                      </div>
+                      <span className="text-[10px] font-black text-aubergine-700 mt-1 tracking-tight">
+                        {tab.name}
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className={`w-9 h-8 rounded-xl flex items-center justify-center transition-all ${
+                        isActive ? 'bg-aubergine-100/90 text-aubergine-700 scale-105 shadow-2xs' : 'text-slate-500 active:scale-95'
+                      }`}>
+                        <i className={`fas ${tab.icon} text-sm`}></i>
+                      </div>
+                      <span className="text-[10px] tracking-tight leading-none mt-0.5">{tab.name}</span>
+                      {isActive && (
+                        <div className="w-1 h-1 rounded-full bg-aubergine-600 mt-0.5"></div>
+                      )}
+                    </>
+                  )}
                 </>
               )}
             </NavLink>

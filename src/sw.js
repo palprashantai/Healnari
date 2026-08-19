@@ -56,27 +56,57 @@ self.addEventListener('push', (event) => {
   }
 
   const appointmentId = payload.data?.appointmentId;
-  const isIncomingCall = payload.data?.type === 'appointment_called';
+  const notifType = payload.data?.type;
+  const isIncomingCall = notifType === 'appointment_called';
+  const isUrgentLab = notifType === 'urgent_lab_result';
+  const isReminder = notifType === 'medication_reminder' || notifType === 'cycle_reminder';
+
+  // Custom vibration pattern: ring for calls, double-urgent for labs, gentle tap for reminders
+  let vibratePattern = [150];
+  if (isIncomingCall) {
+    vibratePattern = [300, 150, 300, 150, 300];
+  } else if (isUrgentLab) {
+    vibratePattern = [200, 100, 200, 100, 400];
+  } else if (isReminder) {
+    vibratePattern = [80, 50, 80];
+  }
+
+  let actions = [];
+  if (isIncomingCall) {
+    actions = [
+      { action: 'accept', title: '📞 Join Video Call' },
+      { action: 'decline', title: '✕ Decline' },
+    ];
+  } else if (isUrgentLab) {
+    actions = [
+      { action: 'view_report', title: '📋 Review Lab Alert' },
+      { action: 'dismiss', title: 'Acknowledge' },
+    ];
+  } else if (isReminder) {
+    actions = [
+      { action: 'view_report', title: '🌸 Log Now' },
+      { action: 'dismiss', title: 'Remind in 1 hr' },
+    ];
+  }
+
+  const notificationOptions = {
+    body: payload.body || '',
+    // Show caller/doctor avatar or high-res brand icon
+    icon: payload.data?.callerAvatarUrl || '/brand/logo-icon.jpg',
+    badge: '/brand/logo-icon.jpg',
+    // Rich media attachment for clinical or promo push if present
+    image: payload.data?.imageUrl || undefined,
+    tag: appointmentId ? `call-${appointmentId}` : `notif-${payload.data?.id || Date.now()}`,
+    renotify: isIncomingCall || isUrgentLab,
+    requireInteraction: isIncomingCall || isUrgentLab,
+    timestamp: payload.data?.timestamp || Date.now(),
+    vibrate: vibratePattern,
+    actions: actions,
+    data: payload.data || {},
+  };
 
   event.waitUntil(
-    self.registration.showNotification(payload.title || 'HealNari', {
-      body: payload.body || '',
-      // Show the caller's actual photo, like a real phone call, falling
-      // back to the app logo when there isn't one (or it fails to load).
-      icon: payload.data?.callerAvatarUrl || '/brand/logo-icon.jpg',
-      badge: '/brand/logo-icon.jpg',
-      tag: appointmentId ? `call-${appointmentId}` : `notif-${Date.now()}`,
-      requireInteraction: isIncomingCall,
-      // Buzz-buzz-pause, like a phone ring, not a flat single-buzz ping.
-      vibrate: isIncomingCall ? [300, 150, 300, 150, 300] : [150],
-      actions: isIncomingCall
-        ? [
-            { action: 'accept', title: 'Accept' },
-            { action: 'decline', title: 'Decline' },
-          ]
-        : [],
-      data: payload.data || {},
-    }),
+    self.registration.showNotification(payload.title || 'HealNari Care', notificationOptions),
   );
 });
 
@@ -84,13 +114,11 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   const appointmentId = event.notification.data?.appointmentId;
+  const reportId = event.notification.data?.reportId;
+  const calleeRole = event.notification.data?.calleeRole;
+  const targetPath = event.notification.data?.path;
 
   if (event.action === 'decline') {
-    // Must actually tell the backend, not just dismiss the notification —
-    // otherwise the caller's side keeps ringing until it times out on its
-    // own (45s) instead of hanging up immediately, like a real phone call.
-    // No app tab needs to be open for this: the access token is mirrored
-    // into IndexedDB (see lib/tokenStore.js) specifically so this works.
     if (appointmentId) {
       event.waitUntil(
         readTokensFromIndexedDb().then((tokens) => {
@@ -104,15 +132,23 @@ self.addEventListener('notificationclick', (event) => {
     }
     return;
   }
-  // The service worker has no access to app state (no localStorage, no
-  // React context) to know who's logged in, so the backend tags every
-  // call notification with which dashboard the callee belongs on.
-  const calleeRole = event.notification.data?.calleeRole;
-  const url = !appointmentId
-    ? '/'
-    : calleeRole === 'doctor'
+
+  if (event.action === 'dismiss') {
+    return;
+  }
+
+  let url = '/';
+  if (targetPath) {
+    url = targetPath;
+  } else if (appointmentId) {
+    url = calleeRole === 'doctor'
       ? `/doctor-dashboard/telemedicine?startCall=${appointmentId}`
       : `/patient-dashboard/appointments?joinCall=${appointmentId}`;
+  } else if (reportId) {
+    url = calleeRole === 'doctor'
+      ? `/doctor-dashboard/reports?reportId=${reportId}`
+      : `/patient-dashboard/records`;
+  }
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {

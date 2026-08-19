@@ -1,28 +1,29 @@
 import React from 'react';
+import { triggerHaptic } from '../../lib/haptics.js';
 
 function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
   return (
-    <section className="relative pt-8 pb-12 md:pt-10 lg:pt-12 md:pb-20 max-w-6xl mx-auto px-4 sm:px-5 md:px-8">
+    <section className="relative pt-6 pb-10 md:pt-10 lg:pt-12 md:pb-20 max-w-6xl mx-auto px-4 sm:px-5 md:px-8">
       {/* Decorative blurry background highlights */}
       <div className="absolute top-1/4 left-1/10 w-72 h-72 rounded-full bg-indigo-200/40 blur-3xl -z-10"></div>
       <div className="absolute top-1/3 right-1/10 w-80 h-80 rounded-full bg-violet-200/30 blur-3xl -z-10"></div>
 
-      <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center lg:items-stretch">
+      <div className="grid lg:grid-cols-12 gap-6 lg:gap-12 items-center lg:items-stretch">
         {/* Left Column: Copy & Actions */}
-        <div className="lg:col-span-7 space-y-5 sm:space-y-8 text-center lg:text-left animate-slide-up order-2 lg:order-1">
-          {/* Trust Badges */}
-          <div className="flex flex-wrap justify-center lg:justify-start gap-2.5">
-            <span className="inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-lock text-aubergine-500"></i> 100% Private & Confidential
+        <div className="lg:col-span-7 space-y-4 sm:space-y-7 text-center lg:text-left animate-slide-up order-2 lg:order-1">
+          {/* Trust Badges - Horizontal Scroll Snap on Mobile for zero clutter */}
+          <div className="flex overflow-x-auto hide-scrollbar snap-x justify-start lg:justify-start gap-2 py-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
+            <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
+              <i className="fas fa-lock text-aubergine-500"></i> 100% Private
             </span>
-            <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-user-md text-emerald-500"></i> Qualified Specialist Doctors
+            <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
+              <i className="fas fa-user-md text-emerald-500"></i> Specialist Doctors
             </span>
-            <span className="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-microscope text-amber-600"></i> Evidence-Based Medicine
+            <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-amber-50 border border-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
+              <i className="fas fa-microscope text-amber-600"></i> Evidence-Based
             </span>
-            <span className="inline-flex items-center gap-1.5 bg-sky-50 border border-sky-100 text-sky-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-video text-sky-500"></i> Book in 2 Minutes
+            <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-sky-50 border border-sky-100 text-sky-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
+              <i className="fas fa-video text-sky-500"></i> 2-Min Booking
             </span>
           </div>
 
@@ -72,14 +73,20 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
                 <i className="fas fa-calendar-day"></i> Next Slot: Today
               </div>
               <button 
-                onClick={onStartConsult}
+                onClick={() => {
+                  triggerHaptic('medium');
+                  onStartConsult?.();
+                }}
                 className="w-full sm:w-auto relative bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 hover:from-aubergine-700 hover:via-magenta-700 hover:to-indigo-700 text-white font-extrabold px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl shadow-xl shadow-aubergine-200 hover:shadow-2xl hover:shadow-aubergine-300 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 sm:gap-2.5 text-base sm:text-lg group-hover:ring-4 ring-aubergine-100"
               >
                 <i className="fas fa-stethoscope text-sm"></i> Book My ₹799 Consult
               </button>
             </div>
             <button
-              onClick={onOpenChecker}
+              onClick={() => {
+                triggerHaptic('light');
+                onOpenChecker?.();
+              }}
               className="w-full sm:w-auto bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-3 sm:py-3.5 px-6 sm:px-6 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <i className="fas fa-heart-pulse text-rose-500"></i> 2-Min Symptom Check
@@ -104,9 +111,9 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
         </div>
 
         {/* Right Column: Visual Component */}
-        <div className="lg:col-span-5 relative order-1 lg:order-2 mt-4 sm:mt-0">
+        <div className="lg:col-span-5 relative order-1 lg:order-2 mt-2 sm:mt-0">
           {/* Main Visual Frame */}
-          <div className="relative w-56 h-56 sm:w-72 sm:h-72 lg:w-96 lg:h-96 mx-auto lg:ml-auto lg:mr-0 lg:mt-8 lg:sticky lg:top-32">
+          <div className="relative w-44 h-44 sm:w-72 sm:h-72 lg:w-96 lg:h-96 mx-auto lg:ml-auto lg:mr-0 lg:mt-8 lg:sticky lg:top-32">
             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-aubergine-600 via-magenta-400 to-indigo-300 opacity-25 blur-2xl animate-pulse-subtle"></div>
             
             {/* Beautiful Profile Image with Soft Vignette */}
