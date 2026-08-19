@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException, Logger } from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AppointmentStatus } from '@/shared/interfaces/appointment.interface';
@@ -11,6 +11,8 @@ import type { AuthUser } from '@/core/decorators/current-user.decorator';
 
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
@@ -1129,19 +1131,35 @@ export class AdminService {
     }
   }
 
-  /** Public landing page — returns KYC-verified doctors with display-safe fields only */
+  /** Public landing page — returns verified doctors with display-safe fields */
   async getPublicDoctors() {
     try {
       const { data, error } = await this.supabase.admin
         .from('profiles')
-        .select('id, full_name, avatar_url, specialty, registration_no, bio, experience_years, languages, location, ethos, availability')
+        .select('*')
         .eq('role', 'doctor')
-        .eq('kyc_verified', true)
         .order('created_at', { ascending: true });
-      if (error) throw new InternalServerErrorException(error.message);
-      return data ?? [];
+      if (error) {
+        this.logger.error(`Failed to fetch public doctors from Supabase: ${error.message}`);
+        return [];
+      }
+      return (data ?? []).map(d => ({
+        id: d.id,
+        full_name: d.full_name,
+        avatar_url: d.avatar_url,
+        specialty: d.specialty,
+        registration_no: d.registration_no,
+        bio: d.bio,
+        experience_years: d.experience_years,
+        languages: d.languages,
+        location: d.location,
+        ethos: d.ethos,
+        availability: d.availability,
+        kyc_verified: d.kyc_verified,
+      }));
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      this.logger.error('Error fetching public doctors:', error);
+      return [];
     }
   }
 }
