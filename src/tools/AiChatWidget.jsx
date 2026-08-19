@@ -57,6 +57,12 @@ function PulseLine({ color, opacity = 0.32 }) {
 export default function AiChatWidget({ context = 'landing' }) {
   const theme = THEMES[context] || THEMES.landing;
 
+  const [isOpen, setIsOpen] = useState(false);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+  const socketRef = useRef(null);
+
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
