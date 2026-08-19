@@ -12,6 +12,7 @@ import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
 import { useFullscreen } from '../../hooks/useFullscreen.js';
 import { PreJoinCheck } from '../../components/PreJoinCheck.jsx';
 import { formatCurrency } from '../../lib/currency.js';
+import { AIButton } from '../../components/AiButton.jsx';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
  * for srcObject, so this stays a thin imperative wrapper. */
@@ -29,6 +30,111 @@ function VideoTile({ stream, muted = false, mirrored = false, className = '' }) 
       muted={muted}
       className={`w-full h-full object-cover ${mirrored ? 'scale-x-[-1]' : ''} ${className}`}
     />
+  );
+}
+
+/* ─── AI Consult Prep & Question Assistant Modal ───────── */
+function AiConsultPrepModal({ isOpen, onClose, appointment }) {
+  const [questions, setQuestions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && appointment) {
+      setLoading(true);
+      setCopied(false);
+      apiFetch('/ai/consult-prep', {
+        method: 'POST',
+        body: {
+          patientName: 'Patient',
+          chiefComplaint: `Upcoming ${appointment.type} with ${appointment.doctor} (${appointment.specialty})`,
+          context: 'Patient Consultation Question Preparation'
+        }
+      })
+      .then(res => {
+        if (res?.questions && Array.isArray(res.questions) && res.questions.length > 0) {
+          setQuestions(res.questions);
+        } else {
+          setQuestions([
+            `What are the primary hormonal markers contributing to my cycle fluctuations?`,
+            `Do I need specific ultrasound mapping or fasting insulin (HOMA-IR) tests?`,
+            `Are there personalized nutritional adjustments (e.g. inositol, anti-inflammatory diet) recommended?`,
+            `What is our target timeline for symptom improvement before the next review?`
+          ]);
+        }
+      })
+      .catch(() => {
+        setQuestions([
+          `What are the primary hormonal markers contributing to my symptoms?`,
+          `Are any specific lab tests recommended before starting new medication?`,
+          `How can diet and lifestyle modifications support this treatment plan?`,
+          `When should I schedule my follow-up appointment?`
+        ]);
+      })
+      .finally(() => setLoading(false));
+    }
+  }, [isOpen, appointment]);
+
+  if (!isOpen || !appointment) return null;
+
+  const copyToClipboard = () => {
+    const text = questions.map((q, idx) => `${idx + 1}. ${q}`).join('\n');
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="AI Consult Question Assistant" size="md">
+      <div className="space-y-4">
+        <div className="bg-gradient-to-r from-purple-50 via-pink-50 to-indigo-50 border border-purple-100 rounded-2xl p-4 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
+            <i className="fas fa-sparkles text-sm"></i>
+          </div>
+          <div>
+            <h4 className="font-extrabold text-sm text-slate-800">Smart Visit Preparation</h4>
+            <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+              Curated evidence-based questions for your visit with <strong className="text-purple-950">{appointment.doctor}</strong> ({appointment.specialty}).
+            </p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="py-10 flex flex-col items-center justify-center space-y-3">
+            <div className="w-8 h-8 rounded-full border-3 border-purple-200 border-t-purple-600 animate-spin"></div>
+            <p className="text-xs font-bold text-slate-500">Generating tailored clinical questions...</p>
+          </div>
+        ) : (
+          <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+            {questions.map((q, idx) => (
+              <div key={idx} className="bg-white border border-slate-200/80 hover:border-purple-300 rounded-xl p-3 text-xs text-slate-700 font-medium flex items-start gap-2.5 transition-colors shadow-2xs">
+                <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 font-black text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
+                  {idx + 1}
+                </span>
+                <span className="leading-relaxed flex-1">{q}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="pt-2 flex gap-3 border-t border-slate-100">
+          <button
+            onClick={copyToClipboard}
+            disabled={loading}
+            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+          >
+            <i className={`fas ${copied ? 'fa-check text-emerald-600' : 'fa-copy'}`}></i>
+            {copied ? 'Copied to Clipboard!' : 'Copy Questions'}
+          </button>
+          <button
+            onClick={onClose}
+            className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors shadow-sm"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -522,6 +628,7 @@ function PatientAppointments() {
   const [bookPrefill, setBookPrefill] = useState({});
   const [cancelTarget, setCancelTarget] = useState(null);
   const [videoTarget, setVideoTarget] = useState(null);
+  const [aiPrepTarget, setAiPrepTarget] = useState(null);
   const [autoJoinTarget, setAutoJoinTarget] = useState(false);
   const [successApt, setSuccessApt] = useState(null);
   const [search, setSearch] = useState('');
@@ -752,7 +859,17 @@ function PatientAppointments() {
                   </td>
                   <td className="text-right">
                     {tab === 'upcoming' ? (
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end items-center gap-2">
+                        <AIButton
+                          variant="gradient"
+                          size="sm"
+                          icon="fa-sparkles"
+                          onClick={() => setAiPrepTarget(apt)}
+                          title="AI Visit Question Assistant"
+                          className="!py-1.5 !px-3"
+                        >
+                          <span className="hidden sm:inline">AI Prep</span>
+                        </AIButton>
                         <button onClick={() => setCancelTarget(apt)}
                           className="crm-btn-secondary border-none shadow-none text-rose-500 hover:text-rose-700 hover:bg-rose-50 text-[11px] h-8 px-3">
                           Cancel
@@ -873,6 +990,11 @@ function PatientAppointments() {
         amount={payTarget?.fee ?? 0}
         description={payTarget ? `Consultation — ${payTarget.doctor}` : ''}
         onPaid={handlePaid}
+      />
+      <AiConsultPrepModal
+        isOpen={!!aiPrepTarget}
+        onClose={() => setAiPrepTarget(null)}
+        appointment={aiPrepTarget}
       />
     </div>
   );

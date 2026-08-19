@@ -153,22 +153,40 @@
 
   .crm-table-container {
     @apply w-full overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm;
+    -webkit-overflow-scrolling: touch;
   }
 
   .crm-table {
-    @apply w-full text-left border-collapse;
+    @apply w-full text-left border-collapse min-w-[600px] sm:min-w-full;
   }
 
   .crm-table th {
-    @apply h-10 px-4 bg-slate-50 text-[12px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 whitespace-nowrap;
+    @apply h-10 px-3 sm:px-4 bg-slate-50 text-[11px] sm:text-[12px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 whitespace-nowrap;
   }
 
   .crm-table td {
-    @apply h-11 px-4 py-2 border-b border-slate-100 text-[14px] text-slate-700 whitespace-nowrap bg-white;
+    @apply h-11 px-3 sm:px-4 py-2 border-b border-slate-100 text-[13px] sm:text-[14px] text-slate-700 whitespace-nowrap bg-white;
   }
   
   .crm-table tbody tr:hover td {
     @apply bg-slate-50/70;
+  }
+
+  /* Responsive Mobile Form Controls (Prevents iOS Safari 16px zoom bug) */
+  input, select, textarea {
+    font-size: 16px;
+  }
+  @media (min-width: 640px) {
+    input, select, textarea {
+      font-size: 14px;
+    }
+  }
+
+  /* Mobile Responsive Card Grids */
+  .responsive-grid-auto {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: 1rem;
   }
 }
 
