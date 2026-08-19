@@ -59,8 +59,8 @@ function NotificationPanel({ isOpen, onClose, notifications, onMarkAll, onMarkOn
 
   if (!isOpen) return null;
   return (
-    <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 animate-fade-in overflow-hidden">
-      <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
+    <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/90 shadow-[0_20px_50px_rgba(42,22,71,0.25)] z-[100] animate-fade-in overflow-hidden">
+      <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white/90">
         <h3 className="font-bold text-slate-800 text-sm">Notifications {unread > 0 && <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ml-1">{unread}</span>}</h3>
         {unread > 0 && <button onClick={onMarkAll} className="text-xs text-aubergine-600 font-bold hover:underline">Mark all read</button>}
       </div>
@@ -297,7 +297,7 @@ function DoctorLayout() {
         <ModuleAccentBar color={hoveredColor || DEFAULT_ACCENT} className="rounded-none" />
         <div ref={chromeRef}>
         {/* Topbar */}
-        <header className="h-16 border-b border-slate-200/60 flex items-center justify-between px-4 md:px-6 shrink-0 bg-white/80 backdrop-blur-md shadow-sm z-20">
+        <header className="h-16 border-b border-slate-200/60 flex items-center justify-between px-4 md:px-6 shrink-0 bg-white/80 backdrop-blur-md shadow-sm z-40 relative">
           <div className="flex items-center gap-3">
             <button onClick={() => setDrawerOpen(true)} className="md:hidden text-slate-500 hover:text-aubergine-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
               <i className="fas fa-bars text-xl"></i>
@@ -360,6 +360,9 @@ function DoctorLayout() {
                   </span>
                 )}
               </button>
+              {notifOpen && (
+                <div className="fixed inset-0 z-[90]" onClick={() => setNotifOpen(false)} />
+              )}
               <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} notifications={notifications} onMarkAll={markAllRead} onMarkOne={markRead} />
             </div>
 
