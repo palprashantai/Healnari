@@ -130,39 +130,43 @@ function SymptomChecker({ onClose, onBook }) {
       severity = 'Moderate to Severe';
     }
 
-    // Real specialty recommendation — not a specific (fabricated) doctor
-    // name. Which specific doctor a patient actually sees is decided at
-    // booking time from HealNari's real, admin-verified roster.
-    let specialtyMatch = 'Gynaecologist';
-    let reasoning = '';
-    let diagnosisSummary = '';
-
-    // Rotterdam Criteria Check
+    // Rotterdam Criteria & Phenotype Assessment
     const hasOligo = answers.cycleRegularity !== 'regular';
     const hasHyperAndro = answers.symptoms.some(s => s.includes('facial hair') || s.includes('acne'));
     const isPCOSProbable = hasOligo && (hasHyperAndro || answers.concern === 'PCOS / PCOD');
+    const metabolicRiskScore = Math.min(100, Math.round((answers.insulinResistance.length / 4) * 60 + (answers.duration === 'long' ? 25 : answers.duration === 'medium' ? 15 : 5) + (answers.symptoms.length * 5)));
+
+    let specialtyMatch = 'Gynaecologist & Reproductive Endocrinologist';
+    let reasoning = '';
+    let diagnosisSummary = '';
+    let recommendedLabTests = [];
 
     if (isPCOSProbable) {
-      diagnosisSummary = 'Your cycle history and physical symptoms align with the Rotterdam criteria for probable PCOS/PCOD.';
+      diagnosisSummary = 'Your cycle irregularity and hyperandrogenic indicators align closely with the Rotterdam International Consensus for PCOS/PCOD Phenotype.';
+      recommendedLabTests = ['Serum AMH (Ovarian Reserve)', 'LH : FSH Ratio', 'Fasting Insulin & HOMA-IR', 'Free & Total Testosterone'];
+    } else if (answers.concern === 'Hair fall & thinning') {
+      specialtyMatch = 'Dermatologist & Trichology Specialist';
+      diagnosisSummary = 'Follicular shedding patterns indicate potential DHT sensitivity, ferritin deficiency, or androgen-receptor upregulation.';
+      recommendedLabTests = ['Serum Ferritin & Iron Studies', 'Total Testosterone & DHEAS', 'Thyroid Profile (TSH, FT4)', 'Vitamin D3 & B12'];
+    } else if (answers.insulinResistance.length >= 2) {
+      specialtyMatch = 'Clinical Endocrinologist & Diabetologist';
+      diagnosisSummary = 'Multiple peripheral insulin resistance markers detected (metabolic score: ' + metabolicRiskScore + '%). High risk of compensatory hyperinsulinemia affecting ovarian function.';
+      recommendedLabTests = ['HbA1c & Fasting Plasma Glucose', 'Fasting Lipid Profile', 'Fasting Serum Insulin', 'Liver Function Panel'];
     } else {
-      diagnosisSummary = 'Your markers indicate general endocrine axis fluctuations or hormonal imbalances.';
+      specialtyMatch = 'Holistic Gynaecologist & Lifestyle Physician';
+      diagnosisSummary = 'Symptoms indicate early neuroendocrine axis dysregulation or luteal phase defect.';
+      recommendedLabTests = ['Complete Thyroid Panel', 'Day 21 Progesterone', 'Serum Cortisol (Morning)'];
     }
 
-    if (answers.concern === 'PCOS / PCOD' || answers.concern === 'Irregular periods') {
-      specialtyMatch = 'Gynaecologist';
-      reasoning = `${diagnosisSummary} You exhibit indicators of a ${severity} hormonal rhythm concern. A clinical Gynaecologist can assist with ultrasound mapping and custom cycle regulation therapy.`;
-    } else if (answers.concern === 'Hair fall & thinning') {
-      specialtyMatch = 'Dermatologist';
-      reasoning = `Your follicular shedding tags point to potential metabolic scalp stress or elevated DHT. A dedicated Dermatologist & Trichologist is recommended to check for systemic androgen excess.`;
-    } else {
-      specialtyMatch = 'Endocrinologist';
-      reasoning = `Persistent fatigue and metabolic indicators (${answers.insulinResistance.length} insulin resistance markers logged) point to endocrine axis stress. Consulting an Endocrinologist is recommended to test your thyroid and insulin profiles.`;
-    }
+    reasoning = `${diagnosisSummary} Based on your ${answers.duration || 'recent'} symptom timeline, early clinical protocol and personalized nutritional titration can prevent long-term metabolic complications.`;
 
     return {
       severity,
       specialtyMatch,
       reasoning,
+      metabolicRiskScore,
+      isPCOSProbable,
+      recommendedLabTests,
       isUrgent: false
     };
   };
@@ -433,18 +437,50 @@ function SymptomChecker({ onClose, onBook }) {
               {/* Assessment details */}
               <div className="space-y-4">
                 <div>
-                  <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Clinical Evaluation</h5>
-                  <p className={`text-sm font-medium mt-1 leading-relaxed ${results.isUrgent ? 'text-red-700 font-bold' : 'text-slate-600'}`}>
+                  <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Clinical Synthesis</h5>
+                  <p className={`text-sm font-medium mt-1 leading-relaxed ${results.isUrgent ? 'text-red-700 font-bold' : 'text-slate-700'}`}>
                     {results.reasoning}
                   </p>
                 </div>
 
+                {!results.isUrgent && results.metabolicRiskScore !== undefined && (
+                  <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl space-y-2">
+                    <div className="flex justify-between items-center text-xs font-bold">
+                      <span className="text-purple-900 flex items-center gap-1.5">
+                        <i className="fas fa-chart-pie text-purple-600"></i> Metabolic & Hormone Stress Index
+                      </span>
+                      <span className="font-mono text-purple-700">{results.metabolicRiskScore}%</span>
+                    </div>
+                    <div className="w-full bg-purple-200/60 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500 h-2 rounded-full transition-all duration-1000"
+                        style={{ width: `${results.metabolicRiskScore}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+
+                {!results.isUrgent && results.recommendedLabTests?.length > 0 && (
+                  <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-2">
+                    <h5 className="text-[11px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <i className="fas fa-vial-virus text-indigo-500"></i> Recommended Diagnostic Roadmap:
+                    </h5>
+                    <div className="flex flex-wrap gap-1.5">
+                      {results.recommendedLabTests.map(test => (
+                        <span key={test} className="bg-white border border-slate-200 text-slate-700 text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-2xs">
+                          {test}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {!results.isUrgent && (
-                  <div className="p-4 bg-slate-50 border border-slate-200/50 rounded-2xl flex items-center gap-3">
-                    <i className="fas fa-user-md text-emerald-500 text-xl flex-shrink-0"></i>
+                  <div className="p-4 bg-emerald-50/70 border border-emerald-100 rounded-2xl flex items-center gap-3">
+                    <i className="fas fa-user-md text-emerald-600 text-xl flex-shrink-0"></i>
                     <div>
-                      <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Recommended Specialist</h5>
-                      <p className="text-slate-700 text-sm font-bold mt-0.5">{results.specialtyMatch}</p>
+                      <h5 className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Matched Medical Department</h5>
+                      <p className="text-slate-800 text-sm font-extrabold mt-0.5">{results.specialtyMatch}</p>
                     </div>
                   </div>
                 )}
