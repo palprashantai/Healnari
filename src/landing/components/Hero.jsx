@@ -2,12 +2,12 @@ import React from 'react';
 
 function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
   return (
-    <section className="relative overflow-hidden pt-8 pb-12 md:pt-10 lg:pt-12 md:pb-20 max-w-6xl mx-auto px-4 sm:px-5 md:px-8">
+    <section className="relative pt-8 pb-12 md:pt-10 lg:pt-12 md:pb-20 max-w-6xl mx-auto px-4 sm:px-5 md:px-8">
       {/* Decorative blurry background highlights */}
       <div className="absolute top-1/4 left-1/10 w-72 h-72 rounded-full bg-indigo-200/40 blur-3xl -z-10"></div>
       <div className="absolute top-1/3 right-1/10 w-80 h-80 rounded-full bg-violet-200/30 blur-3xl -z-10"></div>
 
-      <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+      <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center lg:items-stretch">
         {/* Left Column: Copy & Actions */}
         <div className="lg:col-span-7 space-y-5 sm:space-y-8 text-center lg:text-left animate-slide-up order-2 lg:order-1">
           {/* Trust Badges */}
@@ -104,9 +104,9 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
         </div>
 
         {/* Right Column: Visual Component */}
-        <div className="lg:col-span-5 relative flex justify-center lg:justify-end order-1 lg:order-2 mt-4 sm:mt-0">
+        <div className="lg:col-span-5 relative order-1 lg:order-2 mt-4 sm:mt-0">
           {/* Main Visual Frame */}
-          <div className="relative w-56 h-56 sm:w-72 sm:h-72 lg:w-96 lg:h-96">
+          <div className="relative w-56 h-56 sm:w-72 sm:h-72 lg:w-96 lg:h-96 mx-auto lg:ml-auto lg:mr-0 lg:mt-8 lg:sticky lg:top-32">
             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-aubergine-600 via-magenta-400 to-indigo-300 opacity-25 blur-2xl animate-pulse-subtle"></div>
             
             {/* Beautiful Profile Image with Soft Vignette */}
