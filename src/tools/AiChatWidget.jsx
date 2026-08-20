@@ -142,9 +142,24 @@ export default function AiChatWidget({ context = 'landing' }) {
     sendQuery(input);
   };
 
+  const [isScrolled, setIsScrolled] = useState(false);
+  const isDashboardRoute = typeof window !== 'undefined' && window.location.pathname.includes('-dashboard');
+
+  useEffect(() => {
+    if (!isDashboardRoute) {
+      const handleScroll = () => setIsScrolled(window.scrollY > 400);
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      return () => window.removeEventListener('scroll', handleScroll);
+    }
+  }, [isDashboardRoute]);
+
+  const bottomClass = isDashboardRoute
+    ? 'bottom-28 md:bottom-8'
+    : (isScrolled ? 'bottom-28 md:bottom-8' : 'bottom-6 md:bottom-8');
+
   return (
     <div
-      className="fixed bottom-32 md:bottom-6 right-4 md:right-6 z-[60] flex flex-col items-end pointer-events-none"
+      className={`fixed ${bottomClass} right-4 md:right-6 z-[60] flex flex-col items-end pointer-events-none transition-all duration-300`}
       style={{
         '--primary': theme.primary,
         '--primary-deep': theme.primaryDeep,

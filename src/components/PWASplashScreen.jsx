@@ -23,17 +23,17 @@ export default function PWASplashScreen() {
       // Trigger entrance choreography
       const mountTimer = setTimeout(() => {
         setMounted(true);
-      }, 40);
+      }, 20);
 
       // Trigger closing animation
       const closingTimer = setTimeout(() => {
         setClosing(true);
-      }, 2000);
+      }, 600);
 
       // Remove component completely
       const hideTimer = setTimeout(() => {
         setShowSplash(false);
-      }, 2450);
+      }, 950);
       
       return () => {
         clearTimeout(mountTimer);

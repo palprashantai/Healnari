@@ -50,7 +50,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
                   <p className="text-slate-600 text-[15px] sm:text-base md:text-lg font-normal leading-relaxed">
                     Whether you're managing <strong>PCOS, PCOD, thyroid imbalances, or irregular periods</strong>, our specialist doctors, clinical dietitians, and yoga experts collaborate to build a protocol unique to your body. We combine evidence-based medicine with sustainable nutrition and lifestyle changes.
                   </p>
-                  <p className="text-slate-700 text-[15px] sm:text-base md:text-lg font-medium leading-relaxed pt-2 pb-4 sm:pb-0 pr-10 sm:pr-0">
+                  <p className="text-slate-700 text-[15px] sm:text-base md:text-lg font-medium leading-relaxed pt-2 pb-4 sm:pb-0">
                     <span className="text-aubergine-700 font-bold">What's included:</span> 45-minute video consult • Custom diet & yoga plan • Lab-test roadmap • Digital prescription • 14-day free chat follow-up.
                   </p>
                 </>
