@@ -25,6 +25,10 @@ function DoctorLandingPage() {
 
   // Dynamic SEO, OpenGraph & Structured Data Schema Injection
   useEffect(() => {
+    import('../../lib/analytics.js').then(({ trackEvent, AnalyticsEvents }) => {
+      trackEvent(AnalyticsEvents.DOCTOR_LANDING_VIEWED, { funnel: 'provider' });
+    });
+
     const originalTitle = document.title;
     const docTitle = "Telemedicine Platform for Gynaecologists | EMR Software | HealNari";
     const docDesc = "Expand your women's health practice with zero clinic overhead. Join HealNari's verified network of top Gynaecologists & Endocrinologists. AI-assisted EMR, tokenized queues, and 90% net weekly payouts.";
@@ -46,6 +50,7 @@ function DoctorLandingPage() {
     const prevOgTitle = updateMeta('meta[property="og:title"]', docTitle);
     const prevOgDesc = updateMeta('meta[property="og:description"]', docDesc);
     const prevOgUrl = updateMeta('meta[property="og:url"]', docUrl);
+    const prevCanonical = updateMeta('link[rel="canonical"]', docUrl, 'href');
     const prevTwTitle = updateMeta('meta[name="twitter:title"]', docTitle);
     const prevTwDesc = updateMeta('meta[name="twitter:description"]', docDesc);
 
@@ -106,6 +111,7 @@ function DoctorLandingPage() {
       if (prevOgTitle.el && prevOgTitle.original) prevOgTitle.el.setAttribute('content', prevOgTitle.original);
       if (prevOgDesc.el && prevOgDesc.original) prevOgDesc.el.setAttribute('content', prevOgDesc.original);
       if (prevOgUrl.el && prevOgUrl.original) prevOgUrl.el.setAttribute('content', prevOgUrl.original);
+      if (prevCanonical.el && prevCanonical.original) prevCanonical.el.setAttribute('href', prevCanonical.original);
       if (prevTwTitle.el && prevTwTitle.original) prevTwTitle.el.setAttribute('content', prevTwTitle.original);
       if (prevTwDesc.el && prevTwDesc.original) prevTwDesc.el.setAttribute('content', prevTwDesc.original);
       window.removeEventListener('scroll', handleScroll);
@@ -329,7 +335,7 @@ function DoctorLandingPage() {
             </div>
             <button
               onClick={() => setIsApplyOpen(true)}
-              className="bg-gradient-to-r from-emerald-400 to-teal-300 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-md hover:scale-105 transition-transform shrink-0 flex items-center gap-1.5"
+              className="bg-gradient-to-r from-aubergine-600 to-magenta-600 text-white font-black text-xs px-4 py-2.5 rounded-xl shadow-md hover:scale-105 transition-transform shrink-0 flex items-center gap-1.5"
             >
               <i className="fas fa-stethoscope"></i> Apply Now
             </button>

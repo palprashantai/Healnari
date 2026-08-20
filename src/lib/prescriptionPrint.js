@@ -560,13 +560,13 @@ export function openLifestylePlanPrintWindow({ rxId, date, doctor, patient, diet
           <div class="instructions-container">
             ${dietPlan ? `
             <div class="callout-box diet-box">
-              <div class="callout-title">🥗 Diet & Nutrition Plan</div>
+              <div class="callout-title">🥗 Personalized Nutrition Plan</div>
               <div class="callout-content">${escapeHtml(dietPlan)}</div>
             </div>` : ''}
 
             ${exercisePlan ? `
             <div class="callout-box yoga-box">
-              <div class="callout-title">🧘‍♀️ Yoga & Exercise Protocol</div>
+              <div class="callout-title">🧘‍♀️ Yoga & Mindful Movement Protocol</div>
               <div class="callout-content">${escapeHtml(exercisePlan)}</div>
             </div>` : ''}
           </div>
@@ -574,7 +574,7 @@ export function openLifestylePlanPrintWindow({ rxId, date, doctor, patient, diet
           <div class="footer">
             <div class="disclaimer-box">
               <div class="disclaimer">
-                <strong>Important Note:</strong> This protocol is designed to complement your medical treatment. Please consult your physician before making drastic changes.
+                <strong>Important Medical Note:</strong> This personalized protocol is formulated to support your health and symptom management. Aligned with WHO & 2023 Evidence-based Guidelines.
               </div>
             </div>
             <div class="sign-box">

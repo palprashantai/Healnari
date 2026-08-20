@@ -588,13 +588,7 @@ export class AdminService {
         currentMonth: totalRevenue,
         completedConsultations: completedCount || 0,
         revenueBySpecialty,
-        currencyBreakdown: currencyBreakdown.length ? currencyBreakdown : [
-          { currency: 'USD', amount: 4850, count: 167 },
-          { currency: 'GBP', amount: 2400, count: 98 },
-          { currency: 'AED', amount: 8900, count: 81 },
-          { currency: 'EUR', amount: 1680, count: 60 },
-          { currency: 'INR', amount: 148500, count: 186 },
-        ],
+        currencyBreakdown,
       };
     } catch (error) {
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);

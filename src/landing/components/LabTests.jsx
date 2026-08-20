@@ -11,13 +11,14 @@ function LabTests({ onBook }) {
       color: 'indigo',
       urgency: 'Recommended',
       tests: [
-        { name: 'LH & FSH Ratio', desc: 'An elevated LH relative to FSH is a common pattern in PCOS, though it is supportive — not diagnostic — evidence and is interpreted alongside your other results.', importance: 'Critical' },
-        { name: 'Fasting Insulin + HOMA-IR', desc: 'Assesses insulin resistance, a core driver of PCOS symptoms.', importance: 'Critical' },
-        { name: 'Testosterone (Free & Total)', desc: 'Elevated levels explain acne, hair loss, and hirsutism.', importance: 'Critical' },
-        { name: 'AMH (Anti-Müllerian Hormone)', desc: 'Measures ovarian reserve and follicle count.', importance: 'Important' },
-        { name: 'Pelvic Ultrasound', desc: 'Visualizes ovarian cysts and uterine lining.', importance: 'Important' },
-        { name: 'HbA1c + Fasting Glucose', desc: 'Rules out pre-diabetes linked to insulin resistance.', importance: 'Recommended' },
-        { name: 'Vitamin D3 + B12', desc: 'Deficiencies are highly correlative with insulin resistance and PCOS severity.', importance: 'Recommended' },
+        { name: 'Total & Free Testosterone / DHEAS', desc: 'Measures circulating androgens to identify biochemical hyperandrogenism, a primary Rotterdam diagnostic feature.', importance: 'Critical' },
+        { name: 'Fasting Glucose & Fasting Insulin (HOMA-IR)', desc: 'Assesses insulin resistance, which drives hyperandrogenism and metabolic features in up to 80% of PCOS cases.', importance: 'Critical' },
+        { name: 'AMH (Anti-Müllerian Hormone)', desc: 'In the 2023 International Guideline, elevated serum AMH serves as an evidence-based alternative to pelvic ultrasound in adult women to define polycystic ovarian morphology.', importance: 'Important' },
+        { name: 'Pelvic Ultrasound', desc: 'Evaluates ovarian volume (≥10 mL) and follicle number per ovary (FNPO ≥20); used in adults when AMH is not available.', importance: 'Important' },
+        { name: 'LH & FSH (Day 2/3)', desc: 'An elevated early-follicular LH relative to FSH is a frequent supportive neuroendocrine finding, interpreted alongside other hormones.', importance: 'Important' },
+        { name: 'TSH & Serum Prolactin', desc: 'Essential baseline tests to rule out thyroid dysfunction or hyperprolactinemia, which can mimic PCOS cycle irregularity.', importance: 'Critical' },
+        { name: 'HbA1c & Lipid Panel', desc: 'Screening for cardiometabolic health and glucose tolerance as recommended by international guidelines.', importance: 'Recommended' },
+        { name: 'Vitamin D3 & B12', desc: 'Assesses micronutrient status correlated with metabolic and ovulatory health.', importance: 'Recommended' },
       ],
     },
     'Hair Fall': {
@@ -81,11 +82,11 @@ function LabTests({ onBook }) {
   };
 
   const colorMap = {
-    indigo: { icon: 'text-indigo-600 bg-indigo-50', header: 'from-indigo-50', badge: 'bg-indigo-100 text-indigo-700' },
+    indigo: { icon: 'text-aubergine-600 bg-aubergine-50', header: 'from-aubergine-50', badge: 'bg-aubergine-100 text-aubergine-700' },
     emerald: { icon: 'text-emerald-600 bg-emerald-50', header: 'from-emerald-50', badge: 'bg-emerald-100 text-emerald-700' },
-    rose: { icon: 'text-rose-600 bg-rose-50', header: 'from-rose-50', badge: 'bg-rose-100 text-rose-700' },
-    violet: { icon: 'text-violet-600 bg-violet-50', header: 'from-violet-50', badge: 'bg-violet-100 text-violet-700' },
-    sky: { icon: 'text-sky-600 bg-sky-50', header: 'from-sky-50', badge: 'bg-sky-100 text-sky-700' },
+    rose: { icon: 'text-magenta-600 bg-magenta-50', header: 'from-magenta-50', badge: 'bg-magenta-100 text-magenta-700' },
+    violet: { icon: 'text-aubergine-600 bg-aubergine-50', header: 'from-aubergine-50', badge: 'bg-aubergine-100 text-aubergine-700' },
+    sky: { icon: 'text-aubergine-600 bg-aubergine-50', header: 'from-aubergine-50', badge: 'bg-aubergine-100 text-aubergine-700' },
   };
 
   const current = labData[selectedConcern];
@@ -95,7 +96,7 @@ function LabTests({ onBook }) {
     <section id="lab-tests" className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20 scroll-mt-20">
       {/* Title */}
       <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
-        <span className="text-xs font-bold text-sky-600 uppercase tracking-widest bg-sky-50 px-3 py-1 rounded-full">
+        <span className="text-xs font-bold text-aubergine-600 uppercase tracking-widest bg-aubergine-50 px-3 py-1 rounded-full">
           Diagnostic Guide
         </span>
         <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight font-display">

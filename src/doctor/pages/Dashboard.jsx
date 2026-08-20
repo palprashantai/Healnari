@@ -393,7 +393,7 @@ function PriorityInbox({ labs, refillRequests, onReviewLab, onApproveRefill, onR
             {item.kind === 'lab' ? (
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-2.5">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs ${item.urgent ? 'bg-rose-100 text-rose-600' : 'bg-sky-100 text-sky-600'}`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs ${item.urgent ? 'bg-rose-100 text-rose-600' : 'bg-aubergine-100 text-aubergine-700'}`}>
                     <i className="fas fa-flask"></i>
                   </div>
                   <div>
@@ -414,7 +414,7 @@ function PriorityInbox({ labs, refillRequests, onReviewLab, onApproveRefill, onR
             ) : (
               <div>
                 <div className="flex items-start gap-2.5 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-violet-100 text-violet-600 flex items-center justify-center flex-shrink-0 text-xs">
+                  <div className="w-8 h-8 rounded-lg bg-aubergine-100 text-aubergine-700 flex items-center justify-center flex-shrink-0 text-xs">
                     <i className="fas fa-pills"></i>
                   </div>
                   <div>
@@ -523,7 +523,7 @@ function AIInsightStrip({ queue, labs, refillRequests }) {
     if (urgentLabs.length > 0) result.push({ icon: 'fa-triangle-exclamation', color: 'text-rose-500', text: `${urgentLabs.length} urgent lab result${urgentLabs.length > 1 ? 's' : ''} require immediate review.` });
     const highBP = queue.filter(q => q.vital && q.vital.includes('/') && parseInt(q.vital.split('/')[0]) > 140);
     if (highBP.length > 0) result.push({ icon: 'fa-heart-pulse', color: 'text-amber-500', text: `${highBP.length} patient${highBP.length > 1 ? 's' : ''} in today's queue have elevated BP.` });
-    if (refillRequests.length > 0) result.push({ icon: 'fa-pills', color: 'text-violet-500', text: `${refillRequests.length} refill request${refillRequests.length > 1 ? 's' : ''} awaiting approval.` });
+    if (refillRequests.length > 0) result.push({ icon: 'fa-pills', color: 'text-aubergine-500', text: `${refillRequests.length} refill request${refillRequests.length > 1 ? 's' : ''} awaiting approval.` });
     if (result.length === 0) result.push({ icon: 'fa-circle-check', color: 'text-emerald-500', text: "All clear! No critical alerts for today's schedule." });
     return result;
   }, [queue, labs, refillRequests]);

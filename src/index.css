@@ -15,22 +15,36 @@
 }
 
 :root {
-  /* Official HealNari Brand Tokens */
+  /* ── Official HealNari Controlled Design Tokens ── */
   --color-primary:        #6B46C1; /* Royal Purple */
-  --color-magenta:        #E23E8C; /* Fuchsia Pink */
-  --color-lilac:          #A78BFA; /* Soft Lilac */
-  --color-rose:           #F98BD2; /* Rose Tint */
+  --color-primary-hover:  #522F9E; /* Deep Purple Hover */
+  --color-primary-dark:   #2A1647; /* Dark Purple */
+  --color-primary-light:  #EDE7FF; /* Soft Lavender Tint */
+  --color-primary-border: #A78BFA; /* Soft Lilac */
+
+  --color-secondary:      #E23E8C; /* Magenta Pink */
+  --color-secondary-hover:#C22572; /* Dark Magenta */
+  --color-secondary-light:#FFE0F0; /* Soft Pink Tint */
+
+  --color-accent:         #A78BFA; /* Lilac Accent */
+  --color-rose:           #F98BD2; /* Soft Rose */
   --color-surface-tint:   #EDE7FF; /* Pale Background Tint */
-  --color-navy:           #334155; /* Slate Text */
-  --color-dark:           #2A1647; /* Dark Mode Theme */
-  
-  --color-primary-light:  #EDE7FF;
-  --color-primary-dark:   #2A1647;
-  --color-primary-hover:  #522F9E;
-  --color-primary-border: #A78BFA;
-  --color-surface-page:   #F8F6FF;
-  --color-surface-card:   #FFFFFF;
-  --color-surface-border: #EDE7FF;
+
+  --color-text:           #334155; /* Slate Navy Text */
+  --color-text-headings:  #1E293B; /* Slate Dark Headings */
+  --color-text-secondary: #64748B; /* Slate Muted Text */
+  --color-text-muted:     #94A3B8; /* Slate Light */
+
+  --color-surface-page:   #F8F6FF; /* Clean Lavender Tint Page Background */
+  --color-surface-card:   #FFFFFF; /* White Card Surface */
+  --color-surface-border: #EDE7FF; /* Subtle Purple Border */
+  --color-border-subtle:  #E2E8F0; /* Slate Border */
+
+  /* Semantic Status Tokens (Strictly for status, not branding) */
+  --color-status-success: #10B981;
+  --color-status-warning: #F59E0B;
+  --color-status-danger:  #EF4444;
+  --color-status-info:    #6B46C1;
 }
 
 @layer base {
@@ -46,7 +60,7 @@
   body {
     font-family: 'Inter', sans-serif;
     background-color: var(--color-surface-page);
-    color: var(--color-navy);
+    color: var(--color-text);
     font-size: 14px;
     line-height: 1.5;
     letter-spacing: -0.01em;
@@ -94,7 +108,6 @@
     outline-offset: 2px;
     border-radius: 8px;
   }
-
 }
 
 @layer components {
@@ -107,7 +120,7 @@
 
   /* Premium card hover lift */
   .card-premium {
-    @apply transition-all duration-300 ease-out hover:-translate-y-1.5 hover:shadow-card-hover hover:border-[#A78BFA];
+    @apply transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-card-hover hover:border-[#A78BFA];
   }
 
   /* Button press effect */
@@ -122,34 +135,66 @@
     @apply shadow-[0_0_25px_rgba(226,62,140,0.2)];
   }
 
-  /* ─── Enterprise CRM Shared Components ─── */
+  /* ─── Unified Global Button Design System ─── */
   
+  .btn-base, .crm-btn {
+    @apply h-10 px-5 inline-flex items-center justify-center font-bold text-[14px] rounded-xl transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none cursor-pointer;
+  }
+  
+  .btn-primary, .crm-btn-primary {
+    @apply btn-base bg-gradient-to-r from-[#6B46C1] to-[#E23E8C] hover:opacity-90 text-white shadow-md hover:shadow-lg focus-visible:ring-2 focus-visible:ring-[#6B46C1]/50;
+  }
+
+  .btn-brand {
+    @apply btn-base bg-[#6B46C1] hover:bg-[#522F9E] text-white shadow-md hover:shadow-lg focus-visible:ring-2 focus-visible:ring-[#6B46C1]/50;
+  }
+  
+  .btn-secondary, .crm-btn-secondary {
+    @apply btn-base bg-white hover:bg-slate-50 border border-slate-200/80 text-slate-700 shadow-sm hover:shadow hover:border-slate-300;
+  }
+
+  .btn-outline, .crm-btn-outline {
+    @apply btn-base bg-transparent hover:bg-[#EDE7FF]/40 border border-[#6B46C1] text-[#6B46C1] hover:text-[#522F9E];
+  }
+  
+  .btn-danger, .btn-destructive, .crm-btn-danger {
+    @apply btn-base bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 hover:border-rose-300;
+  }
+
+  .btn-ghost {
+    @apply btn-base bg-transparent hover:bg-slate-100 text-slate-600 hover:text-slate-900 border border-transparent;
+  }
+  
+  /* ─── Standard Badge Tokens ─── */
+  .crm-badge, .badge {
+    @apply inline-flex items-center px-2.5 h-6 rounded-lg text-[12px] font-bold tracking-wide;
+  }
+  .badge-brand {
+    @apply badge bg-[#EDE7FF] text-[#6B46C1] border border-[#D6C7FF];
+  }
+  .badge-magenta {
+    @apply badge bg-magenta-50 text-magenta-700 border border-magenta-200;
+  }
+  .badge-success {
+    @apply badge bg-emerald-50 text-emerald-700 border border-emerald-200;
+  }
+  .badge-warning {
+    @apply badge bg-amber-50 text-amber-700 border border-amber-200;
+  }
+  .badge-danger {
+    @apply badge bg-rose-50 text-rose-700 border border-rose-200;
+  }
+  .badge-neutral {
+    @apply badge bg-slate-100 text-slate-700 border border-slate-200;
+  }
+
+  /* ─── Enterprise CRM Shared Form Controls & Cards ─── */
   .crm-card {
-    @apply bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-300 p-6;
+    @apply bg-white/95 backdrop-blur-sm rounded-2xl border border-slate-200/70 shadow-sm hover:shadow-md transition-all duration-300 p-6;
   }
   
   .crm-input {
-    @apply h-10 px-4 w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200/60 rounded-xl text-[16px] sm:text-[14px] text-slate-800 focus:bg-white focus:outline-none focus:border-[#A78BFA] focus:ring-4 focus:ring-[#A78BFA]/20 transition-all placeholder:text-slate-400 shadow-inner;
-  }
-  
-  .crm-btn {
-    @apply h-10 px-5 inline-flex items-center justify-center font-bold text-[14px] rounded-xl transition-all duration-200 active:scale-[0.97];
-  }
-  
-  .crm-btn-primary {
-    @apply crm-btn bg-gradient-to-r from-[#6B46C1] to-[#E23E8C] hover:opacity-90 text-white shadow-md hover:shadow-lg;
-  }
-  
-  .crm-btn-secondary {
-    @apply crm-btn bg-white hover:bg-slate-50 border border-slate-200/80 text-slate-700 shadow-sm hover:shadow border-b-2;
-  }
-  
-  .crm-btn-danger {
-    @apply crm-btn bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 hover:border-rose-300;
-  }
-  
-  .crm-badge {
-    @apply inline-flex items-center px-2.5 h-6 rounded-md text-[12px] font-bold tracking-wide;
+    @apply h-10 px-4 w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200/70 rounded-xl text-[16px] sm:text-[14px] text-slate-800 focus:bg-white focus:outline-none focus:border-[#6B46C1] focus:ring-4 focus:ring-[#6B46C1]/15 transition-all placeholder:text-slate-400 shadow-inner;
   }
 
   .crm-table-container {

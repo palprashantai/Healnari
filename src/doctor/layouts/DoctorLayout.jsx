@@ -530,10 +530,10 @@ function DoctorLayout() {
                 <>
                   {tab.isFab ? (
                     <div className="flex flex-col items-center group">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-aubergine-600 to-magenta-600 text-white flex items-center justify-center text-lg shadow-lg shadow-indigo-500/30 ring-4 ring-white transition-transform active:scale-90">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-aubergine-700 via-aubergine-600 to-magenta-600 text-white flex items-center justify-center text-lg shadow-lg shadow-aubergine-500/30 ring-4 ring-white transition-transform active:scale-90">
                         <i className={`fas ${tab.icon}`}></i>
                       </div>
-                      <span className="text-[10px] font-black text-indigo-700 mt-1 tracking-tight whitespace-nowrap">
+                      <span className="text-[10px] font-black text-aubergine-700 mt-1 tracking-tight whitespace-nowrap">
                         {tab.name}
                       </span>
                     </div>

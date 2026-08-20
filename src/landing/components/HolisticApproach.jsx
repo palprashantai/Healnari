@@ -6,33 +6,33 @@ function HolisticApproach() {
       id: 1,
       icon: "fas fa-leaf",
       color: "emerald",
-      title: "Diet & Nutrition",
-      subtitle: "The #1 Factor",
-      desc: "Food is medicine. We design anti-inflammatory, insulin-balancing meal plans tailored to your hormonal profile — not generic diet charts. Most patients see measurable change within 8 weeks."
+      title: "Personalized Nutrition",
+      subtitle: "Sustainable Nourishment",
+      desc: "There is no single diet that works best for everyone with PCOS. We guide you toward a sustainable eating pattern tailored to your preferences, culture, lifestyle, and health goals."
     },
     {
       id: 2,
       icon: "fas fa-om",
       color: "amber",
-      title: "Yoga & Exercise",
-      subtitle: "Hormone Balancing",
-      desc: "Specific yoga asanas and strength training routines proven to lower cortisol, reduce androgen levels, and naturally restore your menstrual cycle — no gym required."
+      title: "Yoga & Mindful Movement",
+      subtitle: "Sustainable Physical Activity",
+      desc: "Yoga can be part of an active lifestyle and may support movement, flexibility, relaxation, and stress management. Choose physical activities you can perform safely and sustain over time."
     },
     {
       id: 3,
       icon: "fas fa-stethoscope",
       color: "aubergine",
       title: "Medical Guidance",
-      subtitle: "Root-Cause Prescriptions",
-      desc: "Expert gynaecologists and endocrinologists prescribe targeted supplements and medications only when truly necessary. We treat the hormonal root cause, not just the symptoms on the surface."
+      subtitle: "Evidence-Based Care",
+      desc: "Registered gynaecologists and endocrinologists prescribe targeted medications, lab panels, and clinical supplements when indicated, ensuring safe and comprehensive clinical oversight."
     },
     {
       id: 4,
       icon: "fas fa-bed",
       color: "indigo",
       title: "Lifestyle & Sleep",
-      subtitle: "Stress & Recovery",
-      desc: "Chronically elevated cortisol is the hidden driver behind most PCOS flare-ups. We help you build routines for deeper sleep, effective stress management, and genuine hormonal recovery."
+      subtitle: "Stress & Circadian Rhythm",
+      desc: "Chronic stress and circadian disruption directly impact metabolic and ovulatory health. We guide you with structured sleep hygiene and mindfulness practices for long-term hormonal resilience."
     }
   ];
 
@@ -53,13 +53,13 @@ function HolisticApproach() {
 
       <div className="text-center max-w-3xl mx-auto space-y-4 mb-16 animate-slide-up">
         <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider shadow-sm">
-          <i className="fas fa-seedling"></i> More Than Just Medicine
+          <i className="fas fa-seedling"></i> Integrative Women's Health
         </span>
         <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900 font-display">
-          Our <span className="text-emerald-600">Holistic</span> Healing Approach
+          Our <span className="text-emerald-600">Holistic</span> Care Approach
         </h2>
         <p className="text-slate-600 text-lg md:text-xl font-normal leading-relaxed">
-          Pills are only a temporary fix. True recovery from PCOS and hormonal imbalances requires a 360° approach focusing on what you eat, how you move, and how you live.
+          Sustainable management of PCOS and hormonal health requires a 360° collaborative approach — combining specialist medical care with nourishing food, restorative movement, and healthy daily habits.
         </p>
       </div>
 

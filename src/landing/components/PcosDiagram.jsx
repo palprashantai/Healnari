@@ -6,14 +6,14 @@ function PcosDiagram() {
   return (
     <section className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20 scroll-mt-20">
       <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
-        <span className="text-xs font-bold text-rose-600 uppercase tracking-widest bg-rose-50 px-3 py-1 rounded-full border border-rose-100">
-          Medical Education
+        <span className="text-xs font-bold text-aubergine-700 uppercase tracking-widest bg-aubergine-50 px-3.5 py-1 rounded-full border border-aubergine-100">
+          Clinical Education &amp; Diagnostics
         </span>
         <h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight font-display">
-          Understanding PCOS & PCOD
+          Understanding PCOS &amp; Clinical Terminology
         </h2>
-        <p className="text-slate-500 text-sm md:text-base">
-          Polycystic Ovary Syndrome (PCOS) involves hormonal imbalances that can affect ovulation, leading to the formation of multiple small cysts on the ovaries.
+        <p className="text-slate-600 text-sm md:text-base leading-relaxed">
+          PCOS is a recognized medical condition with varied presentations. “PCOD” is a term commonly used in some regions, but terminology and usage can vary. A qualified healthcare professional can evaluate your symptoms to assess the cause.
         </p>
       </div>
 
@@ -190,26 +190,31 @@ function PcosDiagram() {
             
           </div>
           
-          {/* Informational Footer */}
-          <div className="mt-12 pt-8 border-t border-slate-100 flex flex-col md:flex-row gap-6 justify-between items-center bg-white/50 p-6 rounded-2xl">
-            <div className="flex gap-4 items-start">
-              <div className="w-10 h-10 rounded-full bg-brand-50 flex items-center justify-center text-brand-600 flex-shrink-0">
-                <i className="fas fa-stethoscope"></i>
+          {/* Informational Footer & Terminology Clarification */}
+          <div className="mt-12 pt-8 border-t border-slate-100 grid md:grid-cols-2 gap-6 bg-sand-50/60 p-6 sm:p-7 rounded-2xl border border-sand-200/60">
+            <div className="flex gap-3.5 items-start">
+              <div className="w-9 h-9 rounded-xl bg-aubergine-100 flex items-center justify-center text-aubergine-700 flex-shrink-0 text-sm">
+                <i className="fas fa-book-medical"></i>
               </div>
-              <div>
-                <h4 className="font-bold text-slate-800">Did you know?</h4>
-                <p className="text-sm text-slate-500 mt-1 max-w-md">
-                  Not all women with PCOS actually have cysts on their ovaries. Diagnosis requires 2 of 3 criteria: irregular periods, excess androgens, or polycystic ovaries on an ultrasound.
+              <div className="space-y-1">
+                <h4 className="font-bold text-slate-800 text-sm">Terminology &amp; Clinical Nomenclature</h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  PCOS is the standard recognized medical diagnosis globally. While "PCOD" is commonly searched and used regionally, avoid assuming they are separate stages or that one always progresses into the other. Consult a doctor for a structured assessment.
                 </p>
               </div>
             </div>
-            
-            <button 
-              onClick={() => document.getElementById('doctors').scrollIntoView({ behavior: 'smooth' })}
-              className="whitespace-nowrap px-6 py-3 bg-white border border-slate-200 shadow-sm rounded-xl text-brand-700 font-bold hover:border-brand-300 hover:bg-brand-50 transition-all"
-            >
-              Consult an Expert
-            </button>
+
+            <div className="flex gap-3.5 items-start">
+              <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700 flex-shrink-0 text-sm">
+                <i className="fas fa-stethoscope"></i>
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-bold text-slate-800 text-sm">Rotterdam Criteria &amp; Variations</h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Not all women with PCOS have ovarian cysts. Diagnosis requires 2 of 3 criteria: irregular cycles, androgen excess, and/or polycystic ovarian morphology/AMH (in adults). Symptoms vary widely between individuals.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

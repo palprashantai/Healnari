@@ -26,42 +26,26 @@ export class BillingCronService {
   async processAutomatedRefundsForCancelledAppointments() {
     this.logger.log('Starting automated refund processing sweep...');
 
-    // Find cancelled appointments with a payment ID that haven't been refunded yet
-    const { data: cancelledWithPayments, error } = await this.supabase.admin
-      .from('appointments')
-      .select('id, patient_id, payment_id, status, type')
-      .eq('status', 'Cancelled')
-      .not('payment_id', 'is', null)
-      .is('refund_processed_at', null)
+    // Find payments in 'Refund Pending' state or linked to cancelled appointments
+    const { data: pendingPayments, error } = await this.supabase.admin
+      .from('payments')
+      .select('id, patient_id, appointment_id, amount, cf_order_id, status, currency')
+      .in('status', ['Refund Pending'])
       .limit(20);
 
-    if (error || !cancelledWithPayments?.length) {
+    if (error || !pendingPayments?.length) {
       return;
     }
 
-    this.logger.log(`Found ${cancelledWithPayments.length} cancelled consultation(s) requiring refund.`);
+    this.logger.log(`Found ${pendingPayments.length} payment(s) requiring automated refund processing.`);
 
-    for (const apt of cancelledWithPayments) {
+    for (const payment of pendingPayments) {
       try {
-        // Fetch payment details
-        const { data: payment } = await this.supabase.admin
-          .from('payments')
-          .select('id, amount, cf_order_id, status')
-          .eq('id', apt.payment_id)
-          .single();
-
-        if (!payment || payment.status === 'Refunded') {
-          // Mark appointment as refund handled
-          await this.supabase.admin
-            .from('appointments')
-            .update({ refund_processed_at: new Date().toISOString() })
-            .eq('id', apt.id);
-          continue;
-        }
+        const appointmentId = payment.appointment_id;
 
         // Attempt automated Cashfree refund if cf_order_id is present
         if (payment.cf_order_id) {
-          const refundId = `ref_${apt.id.slice(0, 8)}_${Date.now()}`;
+          const refundId = `ref_${payment.id.slice(0, 8)}_${Date.now()}`;
           await this.cashfree
             .createRefund(
               payment.cf_order_id,
@@ -70,33 +54,42 @@ export class BillingCronService {
               'Automated refund for cancelled consultation',
             )
             .catch(err => {
-              this.logger.warn(`Cashfree refund API call note: ${err.message}`);
+              this.logger.warn(`Cashfree refund API call note for payment ${payment.id}: ${err.message}`);
             });
         }
 
         // Update payment and appointment status
-        await Promise.all([
-          this.supabase.admin
-            .from('payments')
-            .update({ status: 'Refunded', updated_at: new Date().toISOString() })
-            .eq('id', payment.id),
-          this.supabase.admin
+        await this.supabase.admin
+          .from('payments')
+          .update({ status: 'Refunded', updated_at: new Date().toISOString() })
+          .eq('id', payment.id);
+
+        if (appointmentId) {
+          await this.supabase.admin
             .from('appointments')
             .update({ refund_processed_at: new Date().toISOString() })
-            .eq('id', apt.id),
-        ]);
+            .eq('id', appointmentId);
+        }
+
+        // Update any associated refund_requests record
+        await this.supabase.admin
+          .from('refund_requests')
+          .update({ status: 'Processed' })
+          .eq('payment_id', payment.id);
 
         // Send patient confirmation alert
-        await this.notifications.create(apt.patient_id, {
+        const currency = payment.currency || 'INR';
+        const formattedAmount = currency === 'INR' ? `₹${payment.amount}` : `${currency} ${payment.amount}`;
+        await this.notifications.create(payment.patient_id, {
           type: 'payment_refund_processed',
           title: 'Refund Processed',
-          message: `Your consultation fee of ₹${payment.amount} has been refunded to your original payment method. Reference: HN-REF-${apt.id.slice(0, 6).toUpperCase()}.`,
-          data: { appointmentId: apt.id, amount: payment.amount },
+          message: `Your consultation fee of ${formattedAmount} has been refunded to your original payment method. Reference: HN-REF-${payment.id.slice(0, 6).toUpperCase()}.`,
+          data: { paymentId: payment.id, appointmentId, amount: payment.amount },
         });
 
-        this.logger.log(`Successfully refunded ₹${payment.amount} for appointment ${apt.id}`);
+        this.logger.log(`Successfully refunded ${formattedAmount} for payment ${payment.id}`);
       } catch (err) {
-        this.logger.error(`Failed to process refund for appointment ${apt.id}: ${err.message}`);
+        this.logger.error(`Failed to process refund for payment ${payment.id}: ${err.message}`);
       }
     }
   }

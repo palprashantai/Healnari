@@ -30,13 +30,13 @@ export const MFG_BODY_AREAS = [
 ];
 
 const VITALS_CONFIG = {
-  bbt: { label: 'Basal Body Temp', icon: 'fa-temperature-half', color: 'bg-rose-50 text-rose-500', unit: '°C' },
-  lh: { label: 'LH Surge (T/C)', icon: 'fa-vial-circle-check', color: 'bg-purple-50 text-purple-500', unit: 'ratio' },
-  weight: { label: 'Body Weight', icon: 'fa-weight-scale', color: 'bg-sky-50 text-sky-500', unit: 'kg' },
-  bp: { label: 'Blood Pressure', icon: 'fa-heart-pulse', color: 'bg-rose-50 text-rose-500', unit: 'mmHg' },
-  sugar: { label: 'Fasting Sugar', icon: 'fa-droplet', color: 'bg-amber-50 text-amber-500', unit: 'mg/dL' },
-  sleep: { label: 'Sleep Duration', icon: 'fa-moon', color: 'bg-indigo-50 text-indigo-500', unit: 'hrs' },
-  hotflashes: { label: 'Hot Flashes', icon: 'fa-fire-flame-curved', color: 'bg-orange-50 text-orange-500', unit: 'episodes' },
+  bbt: { label: 'Basal Body Temp', icon: 'fa-temperature-half', color: 'bg-magenta-50 text-magenta-600', unit: '°C' },
+  lh: { label: 'LH Surge (T/C)', icon: 'fa-vial-circle-check', color: 'bg-aubergine-50 text-aubergine-600', unit: 'ratio' },
+  weight: { label: 'Body Weight', icon: 'fa-weight-scale', color: 'bg-aubergine-50 text-aubergine-700', unit: 'kg' },
+  bp: { label: 'Blood Pressure', icon: 'fa-heart-pulse', color: 'bg-rose-50 text-rose-600', unit: 'mmHg' },
+  sugar: { label: 'Fasting Sugar', icon: 'fa-droplet', color: 'bg-amber-50 text-amber-600', unit: 'mg/dL' },
+  sleep: { label: 'Sleep Duration', icon: 'fa-moon', color: 'bg-aubergine-50 text-aubergine-600', unit: 'hrs' },
+  hotflashes: { label: 'Hot Flashes', icon: 'fa-fire-flame-curved', color: 'bg-rose-50 text-rose-600', unit: 'episodes' },
 };
 
 const todayKey = todayLocalStr;
@@ -427,7 +427,7 @@ function PatientTracking() {
     setAiForecastLoading(true);
     try {
       const { apiFetch } = await import('../../lib/apiClient.js');
-      const data = await apiFetch('/patients/fertility');
+      const data = await apiFetch('/patients/me/fertility-prediction');
       const cycleStats = data?.cycleStats;
       const fertile = data?.fertileWindow;
       const nextPeriod = data?.nextPeriodEstimate;
@@ -672,12 +672,12 @@ function PatientTracking() {
               </div>
             ) : (
               <>
-                <div className="bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-pink-500/10 border border-purple-200 rounded-2xl p-4 flex items-center justify-between">
+                <div className="bg-gradient-to-r from-aubergine-50 to-magenta-50 border border-aubergine-200 rounded-2xl p-4 flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] font-black text-purple-700 uppercase tracking-wider block">Next Menstrual Cycle</span>
-                    <h4 className="text-lg font-black text-purple-900 mt-0.5">{forecastData?.nextPeriod || 'Predicting...'}</h4>
+                    <span className="text-[10px] font-black text-aubergine-700 uppercase tracking-wider block">Next Menstrual Cycle</span>
+                    <h4 className="text-lg font-black text-aubergine-900 mt-0.5">{forecastData?.nextPeriod || 'Predicting...'}</h4>
                   </div>
-                  <span className="bg-purple-100 text-purple-800 font-bold px-3 py-1 rounded-xl text-xs border border-purple-200 text-right">
+                  <span className="bg-aubergine-100 text-aubergine-800 font-bold px-3 py-1 rounded-xl text-xs border border-aubergine-200 text-right">
                     {forecastData?.cycleRegularityScore || 'Analyzing'}
                   </span>
                 </div>

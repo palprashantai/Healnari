@@ -29,7 +29,7 @@ function ReviewModal({ doctor, isOpen, onClose, onAction, loading }) {
       <div className="space-y-6">
         <div className="flex gap-4 items-center bg-slate-50 p-4 rounded-xl border border-slate-200 justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center font-black text-lg">
+            <div className="w-12 h-12 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-black text-lg">
               {(doctor.name || 'D').charAt(0)}
             </div>
             <div>
@@ -43,10 +43,10 @@ function ReviewModal({ doctor, isOpen, onClose, onAction, loading }) {
         </div>
 
         {/* AI Medical License OCR Scanner */}
-        <div className="bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-pink-500/10 border border-purple-200 rounded-2xl p-4 space-y-3">
+        <div className="bg-gradient-to-r from-aubergine-500/10 via-magenta-500/10 to-aubergine-500/10 border border-aubergine-200 rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-xs font-black text-purple-900 uppercase tracking-wider">AI Medical Credential & NMC Verification</h4>
+              <h4 className="text-xs font-black text-aubergine-900 uppercase tracking-wider">AI Medical Credential & NMC Verification</h4>
               <p className="text-xs text-slate-500 mt-0.5">Auto-extracts State Council Registration and qualification validity.</p>
             </div>
             <AIButton

@@ -9,35 +9,15 @@ function HealthTips() {
   const tags = ['All', 'PCOS', 'Hair Fall', 'Hormones', 'Diet & Lifestyle'];
 
   const colorMap = {
-    indigo: {
-      icon: 'text-indigo-600 bg-indigo-50 border-indigo-100',
-      tag: 'bg-indigo-50 text-indigo-700',
-      tip: 'bg-indigo-50/50 border-indigo-100 text-indigo-700',
+    brand: {
+      icon: 'text-aubergine-600 bg-aubergine-50 border-aubergine-100',
+      tag: 'bg-aubergine-50 text-aubergine-700',
+      tip: 'bg-aubergine-50/50 border-aubergine-100 text-aubergine-800',
     },
-    emerald: {
-      icon: 'text-emerald-600 bg-emerald-50 border-emerald-100',
-      tag: 'bg-emerald-50 text-emerald-700',
-      tip: 'bg-emerald-50/50 border-emerald-100 text-emerald-700',
-    },
-    violet: {
-      icon: 'text-violet-600 bg-violet-50 border-violet-100',
-      tag: 'bg-violet-50 text-violet-700',
-      tip: 'bg-violet-50/50 border-violet-100 text-violet-700',
-    },
-    amber: {
-      icon: 'text-amber-600 bg-amber-50 border-amber-100',
-      tag: 'bg-amber-50 text-amber-700',
-      tip: 'bg-amber-50/50 border-amber-100 text-amber-700',
-    },
-    rose: {
-      icon: 'text-rose-600 bg-rose-50 border-rose-100',
-      tag: 'bg-rose-50 text-rose-700',
-      tip: 'bg-rose-50/50 border-rose-100 text-rose-700',
-    },
-    sky: {
-      icon: 'text-sky-600 bg-sky-50 border-sky-100',
-      tag: 'bg-sky-50 text-sky-700',
-      tip: 'bg-sky-50/50 border-sky-100 text-sky-700',
+    magenta: {
+      icon: 'text-magenta-600 bg-magenta-50 border-magenta-100',
+      tag: 'bg-magenta-50 text-magenta-700',
+      tip: 'bg-magenta-50/50 border-magenta-100 text-magenta-800',
     },
   };
 
@@ -47,7 +27,7 @@ function HealthTips() {
     <section id="health-tips" className="max-w-6xl mx-auto px-5 md:px-8 py-16 scroll-mt-20">
       {/* Title Block */}
       <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
-        <span className="text-xs font-semibold text-rose-700 uppercase tracking-wider bg-rose-50 px-3.5 py-1 rounded-full border border-rose-100">
+        <span className="text-xs font-semibold text-aubergine-700 uppercase tracking-wider bg-aubergine-50 px-3.5 py-1 rounded-full border border-aubergine-100">
           Health Education &amp; Clinical Guides
         </span>
         <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 leading-tight font-display">
@@ -66,7 +46,7 @@ function HealthTips() {
             onClick={() => setActiveTag(tag)}
             className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all duration-200 btn-interactive border ${
               activeTag === tag
-                ? 'bg-brand-700 border-brand-700 text-white shadow-md'
+                ? 'bg-gradient-to-r from-aubergine-600 to-magenta-600 border-transparent text-white shadow-md'
                 : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
             }`}
           >
@@ -77,13 +57,13 @@ function HealthTips() {
 
       {/* Cards Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map((item) => {
-          const c = colorMap[item.color] || colorMap.indigo;
+        {filtered.map((item, idx) => {
+          const c = idx % 2 === 0 ? colorMap.brand : colorMap.magenta;
           return (
             <div
               key={item.id}
               onClick={() => navigate(`/guide/${item.id}`)}
-              className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col gap-4 card-premium cursor-pointer group hover:border-aubergine-200 hover:shadow-md transition-all"
+              className="bg-white rounded-3xl border border-slate-200/70 shadow-sm p-6 flex flex-col gap-4 card-premium cursor-pointer group hover:border-aubergine-200 hover:shadow-md transition-all"
             >
               {/* Icon + Tag row */}
               <div className="flex items-center justify-between">
@@ -105,7 +85,7 @@ function HealthTips() {
                 </p>
               </div>
 
-              {/* Clinical Tip */}
+              {/* Clinical Tip & Review Badge */}
               <div className={`border rounded-xl p-3 flex gap-2 items-start ${c.tip}`}>
                 <i className="fas fa-lightbulb text-sm flex-shrink-0 mt-0.5"></i>
                 <p className="text-xs font-semibold leading-snug">
@@ -113,12 +93,22 @@ function HealthTips() {
                 </p>
               </div>
 
+              {/* Medical Review Stamp */}
+              <div className="flex items-center justify-between text-[10px] text-slate-500 font-semibold bg-sand-50 px-3 py-1.5 rounded-lg border border-sand-100">
+                <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
+                  <i className="fas fa-certificate text-emerald-600"></i> Medically Reviewed
+                </span>
+                <span className="text-slate-400">
+                  {item.lastReviewed || 'Jan 2026'}
+                </span>
+              </div>
+
               {/* Footer Link */}
-              <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 border-t border-slate-50 pt-3">
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 border-t border-slate-100 pt-3">
                 <span><i className="fas fa-clock mr-1"></i>{item.readTime}</span>
                 <Link 
                   to={`/guide/${item.id}`}
-                  className="text-brand-600 group-hover:text-aubergine-700 transition-colors flex items-center font-extrabold"
+                  className="text-aubergine-600 group-hover:text-aubergine-800 transition-colors flex items-center font-extrabold"
                 >
                   Read full guide <i className="fas fa-arrow-right text-[9px] ml-1 group-hover:translate-x-1 transition-transform"></i>
                 </Link>

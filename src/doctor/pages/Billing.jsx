@@ -10,7 +10,7 @@ const STATUS_STYLE = {
   settled: 'bg-emerald-50 text-emerald-700 border-emerald-100',
   pending: 'bg-amber-50 text-amber-700 border-amber-100',
   refunded: 'bg-rose-50 text-rose-700 border-rose-100',
-  'refund pending': 'bg-sky-50 text-sky-700 border-sky-100',
+  'refund pending': 'bg-amber-50 text-amber-700 border-amber-100',
 };
 
 const PAYMENT_STATUS_TO_DISPLAY = {
@@ -307,7 +307,7 @@ function DoctorBilling() {
           <div>
             <div className="text-slate-500 text-sm font-semibold mb-1 flex items-center justify-between">
               Total Earnings (YTD)
-              <div className="w-8 h-8 rounded-full bg-sky-50 text-sky-500 flex items-center justify-center group-hover:scale-110 transition-transform"><i className="fas fa-calendar-check text-xs"></i></div>
+              <div className="w-8 h-8 rounded-full bg-aubergine-50 text-aubergine-600 flex items-center justify-center group-hover:scale-110 transition-transform"><i className="fas fa-calendar-check text-xs"></i></div>
             </div>
             <div className="text-2xl font-black text-slate-800 mb-1 tabular-nums tracking-tight">{formatCurrency(summary.totalYtd, userCurrency)}</div>
             <div className="text-slate-500 text-xs font-medium">Since January</div>

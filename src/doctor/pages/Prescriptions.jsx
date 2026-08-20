@@ -28,8 +28,8 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Send ${channel}`} size="sm">
       <div className="space-y-4">
-        <div className="bg-sky-50 border border-sky-200 text-sky-800 rounded-xl p-3 text-sm font-bold flex gap-2">
-          <i className="fas fa-users mt-1 text-sky-500"></i>
+        <div className="bg-aubergine-50 border border-aubergine-200 text-aubergine-800 rounded-xl p-3 text-sm font-bold flex gap-2">
+          <i className="fas fa-users mt-1 text-aubergine-600"></i>
           <p>Sending {channel} to {selectedCount} selected prescription(s).</p>
         </div>
         <div>
@@ -1127,7 +1127,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-xs font-black text-slate-500 uppercase tracking-wide flex items-center gap-2">
-                  <i className="fas fa-microscope text-sky-600"></i> Recommended Lab &amp; Diagnostic Tests ({selectedLabs.length})
+                  <i className="fas fa-microscope text-aubergine-700"></i> Recommended Lab &amp; Diagnostic Tests ({selectedLabs.length})
                 </h2>
                 {selectedLabs.length > 0 && (
                   <button
@@ -1147,7 +1147,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
                     key={cat}
                     type="button"
                     onClick={() => setSelectedLabCat(cat)}
-                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all shrink-0 ${selectedLabCat === cat ? 'bg-sky-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                    className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all shrink-0 ${selectedLabCat === cat ? 'bg-aubergine-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                   >
                     {cat}
                   </button>
@@ -1167,7 +1167,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
                     }}
                     onFocus={() => setIsLabDropdownOpen(true)}
                     placeholder="Search or enter lab test (e.g. AMH, LH:FSH, TVS Scan, Thyroid Profile)..."
-                    className="w-full border border-slate-200 rounded-xl pl-9 pr-8 py-2.5 text-xs bg-white font-semibold focus:outline-none focus:ring-2 focus:ring-sky-300"
+                    className="w-full border border-slate-200 rounded-xl pl-9 pr-8 py-2.5 text-xs bg-white font-semibold focus:outline-none focus:ring-2 focus:ring-aubergine-300"
                   />
                   {labSearchQuery && (
                     <button
@@ -1184,7 +1184,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
                   <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-64 overflow-y-auto custom-scrollbar z-50 p-1.5 space-y-0.5">
                     <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
                       <span>Diagnostic Tests ({filterAndRankCatalog(labCatalog, labSearchQuery).length})</span>
-                      <span className="text-[9px] text-sky-600 font-bold">Prefix &amp; Keyword Match</span>
+                      <span className="text-[9px] text-aubergine-600 font-bold">Prefix &amp; Keyword Match</span>
                     </div>
                     {filterAndRankCatalog(labCatalog.filter(l => selectedLabCat === 'All' || l.category === selectedLabCat), labSearchQuery).slice(0, 30).map((item) => {
                       const isSelected = selectedLabs.includes(item.name);
@@ -1196,14 +1196,14 @@ function WriteRxPage({ onBack, onSave, patients }) {
                             toggleLab(item.name);
                             setIsLabDropdownOpen(false);
                           }}
-                          className={`w-full text-left px-2.5 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-colors group ${isSelected ? 'bg-sky-50 text-sky-900 border border-sky-200' : 'hover:bg-slate-50 text-slate-700'}`}
+                          className={`w-full text-left px-2.5 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-colors group ${isSelected ? 'bg-aubergine-50 text-aubergine-900 border border-aubergine-200' : 'hover:bg-slate-50 text-slate-700'}`}
                         >
                           <span className="flex items-center gap-2 flex-1 min-w-0 pr-2">
                             <span className="text-[10px] shrink-0 font-bold">{item.badge}</span>
                             <span className="truncate">
                               {labSearchQuery && item.name.toLowerCase().startsWith(labSearchQuery.trim().toLowerCase()) ? (
                                 <>
-                                  <span className="text-sky-700 bg-sky-100 px-0.5 rounded font-black">{item.name.slice(0, labSearchQuery.trim().length)}</span>
+                                  <span className="text-aubergine-700 bg-aubergine-100 px-0.5 rounded font-black">{item.name.slice(0, labSearchQuery.trim().length)}</span>
                                   <span>{item.name.slice(labSearchQuery.trim().length)}</span>
                                 </>
                               ) : (
@@ -1217,7 +1217,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
                                 {item.category}
                               </span>
                             )}
-                            <div className={`w-4 h-4 rounded flex items-center justify-center text-[10px] ${isSelected ? 'bg-sky-600 text-white' : 'border border-slate-300 text-transparent'}`}>
+                            <div className={`w-4 h-4 rounded flex items-center justify-center text-[10px] ${isSelected ? 'bg-aubergine-600 text-white' : 'border border-slate-300 text-transparent'}`}>
                               <i className="fas fa-check"></i>
                             </div>
                           </div>
@@ -1234,9 +1234,9 @@ function WriteRxPage({ onBack, onSave, patients }) {
                   {selectedLabs.map(lab => (
                     <span
                       key={lab}
-                      className="inline-flex items-center gap-1.5 bg-sky-50 text-sky-800 border border-sky-200 px-2.5 py-1 rounded-xl text-xs font-bold shadow-xs"
+                      className="inline-flex items-center gap-1.5 bg-aubergine-50 text-aubergine-800 border border-aubergine-200 px-2.5 py-1 rounded-xl text-xs font-bold shadow-xs"
                     >
-                      <i className="fas fa-vial text-[10px] text-sky-600"></i>
+                      <i className="fas fa-vial text-[10px] text-aubergine-600"></i>
                       <span>{lab}</span>
                       <button type="button" onClick={() => toggleLab(lab)} className="hover:text-rose-500 ml-0.5">
                         <i className="fas fa-xmark text-[10px]"></i>
@@ -1317,7 +1317,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
                 {selectedLabs.length > 0 && (
                   <div className="border-t border-slate-100 pt-3 text-xs space-y-1.5">
                     <p className="font-bold text-slate-700 flex items-center gap-1.5">
-                      <i className="fas fa-microscope text-sky-600"></i> Recommended Investigations:
+                      <i className="fas fa-microscope text-aubergine-700"></i> Recommended Investigations:
                     </p>
                     <ul className="list-disc list-inside space-y-0.5 pl-1 text-slate-600 text-[11px]">
                       {selectedLabs.map(lab => (
@@ -1705,8 +1705,8 @@ function DoctorPrescriptions() {
             {showActionsMenu && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
                 <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p></div>
-                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
-                  <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
+                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-aubergine-600 flex items-center gap-3 transition-colors">
+                  <i className="fas fa-envelope text-aubergine-600 w-4"></i> Bulk Email
                 </button>
                 <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-bell text-amber-500 w-4"></i> Push Notification
@@ -1844,7 +1844,7 @@ function DoctorPrescriptions() {
                   return null;
                 })()}
                 <button onClick={() => resendRx(rx)}
-                  className="text-xs font-bold text-sky-600 border border-sky-200 px-4 py-2 rounded-xl hover:bg-sky-50 transition-colors flex items-center gap-1.5">
+                  className="text-xs font-bold text-aubergine-600 border border-aubergine-200 px-4 py-2 rounded-xl hover:bg-aubergine-50 transition-colors flex items-center gap-1.5">
                   <i className="fas fa-paper-plane"></i> Resend to Patient
                 </button>
                 {rx.refillRequested && (

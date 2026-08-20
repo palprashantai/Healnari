@@ -7,28 +7,28 @@ export default {
   theme: {
     extend: {
       colors: {
-        // ── Official HealNari Brand Identity Palette ────────────────────────
+        // ── Official HealNari Controlled Brand Palette ────────────────────────
         healnari: {
           purple:   '#6B46C1', // Primary Royal Purple
-          magenta:  '#E23E8C', // Primary Magenta Pink
+          magenta:  '#E23E8C', // Secondary Magenta Pink
           lilac:    '#A78BFA', // Soft Lilac Accent
-          rose:     '#F98BD2', // Soft Pink Tint
+          rose:     '#F98BD2', // Soft Rose Tint
           softbg:   '#EDE7FF', // Light Background Tint
           navy:     '#334155', // Slate Text / Navy
           dark:     '#2A1647', // Dark Theme Purple
         },
-        // ── Aubergine & Brand aliases (Updated to Official HealNari Colors) ──
+        // ── Aubergine & Brand Unified Scale ─────────────────────────────
         aubergine: {
-          50:  '#F6F3FF',
+          50:  '#F8F6FF',
           100: '#EDE7FF', // Soft Tint
           200: '#D6C7FF',
           300: '#A78BFA', // Soft Lilac
           400: '#8B5CF6',
-          500: '#6B46C1', // Official Primary Purple
-          600: '#6B46C1', // Official Primary Purple
-          700: '#522F9E',
-          800: '#3A1C78',
-          900: '#2A1647', // Deep Dark Purple
+          500: '#6B46C1', // Primary Royal Purple
+          600: '#522F9E', // Primary Hover
+          700: '#3A1C78', // Deep Purple
+          800: '#2A1647', // Dark Purple
+          900: '#1E1035', // Deep Dark Purple
         },
         brand: {
           DEFAULT: '#6B46C1',
@@ -37,53 +37,47 @@ export default {
           dark:    '#2A1647',
           hover:   '#522F9E',
           border:  '#A78BFA',
-          50:  '#F6F3FF',
+          50:  '#F8F6FF',
           100: '#EDE7FF',
           200: '#D6C7FF',
           300: '#A78BFA',
+          400: '#8B5CF6',
           500: '#6B46C1',
-          600: '#6B46C1',
-          700: '#E23E8C', // Accent Pink
-          800: '#3A1C78',
-          900: '#2A1647',
+          600: '#522F9E',
+          700: '#3A1C78',
+          800: '#2A1647',
+          900: '#1E1035',
         },
         magenta: {
           50:  '#FFF0F7',
           100: '#FFE0F0',
           200: '#F98BD2', // Soft Rose
+          300: '#F45BB7',
           400: '#F45BB7',
           500: '#E23E8C', // Official Magenta Pink
-          600: '#C22572',
+          600: '#C22572', // Magenta Hover
           700: '#9E1759',
+          800: '#7A0F43',
+          900: '#58082E',
         },
         surface: {
           page:   '#F8F6FF',
           card:   '#FFFFFF',
           border: '#EDE7FF',
+          muted:  '#F1EDFC',
         },
-        // ── Secondary: Sage Green (used for wellness/positive accents) ────────
-        sage: {
-          50:  '#F0F5F0',
-          100: '#D4E6D4',
-          200: '#A8CCA8',
-          400: '#6BA06B',
-          600: '#5A7A5A',
-          800: '#2E4A2E',
-          900: '#1A2E1A',
+        // ── Semantic Status Colors (strictly for status, not decorative) ────
+        status: {
+          success: '#10B981',
+          'success-bg': '#ECFDF5',
+          warning: '#F59E0B',
+          'warning-bg': '#FFFBEB',
+          danger:  '#EF4444',
+          'danger-bg':  '#FEF2F2',
+          info:    '#6B46C1',
+          'info-bg':    '#EDE7FF',
         },
-        // ── Accent: Warm Sand (used for warm neutral surfaces/borders) ────────
-        sand: {
-          50:  '#FDFBF7',
-          100: '#F5F0E8',
-          200: '#E8DDD0',
-          400: '#C4A882',
-          600: '#8B7355',
-        },
-        clinical: {
-          success: '#5A7A5A',
-          period:  '#D85A30',
-        },
-        // ── Extra slate shades used across the app between the stock steps ────
+        // ── Extra slate shades used across the app ────
         slate: {
           150: '#eef2f6',
           450: '#8091a7',

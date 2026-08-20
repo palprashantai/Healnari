@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { Activity, ArrowUp, ChevronDown, Lock } from 'lucide-react';
 import { getTokens } from '../lib/apiClient.js';
+import { triggerHaptic } from '../lib/haptics.js';
 
 // The vision ChatGateway listens on the API's own origin (no /api suffix, no
 // separate ws proxy) — see vision/src/modules/ai/gateways/chat.gateway.ts.
@@ -17,17 +18,17 @@ const SOCKET_URL = RAW_API_URL ? RAW_API_URL.replace(/\/api\/?$/, '') : 'http://
 
 const THEMES = {
   landing: {
-    primary: '#0E7C7B',
-    primaryDeep: '#0A5C5B',
-    tint: '#E4F4F3',
-    ring: 'rgba(14,124,123,0.28)',
-    label: 'Care Assistant',
+    primary: '#6B46C1',
+    primaryDeep: '#2A1647',
+    tint: '#EDE7FF',
+    ring: 'rgba(107,70,193,0.28)',
+    label: 'HealNari Care Assistant',
   },
   patient: {
-    primary: '#E0604A',
-    primaryDeep: '#C14A36',
-    tint: '#FBEAE6',
-    ring: 'rgba(224,96,74,0.28)',
+    primary: '#6B46C1',
+    primaryDeep: '#2A1647',
+    tint: '#EDE7FF',
+    ring: 'rgba(107,70,193,0.28)',
     label: 'Your Care Companion',
   },
   doctor: {
@@ -52,6 +53,49 @@ function PulseLine({ color, opacity = 0.32 }) {
       </svg>
     </div>
   );
+}
+
+function parseMessageStatus(rawText) {
+  if (!rawText || typeof rawText !== 'string') return { status: null, cleanText: '' };
+
+  if (rawText.includes('[STATUS: GENERAL_WELLNESS]')) {
+    return {
+      status: {
+        type: 'wellness',
+        label: 'General wellness information',
+        color: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+        dot: 'bg-emerald-500',
+        icon: 'fa-leaf',
+      },
+      cleanText: rawText.replace(/\[STATUS:\s*GENERAL_WELLNESS\]/g, '').trim(),
+    };
+  }
+  if (rawText.includes('[STATUS: DISCUSS_WITH_DOCTOR]')) {
+    return {
+      status: {
+        type: 'discuss',
+        label: 'Possible topic to discuss with a doctor',
+        color: 'bg-amber-50 text-amber-800 border-amber-200',
+        dot: 'bg-amber-500',
+        icon: 'fa-user-doctor',
+      },
+      cleanText: rawText.replace(/\[STATUS:\s*DISCUSS_WITH_DOCTOR\]/g, '').trim(),
+    };
+  }
+  if (rawText.includes('[STATUS: MEDICAL_ASSESSMENT_REQUIRED]')) {
+    return {
+      status: {
+        type: 'urgent',
+        label: 'Professional medical assessment recommended',
+        color: 'bg-rose-50 text-rose-800 border-rose-200',
+        dot: 'bg-rose-500',
+        icon: 'fa-triangle-exclamation',
+      },
+      cleanText: rawText.replace(/\[STATUS:\s*MEDICAL_ASSESSMENT_REQUIRED\]/g, '').trim(),
+    };
+  }
+
+  return { status: null, cleanText: rawText };
 }
 
 export default function AiChatWidget({ context = 'landing' }) {
@@ -222,7 +266,7 @@ export default function AiChatWidget({ context = 'landing' }) {
                       HealNari AI
                     </h3>
                     <span className="bg-white/20 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-white/20">
-                      Medical CDSS
+                      Clinical AI Companion
                     </span>
                   </div>
                   <p className="hn-body text-[11px] font-semibold text-white/80 mt-1 flex items-center gap-1.5">
@@ -260,37 +304,49 @@ export default function AiChatWidget({ context = 'landing' }) {
           </div>
 
           {/* Clinical Governance Banner */}
-          <div className="px-4 py-2 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-purple-100 shrink-0 flex items-center gap-2">
+          <div className="px-4 py-2 bg-aubergine-50/80 border-b border-aubergine-100 shrink-0 flex items-center gap-2">
             <i className="fas fa-shield-heart text-aubergine-600 text-xs flex-shrink-0"></i>
             <p className="hn-body text-[10.5px] font-medium text-aubergine-900 leading-snug">
-              256-bit encrypted clinical companion. Powered by evidence-based endocrinology guidelines.
+              Encrypted educational care assistant. Aligned with clinical guidelines. Not a substitute for direct medical diagnosis or emergency care.
             </p>
           </div>
 
           {/* Chat Messages Feed */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-gradient-to-b from-slate-50/50 via-white to-purple-50/30">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
-              >
+          <div className="flex-1 p-4 overflow-y-auto space-y-3.5 bg-gradient-to-b from-slate-50/50 via-white to-aubergine-50/30">
+            {messages.map((msg) => {
+              const { status, cleanText } = msg.role === 'assistant' ? parseMessageStatus(msg.text) : { status: null, cleanText: msg.text };
+              return (
                 <div
-                  className={`max-w-[88%] rounded-2xl p-3.5 text-xs leading-relaxed shadow-xs transition-all ${
-                    msg.role === 'user'
-                      ? 'bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 text-white rounded-br-xs font-medium shadow-md shadow-aubergine-500/10'
-                      : 'bg-white border border-slate-200 text-slate-800 rounded-bl-xs font-normal'
-                  }`}
+                  key={msg.id}
+                  className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
                 >
-                  {msg.role === 'assistant' && (
-                    <div className="flex items-center gap-1.5 mb-1 text-[10px] font-bold text-aubergine-700 uppercase tracking-wider">
-                      <i className="fas fa-stethoscope text-aubergine-500"></i> HealNari Care Intelligence
-                    </div>
-                  )}
-                  <p className="whitespace-pre-line text-inherit leading-relaxed">{msg.text}</p>
+                  <div
+                    className={`max-w-[88%] rounded-2xl p-3.5 text-xs leading-relaxed shadow-xs transition-all ${
+                      msg.role === 'user'
+                        ? 'bg-gradient-to-r from-aubergine-600 to-magenta-600 text-white rounded-br-xs font-medium shadow-md shadow-aubergine-500/10'
+                        : 'bg-white border border-slate-200 text-slate-800 rounded-bl-xs font-normal'
+                    }`}
+                  >
+                    {msg.role === 'assistant' && (
+                      <div className="space-y-1.5 mb-2">
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-aubergine-700 uppercase tracking-wider">
+                          <i className="fas fa-stethoscope text-aubergine-500"></i> HealNari Care Intelligence
+                        </div>
+
+                        {status && (
+                          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${status.color}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${status.dot} animate-pulse`}></span>
+                            <span>{status.label}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <p className="whitespace-pre-line text-inherit leading-relaxed">{cleanText}</p>
+                  </div>
+                  <span className="text-[9px] text-slate-400 mt-1 px-1 font-medium">{msg.timestamp}</span>
                 </div>
-                <span className="text-[9px] text-slate-400 mt-1 px-1 font-medium">{msg.timestamp}</span>
-              </div>
-            ))}
+              );
+            })}
 
             {isLoading && (
               <div className="flex flex-col items-start animate-fade-in">

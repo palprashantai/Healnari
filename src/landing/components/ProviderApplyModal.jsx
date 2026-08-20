@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { COUNTRIES, COUNTRY_DIAL_CODES, getCountryByCode, detectUserCountry } from '../../lib/countries.js';
 import { formatCurrency } from '../../lib/currency.js';
+import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
 
 function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
   const [step, setStep] = useState(1);
@@ -29,6 +30,12 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
   const [submitting, setSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const toast = useToast();
+
+  useEffect(() => {
+    if (isOpen) {
+      trackEvent(AnalyticsEvents.PROVIDER_APPLY_OPENED, { country: initialCountryCode });
+    }
+  }, [isOpen, initialCountryCode]);
 
   if (!isOpen) return null;
 
@@ -63,6 +70,11 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
 
   const handleNext = (e) => {
     e.preventDefault();
+    trackEvent(AnalyticsEvents.PROVIDER_APPLY_STEP_COMPLETED, {
+      step,
+      specialty: formData.specialty,
+      country: formData.countryCode,
+    });
     if (step < 3) {
       setStep(s => s + 1);
     } else {
@@ -75,6 +87,11 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
     setTimeout(() => {
       setSubmitting(false);
       setIsSuccess(true);
+      trackEvent(AnalyticsEvents.PROVIDER_APPLY_SUCCESS, {
+        specialty: formData.specialty,
+        country: formData.countryCode,
+        experienceYears: formData.experienceYears,
+      });
       toast.success("Application submitted successfully! Our credentialing team will review your details within 24 hours.", {
         icon: "fa-shield-halved",
         duration: 6000

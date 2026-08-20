@@ -17,6 +17,7 @@ export interface Profile {
   kyc_submitted_at: Date | null;
   created_at: Date;
   consultation_fee: number;
+  currency?: string | null;
   updated_at: Date;
   email_notifications: boolean;
   sms_notifications: boolean;

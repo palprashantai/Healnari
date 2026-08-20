@@ -41,17 +41,17 @@ function AiDrugSafetyModal({ rx, onClose }) {
   return (
     <Modal isOpen={!!rx} onClose={onClose} title="AI Medication & Food Safety Guide" size="lg">
       <div className="space-y-4 text-sm">
-        <div className="bg-gradient-to-br from-purple-900 to-indigo-900 text-white rounded-2xl p-5 shadow-sm">
+        <div className="bg-gradient-to-br from-aubergine-900 to-aubergine-800 text-white rounded-2xl p-5 shadow-sm">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-lg">
               <i className="fas fa-shield-virus"></i>
             </div>
             <div>
               <h3 className="font-black text-base">Clinical Safety Shield</h3>
-              <p className="text-purple-200 text-xs">AI analysis for: {rx.diagnosis}</p>
+              <p className="text-aubergine-200 text-xs">AI analysis for: {rx.diagnosis}</p>
             </div>
           </div>
-          <p className="text-xs text-purple-100 mt-2 font-medium leading-relaxed">
+          <p className="text-xs text-aubergine-100 mt-2 font-medium leading-relaxed">
             Medications: {rx.medicines.map(m => m.name).join(', ')}
           </p>
         </div>
@@ -88,9 +88,9 @@ function AiDrugSafetyModal({ rx, onClose }) {
             )}
 
             {safetyData.missedDoseAdvice && (
-              <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 text-xs text-sky-900">
-                <h4 className="font-bold text-sky-950 mb-1 flex items-center gap-2">
-                  <i className="fas fa-clock text-sky-600"></i> If you miss a dose
+              <div className="bg-aubergine-50/70 border border-aubergine-200 rounded-2xl p-4 text-xs text-aubergine-900">
+                <h4 className="font-bold text-aubergine-950 mb-1 flex items-center gap-2">
+                  <i className="fas fa-clock text-aubergine-600"></i> If you miss a dose
                 </h4>
                 <p className="leading-relaxed">{safetyData.missedDoseAdvice}</p>
               </div>
@@ -220,8 +220,8 @@ function PrescriptionModal({ rx, labRequests, onClose }) {
           return (
             <div>
               <h4 className="font-bold text-slate-700 text-sm mb-2 mt-4">Suggested Lab Tests</h4>
-              <div className="bg-sky-50 border border-sky-100 rounded-xl p-4 text-xs">
-                <ul className="list-disc pl-4 space-y-1 text-sky-900 font-medium">
+              <div className="bg-aubergine-50/70 border border-aubergine-100 rounded-xl p-4 text-xs">
+                <ul className="list-disc pl-4 space-y-1 text-aubergine-900 font-medium">
                   {matchingLabTests.map((req, i) => (
                     <li key={i}>{req.requested_tests}</li>
                   ))}
@@ -458,7 +458,7 @@ function PatientPrescriptions() {
                             <DoseSchedule schedule={m.schedule} />
                             <div className="text-xs text-slate-500 mt-1">{m.duration}</div>
                           </div>
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${m.refills > 0 ? 'bg-sky-50 text-sky-600 border border-sky-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${m.refills > 0 ? 'bg-aubergine-50 text-aubergine-700 border border-aubergine-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
                             {m.refills > 0 ? `${m.refills}×` : 'None left'}
                           </span>
                         </div>
@@ -479,20 +479,20 @@ function PatientPrescriptions() {
                               </div>
 
                               {parsed.dietPlan && (
-                                <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100 p-4">
+                                <div className="rounded-2xl bg-emerald-50/70 border border-emerald-100 p-4">
                                   <div className="flex items-center gap-2 mb-2">
                                     <span className="text-xl">🥗</span>
-                                    <span className="text-xs font-black text-emerald-800 uppercase tracking-wider">Diet & Nutrition Plan</span>
+                                    <span className="text-xs font-black text-emerald-800 uppercase tracking-wider">Personalized Nutrition Plan</span>
                                   </div>
                                   <p className="text-sm text-emerald-900 leading-relaxed whitespace-pre-wrap font-medium">{parsed.dietPlan}</p>
                                 </div>
                               )}
 
                               {parsed.exercisePlan && (
-                                <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 p-4">
+                                <div className="rounded-2xl bg-amber-50/70 border border-amber-100 p-4">
                                   <div className="flex items-center gap-2 mb-2">
                                     <span className="text-xl">🧘‍♀️</span>
-                                    <span className="text-xs font-black text-amber-800 uppercase tracking-wider">Yoga & Exercise Protocol</span>
+                                    <span className="text-xs font-black text-amber-800 uppercase tracking-wider">Yoga &amp; Mindful Movement Protocol</span>
                                   </div>
                                   <p className="text-sm text-amber-900 leading-relaxed whitespace-pre-wrap font-medium">{parsed.exercisePlan}</p>
                                 </div>
@@ -500,7 +500,7 @@ function PatientPrescriptions() {
 
                               <button
                                 onClick={() => handleDownloadLifestyle(rx)}
-                                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold py-3 px-5 rounded-xl text-sm transition-all shadow-md shadow-emerald-500/20 hover:shadow-lg hover:-translate-y-0.5"
+                                className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:opacity-95 text-white font-bold py-3 px-5 rounded-xl text-sm transition-all shadow-md shadow-aubergine-500/20"
                               >
                                 <i className="fas fa-download"></i> Download Lifestyle Plan PDF
                               </button>
@@ -551,7 +551,7 @@ function PatientPrescriptions() {
                         return null;
                       })()}
                       <button onClick={handleShare}
-                        className="bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold px-4 py-2 rounded-xl text-sm shadow-sm transition-colors border border-sky-200 flex items-center gap-1.5">
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-sm shadow-sm transition-colors border border-slate-200 flex items-center gap-1.5">
                         <i className="fas fa-share-nodes"></i> Share
                       </button>
                       {canRefill && rx.refillRequested && (
@@ -592,7 +592,7 @@ function PatientPrescriptions() {
 
         {/* Sidebar — real dosing schedule + adherence */}
         <div className="space-y-4">
-          <div className="bg-gradient-to-br from-aubergine-900 to-indigo-900 rounded-2xl shadow-sm border border-aubergine-800 p-6 text-white">
+          <div className="bg-gradient-to-br from-aubergine-900 to-aubergine-800 rounded-2xl shadow-sm border border-aubergine-800 p-6 text-white">
             <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center text-xl mb-4">
               <i className="fas fa-clock"></i>
             </div>
@@ -639,11 +639,11 @@ function PatientPrescriptions() {
               <i className="fas fa-spa"></i>
             </div>
             <h3 className="font-bold text-lg mb-1.5">Your Holistic Care</h3>
-            <p className="text-emerald-200 text-xs mb-5 leading-relaxed">Your doctor may have prescribed a Diet Plan and Yoga Protocol alongside your medicines. Check your prescription cards for your personalised lifestyle advice.</p>
+            <p className="text-emerald-200 text-xs mb-5 leading-relaxed">Your doctor may have prescribed Personalized Nutrition Support and a Mindful Movement Protocol alongside your medicines. Check your prescription cards for your individual lifestyle advice.</p>
             <div className="space-y-2">
               {[
-                { icon: '🥗', label: 'Diet & Nutrition', desc: 'Low-GI foods & hydration' },
-                { icon: '🧘‍♀️', label: 'Yoga & Exercise', desc: 'Movement for hormonal health' },
+                { icon: '🥗', label: 'Personalized Nutrition', desc: 'Sustainable, balanced nourishment' },
+                { icon: '🧘‍♀️', label: 'Yoga & Mindful Movement', desc: 'Sustainable physical activity' },
                 { icon: '💊', label: 'Medications', desc: 'Taken on schedule' }
               ].map(pillar => (
                 <div key={pillar.label} className="flex items-center gap-3 bg-white/10 rounded-xl p-2.5 border border-white/10">

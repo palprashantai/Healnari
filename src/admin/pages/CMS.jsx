@@ -137,7 +137,7 @@ function AdminCMS() {
     return 'fa-book-medical';
   };
   const catColor = (cat) => {
-    if (cat === 'Symptom Checker') return 'bg-sky-100 text-sky-600';
+    if (cat === 'Symptom Checker') return 'bg-aubergine-100 text-aubergine-700';
     if (cat === 'Announcement') return 'bg-amber-100 text-amber-600';
     return 'bg-emerald-100 text-emerald-600';
   };

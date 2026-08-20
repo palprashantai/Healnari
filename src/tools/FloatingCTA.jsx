@@ -38,7 +38,7 @@ function FloatingCTA({ onBook }) {
           {/* Call */}
           <a
             href="tel:+919999999999"
-            className="flex items-center gap-2.5 bg-brand-700 hover:bg-brand-800 text-white font-bold text-sm px-4 py-2.5 rounded-2xl shadow-lg shadow-brand-100 transition-all btn-interactive"
+            className="flex items-center gap-2.5 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold text-sm px-4 py-2.5 rounded-2xl shadow-lg shadow-aubergine-500/20 transition-all btn-interactive"
           >
             <i className="fas fa-phone text-sm"></i>
             Call Now
@@ -47,9 +47,9 @@ function FloatingCTA({ onBook }) {
           {/* Book Consultation */}
           <button
             onClick={() => { onBook(''); setIsExpanded(false); }}
-            className="flex items-center gap-2.5 bg-white hover:bg-slate-50 border border-brand-200 text-brand-700 font-bold text-sm px-4 py-2.5 rounded-2xl shadow-lg transition-all btn-interactive"
+            className="flex items-center gap-2.5 bg-white hover:bg-slate-50 border border-aubergine-200 text-aubergine-700 font-bold text-sm px-4 py-2.5 rounded-2xl shadow-lg transition-all btn-interactive"
           >
-            <i className="fas fa-calendar-check text-sm text-brand-600"></i>
+            <i className="fas fa-calendar-check text-sm text-aubergine-600"></i>
             Book Consultation
           </button>
         </div>
@@ -61,7 +61,7 @@ function FloatingCTA({ onBook }) {
         className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white text-xl transition-all duration-300 btn-interactive ${
           isExpanded
             ? 'bg-slate-700 hover:bg-slate-800 rotate-45 shadow-slate-200'
-            : 'bg-gradient-to-tr from-brand-600 to-indigo-500 hover:scale-110 shadow-brand-200 animate-pulse-subtle'
+            : 'bg-gradient-to-tr from-aubergine-600 to-magenta-600 hover:scale-110 shadow-aubergine-500/25 animate-pulse-subtle'
         }`}
         aria-label="Contact options"
       >

@@ -53,8 +53,8 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Send ${channel}`} size="sm">
       <div className="space-y-4">
-        <div className="bg-sky-50 border border-sky-200 text-sky-800 rounded-xl p-3 text-sm font-bold flex gap-2">
-          <i className="fas fa-users mt-1 text-sky-500"></i>
+        <div className="bg-aubergine-50 border border-aubergine-200 text-aubergine-800 rounded-xl p-3 text-sm font-bold flex gap-2">
+          <i className="fas fa-users mt-1 text-aubergine-600"></i>
           <p>Sending {channel} to {selectedCount} selected report(s).</p>
         </div>
         <div>
@@ -146,7 +146,7 @@ function LabReviewModal({ lab, isOpen, onClose, onAction }) {
             <p className="text-sm font-bold text-slate-800">{Array.isArray(lab.tests) ? lab.tests.join(', ') : lab.tests}</p>
           </div>
           <button onClick={openFile} disabled={opening}
-            className="bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2">
+            className="crm-btn-primary disabled:opacity-50 text-xs flex items-center gap-2">
             <i className="fas fa-file-arrow-up"></i> {opening ? 'Opening…' : 'Open Report'}
           </button>
         </div>
@@ -626,8 +626,8 @@ function DoctorReports() {
             {showActionsMenu && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
                 <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p></div>
-                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
-                  <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
+                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-aubergine-600 flex items-center gap-3 transition-colors">
+                  <i className="fas fa-envelope text-aubergine-600 w-4"></i> Bulk Email
                 </button>
                 <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-bell text-amber-500 w-4"></i> Push Notification
@@ -737,7 +737,7 @@ function DoctorReports() {
                   {lab.urgent && <span className="text-[10px] bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded-full border border-rose-200 flex items-center gap-1"><i className="fas fa-circle-exclamation text-[8px]"></i> Urgent</span>}
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-2">
-                  {lab.tests.map(t => <span key={t} className="text-[10px] bg-sky-50 border border-sky-100 text-sky-700 font-bold px-2 py-0.5 rounded-full">{t}</span>)}
+                  {lab.tests.map(t => <span key={t} className="text-[10px] bg-aubergine-50 border border-aubergine-100 text-aubergine-700 font-bold px-2 py-0.5 rounded-full">{t}</span>)}
                 </div>
                 <p className="text-xs text-slate-500">{lab.lab} • Received: {lab.received}</p>
               </div>

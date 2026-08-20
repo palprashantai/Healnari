@@ -257,15 +257,15 @@ function AdminRevenue() {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Payment Gateway Split</span>
-                <i className="fas fa-shield-halved text-indigo-500"></i>
+                <i className="fas fa-shield-halved text-aubergine-500"></i>
               </div>
               <div className="space-y-2 mt-2">
                 <div className="flex justify-between items-center text-xs">
                   <span className="font-bold text-slate-700">Stripe Global (USD/GBP/AED/EUR)</span>
-                  <span className="font-black text-indigo-600">68%</span>
+                  <span className="font-black text-aubergine-600">68%</span>
                 </div>
                 <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="bg-indigo-600 h-full w-[68%] rounded-full"></div>
+                  <div className="bg-aubergine-600 h-full w-[68%] rounded-full"></div>
                 </div>
                 <div className="flex justify-between items-center text-xs pt-1">
                   <span className="font-bold text-slate-700">Cashfree (Multi-Currency + UPI)</span>

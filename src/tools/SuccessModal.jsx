@@ -52,7 +52,7 @@ function SuccessModal({ details, onClose }) {
           <div className="h-px bg-slate-200/60"></div>
           <div className="flex justify-between items-center text-xs font-semibold">
             <span className="text-slate-400 uppercase tracking-wider">Doctor</span>
-            <span className="text-brand-700 font-bold">{details.doctor}</span>
+            <span className="text-aubergine-700 font-bold">{details.doctor}</span>
           </div>
           <div className="h-px bg-slate-200/60"></div>
           <div className="flex justify-between items-center text-xs font-semibold">
@@ -65,14 +65,14 @@ function SuccessModal({ details, onClose }) {
         <div className="space-y-3 pt-2">
           <button
             onClick={onClose}
-            className="w-full bg-brand-700 hover:bg-brand-800 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-100 transition-all btn-interactive"
+            className="w-full bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:opacity-95 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-aubergine-500/20 transition-all btn-interactive"
           >
             Back to Home
           </button>
 
           <div className="flex justify-center gap-4 text-[10px] font-bold text-slate-400">
-            <span><i className="fas fa-envelope text-brand-500 mr-1"></i> Login sent by email</span>
-            <span><i className="fas fa-lock text-brand-500 mr-1"></i> Private & Confidential</span>
+            <span><i className="fas fa-envelope text-aubergine-500 mr-1"></i> Login sent by email</span>
+            <span><i className="fas fa-lock text-aubergine-500 mr-1"></i> Private & Confidential</span>
           </div>
         </div>
 

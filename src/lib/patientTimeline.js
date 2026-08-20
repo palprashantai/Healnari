@@ -12,7 +12,7 @@ export function buildPatientTimeline(patient, appointments) {
       key: `apt-${a.id}`,
       dateRaw: a.date, // already YYYY-MM-DD
       icon: 'fa-calendar-check',
-      color: 'bg-sky-50 text-sky-600 border-sky-100',
+      color: 'bg-aubergine-50 text-aubergine-700 border-aubergine-100',
       title: `${a.type} with Dr. ${a.doctorName}`,
       detail: `${a.status}${a.reason ? ` • ${a.reason}` : ''}`,
     });

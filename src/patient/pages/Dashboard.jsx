@@ -7,14 +7,14 @@ import { Modal } from '../../components/Modal.jsx';
 import { StepIndicator } from '../../components/StepIndicator.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
-import { LIFESTYLE_ITEMS } from '../lifestyleConfig.js';
+import { LIFESTYLE_ITEMS, HEALTH_GOALS, MOVEMENT_CATEGORIES } from '../lifestyleConfig.js';
 import { formatCurrency } from '../../lib/currency.js';
 import { openLifestylePlanPrintWindow } from '../../lib/prescriptionPrint.js';
 
 /* ─── Reference config (not user data) ───────── */
 const CYCLE_PHASES = [
   { id: 'menstrual', label: 'Menstrual', day: 'Day 1–5', color: 'bg-rose-500', text: 'text-rose-600', tip: 'Rest & iron-rich foods. Gentle yoga is helpful.' },
-  { id: 'follicular', label: 'Follicular', day: 'Day 6–13', color: 'bg-sky-500', text: 'text-sky-600', tip: 'Energy rising! Great time for cardio & learning new skills.' },
+  { id: 'follicular', label: 'Follicular', day: 'Day 6–13', color: 'bg-magenta-500', text: 'text-magenta-600', tip: 'Energy rising! Great time for cardio & learning new skills.' },
   { id: 'ovulation', label: 'Ovulation', day: 'Day 14', color: 'bg-amber-500', text: 'text-amber-600', tip: 'Peak fertility. You may feel more social & energised.' },
   { id: 'luteal', label: 'Luteal', day: 'Day 15–28', color: 'bg-aubergine-500', text: 'text-aubergine-600', tip: 'Progesterone rises. Prioritise sleep & limit caffeine.' },
 ];
@@ -22,10 +22,10 @@ const CYCLE_PHASES = [
 const SYMPTOMS = ['Cramps', 'Bloating', 'Headache', 'Fatigue', 'Mood Swings', 'Spotting', 'Nausea', 'Back Pain', 'Breast Tenderness', 'Acne'];
 
 const VITALS_CONFIG = {
-  weight: { label: 'Weight', icon: 'fa-weight-scale', unit: 'kg', color: 'bg-sky-50 text-sky-500' },
+  weight: { label: 'Weight', icon: 'fa-weight-scale', unit: 'kg', color: 'bg-aubergine-50 text-aubergine-700' },
   bp: { label: 'Blood Pressure', icon: 'fa-heart-pulse', unit: 'mmHg', color: 'bg-rose-50 text-rose-500' },
   sugar: { label: 'Sugar', icon: 'fa-droplet', unit: 'mg/dL', color: 'bg-amber-50 text-amber-500' },
-  sleep: { label: 'Sleep', icon: 'fa-moon', unit: 'hrs', color: 'bg-indigo-50 text-indigo-500' },
+  sleep: { label: 'Sleep', icon: 'fa-moon', unit: 'hrs', color: 'bg-aubergine-50 text-aubergine-600' },
 };
 
 const HEALTH_TIPS = [
@@ -353,7 +353,7 @@ function OnboardingModal({ isOpen, onClose, toast }) {
       });
 
       if (form.lastPeriodStart) {
-        await apiFetch('/patients/fertility-prediction/quick-estimate', {
+        await apiFetch('/patients/me/fertility-prediction/quick-estimate', {
           method: 'POST',
           body: JSON.stringify({
             lastPeriodStart: form.lastPeriodStart,
@@ -530,27 +530,27 @@ function HydrationTracker({ waterCount, setWaterCount, toast, discreet }) {
   return (
     <div className={`glass-panel rounded-3xl p-6 relative overflow-hidden group ${discreet ? 'discreet-blur' : ''}`}>
       {/* Animated water background */}
-      <div className="absolute bottom-0 left-0 right-0 bg-sky-100/50 transition-all duration-700 ease-out z-0"
+      <div className="absolute bottom-0 left-0 right-0 bg-aubergine-100/40 transition-all duration-700 ease-out z-0"
         style={{ height: `${pct}%` }}>
-        <div className="absolute -top-3 left-0 right-0 h-3 bg-sky-200/40 rounded-t-[50%] animate-pulse"></div>
+        <div className="absolute -top-3 left-0 right-0 h-3 bg-aubergine-200/40 rounded-t-[50%] animate-pulse"></div>
       </div>
 
       <div className="relative z-10 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <i className="fas fa-droplet text-sky-500"></i>
+            <i className="fas fa-droplet text-aubergine-600"></i>
             <h3 className="font-bold text-slate-800 text-sm">Water Intake</h3>
           </div>
           <p className="text-xs text-slate-500">{waterCount} of {goal} glasses</p>
         </div>
-        <button onClick={handleAdd} className="w-10 h-10 rounded-full bg-white shadow-md text-sky-500 hover:bg-sky-50 flex items-center justify-center text-lg transition-transform active:scale-90">
+        <button onClick={handleAdd} className="w-10 h-10 rounded-full bg-white shadow-md text-aubergine-600 hover:bg-aubergine-50 flex items-center justify-center text-lg transition-transform active:scale-90">
           <i className="fas fa-plus"></i>
         </button>
       </div>
 
       <div className="relative z-10 mt-4 flex gap-1 justify-between">
         {Array.from({ length: goal }).map((_, i) => (
-          <div key={i} className={`h-8 flex-1 rounded-md transition-all duration-300 ${i < waterCount ? 'bg-sky-400' : 'bg-slate-100'}`}></div>
+          <div key={i} className={`h-8 flex-1 rounded-md transition-all duration-300 ${i < waterCount ? 'bg-aubergine-500' : 'bg-slate-100'}`}></div>
         ))}
       </div>
     </div>
@@ -641,7 +641,7 @@ function MoodEnergyLogger({ logCycle, cycleLogs, toast }) {
 
   const MOODS = [
     { id: 'Joyful', icon: '😊', color: 'bg-amber-100 text-amber-700 border-amber-200', msg: "Glad you're feeling great! Keep that positive energy flowing." },
-    { id: 'Calm', icon: '😌', color: 'bg-sky-100 text-sky-700 border-sky-200', msg: "A calm mind is a powerful tool. Enjoy the peace." },
+    { id: 'Calm', icon: '😌', color: 'bg-aubergine-100 text-aubergine-700 border-aubergine-200', msg: "A calm mind is a powerful tool. Enjoy the peace." },
     { id: 'Tired', icon: '🥱', color: 'bg-slate-100 text-slate-700 border-slate-200', msg: "Listen to your body. Rest is productive too." },
     { id: 'Anxious', icon: '😟', color: 'bg-rose-100 text-rose-700 border-rose-200', msg: "Take a deep breath. Hormonal fluctuations can trigger this. Be kind to yourself." },
   ];
@@ -689,7 +689,7 @@ function MoodEnergyLogger({ logCycle, cycleLogs, toast }) {
 /* ─── 5 Life-Stage Modes ─── */
 export const LIFE_MODES = [
   { id: 'cycle', label: 'Cycle & Wellness', icon: 'fa-droplet', color: 'from-rose-500 to-pink-500', desc: 'Menstrual rhythm & phases' },
-  { id: 'pcos', label: 'PCOS & Metabolic', icon: 'fa-sliders', color: 'from-aubergine-600 to-indigo-600', desc: 'Androgen mapping & insulin' },
+  { id: 'pcos', label: 'PCOS & Metabolic', icon: 'fa-sliders', color: 'from-aubergine-600 to-aubergine-800', desc: 'Androgen mapping & insulin' },
   { id: 'ttc', label: 'TTC & Fertility', icon: 'fa-egg', color: 'from-emerald-500 to-teal-600', desc: 'Ovulation peak & BBT shift' },
   { id: 'pregnancy', label: 'Pregnancy Journey', icon: 'fa-baby', color: 'from-amber-500 to-orange-500', desc: 'Fetal growth & milestones' },
   { id: 'menopause', label: 'Perimenopause', icon: 'fa-fire-flame-curved', color: 'from-purple-600 to-rose-500', desc: 'Vasomotor & bone health' },
@@ -791,7 +791,7 @@ function PcosMetabolicCard({ navigate }) {
   const mfg = vitals.mfg_score?.value;
 
   return (
-    <div className="glass-panel rounded-3xl p-6 lg:col-span-2 bg-gradient-to-br from-purple-50/70 via-indigo-50/50 to-white border border-purple-200/80 shadow-md">
+    <div className="glass-panel rounded-3xl p-6 lg:col-span-2 bg-gradient-to-br from-aubergine-50/70 via-purple-50/50 to-white border border-aubergine-200/80 shadow-md">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-2xl bg-aubergine-600 text-white flex items-center justify-center text-xl shadow-md shadow-aubergine-300">
@@ -823,7 +823,7 @@ function PcosMetabolicCard({ navigate }) {
 
         <div className="p-3.5 rounded-2xl bg-white border border-purple-100 shadow-sm">
           <p className="text-[10px] font-bold text-slate-400 uppercase">First-Line Protocol</p>
-          <p className="text-xs font-black text-slate-800 mt-1 text-indigo-700">Myo-Inositol 2g + Low-GI diet</p>
+          <p className="text-xs font-black text-slate-800 mt-1 text-aubergine-700">Myo-Inositol 2g + Low-GI diet</p>
           <span className="text-[10px] text-slate-400 font-bold">Improves ovulatory rate</span>
         </div>
       </div>
@@ -1058,6 +1058,468 @@ function VitalsSnapshot({ vitals, discreet, navigate }) {
   );
 }
 
+/* ─── Health Focus Goals Widget (Evidence-Based, Multi-Goal) ─── */
+function HealthFocusGoalsWidget({ toast, discreet }) {
+  const [selectedGoals, setSelectedGoals] = useState(() => {
+    try {
+      const saved = localStorage.getItem('healnari_active_health_goals');
+      return saved ? JSON.parse(saved) : ['habits', 'cycle', 'energy'];
+    } catch {
+      return ['habits', 'cycle', 'energy'];
+    }
+  });
+
+  const toggleGoal = (id) => {
+    const updated = selectedGoals.includes(id)
+      ? selectedGoals.filter(g => g !== id)
+      : [...selectedGoals, id];
+    setSelectedGoals(updated);
+    try {
+      localStorage.setItem('healnari_active_health_goals', JSON.stringify(updated));
+    } catch {}
+    toast('Health focus goals updated', 'info');
+  };
+
+  return (
+    <div className={`glass-panel rounded-3xl p-6 relative overflow-hidden lg:col-span-2 ${discreet ? 'discreet-blur' : ''}`}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🎯</span>
+            <h3 className="font-bold text-slate-800 text-sm">My Health &amp; Hormone Goals</h3>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Evidence-based priorities tailored to your body.
+          </p>
+        </div>
+        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full shrink-0">
+          {selectedGoals.length} Active {selectedGoals.length === 1 ? 'Goal' : 'Goals'}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4">
+        {HEALTH_GOALS.map((goal) => {
+          const isSelected = selectedGoals.includes(goal.id);
+          return (
+            <button
+              key={goal.id}
+              onClick={() => toggleGoal(goal.id)}
+              className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between gap-1.5 ${
+                isSelected
+                  ? 'bg-aubergine-50/80 border-aubergine-300 shadow-xs ring-1 ring-aubergine-400/40'
+                  : 'bg-slate-50/70 border-slate-200/80 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center justify-between w-full">
+                <span className="text-base">{goal.emoji}</span>
+                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] ${isSelected ? 'bg-aubergine-600 text-white' : 'border border-slate-300'}`}>
+                  {isSelected && <i className="fas fa-check"></i>}
+                </span>
+              </div>
+              <div>
+                <p className={`text-xs font-bold ${isSelected ? 'text-aubergine-900' : 'text-slate-700'}`}>
+                  {goal.label}
+                </p>
+                <p className="text-[10px] text-slate-400 line-clamp-1 mt-0.5">{goal.desc}</p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="bg-sand-50/80 border border-sand-200/80 rounded-2xl p-3.5 flex items-start gap-2.5 text-xs text-slate-600">
+        <i className="fas fa-circle-check text-emerald-600 mt-0.5 flex-shrink-0"></i>
+        <p className="leading-relaxed">
+          <strong className="text-slate-800">Guideline Insight:</strong> Healthy lifestyle changes provide major metabolic, cardiovascular, and ovulatory benefits even when body weight does not change.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ─── My Personalized Nutrition Support Widget ─── */
+function PersonalizedNutritionWidget({ navigate, discreet }) {
+  const [preferences, setPreferences] = useState(() => {
+    try {
+      const saved = localStorage.getItem('healnari_nutrition_prefs');
+      return saved ? JSON.parse(saved) : {
+        diet: 'Vegetarian',
+        cuisine: 'Indian & Mediterranean',
+        prepTime: '15-30 mins',
+        goal: 'Insulin Sensitivity & Satiety'
+      };
+    } catch {
+      return { diet: 'Vegetarian', cuisine: 'Indian & Mediterranean', prepTime: '15-30 mins', goal: 'Insulin Sensitivity & Satiety' };
+    }
+  });
+
+  const [isEditing, setIsEditing] = useState(false);
+
+  const savePreferences = (updated) => {
+    setPreferences(updated);
+    try {
+      localStorage.setItem('healnari_nutrition_prefs', JSON.stringify(updated));
+    } catch {}
+  };
+
+  return (
+    <div className={`glass-panel rounded-3xl p-6 relative overflow-hidden ${discreet ? 'discreet-blur' : ''}`}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🥗</span>
+          <div>
+            <h3 className="font-bold text-slate-800 text-sm">Personalized Nutrition</h3>
+            <p className="text-[11px] text-slate-400">Tailored to your lifestyle &amp; culture</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setIsEditing(!isEditing)}
+          className="text-[10px] font-bold text-aubergine-700 bg-aubergine-50 hover:bg-aubergine-100 px-3 py-1.5 rounded-full transition-colors"
+        >
+          {isEditing ? 'Done' : 'Customize'}
+        </button>
+      </div>
+
+      {isEditing ? (
+        <div className="space-y-3 p-3 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs">
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Diet Preference</label>
+            <select
+              value={preferences.diet}
+              onChange={e => savePreferences({ ...preferences, diet: e.target.value })}
+              className="w-full p-2 rounded-xl border border-slate-200 bg-white"
+            >
+              {['Vegetarian', 'Non-Vegetarian', 'Vegan', 'Eggetarian', 'Pescatarian'].map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Daily Meal Prep Time</label>
+            <select
+              value={preferences.prepTime}
+              onChange={e => savePreferences({ ...preferences, prepTime: e.target.value })}
+              className="w-full p-2 rounded-xl border border-slate-200 bg-white"
+            >
+              {['<15 mins (Quick Meals)', '15-30 mins', '30+ mins (Meal Prep)'].map(t => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Primary Nutrition Goal</label>
+            <select
+              value={preferences.goal}
+              onChange={e => savePreferences({ ...preferences, goal: e.target.value })}
+              className="w-full p-2 rounded-xl border border-slate-200 bg-white"
+            >
+              {['Insulin Sensitivity & Satiety', 'Cycle Regularity Support', 'Gut Microbiome Diversity', 'Sustained All-Day Energy'].map(g => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-2xl">
+              <span className="text-[10px] uppercase font-bold text-emerald-800 block">Diet Pattern</span>
+              <span className="font-bold text-emerald-950">{preferences.diet}</span>
+            </div>
+            <div className="p-3 bg-amber-50/70 border border-amber-100 rounded-2xl">
+              <span className="text-[10px] uppercase font-bold text-amber-800 block">Prep Target</span>
+              <span className="font-bold text-amber-950">{preferences.prepTime}</span>
+            </div>
+          </div>
+
+          <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-2xl">
+            <div className="flex items-center gap-1.5 text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1">
+              <i className="fas fa-bullseye text-aubergine-600"></i> Active Focus:
+            </div>
+            <p className="text-xs text-slate-700 font-semibold">{preferences.goal}</p>
+          </div>
+
+          <p className="text-[10.5px] text-slate-400 italic leading-snug">
+            * Aligned with 2023 Guidelines: No single diet is universally superior for PCOS; sustainable healthy eating tailored to your preferences works best.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── This Week's Movement Goal & Mindful Movement Widget ─── */
+function MindfulMovementWidget({ toast, discreet }) {
+  const [weeklyMinutes, setWeeklyMinutes] = useState(() => {
+    try {
+      const saved = localStorage.getItem('healnari_weekly_movement_mins');
+      return saved ? Number(saved) : 75;
+    } catch {
+      return 75;
+    }
+  });
+
+  const [activeCategory, setActiveCategory] = useState('gentle_yoga');
+
+  const addMinutes = (mins) => {
+    const updated = weeklyMinutes + mins;
+    setWeeklyMinutes(updated);
+    try {
+      localStorage.setItem('healnari_weekly_movement_mins', String(updated));
+    } catch {}
+    toast(`Added +${mins}m to this week's movement goal!`, 'success');
+  };
+
+  const targetMinutes = 150; // WHO & 2023 Guideline moderate weekly target
+  const percent = Math.min(100, Math.round((weeklyMinutes / targetMinutes) * 100));
+
+  return (
+    <div className={`glass-panel rounded-3xl p-6 relative overflow-hidden ${discreet ? 'discreet-blur' : ''}`}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🧘‍♀️</span>
+          <div>
+            <h3 className="font-bold text-slate-800 text-sm">Yoga &amp; Mindful Movement</h3>
+            <p className="text-[11px] text-slate-400">This Week's Movement Goal</p>
+          </div>
+        </div>
+        <span className="text-xs font-mono font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-100">
+          {weeklyMinutes} / {targetMinutes}m
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        {/* Progress Bar */}
+        <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+          <div
+            className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2.5 rounded-full transition-all duration-500"
+            style={{ width: `${percent}%` }}
+          ></div>
+        </div>
+
+        <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold">
+          <span>{percent}% of guideline goal (150m)</span>
+          <span>{Math.max(0, targetMinutes - weeklyMinutes)}m remaining</span>
+        </div>
+
+        {/* Quick Log Movement */}
+        <div className="flex items-center gap-2 pt-1">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Quick Log:</span>
+          <button
+            onClick={() => addMinutes(15)}
+            className="flex-1 py-1.5 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-800 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
+          >
+            +15m
+          </button>
+          <button
+            onClick={() => addMinutes(30)}
+            className="flex-1 py-1.5 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-800 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
+          >
+            +30m
+          </button>
+          <button
+            onClick={() => addMinutes(45)}
+            className="flex-1 py-1.5 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-800 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
+          >
+            +45m
+          </button>
+        </div>
+
+        {/* Category Pills */}
+        <div className="pt-2 border-t border-slate-100">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">6 Movement Pillars:</span>
+          <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+            {MOVEMENT_CATEGORIES.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                className={`p-1.5 rounded-lg border text-center font-bold transition-all truncate ${
+                  activeCategory === cat.id
+                    ? 'bg-aubergine-600 text-white border-aubergine-600 shadow-2xs'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+                title={cat.desc}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-[10px] text-slate-400 italic pt-1 leading-snug">
+          * Walking, gentle yoga, swimming, strength, and household movement all contribute to an active lifestyle.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Well-Being & Emotional Check-in Widget (Psychological Support) ─── */
+function WellbeingCheckinWidget({ toast, discreet }) {
+  const [checkin, setCheckin] = useState(() => {
+    try {
+      const saved = localStorage.getItem('healnari_wellbeing_today');
+      return saved ? JSON.parse(saved) : {
+        stress: 'Moderate',
+        sleep: 'Fair',
+        energy: 'Steady',
+        emotion: 'Calm',
+        shareWithDoctor: true,
+      };
+    } catch {
+      return { stress: 'Moderate', sleep: 'Fair', energy: 'Steady', emotion: 'Calm', shareWithDoctor: true };
+    }
+  });
+
+  const [isSaved, setIsSaved] = useState(false);
+
+  const handleOptionChange = (key, val) => {
+    const updated = { ...checkin, [key]: val };
+    setCheckin(updated);
+    setIsSaved(false);
+  };
+
+  const handleSave = () => {
+    try {
+      localStorage.setItem('healnari_wellbeing_today', JSON.stringify(checkin));
+      setIsSaved(true);
+      toast('Well-being check-in saved to your health profile', 'success');
+    } catch {
+      toast('Saved locally', 'info');
+    }
+  };
+
+  return (
+    <div className={`glass-panel rounded-3xl p-6 relative overflow-hidden lg:col-span-2 ${discreet ? 'discreet-blur' : ''}`}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🌸</span>
+          <div>
+            <h3 className="font-bold text-slate-800 text-sm">Well-Being &amp; Emotional Check-in</h3>
+            <p className="text-[11px] text-slate-500">Mental &amp; emotional health is a core pillar of PCOS care</p>
+          </div>
+        </div>
+        <span className="text-[10px] font-bold text-aubergine-700 bg-aubergine-50 border border-aubergine-100 px-2.5 py-1 rounded-full">
+          Psychological Health
+        </span>
+      </div>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        {/* Stress */}
+        <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl">
+          <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">
+            Stress Today
+          </label>
+          <div className="flex gap-1">
+            {['Low', 'Moderate', 'High'].map(s => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => handleOptionChange('stress', s)}
+                className={`flex-1 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                  checkin.stress === s
+                    ? 'bg-aubergine-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Sleep */}
+        <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl">
+          <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">
+            Sleep Quality
+          </label>
+          <div className="flex gap-1">
+            {['Restful', 'Fair', 'Disrupted'].map(s => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => handleOptionChange('sleep', s)}
+                className={`flex-1 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                  checkin.sleep === s
+                    ? 'bg-aubergine-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Energy */}
+        <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl">
+          <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">
+            Energy Level
+          </label>
+          <div className="flex gap-1">
+            {['Energized', 'Steady', 'Drained'].map(e => (
+              <button
+                key={e}
+                type="button"
+                onClick={() => handleOptionChange('energy', e)}
+                className={`flex-1 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                  checkin.energy === e
+                    ? 'bg-aubergine-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Emotion */}
+        <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl">
+          <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">
+            Feeling
+          </label>
+          <div className="flex gap-1">
+            {['Calm', 'Optimistic', 'Overwhelmed', 'Anxious'].map(em => (
+              <button
+                key={em}
+                type="button"
+                onClick={() => handleOptionChange('emotion', em)}
+                className={`flex-1 py-1 rounded-lg text-[9.5px] font-bold transition-all ${
+                  checkin.emotion === em
+                    ? 'bg-aubergine-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                {em}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 select-none">
+          <input
+            type="checkbox"
+            checked={checkin.shareWithDoctor}
+            onChange={e => handleOptionChange('shareWithDoctor', e.target.checked)}
+            className="w-4 h-4 rounded text-aubergine-600 focus:ring-aubergine-500"
+          />
+          <span>Discuss my emotional well-being during next consultation</span>
+        </label>
+
+        <button
+          onClick={handleSave}
+          className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold text-xs px-5 py-2 rounded-xl transition-all shadow-xs shrink-0"
+        >
+          {isSaved ? '✓ Saved for Doctor' : 'Save Check-in'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Lifestyle Plan Widget ─── */
 function LifestylePlanWidget({ navigate, discreet }) {
   const [plan, setPlan] = useState(null);
@@ -1107,7 +1569,7 @@ function LifestylePlanWidget({ navigate, discreet }) {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <i className="fas fa-spa text-emerald-500"></i>
-            <h3 className="font-bold text-slate-800 text-sm">My Lifestyle Protocol</h3>
+            <h3 className="font-bold text-slate-800 text-sm">My Prescribed Lifestyle Protocol</h3>
           </div>
           <button
             onClick={() => navigate('/patient-dashboard/prescriptions')}
@@ -1123,8 +1585,8 @@ function LifestylePlanWidget({ navigate, discreet }) {
           <div className="text-center py-8 space-y-3">
             <div className="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-2xl border border-slate-100">🥗</div>
             <div>
-              <p className="text-sm font-bold text-slate-700">No Lifestyle Plan Yet</p>
-              <p className="text-xs text-slate-500 mt-1">Your doctor will add a personalised Diet & Yoga plan during your next consultation.</p>
+              <p className="text-sm font-bold text-slate-700">No Doctor Protocol Prescribed Yet</p>
+              <p className="text-xs text-slate-500 mt-1">Your doctor will prescribe tailored nutrition &amp; mindful movement protocols during your consultation.</p>
             </div>
             <button
               onClick={() => navigate('/patient-dashboard/appointments')}
@@ -1145,7 +1607,7 @@ function LifestylePlanWidget({ navigate, discreet }) {
               <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100 p-4">
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="text-lg">🥗</span>
-                  <span className="text-xs font-black text-emerald-800 uppercase tracking-wider">Diet & Nutrition</span>
+                  <span className="text-xs font-black text-emerald-800 uppercase tracking-wider">Personalized Nutrition Plan</span>
                 </div>
                 <p className="text-sm text-emerald-900 leading-relaxed whitespace-pre-wrap font-medium line-clamp-4">{plan.dietPlan}</p>
               </div>
@@ -1155,7 +1617,7 @@ function LifestylePlanWidget({ navigate, discreet }) {
               <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 p-4">
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="text-lg">🧘‍♀️</span>
-                  <span className="text-xs font-black text-amber-800 uppercase tracking-wider">Yoga & Exercise</span>
+                  <span className="text-xs font-black text-amber-800 uppercase tracking-wider">Yoga &amp; Mindful Movement Protocol</span>
                 </div>
                 <p className="text-sm text-amber-900 leading-relaxed whitespace-pre-wrap font-medium line-clamp-4">{plan.exercisePlan}</p>
               </div>
@@ -1188,7 +1650,7 @@ function PatientDashboard() {
   const [fertilityData, setFertilityData] = useState(null);
 
   useEffect(() => {
-    apiFetch('/patients/fertility').then(setFertilityData).catch(() => {});
+    apiFetch('/patients/me/fertility-prediction').then(setFertilityData).catch(() => {});
   }, []);
 
   // Water tracking integration
@@ -1273,7 +1735,7 @@ function PatientDashboard() {
       {/* Dynamic Header */}
       <div className="relative rounded-3xl overflow-hidden shadow-soft border border-aubergine-100 p-8 md:p-10 bg-gradient-to-br from-white via-white to-aubergine-50/60">
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-magenta-100 via-aubergine-50 to-transparent rounded-full mix-blend-multiply opacity-70 transform translate-x-1/4 -translate-y-1/4 pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-sky-50 via-emerald-50 to-transparent rounded-full mix-blend-multiply opacity-60 transform -translate-x-1/4 translate-y-1/4 pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-aubergine-50 via-magenta-50 to-transparent rounded-full mix-blend-multiply opacity-60 transform -translate-x-1/4 translate-y-1/4 pointer-events-none"></div>
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
@@ -1350,24 +1812,31 @@ function PatientDashboard() {
       {/* Bento Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-        {/* Row 1 */}
+        {/* Row 1: Daily Foundations */}
         <WellnessScoreWidget vitals={vitals} lifestyle={lifestyleLogs[dateKey]} waterCount={waterCount} moodLogged={!!(cycleLogs[dateKey]?.mood)} discreet={discreet} />
         <HydrationTracker waterCount={waterCount} setWaterCount={setWaterCount} toast={toast} discreet={discreet} />
         <DailyMedicationChecklist meds={own?.meds} requestRefill={requestRefill} toast={toast} discreet={discreet} />
 
-        {/* Row 2: Dynamic Mode Feature Card */}
+        {/* Row 2: Evidence-Based Health Focus Goals & Vitals */}
+        <HealthFocusGoalsWidget toast={toast} discreet={discreet} />
+        <div className="grid grid-rows-2 gap-6 lg:col-span-1">
+          <VitalsSnapshot vitals={vitals} discreet={discreet} navigate={navigate} />
+          <MoodEnergyLogger logCycle={logCycle} cycleLogs={cycleLogs} toast={toast} />
+        </div>
+
+        {/* Row 3: Personalized Nutrition & Mindful Movement */}
+        <PersonalizedNutritionWidget navigate={navigate} discreet={discreet} />
+        <MindfulMovementWidget toast={toast} discreet={discreet} />
+        
+        {/* Dynamic Mode Feature Card */}
         {activeLifeMode === 'cycle' && <WeeklyCycleRibbon toast={toast} />}
         {activeLifeMode === 'pcos' && <PcosMetabolicCard navigate={navigate} />}
         {activeLifeMode === 'ttc' && <TtcFertilityCard navigate={navigate} />}
         {activeLifeMode === 'pregnancy' && <PregnancyJourneyCard navigate={navigate} toast={toast} />}
         {activeLifeMode === 'menopause' && <PerimenopauseCard navigate={navigate} />}
 
-        <div className="grid grid-rows-2 gap-6 lg:col-span-1">
-          <VitalsSnapshot vitals={vitals} discreet={discreet} navigate={navigate} />
-          <MoodEnergyLogger logCycle={logCycle} cycleLogs={cycleLogs} toast={toast} />
-        </div>
-
-        {/* Lifestyle Plan Widget */}
+        {/* Row 4: Well-being & Emotional Check-in + Prescribed Protocol */}
+        <WellbeingCheckinWidget toast={toast} discreet={discreet} />
         <LifestylePlanWidget navigate={navigate} discreet={discreet} />
 
         {/* Row 3 - Quick Actions & Appointments */}
@@ -1384,11 +1853,11 @@ function PatientDashboard() {
 
             <div onClick={() => setShowLabReports(true)} className="glass-panel card-premium rounded-3xl p-6 group cursor-pointer flex flex-col justify-between relative overflow-hidden">
               {pendingReportCount > 0 && <span className="absolute top-4 right-4 bg-rose-500 text-white text-[10px] font-black px-2 py-1 rounded-full animate-bounce">{pendingReportCount} New</span>}
-              <div className="w-12 h-12 bg-gradient-to-br from-sky-400 to-sky-600 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-sky-500/30 group-hover:scale-110 transition-transform"><i className="fas fa-flask text-xl"></i></div>
+              <div className="w-12 h-12 bg-gradient-to-br from-aubergine-500 to-magenta-600 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-aubergine-500/30 group-hover:scale-110 transition-transform"><i className="fas fa-flask text-xl"></i></div>
               <div>
                 <h3 className="font-bold text-slate-800 mb-1">Lab Reports</h3>
                 <p className="text-xs text-slate-500">Upload & track your reports.</p>
-                <span className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold text-sky-600 uppercase tracking-wide group-hover:gap-2 transition-all">View Results <i className="fas fa-arrow-right"></i></span>
+                <span className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold text-aubergine-700 uppercase tracking-wide group-hover:gap-2 transition-all">View Results <i className="fas fa-arrow-right"></i></span>
               </div>
             </div>
           </div>
@@ -1407,7 +1876,7 @@ function PatientDashboard() {
                       <h4 className="font-bold text-sm text-slate-800 group-hover:text-aubergine-700 transition-colors">Dr. {apt.doctorName}</h4>
                       <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">{apt.reason || 'Consultation'}</p>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-[9px] font-black tracking-wide ${apt.type === 'Video Consult' ? 'bg-sky-50 text-sky-600' : 'bg-slate-100 text-slate-600'}`}>
+                    <span className={`px-2 py-1 rounded-full text-[9px] font-black tracking-wide ${apt.type === 'Video Consult' ? 'bg-aubergine-50 text-aubergine-700' : 'bg-slate-100 text-slate-600'}`}>
                       {apt.type === 'Video Consult' ? 'VIDEO' : 'CLINIC'}
                     </span>
                   </div>

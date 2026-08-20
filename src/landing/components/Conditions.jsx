@@ -6,14 +6,14 @@ function Conditions() {
   const scrollRef = useRef(null);
 
   const list = [
-    { name: 'PCOS / PCOD', icon: 'fa-venus-double', color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
+    { name: 'PCOS (Polycystic Ovary Syndrome)', icon: 'fa-venus-double', color: 'text-aubergine-600 bg-aubergine-50 border-aubergine-100' },
     { name: 'Hair fall & thinning', icon: 'fa-spa', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
-    { name: 'Irregular periods', icon: 'fa-calendar-days', color: 'text-rose-600 bg-rose-50 border-rose-100' },
-    { name: 'Hormonal imbalance', icon: 'fa-sliders', color: 'text-violet-600 bg-violet-50 border-violet-100' },
+    { name: 'Irregular periods', icon: 'fa-calendar-days', color: 'text-magenta-600 bg-magenta-50 border-magenta-100' },
+    { name: 'Hormonal imbalance', icon: 'fa-sliders', color: 'text-aubergine-600 bg-aubergine-50 border-aubergine-100' },
     { name: 'Weight & metabolic health', icon: 'fa-weight-scale', color: 'text-amber-600 bg-amber-50 border-amber-100' },
-    { name: 'Acne & hirsutism', icon: 'fa-face-rolling-eyes', color: 'text-fuchsia-600 bg-fuchsia-50 border-fuchsia-100' },
-    { name: 'Thyroid disorders', icon: 'fa-shield-heart', color: 'text-sky-600 bg-sky-50 border-sky-100' },
-    { name: 'Preconception planning', icon: 'fa-baby-carriage', color: 'text-sage-600 bg-sage-50 border-sage-100' }
+    { name: 'Acne & hirsutism', icon: 'fa-face-rolling-eyes', color: 'text-magenta-600 bg-magenta-50 border-magenta-100' },
+    { name: 'Thyroid disorders', icon: 'fa-shield-heart', color: 'text-aubergine-600 bg-aubergine-50 border-aubergine-100' },
+    { name: 'Preconception planning', icon: 'fa-baby-carriage', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' }
   ];
 
   useEffect(() => {

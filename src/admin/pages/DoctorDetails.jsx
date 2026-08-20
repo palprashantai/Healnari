@@ -167,12 +167,12 @@ function AdminDoctorDetails() {
         </div>
         <div className="flex gap-2">
           <div className="relative">
-            <button onClick={() => setActiveModal(activeModal === 'message-dropdown' ? null : 'message-dropdown')} className="bg-sky-50 text-sky-600 hover:bg-sky-100 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors shadow-sm flex items-center gap-2">
+            <button onClick={() => setActiveModal(activeModal === 'message-dropdown' ? null : 'message-dropdown')} className="bg-aubergine-50 text-aubergine-700 hover:bg-aubergine-100 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors shadow-sm flex items-center gap-2">
               <i className="fas fa-envelope"></i> Message <i className="fas fa-chevron-down text-xs ml-1"></i>
             </button>
             {activeModal === 'message-dropdown' && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-2 animate-fade-in">
-                <button onClick={() => {setMessageType('email'); setActiveModal('message')}} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3"><i className="fas fa-envelope text-sky-500 w-4"></i> Send Email</button>
+                <button onClick={() => {setMessageType('email'); setActiveModal('message')}} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3"><i className="fas fa-envelope text-aubergine-600 w-4"></i> Send Email</button>
                 <button onClick={() => {setMessageType('push'); setActiveModal('message')}} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3"><i className="fas fa-bell text-amber-500 w-4"></i> Push Notification</button>
                 <button onClick={() => {setMessageType('whatsapp'); setActiveModal('message')}} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3"><i className="fab fa-whatsapp text-emerald-500 w-4"></i> WhatsApp Message</button>
               </div>
@@ -203,7 +203,7 @@ function AdminDoctorDetails() {
                 {doctor.status || 'Active'}
               </span>
               {verified && (
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border bg-sky-50 text-sky-700 border-sky-200 flex items-center gap-1">
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full border bg-aubergine-50 text-aubergine-700 border-aubergine-200 flex items-center gap-1">
                   <i className="fas fa-certificate"></i> Verified
                 </span>
               )}
@@ -213,7 +213,7 @@ function AdminDoctorDetails() {
               <button onClick={() => {setMessageType('whatsapp'); setActiveModal('message')}} className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 flex items-center justify-center transition-colors shadow-sm" title="WhatsApp Doctor">
                 <i className="fab fa-whatsapp"></i>
               </button>
-              <button onClick={() => {setMessageType('email'); setActiveModal('message')}} className="w-10 h-10 rounded-full bg-sky-50 text-sky-600 hover:bg-sky-100 flex items-center justify-center transition-colors shadow-sm" title="Email Doctor">
+              <button onClick={() => {setMessageType('email'); setActiveModal('message')}} className="w-10 h-10 rounded-full bg-aubergine-50 text-aubergine-700 hover:bg-aubergine-100 flex items-center justify-center transition-colors shadow-sm" title="Email Doctor">
                 <i className="fas fa-envelope"></i>
               </button>
               <button onClick={() => {setMessageType('push'); setActiveModal('message')}} className="w-10 h-10 rounded-full bg-amber-50 text-amber-600 hover:bg-amber-100 flex items-center justify-center transition-colors shadow-sm" title="Push Notification">
@@ -382,7 +382,7 @@ function AdminDoctorDetails() {
                 const tmpl = TEMPLATES.find(t => t.id === e.target.value);
                 if (tmpl) setMessageText(tmpl.text);
               }}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-sky-100"
+              className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-aubergine-200"
             >
               <option value="">-- Custom Message --</option>
               {TEMPLATES.filter(t => t.type === messageType).map(t => (
@@ -394,10 +394,10 @@ function AdminDoctorDetails() {
             value={messageText}
             onChange={e => setMessageText(e.target.value)}
             rows="5"
-            className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-sky-100 outline-none"
+            className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-aubergine-200 outline-none"
             placeholder="Type your message here..."
           ></textarea>
-          <button onClick={handleSendMessage} disabled={sendingMessage || !messageText.trim()} className={`w-full text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 ${messageType === 'whatsapp' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-sky-600 hover:bg-sky-700'}`}>
+          <button onClick={handleSendMessage} disabled={sendingMessage || !messageText.trim()} className={`w-full text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 ${messageType === 'whatsapp' ? 'bg-emerald-500 hover:bg-emerald-600' : 'crm-btn-primary'}`}>
             <i className={`mr-2 ${sendingMessage ? 'fas fa-spinner fa-spin' : messageType === 'whatsapp' ? 'fab fa-whatsapp' : 'fas fa-paper-plane'}`}></i> {sendingMessage ? 'Sending…' : `Send ${messageType.charAt(0).toUpperCase() + messageType.slice(1)}`}
           </button>
         </div>

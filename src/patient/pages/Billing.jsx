@@ -11,8 +11,8 @@ const STATUS_STYLE = {
   paid:            'bg-emerald-50 text-emerald-700 border-emerald-100',
   refunded:        'bg-rose-50 text-rose-700 border-rose-100',
   pending:         'bg-amber-50 text-amber-700 border-amber-100',
-  insurance:       'bg-sky-50 text-sky-700 border-sky-100',
-  'refund pending': 'bg-sky-50 text-sky-700 border-sky-100',
+  insurance:       'bg-aubergine-50 text-aubergine-700 border-aubergine-100',
+  'refund pending': 'bg-amber-50 text-amber-700 border-amber-100',
   failed:          'bg-rose-50 text-rose-700 border-rose-100',
 };
 
@@ -133,48 +133,49 @@ function PatientBilling() {
     const a = document.createElement('a');
     a.href = url;
     a.download = `healnari-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
     a.click();
+    a.remove();
     URL.revokeObjectURL(url);
-    toast('CSV downloaded to your device!', 'success');
   };
 
-  // Real PDF invoice, generated server-side from the actual payment row —
-  // apiFetch can't be reused here since it JSON-parses every response body;
-  // this one is binary.
   const downloadReceipt = async (txn) => {
     try {
-      const tokens = getTokens();
-      const res = await fetch(`${API_URL}/billing/transactions/${txn.id}/invoice`, {
-        headers: tokens?.accessToken ? { Authorization: `Bearer ${tokens.accessToken}` } : {},
+      const token = getTokens()?.accessToken;
+      const res = await fetch(`${API_URL}/billing/invoice/${txn.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
-      if (!res.ok) throw new Error('Could not generate the invoice.');
+      if (!res.ok) throw new Error('Failed to generate invoice');
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `invoice-${txn.txn_ref || txn.id}.pdf`;
+      a.download = `HealNari-Invoice-${txn.txn_ref || txn.id.slice(0, 8)}.pdf`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast('Receipt downloaded successfully', 'success');
     } catch (err) {
-      toast(err.message || 'Failed to download invoice.', 'error');
+      toast(err.message || 'Could not download receipt', 'error');
     }
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
       <div>
-        <h1 className="text-2xl font-black text-slate-800">Billing & Payments</h1>
+        <h1 className="text-2xl font-black text-slate-800 font-display">Billing & Payments</h1>
         <p className="text-sm text-slate-500">View payment history, invoices, and manage your consultations in {defaultCurrency}.</p>
       </div>
 
       {/* Summary Cards */}
       <div className="grid sm:grid-cols-3 gap-4">
         {/* Total Spent */}
-        <div className="bg-gradient-to-br from-aubergine-900 to-indigo-900 text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
+        <div className="bg-gradient-to-br from-[#2A1647] via-[#3A1C78] to-[#2A1647] text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
           <div className="absolute -right-4 -bottom-4 text-8xl opacity-10"><i className="fas fa-wallet"></i></div>
-          <div className="text-sm text-indigo-200 font-medium mb-1">Total Spent</div>
+          <div className="text-sm text-aubergine-200 font-medium mb-1">Total Spent</div>
           <div className="text-3xl font-black">{formatCurrency(totalPaid, defaultCurrency)}</div>
-          <div className="text-xs text-indigo-300 mt-2">{transactions.filter(t => t.status === 'paid').length} transactions</div>
+          <div className="text-xs text-aubergine-300 mt-2">{transactions.filter(t => t.status === 'paid').length} transactions</div>
         </div>
 
         {/* Upcoming Due */}
@@ -185,7 +186,7 @@ function PatientBilling() {
               <div className="text-2xl font-black text-slate-800">{formatCurrency(upcomingPayment.amount, upcomingPayment.currency)}</div>
               <div className="text-xs text-slate-500 mt-1">{upcomingPayment.doctor} • {upcomingPayment.date}</div>
               <button onClick={() => openPay(upcomingPayment.amount, `Consultation — ${upcomingPayment.doctor}`, upcomingPayment.appointmentId, upcomingPayment.currency)}
-                className="mt-3 w-full text-center bg-aubergine-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl cursor-pointer hover:bg-aubergine-700 transition-colors">
+                className="mt-3 w-full btn-brand !h-9 !text-xs">
                 Pay Now
               </button>
             </>
@@ -210,46 +211,46 @@ function PatientBilling() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-slate-100 flex items-center justify-between">
           <h2 className="font-bold text-slate-800">Transaction History</h2>
-          <button onClick={handleExport} className="text-xs font-bold text-aubergine-600 hover:text-aubergine-700 flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-aubergine-50 transition-colors">
+          <button onClick={handleExport} className="btn-secondary !h-8 !px-3 !text-xs flex items-center gap-1.5">
             <i className="fas fa-download"></i> Export All
           </button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        <div className="crm-table-container border-0 rounded-none">
+          <table className="crm-table">
             <thead>
-              <tr className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wider">
-                <th className="px-5 py-3 font-semibold">Date</th>
-                <th className="px-5 py-3 font-semibold">Doctor</th>
-                <th className="px-5 py-3 font-semibold">Type</th>
-                <th className="px-5 py-3 font-semibold">Method</th>
-                <th className="px-5 py-3 font-semibold">Amount</th>
-                <th className="px-5 py-3 font-semibold">Status</th>
-                <th className="px-5 py-3 font-semibold text-right">Invoice</th>
+              <tr>
+                <th>Date</th>
+                <th>Doctor</th>
+                <th>Type</th>
+                <th>Method</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th className="text-right">Invoice</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {transactions.map(txn => (
-                <tr key={txn.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-4 text-slate-500 whitespace-nowrap">{txn.date}</td>
-                  <td className="px-5 py-4">
+                <tr key={txn.id} className="hover:bg-slate-50/70 transition-colors">
+                  <td className="text-slate-500">{txn.date}</td>
+                  <td>
                     <div className="font-bold text-slate-800 text-sm">{txn.doctor}</div>
                     <div className="text-xs text-slate-500 font-mono">{txn.txn_ref || txn.id}</div>
                   </td>
-                  <td className="px-5 py-4 text-slate-600">{txn.type}</td>
-                  <td className="px-5 py-4">
+                  <td className="text-slate-600">{txn.type}</td>
+                  <td>
                     <span className="flex items-center gap-1.5 text-slate-500 text-xs">
                       <i className={`fas ${METHOD_ICON[txn.method] || 'fa-money-bill'}`}></i> {txn.method}
                     </span>
                   </td>
-                  <td className="px-5 py-4 font-black text-slate-800">{formatCurrency(txn.amount, txn.currency)}</td>
-                  <td className="px-5 py-4">
+                  <td className="font-black text-slate-800">{formatCurrency(txn.amount, txn.currency)}</td>
+                  <td>
                     <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${STATUS_STYLE[txn.status]}`}>
                       {txn.status.charAt(0).toUpperCase() + txn.status.slice(1)}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-right">
+                  <td className="text-right">
                     <button onClick={() => downloadReceipt(txn)}
-                      className="text-aubergine-600 hover:text-aubergine-800 text-xs font-bold flex items-center gap-1 ml-auto hover:underline">
+                      className="text-aubergine-600 hover:text-aubergine-800 text-xs font-bold inline-flex items-center gap-1 hover:underline">
                       <i className="fas fa-file-invoice"></i> Download
                     </button>
                   </td>

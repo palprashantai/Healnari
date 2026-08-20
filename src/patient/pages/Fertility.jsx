@@ -54,15 +54,15 @@ function NumberStepper({ value, onChange, min, max, suffix }) {
 
 const DAY_TYPE_STYLE = {
   period: { cell: 'bg-gradient-to-br from-rose-400 to-rose-500 text-white shadow-md shadow-rose-200 ring-2 ring-white ring-inset' },
-  'period-predicted': { cell: 'bg-rose-50 text-rose-500 border-2 border-dashed border-rose-300' },
-  fertile: { cell: 'bg-gradient-to-br from-sky-100 to-sky-200 text-sky-700 shadow-sm border border-sky-300' },
+  'period-predicted': { cell: 'bg-magenta-50 text-magenta-600 border-2 border-dashed border-magenta-300' },
+  fertile: { cell: 'bg-gradient-to-br from-aubergine-100 to-aubergine-200 text-aubergine-800 shadow-sm border border-aubergine-300' },
   peak: { cell: 'bg-gradient-to-br from-amber-400 to-amber-500 text-white shadow-md shadow-amber-200 ring-2 ring-white ring-inset', badge: 'fa-star' },
 };
 
 const DAY_TYPE_INFO = {
   period: { icon: 'fa-droplet', iconBg: 'bg-rose-100', iconColor: 'text-rose-600', label: 'Period Day (Logged)', description: "You've logged this as a period day. Rest, stay hydrated, and go easy on yourself." },
-  'period-predicted': { icon: 'fa-droplet', iconBg: 'bg-rose-50', iconColor: 'text-rose-400', label: 'Next Period (Predicted)', description: "Based on your average cycle length, your next period is expected to start around here. Tap below once it actually starts." },
-  fertile: { icon: 'fa-circle', iconBg: 'bg-sky-100', iconColor: 'text-sky-600', label: 'Fertile Day', description: 'Pregnancy is possible from unprotected sex on or near this day.' },
+  'period-predicted': { icon: 'fa-droplet', iconBg: 'bg-magenta-50', iconColor: 'text-magenta-600', label: 'Next Period (Predicted)', description: "Based on your average cycle length, your next period is expected to start around here. Tap below once it actually starts." },
+  fertile: { icon: 'fa-circle', iconBg: 'bg-aubergine-100', iconColor: 'text-aubergine-700', label: 'Fertile Day', description: 'Pregnancy is possible from unprotected sex on or near this day.' },
   peak: { icon: 'fa-star', iconBg: 'bg-amber-100', iconColor: 'text-amber-600', label: 'Most Fertile Day', description: 'Your single best estimated day for ovulation — the highest-chance day to conceive in this cycle.' },
 };
 const REGULAR_DAY_INFO = { icon: 'fa-calendar', iconBg: 'bg-slate-100', iconColor: 'text-slate-400', label: 'Regular Day', description: 'Nothing predicted for this day yet.' };
@@ -360,8 +360,8 @@ function CycleRing({ prediction, todayCycleDay }) {
             </>
           ) : currentDay >= fwStart && currentDay <= fwEnd ? (
              <>
-               <i className="fas fa-egg text-sky-500 text-xl mb-1 drop-shadow-sm"></i>
-               <span className="text-[10px] font-black uppercase text-sky-600 tracking-wider">Fertile</span>
+               <i className="fas fa-egg text-aubergine-600 text-xl mb-1 drop-shadow-sm"></i>
+               <span className="text-[10px] font-black uppercase text-aubergine-700 tracking-wider">Fertile</span>
              </>
           ) : (
             <>
@@ -374,7 +374,7 @@ function CycleRing({ prediction, todayCycleDay }) {
       
       <div className="flex gap-4 mt-6 text-[10px] font-bold text-slate-500">
         <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div>Period</div>
-        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-sky-400"></div>Fertile Window</div>
+        <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-aubergine-400"></div>Fertile Window</div>
       </div>
     </div>
   );
@@ -382,7 +382,7 @@ function CycleRing({ prediction, todayCycleDay }) {
 
 /* ─── Learn section ─── */
 const TOPIC_STYLES = {
-  sky: { chip: 'bg-sky-50 text-sky-600', ring: 'border-sky-100', dot: 'text-sky-500' },
+  sky: { chip: 'bg-aubergine-50 text-aubergine-700', ring: 'border-aubergine-100', dot: 'text-aubergine-600' },
   rose: { chip: 'bg-rose-50 text-rose-600', ring: 'border-rose-100', dot: 'text-rose-500' },
   amber: { chip: 'bg-amber-50 text-amber-600', ring: 'border-amber-100', dot: 'text-amber-500' },
   emerald: { chip: 'bg-emerald-50 text-emerald-600', ring: 'border-emerald-100', dot: 'text-emerald-500' },
@@ -690,9 +690,9 @@ function PatientFertility() {
         </div>
       </div>
 
-      <div className="bg-gradient-to-r from-sky-50 to-indigo-50 border border-sky-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+      <div className="bg-aubergine-50/70 border border-aubergine-200/80 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center flex-shrink-0 text-sm shadow-inner">
+          <div className="w-9 h-9 rounded-xl bg-aubergine-100 text-aubergine-700 flex items-center justify-center flex-shrink-0 text-sm shadow-inner">
             <i className="fas fa-shield-halved"></i>
           </div>
           <div>
@@ -700,7 +700,7 @@ function PatientFertility() {
             <p className="text-[11px] text-slate-600 leading-snug">Calculated for conception planning and cycle awareness. Not an FDA/CE-certified contraceptive device — do not use as birth control.</p>
           </div>
         </div>
-        <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-100/80 px-2.5 py-1 rounded-lg border border-indigo-200 flex-shrink-0">
+        <span className="text-[10px] font-black uppercase tracking-wider text-aubergine-700 bg-aubergine-100 px-2.5 py-1 rounded-lg border border-aubergine-200 flex-shrink-0">
           Multi-Modal Engine
         </span>
       </div>
@@ -759,7 +759,7 @@ function PatientFertility() {
                 {[
                   { swatch: 'bg-gradient-to-br from-rose-400 to-rose-500 shadow-sm', label: 'Period' },
                   { swatch: 'bg-rose-50 border-2 border-dashed border-rose-300', label: 'Predicted' },
-                  { swatch: 'bg-gradient-to-br from-sky-300 to-sky-400 shadow-sm', label: 'Fertile' },
+                  { swatch: 'bg-gradient-to-br from-aubergine-300 to-aubergine-400 shadow-sm', label: 'Fertile' },
                   { swatch: 'bg-gradient-to-br from-amber-400 to-amber-500 shadow-sm', label: 'Best Day' },
                 ].map(l => (
                   <div key={l.label} className="flex items-center gap-2">
@@ -805,12 +805,12 @@ function PatientFertility() {
                         <p className="text-[10px] text-slate-500 mt-0.5 font-bold uppercase tracking-wide">Confidence</p>
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 to-white p-4 flex items-center gap-3 shadow-sm">
-                      <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-500 flex items-center justify-center flex-shrink-0 shadow-inner">
+                    <div className="rounded-2xl border border-aubergine-100 bg-gradient-to-br from-aubergine-50 to-white p-4 flex items-center gap-3 shadow-sm">
+                      <div className="w-10 h-10 rounded-xl bg-aubergine-100 text-aubergine-600 flex items-center justify-center flex-shrink-0 shadow-inner">
                          <i className="fas fa-droplet text-xl"></i>
                       </div>
                       <div>
-                        <p className="font-black text-sky-800 text-sm">{formatDate(prediction.nextPeriodEstimate)}</p>
+                        <p className="font-black text-aubergine-800 text-sm">{formatDate(prediction.nextPeriodEstimate)}</p>
                         <p className="text-[10px] text-slate-500 mt-0.5 font-bold uppercase tracking-wide">Next Period</p>
                       </div>
                     </div>

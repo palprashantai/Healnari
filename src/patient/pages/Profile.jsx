@@ -198,7 +198,7 @@ function PatientProfile() {
   const FIELD_COLOR = {
     personal: 'from-aubergine-900 to-aubergine-700',
     health: 'from-rose-900 to-rose-700',
-    preferences: 'from-indigo-900 to-purple-700',
+    preferences: 'from-aubergine-900 to-aubergine-700',
     security: 'from-slate-800 to-slate-700',
   };
 
@@ -241,7 +241,7 @@ function PatientProfile() {
 
       {/* Tabs */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="flex border-b border-slate-200 bg-slate-50 overflow-x-auto">
+        <div className="flex border-b border-slate-200 bg-slate-50 overflow-x-auto hide-scrollbar">
           {[
             ['personal', 'Personal Info', 'fa-user'],
             ['health', 'Health Details', 'fa-heart-pulse'],
@@ -249,13 +249,13 @@ function PatientProfile() {
             ['security', 'Security', 'fa-shield-halved'],
           ].map(([key, label, icon]) => (
             <button key={key} onClick={() => setActiveTab(key)}
-              className={`px-6 py-4 text-sm font-bold whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === key ? 'bg-white text-aubergine-700 border-t-2 border-t-aubergine-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+              className={`px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-bold whitespace-nowrap transition-all flex items-center gap-2 ${activeTab === key ? 'bg-white text-aubergine-700 border-t-2 border-t-aubergine-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
               <i className={`fas ${icon} text-xs`}></i> {label}
             </button>
           ))}
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* ── PERSONAL INFO ── */}
           {activeTab === 'personal' && (
             <div className="space-y-5">
@@ -359,7 +359,7 @@ function PatientProfile() {
                   // the literal text "NaN" was displayed as the BMI value.
                   const bmi = h > 0 && w > 0 ? (w / (h * h)).toFixed(1) : null;
                   const category = bmi === null ? '' : bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Overweight' : 'Obese';
-                  const catColor = category === 'Normal' ? 'text-emerald-600' : category === 'Underweight' ? 'text-sky-600' : 'text-rose-600';
+                  const catColor = category === 'Normal' ? 'text-emerald-600' : category === 'Underweight' ? 'text-amber-600' : 'text-rose-600';
                   return (
                     <div className="flex items-center gap-4">
                       <div className="text-3xl font-black text-slate-800">{bmi ?? '—'}</div>

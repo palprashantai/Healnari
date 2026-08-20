@@ -80,7 +80,7 @@ function NotificationPanel({ isOpen, onClose, notifications, onMarkAllRead, onMa
         })}
         {hasMore && (
           <div className="px-5 py-3 text-center border-t border-slate-50">
-            <button onClick={loadMore} className="text-xs text-sky-600 font-bold hover:underline">
+            <button onClick={loadMore} className="text-xs text-aubergine-600 font-bold hover:underline">
               Load Older Notifications
             </button>
           </div>

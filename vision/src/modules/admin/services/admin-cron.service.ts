@@ -29,7 +29,7 @@ export class AdminCronService {
     const { data: payments, error } = await this.supabase.admin
       .from('payments')
       .select('id, amount, status, created_at, doctor_id')
-      .eq('status', 'SUCCESS')
+      .eq('status', 'Paid')
       .gte('created_at', yesterday)
       .lte('created_at', now);
 

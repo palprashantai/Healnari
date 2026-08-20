@@ -62,7 +62,7 @@ function DoctorAnalytics() {
 
   const kpis = data ? [
     { title: 'Total Revenue', value: `₹${data.totalRevenue.toLocaleString('en-IN')}`, icon: 'fa-indian-rupee-sign', color: 'text-aubergine-600', bg: 'bg-aubergine-50' },
-    { title: 'Consultations', value: data.totalConsultations.toLocaleString('en-IN'), icon: 'fa-users', color: 'text-sky-600', bg: 'bg-sky-50' },
+    { title: 'Consultations', value: data.totalConsultations.toLocaleString('en-IN'), icon: 'fa-users', color: 'text-magenta-600', bg: 'bg-magenta-50' },
     { title: 'Total Patients', value: data.totalPatients.toLocaleString('en-IN'), icon: 'fa-user-plus', color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { title: 'No-Show Rate', value: `${data.noShowRate}%`, icon: 'fa-user-slash', color: 'text-rose-600', bg: 'bg-rose-50' },
   ] : [];
@@ -225,7 +225,7 @@ function DoctorAnalytics() {
       <div className="grid lg:grid-cols-2 gap-5">
         {/* 5. Age Demographics (Area Chart) */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col relative">
-          <h2 className="text-sm font-black text-slate-800 mb-2 flex items-center gap-2"><i className="fas fa-users-viewfinder text-teal-500"></i> Patient Age Demographics</h2>
+          <h2 className="text-sm font-black text-slate-800 mb-2 flex items-center gap-2"><i className="fas fa-users-viewfinder text-aubergine-600"></i> Patient Age Demographics</h2>
           <p className="text-xs text-slate-500 mb-6">Distribution of your active patient base by age group.</p>
           <div className="flex-1 min-h-[250px] relative">
             {ageDemographics.every(d => d.count === 0) ? (

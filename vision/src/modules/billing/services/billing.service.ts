@@ -221,6 +221,11 @@ export class BillingService {
 
       // Appointment synchronization logic
       const { data: appointment } = await this.supabase.admin.from('appointments').select().eq('id', payment.appointment_id).single();
+      if (appointment) {
+        // Link payment_id to appointment row for bidirectional referential integrity
+        await this.supabase.admin.from('appointments').update({ payment_id: payment.id }).eq('id', payment.appointment_id);
+      }
+
       if (appointment?.status === 'Cancelled' || appointment?.status === 'No Show') {
         // If the appointment was already cancelled (e.g. by the 5-min timeout or manually),
         // we must automatically trigger a refund for this successful payment.
@@ -244,16 +249,30 @@ export class BillingService {
     return (await this.withNames([payment]))[0];
   }
 
+  private formatAmountWithCurrency(amount: number | string, currency = 'INR'): string {
+    const num = Number(amount).toFixed(0);
+    switch (currency.toUpperCase()) {
+      case 'INR': return `₹${num}`;
+      case 'AED': return `AED ${num}`;
+      case 'USD': return `$${num}`;
+      case 'EUR': return `€${num}`;
+      case 'GBP': return `£${num}`;
+      default: return `${currency} ${num}`;
+    }
+  }
+
   /** Fired once, right after a payment settles to 'Paid' — in-app
    * notifications for both sides plus a receipt email with the PDF invoice
    * attached. Best-effort and never awaited by the caller: a slow SMTP
    * provider must not delay the payment-status response the frontend is
    * polling for. */
   private async onPaymentSettled(payment: any) {
+    const formattedAmount = this.formatAmountWithCurrency(payment.amount, payment.currency || 'INR');
+
     this.notifications.create(payment.patient_id, {
       type: 'payment_success',
       title: 'Payment Successful',
-      message: `₹${Number(payment.amount).toFixed(0)} paid for your ${payment.service}${payment.doctorName ? ` with Dr. ${payment.doctorName}` : ''}.`,
+      message: `${formattedAmount} paid for your ${payment.service}${payment.doctorName ? ` with Dr. ${payment.doctorName}` : ''}.`,
       data: { paymentId: payment.id, appointmentId: payment.appointment_id },
     });
 
@@ -261,7 +280,7 @@ export class BillingService {
       this.notifications.create(payment.doctor_id, {
         type: 'payment_received',
         title: 'Payment Received',
-        message: `₹${Number(payment.amount).toFixed(0)} received from ${payment.patientName || 'a patient'} for ${payment.service}.`,
+        message: `${formattedAmount} received from ${payment.patientName || 'a patient'} for ${payment.service}.`,
         data: { paymentId: payment.id, appointmentId: payment.appointment_id },
       });
     }
@@ -271,12 +290,11 @@ export class BillingService {
     if (!patient?.email) return;
 
     const pdf = await this.invoices.generatePdf(payment);
-    const amount = Number(payment.amount).toFixed(0);
     await this.email.sendMail({
       to: patient.email,
-      subject: `HealNari — Payment Receipt (₹${amount})`,
-      html: `<p>Hi ${payment.patientName || 'there'},</p><p>We've received your payment of <strong>₹${amount}</strong> for <strong>${payment.service}</strong>${payment.doctorName ? ` with Dr. ${payment.doctorName}` : ''}.</p><p>Your invoice is attached as a PDF for your records.</p><p>— Team HealNari</p>`,
-      text: `Hi ${payment.patientName || 'there'}, we've received your payment of Rs.${amount} for ${payment.service}. Your invoice is attached.`,
+      subject: `HealNari — Payment Receipt (${formattedAmount})`,
+      html: `<p>Hi ${payment.patientName || 'there'},</p><p>We've received your payment of <strong>${formattedAmount}</strong> for <strong>${payment.service}</strong>${payment.doctorName ? ` with Dr. ${payment.doctorName}` : ''}.</p><p>Your invoice is attached as a PDF for your records.</p><p>— Team HealNari</p>`,
+      text: `Hi ${payment.patientName || 'there'}, we've received your payment of ${formattedAmount} for ${payment.service}. Your invoice is attached.`,
       attachments: [{ filename: `invoice-${payment.txn_ref || String(payment.id).slice(0, 8)}.pdf`, content: pdf, contentType: 'application/pdf' }],
     });
   }
@@ -286,6 +304,7 @@ export class BillingService {
    * patient settling an existing appointment-linked payment. */
   async recordCharge(user: AuthUser, body: RecordChargeDto) {
     if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    if (!user.profile.kyc_verified) throw new ForbiddenException(ERROR_MESSAGES.DOCTOR_NOT_VERIFIED);
 
     const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
@@ -300,6 +319,7 @@ export class BillingService {
       status: body.status,
       method: body.method,
       txn_ref: txnRef,
+      currency: user.profile.currency || 'INR',
     }).select().single();
     return (await this.withNames([created]))[0];
   }

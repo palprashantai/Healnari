@@ -127,7 +127,7 @@ function AdminDoctorManager() {
             {isActionsDropdownOpen && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-2 animate-fade-in">
                 <p className="px-4 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Bulk Messaging</p>
-                <button onClick={() => openMessageModal('email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3"><i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email</button>
+                <button onClick={() => openMessageModal('email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3"><i className="fas fa-envelope text-aubergine-600 w-4"></i> Bulk Email</button>
                 <button onClick={() => openMessageModal('push')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3"><i className="fas fa-bell text-amber-500 w-4"></i> Push Notification</button>
               </div>
             )}
@@ -184,7 +184,7 @@ function AdminDoctorManager() {
                 filteredDoctors.map(d => {
                   const platformEarnings = d.totalGross * (d.commissionRate / 100);
                   return (
-                    <tr key={d.id} className={`hover:bg-slate-50/50 transition-colors group ${selectedIds.includes(d.id) ? 'bg-sky-50/30' : ''}`}>
+                    <tr key={d.id} className={`hover:bg-slate-50/50 transition-colors group ${selectedIds.includes(d.id) ? 'bg-aubergine-50/40' : ''}`}>
                       <td className="px-5 py-4 w-10 text-center">
                         <input type="checkbox" className="w-4 h-4 rounded border-slate-300" checked={selectedIds.includes(d.id)} onChange={(e) => handleSelectOne(e, d.id)} />
                       </td>
@@ -235,15 +235,15 @@ function AdminDoctorManager() {
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1.5 block">Select Template</label>
             <select value={selectedTemplate} onChange={e => { setSelectedTemplate(e.target.value); const t = templates.find(t => t.id === e.target.value); if (t) setMessageText(t.content); }}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-sky-100">
+              className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-aubergine-200">
               <option value="">-- Custom Message --</option>
               {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
           <textarea value={messageText} onChange={e => setMessageText(e.target.value)} rows="5"
-            className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-sky-100 outline-none"
+            className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-aubergine-200 outline-none"
             placeholder="Type your message here..." />
-          <button onClick={handleSendMessage} className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+          <button onClick={handleSendMessage} className="crm-btn-primary w-full py-3 flex items-center justify-center gap-2">
             <i className="fas fa-paper-plane"></i> Send {messageType}
           </button>
         </div>

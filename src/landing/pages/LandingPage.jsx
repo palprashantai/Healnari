@@ -41,6 +41,11 @@ function LandingPage() {
   const [adminSettings, setAdminSettings] = useState(null);
 
   useEffect(() => {
+    // Analytics
+    import('../../lib/analytics.js').then(({ trackEvent, AnalyticsEvents }) => {
+      trackEvent(AnalyticsEvents.LANDING_VIEWED, { funnel: 'patient' });
+    });
+
     // Dynamic SEO, OpenGraph & Structured Data Schema Injection
     const originalTitle = document.title;
     const docTitle = "Online PCOS Treatment & Gynaecologist Consultations | HealNari";
@@ -60,6 +65,7 @@ function LandingPage() {
     const prevOgTitle = updateMeta('meta[property="og:title"]', docTitle);
     const prevOgDesc = updateMeta('meta[property="og:description"]', docDesc);
     const prevOgUrl = updateMeta('meta[property="og:url"]', docUrl);
+    const prevCanonical = updateMeta('link[rel="canonical"]', docUrl, 'href');
 
     // JSON-LD Structured Data Schema for Medical Clinic
     const schemaScript = document.createElement('script');
@@ -102,6 +108,7 @@ function LandingPage() {
       if (prevOgTitle.el && prevOgTitle.original) prevOgTitle.el.setAttribute('content', prevOgTitle.original);
       if (prevOgDesc.el && prevOgDesc.original) prevOgDesc.el.setAttribute('content', prevOgDesc.original);
       if (prevOgUrl.el && prevOgUrl.original) prevOgUrl.el.setAttribute('content', prevOgUrl.original);
+      if (prevCanonical.el && prevCanonical.original) prevCanonical.el.setAttribute('href', prevCanonical.original);
       window.removeEventListener('scroll', handleScroll);
       const existingSchema = document.getElementById('healnari-patient-schema');
       if (existingSchema) existingSchema.remove();
@@ -109,6 +116,9 @@ function LandingPage() {
   }, []);
 
   const openBooking = (docName = '') => {
+    import('../../lib/analytics.js').then(({ trackEvent, AnalyticsEvents }) => {
+      trackEvent(AnalyticsEvents.BOOKING_MODAL_OPENED, { doctor: docName, source: 'patient_landing' });
+    });
     setSelectedDoctor(docName);
     setIsBookingOpen(true);
   };
@@ -119,6 +129,9 @@ function LandingPage() {
   };
 
   const handleBookingSuccess = (details) => {
+    import('../../lib/analytics.js').then(({ trackEvent, AnalyticsEvents }) => {
+      trackEvent(AnalyticsEvents.BOOKING_SUCCESS, { doctor: details?.doctor, appointmentId: details?.id });
+    });
     setConfirmedDetails(details);
     setIsBookingOpen(false);
     setIsSuccessOpen(true);

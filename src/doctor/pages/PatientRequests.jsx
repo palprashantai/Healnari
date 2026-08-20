@@ -4,7 +4,7 @@ import { ConfirmModal } from '../../components/Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 
 const STATUS_STYLE = {
-  New: 'bg-sky-50 text-sky-700 border-sky-200',
+  New: 'bg-aubergine-50 text-aubergine-700 border-aubergine-200',
   Converted: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   Closed: 'bg-slate-100 text-slate-500 border-slate-200',
 };

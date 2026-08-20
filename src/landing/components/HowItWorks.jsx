@@ -36,17 +36,17 @@ const steps = [
   {
     num: 3,
     title: 'Your Personal Protocol + Follow-Up',
-    desc: 'Within 24 hours you receive your personalised care plan — a dedicated Diet Plan and a Yoga & Exercise Protocol, delivered separately so you can download and use them immediately. Then 14 days of free follow-up chat to track and adjust.',
+    desc: 'Within 24 hours you receive your personalised care plan — dedicated Personalized Nutrition Support and a Yoga & Mindful Movement Protocol tailored to your preferences, delivered so you can download and use them immediately. Then 14 days of free follow-up chat to track and adjust.',
     bullets: [
-      'Separate downloadable Diet Plan & Yoga/Exercise Protocol for your hormonal type',
+      'Personalized Nutrition Support & Yoga / Mindful Movement Protocol for your hormonal type',
       '14-day free chat follow-up included with every consult',
-      'Monthly review calls available to track your recovery progress',
+      'Regular review calls available to track your health and symptom progress',
     ],
     image: '/generated/step3.webp',
-    imageAlt: 'Happy healthy woman after completing her treatment protocol',
+    imageAlt: 'Happy healthy woman managing her lifestyle protocol',
     accent: '#7a3e65',
     tagBg: 'bg-brand-50 text-brand-700 border-brand-100',
-    tag: 'Step 3 · Recover',
+    tag: 'Step 3 · Manage & Thrive',
   },
 ];
 

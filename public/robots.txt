@@ -1,4 +1,17 @@
 User-agent: *
 Allow: /
+Allow: /for-doctors
+Allow: /pcos-treatment-online
+Allow: /thyroid-consultation
+Allow: /hormonal-weight-loss
+Allow: /guide/
+Allow: /learn/
+Allow: /legal/
+
+# Disallow Private Portals and API Endpoints
+Disallow: /patient-dashboard/
+Disallow: /doctor-dashboard/
+Disallow: /admin-dashboard/
+Disallow: /api/
 
 Sitemap: https://healnari.care/sitemap.xml

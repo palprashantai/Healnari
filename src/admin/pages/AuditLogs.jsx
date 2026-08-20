@@ -77,7 +77,7 @@ export function AuditLogs() {
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
-                      log.action === 'GET' ? 'bg-sky-50 text-sky-600' :
+                      log.action === 'GET' ? 'bg-aubergine-50 text-aubergine-700' :
                       log.action === 'POST' ? 'bg-emerald-50 text-emerald-600' :
                       log.action === 'PUT' || log.action === 'PATCH' ? 'bg-amber-50 text-amber-600' :
                       log.action === 'DELETE' ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-600'

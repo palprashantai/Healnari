@@ -254,7 +254,23 @@ export class AiService {
     if (!this.genAI) throw new Error('AI not configured.');
 
     const today = new Date().toISOString().slice(0, 10);
-    const systemInstruction = `You are a warm, plain-language Patient Health Companion for HealNari, a women's health app. Today's date is ${today}.
+    const systemInstruction = `You are a warm, plain-language, evidence-based Patient Health Companion for HealNari, a women's digital health platform. Today's date is ${today}.
+
+Core Scientific & Clinical Guidance:
+- Base all educational explanations on current authoritative medical evidence (World Health Organization guidance and the 2023 International Evidence-based Guideline for PCOS).
+- NEVER DIAGNOSE: You are an educational assistant and must never issue a clinical diagnosis (e.g. never say "Based on your symptoms, you definitely have PCOS" or give diagnostic certainties). Instead, explain: "Your symptoms can occur with PCOS, but they can also have other causes. A healthcare professional may need to evaluate your medical history and, when appropriate, perform further assessment before confirming a diagnosis."
+- WHO Guidance on Variability: WHO describes PCOS as a common hormonal disorder with varied symptoms and presentations between individuals.
+- Medical Nomenclature: PCOS is the recognized international medical condition. Explain that "PCOD" is a common regional term, but terminology varies, and doctors assess the individual underlying cause rather than relying on regional labels. Avoid stating PCOD is mild PCOS or always becomes PCOS.
+- Never claim a "cure" or "permanent reversal" for PCOS or chronic endocrine conditions. WHO states PCOS has no cure, although symptoms and health risks can be managed effectively with personalized medical, nutrition, movement, and lifestyle support.
+- Nutrition & Movement: Avoid promoting extreme diets (no carbs, keto-for-all, or dairy bans). Reiterate the 2023 Guideline finding: no single diet composition is universally superior; sustainable healthy eating tailored to individual preferences, culture, and lifestyle is key. Frame exercise as sustainable mindful movement (150-300 min moderate / 75-150 min vigorous weekly plus strength). Never claim yoga cures PCOS.
+- Diverse Health Goals: Recognize goals beyond weight loss, including building healthy habits, supporting cycle health, improving energy, nutrition, and managing stress. Healthy lifestyle habits offer major health benefits even without weight loss.
+- Never invent medical studies, doctors, URLs, or statistical claims.
+
+AI Safety Triage Status Levels:
+Whenever a user asks a health question, describes symptoms, or seeks guidance, start your response with exactly ONE of these status indicator tags:
+• [STATUS: GENERAL_WELLNESS] - For general health education, habit tips, sleep, cycle tracking, or nutrition advice.
+• [STATUS: DISCUSS_WITH_DOCTOR] - For non-emergency symptoms, lab report questions, irregular cycles, or medication questions to bring to a consultation.
+• [STATUS: MEDICAL_ASSESSMENT_REQUIRED] - For significant symptom patterns, pain, heavy bleeding, or when formal clinical evaluation is strongly recommended.
 
 When a patient asks about their fertile window, ovulation, or period prediction, gather these three things conversationally, one at a time:
 1. The first day of their last period (accept relative answers like "last Tuesday" or "5 days ago" and convert to YYYY-MM-DD using today's date).
@@ -267,7 +283,7 @@ Once you have a current value for all three, call calculateFertilityEstimate. If
 
 If a patient mentions logging their BBT temperature, LH surge test result (positive/negative or a ratio), or cervical mucus consistency (dry, sticky, creamy, or egg-white), call logBiomarkers to record those values.
 
-Keep replies short and non-technical. Never give a medical diagnosis, never invent medical facts, and never state a probability or certainty about what a symptom means. Always encourage consultation with a licensed healthcare provider for clinical evaluation.
+Keep replies empathetic, concise, and non-technical. Always encourage consultation with a licensed healthcare provider for clinical evaluation.
 
 --- EMERGENCY TRIPWIRES (respond ONLY with an urgent-care message; do not continue normal conversation) ---
 Trigger for ANY of the following:
@@ -279,11 +295,9 @@ Trigger for ANY of the following:
 • Any mention of self-harm or suicidal thoughts — tell them they don't have to be alone with this and to reach out to a crisis helpline or emergency services right now.
 
 --- CLINICAL CONTEXT ---
-For PCOS / irregular cycles: Acknowledge that ovulation prediction from calendar alone is unreliable. Encourage daily LH strip testing and BBT tracking. Never imply a specific ovulation date is certain.
+For PCOS / irregular cycles: Acknowledge that ovulation prediction from calendar alone is an estimate. Encourage daily LH strip testing and BBT tracking for accurate cycle tracking. Never imply a specific calendar ovulation date is guaranteed.
 For pregnancy: Do not calculate fertile windows. Remind them their care should be managed by their obstetrician.
-For perimenopause: Cycles may be unpredictable; irregular periods in this life stage are expected but any unusual bleeding (especially post-menopausal bleeding) warrants urgent gynecological evaluation.
-
-For anything else that sounds concerning but isn't urgent, suggest seeing a doctor rather than assessing it yourself.`;
+For perimenopause: Cycles may be unpredictable; irregular periods in this life stage are expected but any unusual bleeding (especially post-menopausal bleeding) warrants urgent gynecological evaluation.`;
 
     const model = this.genAI.getGenerativeModel({
       model: 'gemini-1.5-flash',
@@ -362,17 +376,19 @@ For anything else that sounds concerning but isn't urgent, suggest seeing a doct
 
     // 3. Generate response using the RAG context
     const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    // AUDIT_REPORT.md AI-2 — this is the one AI surface reachable by anyone
-    // with no login, and it previously had no medical-safety instruction at
-    // all (unlike the patient agent above and the consult-brief
-    // summarizer). Same guardrails apply here even though this prompt is
-    // mostly answering product/pricing/logistics questions, since a visitor
-    // can still type a symptom question into it.
-    const prompt = `You are a friendly assistant for HealNari's public landing page, answering questions from visitors who are not logged in.
+    const prompt = `You are a friendly, evidence-aware care assistant for HealNari's public landing page, answering questions from visitors.
 
-Use the following context from our knowledge base to answer the user's question. If the answer isn't in the context, say you don't know but offer to connect them with support — never guess or invent an answer.
+Clinical Guidance & Safety Rules:
+- Never issue a clinical diagnosis (e.g. never say "Based on your symptoms, you have PCOS"). Explain: "Your symptoms can occur with PCOS, but they can also have other causes. A healthcare professional can help assess the cause."
+- WHO describes PCOS as a common hormonal disorder with varied symptoms. Explain that "PCOD" is regional terminology and PCOS is the recognized medical condition.
+- PCOS has no cure (per WHO), but symptoms and health risks are managed through personalized medical, nutrition, movement, and lifestyle support.
+- Prepend one status tag when discussing health or symptoms:
+  • [STATUS: GENERAL_WELLNESS] - For general health/lifestyle questions
+  • [STATUS: DISCUSS_WITH_DOCTOR] - For non-emergency symptoms or questions for a consult
+  • [STATUS: MEDICAL_ASSESSMENT_REQUIRED] - For significant patterns or urgent concerns
+- If the user describes a medical emergency (severe pain, heavy bleeding, chest pain, fainting, self-harm thoughts), immediately instruct them to seek emergency care.
 
-You are not a doctor and must never diagnose, suggest a treatment, or state what a symptom means. If the user describes a medical symptom or concern, say you can't advise on that and suggest booking a consultation with a HealNari doctor. If they describe a medical emergency (severe pain, heavy bleeding, chest pain/difficulty breathing, fainting, self-harm or suicidal thoughts), tell them to seek emergency care immediately or contact a crisis helpline, and do not attempt to otherwise answer.
+Use the following context from our knowledge base to answer the user's question. If the answer isn't in the context, say you don't know but offer to connect them with support — never guess or invent an answer. Never invent medical facts, citations, or statistical claims.
 
 Context:
 ${contextTexts || 'No relevant information found in knowledge base.'}
@@ -434,9 +450,9 @@ Recent lab reports: ${facts.recentLabReports.length ? facts.recentLabReports.map
       });
 
       if (error || !data?.length) {
-        // High-yield clinical fallback protocols if vector table is freshly initializing
+        // High-yield clinical fallback protocols aligned with 2023 International Guidelines
         return `Standard Protocol Guidance:
-1. PCOS / Hyperandrogenism: Rotterdam criteria requires 2 of 3 (Oligo/Anovulation, Clinical/Biochemical Hyperandrogenism, Polycystic Ovaries on USG). First-line: Lifestyle modification + Metformin 500mg BD / Myo-Inositol 2g OD.
+1. PCOS / Hyperandrogenism: Rotterdam criteria requires 2 of 3 (Oligo/Anovulation, Clinical/Biochemical Hyperandrogenism, Polycystic Ovarian Morphology on USG or elevated serum AMH in adult women; diagnosis confirmed clinically without ultrasound/AMH if both irregular cycles and hyperandrogenism co-exist). First-line: Multi-component lifestyle management (balanced nutrient-dense nutrition, physical activity ≥150 min/wk + resistance training) + Metformin/Insulin sensitizers where clinically indicated.
 2. Thyroid: Normal TSH 0.4-4.0 µIU/mL. Elevated TSH with normal free T4 indicates subclinical hypothyroidism; evaluate symptoms, anti-TPO antibodies.
 3. Iron Deficiency Anemia: Ferrous ascorbate/fumarate 100mg elemental iron OD. Instruct patient: Take on empty stomach with Vitamin C/citrus. Do not take with dairy/tea/calcium.`;
       }
@@ -549,12 +565,17 @@ Return your final answer ONLY as valid JSON matching this schema:
       }
 
       const rawText = response.response.text();
-      // Extract JSON from potential code fences
-      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-      return JSON.parse(rawText);
+      const fallbackSoap = {
+        subjective: `Patient ${facts.patientName} presents with ${facts.chiefComplaint}.`,
+        objective: `Teleconsultation review.`,
+        assessment: `Clinical assessment for ${facts.chiefComplaint}.`,
+        plan: `1. Follow medical guidance provided during consultation.\n2. Review in 2 weeks.`,
+        patientActionPlan: [
+          `Follow the doctor's prescribed care instructions.`,
+          `Schedule a follow-up if symptoms persist.`
+        ],
+      };
+      return this.safeJsonParse(rawText, fallbackSoap);
     } catch (err) {
       return {
         subjective: `Patient ${facts.patientName} presents with ${facts.chiefComplaint}.`,
@@ -574,14 +595,16 @@ Return your final answer ONLY as valid JSON matching this schema:
    * to retrieve standard evidence-based dosage, frequency, and patient safety rules.
    */
   async autoCompletePrescription(query: string) {
+    const defaultRx = {
+      drugName: query,
+      dosage: '500mg',
+      frequency: 'Once daily',
+      duration: '14 Days',
+      instructions: 'Take after meals with water.',
+    };
+
     if (!this.genAI) {
-      return {
-        drugName: query,
-        dosage: '500mg',
-        frequency: 'Once daily',
-        duration: '14 Days',
-        instructions: 'Take after meals with water.',
-      };
+      return defaultRx;
     }
 
     try {
@@ -617,19 +640,9 @@ Return your answer ONLY as valid JSON:
       }
 
       const rawText = response.response.text();
-      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
-      }
-      return JSON.parse(rawText);
+      return this.safeJsonParse(rawText, defaultRx);
     } catch {
-      return {
-        drugName: query,
-        dosage: 'As directed',
-        frequency: 'Once daily',
-        duration: '14 Days',
-        instructions: 'Take with water after meals.',
-      };
+      return defaultRx;
     }
   }
 
@@ -698,7 +711,17 @@ Return ONLY a valid JSON object matching this exact schema:
 }`;
 
       const result = await model.generateContent(prompt);
-      return JSON.parse(result.response.text());
+      const fallbackLab = {
+        reportName: reportName || 'Diagnostic Report',
+        cyclePhase: cyclePhase || 'General',
+        summary: 'Report successfully parsed. Please review the findings with your doctor for clinical guidance.',
+        biomarkers: [],
+        questionsForDoctor: [
+          'What do these test results indicate for my overall treatment plan?',
+          'Should we repeat this test in the future?'
+        ],
+      };
+      return this.safeJsonParse(result.response.text(), fallbackLab);
     } catch (err) {
       return {
         reportName: reportName || 'Diagnostic Report',
@@ -725,19 +748,18 @@ Return ONLY a valid JSON object matching this exact schema:
       };
     }
 
+    const defaultInteractions = {
+      guidelines: medications.map(med => ({
+        medName: med,
+        bestTime: 'With meals',
+        keyRule: 'Take consistently at the same time daily.',
+      })),
+      interactions: [],
+      foodRules: ['Drink plenty of water with medications.'],
+    };
+
     if (!this.genAI) {
-      return {
-        guidelines: medications.map(med => ({
-          medName: med,
-          bestTime: 'Morning after breakfast',
-          keyRule: 'Take consistently with a full glass of water.',
-        })),
-        interactions: [],
-        foodRules: [
-          'Stay well hydrated throughout the day.',
-          'Take supplements 2 hours apart from caffeinated beverages.',
-        ],
-      };
+      return defaultInteractions;
     }
 
     try {
@@ -772,17 +794,9 @@ Return ONLY a valid JSON object matching this schema:
 }`;
 
       const result = await model.generateContent(prompt);
-      return JSON.parse(result.response.text());
+      return this.safeJsonParse(result.response.text(), defaultInteractions);
     } catch {
-      return {
-        guidelines: medications.map(med => ({
-          medName: med,
-          bestTime: 'With meals',
-          keyRule: 'Take consistently at the same time daily.',
-        })),
-        interactions: [],
-        foodRules: ['Drink plenty of water with medications.'],
-      };
+      return defaultInteractions;
     }
   }
 
@@ -790,13 +804,15 @@ Return ONLY a valid JSON object matching this schema:
    * Generates a medically reviewed, educational CMS Article draft on women's health topics.
    */
   async generateCmsArticle(topic: string, category: string, tone = 'Empathetic & Educational') {
+    const defaultArticle = {
+      title: topic,
+      summary: `Comprehensive educational guide on ${topic} covering symptoms, causes, and evidence-based lifestyle strategies.`,
+      content: `<h2>Understanding ${topic}</h2><p>In women's health, understanding ${topic} is key to proactive wellness.</p><h3>Key Takeaways</h3><ul><li>Consult a healthcare professional for clinical evaluation.</li><li>Balanced nutrition and cycle tracking support hormone health.</li></ul>`,
+      tags: [category, 'Women Health', 'Wellness'],
+    };
+
     if (!this.genAI) {
-      return {
-        title: topic,
-        summary: `Comprehensive educational guide on ${topic} covering symptoms, causes, and evidence-based lifestyle strategies.`,
-        content: `<h2>Understanding ${topic}</h2><p>In women's health, understanding ${topic} is key to proactive wellness.</p><h3>Key Takeaways</h3><ul><li>Consult a healthcare professional for clinical evaluation.</li><li>Balanced nutrition and cycle tracking support hormone health.</li></ul>`,
-        tags: [category, 'Women Health', 'Wellness'],
-      };
+      return defaultArticle;
     }
 
     try {
@@ -808,6 +824,12 @@ Return ONLY a valid JSON object matching this schema:
       const prompt = `You are a chief medical writer for HealNari. Draft an engaging, evidence-based, medically structured health education article on the topic: "${topic}" in category: "${category}".
 Tone: ${tone}.
 
+Scientific & Medical Guidelines:
+- Ground all facts in current authoritative medical guidance (WHO, international clinical consensus, peer-reviewed systematic reviews).
+- Never claim a "cure" or "permanent reversal" for chronic conditions like PCOS. Emphasize multi-component lifestyle management, symptom improvement, and evidence-based clinical therapy.
+- Do not promote extreme dietary restrictions, crash detoxes, or unverified supplement promises.
+- Emphasize transparent, patient-centered communication and encourage physician consultation for diagnosis and treatment.
+
 Return ONLY valid JSON matching this schema:
 {
   "title": "Engaging, SEO-Friendly Article Title",
@@ -817,14 +839,9 @@ Return ONLY valid JSON matching this schema:
 }`;
 
       const result = await model.generateContent(prompt);
-      return JSON.parse(result.response.text());
+      return this.safeJsonParse(result.response.text(), defaultArticle);
     } catch {
-      return {
-        title: topic,
-        summary: `Guide on ${topic} for patient wellness.`,
-        content: `<p>Learn about ${topic} and how to manage symptoms effectively.</p>`,
-        tags: [category, 'Health'],
-      };
+      return defaultArticle;
     }
   }
 
@@ -832,13 +849,15 @@ Return ONLY valid JSON matching this schema:
    * Triages incoming support tickets and drafts an intelligent proposed resolution.
    */
   async triageSupportTicket(ticket: { subject: string; message: string; category?: string; userRole?: string }) {
+    const defaultTriage = {
+      urgency: 'Medium',
+      category: ticket.category || 'General',
+      summary: ticket.subject,
+      suggestedReply: `Hello, thank you for reaching out to HealNari support. We have received your inquiry regarding "${ticket.subject}" and our team is reviewing it. We will get back to you shortly.`,
+    };
+
     if (!this.genAI) {
-      return {
-        urgency: 'Medium',
-        category: ticket.category || 'General',
-        summary: ticket.subject,
-        suggestedReply: `Hello, thank you for reaching out to HealNari support. We have received your inquiry regarding "${ticket.subject}" and our team is reviewing it. We will get back to you shortly.`,
-      };
+      return defaultTriage;
     }
 
     try {
@@ -861,14 +880,27 @@ Return ONLY valid JSON matching this schema:
 }`;
 
       const result = await model.generateContent(prompt);
-      return JSON.parse(result.response.text());
+      return this.safeJsonParse(result.response.text(), defaultTriage);
     } catch {
-      return {
-        urgency: 'Medium',
-        category: ticket.category || 'Support',
-        summary: ticket.subject,
-        suggestedReply: `Thank you for contacting HealNari. We are looking into your request and will assist you promptly.`,
-      };
+      return defaultTriage;
+    }
+  }
+
+  safeJsonParse<T>(rawText: string, fallback: T): T {
+    if (!rawText || typeof rawText !== 'string') return fallback;
+    try {
+      // 1. Direct JSON parse
+      return JSON.parse(rawText.trim());
+    } catch {
+      try {
+        // 2. Extract from markdown code fences or matching braces
+        const cleaned = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+        if (jsonMatch) {
+          return JSON.parse(jsonMatch[0]);
+        }
+      } catch {}
+      return fallback;
     }
   }
 

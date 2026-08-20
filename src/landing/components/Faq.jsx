@@ -9,8 +9,8 @@ function Faq() {
       a: "Your ₹799 consultation includes a full 45-minute 1-on-1 video call with a specialist doctor (gynaecologist, endocrinologist, or trichologist depending on your concern), a personalised lab-test roadmap, a custom diet & yoga protocol designed for your hormonal profile, a digital prescription where applicable, and 14 days of free follow-up chat — all from the comfort of your home."
     },
     {
-      q: "Why does HealNari focus on diet and yoga over medication?",
-      a: "Because research shows diet and lifestyle are the most powerful tools for reversing PCOS, insulin resistance, and hormonal imbalances — far more effective long-term than medication alone. Most pills just manage symptoms. Our approach corrects the hormonal root cause so the symptoms disappear naturally. Medication is prescribed only when medically necessary, not as the first line of treatment."
+      q: "How does HealNari combine lifestyle interventions with medical therapy?",
+      a: "Clinical guidelines consistently show that evidence-based nutrition, therapeutic movement, stress regulation, and sleep are foundational for improving insulin sensitivity and hormonal balance. Rather than relying solely on quick fixes, our specialists combine structured lifestyle protocols with targeted, evidence-based medications (such as insulin sensitizers or cycle regulators) whenever clinically indicated. This integrated care model addresses the root metabolic drivers to achieve sustainable, long-term health."
     },
     {
       q: "How is HealNari different from a regular hospital or clinic visit?",
@@ -18,11 +18,11 @@ function Faq() {
     },
     {
       q: "Which conditions do your doctors treat?",
-      a: "Our specialists treat PCOS / PCOD, irregular or painful periods, hormonal hair fall & thinning, acne & hirsutism, thyroid disorders (hypothyroidism, hyperthyroidism), hormonal weight gain, insulin resistance, fertility & preconception planning, and general hormonal imbalances. If you're unsure, use our free 2-minute symptom checker to find out which specialist you need."
+      a: "Our specialists provide care for PCOS (Polycystic Ovary Syndrome, commonly referred to as PCOD in some regions), irregular or painful periods, hormonal hair thinning, acne & hirsutism, thyroid disorders, insulin resistance, fertility & preconception planning, and general hormonal health. If you're unsure, use our free screening tool to see which specialist can best assist you."
     },
     {
-      q: "Can PCOS symptoms really improve through diet, yoga, and treatment?",
-      a: "For many women, yes — significantly. PCOS is a lifelong hormonal condition, but its symptoms (irregular cycles, hair fall, acne, weight gain) can often be greatly reduced or even brought under control with the right combination of diet, lifestyle changes, and medical support. Most patients on a consistent protocol see meaningful improvements within 8–12 weeks. Individual results vary based on your specific hormonal profile and consistency of the plan."
+      q: "Can PCOS be cured or managed?",
+      a: "According to the World Health Organization (WHO), PCOS has no cure, although symptoms and associated metabolic risks can be effectively managed. With personalized medical care, sustainable nutrition support, mindful movement, and lifestyle guidance, most women experience significant improvements in cycle regularity, energy, skin, and overall well-being."
     },
     {
       q: "Is the video consultation completely secure & confidential?",

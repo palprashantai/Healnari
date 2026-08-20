@@ -30,8 +30,8 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Send ${channel}`} size="sm">
       <div className="space-y-4">
-        <div className="bg-sky-50 border border-sky-200 text-sky-800 rounded-xl p-3 text-sm font-bold flex gap-2">
-          <i className="fas fa-users mt-1 text-sky-500"></i>
+        <div className="bg-aubergine-50 border border-aubergine-200 text-aubergine-800 rounded-xl p-3 text-sm font-bold flex gap-2">
+          <i className="fas fa-users mt-1 text-aubergine-600"></i>
           <p>You are about to send a {channel} to {selectedCount} selected appointment(s).</p>
         </div>
         <div>
@@ -69,7 +69,7 @@ const STATUS_BADGE = {
   'In Progress': 'bg-gradient-to-r from-emerald-100 to-emerald-50 text-emerald-700 ring-1 ring-emerald-200 ring-inset shadow-sm',
   'Waiting':     'bg-gradient-to-r from-amber-100 to-amber-50 text-amber-700 ring-1 ring-amber-200 ring-inset shadow-sm',
   'Upcoming':    'bg-gradient-to-r from-slate-100 to-slate-50 text-slate-600 ring-1 ring-slate-200 ring-inset shadow-sm',
-  'Requested':   'bg-gradient-to-r from-sky-100 to-sky-50 text-sky-700 ring-1 ring-sky-200 ring-inset shadow-sm',
+  'Requested':   'bg-gradient-to-r from-aubergine-100 to-aubergine-50 text-aubergine-700 ring-1 ring-aubergine-200 ring-inset shadow-sm',
   'Done':        'bg-gradient-to-r from-slate-200 to-slate-100 text-slate-700 ring-1 ring-slate-300 ring-inset shadow-sm'
 };
 
@@ -478,9 +478,9 @@ function DoctorAppointments() {
                   <div className="px-4 py-2 mb-1">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Messaging Channels</p>
                   </div>
-                  <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-sky-50 hover:text-sky-700 flex items-center gap-3 transition-colors group">
-                    <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center group-hover:bg-white transition-colors">
-                      <i className="fas fa-envelope text-sky-500"></i>
+                  <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-aubergine-50 hover:text-aubergine-700 flex items-center gap-3 transition-colors group">
+                    <div className="w-8 h-8 rounded-full bg-aubergine-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                      <i className="fas fa-envelope text-aubergine-600"></i>
                     </div>
                     Bulk Email
                   </button>
@@ -619,7 +619,7 @@ function DoctorAppointments() {
                       )}
                     </td>
                     <td className="px-4 py-3 align-middle">
-                      <span className={`flex items-center gap-1.5 text-[11px] font-bold w-max px-2.5 py-1 rounded-lg ${p.mode === 'Video' ? 'bg-sky-50 text-sky-700' : 'bg-slate-50 text-slate-600'}`}>
+                      <span className={`flex items-center gap-1.5 text-[11px] font-bold w-max px-2.5 py-1 rounded-lg ${p.mode === 'Video' ? 'bg-aubergine-50 text-aubergine-700' : 'bg-slate-50 text-slate-600'}`}>
                         <i className={`fas ${p.mode === 'Video' ? 'fa-video' : 'fa-hospital'} text-[10px]`}></i> {p.mode}
                       </span>
                     </td>
@@ -684,7 +684,7 @@ function DoctorAppointments() {
                   </td>
                   <td className="px-4 py-3 align-middle font-bold text-aubergine-700 text-[13px] whitespace-nowrap">{r.date} • {r.time}</td>
                   <td className="px-4 py-3 align-middle">
-                    <span className={`flex items-center gap-1.5 text-[11px] font-bold w-max px-2.5 py-1 rounded-lg ${r.mode === 'Video' ? 'bg-sky-50 text-sky-700' : 'bg-slate-50 text-slate-600'}`}>
+                    <span className={`flex items-center gap-1.5 text-[11px] font-bold w-max px-2.5 py-1 rounded-lg ${r.mode === 'Video' ? 'bg-aubergine-50 text-aubergine-700' : 'bg-slate-50 text-slate-600'}`}>
                       <i className={`fas ${r.mode === 'Video' ? 'fa-video' : 'fa-hospital'} text-[10px]`}></i> {r.mode}
                     </span>
                   </td>
@@ -736,7 +736,7 @@ function DoctorAppointments() {
                   </td>
                   <td className="px-4 py-3 align-middle font-bold text-aubergine-700 text-[13px] whitespace-nowrap">{p.date}</td>
                   <td className="px-4 py-3 align-middle">
-                    <span className={`flex items-center gap-1.5 text-[11px] font-bold w-max px-2.5 py-1 rounded-lg ${p.mode === 'Video' ? 'bg-sky-50 text-sky-700' : 'bg-slate-50 text-slate-600'}`}>
+                    <span className={`flex items-center gap-1.5 text-[11px] font-bold w-max px-2.5 py-1 rounded-lg ${p.mode === 'Video' ? 'bg-aubergine-50 text-aubergine-700' : 'bg-slate-50 text-slate-600'}`}>
                       <i className={`fas ${p.mode === 'Video' ? 'fa-video' : 'fa-hospital'} text-[10px]`}></i> {p.mode}
                     </span>
                   </td>

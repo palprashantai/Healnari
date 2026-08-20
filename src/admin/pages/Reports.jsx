@@ -123,7 +123,7 @@ function AdminReports() {
       {/* Quick Stats */}
       <div className="grid sm:grid-cols-3 gap-6">
         {[
-          { label: 'Total Users', value: loading ? '…' : (summary?.totalRegisteredUsers?.toLocaleString() || '0'), bg: 'from-indigo-500 to-indigo-700', icon: 'fa-users' },
+          { label: 'Total Users', value: loading ? '…' : (summary?.totalRegisteredUsers?.toLocaleString() || '0'), bg: 'from-aubergine-600 to-aubergine-800', icon: 'fa-users' },
           { label: 'Completed Consultations', value: loading ? '…' : (summary?.completedAppointments?.toLocaleString() || '0'), bg: 'from-emerald-500 to-emerald-700', icon: 'fa-calendar-check' },
           { label: 'Completion Rate', value: loading ? '…' : (summary?.completionRate || '0%'), bg: 'from-rose-500 to-rose-700', icon: 'fa-chart-pie' },
         ].map(s => (

@@ -9,7 +9,7 @@ function ProviderBenefits() {
       description: 'Streamline your daily clinic with automated patient tokens (T-01, T-02), real-time status tracking (Waiting, In Session, No Show), and a 1-click "Call Next" patient workflow.',
       icon: 'fa-hospital-user',
       badge: 'Queue Engine',
-      color: 'text-teal-600 bg-teal-50 border-teal-200'
+      color: 'text-aubergine-600 bg-aubergine-50 border-aubergine-200'
     },
     {
       title: 'AI Clinical Decision Support (CDSS)',
@@ -17,7 +17,7 @@ function ProviderBenefits() {
       description: 'Our proprietary AI Insight Strip continuously monitors today\'s schedule—alerting you immediately to elevated blood pressure trends, critical biomarker deviations, and pending refills.',
       icon: 'fa-wand-magic-sparkles',
       badge: 'CDSS Intelligence',
-      color: 'text-indigo-600 bg-indigo-50 border-indigo-200'
+      color: 'text-aubergine-600 bg-aubergine-50 border-aubergine-200'
     },
     {
       title: 'Priority Action Inbox & Lab Triage',

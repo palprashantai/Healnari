@@ -87,7 +87,7 @@ function AdminLandingManager() {
         </button>
         <button 
           onClick={() => setActiveTab('provider')}
-          className={`pb-3 font-bold text-sm border-b-2 transition-colors ${activeTab === 'provider' ? 'border-sky-600 text-sky-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+          className={`pb-3 font-bold text-sm border-b-2 transition-colors ${activeTab === 'provider' ? 'border-aubergine-600 text-aubergine-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
           Provider Portal (/for-doctors)
         </button>
@@ -129,12 +129,12 @@ function AdminLandingManager() {
                 <div>
                   <label className="text-xs font-bold text-slate-500 mb-1.5 block">Provider Hero Headline</label>
                   <input value={providerHeroTitle} onChange={e => setProviderHeroTitle(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-100" />
+                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-aubergine-100" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 mb-1.5 block">Provider Hero Subtext</label>
                   <textarea value={providerHeroSubtitle} onChange={e => setProviderHeroSubtitle(e.target.value)} rows="4"
-                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-100" />
+                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-aubergine-100" />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 mb-1.5 block">Top Promotional Banner Text (Global)</label>
@@ -149,7 +149,7 @@ function AdminLandingManager() {
         {/* Section Toggles */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
-            <h2 className="font-bold text-slate-800"><i className="fas fa-toggle-on text-sky-500 mr-2"></i>Section Visibility</h2>
+            <h2 className="font-bold text-slate-800"><i className="fas fa-toggle-on text-aubergine-600 mr-2"></i>Section Visibility</h2>
           </div>
           <div className="p-5 flex-1 flex flex-col justify-between">
             <div className="space-y-4 divide-y divide-slate-50">
@@ -178,9 +178,9 @@ function AdminLandingManager() {
                 </div>
               )}
             </div>
-            <div className="mt-8 bg-sky-50 p-4 rounded-xl border border-sky-100 flex gap-3">
-              <i className="fas fa-lightbulb text-sky-500 mt-0.5"></i>
-              <p className="text-xs text-sky-800 font-medium">Hiding a section removes it from the navigation bar automatically. Your SEO metadata updates instantly upon saving.</p>
+            <div className="mt-8 bg-aubergine-50/70 p-4 rounded-xl border border-aubergine-100 flex gap-3">
+              <i className="fas fa-lightbulb text-aubergine-600 mt-0.5"></i>
+              <p className="text-xs text-aubergine-800 font-medium">Hiding a section removes it from the navigation bar automatically. Your SEO metadata updates instantly upon saving.</p>
             </div>
           </div>
         </div>

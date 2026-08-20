@@ -14,52 +14,13 @@ function GuideModal({ isOpen, onClose, guide, onBookConsult }) {
 
   if (!isOpen || !guide) return null;
 
-  const colorThemes = {
-    indigo: {
-      gradient: 'from-indigo-900 via-indigo-800 to-purple-900',
-      badge: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-      accentText: 'text-indigo-600',
-      accentBg: 'bg-indigo-50 border-indigo-100',
-      tipBorder: 'border-indigo-500',
-    },
-    emerald: {
-      gradient: 'from-emerald-900 via-teal-800 to-slate-900',
-      badge: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      accentText: 'text-emerald-600',
-      accentBg: 'bg-emerald-50 border-emerald-100',
-      tipBorder: 'border-emerald-500',
-    },
-    violet: {
-      gradient: 'from-violet-900 via-purple-800 to-aubergine-900',
-      badge: 'bg-violet-100 text-violet-800 border-violet-200',
-      accentText: 'text-violet-600',
-      accentBg: 'bg-violet-50 border-violet-100',
-      tipBorder: 'border-violet-500',
-    },
-    amber: {
-      gradient: 'from-amber-900 via-orange-800 to-slate-900',
-      badge: 'bg-amber-100 text-amber-800 border-amber-200',
-      accentText: 'text-amber-600',
-      accentBg: 'bg-amber-50 border-amber-100',
-      tipBorder: 'border-amber-500',
-    },
-    rose: {
-      gradient: 'from-rose-900 via-pink-800 to-aubergine-900',
-      badge: 'bg-rose-100 text-rose-800 border-rose-200',
-      accentText: 'text-rose-600',
-      accentBg: 'bg-rose-50 border-rose-100',
-      tipBorder: 'border-rose-500',
-    },
-    sky: {
-      gradient: 'from-sky-900 via-blue-800 to-slate-900',
-      badge: 'bg-sky-100 text-sky-800 border-sky-200',
-      accentText: 'text-sky-600',
-      accentBg: 'bg-sky-50 border-sky-100',
-      tipBorder: 'border-sky-500',
-    },
+  const theme = {
+    gradient: 'from-[#2A1647] via-[#3A1C78] to-[#2A1647]',
+    badge: 'bg-[#EDE7FF] text-[#6B46C1] border-[#D6C7FF]',
+    accentText: 'text-aubergine-600',
+    accentBg: 'bg-aubergine-50 border-aubergine-100',
+    tipBorder: 'border-aubergine-500',
   };
-
-  const theme = colorThemes[guide.color] || colorThemes.indigo;
 
   const handleShare = () => {
     if (navigator.share) {
@@ -80,7 +41,7 @@ function GuideModal({ isOpen, onClose, guide, onBookConsult }) {
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-8 py-3.5 flex items-center justify-between shadow-sm">
         <button
           onClick={onClose}
-          className="inline-flex items-center gap-2 text-slate-700 hover:text-aubergine-600 font-bold text-sm bg-sand-100 hover:bg-aubergine-50 px-4 py-2 rounded-xl transition-colors"
+          className="inline-flex items-center gap-2 text-slate-700 hover:text-aubergine-600 font-bold text-sm bg-slate-100 hover:bg-aubergine-50 px-4 py-2 rounded-xl transition-colors"
         >
           <i className="fas fa-arrow-left text-xs"></i>
           <span>Back to Articles</span>
@@ -154,7 +115,7 @@ function GuideModal({ isOpen, onClose, guide, onBookConsult }) {
         <article className="max-w-4xl mx-auto space-y-8 text-slate-700">
 
           {/* Key Executive Summary Box */}
-          <div className="bg-sand-50/70 border border-sand-200/80 rounded-2xl p-5 sm:p-6 text-slate-700 leading-relaxed text-sm sm:text-base">
+          <div className="bg-aubergine-50/50 border border-aubergine-100 rounded-2xl p-5 sm:p-6 text-slate-700 leading-relaxed text-sm sm:text-base">
             <strong className="text-slate-900 block mb-1.5 font-bold flex items-center gap-2">
               <i className="fas fa-bookmark text-aubergine-600"></i> Clinical Executive Summary
             </strong>
@@ -195,17 +156,17 @@ function GuideModal({ isOpen, onClose, guide, onBookConsult }) {
 
             <div className="grid sm:grid-cols-3 gap-5 pt-2">
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold text-sm">01</div>
+                <div className="w-8 h-8 rounded-lg bg-aubergine-50 text-aubergine-700 flex items-center justify-center font-bold text-sm">01</div>
                 <h4 className="font-bold text-slate-900 text-base">Metabolic Stabilization</h4>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">Prioritize protein-first breakfast and resistance exercise to lower baseline fasting insulin.</p>
               </div>
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-sm">02</div>
+                <div className="w-8 h-8 rounded-lg bg-aubergine-50 text-aubergine-700 flex items-center justify-center font-bold text-sm">02</div>
                 <h4 className="font-bold text-slate-900 text-base">Targeted Biomarkers</h4>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">Check DHEA-S, fasting insulin, and full thyroid panels rather than relying on ultrasounds alone.</p>
               </div>
               <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-2">
-                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center font-bold text-sm">03</div>
+                <div className="w-8 h-8 rounded-lg bg-aubergine-50 text-aubergine-700 flex items-center justify-center font-bold text-sm">03</div>
                 <h4 className="font-bold text-slate-900 text-base">Circadian Rhythm Alignment</h4>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">Aim for 7.5+ hours of uninterrupted sleep to normalize morning cortisol and prolactin surges.</p>
               </div>
@@ -230,7 +191,7 @@ function GuideModal({ isOpen, onClose, guide, onBookConsult }) {
                 onClose();
                 if (onBookConsult) onBookConsult();
               }}
-              className="bg-white text-aubergine-900 hover:bg-sand-100 font-extrabold px-8 py-4 rounded-xl shadow-lg transition-all btn-interactive whitespace-nowrap text-sm"
+              className="bg-white text-aubergine-900 hover:bg-slate-100 font-extrabold px-8 py-4 rounded-xl shadow-lg transition-all btn-interactive whitespace-nowrap text-sm"
             >
               Book ₹299 Consultation <i className="fas fa-arrow-right ml-2"></i>
             </button>

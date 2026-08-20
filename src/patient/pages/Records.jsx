@@ -9,7 +9,7 @@ import { AIButton } from '../../components/AiButton.jsx';
 
 const FILE_STYLE = {
   pdf: { icon: 'fa-file-pdf', color: 'bg-rose-50 text-rose-500' },
-  image: { icon: 'fa-image', color: 'bg-indigo-50 text-indigo-500' },
+  image: { icon: 'fa-image', color: 'bg-aubergine-50 text-aubergine-600' },
 };
 
 const LAB_REPORT_CATEGORIES = [
@@ -441,7 +441,7 @@ function PatientRecords() {
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         {/* Tabs */}
-        <div className="flex border-b border-slate-200 bg-slate-50 overflow-x-auto">
+        <div className="flex border-b border-slate-200 bg-slate-50 overflow-x-auto hide-scrollbar">
           {[
             ['timeline', 'Timeline', 'fa-timeline'],
             ['profile', 'Health Profile', 'fa-notes-medical'],
@@ -450,14 +450,14 @@ function PatientRecords() {
             ['insurance', 'Insurance & Emergency', 'fa-shield-heart'],
           ].map(([key, label, icon, badge]) => (
             <button key={key} onClick={() => setTab(key)}
-              className={`px-6 py-4 text-sm font-bold whitespace-nowrap transition-all flex items-center gap-2 ${tab === key ? 'bg-white text-aubergine-700 border-t-2 border-t-aubergine-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+              className={`px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-bold whitespace-nowrap transition-all flex items-center gap-2 ${tab === key ? 'bg-white text-aubergine-700 border-t-2 border-t-aubergine-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
               <i className={`fas ${icon} text-xs`}></i> {label}
               {!!badge && <span className="bg-amber-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{badge}</span>}
             </button>
           ))}
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
 
           {/* ── TIMELINE TAB ── */}
           {tab === 'timeline' && (
@@ -537,7 +537,7 @@ function PatientRecords() {
                       <button onClick={() => setPreviewFile(doc)} className="w-8 h-8 rounded-lg bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-600 flex items-center justify-center text-xs transition-colors" title="Preview">
                         <i className="fas fa-eye"></i>
                       </button>
-                      <button onClick={() => toast('File download is coming soon.', 'info')} className="w-8 h-8 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-600 flex items-center justify-center text-xs transition-colors" title="Download">
+                      <button onClick={() => toast('File download is coming soon.', 'info')} className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xs transition-colors" title="Download">
                         <i className="fas fa-download"></i>
                       </button>
                       <button onClick={() => setDeleteTarget(doc)} className="w-8 h-8 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-500 flex items-center justify-center text-xs transition-colors" title="Delete">
@@ -730,17 +730,17 @@ function PatientRecords() {
             <div className="grid md:grid-cols-2 gap-8">
               {/* Insurance Card — no backend table yet, so this is an honest
                   empty state rather than a fabricated policy. */}
-              <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-6 relative overflow-hidden">
-                <i className="fas fa-shield-heart absolute -right-4 -bottom-4 text-8xl text-indigo-500/10"></i>
+              <div className="bg-aubergine-50/60 border border-aubergine-100 rounded-2xl p-6 relative overflow-hidden">
+                <i className="fas fa-shield-heart absolute -right-4 -bottom-4 text-8xl text-aubergine-500/10"></i>
                 <div className="flex justify-between items-start mb-5">
-                  <h3 className="font-black text-indigo-900 text-lg">Health Insurance</h3>
+                  <h3 className="font-black text-aubergine-900 text-lg">Health Insurance</h3>
                   <span className="bg-slate-400 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Not on File</span>
                 </div>
                 <p className="text-sm text-slate-600 relative z-10 mb-5">
                   No insurance policy is on file yet. This feature is coming soon — for now, please share your policy details with the clinic directly.
                 </p>
                 <button onClick={() => toast('Adding insurance details online is coming soon. Please contact the clinic to add your policy.', 'info')}
-                  className="w-full bg-white text-indigo-600 font-bold px-4 py-2 rounded-xl text-sm shadow-sm border border-indigo-100 hover:bg-indigo-50 transition-colors">
+                  className="w-full bg-white text-aubergine-700 font-bold px-4 py-2 rounded-xl text-sm shadow-sm border border-aubergine-200 hover:bg-aubergine-50 transition-colors">
                   <i className="fas fa-plus mr-1.5"></i> Add Insurance Details
                 </button>
               </div>
@@ -869,7 +869,7 @@ function PatientRecords() {
                         </div>
                         <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
                           b.status === 'HIGH' ? 'bg-amber-100 text-amber-800 border-amber-300' :
-                          b.status === 'LOW' ? 'bg-sky-100 text-sky-800 border-sky-300' :
+                          b.status === 'LOW' ? 'bg-aubergine-100 text-aubergine-800 border-aubergine-300' :
                           'bg-emerald-100 text-emerald-800 border-emerald-300'
                         }`}>
                           {b.status}
@@ -891,14 +891,14 @@ function PatientRecords() {
 
             {/* Questions to Ask Doctor */}
             {aiLabData.questionsForDoctor?.length > 0 && (
-              <div className="bg-sky-50/50 border border-sky-200 rounded-2xl p-4 space-y-2">
-                <h4 className="text-xs font-black uppercase tracking-wider text-sky-800 flex items-center gap-1.5">
-                  <i className="fas fa-comments"></i> 3 Questions to Ask Your Doctor
+              <div className="bg-aubergine-50/60 border border-aubergine-200 rounded-2xl p-4 space-y-2">
+                <h4 className="text-xs font-black uppercase tracking-wider text-aubergine-800 flex items-center gap-1.5">
+                  <i className="fas fa-comments text-aubergine-600"></i> 3 Questions to Ask Your Doctor
                 </h4>
                 <ul className="space-y-1.5">
                   {aiLabData.questionsForDoctor.map((q, idx) => (
-                    <li key={idx} className="text-xs text-sky-950 font-medium flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-sky-200 text-sky-800 flex items-center justify-center text-[10px] shrink-0 font-bold mt-0.5">{idx + 1}</span>
+                    <li key={idx} className="text-xs text-slate-800 font-medium flex items-start gap-2">
+                      <span className="w-4 h-4 rounded-full bg-aubergine-200 text-aubergine-800 flex items-center justify-center text-[10px] shrink-0 font-bold mt-0.5">{idx + 1}</span>
                       <span>{q}</span>
                     </li>
                   ))}

@@ -90,12 +90,12 @@ function AdminAnalytics() {
   const totalDoctorsCount = data?.totalDoctors || 48;
 
   const kpis = [
-    { title: 'Global Telehealth Members', value: totalPatientsCount.toLocaleString(), icon: 'fa-globe', color: 'text-indigo-600', bg: 'bg-indigo-50', text: 'text-slate-900', trend: '7+ Target Countries', up: true },
+    { title: 'Global Telehealth Members', value: totalPatientsCount.toLocaleString(), icon: 'fa-globe', color: 'text-aubergine-600', bg: 'bg-aubergine-50', text: 'text-slate-900', trend: '7+ Target Countries', up: true },
     { title: 'Licensed Specialists', value: totalDoctorsCount.toLocaleString(), icon: 'fa-user-doctor', color: 'text-emerald-600', bg: 'bg-emerald-50', text: 'text-slate-900', trend: 'US, UK, UAE, IN, AU', up: true },
     { title: 'International Patient Share', value: `${crossBorderSplit.internationalPercentage}%`, icon: 'fa-plane-departure', color: 'text-white', bg: 'bg-slate-900', text: 'text-white', trend: 'High ARPU Markets', up: true, dark: true },
     { title: 'Currencies Settled', value: `${revenueByCurrency.length} Active`, icon: 'fa-money-bill-transfer', color: 'text-amber-600', bg: 'bg-amber-50', text: 'text-slate-900', trend: 'USD, GBP, AED, EUR, INR', up: true },
     { title: 'Video Telehealth Delivery', value: '82%', icon: 'fa-video', color: 'text-rose-600', bg: 'bg-rose-50', text: 'text-slate-900', trend: 'Encrypted WebRTC', up: true },
-    { title: 'Global Uptime SLA', value: '99.98%', icon: 'fa-shield-check', color: 'text-violet-600', bg: 'bg-violet-50', text: 'text-slate-900', trend: 'HIPAA & GDPR Ready', up: true },
+    { title: 'Global Uptime SLA', value: '99.98%', icon: 'fa-shield-check', color: 'text-aubergine-700', bg: 'bg-aubergine-100', text: 'text-slate-900', trend: 'HIPAA & GDPR Ready', up: true },
   ];
 
   return (
@@ -175,7 +175,7 @@ function AdminAnalytics() {
                   </div>
                   <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-gradient-to-r from-aubergine-600 to-indigo-600 rounded-full transition-all duration-700"
+                      className="h-full bg-gradient-to-r from-aubergine-600 to-aubergine-800 rounded-full transition-all duration-700"
                       style={{ width: `${Math.max(geo.percentage, 4)}%` }}
                     ></div>
                   </div>
@@ -269,7 +269,7 @@ function AdminAnalytics() {
               <h2 className="font-black text-slate-900 text-base">Cross-Border Patient Growth (International vs Domestic)</h2>
               <p className="text-xs text-slate-500">Accelerating international telehealth consult volume month-on-month.</p>
             </div>
-            <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
+            <span className="text-xs font-bold text-aubergine-700 bg-aubergine-50 px-2.5 py-1 rounded-full border border-aubergine-100">
               87% Cross-Border
             </span>
           </div>

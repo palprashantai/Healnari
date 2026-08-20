@@ -45,7 +45,7 @@ function DocumentViewerModal({ isOpen, onClose, doctor, onResolve }) {
               <p className="text-[11px] text-aubergine-700 font-semibold">Council: {doctor.medical_council || 'State Medical Licensing Board'}</p>
             </div>
           </div>
-          <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+          <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-aubergine-50 text-aubergine-700 border border-aubergine-100">
             {doctor.currency || 'USD'} Settlement
           </span>
         </div>
@@ -102,7 +102,7 @@ function RefundModal({ isOpen, onClose, refund, onProcess }) {
           <div className="flex justify-between items-center">
             <span className="text-slate-500 text-xs font-bold">Payment Rail</span>
             <span className="font-bold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200 text-[10px]">
-              <i className="fas fa-credit-card mr-1 text-indigo-600"></i>{refund.gateway || 'Stripe Global / Cashfree'}
+              <i className="fas fa-credit-card mr-1 text-aubergine-600"></i>{refund.gateway || 'Stripe Global / Cashfree'}
             </span>
           </div>
         </div>
@@ -236,7 +236,7 @@ function AdminDashboard() {
   if (loading) return <div className="p-12 text-center text-slate-500 font-extrabold">Loading Global Telehealth Command Center...</div>;
 
   const displayStats = [
-    { label: 'Global Patients', value: (stats?.totalUsers || 907).toLocaleString(), trend: '7 Target Markets', up: true, icon: 'fa-globe', color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { label: 'Global Patients', value: (stats?.totalUsers || 907).toLocaleString(), trend: '7 Target Markets', up: true, icon: 'fa-globe', color: 'text-aubergine-600', bg: 'bg-aubergine-50' },
     { label: 'Licensed Specialists', value: (stats?.activeDoctors || 48).toLocaleString(), trend: 'US, UK, UAE, IN, AU', up: true, icon: 'fa-user-doctor', color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { label: 'Gross Volume (USD Eq.)', value: '$38,240', trend: 'Multi-Currency Settled', up: true, icon: 'fa-money-bill-trend-up', color: 'text-white', bg: 'bg-slate-900', dark: true },
     { label: 'Credential Reviews', value: (verifications.length || 0).toString(), trend: 'Physician KYC Queue', up: null, icon: 'fa-user-check', color: 'text-amber-600', bg: 'bg-amber-50' },
@@ -272,7 +272,7 @@ function AdminDashboard() {
       </div>
 
       {/* Global Coverage Banner */}
-      <div className="bg-gradient-to-r from-aubergine-900 via-indigo-950 to-slate-900 rounded-2xl p-4 sm:p-5 text-white shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-gradient-to-r from-aubergine-900 via-aubergine-950 to-slate-900 rounded-2xl p-4 sm:p-5 text-white shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
@@ -415,7 +415,7 @@ function AdminDashboard() {
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/70">
               <div className="flex items-center gap-2">
-                <i className="fas fa-headset text-sky-500 text-sm"></i>
+                <i className="fas fa-headset text-aubergine-600 text-sm"></i>
                 <h2 className="font-black text-slate-900 text-sm">Global Telehealth Inquiries &amp; Patient Support</h2>
               </div>
               {tickets.length > 0 && <span className="bg-rose-100 text-rose-600 text-[10px] font-bold px-2 py-0.5 rounded animate-pulse">{tickets.length} Action Needed</span>}
@@ -431,7 +431,7 @@ function AdminDashboard() {
                     <p className="text-xs text-slate-600 mb-1">{t.issue}</p>
                     <p className="text-[10px] text-slate-400">{new Date(t.created_at).toLocaleString()}</p>
                   </div>
-                  <button onClick={() => setSelectedTicket(t)} className="bg-white border border-slate-200 hover:border-sky-400 hover:text-sky-700 text-slate-700 font-extrabold px-4 py-2 rounded-xl text-xs transition-all shadow-sm">
+                  <button onClick={() => setSelectedTicket(t)} className="bg-white border border-slate-200 hover:border-aubergine-400 hover:text-aubergine-700 text-slate-700 font-extrabold px-4 py-2 rounded-xl text-xs transition-all shadow-sm">
                     Review Inquiry
                   </button>
                 </div>

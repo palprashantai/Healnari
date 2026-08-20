@@ -256,7 +256,7 @@ function PatientLayout() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <ModuleAccentBar color={hoveredColor || DEFAULT_ACCENT} className="rounded-none" />
         {/* Topbar */}
-        <header className="h-16 border-b border-sand-200 flex items-center justify-between px-4 md:px-6 shrink-0" style={{ backgroundColor: 'var(--color-surface-page)' }}>
+        <header className="h-16 border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0" style={{ backgroundColor: 'var(--color-surface-page)' }}>
           {/* Mobile hamburger */}
           <button className="md:hidden text-aubergine-600 hover:text-aubergine-800 mr-3" onClick={() => setMobileSidebarOpen(true)}>
             <i className="fas fa-bars text-xl"></i>
@@ -284,7 +284,7 @@ function PatientLayout() {
                 window.dispatchEvent(new Event('discreet_mode_changed'));
                 toast(next ? 'Discreet mode on.' : 'Discreet mode off.', 'info');
               }}
-              className={`hidden md:flex w-9 h-9 rounded-full transition-all items-center justify-center border text-sm ${discreet ? 'bg-aubergine-100 border-aubergine-200 text-aubergine-700' : 'bg-sand-100 border-sand-200 text-sand-600 hover:bg-aubergine-50 hover:border-aubergine-100 hover:text-aubergine-600'}`}
+              className={`hidden md:flex w-9 h-9 rounded-full transition-all items-center justify-center border text-sm ${discreet ? 'bg-aubergine-100 border-aubergine-200 text-aubergine-700' : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-aubergine-50 hover:border-aubergine-100 hover:text-aubergine-600'}`}
               title={discreet ? 'Disable Discreet Mode' : 'Enable Discreet Mode'}>
               <i className={`fas ${discreet ? 'fa-eye-slash' : 'fa-eye'}`}></i>
             </button>
@@ -293,7 +293,7 @@ function PatientLayout() {
             <div className="relative">
               <button ref={notifBtnRef}
                 onClick={() => setNotifOpen(!notifOpen)}
-                className="relative w-9 h-9 rounded-full bg-sand-100 border border-sand-200 text-sand-600 hover:bg-aubergine-50 hover:text-aubergine-600 transition-colors flex items-center justify-center">
+                className="relative w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-slate-600 hover:bg-aubergine-50 hover:text-aubergine-600 transition-colors flex items-center justify-center">
                 <i className="fas fa-bell text-sm"></i>
                 {unreadCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 text-white rounded-full border-2 border-white text-[9px] font-black flex items-center justify-center">
@@ -314,14 +314,14 @@ function PatientLayout() {
 
             {/* Profile */}
             <div
-              className="flex items-center gap-2 md:gap-3 border-l border-sand-200 pl-2 md:pl-4 cursor-pointer group"
+              className="flex items-center gap-2 md:gap-3 border-l border-slate-200 pl-2 md:pl-4 cursor-pointer group"
               onClick={() => navigate('/patient-dashboard/profile')}>
               <div className="w-8 h-8 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-bold text-xs group-hover:bg-aubergine-200 transition-colors">
                 {user?.name?.split(' ').map(n => n[0]).join('').slice(0,2) || 'PS'}
               </div>
               <div className="hidden lg:block text-xs">
                 <p className="font-bold text-slate-800 leading-tight">{user?.name || 'Priya Sharma'}</p>
-                <p className="text-sand-600">Care Member</p>
+                <p className="text-slate-500">Care Member</p>
               </div>
               <i className="fas fa-chevron-down text-[10px] text-slate-500 hidden lg:block"></i>
             </div>
@@ -354,7 +354,7 @@ function PatientLayout() {
                 <>
                   {tab.isFab ? (
                     <div className="flex flex-col items-center group">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-aubergine-600 via-magenta-600 to-indigo-600 text-white flex items-center justify-center text-lg shadow-lg shadow-magenta-500/30 ring-4 ring-white transition-transform active:scale-90">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-aubergine-600 via-magenta-600 to-aubergine-700 text-white flex items-center justify-center text-lg shadow-lg shadow-magenta-500/30 ring-4 ring-white transition-transform active:scale-90">
                         <i className={`fas ${tab.icon}`}></i>
                       </div>
                       <span className="text-[10px] font-black text-aubergine-700 mt-1 tracking-tight whitespace-nowrap">

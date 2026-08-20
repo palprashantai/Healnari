@@ -168,7 +168,7 @@ function DoctorProfile() {
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         {/* Tabs */}
-        <div className="flex border-b border-slate-200 bg-slate-50 overflow-x-auto">
+        <div className="flex border-b border-slate-200 bg-slate-50 overflow-x-auto hide-scrollbar">
           {[
             ['profile', 'Practice Info', 'fa-stethoscope'],
             ['schedule', 'Availability', 'fa-calendar'],
@@ -176,13 +176,13 @@ function DoctorProfile() {
             ['security', 'Security', 'fa-shield-halved'],
           ].map(([key, label, icon]) => (
             <button key={key} onClick={() => setTab(key)}
-              className={`px-6 py-4 text-sm font-bold whitespace-nowrap transition-all flex items-center gap-2 ${tab === key ? 'bg-white text-aubergine-700 border-t-2 border-t-aubergine-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+              className={`px-4 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-bold whitespace-nowrap transition-all flex items-center gap-2 ${tab === key ? 'bg-white text-aubergine-700 border-t-2 border-t-aubergine-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
               <i className={`fas ${icon} text-xs`}></i> {label}
             </button>
           ))}
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* ── PRACTICE INFO ── */}
           {tab === 'profile' && (
             <div className="space-y-5">
@@ -325,7 +325,7 @@ function DoctorProfile() {
             <div className="space-y-5 max-w-lg">
               <div className="grid grid-cols-2 gap-5">
                 {[
-                  { label: `Video Consult Fee (${doc?.profile?.currency || 'USD'})`, key: 'videoFee', icon: 'fa-video', color: 'bg-sky-50 text-sky-600 border-sky-100' },
+                  { label: `Video Consult Fee (${doc?.profile?.currency || 'USD'})`, key: 'videoFee', icon: 'fa-video', color: 'bg-aubergine-50 text-aubergine-700 border-aubergine-100' },
                   { label: `Clinic Visit Fee (${doc?.profile?.currency || 'USD'})`, key: 'clinicFee', icon: 'fa-hospital', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
                 ].map(f => (
                   <div key={f.key} className={`border ${f.color} rounded-2xl p-5`}>

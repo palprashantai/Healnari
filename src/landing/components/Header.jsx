@@ -116,6 +116,13 @@ function Header({ onStartConsult, onOpenAuth }) {
               {link.label}
             </a>
           ))}
+          <NavLink
+            to="/for-doctors"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="text-base font-semibold text-aubergine-700 hover:text-aubergine-800 transition-colors py-1 flex items-center gap-2"
+          >
+            <i className="fas fa-stethoscope text-xs"></i> For Healthcare Providers
+          </NavLink>
           <button 
             onClick={() => {
               setIsMobileMenuOpen(false);

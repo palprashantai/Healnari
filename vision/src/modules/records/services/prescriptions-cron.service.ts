@@ -144,7 +144,7 @@ export class PrescriptionsCronService {
       .from('lifestyle_logs')
       .select('patient_id')
       .in('patient_id', patientIds)
-      .eq('date', today);
+      .eq('log_date', today);
       
     const loggedPatients = new Set(logs?.map(l => l.patient_id) || []);
     const dueToNotify = patientIds.filter(id => !loggedPatients.has(id));

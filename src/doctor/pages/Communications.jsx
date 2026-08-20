@@ -111,12 +111,12 @@ function DoctorCommunications() {
 
       {/* KPI Stats */}
       <div className="grid sm:grid-cols-3 gap-4">
-        <div className="bg-sky-50 border border-sky-100 rounded-xl p-5 shadow-sm flex items-center justify-between">
+        <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-5 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[10px] uppercase font-bold text-sky-600 mb-1">Messages Sent (Month)</p>
-            <p className="text-2xl font-black text-sky-700">142</p>
+            <p className="text-[10px] uppercase font-bold text-aubergine-600 mb-1">Messages Sent (Month)</p>
+            <p className="text-2xl font-black text-aubergine-700">142</p>
           </div>
-          <i className="fas fa-paper-plane text-4xl text-sky-200"></i>
+          <i className="fas fa-paper-plane text-4xl text-aubergine-200"></i>
         </div>
         <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5 shadow-sm flex items-center justify-between">
           <div>
@@ -142,7 +142,7 @@ function DoctorCommunications() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
             <div>
               <label className="text-xs font-bold text-slate-500 mb-2 block uppercase tracking-wider">1. Target Audience</label>
-              <select value={audience} onChange={e => setAudience(e.target.value)} className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-sky-100 transition-all">
+              <select value={audience} onChange={e => setAudience(e.target.value)} className="crm-input">
                 <optgroup label="My Patients">
                   <option value="all-patients">All Active Patients</option>
                   <option value="upcoming">Patients with Upcoming Appointments</option>
@@ -153,7 +153,7 @@ function DoctorCommunications() {
 
             <div>
               <label className="text-xs font-bold text-slate-500 mb-2 block uppercase tracking-wider">2. Load Template (Optional)</label>
-              <select value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold px-4 py-3 rounded-xl outline-none focus:ring-2 focus:ring-sky-100 transition-all">
+              <select value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)} className="crm-input">
                 <option value="">-- Start from scratch --</option>
                 {TEMPLATES.map(t => (
                   <option key={t.id} value={t.id}>{t.name}</option>
@@ -165,21 +165,21 @@ function DoctorCommunications() {
               <label className="text-xs font-bold text-slate-500 mb-3 block uppercase tracking-wider">3. Delivery Channels</label>
               <div className="space-y-3">
                 <label className="flex items-center gap-3 cursor-pointer group">
-                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${sendEmail ? 'bg-sky-600 border-sky-600 text-white' : 'bg-slate-50 border-slate-300 group-hover:border-sky-400'}`}>
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${sendEmail ? 'bg-aubergine-600 border-aubergine-600 text-white' : 'bg-slate-50 border-slate-300 group-hover:border-aubergine-400'}`}>
                     {sendEmail && <i className="fas fa-check text-[10px]"></i>}
                   </div>
                   <input type="checkbox" className="hidden" checked={sendEmail} onChange={() => setSendEmail(!sendEmail)} />
                   <span className="text-sm font-bold text-slate-700">Send Email</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer group">
-                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${sendPush ? 'bg-sky-600 border-sky-600 text-white' : 'bg-slate-50 border-slate-300 group-hover:border-sky-400'}`}>
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${sendPush ? 'bg-aubergine-600 border-aubergine-600 text-white' : 'bg-slate-50 border-slate-300 group-hover:border-aubergine-400'}`}>
                     {sendPush && <i className="fas fa-check text-[10px]"></i>}
                   </div>
                   <input type="checkbox" className="hidden" checked={sendPush} onChange={() => setSendPush(!sendPush)} />
                   <span className="text-sm font-bold text-slate-700">Send App Notification</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer group">
-                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${sendWhatsapp ? 'bg-sky-600 border-sky-600 text-white' : 'bg-slate-50 border-slate-300 group-hover:border-sky-400'}`}>
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${sendWhatsapp ? 'bg-aubergine-600 border-aubergine-600 text-white' : 'bg-slate-50 border-slate-300 group-hover:border-aubergine-400'}`}>
                     {sendWhatsapp && <i className="fas fa-check text-[10px]"></i>}
                   </div>
                   <input type="checkbox" className="hidden" checked={sendWhatsapp} onChange={() => setSendWhatsapp(!sendWhatsapp)} />
@@ -196,21 +196,21 @@ function DoctorCommunications() {
               <label className="text-xs font-bold text-slate-500 mb-3 block uppercase tracking-wider">4. Scheduling</label>
               <div className="space-y-3">
                 <label className="flex items-center gap-3 cursor-pointer group">
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${scheduleType === 'immediate' ? 'border-sky-600' : 'border-slate-300 group-hover:border-sky-400'}`}>
-                    {scheduleType === 'immediate' && <div className="w-2 h-2 rounded-full bg-sky-600"></div>}
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${scheduleType === 'immediate' ? 'border-aubergine-600' : 'border-slate-300 group-hover:border-aubergine-400'}`}>
+                    {scheduleType === 'immediate' && <div className="w-2 h-2 rounded-full bg-aubergine-600"></div>}
                   </div>
                   <input type="radio" className="hidden" checked={scheduleType === 'immediate'} onChange={() => setScheduleType('immediate')} />
                   <span className="text-sm font-bold text-slate-700">Send Immediately</span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer group">
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${scheduleType === 'scheduled' ? 'border-sky-600' : 'border-slate-300 group-hover:border-sky-400'}`}>
-                    {scheduleType === 'scheduled' && <div className="w-2 h-2 rounded-full bg-sky-600"></div>}
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${scheduleType === 'scheduled' ? 'border-aubergine-600' : 'border-slate-300 group-hover:border-aubergine-400'}`}>
+                    {scheduleType === 'scheduled' && <div className="w-2 h-2 rounded-full bg-aubergine-600"></div>}
                   </div>
                   <input type="radio" className="hidden" checked={scheduleType === 'scheduled'} onChange={() => setScheduleType('scheduled')} />
                   <span className="text-sm font-bold text-slate-700">Schedule for Later</span>
                 </label>
                 {scheduleType === 'scheduled' && (
-                  <input type="datetime-local" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full mt-2 bg-white border border-slate-200 text-slate-700 text-sm px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-sky-100 transition-all" />
+                  <input type="datetime-local" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="crm-input mt-2" />
                 )}
               </div>
             </div>
@@ -233,7 +233,7 @@ function DoctorCommunications() {
                   value={messageSubject} 
                   onChange={e => setMessageSubject(e.target.value)} 
                   placeholder="e.g., Important Account Update"
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-100 transition-all"
+                  className="crm-input"
                 />
               </div>
               <div className="flex-1 flex flex-col">
@@ -242,11 +242,11 @@ function DoctorCommunications() {
                   value={messageBody}
                   onChange={e => setMessageBody(e.target.value)}
                   placeholder="Type your message here..."
-                  className="w-full flex-1 min-h-[250px] border border-slate-200 rounded-xl p-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-100 transition-all resize-y"
+                  className="w-full flex-1 min-h-[250px] border border-slate-200 rounded-xl p-4 text-sm text-slate-700 focus:outline-none focus:ring-4 focus:ring-aubergine-500/15 focus:border-aubergine-600 transition-all resize-y bg-slate-50 focus:bg-white"
                 ></textarea>
               </div>
               <div className="pt-2 flex flex-col gap-2">
-                <label className="text-sm font-bold text-sky-600 bg-sky-50 hover:bg-sky-100 px-4 py-2 rounded-xl transition-colors border border-sky-100 flex items-center gap-2 w-max cursor-pointer">
+                <label className="text-sm font-bold text-aubergine-600 bg-aubergine-50 hover:bg-aubergine-100 px-4 py-2 rounded-xl transition-colors border border-aubergine-100 flex items-center gap-2 w-max cursor-pointer">
                   <i className="fas fa-paperclip"></i> Attach File
                   <input 
                     type="file" 

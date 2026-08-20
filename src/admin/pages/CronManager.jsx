@@ -226,15 +226,15 @@ export default function CronManager() {
   const getCategoryBadgeClass = (category) => {
     switch (category) {
       case 'Patient':
-        return 'bg-purple-100 text-purple-700 border-purple-200';
+        return 'bg-aubergine-50 text-aubergine-700 border-aubergine-200';
       case 'Doctor':
-        return 'bg-sky-100 text-sky-700 border-sky-200';
+        return 'bg-magenta-50 text-magenta-700 border-magenta-200';
       case 'Billing':
-        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
       case 'Appointments':
-        return 'bg-indigo-100 text-indigo-700 border-indigo-200';
+        return 'bg-amber-50 text-amber-700 border-amber-200';
       case 'Admin':
-        return 'bg-rose-100 text-rose-700 border-rose-200';
+        return 'bg-slate-100 text-slate-700 border-slate-200';
       default:
         return 'bg-slate-100 text-slate-700 border-slate-200';
     }
@@ -341,11 +341,11 @@ export default function CronManager() {
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold text-base">
+          <div className="w-10 h-10 rounded-xl bg-aubergine-50 text-aubergine-600 flex items-center justify-center font-bold text-base">
             <i className="fas fa-shield-halved"></i>
           </div>
           <div>
-            <span className="text-[10px] font-black text-sky-600 uppercase tracking-wider block">Concurrency Guard</span>
+            <span className="text-[10px] font-black text-aubergine-600 uppercase tracking-wider block">Concurrency Guard</span>
             <span className="text-xs font-bold text-slate-700">Atomic Claims Active</span>
           </div>
         </div>

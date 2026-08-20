@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Reveal from '../../components/Reveal.jsx';
+import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
 
 function ProviderCalculator({ onApply }) {
   const [currency, setCurrency] = useState('INR'); // 'INR' or 'USD'
@@ -29,6 +30,7 @@ function ProviderCalculator({ onApply }) {
 
   const handleCurrencyChange = (newCurrency) => {
     setCurrency(newCurrency);
+    trackEvent(AnalyticsEvents.PROVIDER_CALCULATOR_INTERACTED, { currency: newCurrency });
     if (newCurrency === 'USD') {
       setFee(40);
     } else {
@@ -291,7 +293,7 @@ function ProviderCalculator({ onApply }) {
               {/* Action Button */}
               <button
                 onClick={onApply}
-                className="w-full bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 hover:from-emerald-300 hover:to-teal-200 text-slate-950 font-black py-4 px-6 rounded-2xl shadow-xl transition-all hover:scale-[1.02] text-sm flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-aubergine-600 via-magenta-600 to-aubergine-600 hover:from-aubergine-500 hover:to-magenta-500 text-white font-black py-4 px-6 rounded-2xl shadow-xl transition-all hover:scale-[1.02] text-sm flex items-center justify-center gap-2"
               >
                 Apply to Start Earning <i className="fas fa-arrow-right text-xs"></i>
               </button>

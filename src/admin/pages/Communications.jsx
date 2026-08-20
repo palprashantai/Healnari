@@ -146,7 +146,7 @@ function AdminCommunications() {
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Target Audience</label>
             <select value={audience} onChange={e => setAudience(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold px-3 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-sky-100">
+              className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold px-3 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-aubergine-200">
               {audienceOptions.map(a => <option key={a}>{a}</option>)}
             </select>
           </div>
@@ -158,7 +158,7 @@ function AdminCommunications() {
               <div className="animate-pulse h-10 bg-slate-100 rounded-xl" />
             ) : (
               <select value={selectedTemplate} onChange={e => setSelectedTemplate(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold px-3 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-sky-100">
+                className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold px-3 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-aubergine-200">
                 <option value="">-- Custom Message --</option>
                 {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
@@ -169,7 +169,7 @@ function AdminCommunications() {
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Subject</label>
             <input value={messageSubject} onChange={e => setMessageSubject(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-100"
+              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-200"
               placeholder="Enter broadcast subject..." />
           </div>
 
@@ -177,7 +177,7 @@ function AdminCommunications() {
           <div>
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Message Body</label>
             <textarea value={messageBody} onChange={e => setMessageBody(e.target.value)} rows="6"
-              className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-sky-100 outline-none resize-none"
+              className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-aubergine-200 outline-none resize-none"
               placeholder="Type your message... Use [Name] for personalization." />
           </div>
 
@@ -190,7 +190,7 @@ function AdminCommunications() {
                 { label: 'Push', icon: 'fa-bell', state: sendPush, set: setSendPush },
               ].map(ch => (
                 <button key={ch.label} onClick={() => ch.set(!ch.state)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold transition-colors ${ch.state ? 'bg-sky-50 border-sky-300 text-sky-700' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-bold transition-colors ${ch.state ? 'bg-aubergine-50 border-aubergine-300 text-aubergine-700' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
                   <i className={`fas ${ch.icon}`}></i> {ch.label}
                 </button>
               ))}
@@ -214,7 +214,7 @@ function AdminCommunications() {
             </div>
             {scheduleType === 'scheduled' && (
               <input type="datetime-local" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)}
-                className="mt-3 w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-sky-100" />
+                className="mt-3 w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-200" />
             )}
           </div>
 
@@ -255,7 +255,7 @@ function AdminCommunications() {
                   {(b.channels?.length > 0) && (
                     <div className="flex gap-2 mt-2 flex-wrap">
                       {b.channels.includes('Push') && (
-                        <span className="text-[10px] font-bold text-sky-700 bg-sky-50 border border-sky-100 px-2 py-0.5 rounded"><i className="fas fa-bell mr-1"></i>{b.recipient_count ?? 0} notified</span>
+                        <span className="text-[10px] font-bold text-aubergine-700 bg-aubergine-50 border border-aubergine-100 px-2 py-0.5 rounded"><i className="fas fa-bell mr-1"></i>{b.recipient_count ?? 0} notified</span>
                       )}
                       {b.channels.includes('Email') && (
                         <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded"><i className="fas fa-envelope mr-1"></i>Email (not sent)</span>

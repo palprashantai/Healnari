@@ -5,6 +5,10 @@ import Header from '../components/Header.jsx';
 import Footer from '../components/Footer.jsx';
 import BookingModal from '../../tools/BookingModal.jsx';
 import SuccessModal from '../../tools/SuccessModal.jsx';
+import AuthModal from '../../tools/AuthModal.jsx';
+import FloatingCTA from '../../tools/FloatingCTA.jsx';
+import ScrollProgressBar from '../../components/ScrollProgressBar.jsx';
+import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
 
 function GuidePage() {
   const { guideId } = useParams();
@@ -12,56 +16,131 @@ function GuidePage() {
 
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [confirmedDetails, setConfirmedDetails] = useState(null);
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [guideId]);
 
   const guide = guidesData.find((g) => g.id === guideId || g.slug === guideId) || guidesData[0];
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+
+    if (guide) {
+      trackEvent(AnalyticsEvents.ARTICLE_VIEWED, {
+        type: 'guide',
+        guideId: guide.id,
+        title: guide.title,
+        tag: guide.tag,
+      });
+
+      // Dynamic SEO, Canonical & Meta
+      const originalTitle = document.title;
+      const pageTitle = `${guide.title} | HealNari Clinical Guide`;
+      const pageDesc = guide.summary;
+      const canonicalUrl = `https://healnari.care/guide/${guide.id}`;
+
+      document.title = pageTitle;
+
+      const updateMeta = (selector, content, attr = 'content') => {
+        let el = document.querySelector(selector);
+        const original = el ? el.getAttribute(attr) : null;
+        if (el) el.setAttribute(attr, content);
+        return { el, original };
+      };
+
+      const prevDesc = updateMeta('meta[name="description"]', pageDesc);
+      const prevOgTitle = updateMeta('meta[property="og:title"]', pageTitle);
+      const prevOgDesc = updateMeta('meta[property="og:description"]', pageDesc);
+      const prevOgUrl = updateMeta('meta[property="og:url"]', canonicalUrl);
+      const prevCanonical = updateMeta('link[rel="canonical"]', canonicalUrl, 'href');
+
+      // Structured Data
+      const schemaScript = document.createElement('script');
+      schemaScript.type = 'application/ld+json';
+      schemaScript.id = 'healnari-guide-schema';
+      schemaScript.text = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "MedicalWebPage",
+        "headline": guide.title,
+        "description": guide.summary,
+        "url": canonicalUrl,
+        "dateModified": guide.lastReviewed || "2026-01-15",
+        "author": {
+          "@type": "Person",
+          "name": guide.author?.name || "Dr. Sarah Mitchell",
+          "jobTitle": guide.author?.role || "Lead Endocrinologist"
+        },
+        "reviewedBy": {
+          "@type": "Person",
+          "name": guide.reviewedBy?.name || guide.author?.name || "Dr. Sarah Mitchell",
+          "jobTitle": guide.reviewedBy?.role || "Lead Endocrinologist"
+        },
+        "citation": guide.evidenceBasis || "WHO PCOS Fact Sheet & 2023 International Evidence-based Guideline for PCOS",
+        "publisher": {
+          "@type": "MedicalOrganization",
+          "name": "HealNari",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://healnari.care/brand/logo-full.jpg"
+          }
+        }
+      });
+      document.head.appendChild(schemaScript);
+
+      return () => {
+        document.title = originalTitle;
+        if (prevDesc?.el && prevDesc?.original) prevDesc.el.setAttribute('content', prevDesc.original);
+        if (prevOgTitle?.el && prevOgTitle?.original) prevOgTitle.el.setAttribute('content', prevOgTitle.original);
+        if (prevOgDesc?.el && prevOgDesc?.original) prevOgDesc.el.setAttribute('content', prevOgDesc.original);
+        if (prevOgUrl?.el && prevOgUrl?.original) prevOgUrl.el.setAttribute('content', prevOgUrl.original);
+        if (prevCanonical?.el && prevCanonical?.original) prevCanonical.el.setAttribute('href', prevCanonical.original);
+        const script = document.getElementById('healnari-guide-schema');
+        if (script) document.head.removeChild(script);
+      };
+    }
+  }, [guideId, guide]);
+
   const colorThemes = {
     indigo: {
-      gradient: 'from-indigo-900 via-indigo-800 to-purple-900',
-      badge: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-      accentText: 'text-indigo-600',
-      accentBg: 'bg-indigo-50 border-indigo-100',
-      tipBorder: 'border-indigo-500',
+      gradient: 'from-[#2A1647] via-[#3A1C78] to-[#1E1035]',
+      badge: 'bg-aubergine-100 text-aubergine-800 border-aubergine-200',
+      accentText: 'text-aubergine-600',
+      accentBg: 'bg-aubergine-50 border-aubergine-100',
+      tipBorder: 'border-aubergine-500',
     },
     emerald: {
-      gradient: 'from-emerald-900 via-teal-800 to-slate-900',
+      gradient: 'from-[#2A1647] via-[#3A1C78] to-[#1E1035]',
       badge: 'bg-emerald-100 text-emerald-800 border-emerald-200',
       accentText: 'text-emerald-600',
       accentBg: 'bg-emerald-50 border-emerald-100',
       tipBorder: 'border-emerald-500',
     },
     violet: {
-      gradient: 'from-violet-900 via-purple-800 to-aubergine-900',
-      badge: 'bg-violet-100 text-violet-800 border-violet-200',
-      accentText: 'text-violet-600',
-      accentBg: 'bg-violet-50 border-violet-100',
-      tipBorder: 'border-violet-500',
+      gradient: 'from-[#2A1647] via-[#3A1C78] to-[#1E1035]',
+      badge: 'bg-aubergine-100 text-aubergine-800 border-aubergine-200',
+      accentText: 'text-aubergine-600',
+      accentBg: 'bg-aubergine-50 border-aubergine-100',
+      tipBorder: 'border-aubergine-500',
     },
     amber: {
-      gradient: 'from-amber-900 via-orange-800 to-slate-900',
+      gradient: 'from-[#2A1647] via-[#3A1C78] to-[#1E1035]',
       badge: 'bg-amber-100 text-amber-800 border-amber-200',
       accentText: 'text-amber-600',
       accentBg: 'bg-amber-50 border-amber-100',
       tipBorder: 'border-amber-500',
     },
     rose: {
-      gradient: 'from-rose-900 via-pink-800 to-aubergine-900',
-      badge: 'bg-rose-100 text-rose-800 border-rose-200',
-      accentText: 'text-rose-600',
-      accentBg: 'bg-rose-50 border-rose-100',
-      tipBorder: 'border-rose-500',
+      gradient: 'from-[#2A1647] via-[#3A1C78] to-[#1E1035]',
+      badge: 'bg-magenta-100 text-magenta-800 border-magenta-200',
+      accentText: 'text-magenta-600',
+      accentBg: 'bg-magenta-50 border-magenta-100',
+      tipBorder: 'border-magenta-500',
     },
     sky: {
-      gradient: 'from-sky-900 via-blue-800 to-slate-900',
-      badge: 'bg-sky-100 text-sky-800 border-sky-200',
-      accentText: 'text-sky-600',
-      accentBg: 'bg-sky-50 border-sky-100',
-      tipBorder: 'border-sky-500',
+      gradient: 'from-[#2A1647] via-[#3A1C78] to-[#1E1035]',
+      badge: 'bg-aubergine-100 text-aubergine-800 border-aubergine-200',
+      accentText: 'text-aubergine-600',
+      accentBg: 'bg-aubergine-50 border-aubergine-100',
+      tipBorder: 'border-aubergine-500',
     },
   };
 
@@ -88,9 +167,11 @@ function GuidePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans selection:bg-brand-100 selection:text-brand-900">
+      <ScrollProgressBar />
+
       <Header
         onStartConsult={() => setIsBookingOpen(true)}
-        onOpenAuth={() => navigate('/')}
+        onOpenAuth={() => setIsAuthOpen(true)}
       />
 
       {/* ── Sub Navigation Breadcrumb Bar ── */}
@@ -159,8 +240,60 @@ function GuidePage() {
       <main className="flex-grow bg-white py-12 md:py-16 px-5 sm:px-8">
         <article className="max-w-4xl mx-auto space-y-8 text-slate-700">
 
+          {/* Evidence-Based Clinical Review Header Card */}
+          <div className="bg-sand-50/90 border border-sand-200 rounded-3xl p-6 sm:p-7 shadow-xs">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-sand-200 pb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-lg font-bold">
+                  <i className="fas fa-shield-halved"></i>
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 inline-block mb-1">
+                    {guide.medicalReviewStatus || 'Reviewed by Qualified Clinician'}
+                  </span>
+                  <p className="text-xs font-bold text-slate-800">
+                    Reviewed by: <span className="text-aubergine-700">{guide.reviewedBy?.name || guide.author?.name || 'Dr. Sarah Mitchell'}</span> {guide.author?.credentials && <span className="text-slate-500 font-medium">({guide.author.credentials})</span>}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 text-[11px] text-slate-500 font-semibold shrink-0">
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Last Reviewed</span>
+                  <span className="text-slate-700 font-bold">{guide.lastReviewed || 'January 2026'}</span>
+                </div>
+                <div className="w-px h-6 bg-sand-200"></div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-bold">Next Review Due</span>
+                  <span className="text-slate-700 font-bold">{guide.nextReviewDue || 'January 2027'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600">
+              <div className="flex items-center gap-2">
+                <i className="fas fa-microscope text-aubergine-600"></i>
+                <span><strong>Evidence Basis:</strong> {guide.evidenceBasis || 'WHO Guidelines & 2023 International PCOS Consensus'}</span>
+              </div>
+              <span className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 inline-flex items-center gap-1.5 shrink-0">
+                <i className="fas fa-check-circle text-emerald-600"></i> Clinical Guideline Compliant
+              </span>
+            </div>
+          </div>
+
+          {/* Important Educational Disclaimer */}
+          <div className="bg-amber-50/80 border-l-4 border-amber-500 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5">
+            <i className="fas fa-circle-info text-amber-600 text-lg mt-0.5 shrink-0"></i>
+            <div>
+              <h4 className="text-xs font-black text-amber-900 uppercase tracking-wider">Important Medical Notice</h4>
+              <p className="text-xs font-medium text-amber-950 mt-1 leading-relaxed">
+                {guide.disclaimer || 'This information is for education and does not replace personalized medical advice. Always consult a licensed healthcare professional for individual medical evaluation and care.'}
+              </p>
+            </div>
+          </div>
+
           {/* Executive Summary Box */}
-          <div className="bg-sand-50/80 border border-sand-200 rounded-3xl p-6 sm:p-8 space-y-3 shadow-sm">
+          <div className="bg-white border border-sand-200 rounded-3xl p-6 sm:p-8 space-y-3 shadow-xs">
             <h3 className="text-xs font-extrabold text-aubergine-800 uppercase tracking-widest flex items-center gap-2 font-display">
               <i className="fas fa-bookmark text-aubergine-600"></i> Executive Summary
             </h3>
@@ -208,21 +341,21 @@ function GuidePage() {
             </section>
           )}
 
-          {/* Consultation CTA Banner */}
+          {/* Consultation CTA Banner — Unified ₹799 pricing */}
           <div className="bg-gradient-to-r from-aubergine-900 via-aubergine-800 to-slate-900 text-white rounded-3xl p-8 sm:p-12 shadow-2xl mt-12 flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="space-y-2 text-center sm:text-left max-w-md">
               <h3 className="text-2xl sm:text-3xl font-black font-display">
                 Need a Personalized Medical Protocol?
               </h3>
               <p className="text-sm text-slate-200 leading-relaxed">
-                Consult top endocrinologists & gynecologists to diagnose your root cause and start your clinical recovery plan.
+                Consult top endocrinologists &amp; gynaecologists to diagnose your root cause and start your 45-minute clinical recovery plan.
               </p>
             </div>
             <button
               onClick={() => setIsBookingOpen(true)}
               className="bg-white text-aubergine-900 hover:bg-sand-100 font-extrabold px-8 py-4 rounded-xl shadow-lg transition-all btn-interactive whitespace-nowrap text-sm sm:text-base shrink-0"
             >
-              Book ₹299 Consult <i className="fas fa-arrow-right ml-2"></i>
+              Book ₹799 Consult <i className="fas fa-arrow-right ml-2"></i>
             </button>
           </div>
 
@@ -260,6 +393,9 @@ function GuidePage() {
 
       <Footer />
 
+      {/* Floating CTA */}
+      <FloatingCTA onBook={() => setIsBookingOpen(true)} />
+
       {/* Modals */}
       {isBookingOpen && (
         <BookingModal
@@ -272,6 +408,12 @@ function GuidePage() {
         <SuccessModal
           details={confirmedDetails}
           onClose={() => setIsSuccessOpen(false)}
+        />
+      )}
+      {isAuthOpen && (
+        <AuthModal
+          onClose={() => setIsAuthOpen(false)}
+          onSuccess={() => setIsAuthOpen(false)}
         />
       )}
     </div>

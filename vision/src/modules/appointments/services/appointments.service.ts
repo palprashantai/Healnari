@@ -640,14 +640,22 @@ export class AppointmentsService {
 
     const { data: noShows, error } = await this.supabase.admin
       .from('appointments')
-      .select('id, patient_id')
+      .select('id, patient_id, doctor_id')
       .in('status', [AppointmentStatus.UPCOMING, AppointmentStatus.WAITING])
       .lte('scheduled_at', cutoff.toISOString());
 
     if (error || !noShows?.length) return;
 
-    for (const apt of noShows) {
-      await this.updateStatus({ id: apt.patient_id } as AuthUser, apt.id, AppointmentStatus.NO_SHOW).catch(() => {});
+    const ids = noShows.map((a) => a.id);
+    const { error: updateError } = await this.supabase.admin
+      .from('appointments')
+      .update({ status: AppointmentStatus.NO_SHOW })
+      .in('id', ids);
+
+    if (updateError) {
+      this.logger.error(`Failed to mark appointments as NO_SHOW: ${updateError.message}`);
+    } else {
+      this.logger.log(`Marked ${ids.length} overdue appointment(s) as NO_SHOW.`);
     }
   }
 

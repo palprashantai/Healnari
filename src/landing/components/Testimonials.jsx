@@ -11,7 +11,7 @@ function Testimonials() {
       stars: 5,
       role: "PCOS & Irregular Cycles Patient",
       image: "/generated/patient1.webp",
-      tags: ['Diagnosed: PCOD + Insulin Resistance', 'Outcome: Regular Cycle in 4 Months']
+      tags: ['Diagnosed: PCOS & Insulin Resistance', 'Outcome: Regular Cycle in 4 Months']
     },
     {
       quote: "The difference here is the holistic plan. My doctor combined the right supplements with a detailed anti-inflammatory diet and a specific yoga routine. No generic advice. My hormonal acne cleared up in 10 weeks, my hair fall stopped, and I actually feel like myself again.",
@@ -29,7 +29,7 @@ function Testimonials() {
       stars: 5,
       role: "Patient turned Angel Investor",
       image: "/generated/patient3.webp",
-      tags: ['Diagnosed: Thyroid + Hormonal Imbalance', 'Outcome: Full Recovery']
+      tags: ['Diagnosed: Thyroid & Hormonal Imbalance', 'Outcome: Hormonal Stability & Energy Restored']
     }
   ];
 

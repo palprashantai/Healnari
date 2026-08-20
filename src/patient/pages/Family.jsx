@@ -111,17 +111,17 @@ function PatientFamily() {
       </div>
 
       {/* Educational Card */}
-      <div className="bg-gradient-to-r from-aubergine-900 to-indigo-950 text-white rounded-3xl p-6 shadow-md relative overflow-hidden">
+      <div className="bg-gradient-to-r from-[#2A1647] via-[#3A1C78] to-[#2A1647] text-white rounded-3xl p-6 shadow-md relative overflow-hidden">
         <div className="absolute right-0 top-0 opacity-10 text-9xl transform translate-x-12 translate-y-2">
           <i className="fas fa-heart"></i>
         </div>
         <h3 className="font-bold text-base mb-2 flex items-center gap-2"><i className="fas fa-lightbulb text-amber-300"></i> Did You Know? (Cycle Syncing)</h3>
-        <p className="text-xs text-indigo-200 leading-relaxed max-w-2xl">
+        <p className="text-xs text-aubergine-200 leading-relaxed max-w-2xl">
           Hormonal cycles significantly affect energy levels, insulin responses, and stress thresholds. Sharing your high-level fertility phases helps your partner plan meals, exercise, and active support — without accessing your clinical EMR or prescriptions.
         </p>
         <div className="mt-4 flex gap-3 flex-wrap">
           {['Follicular = High Energy', 'Luteal = Rest & Recovery', 'Ovulation = Peak Mood'].map(p => (
-            <span key={p} className="text-[10px] font-bold bg-white/10 border border-white/10 px-3 py-1 rounded-full text-indigo-200">{p}</span>
+            <span key={p} className="text-[10px] font-bold bg-white/10 border border-white/10 px-3 py-1 rounded-full text-aubergine-200">{p}</span>
           ))}
         </div>
       </div>

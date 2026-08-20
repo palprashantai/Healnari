@@ -87,14 +87,14 @@ function AiConsultPrepModal({ isOpen, onClose, appointment }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="AI Consult Question Assistant" size="md">
       <div className="space-y-4">
-        <div className="bg-gradient-to-r from-purple-50 via-pink-50 to-indigo-50 border border-purple-100 rounded-2xl p-4 flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
+        <div className="bg-gradient-to-r from-aubergine-50 via-magenta-50 to-aubergine-50 border border-aubergine-100 rounded-2xl p-4 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-aubergine-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
             <i className="fas fa-sparkles text-sm"></i>
           </div>
           <div>
             <h4 className="font-extrabold text-sm text-slate-800">Smart Visit Preparation</h4>
             <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
-              Curated evidence-based questions for your visit with <strong className="text-purple-950">{appointment.doctor}</strong> ({appointment.specialty}).
+              Curated evidence-based questions for your visit with <strong className="text-aubergine-950">{appointment.doctor}</strong> ({appointment.specialty}).
             </p>
           </div>
         </div>

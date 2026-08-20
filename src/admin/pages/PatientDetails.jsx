@@ -151,12 +151,12 @@ function AdminPatientDetails() {
             {status === 'Active' ? 'Suspend Account' : 'Activate Account'}
           </button>
           <div className="relative">
-            <button onClick={() => setActiveModal(activeModal === 'message-dropdown' ? null : 'message-dropdown')} className="bg-sky-50 text-sky-600 hover:bg-sky-100 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors shadow-sm flex items-center gap-2">
+            <button onClick={() => setActiveModal(activeModal === 'message-dropdown' ? null : 'message-dropdown')} className="bg-aubergine-50 text-aubergine-700 hover:bg-aubergine-100 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors shadow-sm flex items-center gap-2">
               <i className="fas fa-envelope"></i> Message <i className="fas fa-chevron-down text-xs ml-1"></i>
             </button>
             {activeModal === 'message-dropdown' && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-2 animate-fade-in">
-                <button onClick={() => {setMessageType('email'); setActiveModal('message')}} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3"><i className="fas fa-envelope text-sky-500 w-4"></i> Send Email</button>
+                <button onClick={() => {setMessageType('email'); setActiveModal('message')}} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3"><i className="fas fa-envelope text-aubergine-600 w-4"></i> Send Email</button>
                 <button onClick={() => {setMessageType('push'); setActiveModal('message')}} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3"><i className="fas fa-bell text-amber-500 w-4"></i> Push Notification</button>
                 <button onClick={() => {setMessageType('whatsapp'); setActiveModal('message')}} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 flex items-center gap-3"><i className="fab fa-whatsapp text-emerald-500 w-4"></i> WhatsApp Message</button>
               </div>
@@ -173,7 +173,7 @@ function AdminPatientDetails() {
         {/* Left Column: Profile */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center">
-            <div className="w-24 h-24 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-3xl font-black mx-auto mb-4 border-4 border-white shadow-md">
+            <div className="w-24 h-24 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center text-3xl font-black mx-auto mb-4 border-4 border-white shadow-md">
               {(profile.full_name || 'P').charAt(0)}
             </div>
             <h2 className="text-xl font-bold text-slate-800">{profile.full_name}</h2>
@@ -208,7 +208,7 @@ function AdminPatientDetails() {
             </div>
             <div className="bg-white border border-slate-200 rounded-xl p-5 text-center shadow-sm">
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Total Bookings</p>
-              <p className="text-2xl font-black text-sky-600">{consultations.length}</p>
+              <p className="text-2xl font-black text-aubergine-700">{consultations.length}</p>
               <p className="text-xs text-slate-500 font-bold mt-1">All Time</p>
             </div>
           </div>
@@ -223,15 +223,15 @@ function AdminPatientDetails() {
                     <AreaChart data={spendingTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorSpent" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#0284c7" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#0284c7" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#6B46C1" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#6B46C1" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
                       <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
                       <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
                       <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${v / 1000}k`} />
                       <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(v) => [`₹${Number(v).toLocaleString()}`, 'Spent']} />
-                      <Area type="monotone" dataKey="spent" stroke="#0284c7" strokeWidth={3} fillOpacity={1} fill="url(#colorSpent)" />
+                      <Area type="monotone" dataKey="spent" stroke="#6B46C1" strokeWidth={3} fillOpacity={1} fill="url(#colorSpent)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -265,7 +265,7 @@ function AdminPatientDetails() {
               {consultations.slice(0, 5).map(c => (
                 <div key={c.id} className="p-6 hover:bg-slate-50 transition-colors flex justify-between items-center">
                   <div className="flex items-start gap-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm ${c.type === 'Video' ? 'bg-emerald-500' : 'bg-sky-500'}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm ${c.type === 'Video' ? 'bg-aubergine-600' : 'bg-magenta-600'}`}>
                       <i className={`fas ${c.type === 'Video' ? 'fa-video' : 'fa-hospital'}`}></i>
                     </div>
                     <div>
@@ -276,7 +276,7 @@ function AdminPatientDetails() {
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <span className="font-black text-slate-800">₹{c.cost.toLocaleString()}</span>
-                    <button onClick={() => { setSelectedInvoice(c); setActiveModal('invoice'); }} className="text-xs text-sky-600 hover:text-sky-700 font-bold flex items-center gap-1 transition-colors">
+                    <button onClick={() => { setSelectedInvoice(c); setActiveModal('invoice'); }} className="text-xs text-aubergine-600 hover:text-aubergine-700 font-bold flex items-center gap-1 transition-colors">
                       <i className="fas fa-file-invoice"></i> Invoice
                     </button>
                     <p className="text-[10px] text-slate-400 font-mono mt-2">{c.id.slice(0, 8)}</p>
@@ -307,7 +307,7 @@ function AdminPatientDetails() {
                 const tmpl = TEMPLATES.find(t => t.id === e.target.value);
                 if (tmpl) setMessageText(tmpl.text);
               }}
-              className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-sky-100"
+              className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-aubergine-200"
             >
               <option value="">-- Custom Message --</option>
               {TEMPLATES.filter(t => t.type === messageType).map(t => (
@@ -319,10 +319,10 @@ function AdminPatientDetails() {
             value={messageText}
             onChange={e => setMessageText(e.target.value)}
             rows="5"
-            className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-sky-100 outline-none"
+            className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-aubergine-200 outline-none"
             placeholder="Type your message here..."
           ></textarea>
-          <button onClick={handleSendMessage} disabled={sendingMessage || !messageText.trim()} className={`w-full text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 ${messageType === 'whatsapp' ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-sky-600 hover:bg-sky-700'}`}>
+          <button onClick={handleSendMessage} disabled={sendingMessage || !messageText.trim()} className={`w-full text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 ${messageType === 'whatsapp' ? 'bg-emerald-500 hover:bg-emerald-600' : 'crm-btn-primary'}`}>
             <i className={`mr-2 ${sendingMessage ? 'fas fa-spinner fa-spin' : messageType === 'whatsapp' ? 'fab fa-whatsapp' : 'fas fa-paper-plane'}`}></i> {sendingMessage ? 'Sending…' : `Send ${messageType.charAt(0).toUpperCase() + messageType.slice(1)}`}
           </button>
         </div>

@@ -72,16 +72,16 @@ function AdminTemplates() {
   });
 
   const getTypeColor = (type) => {
-    if (type === 'email') return 'bg-sky-50 text-sky-700 border-sky-200';
+    if (type === 'email') return 'bg-aubergine-50 text-aubergine-700 border-aubergine-200';
     if (type === 'whatsapp') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    if (type === 'push') return 'bg-purple-50 text-purple-700 border-purple-200';
+    if (type === 'push') return 'bg-amber-50 text-amber-700 border-amber-200';
     return 'bg-slate-100 text-slate-600 border-slate-200';
   };
   
   const getTypeIcon = (type) => {
-    if (type === 'email') return 'fas fa-envelope text-sky-500';
+    if (type === 'email') return 'fas fa-envelope text-aubergine-600';
     if (type === 'whatsapp') return 'fab fa-whatsapp text-emerald-500';
-    if (type === 'push') return 'fas fa-bell text-purple-500';
+    if (type === 'push') return 'fas fa-bell text-amber-500';
     return 'fas fa-pager text-slate-500';
   };
 
@@ -259,9 +259,9 @@ function AdminTemplates() {
                   <label className="text-[10px] font-bold text-slate-400 mb-3 block uppercase tracking-widest">Delivery Channel</label>
                   <div className="flex flex-col gap-2">
                     {['email', 'whatsapp', 'push'].map(t => (
-                      <label key={t} className={`flex items-center gap-3 cursor-pointer group p-3 rounded-xl border-2 transition-all ${formData.type === t ? (t==='whatsapp'?'border-emerald-500 bg-emerald-50/50':t==='email'?'border-sky-500 bg-sky-50/50':'border-purple-500 bg-purple-50/50') : 'border-slate-100 hover:border-slate-300'}`}>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${formData.type === t ? (t==='whatsapp'?'border-emerald-600':t==='email'?'border-sky-600':'border-purple-600') : 'border-slate-300'}`}>
-                          {formData.type === t && <div className={`w-2 h-2 rounded-full ${t==='whatsapp'?'bg-emerald-600':t==='email'?'bg-sky-600':'bg-purple-600'}`}></div>}
+                      <label key={t} className={`flex items-center gap-3 cursor-pointer group p-3 rounded-xl border-2 transition-all ${formData.type === t ? (t==='whatsapp'?'border-emerald-500 bg-emerald-50/50':t==='email'?'border-aubergine-500 bg-aubergine-50/50':'border-amber-500 bg-amber-50/50') : 'border-slate-100 hover:border-slate-300'}`}>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${formData.type === t ? (t==='whatsapp'?'border-emerald-600':t==='email'?'border-aubergine-600':'border-amber-600') : 'border-slate-300'}`}>
+                          {formData.type === t && <div className={`w-2 h-2 rounded-full ${t==='whatsapp'?'bg-emerald-600':t==='email'?'bg-aubergine-600':'bg-amber-600'}`}></div>}
                         </div>
                         <input type="radio" name="type" className="hidden" checked={formData.type === t} onChange={() => setFormData({...formData, type: t})} />
                         <div className="flex items-center gap-2.5">

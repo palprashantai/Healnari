@@ -51,8 +51,8 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Send ${channel}`} size="sm">
       <div className="space-y-4">
-        <div className="bg-sky-50 border border-sky-200 text-sky-800 rounded-xl p-3 text-sm font-bold flex gap-2">
-          <i className="fas fa-users mt-1 text-sky-500"></i>
+        <div className="bg-aubergine-50 border border-aubergine-200 text-aubergine-800 rounded-xl p-3 text-sm font-bold flex gap-2">
+          <i className="fas fa-users mt-1 text-aubergine-600"></i>
           <p>Sending {channel} to {selectedCount} selected session(s).</p>
         </div>
         <div>
@@ -1380,7 +1380,7 @@ PLAN:
                   title={mobileDrawerOpen ? 'Minimize Prescription Drawer' : 'Open Mobile Prescription Drawer'}
                   className={`lg:hidden w-11 h-11 rounded-full flex items-center justify-center text-base transition-all ${
                     mobileDrawerOpen
-                      ? 'bg-gradient-to-r from-magenta-500 to-indigo-600 text-white shadow-lg ring-2 ring-white/30'
+                      ? 'bg-gradient-to-r from-magenta-500 to-aubergine-600 text-white shadow-lg ring-2 ring-white/30'
                       : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'
                   }`}
                 >
@@ -1418,7 +1418,7 @@ PLAN:
               <div className="w-12 h-1.5 rounded-full bg-slate-700"></div>
               <div className="flex items-center justify-between w-full px-5 mt-2">
                 <span className="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                  <i className="fas fa-stethoscope text-indigo-400"></i> Clinical Workspace ({session.patient})
+                  <i className="fas fa-stethoscope text-aubergine-400"></i> Clinical Workspace ({session.patient})
                 </span>
                 <button onClick={() => setMobileDrawerOpen(false)} className="text-slate-400 hover:text-white text-xs px-2 py-0.5 rounded-lg bg-slate-800">
                   <i className="fas fa-chevron-down mr-1"></i> Dock
@@ -1465,11 +1465,11 @@ PLAN:
 
               <button
                 onClick={() => setActiveTab('labs')}
-                className={`pb-2.5 px-3 font-bold text-xs flex items-center gap-2 border-b-2 transition-all shrink-0 ${activeTab === 'labs' ? 'border-sky-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+                className={`pb-2.5 px-3 font-bold text-xs flex items-center gap-2 border-b-2 transition-all shrink-0 ${activeTab === 'labs' ? 'border-[#A78BFA] text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
               >
-                <i className="fas fa-flask text-sky-400"></i>
+                <i className="fas fa-flask text-[#A78BFA]"></i>
                 <span>Lab Requests</span>
-                {draftLabs.length > 0 && <span className="bg-sky-500/20 text-sky-300 text-[10px] px-1.5 py-0.5 rounded-full font-black">{draftLabs.length}</span>}
+                {draftLabs.length > 0 && <span className="bg-aubergine-500/30 text-aubergine-200 text-[10px] px-1.5 py-0.5 rounded-full font-black">{draftLabs.length}</span>}
               </button>
 
               <button
@@ -1811,7 +1811,7 @@ PLAN:
                       <button
                         key={cat}
                         onClick={() => setSelectedLabCat(cat)}
-                        className={`px-3 py-1.5 rounded-xl font-bold transition-all shrink-0 ${selectedLabCat === cat ? 'bg-sky-500 text-white shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+                        className={`px-3 py-1.5 rounded-xl font-bold transition-all shrink-0 ${selectedLabCat === cat ? 'bg-aubergine-600 text-white shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
                       >
                         {cat}
                       </button>
@@ -1822,7 +1822,7 @@ PLAN:
                   <div className="relative">
                     <form onSubmit={handleAddCustomLab} className="flex gap-2">
                       <div className="relative flex-1">
-                        <i className="fas fa-microscope absolute left-3.5 top-3 text-sky-400 text-xs"></i>
+                        <i className="fas fa-microscope absolute left-3.5 top-3 text-aubergine-400 text-xs"></i>
                         <input
                           type="text"
                           value={customLabInput}
@@ -1832,7 +1832,7 @@ PLAN:
                           }}
                           onFocus={() => setIsLabDropdownOpen(true)}
                           placeholder="Search or enter lab test (e.g. AMH, LH, TVS Scan, Thyroid)..."
-                          className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-8 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-sky-400"
+                          className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-9 pr-8 py-2.5 text-xs font-semibold text-white focus:outline-none focus:border-aubergine-400"
                         />
                         {customLabInput && (
                           <button
@@ -1847,7 +1847,7 @@ PLAN:
                       <button
                         type="submit"
                         disabled={!customLabInput.trim()}
-                        className="bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-colors shrink-0"
+                        className="bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-50 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-colors shrink-0"
                       >
                         <i className="fas fa-plus mr-1"></i> Add
                       </button>
@@ -1858,7 +1858,7 @@ PLAN:
                       <div className="absolute left-0 right-0 top-full mt-1.5 bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl max-h-64 overflow-y-auto custom-scrollbar z-50 p-1.5 space-y-0.5">
                         <div className="flex items-center justify-between px-3 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-800 mb-1">
                           <span>Diagnostic Tests ({filterAndRankCatalog(labCatalog, customLabInput).length})</span>
-                          <span className="text-[9px] text-sky-400 font-bold">Prefix &amp; Keyword Match</span>
+                          <span className="text-[9px] text-aubergine-400 font-bold">Prefix &amp; Keyword Match</span>
                         </div>
                         {filterAndRankCatalog(labCatalog.filter(l => selectedLabCat === 'All' || l.category === selectedLabCat), customLabInput).slice(0, 30).map((item) => {
                           const isSelected = draftLabs.includes(item.name);
@@ -1870,14 +1870,14 @@ PLAN:
                                 toggleLab(item.name);
                                 setIsLabDropdownOpen(false);
                               }}
-                              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-colors group ${isSelected ? 'bg-sky-500/20 text-sky-200 border border-sky-500/40' : 'hover:bg-slate-800 text-slate-200 hover:text-white'}`}
+                              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-colors group ${isSelected ? 'bg-aubergine-500/20 text-aubergine-200 border border-aubergine-500/40' : 'hover:bg-slate-800 text-slate-200 hover:text-white'}`}
                             >
                               <span className="flex items-center gap-2 flex-1 min-w-0 pr-2">
                                 <span className="text-[10px] shrink-0 font-bold">{item.badge}</span>
                                 <span className="truncate">
                                   {customLabInput && item.name.toLowerCase().startsWith(customLabInput.trim().toLowerCase()) ? (
                                     <>
-                                      <span className="text-sky-300 bg-sky-500/30 px-0.5 rounded font-black">{item.name.slice(0, customLabInput.trim().length)}</span>
+                                      <span className="text-aubergine-300 bg-aubergine-500/30 px-0.5 rounded font-black">{item.name.slice(0, customLabInput.trim().length)}</span>
                                       <span>{item.name.slice(customLabInput.trim().length)}</span>
                                     </>
                                   ) : (
@@ -1891,7 +1891,7 @@ PLAN:
                                     {item.category}
                                   </span>
                                 )}
-                                <div className={`w-4 h-4 rounded flex items-center justify-center text-[10px] ${isSelected ? 'bg-sky-500 text-white' : 'border border-slate-600 text-transparent'}`}>
+                                <div className={`w-4 h-4 rounded flex items-center justify-center text-[10px] ${isSelected ? 'bg-aubergine-600 text-white' : 'border border-slate-600 text-transparent'}`}>
                                   <i className="fas fa-check"></i>
                                 </div>
                               </div>
@@ -1905,13 +1905,13 @@ PLAN:
                               handleAddCustomLab(e);
                               setIsLabDropdownOpen(false);
                             }}
-                            className="w-full text-left px-3 py-2.5 rounded-xl bg-sky-950/60 hover:bg-sky-900/80 border border-sky-700/50 text-xs font-bold text-sky-200 hover:text-white flex items-center justify-between transition-colors mt-1 shadow-xs"
+                            className="w-full text-left px-3 py-2.5 rounded-xl bg-[#2A1647]/80 hover:bg-[#3A1C78] border border-[#6B46C1]/50 text-xs font-bold text-aubergine-200 hover:text-white flex items-center justify-between transition-colors mt-1 shadow-xs"
                           >
                             <span className="flex items-center gap-1.5">
-                              <i className="fas fa-plus-circle text-sky-400"></i>
+                              <i className="fas fa-plus-circle text-aubergine-400"></i>
                               <span>Add &ldquo;{customLabInput}&rdquo; to Lab Catalog</span>
                             </span>
-                            <span className="text-[10px] font-mono text-sky-300 font-bold bg-slate-900 px-2 py-0.5 rounded border border-sky-800">Save Custom Test</span>
+                            <span className="text-[10px] font-mono text-aubergine-300 font-bold bg-slate-900 px-2 py-0.5 rounded border border-aubergine-800">Save Custom Test</span>
                           </button>
                         )}
                       </div>
@@ -1927,13 +1927,13 @@ PLAN:
                           key={item.id}
                           type="button"
                           onClick={() => toggleLab(item.name)}
-                          className={`p-3 rounded-2xl border text-left transition-all flex items-start justify-between gap-2.5 ${isSelected ? 'bg-sky-500/15 border-sky-400/80 text-white shadow-lg shadow-sky-500/10 ring-1 ring-sky-400/50' : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900'}`}
+                          className={`p-3 rounded-2xl border text-left transition-all flex items-start justify-between gap-2.5 ${isSelected ? 'bg-aubergine-500/20 border-aubergine-400/80 text-white shadow-lg shadow-aubergine-500/10 ring-1 ring-aubergine-400/50' : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900'}`}
                         >
                           <div>
-                            <span className="text-[10px] font-black text-sky-400 uppercase tracking-widest">{item.badge}</span>
+                            <span className="text-[10px] font-black text-aubergine-400 uppercase tracking-widest">{item.badge}</span>
                             <h5 className="font-bold text-xs mt-0.5 leading-snug">{item.name}</h5>
                           </div>
-                          <div className={`w-5 h-5 rounded-lg flex items-center justify-center text-xs shrink-0 mt-0.5 transition-colors ${isSelected ? 'bg-sky-500 text-white' : 'bg-slate-800 text-transparent'}`}>
+                          <div className={`w-5 h-5 rounded-lg flex items-center justify-center text-xs shrink-0 mt-0.5 transition-colors ${isSelected ? 'bg-aubergine-600 text-white' : 'bg-slate-800 text-transparent'}`}>
                             <i className="fas fa-check"></i>
                           </div>
                         </button>
@@ -1944,14 +1944,14 @@ PLAN:
                   {/* Selected Labs Summary */}
                   {draftLabs.length > 0 && (
                     <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 space-y-2">
-                      <p className="text-[11px] font-black text-sky-400 uppercase tracking-wider">
+                      <p className="text-[11px] font-black text-aubergine-400 uppercase tracking-wider">
                         Requested Investigations ({draftLabs.length})
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {draftLabs.map(lab => (
                           <span
                             key={lab}
-                            className="inline-flex items-center gap-2 bg-sky-950/60 text-sky-200 border border-sky-800/80 px-3 py-1 rounded-xl text-xs font-bold"
+                            className="inline-flex items-center gap-2 bg-[#2A1647]/70 text-aubergine-200 border border-[#6B46C1]/50 px-3 py-1 rounded-xl text-xs font-bold"
                           >
                             <span>{lab}</span>
                             <button onClick={() => toggleLab(lab)} className="hover:text-rose-400">
@@ -2019,12 +2019,12 @@ PLAN:
                       rows={3}
                       value={dietPlan}
                       onChange={(e) => setDietPlan(e.target.value)}
-                      placeholder="e.g. Low glycemic index diet, avoid dairy and gluten, increase protein intake..."
+                      placeholder="e.g. Low glycemic index whole foods, 25-30g protein per main meal, 30g+ dietary fibre daily, anti-inflammatory Mediterranean principles..."
                       className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3.5 text-xs font-medium text-slate-200 focus:outline-none focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/50 resize-none leading-relaxed"
                     />
                     <div className="flex items-center gap-1.5 flex-wrap pt-1 text-[11px]">
                       <span className="text-slate-500 font-bold text-[10px] uppercase">Quick Add:</span>
-                      {['Low GI Diet', 'High Protein, Low Carb', 'Avoid Dairy/Gluten', 'Intermittent Fasting (16:8)', 'Increase Hydration'].map(tag => (
+                      {['Personalized Low-GI Plate', 'Protein Balance (20-30g/meal)', 'Fiber & Prebiotics (30g+/day)', 'Plant Polyphenols & Omega-3', 'Regular Meal Timing & Hydration', 'Sustainable Cultural Customization'].map(tag => (
                         <button
                           key={tag}
                           onClick={() => setDietPlan(p => (p ? `${p}, ${tag}` : tag))}
@@ -2036,23 +2036,23 @@ PLAN:
                     </div>
                   </div>
 
-                  {/* Yoga & Exercise Protocol Box */}
+                  {/* Yoga & Mindful Movement Protocol Box */}
                   <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-[11px] font-black text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                        <i className="fas fa-om text-amber-400"></i> Yoga & Exercise Protocol
+                        <i className="fas fa-om text-amber-400"></i> Yoga &amp; Mindful Movement Protocol
                       </label>
                     </div>
                     <textarea
                       rows={3}
                       value={exercisePlan}
                       onChange={(e) => setExercisePlan(e.target.value)}
-                      placeholder="e.g. 30 mins brisk walking daily, Surya Namaskar, specific PCOS asanas..."
+                      placeholder="e.g. 150m moderate movement weekly, gentle yoga, diaphragmatic breathing, pelvic mobility, strength training 2x/wk..."
                       className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3.5 text-xs font-medium text-slate-200 focus:outline-none focus:border-amber-400/80 focus:ring-1 focus:ring-amber-400/50 resize-none leading-relaxed"
                     />
                     <div className="flex items-center gap-1.5 flex-wrap pt-1 text-[11px]">
                       <span className="text-slate-500 font-bold text-[10px] uppercase">Quick Add:</span>
-                      {['30m Brisk Walk/Day', 'PCOS Yoga Routine', 'Strength Training (3x/week)', 'Surya Namaskar (10 rounds)', 'Pelvic Floor Exercises'].map(tag => (
+                      {['Beginner Movement (Walking/Steps)', 'Gentle Yoga & Asanas', 'Flexibility & Pelvic Mobility', 'Relaxation & Restorative', 'Breathing & Mindfulness (Pranayama)', 'Strength & Resistance (2-3x/wk)'].map(tag => (
                         <button
                           key={tag}
                           onClick={() => setExercisePlan(p => (p ? `${p}, ${tag}` : tag))}
@@ -2282,7 +2282,7 @@ PLAN:
 
                   {/* Previous Lab Reports & Scans */}
                   <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 space-y-3">
-                    <h5 className="text-[11px] font-black text-sky-400 uppercase tracking-wider flex items-center gap-2">
+                    <h5 className="text-[11px] font-black text-aubergine-400 uppercase tracking-wider flex items-center gap-2">
                       <i className="fas fa-file-medical"></i> Previous Lab Reports & Scans
                     </h5>
                     
@@ -2304,7 +2304,7 @@ PLAN:
                             </div>
                             <button
                               onClick={() => setPreviewReportModal(rep)}
-                              className="bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-colors flex items-center gap-1.5"
+                              className="bg-aubergine-500/20 hover:bg-aubergine-500/30 text-aubergine-300 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0 transition-colors flex items-center gap-1.5"
                             >
                               <i className="fas fa-eye text-[10px]"></i> View
                             </button>
@@ -2336,7 +2336,7 @@ PLAN:
             </div>
 
             <div className="bg-slate-900 text-white rounded-2xl p-5 font-mono text-xs leading-relaxed">
-              <p className="text-[10px] uppercase font-bold text-sky-400 mb-2">// CLINICAL INTERPRETATION</p>
+              <p className="text-[10px] uppercase font-bold text-aubergine-400 mb-2">// CLINICAL INTERPRETATION</p>
               <p className="whitespace-pre-wrap">{previewReportModal.results || 'No detailed text available.'}</p>
             </div>
 
@@ -2612,12 +2612,12 @@ PLAN:
             {draftLabs.length > 0 && (
               <div>
                 <h4 className="font-serif font-bold text-sm text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-2">
-                  <i className="fas fa-flask text-sky-600"></i> Requested Investigations
+                  <i className="fas fa-flask text-aubergine-700"></i> Requested Investigations
                 </h4>
                 <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-wrap gap-2">
                   {draftLabs.map((l, i) => (
-                    <span key={i} className="bg-sky-50 text-sky-800 border border-sky-200 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5">
-                      <i className="fas fa-check text-sky-500 text-[10px]"></i> {l}
+                    <span key={i} className="bg-aubergine-50 text-aubergine-800 border border-aubergine-200 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                      <i className="fas fa-check text-aubergine-600 text-[10px]"></i> {l}
                     </span>
                   ))}
                 </div>
@@ -3092,9 +3092,9 @@ function DoctorTelemedicine() {
             {showActionsMenu && (
               <div className="absolute right-0 sm:right-0 left-0 sm:left-auto top-full mt-2 w-full sm:w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-fade-in origin-top-right">
                 <div className="px-4 py-2 mb-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Messaging Channels</p></div>
-                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-sky-50 hover:text-sky-700 flex items-center gap-3 transition-colors group">
-                  <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center group-hover:bg-white transition-colors">
-                    <i className="fas fa-envelope text-sky-500"></i>
+                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-aubergine-50 hover:text-aubergine-700 flex items-center gap-3 transition-colors group">
+                  <div className="w-8 h-8 rounded-full bg-aubergine-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                    <i className="fas fa-envelope text-aubergine-600"></i>
                   </div>
                   Bulk Email
                 </button>
@@ -3200,7 +3200,7 @@ function DoctorTelemedicine() {
                   </label>
                   <div className="flex items-center gap-4 flex-1">
                     <div className="relative">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-aubergine-100 to-indigo-100 text-aubergine-700 font-bold flex items-center justify-center shadow-inner text-sm">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-aubergine-100 to-aubergine-200 text-aubergine-700 font-bold flex items-center justify-center shadow-inner text-sm">
                         {s.patient.split(' ').map(n => n[0]).join('')}
                       </div>
                       {s.waiting && <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white animate-pulse shadow-sm shadow-emerald-500/50"></div>}
@@ -3217,7 +3217,7 @@ function DoctorTelemedicine() {
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0 justify-end items-center">
                     <a href={`tel:${s.phone}`}
-                      className="w-10 h-10 rounded-full bg-white text-slate-500 hover:text-sky-600 hover:bg-sky-50 flex items-center justify-center transition-colors border border-slate-200 shadow-sm" title="Call Patient">
+                      className="w-10 h-10 rounded-full bg-white text-slate-500 hover:text-aubergine-600 hover:bg-aubergine-50 flex items-center justify-center transition-colors border border-slate-200 shadow-sm" title="Call Patient">
                       <i className="fas fa-phone"></i>
                     </a>
                     <button onClick={() => { setNoteTarget(s); setNoteDraft(''); setShowNotes(true); }}
@@ -3262,7 +3262,7 @@ function DoctorTelemedicine() {
           {/* Tech Tips */}
           <div className="grid sm:grid-cols-3 gap-4">
             {[
-              { icon: 'fa-shield-halved', title: 'Private Sessions', sub: 'Doctor-only access, no session recording.', gradient: 'from-sky-500 to-indigo-500' },
+              { icon: 'fa-shield-halved', title: 'Private Sessions', sub: 'Doctor-only access, no session recording.', gradient: 'from-aubergine-600 to-magenta-600' },
               { icon: 'fa-file-lines', title: 'Auto-SOAP Notes', sub: 'AI transcription & note generation.', gradient: 'from-fuchsia-500 to-purple-500' },
               { icon: 'fa-hospital', title: 'NMC Compliant', sub: 'Telemedicine practice guidelines met.', gradient: 'from-emerald-500 to-teal-500' },
             ].map(tip => (

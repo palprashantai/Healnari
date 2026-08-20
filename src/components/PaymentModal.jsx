@@ -129,7 +129,7 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency:
             <i className="fas fa-shield-halved text-emerald-500"></i> {currency === 'INR' ? 'Secured by Cashfree / Razorpay — UPI, Card, Net Banking & Wallets' : 'Secured by Stripe Global Checkout — Apple Pay, Google Pay, Visa & Mastercard'}
           </div>
           <button onClick={startCheckout} disabled={busy}
-            className="crm-btn-primary w-full disabled:opacity-60 bg-emerald-600 hover:bg-emerald-700 border-none shadow-none font-bold">
+            className="crm-btn-primary w-full disabled:opacity-60 font-bold">
             {busy ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div> {BUSY_COPY[phase] || 'Processing…'}</> : <><i className="fas fa-lock mr-2"></i> Pay Securely {formatCurrency(settledAmount ?? amount, currency)}</>}
           </button>
         </div>

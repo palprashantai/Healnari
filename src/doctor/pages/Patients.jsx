@@ -35,8 +35,8 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Send ${channel}`} size="sm">
       <div className="space-y-4">
-        <div className="bg-sky-50 border border-sky-200 text-sky-800 rounded-xl p-3 text-sm font-bold flex gap-2">
-          <i className="fas fa-users mt-1 text-sky-500"></i>
+        <div className="bg-aubergine-50 border border-aubergine-200 text-aubergine-800 rounded-xl p-3 text-sm font-bold flex gap-2">
+          <i className="fas fa-users mt-1 text-aubergine-600"></i>
           <p>You are about to send a {channel} to {selectedCount} selected patient(s).</p>
         </div>
         <div>
@@ -762,8 +762,8 @@ function ViewRxDocModal({ rx, patient, labRequests, isOpen, onClose }) {
         {matchingLabTests.length > 0 && (
           <div>
             <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-2 mt-4">Suggested Lab Tests</h4>
-            <div className="bg-sky-50 border border-sky-100 rounded-xl p-3.5 text-xs">
-              <ul className="list-disc pl-4 space-y-1 text-sky-900 font-medium">
+            <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-3.5 text-xs">
+              <ul className="list-disc pl-4 space-y-1 text-aubergine-900 font-medium">
                 {matchingLabTests.map((req, i) => (
                   <li key={i}>{req.requested_tests}</li>
                 ))}
@@ -867,7 +867,7 @@ function ViewLabDocModal({ report, patient, isOpen, onClose }) {
         {/* Header */}
         <div className="flex justify-between items-start border-b border-slate-200 pb-4">
           <div>
-            <h2 className="text-lg font-black text-sky-900 tracking-tight">{report.testName}</h2>
+            <h2 className="text-lg font-black text-aubergine-900 tracking-tight">{report.testName}</h2>
             <p className="text-xs text-slate-500">{report.testCategory} • {report.labName || 'Lab not specified'}</p>
           </div>
           <div className="text-right">
@@ -886,7 +886,7 @@ function ViewLabDocModal({ report, patient, isOpen, onClose }) {
           </div>
           <div>
             <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">File</p>
-            <button onClick={openFile} disabled={opening} className="font-black text-sky-700 text-sm hover:underline disabled:opacity-50 flex items-center gap-1.5">
+            <button onClick={openFile} disabled={opening} className="font-black text-aubergine-700 text-sm hover:underline disabled:opacity-50 flex items-center gap-1.5">
               <i className="fas fa-file-arrow-up"></i> {opening ? 'Opening…' : 'Open Uploaded Report'}
             </button>
           </div>
@@ -1106,7 +1106,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
             </button>
             <button
               onClick={() => setShowOrderLab(true)}
-              className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+              className="bg-aubergine-700 hover:bg-aubergine-800 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
             >
               <i className="fas fa-vial"></i> Lab
             </button>
@@ -1326,27 +1326,29 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
             <div>
               <div className="flex justify-between items-center mb-2.5">
                 <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Latest Lab Report</h3>
-                <button onClick={() => setTab('reports')} className="text-xs text-sky-700 font-bold hover:underline">
+                <button onClick={() => setTab('reports')} className="text-xs text-aubergine-700 font-bold hover:underline">
                   View all ({patient.reports.length}) →
                 </button>
               </div>
               {patient.reports.length > 0 ? (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="font-black text-slate-900 text-sm">{patient.reports[0].testName}</span>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${patient.reports[0].status === 'Reviewed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{patient.reports[0].status}</span>
-                      <span className="text-slate-500 font-medium">{patient.reports[0].date}</span>
+                    <div>
+                      <span className="font-black text-slate-900 text-sm">{patient.reports[0].testName}</span>
+                      <p className="text-slate-500 mt-0.5">{patient.reports[0].testCategory} • {patient.reports[0].date}</p>
                     </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${patient.reports[0].status === 'Reviewed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {patient.reports[0].status}
+                    </span>
                   </div>
                   {patient.reports[0].interpretation && (
-                    <div className="bg-slate-900 rounded-xl p-3.5 text-slate-200">
-                      <p className="font-bold text-aubergine-300 mb-1 flex items-center gap-1.5">
-                        <i className="fas fa-notes-medical"></i> Doctor's Note
-                      </p>
-                      <p className="leading-relaxed text-slate-300">{patient.reports[0].interpretation}</p>
-                    </div>
+                    <p className="text-slate-600 bg-white border border-slate-200 rounded-lg p-2.5">
+                      <span className="font-bold text-slate-800">Interpretation: </span>{patient.reports[0].interpretation}
+                    </p>
                   )}
+                  <button onClick={() => setSelectedLabDoc(patient.reports[0])} className="w-full bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-700 font-bold py-2 rounded-xl border border-aubergine-200 transition-colors flex items-center justify-center gap-1.5 shadow-xs">
+                    <i className="fas fa-file-arrow-up"></i> {patient.reports[0].status === 'Reviewed' ? 'View / Edit Review' : 'Review Report'}
+                  </button>
                 </div>
               ) : (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-500 text-center">
@@ -1452,7 +1454,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
                 <button
                   onClick={() => setShowOrderLab(true)}
-                  className="bg-sky-600 hover:bg-sky-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-sm"
+                  className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-sm"
                 >
                   <i className="fas fa-plus"></i> Request Report
                 </button>
@@ -1479,7 +1481,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
             <div className="space-y-3 text-xs">
               {filteredReports.map((r) => (
-                <div key={r.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-xs hover:border-sky-300 transition-all">
+                <div key={r.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-xs hover:border-aubergine-300 transition-all">
                   <div className="flex justify-between items-start flex-wrap gap-2">
                     <div>
                       <div className="flex items-center gap-3">
@@ -1499,7 +1501,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
                     <button
                       onClick={() => setSelectedLabDoc(r)}
-                      className="bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold px-3.5 py-2 rounded-xl border border-sky-200 transition-colors flex items-center gap-2 shadow-xs shrink-0"
+                      className="bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-700 font-bold px-3.5 py-2 rounded-xl border border-aubergine-200 transition-colors flex items-center gap-2 shadow-xs shrink-0"
                     >
                       <i className="fas fa-file-arrow-up"></i> {r.status === 'Reviewed' ? 'View / Edit' : 'Review'}
                     </button>
@@ -1585,7 +1587,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : pay.status === 'Pending'
                               ? 'bg-amber-50 text-amber-700 border-amber-200'
-                              : 'bg-sky-50 text-sky-700 border-sky-200'
+                              : 'bg-aubergine-50 text-aubergine-700 border-aubergine-200'
                             }`}
                         >
                           ● {pay.status}
@@ -1970,8 +1972,8 @@ function DoctorPatients() {
                 <div className="px-3 py-1.5 mb-1">
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p>
                 </div>
-                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-sky-600 flex items-center gap-3 transition-colors">
-                  <i className="fas fa-envelope text-sky-500 w-4"></i> Bulk Email
+                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-aubergine-600 flex items-center gap-3 transition-colors">
+                  <i className="fas fa-envelope text-aubergine-600 w-4"></i> Bulk Email
                 </button>
                 <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-bell text-amber-500 w-4"></i> Push Notification
@@ -2087,7 +2089,7 @@ function DoctorPatients() {
                   <i className="fas fa-file-prescription mr-1 text-emerald-500"></i> {p.meds.length} Prescriptions
                 </span>
                 <span>
-                  <i className="fas fa-vial mr-1 text-sky-500"></i> {p.reports.length} Lab Reports
+                  <i className="fas fa-vial mr-1 text-aubergine-600"></i> {p.reports.length} Lab Reports
                 </span>
                 <span>
                   <i className="fas fa-calendar-check mr-1 text-slate-500"></i> Last: {p.lastVisit}

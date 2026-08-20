@@ -22,8 +22,8 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
             <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-amber-50 border border-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
               <i className="fas fa-microscope text-amber-600"></i> Evidence-Based
             </span>
-            <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-sky-50 border border-sky-100 text-sky-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-video text-sky-500"></i> 2-Min Booking
+            <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-magenta-50 border border-magenta-100 text-magenta-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
+              <i className="fas fa-video text-magenta-600"></i> 2-Min Booking
             </span>
           </div>
 
@@ -48,10 +48,10 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
                     Your hormones control more than just your cycle &mdash; they dictate your energy, weight, skin, hair, and overall well-being. At <strong>HealNari</strong>, we treat the root cause, not just the symptoms.
                   </p>
                   <p className="text-slate-600 text-[15px] sm:text-base md:text-lg font-normal leading-relaxed">
-                    Whether you're managing <strong>PCOS, PCOD, thyroid imbalances, or irregular periods</strong>, our specialist doctors, clinical dietitians, and yoga experts collaborate to build a protocol unique to your body. We combine evidence-based medicine with sustainable nutrition and lifestyle changes.
+                    <strong>Manage PCOS with personalized medical, nutrition, movement and lifestyle support.</strong> Our specialist doctors, clinical dietitians, and mindful movement experts collaborate to build a protocol tailored to your preferences, metabolism, and health goals.
                   </p>
                   <p className="text-slate-700 text-[15px] sm:text-base md:text-lg font-medium leading-relaxed pt-2 pb-4 sm:pb-0">
-                    <span className="text-aubergine-700 font-bold">What's included:</span> 45-minute video consult • Custom diet & yoga plan • Lab-test roadmap • Digital prescription • 14-day free chat follow-up.
+                    <span className="text-aubergine-700 font-bold">What's included:</span> 45-minute video consult • Personalized nutrition &amp; movement support • Lab-test roadmap • Digital prescription • 14-day free chat follow-up.
                   </p>
                 </>
               )}
@@ -77,7 +77,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
                   triggerHaptic('medium');
                   onStartConsult?.();
                 }}
-                className="w-full sm:w-auto relative bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 hover:from-aubergine-700 hover:via-magenta-700 hover:to-indigo-700 text-white font-extrabold px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl shadow-xl shadow-aubergine-200 hover:shadow-2xl hover:shadow-aubergine-300 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 sm:gap-2.5 text-base sm:text-lg group-hover:ring-4 ring-aubergine-100"
+                className="w-full sm:w-auto relative bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 hover:from-aubergine-700 hover:via-magenta-700 hover:to-indigo-700 text-white font-extrabold px-5 sm:px-8 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl shadow-xl shadow-aubergine-200 hover:shadow-2xl hover:shadow-aubergine-300 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 sm:gap-2.5 text-[15px] sm:text-lg group-hover:ring-4 ring-aubergine-100 whitespace-nowrap"
               >
                 <i className="fas fa-stethoscope text-sm"></i> Book My ₹799 Consult
               </button>
@@ -87,7 +87,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
                 triggerHaptic('light');
                 onOpenChecker?.();
               }}
-              className="w-full sm:w-auto bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-3 sm:py-3.5 px-6 sm:px-6 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2 text-sm sm:text-base"
+              className="w-full sm:w-auto bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2 text-xs sm:text-base whitespace-nowrap"
             >
               <i className="fas fa-heart-pulse text-rose-500"></i> 2-Min Symptom Check
             </button>

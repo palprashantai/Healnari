@@ -5,6 +5,7 @@ import { todayLocalStr } from '../lib/dateUtils.js';
 import { apiFetch } from '../lib/apiClient.js';
 import { COUNTRIES, COUNTRY_DIAL_CODES, getCountryByCode, detectUserCountry } from '../lib/countries.js';
 import { formatCurrency } from '../lib/currency.js';
+import { trackEvent, AnalyticsEvents } from '../lib/analytics.js';
 
 const STEP_FIELDS = [
   ['doctorId', 'concern'],
@@ -109,10 +110,14 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
   const selectDoctor = (id) => {
     setFormData((prev) => ({ ...prev, doctorId: id }));
     if (errors.doctorId) setErrors((prev) => ({ ...prev, doctorId: null }));
+    trackEvent(AnalyticsEvents.BOOKING_DOCTOR_SELECTED, { doctorId: id });
   };
 
   const goNext = () => {
-    if (validateFields(STEP_FIELDS[step - 1])) setStep((s) => s + 1);
+    if (validateFields(STEP_FIELDS[step - 1])) {
+      trackEvent(AnalyticsEvents.BOOKING_STEP_COMPLETED, { step, concern: formData.concern });
+      setStep((s) => s + 1);
+    }
   };
 
   const goBack = () => setStep((s) => s - 1);
@@ -131,6 +136,12 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
 
     setSubmitting(true);
     setSubmitError('');
+    trackEvent(AnalyticsEvents.BOOKING_SUBMITTED, {
+      doctorId: formData.doctorId,
+      concern: formData.concern,
+      currency: currentCountry.currency,
+      fee: currentCountry.defaultPatientFee
+    });
     try {
       await apiFetch('/leads/consultation-request', {
         method: 'POST',
@@ -150,6 +161,12 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
         },
       });
       markLeadCaptured();
+      trackEvent(AnalyticsEvents.BOOKING_SUCCESS, {
+        doctor: selectedDoctor?.full_name ? `Dr. ${selectedDoctor.full_name}` : 'your doctor',
+        concern: formData.concern,
+        currency: currentCountry.currency,
+        fee: currentCountry.defaultPatientFee
+      });
       onSuccess({
         doctor: selectedDoctor?.full_name ? `Dr. ${selectedDoctor.full_name}` : 'your doctor',
         slot: `${formattedDate} at ${formData.time}`,
@@ -284,17 +301,17 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                   required
                   value={formData.concern}
                   onChange={handleInputChange}
-                  className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white ${errors.concern ? 'border-red-400' : 'border-slate-200'
+                  className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-aubergine-500 focus:outline-none bg-white ${errors.concern ? 'border-rose-400' : 'border-slate-200'
                     }`}
                 >
                   <option value="" disabled>Select primary symptom</option>
                   {concernsList.map(concern => <option key={concern}>{concern}</option>)}
                 </select>
-                {errors.concern && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.concern}</p>}
+                {errors.concern && <p className="text-rose-500 text-[10px] font-bold mt-1">{errors.concern}</p>}
               </div>
 
               <button type="button" onClick={goNext} disabled={doctors.length === 0}
-                className="w-full bg-brand-700 hover:bg-brand-800 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-100 transition-all btn-interactive flex items-center justify-center gap-2 text-base mt-2">
+                className="w-full bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:opacity-95 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-aubergine-500/20 transition-all btn-interactive flex items-center justify-center gap-2 text-base mt-2">
                 Continue to Details <i className="fas fa-arrow-right text-sm"></i>
               </button>
             </>
@@ -397,7 +414,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                   <i className="fas fa-arrow-left text-sm mr-1.5"></i> Back
                 </button>
                 <button type="button" onClick={goNext}
-                  className="flex-[2] bg-brand-700 hover:bg-brand-800 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-100 transition-all btn-interactive flex items-center justify-center gap-2 text-base">
+                  className="flex-[2] bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:opacity-95 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-aubergine-500/20 transition-all btn-interactive flex items-center justify-center gap-2 text-base">
                   Continue <i className="fas fa-arrow-right text-sm"></i>
                 </button>
               </div>
@@ -418,10 +435,10 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                     required
                     value={formData.date}
                     onChange={handleInputChange}
-                    className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.date ? 'border-red-400' : 'border-slate-200'
+                    className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-aubergine-500 focus:outline-none ${errors.date ? 'border-rose-400' : 'border-slate-200'
                       }`}
                   />
-                  {errors.date && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.date}</p>}
+                  {errors.date && <p className="text-rose-500 text-[10px] font-bold mt-1">{errors.date}</p>}
                 </div>
 
                 <div>
@@ -433,13 +450,13 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                     required
                     value={formData.time}
                     onChange={handleInputChange}
-                    className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none bg-white ${errors.time ? 'border-red-400' : 'border-slate-200'
+                    className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-aubergine-500 focus:outline-none bg-white ${errors.time ? 'border-rose-400' : 'border-slate-200'
                       }`}
                   >
                     <option value="" disabled>Select slot</option>
                     {timeSlots.map(slot => <option key={slot}>{slot}</option>)}
                   </select>
-                  {errors.time && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.time}</p>}
+                  {errors.time && <p className="text-rose-500 text-[10px] font-bold mt-1">{errors.time}</p>}
                 </div>
               </div>
 
@@ -459,7 +476,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
               </div>
 
               {submitError && (
-                <p className="text-red-500 text-xs font-bold text-center">{submitError}</p>
+                <p className="text-rose-500 text-xs font-bold text-center">{submitError}</p>
               )}
 
               <div className="flex gap-3">
@@ -470,7 +487,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-[2] bg-brand-700 hover:bg-brand-800 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-100 transition-all btn-interactive flex items-center justify-center gap-2 text-base"
+                  className="flex-[2] bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:opacity-95 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-aubergine-500/20 transition-all btn-interactive flex items-center justify-center gap-2 text-base"
                 >
                   <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-lock'} text-sm`}></i> {submitting ? 'Connecting...' : `Confirm & Pay ${formatCurrency(currentCountry.defaultPatientFee, currentCountry.currency)}`}
                 </button>
