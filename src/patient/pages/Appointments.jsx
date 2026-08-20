@@ -810,17 +810,23 @@ function PatientAppointments() {
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search doctor, specialty, or ID..."
               className="crm-input pl-9" />
           </div>
-          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="crm-input sm:max-w-[150px]">
-            <option value="All Types">All Types</option>
-            <option value="Video Consult">Video Consult</option>
-            <option value="Clinic Visit">Clinic Visit</option>
-          </select>
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="crm-input sm:max-w-[150px]">
-            <option value="All Status">All Status</option>
-            <option value="Confirmed">Confirmed</option>
-            <option value="Pending">Pending</option>
-            <option value="Completed">Completed</option>
-          </select>
+          <div className="relative min-w-[140px] sm:max-w-[150px] w-full group">
+            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="crm-input w-full appearance-none cursor-pointer pr-8 focus:ring-aubergine-300">
+              <option value="All Types">All Types</option>
+              <option value="Video Consult">Video Consult</option>
+              <option value="Clinic Visit">Clinic Visit</option>
+            </select>
+            <i className="fas fa-chevron-down absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs group-focus-within:text-aubergine-500 transition-colors"></i>
+          </div>
+          <div className="relative min-w-[140px] sm:max-w-[150px] w-full group">
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="crm-input w-full appearance-none cursor-pointer pr-8 focus:ring-aubergine-300">
+              <option value="All Status">All Status</option>
+              <option value="Confirmed">Confirmed</option>
+              <option value="Pending">Pending</option>
+              <option value="Completed">Completed</option>
+            </select>
+            <i className="fas fa-chevron-down absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs group-focus-within:text-aubergine-500 transition-colors"></i>
+          </div>
         </div>
 
         <div className="crm-table-container">
