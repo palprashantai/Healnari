@@ -44,7 +44,7 @@ const NAV_ITEMS = [
 // a fabricated "Dr. Sarah Mitchell requested payout of ₹5,600"), never
 // backed by anything real. Now reads the same real notifications feed
 // (NotificationsContext) every other role's layout uses.
-function NotificationPanel({ isOpen, onClose, notifications, onMarkAllRead, onMarkRead }) {
+function NotificationPanel({ isOpen, onClose, notifications, onMarkAllRead, onMarkRead, hasMore, loadMore }) {
   const unread = notifications.filter(n => !n.read).length;
 
   if (!isOpen) return null;
@@ -78,6 +78,13 @@ function NotificationPanel({ isOpen, onClose, notifications, onMarkAllRead, onMa
             </div>
           );
         })}
+        {hasMore && (
+          <div className="px-5 py-3 text-center border-t border-slate-50">
+            <button onClick={loadMore} className="text-xs text-sky-600 font-bold hover:underline">
+              Load Older Notifications
+            </button>
+          </div>
+        )}
       </div>
       <div className="px-5 py-3 border-t border-slate-100">
         <button onClick={onClose} className="w-full text-xs text-center text-slate-400 hover:text-aubergine-600 font-medium transition-colors">Close</button>
@@ -170,7 +177,7 @@ function AdminLayout() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const toast     = useToast();
-  const { notifications, unreadCount, markAllRead: markAllReadRemote, markRead } = useNotifications();
+  const { notifications, unreadCount, markAllRead: markAllReadRemote, markRead, hasMore, loadMore } = useNotifications();
 
   const [drawerOpen, setDrawerOpen]       = useState(false);
   const [notifOpen, setNotifOpen]         = useState(false);
@@ -276,7 +283,7 @@ function AdminLayout() {
                   </span>
                 )}
               </button>
-              <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} notifications={notifications} onMarkAllRead={markAllRead} onMarkRead={markRead} />
+              <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} notifications={notifications} onMarkAllRead={markAllRead} onMarkRead={markRead} hasMore={hasMore} loadMore={loadMore} />
             </div>
 
             {/* Admin Avatar */}

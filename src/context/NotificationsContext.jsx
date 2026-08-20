@@ -46,13 +46,41 @@ export function NotificationsProvider({ children }) {
   const socketRef = useRef(null);
   const callChannelRef = useRef(null);
 
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+
+  const fetchNotifications = useCallback(async (pageNum = 1, append = false) => {
+    try {
+      const res = await apiFetch(`/notifications?page=${pageNum}&limit=20`);
+      const newItems = res.items || [];
+      if (append) {
+        setNotifications(prev => {
+          const existingIds = new Set(prev.map(n => n.id));
+          return [...prev, ...newItems.filter(n => !existingIds.has(n.id))];
+        });
+      } else {
+        setNotifications(newItems);
+      }
+      setHasMore(pageNum < (res.totalPages || 0));
+      setPage(pageNum);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
   useEffect(() => {
     if (!user) {
       setNotifications([]);
       return;
     }
-    apiFetch('/notifications').then(setNotifications).catch(() => {});
-  }, [user]);
+    fetchNotifications(1);
+  }, [user, fetchNotifications]);
+
+  const loadMore = useCallback(() => {
+    if (hasMore) {
+      fetchNotifications(page + 1, true);
+    }
+  }, [hasMore, page, fetchNotifications]);
 
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return undefined;
@@ -135,6 +163,6 @@ export function NotificationsProvider({ children }) {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const value = { notifications, unreadCount, markAllRead, markRead, incomingCall, acceptCall, declineCall, callDeclinedId, clearCallDeclined };
+  const value = { notifications, unreadCount, markAllRead, markRead, incomingCall, acceptCall, declineCall, callDeclinedId, clearCallDeclined, loadMore, hasMore };
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
 }

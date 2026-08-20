@@ -47,14 +47,24 @@ export class NotificationsService {
     }
   }
 
-  async list(user: AuthUser) {
-    const { data } = await this.supabase.admin
+  async list(user: AuthUser, page: number = 1, limit: number = 20) {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data, count } = await this.supabase.admin
       .from('notifications')
-      .select()
+      .select('*', { count: 'exact' })
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(50);
-    return data || [];
+      .range(from, to);
+
+    return {
+      items: data || [],
+      total: count || 0,
+      page,
+      limit,
+      totalPages: count ? Math.ceil(count / limit) : 0,
+    };
   }
 
   async markRead(user: AuthUser, id: string) {
@@ -68,6 +78,6 @@ export class NotificationsService {
 
   async markAllRead(user: AuthUser) {
     await this.supabase.admin.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false);
-    return this.list(user);
+    return this.list(user, 1, 20);
   }
 }

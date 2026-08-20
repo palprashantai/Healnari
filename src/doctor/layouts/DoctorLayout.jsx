@@ -54,7 +54,7 @@ function timeAgo(iso) {
 /* ─── Notification Panel ─────────────────────── */
 // System / informational feed only — urgent clinical items (labs needing a decision)
 // live exclusively in the Clinical Alerts drawer so the same event isn't triaged twice.
-function NotificationPanel({ isOpen, onClose, notifications, onMarkAll, onMarkOne }) {
+function NotificationPanel({ isOpen, onClose, notifications, onMarkAll, onMarkOne, hasMore, loadMore }) {
   const unread = notifications.filter(n => !n.read).length;
 
   if (!isOpen) return null;
@@ -88,6 +88,13 @@ function NotificationPanel({ isOpen, onClose, notifications, onMarkAll, onMarkOn
             </div>
           );
         })}
+        {hasMore && (
+          <div className="px-5 py-3 text-center border-t border-slate-50">
+            <button onClick={loadMore} className="text-xs text-aubergine-600 font-bold hover:underline">
+              Load Older Notifications
+            </button>
+          </div>
+        )}
       </div>
       <div className="px-5 py-3 border-t border-slate-100">
         <button onClick={onClose} className="w-full text-xs text-center text-slate-500 hover:text-aubergine-600 font-medium transition-colors">Close</button>
@@ -181,7 +188,7 @@ function DoctorLayout() {
   const location  = useLocation();
   const toast     = useToast();
   const { patients, loadError, retryLoad } = useClinicData();
-  const { notifications, unreadCount, markAllRead, markRead } = useNotifications();
+  const { notifications, unreadCount, markAllRead, markRead, hasMore, loadMore } = useNotifications();
 
   const [drawerOpen, setDrawerOpen]       = useState(false);
   const [notifOpen, setNotifOpen]         = useState(false);
@@ -365,7 +372,7 @@ function DoctorLayout() {
               {notifOpen && (
                 <div className="fixed inset-0 z-[90]" onClick={() => setNotifOpen(false)} />
               )}
-              <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} notifications={notifications} onMarkAll={markAllRead} onMarkOne={markRead} />
+              <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} notifications={notifications} onMarkAll={markAllRead} onMarkOne={markRead} hasMore={hasMore} loadMore={loadMore} />
             </div>
 
             {/* Doctor Avatar */}
