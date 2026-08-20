@@ -239,7 +239,7 @@ function PatientLayout() {
 
       {/* Mobile Overlay */}
       {mobileSidebarOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 z-40 md:hidden" onClick={() => setMobileSidebarOpen(false)}></div>
+        <div className="fixed inset-0 bg-slate-900/50 z-[100] md:hidden" onClick={() => setMobileSidebarOpen(false)}></div>
       )}
 
       {/* Desktop Sidebar */}
@@ -248,7 +248,7 @@ function PatientLayout() {
       </aside>
 
       {/* Mobile Sidebar Drawer */}
-      <aside className={`fixed left-0 top-0 h-full w-60 z-50 flex flex-col flex-shrink-0 transition-transform duration-300 md:hidden ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed left-0 top-0 h-full w-60 z-[110] flex flex-col flex-shrink-0 transition-transform duration-300 md:hidden bg-aubergine-900 shadow-2xl ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <Sidebar onClose={() => setMobileSidebarOpen(false)} />
       </aside>
 

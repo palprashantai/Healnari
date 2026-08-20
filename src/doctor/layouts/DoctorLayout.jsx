@@ -288,7 +288,7 @@ function DoctorLayout() {
 
       {/* Mobile Drawer Overlay */}
       {drawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-[100] md:hidden">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDrawerOpen(false)}></div>
           <aside className="absolute left-0 top-0 h-full w-72 flex flex-col shadow-2xl animate-slide-in bg-aubergine-900 border-r border-aubergine-800">
             <div className="absolute top-4 right-4">

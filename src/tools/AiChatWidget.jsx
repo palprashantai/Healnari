@@ -144,7 +144,7 @@ export default function AiChatWidget({ context = 'landing' }) {
 
   return (
     <div
-      className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[60] flex flex-col items-end pointer-events-none"
+      className="fixed bottom-32 md:bottom-6 right-4 md:right-6 z-[60] flex flex-col items-end pointer-events-none"
       style={{
         '--primary': theme.primary,
         '--primary-deep': theme.primaryDeep,

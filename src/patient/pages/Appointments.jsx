@@ -810,12 +810,12 @@ function PatientAppointments() {
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search doctor, specialty, or ID..."
               className="crm-input pl-9" />
           </div>
-          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="crm-input max-w-[150px]">
+          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="crm-input sm:max-w-[150px]">
             <option value="All Types">All Types</option>
             <option value="Video Consult">Video Consult</option>
             <option value="Clinic Visit">Clinic Visit</option>
           </select>
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="crm-input max-w-[150px]">
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="crm-input sm:max-w-[150px]">
             <option value="All Status">All Status</option>
             <option value="Confirmed">Confirmed</option>
             <option value="Pending">Pending</option>
