@@ -329,15 +329,15 @@ function PatientLayout() {
         </header>
 
         {/* Dynamic Content */}
-        <main className={`flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}>
+        <main className={`flex-1 overflow-y-auto p-4 md:p-6 pb-28 md:pb-6 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}>
           {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
           <PageTransition />
         </main>
       </div>
 
       {/* iOS/Android Styled Floating Frosted-Glass Mobile Bottom Dock */}
-      <nav className="md:hidden fixed bottom-3 inset-x-3 z-50 pointer-events-none safe-area-pb">
-        <div className="mobile-floating-dock pointer-events-auto rounded-3xl border border-white/60 px-2 py-1.5 flex items-center justify-around shadow-[0_12px_35px_rgba(42,22,71,0.18)]">
+      <nav className="md:hidden fixed bottom-3 inset-x-2 sm:inset-x-4 z-50 pointer-events-none safe-area-pb">
+        <div className="mobile-floating-dock pointer-events-auto rounded-3xl border border-white/60 px-1 py-1.5 flex items-center justify-around shadow-[0_12px_35px_rgba(42,22,71,0.18)] gap-1">
           {BOTTOM_TABS.map(tab => (
             <NavLink
               key={tab.path}
@@ -346,7 +346,7 @@ function PatientLayout() {
               onClick={() => triggerHaptic(tab.isFab ? 'medium' : 'light')}
               className={({ isActive }) =>
                 `relative flex flex-col items-center justify-center transition-all duration-200 ${
-                  tab.isFab ? '-mt-5' : 'flex-1 py-1'
+                  tab.isFab ? '-mt-6' : 'flex-1 py-1 px-0.5'
                 } ${isActive ? 'text-aubergine-700 font-extrabold' : 'text-slate-500 font-medium'}`
               }
             >
@@ -357,18 +357,18 @@ function PatientLayout() {
                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-aubergine-600 via-magenta-600 to-indigo-600 text-white flex items-center justify-center text-lg shadow-lg shadow-magenta-500/30 ring-4 ring-white transition-transform active:scale-90">
                         <i className={`fas ${tab.icon}`}></i>
                       </div>
-                      <span className="text-[10px] font-black text-aubergine-700 mt-1 tracking-tight">
+                      <span className="text-[10px] font-black text-aubergine-700 mt-1 tracking-tight whitespace-nowrap">
                         {tab.name}
                       </span>
                     </div>
                   ) : (
                     <>
-                      <div className={`w-9 h-8 rounded-xl flex items-center justify-center transition-all ${
+                      <div className={`w-10 h-8 rounded-xl flex items-center justify-center transition-all ${
                         isActive ? 'bg-aubergine-100/90 text-aubergine-700 scale-105 shadow-2xs' : 'text-slate-500 active:scale-95'
                       }`}>
-                        <i className={`fas ${tab.icon} text-sm`}></i>
+                        <i className={`fas ${tab.icon} text-[15px]`}></i>
                       </div>
-                      <span className="text-[10px] tracking-tight leading-none mt-0.5">{tab.name}</span>
+                      <span className="text-[9px] sm:text-[10px] tracking-tight leading-none mt-0.5 whitespace-nowrap truncate w-full text-center">{tab.name}</span>
                       {isActive && (
                         <div className="w-1 h-1 rounded-full bg-aubergine-600 mt-0.5"></div>
                       )}

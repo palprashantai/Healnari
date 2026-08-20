@@ -1148,7 +1148,7 @@ PLAN:
 
           {/* ── Quick EMR Drawer (Slide-in from right) ── */}
           {showEmrDrawer && (
-            <div className="absolute inset-y-0 right-0 w-80 bg-slate-900/98 backdrop-blur-2xl border-l border-slate-700/80 z-50 flex flex-col shadow-2xl shadow-black/40 rounded-l-3xl overflow-hidden">
+            <div className="absolute inset-y-0 right-0 w-full max-w-[320px] sm:w-80 bg-slate-900/98 backdrop-blur-2xl border-l border-slate-700/80 z-50 flex flex-col shadow-2xl shadow-black/40 rounded-l-3xl overflow-hidden">
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-800 shrink-0">
                 <div>

@@ -110,11 +110,11 @@ export function Modal({ isOpen, onClose, title, ariaLabel, children, size = 'md'
         aria-labelledby={title ? titleId : undefined}
         aria-label={!title ? ariaLabel : undefined}
         tabIndex={-1}
-        className={`modal-box bg-white rounded-3xl w-full ${SIZE_CLASS[size]} shadow-2xl overflow-hidden border border-slate-100 outline-none`}
+        className={`modal-box bg-white rounded-3xl w-full ${SIZE_CLASS[size]} max-h-[95vh] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100 outline-none`}
         style={{ animation: closing ? `modalSlideDown ${CLOSE_ANIM_MS}ms ease-in both` : 'slideUp 0.2s ease-out' }}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-aubergine-900 to-aubergine-700">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-aubergine-900 to-aubergine-700 shrink-0">
             <h3 id={titleId} className="font-black text-lg text-white">{title}</h3>
             <button
               onClick={onClose}
@@ -134,7 +134,7 @@ export function Modal({ isOpen, onClose, title, ariaLabel, children, size = 'md'
             <i className="fas fa-xmark text-sm"></i>
           </button>
         )}
-        <div className={noPadding ? '' : 'p-6'}>
+        <div className={`overflow-y-auto overscroll-contain ${noPadding ? '' : 'p-6'}`}>
           {children}
         </div>
       </div>

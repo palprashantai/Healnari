@@ -385,18 +385,18 @@ function DoctorLayout() {
             Full detail (allergy/risk chips) only on patient-scoped screens — elsewhere
             it collapses to one line so it stops outweighing the page's own content. */}
         <div className={`bg-gradient-to-r from-aubergine-900 via-slate-900 to-aubergine-900 text-white px-4 md:px-6 flex flex-wrap items-center justify-between gap-3 text-xs z-10 border-b border-aubergine-800/40 shadow-xs transition-all ${isPatientScoped ? 'py-2' : 'py-1.5'}`}>
-          <div className="flex items-center gap-3">
-            <span className="bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-500/30 flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <span className="bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-500/30 flex items-center gap-1 whitespace-nowrap">
               <i className="fas fa-lock text-[9px]"></i> Active Patient
             </span>
-            <div className="flex items-center gap-2 font-bold">
-              <span className="text-white text-sm tracking-wide font-medium">{activePatient.name}</span>
+            <div className="flex flex-wrap items-center gap-2 font-bold">
+              <span className="text-white text-sm tracking-wide font-medium whitespace-nowrap">{activePatient.name}</span>
               <span className="text-aubergine-300 font-mono text-[11px]">[{activePatient.mrn}]</span>
               {isPatientScoped && (
-                <>
-                  <span className="text-slate-400">• DOB: {activePatient.dob} ({activePatient.age})</span>
-                  <span className="text-slate-400">• Blood: {activePatient.bloodGroup}</span>
-                </>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-slate-400 whitespace-nowrap">• DOB: {activePatient.dob} ({activePatient.age})</span>
+                  <span className="text-slate-400 whitespace-nowrap">• Blood: {activePatient.bloodGroup}</span>
+                </div>
               )}
             </div>
           </div>
@@ -498,15 +498,15 @@ function DoctorLayout() {
         )}
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 md:pb-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-28 md:pb-6">
           {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
           <PageTransition />
         </main>
       </div>
 
       {/* iOS/Android Styled Floating Frosted-Glass Mobile Bottom Dock for Doctors */}
-      <nav className="md:hidden fixed bottom-3 inset-x-3 z-50 pointer-events-none safe-area-pb">
-        <div className="mobile-floating-dock pointer-events-auto rounded-3xl border border-white/60 px-2 py-1.5 flex items-center justify-around shadow-[0_12px_35px_rgba(42,22,71,0.18)]">
+      <nav className="md:hidden fixed bottom-3 inset-x-2 sm:inset-x-4 z-50 pointer-events-none safe-area-pb">
+        <div className="mobile-floating-dock pointer-events-auto rounded-3xl border border-white/60 px-1 py-1.5 flex items-center justify-around shadow-[0_12px_35px_rgba(42,22,71,0.18)] gap-1">
           {DOCTOR_BOTTOM_TABS.map(tab => (
             <NavLink
               key={tab.path}
@@ -515,7 +515,7 @@ function DoctorLayout() {
               onClick={() => triggerHaptic(tab.isFab ? 'medium' : 'light')}
               className={({ isActive }) =>
                 `relative flex flex-col items-center justify-center transition-all duration-200 ${
-                  tab.isFab ? '-mt-5' : 'flex-1 py-1'
+                  tab.isFab ? '-mt-6' : 'flex-1 py-1 px-0.5'
                 } ${isActive ? 'text-aubergine-700 font-extrabold' : 'text-slate-500 font-medium'}`
               }
             >
@@ -526,18 +526,18 @@ function DoctorLayout() {
                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-aubergine-600 to-magenta-600 text-white flex items-center justify-center text-lg shadow-lg shadow-indigo-500/30 ring-4 ring-white transition-transform active:scale-90">
                         <i className={`fas ${tab.icon}`}></i>
                       </div>
-                      <span className="text-[10px] font-black text-indigo-700 mt-1 tracking-tight">
+                      <span className="text-[10px] font-black text-indigo-700 mt-1 tracking-tight whitespace-nowrap">
                         {tab.name}
                       </span>
                     </div>
                   ) : (
                     <>
-                      <div className={`w-9 h-8 rounded-xl flex items-center justify-center transition-all ${
+                      <div className={`w-10 h-8 rounded-xl flex items-center justify-center transition-all ${
                         isActive ? 'bg-aubergine-100/90 text-aubergine-700 scale-105 shadow-2xs' : 'text-slate-500 active:scale-95'
                       }`}>
-                        <i className={`fas ${tab.icon} text-sm`}></i>
+                        <i className={`fas ${tab.icon} text-[15px]`}></i>
                       </div>
-                      <span className="text-[10px] tracking-tight leading-none mt-0.5">{tab.name}</span>
+                      <span className="text-[9px] sm:text-[10px] tracking-tight leading-none mt-0.5 whitespace-nowrap truncate w-full text-center">{tab.name}</span>
                       {isActive && (
                         <div className="w-1 h-1 rounded-full bg-aubergine-600 mt-0.5"></div>
                       )}

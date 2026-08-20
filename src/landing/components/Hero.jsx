@@ -3,7 +3,7 @@ import { triggerHaptic } from '../../lib/haptics.js';
 
 function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
   return (
-    <section className="relative pt-6 pb-10 md:pt-10 lg:pt-12 md:pb-20 max-w-6xl mx-auto px-4 sm:px-5 md:px-8">
+    <section className="relative pt-6 pb-32 md:pt-10 lg:pt-12 md:pb-20 max-w-6xl mx-auto px-4 sm:px-5 md:px-8">
       {/* Decorative blurry background highlights */}
       <div className="absolute top-1/4 left-1/10 w-72 h-72 rounded-full bg-indigo-200/40 blur-3xl -z-10"></div>
       <div className="absolute top-1/3 right-1/10 w-80 h-80 rounded-full bg-violet-200/30 blur-3xl -z-10"></div>
@@ -66,10 +66,10 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
           </div>
 
           {/* Dual Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mt-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mt-2 pt-3 sm:pt-0">
             {/* Primary Action Button */}
-            <div className="relative group w-full sm:w-auto">
-              <div className="absolute -top-3 right-2 sm:-right-2 z-10 bg-rose-500 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider py-0.5 sm:py-1 px-2 sm:px-2.5 rounded-full shadow-md shadow-rose-200/50 animate-bounce flex items-center gap-1 whitespace-nowrap">
+            <div className="relative group w-full sm:w-auto mt-2 sm:mt-0">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:-right-2 z-10 bg-rose-500 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider py-0.5 sm:py-1 px-2 sm:px-2.5 rounded-full shadow-md shadow-rose-200/50 animate-bounce flex items-center gap-1 whitespace-nowrap">
                 <i className="fas fa-calendar-day"></i> Next Slot: Today
               </div>
               <button 
@@ -99,7 +99,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
           </div>
 
           {/* Consultation trust statement */}
-          <div className="flex items-center justify-center lg:justify-start gap-2 text-sm text-slate-500">
+          <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-2 text-xs sm:text-sm text-slate-500 text-center sm:text-left mt-2">
             <div className="flex -space-x-1 shrink-0">
               <span className="w-5 h-5 rounded-full bg-aubergine-500 flex items-center justify-center text-[10px] text-white font-bold border border-white">✓</span>
               <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-[10px] text-white font-bold border border-white">✓</span>
