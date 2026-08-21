@@ -6,6 +6,7 @@ import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { SUPPORTED_CURRENCIES } from '../../lib/currency.js';
 import { LIFE_MODES } from './Dashboard.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+import NotificationSettingsTab from '../../components/NotificationSettingsTab.jsx';
 
 function PatientProfile() {
   const { user, updateUser, updatePassword, uploadAvatar, removeAvatar, logout, subscribePush } = useAuth();
@@ -246,6 +247,7 @@ function PatientProfile() {
             ['personal', 'Personal Info', 'fa-user'],
             ['health', 'Health Details', 'fa-heart-pulse'],
             ['preferences', 'Regional & Life Stage', 'fa-globe'],
+            ['notifications', 'Notifications & Alerts', 'fa-bell'],
             ['security', 'Security', 'fa-shield-halved'],
           ].map(([key, label, icon]) => (
             <button key={key} onClick={() => setActiveTab(key)}
@@ -474,6 +476,11 @@ function PatientProfile() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* ── NOTIFICATIONS & ALERTS ── */}
+          {activeTab === 'notifications' && (
+            <NotificationSettingsTab />
           )}
 
           {/* ── SECURITY ── */}

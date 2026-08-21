@@ -4,6 +4,8 @@ import { useAuth } from './AuthContext.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { apiFetch, getTokens } from '../lib/apiClient.js';
 
+import { playNotificationSoundForType } from '../lib/notificationAudio.js';
+
 const RAW_API_URL = import.meta.env.VITE_API_URL;
 const SOCKET_URL = RAW_API_URL ? RAW_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:5000';
 
@@ -122,6 +124,11 @@ export function NotificationsProvider({ children }) {
 
       const isNegative = notif.type === 'appointment_cancelled' || notif.type === 'call_cancelled';
       toast(notif.title, isNegative ? 'warning' : 'success');
+
+      // Play calm healthcare notification chime
+      if (notif.type !== 'call_cancelled') {
+        playNotificationSoundForType(notif.type);
+      }
     });
 
     return () => socket.disconnect();

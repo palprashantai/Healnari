@@ -8,12 +8,7 @@ import { readTokensFromIndexedDb } from './lib/tokenStore.js';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
-// `generateSW` mode injects these automatically for registerType:'autoUpdate';
-// a custom `injectManifest` service worker (this file) has to do it itself.
-// Without them the new SW sits in "waiting" forever behind the old one (an
-// installed/standalone PWA never closes all its tabs to let it through),
-// so it keeps serving a stale cached shell alongside newly-built, differently
-// hashed JS/CSS chunks — the exact "sometimes errors, sometimes hangs" bug.
+// Auto-update service worker lifecycle
 self.skipWaiting();
 clientsClaim();
 
@@ -91,6 +86,10 @@ self.addEventListener('message', (event) => {
   }
 });
 
+/**
+ * Handle incoming Web Push events.
+ * Uses service-worker persistent notifications for reliable cross-platform support (Android + iOS PWA).
+ */
 self.addEventListener('push', (event) => {
   if (!event.data) return;
 
@@ -98,14 +97,23 @@ self.addEventListener('push', (event) => {
   try {
     payload = event.data.json();
   } catch {
-    return;
+    payload = {
+      title: 'HealNari Notification',
+      body: event.data.text(),
+    };
   }
 
-  const appointmentId = payload.data?.appointmentId;
-  const notifType = payload.data?.type;
+  const notifData = payload.data || {};
+  const appointmentId = notifData.appointmentId;
+  const notifType = notifData.type;
   const isIncomingCall = notifType === 'appointment_called';
   const isUrgentLab = notifType === 'urgent_lab_result';
-  const isReminder = notifType === 'medication_reminder' || notifType === 'cycle_reminder';
+  const isReminder =
+    notifType === 'medication_reminder' ||
+    notifType === 'cycle_reminder' ||
+    notifType === 'prescription_refill_due' ||
+    notifType === 'period_prediction' ||
+    notifType === 'fertility_window';
 
   // Custom vibration pattern: ring for calls, double-urgent for labs, gentle tap for reminders
   let vibratePattern = [150];
@@ -130,39 +138,42 @@ self.addEventListener('push', (event) => {
     ];
   } else if (isReminder) {
     actions = [
-      { action: 'view_report', title: '🌸 Log Now' },
-      { action: 'dismiss', title: 'Remind in 1 hr' },
+      { action: 'view_report', title: '🌸 Open App' },
+      { action: 'dismiss', title: 'Dismiss' },
     ];
   }
 
   const notificationOptions = {
     body: payload.body || '',
-    // Show caller/doctor avatar or high-res brand icon
-    icon: payload.data?.callerAvatarUrl || '/brand/logo-icon.jpg',
+    icon: notifData.callerAvatarUrl || '/brand/logo-icon.jpg',
     badge: '/brand/logo-icon.jpg',
-    // Rich media attachment for clinical or promo push if present
-    image: payload.data?.imageUrl || undefined,
-    tag: appointmentId ? `call-${appointmentId}` : `notif-${payload.data?.id || Date.now()}`,
+    image: notifData.imageUrl || undefined,
+    tag: appointmentId ? `call-${appointmentId}` : `notif-${notifData.id || notifType || Date.now()}`,
     renotify: isIncomingCall || isUrgentLab,
     requireInteraction: isIncomingCall || isUrgentLab,
-    timestamp: payload.data?.timestamp || Date.now(),
+    timestamp: notifData.timestamp || Date.now(),
     vibrate: vibratePattern,
     actions: actions,
-    data: payload.data || {},
+    data: notifData,
   };
 
   event.waitUntil(
-    self.registration.showNotification(payload.title || 'HealNari Care', notificationOptions),
+    self.registration.showNotification(payload.title || 'HealNari Care', notificationOptions)
   );
 });
 
+/**
+ * Handle notification clicks & action button triggers with intentional deep linking.
+ */
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const appointmentId = event.notification.data?.appointmentId;
-  const reportId = event.notification.data?.reportId;
-  const calleeRole = event.notification.data?.calleeRole;
-  const targetPath = event.notification.data?.path;
+  const notifData = event.notification.data || {};
+  const appointmentId = notifData.appointmentId;
+  const reportId = notifData.reportId || notifData.labReportId || notifData.labId;
+  const calleeRole = notifData.calleeRole;
+  const notifType = notifData.type;
+  const targetPath = notifData.path || notifData.url;
 
   if (event.action === 'decline') {
     if (appointmentId) {
@@ -173,7 +184,7 @@ self.addEventListener('notificationclick', (event) => {
             method: 'POST',
             headers: { Authorization: `Bearer ${tokens.accessToken}` },
           }).catch(() => {});
-        }),
+        })
       );
     }
     return;
@@ -183,26 +194,105 @@ self.addEventListener('notificationclick', (event) => {
     return;
   }
 
+  // Resolve deep link based on context and role
   let url = '/';
   if (targetPath) {
     url = targetPath;
-  } else if (appointmentId) {
+  } else if (isAppointmentType(notifType) || appointmentId) {
+    if (isIncomingCallType(notifType)) {
+      url = calleeRole === 'doctor'
+        ? `/doctor-dashboard/telemedicine?startCall=${appointmentId}`
+        : `/patient-dashboard/appointments?joinCall=${appointmentId}`;
+    } else {
+      url = calleeRole === 'doctor' ? '/doctor-dashboard/appointments' : '/patient-dashboard/appointments';
+    }
+  } else if (isPrescriptionType(notifType)) {
+    url = calleeRole === 'doctor' ? '/doctor-dashboard/prescriptions' : '/patient-dashboard/prescriptions';
+  } else if (isLabReportType(notifType) || reportId) {
     url = calleeRole === 'doctor'
-      ? `/doctor-dashboard/telemedicine?startCall=${appointmentId}`
-      : `/patient-dashboard/appointments?joinCall=${appointmentId}`;
-  } else if (reportId) {
-    url = calleeRole === 'doctor'
-      ? `/doctor-dashboard/reports?reportId=${reportId}`
-      : `/patient-dashboard/records`;
+      ? `/doctor-dashboard/reports${reportId ? `?reportId=${reportId}` : ''}`
+      : '/patient-dashboard/records';
+  } else if (isCycleOrTrackingType(notifType)) {
+    url = notifType === 'fertility_window' ? '/patient-dashboard/fertility' : '/patient-dashboard/tracking';
+  } else if (isBillingType(notifType)) {
+    url = calleeRole === 'doctor' ? '/doctor-dashboard/billing' : '/patient-dashboard/billing';
+  } else if (isAdminType(notifType)) {
+    url = '/admin-dashboard';
+  } else {
+    url = calleeRole === 'doctor' ? '/doctor-dashboard' : '/patient-dashboard';
   }
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       const existing = list.find((c) => c.url.includes(self.location.origin));
       if (existing) {
-        return existing.focus().then(() => existing.navigate(url)).catch(() => self.clients.openWindow(url));
+        return existing
+          .focus()
+          .then(() => existing.navigate(url))
+          .catch(() => self.clients.openWindow(url));
       }
       return self.clients.openWindow(url);
-    }),
+    })
   );
 });
+
+function isAppointmentType(type) {
+  return [
+    'appointment_called',
+    'appointment_requested',
+    'appointment_approved',
+    'appointment_cancelled',
+    'appointment_reminder',
+    'appointment_delayed',
+    'follow_up_recommended',
+  ].includes(type);
+}
+
+function isIncomingCallType(type) {
+  return type === 'appointment_called';
+}
+
+function isPrescriptionType(type) {
+  return [
+    'prescription_issued',
+    'prescription_refill_due',
+    'refill_requested',
+    'medication_reminder',
+  ].includes(type);
+}
+
+function isLabReportType(type) {
+  return [
+    'lab_report_requested',
+    'lab_report_uploaded',
+    'lab_report_reviewed',
+    'lab_report_pending',
+    'urgent_lab_result',
+  ].includes(type);
+}
+
+function isCycleOrTrackingType(type) {
+  return [
+    'period_prediction',
+    'fertility_window',
+    'cycle_reminder',
+    'lifestyle_daily_reminder',
+  ].includes(type);
+}
+
+function isBillingType(type) {
+  return [
+    'payment_success',
+    'payment_received',
+    'payment_refund_processed',
+    'care_plan_renewal_due',
+  ].includes(type);
+}
+
+function isAdminType(type) {
+  return [
+    'admin_daily_revenue_summary',
+    'admin_kyc_escalation',
+    'admin_message',
+  ].includes(type);
+}

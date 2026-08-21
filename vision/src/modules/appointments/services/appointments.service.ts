@@ -68,11 +68,17 @@ export class AppointmentsService {
     appointmentId: string,
     callerAvatarUrl: string | null,
   ) {
+    const path =
+      calleeRole === ProfileRole.DOCTOR
+        ? `/doctor-dashboard/telemedicine?startCall=${appointmentId}`
+        : `/patient-dashboard/appointments?joinCall=${appointmentId}`;
+
     await this.notifications.create(calleeId, {
       type: 'appointment_called',
       title: 'Incoming Video Call',
       message: `${callerLabel} is calling you now.`,
-      data: { appointmentId, calleeRole, callerAvatarUrl: callerAvatarUrl || undefined },
+      idempotencyKey: `call_${appointmentId}_${Date.now()}`,
+      data: { appointmentId, calleeRole, callerAvatarUrl: callerAvatarUrl || undefined, path },
     });
   }
 
@@ -710,7 +716,8 @@ export class AppointmentsService {
         type: 'appointment_reminder',
         title: 'Upcoming appointment',
         message: `Your ${apt.type === AppointmentType.VIDEO ? 'video consultation' : 'clinic visit'} with Dr. ${doctorNameById.get(apt.doctor_id) || ''} is at ${apt.scheduled_time} today. Please be ready a few minutes early.`,
-        data: { appointmentId: apt.id },
+        idempotencyKey: `apt_reminder_${apt.id}_${now.toISOString().slice(0, 10)}`,
+        data: { appointmentId: apt.id, path: '/patient-dashboard/appointments' },
       }).catch(() => { }),
     ));
 
@@ -788,7 +795,8 @@ export class AppointmentsService {
         type: 'appointment_delayed',
         title: 'Running behind schedule',
         message: `Dr. ${doctorNameById.get(c.doctorId) || ''} is running about ${Math.round(c.delayMinutes)} minutes behind for your ${c.scheduledTime} appointment. We'll let you know when it's your turn.`,
-        data: { appointmentId: row.id },
+        idempotencyKey: `apt_delay_${row.id}_${today}`,
+        data: { appointmentId: row.id, path: '/patient-dashboard/appointments' },
       }).catch(() => { });
     }
 

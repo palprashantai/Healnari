@@ -5,6 +5,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { formatCurrency } from '../../lib/currency.js';
 import { apiFetch } from '../../lib/apiClient.js';
+import NotificationSettingsTab from '../../components/NotificationSettingsTab.jsx';
 
 /* ─── Main Component ─────────────────────────── */
 function DoctorProfile() {
@@ -173,6 +174,7 @@ function DoctorProfile() {
             ['profile', 'Practice Info', 'fa-stethoscope'],
             ['schedule', 'Availability', 'fa-calendar'],
             ['fees', 'Consultation Fees', 'fa-indian-rupee-sign'],
+            ['notifications', 'Notifications & Alerts', 'fa-bell'],
             ['security', 'Security', 'fa-shield-halved'],
           ].map(([key, label, icon]) => (
             <button key={key} onClick={() => setTab(key)}
@@ -358,6 +360,11 @@ function DoctorProfile() {
                 <i className="fas fa-floppy-disk"></i> Save Fee Structure
               </button>
             </div>
+          )}
+
+          {/* ── NOTIFICATIONS & ALERTS ── */}
+          {tab === 'notifications' && (
+            <NotificationSettingsTab />
           )}
 
           {/* ── SECURITY ── */}

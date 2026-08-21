@@ -84,7 +84,8 @@ export class BillingCronService {
           type: 'payment_refund_processed',
           title: 'Refund Processed',
           message: `Your consultation fee of ${formattedAmount} has been refunded to your original payment method. Reference: HN-REF-${payment.id.slice(0, 6).toUpperCase()}.`,
-          data: { paymentId: payment.id, appointmentId, amount: payment.amount },
+          idempotencyKey: `refund_notif_${payment.id}`,
+          data: { paymentId: payment.id, appointmentId, amount: payment.amount, path: '/patient-dashboard/billing' },
         });
 
         this.logger.log(`Successfully refunded ${formattedAmount} for payment ${payment.id}`);
@@ -134,7 +135,8 @@ export class BillingCronService {
           type: 'care_plan_renewal_due',
           title: 'Care Plan Renewal Notice',
           message: `Your ${pkg.package_name || 'Care Package'} is nearing completion in 7 days. Tap here to renew your plan and continue your uninterrupted care cycle.`,
-          data: { packageId: pkg.id },
+          idempotencyKey: `pkg_renewal_${pkg.id}_${todayStr}`,
+          data: { packageId: pkg.id, path: '/patient-dashboard/billing' },
         }).catch(() => {}),
       ),
     );

@@ -33,6 +33,11 @@ export class PushSubscriptionsService {
           endpoint: dto.endpoint,
           p256dh: dto.keys.p256dh,
           auth: dto.keys.auth,
+          platform: dto.platform || null,
+          user_agent: dto.userAgent || null,
+          status: 'active',
+          last_seen_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id,endpoint' },
       )

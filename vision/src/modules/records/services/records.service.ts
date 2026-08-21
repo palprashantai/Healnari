@@ -119,7 +119,8 @@ export class RecordsService {
       type: 'prescription_issued',
       title: 'New prescription',
       message: `Dr. ${user.profile.full_name} issued a new prescription${body.diagnosis ? ` for ${body.diagnosis}` : ''} (${body.medicines.length} medicine${body.medicines.length > 1 ? 's' : ''}).`,
-      data: { groupId },
+      idempotencyKey: `rx_issued_${groupId}`,
+      data: { groupId, path: '/patient-dashboard/prescriptions' },
     }).catch(() => {});
 
     return prescriptions;
@@ -136,7 +137,8 @@ export class RecordsService {
         type: 'refill_requested',
         title: 'Prescription Refill Requested',
         message: `${user.profile?.full_name || 'A patient'} requested a refill for ${rx.med_name}.`,
-        data: { prescriptionId: id, patientId: user.id },
+        idempotencyKey: `refill_req_${id}_${Date.now()}`,
+        data: { prescriptionId: id, patientId: user.id, path: '/doctor-dashboard/prescriptions' },
       }).catch(() => {});
     }
     
@@ -239,7 +241,8 @@ export class RecordsService {
         type: 'lab_report_uploaded',
         title: 'Lab report uploaded',
         message: `A new report for "${testName}" was uploaded.`,
-        data: { labReportId: report.id, requestId: request.id },
+        idempotencyKey: `lab_upload_${report.id}`,
+        data: { labReportId: report.id, requestId: request.id, path: '/doctor-dashboard/reports' },
       }).catch(() => {});
     } else {
       // Find the patient's most recent doctor to notify
@@ -247,7 +250,7 @@ export class RecordsService {
         .from('appointments')
         .select('doctor_id')
         .eq('patient_id', body.patientId)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false})
         .limit(1)
         .single();
       
@@ -256,7 +259,8 @@ export class RecordsService {
           type: 'lab_report_uploaded',
           title: 'Lab report uploaded',
           message: `A patient uploaded a new lab report ("${testName}").`,
-          data: { labReportId: report.id, patientId: body.patientId },
+          idempotencyKey: `lab_upload_${report.id}`,
+          data: { labReportId: report.id, patientId: body.patientId, path: '/doctor-dashboard/reports' },
         }).catch(() => {});
       }
     }
@@ -310,7 +314,8 @@ export class RecordsService {
       type: 'lab_report_requested',
       title: 'New report requested',
       message: `Dr. ${user.profile.full_name} requested: ${body.requestedTests}${body.dueDate ? ` (by ${body.dueDate})` : ''}`,
-      data: { requestId: request.id },
+      idempotencyKey: `lab_req_${request.id}`,
+      data: { requestId: request.id, path: '/patient-dashboard/records' },
     }).catch(() => {});
 
     return request;
@@ -387,7 +392,8 @@ export class RecordsService {
       type: 'lab_report_reviewed',
       title: 'Lab report reviewed',
       message: `Dr. ${user.profile.full_name} reviewed your "${report.test_name}" report.`,
-      data: { labReportId: report.id },
+      idempotencyKey: `lab_review_${report.id}`,
+      data: { labReportId: report.id, path: '/patient-dashboard/records' },
     }).catch(() => {});
 
     return updated;

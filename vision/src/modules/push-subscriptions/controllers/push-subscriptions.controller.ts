@@ -19,6 +19,8 @@ export class SubscribeDto {
   @ValidateNested()
   @Type(() => PushSubscriptionKeysDto)
   keys: PushSubscriptionKeysDto;
+  @ApiProperty({ required: false }) platform?: string;
+  @ApiProperty({ required: false }) userAgent?: string;
 }
 
 @ApiTags('Push Subscriptions')

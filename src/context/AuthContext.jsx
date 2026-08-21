@@ -31,7 +31,14 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
-  const { subscribe: subscribePush } = usePushSubscription(user);
+  const {
+    subscribe: subscribePush,
+    unsubscribe: unsubscribePush,
+    permissionState: pushPermissionState,
+    isSubscribed: isPushSubscribed,
+    isSupported: isPushSupported,
+    loading: pushLoading,
+  } = usePushSubscription(user);
 
   const loadMe = useCallback(async () => {
     let tokens = getTokens();
@@ -170,7 +177,23 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const value = { user, signUp, signIn, logout, updateUser, updatePassword, uploadAvatar, removeAvatar, loading, subscribePush };
+  const value = {
+    user,
+    signUp,
+    signIn,
+    logout,
+    updateUser,
+    updatePassword,
+    uploadAvatar,
+    removeAvatar,
+    loading,
+    subscribePush,
+    unsubscribePush,
+    pushPermissionState,
+    isPushSubscribed,
+    isPushSupported,
+    pushLoading,
+  };
 
   return (
     <AuthContext.Provider value={value}>

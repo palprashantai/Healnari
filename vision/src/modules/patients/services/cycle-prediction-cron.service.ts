@@ -88,7 +88,8 @@ export class CyclePredictionCronService {
           type: 'period_prediction',
           title: 'Period Approaching',
           message: `Your period is predicted to start ${timeCopy}. Keep a sanitary pad handy and log any symptoms in your HealNari tracker.`,
-          data: { expectedInDays: item.daysUntil },
+          idempotencyKey: `period_${item.userId}_${todayStr}_${item.daysUntil}`,
+          data: { expectedInDays: item.daysUntil, path: '/patient-dashboard/tracking' },
         }).catch(() => {});
       }),
     );
@@ -146,7 +147,7 @@ export class CyclePredictionCronService {
 
     if (userLatest.size === 0) return;
 
-    const dueToNotify: Array<{ userId: string; phase: string }> = [];
+    const dueToNotify: Array<{ userId: string; phase: string; phaseKey: string }> = [];
 
     for (const [userId, log] of userLatest) {
       const lastStart = log.lastStart;
@@ -158,9 +159,9 @@ export class CyclePredictionCronService {
       const fertileWindowEnd = ovulationDay + 1;
 
       if (daysSinceStart === fertileWindowStart) {
-        dueToNotify.push({ userId, phase: 'Your fertile window begins today. High chance of conception over the next 5 days.' });
+        dueToNotify.push({ userId, phase: 'Your fertile window begins today. High chance of conception over the next 5 days.', phaseKey: 'fertile_start' });
       } else if (daysSinceStart === ovulationDay) {
-        dueToNotify.push({ userId, phase: 'Peak fertility day (predicted ovulation). Log your basal body temperature and LH strip tests.' });
+        dueToNotify.push({ userId, phase: 'Peak fertility day (predicted ovulation). Log your basal body temperature and LH strip tests.', phaseKey: 'ovulation_day' });
       }
     }
 
@@ -172,7 +173,8 @@ export class CyclePredictionCronService {
           type: 'fertility_window',
           title: 'Fertility & Ovulation Update',
           message: item.phase,
-          data: { trackingType: 'fertility' },
+          idempotencyKey: `fertility_${item.userId}_${todayStr}_${item.phaseKey}`,
+          data: { trackingType: 'fertility', path: '/patient-dashboard/fertility' },
         }).catch(() => {});
       }),
     );

@@ -72,7 +72,8 @@ export class DoctorsCronService {
           type: 'doctor_daily_agenda',
           title: `Good morning, Dr. ${docName}`,
           message: `You have ${list.length} consultation(s) scheduled today (${videoCount} Video, ${clinicCount} Clinic). First patient is at ${firstTime}.`,
-          data: { totalAppointments: list.length, firstAppointmentTime: firstTime },
+          idempotencyKey: `doctor_agenda_${doctorId}_${todayStr}`,
+          data: { totalAppointments: list.length, firstAppointmentTime: firstTime, path: '/doctor-dashboard/appointments' },
         }).catch(err => this.logger.warn(`Failed to send agenda push to doctor ${doctorId}: ${err.message}`));
 
         // 2. Transactional HTML Email Digest via database-managed template

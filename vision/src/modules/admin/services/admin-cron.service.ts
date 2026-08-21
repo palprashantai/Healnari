@@ -60,7 +60,8 @@ export class AdminCronService {
             type: 'admin_daily_revenue_summary',
             title: 'Daily Platform Revenue Summary',
             message: `Yesterday's Settlement: ₹${totalGross.toLocaleString('en-IN')} gross volume across ${payments?.length || 0} consults (Platform Net: ₹${platformCommission.toLocaleString('en-IN')}).`,
-            data: { gross: totalGross, commission: platformCommission, date: yesterday.slice(0, 10) },
+            idempotencyKey: `admin_rev_${yesterday.slice(0, 10)}_${admin.id}`,
+            data: { gross: totalGross, commission: platformCommission, date: yesterday.slice(0, 10), path: '/admin-dashboard/revenue' },
           }).catch(() => {});
 
           // 2. Email Summary via database-managed template

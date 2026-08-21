@@ -85,11 +85,13 @@ export class PrescriptionsCronService {
         const medName = rx.med_name || 'Medication';
 
         // 1. In-App + Web Push
+        const todayStr = today.toISOString().slice(0, 10);
         this.notifications.create(rx.patient_id, {
           type: 'prescription_refill_due',
           title: 'Prescription Refill Reminder',
           message: `Your prescription for ${medName} (${rx.duration || 'current course'}) is nearing completion. Tap here to request a refill or review with your doctor.`,
-          data: { prescriptionId: rx.id },
+          idempotencyKey: `rx_refill_${rx.id}_${todayStr}`,
+          data: { prescriptionId: rx.id, path: '/patient-dashboard/prescriptions' },
         }).catch(err => this.logger.warn(`Failed to notify patient ${rx.patient_id}: ${err.message}`));
 
         // 2. Transactional Email Reminder via database-managed template
@@ -156,6 +158,8 @@ export class PrescriptionsCronService {
         type: 'lifestyle_daily_reminder',
         title: 'Daily Wellness Check-in',
         message: 'Remember to log your diet and yoga routines for today!',
+        idempotencyKey: `lifestyle_${patientId}_${today}`,
+        data: { path: '/patient-dashboard/tracking' },
       }).catch(() => {});
     }
 
@@ -200,13 +204,15 @@ export class PrescriptionsCronService {
     const { data: doctors } = await this.supabase.admin.from('profiles').select('id, full_name').in('id', doctorIds);
     const doctorNameById = new Map((doctors || []).map(d => [d.id, d.full_name]));
 
+    const todayTag = new Date().toISOString().slice(0, 10);
     await Promise.all(
       claimed.map(apt =>
         this.notifications.create(apt.patient_id, {
           type: 'follow_up_recommended',
           title: 'Time for Your Follow-Up Review',
           message: `Dr. ${doctorNameById.get(apt.doctor_id) || 'Your Doctor'} recommended a review around this time. Book your follow-up consultation to track your progress and titrate medications.`,
-          data: { appointmentId: apt.id, doctorId: apt.doctor_id },
+          idempotencyKey: `followup_${apt.id}_${todayTag}`,
+          data: { appointmentId: apt.id, doctorId: apt.doctor_id, path: '/patient-dashboard/appointments' },
         }).catch(() => {}),
       ),
     );
@@ -243,13 +249,15 @@ export class PrescriptionsCronService {
 
     if (!claimed?.length) return;
 
+    const todayTag = new Date().toISOString().slice(0, 10);
     await Promise.all(
       claimed.map(lab =>
         this.notifications.create(lab.patient_id, {
           type: 'lab_report_pending',
           title: 'Pending Lab Investigation',
           message: `Your doctor requested '${lab.test_name}'. Please upload your test results or schedule a home collection so your doctor can review them.`,
-          data: { labId: lab.id },
+          idempotencyKey: `lab_pending_${lab.id}_${todayTag}`,
+          data: { labId: lab.id, path: '/patient-dashboard/records' },
         }).catch(() => {}),
       ),
     );
