@@ -43,28 +43,37 @@ export function AuthProvider({ children }) {
   } = usePushSubscription(user);
 
   const loadMe = useCallback(async () => {
-    let tokens = getTokens();
-    if (!tokens?.accessToken) {
-      // iOS Safari PWA Mitigation: localStorage is cleared after 7 days of inactivity.
-      // Recover the session from IndexedDB which survives the 7-day purge.
-      const { readTokensFromIndexedDb } = await import('../lib/tokenStore.js');
-      const recoveredTokens = await readTokensFromIndexedDb();
-      if (recoveredTokens?.accessToken) {
-        setTokens(recoveredTokens);
-        tokens = recoveredTokens;
-      } else {
-        setAndCacheUser(null);
-        return;
-      }
-    }
     try {
-      setAndCacheUser(await apiFetch('/auth/me'));
-    } catch (err) {
-      if (err.status === 401 || err.status === 403) {
-        clearTokens();
-        setAndCacheUser(null);
+      let tokens = getTokens();
+      if (!tokens?.accessToken) {
+        // iOS Safari PWA Mitigation: localStorage is cleared after 7 days of inactivity.
+        // Recover the session from IndexedDB which survives the 7-day purge.
+        try {
+          const { readTokensFromIndexedDb } = await import('../lib/tokenStore.js');
+          const recoveredTokens = await readTokensFromIndexedDb();
+          if (recoveredTokens?.accessToken) {
+            setTokens(recoveredTokens);
+            tokens = recoveredTokens;
+          } else {
+            setAndCacheUser(null);
+            return;
+          }
+        } catch {
+          setAndCacheUser(null);
+          return;
+        }
       }
-      // Network errors are gracefully ignored, keeping the cached session alive
+      try {
+        setAndCacheUser(await apiFetch('/auth/me'));
+      } catch (err) {
+        if (err?.status === 401 || err?.status === 403) {
+          clearTokens();
+          setAndCacheUser(null);
+        }
+        // Network errors are gracefully ignored, keeping the cached session alive
+      }
+    } catch {
+      setAndCacheUser(null);
     }
   }, [setAndCacheUser]);
 
@@ -99,56 +108,64 @@ export function AuthProvider({ children }) {
       setAndCacheUser(data.user);
       return { user: data.user };
     } catch (error) {
-      return { error };
+      console.error('Registration failed', error);
+      throw error;
     }
   };
 
   const signIn = async (email, password) => {
     try {
-      const data = await apiFetch('/auth/login', { method: 'POST', skipAuth: true, body: { email, password } });
+      const data = await apiFetch('/auth/login', {
+        method: 'POST',
+        skipAuth: true,
+        body: { email, password },
+      });
       setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
       setAndCacheUser(data.user);
       return { user: data.user };
     } catch (error) {
-      return { error };
+      console.error('Login failed', error);
+      throw error;
     }
   };
 
-  const logout = () => {
-    // Best-effort — a shared/kiosk device shouldn't keep ringing for a user
-    // who signed out. The access token is captured now (not read inside the
-    // async chain) because clearTokens() below runs before
-    // pushManager.getSubscription() resolves.
-    if ('serviceWorker' in navigator) {
-      const accessToken = getTokens()?.accessToken;
-      navigator.serviceWorker.ready
-        .then((registration) => registration.pushManager.getSubscription())
-        .then((subscription) => {
-          if (!subscription) return;
-          if (accessToken) {
-            fetch(`${API_URL}/push-subscriptions?endpoint=${encodeURIComponent(subscription.endpoint)}`, {
-              method: 'DELETE',
-              headers: { Authorization: `Bearer ${accessToken}` },
-            }).catch(() => {});
-          }
-          subscription.unsubscribe().catch(() => {});
-        })
-        .catch(() => {});
+  const logout = async () => {
+    try {
+      await apiFetch('/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore
+    } finally {
+      clearTokens();
+      setAndCacheUser(null);
     }
-
-    clearTokens();
-    setAndCacheUser(null);
   };
 
   /** Optimistic local merge + best-effort persist of the fields `vision` tracks on `profiles`. */
   const updateUser = async (updates) => {
-    setAndCacheUser(prev => ({ ...prev, ...updates }));
+    // Optimistically update local state so the UI reflects the edit instantly
+    const nextUser = { ...user, ...updates };
+    setAndCacheUser(nextUser);
 
+    // Map UI user object back to the backend Profile entity columns
     const patch = {};
     if (updates.name !== undefined) patch.fullName = updates.name;
     if (updates.phone !== undefined) patch.phone = updates.phone;
+    if (updates.dob !== undefined) patch.dob = updates.dob;
+    if (updates.bloodGroup !== undefined) patch.bloodGroup = updates.bloodGroup;
+    if (updates.bio !== undefined) patch.bio = updates.bio;
     if (updates.specialty !== undefined) patch.specialty = updates.specialty;
-    if (updates.regNo !== undefined) patch.registrationNo = updates.regNo;
+    if (updates.qualifications !== undefined) patch.qualifications = updates.qualifications;
+    if (updates.experienceYears !== undefined) patch.experienceYears = Number(updates.experienceYears);
+    if (updates.consultationFee !== undefined) patch.consultationFee = Number(updates.consultationFee);
+    if (updates.clinicConsultationFee !== undefined) patch.clinicConsultationFee = Number(updates.clinicConsultationFee);
+    if (updates.languages !== undefined) patch.languages = updates.languages;
+    if (updates.address !== undefined) patch.address = updates.address;
+    if (updates.city !== undefined) patch.city = updates.city;
+    if (updates.state !== undefined) patch.state = updates.state;
+    if (updates.pincode !== undefined) patch.pincode = updates.pincode;
+    if (updates.emergencyContact !== undefined) patch.emergencyContact = updates.emergencyContact;
+    if (updates.allergies !== undefined) patch.allergies = updates.allergies;
+    if (updates.chronicConditions !== undefined) patch.chronicConditions = updates.chronicConditions;
     if (updates.emailNotifications !== undefined) patch.emailNotifications = updates.emailNotifications;
     if (updates.smsNotifications !== undefined) patch.smsNotifications = updates.smsNotifications;
     if (Object.keys(patch).length === 0) return;
@@ -201,7 +218,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }
