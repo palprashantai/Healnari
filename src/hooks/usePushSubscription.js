@@ -234,15 +234,30 @@ export function usePushSubscription(user) {
       const platform = detectPlatform();
       const userAgent = navigator.userAgent;
 
-      await apiFetch('/push-subscriptions', {
-        method: 'POST',
-        body: {
-          endpoint: subscription.endpoint,
-          keys: { p256dh, auth },
-          platform,
-          userAgent,
-        },
-      });
+      try {
+        await apiFetch('/push-subscriptions', {
+          method: 'POST',
+          body: {
+            endpoint: subscription.endpoint,
+            keys: { p256dh, auth },
+            platform,
+            userAgent,
+          },
+        });
+      } catch (postErr) {
+        // Resilient fallback for backend versions with strict DTO whitelisting
+        if (postErr?.message?.includes('should not exist') || postErr?.status === 400) {
+          await apiFetch('/push-subscriptions', {
+            method: 'POST',
+            body: {
+              endpoint: subscription.endpoint,
+              keys: { p256dh, auth },
+            },
+          });
+        } else {
+          throw postErr;
+        }
+      }
 
       subscribedForRef.current = user?.id;
       setIsSubscribed(true);
