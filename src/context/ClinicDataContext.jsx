@@ -152,6 +152,13 @@ export function ClinicDataProvider({ children }) {
     if (!user) {
       setPatients([]);
       setAppointments([]);
+      setCycleLogs({});
+      setVitals({});
+      setLifestyleLogs({});
+      setCareConnections([]);
+      setFavorites([]);
+      setWaitlist([]);
+      setTransactions([]);
       setLoading(false);
       return;
     }

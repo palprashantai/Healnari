@@ -45,6 +45,52 @@ registerRoute(
   })
 );
 
+// Cache FontAwesome CDN stylesheets and webfonts
+registerRoute(
+  ({ url }) => url.origin === 'https://cdnjs.cloudflare.com',
+  new StaleWhileRevalidate({
+    cacheName: 'fontawesome-cdn',
+    plugins: [
+      new CacheableResponsePlugin({
+        statuses: [0, 200],
+      }),
+      new ExpirationPlugin({
+        maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+        maxEntries: 20,
+      }),
+    ],
+  })
+);
+
+// Cache static brand assets and images
+registerRoute(
+  ({ request, url }) => request.destination === 'image' || url.pathname.startsWith('/brand/'),
+  new StaleWhileRevalidate({
+    cacheName: 'healnari-images',
+    plugins: [
+      new CacheableResponsePlugin({
+        statuses: [0, 200],
+      }),
+      new ExpirationPlugin({
+        maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+        maxEntries: 60,
+      }),
+    ],
+  })
+);
+
+// Message handler for client communication
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  if (event.data && event.data.type === 'CLEAR_CACHES') {
+    event.waitUntil(
+      caches.keys().then((names) => Promise.all(names.map((name) => caches.delete(name))))
+    );
+  }
+});
+
 self.addEventListener('push', (event) => {
   if (!event.data) return;
 

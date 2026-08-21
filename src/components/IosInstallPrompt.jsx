@@ -32,24 +32,31 @@ export function IosInstallPrompt() {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50 transform transition-transform duration-300 ease-in-out">
-      <div className="max-w-md mx-auto flex items-start gap-4 relative">
+    <div 
+      role="region"
+      aria-label="Install HealNari App"
+      className="fixed bottom-24 sm:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:max-w-sm z-40 bg-white/95 backdrop-blur-xl border border-aubergine-200/80 rounded-2xl p-4 shadow-[0_12px_36px_rgba(42,22,71,0.22)] transform transition-all duration-300 ease-out animate-fade-in"
+    >
+      <div className="flex items-start gap-3.5 relative">
         <button 
           onClick={handleDismiss}
-          className="absolute -top-2 -right-2 text-slate-400 hover:text-slate-600 p-1"
-          aria-label="Dismiss"
+          className="absolute -top-2 -right-2 text-slate-400 hover:text-slate-700 w-8 h-8 rounded-full flex items-center justify-center hover:bg-slate-100 transition-colors"
+          aria-label="Dismiss installation prompt"
         >
-          <i className="fa-solid fa-times text-sm"></i>
+          <i className="fa-solid fa-xmark text-sm"></i>
         </button>
         
-        <div className="w-10 h-10 rounded-xl bg-aubergine-100 text-aubergine-600 flex items-center justify-center shrink-0">
-          <i className="fa-solid fa-download text-lg"></i>
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-aubergine-600 to-magenta-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-aubergine-500/20">
+          <i className="fa-solid fa-mobile-screen-button text-lg"></i>
         </div>
         
-        <div className="flex-1">
-          <h4 className="text-sm font-bold text-slate-800 mb-1">Enable Notifications</h4>
-          <p className="text-xs text-slate-600 leading-relaxed">
-            To receive push notifications, tap the <i className="fa-solid fa-arrow-up-from-bracket mx-1"></i> Share icon below and select <strong className="font-semibold text-slate-800">"Add to Home Screen"</strong>.
+        <div className="flex-1 min-w-0 pr-4">
+          <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+            <span>Install HealNari App</span>
+            <span className="bg-aubergine-100 text-aubergine-700 text-[10px] font-extrabold px-1.5 py-0.2 rounded">iOS</span>
+          </h4>
+          <p className="text-xs text-slate-600 leading-snug">
+            Tap <i className="fa-solid fa-arrow-up-from-bracket text-aubergine-600 mx-1"></i> in Safari, then select <strong className="font-bold text-slate-800">"Add to Home Screen"</strong> for full offline access & instant care.
           </p>
         </div>
       </div>

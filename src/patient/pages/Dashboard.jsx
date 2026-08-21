@@ -381,7 +381,7 @@ function OnboardingModal({ isOpen, onClose, toast }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-bold text-slate-500 mb-1.5 block">Age</label>
-              <input type="number" value={form.age} onChange={e => setForm(p => ({ ...p, age: e.target.value }))}
+              <input type="number" inputMode="numeric" value={form.age} onChange={e => setForm(p => ({ ...p, age: e.target.value }))}
                 className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" placeholder="Years" />
             </div>
             <div>
@@ -396,12 +396,12 @@ function OnboardingModal({ isOpen, onClose, toast }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-bold text-slate-500 mb-1.5 block">Height (cm)</label>
-              <input type="number" value={form.height} onChange={e => setForm(p => ({ ...p, height: e.target.value }))}
+              <input type="number" inputMode="numeric" value={form.height} onChange={e => setForm(p => ({ ...p, height: e.target.value }))}
                 className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" placeholder="cm" />
             </div>
             <div>
               <label className="text-xs font-bold text-slate-500 mb-1.5 block">Weight (kg)</label>
-              <input type="number" value={form.weight} onChange={e => setForm(p => ({ ...p, weight: e.target.value }))}
+              <input type="number" inputMode="numeric" value={form.weight} onChange={e => setForm(p => ({ ...p, weight: e.target.value }))}
                 className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" placeholder="kg" />
             </div>
           </div>
@@ -445,12 +445,12 @@ function OnboardingModal({ isOpen, onClose, toast }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-bold text-slate-500 mb-1.5 block">Bleeding duration</label>
-              <input type="number" value={form.periodDurationDays || 5} min={1} max={15} onChange={e => setForm(p => ({ ...p, periodDurationDays: e.target.value }))}
+              <input type="number" inputMode="numeric" value={form.periodDurationDays || 5} min={1} max={15} onChange={e => setForm(p => ({ ...p, periodDurationDays: e.target.value }))}
                 className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" placeholder="Days" />
             </div>
             <div>
               <label className="text-xs font-bold text-slate-500 mb-1.5 block">Cycle length</label>
-              <input type="number" value={form.cycleLengthDays || 28} min={15} max={90} onChange={e => setForm(p => ({ ...p, cycleLengthDays: e.target.value }))}
+              <input type="number" inputMode="numeric" value={form.cycleLengthDays || 28} min={15} max={90} onChange={e => setForm(p => ({ ...p, cycleLengthDays: e.target.value }))}
                 className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" placeholder="Days" />
             </div>
           </div>

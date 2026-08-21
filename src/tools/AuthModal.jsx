@@ -86,26 +86,23 @@ function AuthModal({ onClose }) {
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+            className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors shrink-0 active:scale-95"
+            aria-label="Close authentication modal"
           >
-            <i className="fas fa-times"></i>
+            <i className="fas fa-times text-base"></i>
           </button>
         </div>
 
         {/* Scrollable Body */}
         <div className="px-4 sm:px-6 py-4 sm:py-5 overflow-y-auto">
 
-          {/* Role Toggle — only meaningful at registration. Login is account-bound:
-              your role comes from your account, not from a tab you click, so
-              showing this during login just misleads people into thinking they
-              can pick which dashboard they land on. Admin isn't selectable here
-              at all — those accounts are provisioned manually, never via public
-              self-signup (the backend rejects it too). */}
+          {/* Role Toggle */}
           {mode === 'register' && (
             <div className="flex bg-slate-100 p-1 rounded-xl mb-6 text-center">
               <button
+                type="button"
                 onClick={() => setRole('patient')}
-                className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-lg transition-all flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 ${role === 'patient'
+                className={`flex-1 py-2.5 text-xs md:text-sm font-bold rounded-lg transition-all flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 ${role === 'patient'
                   ? 'bg-white text-aubergine-700 shadow-sm'
                   : 'text-slate-500 hover:text-slate-700'
                   }`}
@@ -113,8 +110,9 @@ function AuthModal({ onClose }) {
                 <i className="fas fa-user"></i> Patient
               </button>
               <button
+                type="button"
                 onClick={() => setRole('doctor')}
-                className={`flex-1 py-2 text-xs md:text-sm font-bold rounded-lg transition-all flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 ${role === 'doctor'
+                className={`flex-1 py-2.5 text-xs md:text-sm font-bold rounded-lg transition-all flex flex-col sm:flex-row justify-center items-center gap-1 sm:gap-2 ${role === 'doctor'
                   ? 'bg-white text-aubergine-700 shadow-sm'
                   : 'text-slate-500 hover:text-slate-700'
                   }`}
@@ -136,6 +134,7 @@ function AuthModal({ onClose }) {
                     id="auth-fullname"
                     type="text"
                     required
+                    autoComplete="name"
                     value={fullName}
                     onChange={e => setFullName(e.target.value)}
                     placeholder={role === 'doctor' ? "Dr. Jane Doe" : "Jane Doe"}
@@ -155,6 +154,10 @@ function AuthModal({ onClose }) {
                   id="auth-email"
                   type="email"
                   required
+                  inputMode="email"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck="false"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="you@example.com"
@@ -178,6 +181,7 @@ function AuthModal({ onClose }) {
                   id="auth-password"
                   type="password"
                   required
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
@@ -197,6 +201,8 @@ function AuthModal({ onClose }) {
                     id="auth-regno"
                     type="text"
                     required
+                    autoCapitalize="characters"
+                    spellCheck="false"
                     value={regNo}
                     onChange={e => setRegNo(e.target.value)}
                     placeholder="e.g. MCI-12345"

@@ -215,6 +215,7 @@ function LogVitalModal({ vitalKey, config, currentValue, isOpen, onClose, onSave
           </label>
           <input
             {...register('value')}
+            inputMode={vitalKey === 'bp' ? 'text' : 'decimal'}
             placeholder={`e.g. ${VITAL_EXAMPLES[vitalKey] || ''}`}
             className={`w-full border ${errors.value ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-4 py-3 text-lg font-black text-center focus:outline-none focus:ring-2 focus:ring-aubergine-300`}
             autoFocus

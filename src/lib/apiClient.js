@@ -23,6 +23,21 @@ export function clearTokens() {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem('healnari_user');
   clearTokensFromIndexedDb();
+
+  // Women's Health & EHR Data Isolation: purge any health logs, drafts, and user preferences on logout
+  const sensitivePrefixes = ['meds_taken_', 'kicks_', 'telemed_draft_', 'healnari_', 'pregnancy_', 'doctor_quick_notes', 'patient_life_mode'];
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (sensitivePrefixes.some(p => key.startsWith(p)) && key !== 'healnari_cookie_consent' && key !== 'healnari_ios_prompt_dismissed')) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch {
+    // ignore
+  }
 }
 
 // Supabase refresh tokens are single-use/rotating. AuthContext, ClinicDataContext,
