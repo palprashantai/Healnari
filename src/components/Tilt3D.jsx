@@ -1,7 +1,10 @@
 import React, { useRef } from 'react';
 
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const isTouchOrMobile = () =>
+  typeof window !== 'undefined' &&
+  (window.innerWidth < 768 ||
+    window.matchMedia?.('(hover: none)').matches ||
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
 
 /**
  * Wraps a card in a subtle mouse-tracking 3D tilt — follows the cursor while
@@ -12,7 +15,7 @@ export function Tilt3D({ children, className = '', max = 8, lift = true }) {
 
   const handleMove = (e) => {
     const el = ref.current;
-    if (!el || prefersReducedMotion()) return;
+    if (!el || isTouchOrMobile()) return;
     const rect = el.getBoundingClientRect();
     const px = (e.clientX - rect.left) / rect.width;
     const py = (e.clientY - rect.top) / rect.height;

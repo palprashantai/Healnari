@@ -36,14 +36,14 @@ function ProviderHeader({ onApply, onOpenAuth }) {
       }`}
       style={{ backgroundColor: isScrolled ? 'rgba(253,251,247,0.96)' : 'rgba(253,251,247,0.98)', backdropFilter: 'blur(12px)' }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-2 sm:gap-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-2 sm:gap-6">
         
         {/* Left Section: Logo + For Doctors Tag */}
-        <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
-          <NavLink to="/" className="shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3.5 shrink-0">
+          <NavLink to="/" className="shrink-0 flex items-center">
             <HealNariLogo size="sm" />
           </NavLink>
-          <span className="text-[10px] font-black uppercase tracking-wider bg-aubergine-100/80 text-aubergine-800 border border-aubergine-200/80 px-2.5 py-0.5 rounded-full shrink-0 shadow-2xs">
+          <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider bg-aubergine-100/80 text-aubergine-800 border border-aubergine-200/80 px-2 sm:px-2.5 py-0.5 rounded-full shrink-0 shadow-2xs">
             For Doctors
           </span>
         </div>
@@ -62,7 +62,7 @@ function ProviderHeader({ onApply, onOpenAuth }) {
         </nav>
 
         {/* Right Section: Doctor Actions */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <NavLink
             to="/"
             className="hidden xl:inline-flex text-xs font-bold text-slate-500 hover:text-aubergine-700 transition-colors whitespace-nowrap px-1.5 py-1"
@@ -79,15 +79,17 @@ function ProviderHeader({ onApply, onOpenAuth }) {
           
           <button 
             onClick={onApply}
-            className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-extrabold px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-md shadow-aubergine-100 transition-all hover:scale-105 items-center gap-1.5 flex whitespace-nowrap"
+            className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-extrabold px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm shadow-md shadow-aubergine-100 transition-all hover:scale-105 items-center gap-1.5 flex whitespace-nowrap"
           >
-            <i className="fas fa-stethoscope text-xs"></i> Apply as Specialist
+            <i className="fas fa-stethoscope text-xs"></i>
+            <span className="hidden sm:inline">Apply as Specialist</span>
+            <span className="sm:hidden">Apply</span>
           </button>
 
           {/* Mobile Menu Toggle */}
           <button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden w-9 h-9 rounded-xl border border-sand-300 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors shrink-0"
+            className="lg:hidden w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-sand-300 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors shrink-0"
             aria-label="Toggle navigation menu"
           >
             <i className={`fas ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'} text-sm`}></i>

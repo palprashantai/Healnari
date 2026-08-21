@@ -175,7 +175,7 @@ function DoctorLandingPage() {
         onOpenAuth={() => setIsAuthOpen(true)}
       />
       
-      <main className="flex-grow">
+      <main className="flex-grow pb-16 md:pb-0">
         
         {/* Luminous Warm Hero with Interactive Live Clinic Demo */}
         <ProviderHero 

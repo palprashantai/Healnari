@@ -198,12 +198,12 @@ export default function AiChatWidget({ context = 'landing' }) {
   }, [isDashboardRoute]);
 
   const bottomClass = isDashboardRoute
-    ? 'bottom-28 md:bottom-8'
-    : (isScrolled ? 'bottom-28 md:bottom-8' : 'bottom-6 md:bottom-8');
+    ? 'bottom-24 md:bottom-8'
+    : (isScrolled ? 'bottom-24 md:bottom-8' : 'bottom-5 md:bottom-8');
 
   return (
     <div
-      className={`fixed ${bottomClass} right-4 md:right-6 z-[60] flex flex-col items-end pointer-events-none transition-all duration-300`}
+      className={`fixed ${bottomClass} right-3 sm:right-5 md:right-6 z-[60] flex flex-col items-end pointer-events-none transition-all duration-300`}
       style={{
         '--primary': theme.primary,
         '--primary-deep': theme.primaryDeep,
@@ -436,14 +436,14 @@ export default function AiChatWidget({ context = 'landing' }) {
             setIsOpen(true);
           }}
           aria-label="Open chat assistant"
-          className="hn-toggle relative w-14 h-14 rounded-full flex items-center justify-center text-white shadow-[0_10px_25px_rgba(42,22,71,0.3)] transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none"
+          className="hn-toggle relative w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-white shadow-[0_10px_25px_rgba(42,22,71,0.3)] transition-all duration-200 hover:scale-105 active:scale-95 focus:outline-none"
         >
           <Activity
-            size={24}
+            size={20}
             strokeWidth={2.25}
-            className={`transition-transform duration-200 ${isHovering ? 'scale-110' : 'scale-100'}`}
+            className={`sm:w-6 sm:h-6 transition-transform duration-200 ${isHovering ? 'scale-110' : 'scale-100'}`}
           />
-          <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 border-2 border-white rounded-full shadow-xs" />
+          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-emerald-400 border-2 border-white rounded-full shadow-xs" />
         </button>
       </div>
     </div>

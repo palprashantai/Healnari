@@ -84,40 +84,41 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
       <div className="absolute top-12 left-1/10 w-96 h-96 rounded-full bg-aubergine-200/30 blur-3xl -z-10"></div>
       <div className="absolute top-24 right-1/10 w-96 h-96 rounded-full bg-pink-100/40 blur-3xl -z-10"></div>
 
-      <div className="max-w-7xl mx-auto px-5 md:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
         
         {/* Main Hero Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-6 animate-slide-up">
+        <div className="text-center max-w-3xl mx-auto space-y-5 sm:space-y-6 animate-slide-up">
           
           {/* Trust Pill */}
-          <div className="inline-flex items-center gap-2 bg-white border border-aubergine-200/80 shadow-xs text-aubergine-800 text-xs font-semibold px-3 sm:px-4 py-1.5 rounded-full text-center max-w-[90vw]">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-            <span className="truncate">Now Onboarding Gynaecologists, Endocrinologists, Trichologists &amp; Fertility Experts</span>
+          <div className="inline-flex items-center gap-2 bg-white border border-aubergine-200/80 shadow-xs text-aubergine-800 text-[11px] sm:text-xs font-semibold px-3 sm:px-4 py-1.5 rounded-full text-center max-w-full">
+            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+            <span className="sm:hidden">Now Onboarding Top Specialists</span>
+            <span className="hidden sm:inline">Now Onboarding Gynaecologists, Endocrinologists, Trichologists &amp; Fertility Experts</span>
           </div>
 
           {/* Typography Section */}
-          <div className="space-y-5 relative z-10">
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 font-display leading-[1.14]">
+          <div className="space-y-4 sm:space-y-5 relative z-10">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 font-display leading-[1.2] sm:leading-[1.14]">
               {title || (
                 <>
                   Expand Your Clinical Practice with <br className="hidden sm:block" />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-aubergine-700 via-magenta-600 to-indigo-700 inline-block">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-aubergine-700 via-magenta-600 to-indigo-700 inline-block min-h-[1.15em]">
                     {displayedText}
                   </span>
-                  <span className="inline-block w-[3.5px] h-[0.85em] bg-magenta-600 align-middle ml-1.5 animate-pulse rounded-full shadow-xs"></span>
+                  <span className="inline-block w-[3px] sm:w-[3.5px] h-[0.85em] bg-magenta-600 align-middle ml-1 animate-pulse rounded-full shadow-xs"></span>
                 </>
               )}
             </h1>
-            <p className="text-slate-600 text-base sm:text-lg md:text-xl leading-relaxed max-w-2xl mx-auto font-normal">
+            <p className="text-slate-600 text-sm sm:text-lg md:text-xl leading-relaxed max-w-2xl mx-auto font-normal px-1">
               {subtitle || "Run your own digital clinic on HealNari — no rent, no staff, no commute. You get pre-screened patients sent to you, a smart clinical dashboard (EMR, lab triage, AI insights), and 90% of every consultation fee paid out weekly to your bank account. Takes 3 minutes to apply."}
             </p>
           </div>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4 pt-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-4 pt-1 sm:pt-2">
             <button
               onClick={onApply}
-              className="w-full sm:w-auto bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-7 py-3.5 sm:py-4 rounded-2xl shadow-lg shadow-aubergine-200 transition-all hover:scale-[1.02] flex items-center justify-center gap-2.5 text-sm sm:text-base"
+              className="w-full sm:w-auto bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-6 sm:px-7 py-3.5 sm:py-4 rounded-2xl shadow-lg shadow-aubergine-200 transition-all hover:scale-[1.02] flex items-center justify-center gap-2.5 text-sm sm:text-base"
             >
               <i className="fas fa-stethoscope"></i>
               <span className="sm:hidden">Apply as Specialist</span>
@@ -132,132 +133,133 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
           </div>
 
           {/* Trust Guarantees */}
-          <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-6 pt-4 text-xs font-medium text-slate-500">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap justify-center items-center gap-2.5 sm:gap-6 pt-2 sm:pt-4 text-[11px] sm:text-xs font-medium text-slate-500 text-left sm:text-center">
             <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-emerald-600"></i> NMC Verified</span>
             <span className="flex items-center gap-1.5"><i className="fas fa-circle-dollar-to-slot text-emerald-600"></i> 90% Net Payout</span>
-            <span className="flex items-center gap-1.5"><i className="fas fa-lock text-emerald-600"></i> Full Clinical Autonomy</span>
-            <span className="flex items-center gap-1.5"><i className="fas fa-users text-emerald-600"></i> 200+ Doctors on Platform</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-lock text-emerald-600"></i> Clinical Autonomy</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-users text-emerald-600"></i> 200+ Specialists</span>
           </div>
         </div>
 
         {/* Interactive Clinic Dashboard Showcase (Light, Premium, High-Fidelity) */}
-        <div className="mt-10 sm:mt-14 md:mt-20 max-w-5xl mx-auto">
+        <div className="mt-8 sm:mt-14 md:mt-20 w-full max-w-5xl mx-auto min-w-0">
           <Reveal delay={150}>
-            <Tilt3D max={3}>
-              <div className="rounded-2xl sm:rounded-[2rem] bg-white border border-sand-300 shadow-2xl p-3 sm:p-5 md:p-7 relative overflow-hidden">
+            <Tilt3D max={3} className="w-full min-w-0">
+              <div className="rounded-2xl sm:rounded-[2rem] bg-white border border-sand-300 shadow-xl sm:shadow-2xl p-3 sm:p-5 md:p-7 relative overflow-hidden w-full min-w-0 max-w-full box-border">
                 
                 {/* Top Control Header */}
-                <div className="flex flex-wrap items-center justify-between gap-3 pb-5 mb-5 border-b border-slate-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-aubergine-100 text-aubergine-700 font-black flex items-center justify-center text-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 pb-3.5 sm:pb-5 mb-3.5 sm:mb-5 border-b border-slate-100 w-full min-w-0">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-aubergine-100 text-aubergine-700 font-black flex items-center justify-center text-xs sm:text-sm shrink-0">
                       HN
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 text-sm">Doctor Clinical Command Center</span>
-                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                        <span className="font-bold text-slate-900 text-xs sm:text-sm truncate">Doctor Command Center</span>
+                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[8px] sm:text-[10px] font-black px-1.5 sm:px-2 py-0.5 rounded-full shrink-0">
                           ● LIVE CLINIC
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400">Dr. Ananya Mehta • Reproductive Endocrinology</p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-400 truncate">Dr. Ananya Mehta • Reproductive Endocrinology</p>
                     </div>
                   </div>
 
                   {/* Interactive Workflow Switcher */}
-                  <div className="flex gap-1 sm:gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-bold overflow-x-auto">
+                  <div className="flex gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold w-full sm:w-auto overflow-x-auto hide-scrollbar shrink-0">
                     <button
                       onClick={() => setActiveWorkflow('queue')}
-                      className={`px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${activeWorkflow === 'queue' ? 'bg-white text-aubergine-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-center text-[11px] sm:text-xs ${activeWorkflow === 'queue' ? 'bg-white text-aubergine-800 shadow-xs font-bold' : 'text-slate-500 hover:text-slate-800'}`}
                     >
-                      <i className="fas fa-hospital-user mr-1 sm:mr-1.5"></i> Live Queue
+                      <i className="fas fa-hospital-user mr-1"></i> Live Queue
                     </button>
                     <button
                       onClick={() => setActiveWorkflow('cdss')}
-                      className={`px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${activeWorkflow === 'cdss' ? 'bg-white text-aubergine-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-center text-[11px] sm:text-xs ${activeWorkflow === 'cdss' ? 'bg-white text-aubergine-800 shadow-xs font-bold' : 'text-slate-500 hover:text-slate-800'}`}
                     >
-                      <i className="fas fa-wand-magic-sparkles mr-1 sm:mr-1.5 text-indigo-500"></i> AI Insights
+                      <i className="fas fa-wand-magic-sparkles mr-1 text-indigo-500"></i> AI Insights
                     </button>
                     <button
                       onClick={() => setActiveWorkflow('earnings')}
-                      className={`px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${activeWorkflow === 'earnings' ? 'bg-white text-aubergine-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-center text-[11px] sm:text-xs ${activeWorkflow === 'earnings' ? 'bg-white text-aubergine-800 shadow-xs font-bold' : 'text-slate-500 hover:text-slate-800'}`}
                     >
-                      <i className="fas fa-wallet mr-1 sm:mr-1.5 text-emerald-500"></i> Earnings
+                      <i className="fas fa-wallet mr-1 text-emerald-500"></i> Earnings
                     </button>
                   </div>
                 </div>
 
                 {/* 2-Identifier Patient Safety Banner */}
-                <div className="bg-gradient-to-r from-aubergine-900 via-slate-900 to-aubergine-900 text-white rounded-2xl p-3.5 mb-5 flex flex-wrap items-center justify-between gap-3 text-xs shadow-md">
-                  <div className="flex items-center gap-2.5">
-                    <span className="bg-emerald-500/20 text-emerald-300 font-black px-2 py-0.5 rounded text-[10px] border border-emerald-500/30">
-                      Active Patient
+                <div className="bg-gradient-to-r from-aubergine-900 via-slate-900 to-aubergine-900 text-white rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 mb-3.5 sm:mb-5 flex flex-wrap items-center justify-between gap-1.5 text-xs shadow-md w-full min-w-0">
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                    <span className="bg-emerald-500/20 text-emerald-300 font-black px-1.5 py-0.5 rounded text-[8px] sm:text-[10px] border border-emerald-500/30 shrink-0">
+                      Active
                     </span>
-                    <strong className="text-white text-sm">{activeSession.patient}</strong>
-                    <span className="text-aubergine-300 font-mono text-xs">[{activeSession.token}]</span>
-                    <span className="text-slate-300 hidden sm:inline">• {activeSession.age} (Blood: O+)</span>
+                    <strong className="text-white text-xs sm:text-sm truncate">{activeSession.patient}</strong>
+                    <span className="text-aubergine-300 font-mono text-[10px] sm:text-xs shrink-0">[{activeSession.token}]</span>
+                    <span className="text-slate-300 hidden xs:inline text-[10px] sm:text-xs">• {activeSession.age}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="bg-rose-950/80 border border-rose-600/40 text-rose-300 px-2 py-0.5 rounded-lg text-[10px] font-bold">
+                  <div className="flex items-center gap-1 shrink-0">
+                    <span className="bg-rose-950/80 border border-rose-600/40 text-rose-300 px-2 py-0.5 rounded-md sm:rounded-lg text-[9px] sm:text-[10px] font-bold whitespace-nowrap">
                       <i className="fas fa-hand-dots mr-1"></i> Allergies: Penicillin
-                    </span>
-                    <span className="bg-amber-950/80 border border-amber-600/40 text-amber-300 px-2 py-0.5 rounded-lg text-[10px] font-bold hidden md:inline">
-                      <i className="fas fa-triangle-exclamation mr-1"></i> Critical Lab Flag: LH/FSH (2.8)
                     </span>
                   </div>
                 </div>
 
                 {/* Dynamic Content Body based on Workflow Tab */}
                 {activeWorkflow === 'queue' && (
-                  <div className="grid sm:grid-cols-12 gap-4 animate-fade-in">
+                  <div className="grid sm:grid-cols-12 gap-3 sm:gap-4 animate-fade-in w-full min-w-0">
                     
                     {/* Left: Live Patient Timeline */}
-                    <div className="sm:col-span-8 space-y-3">
-                      <div className="flex justify-between items-center text-xs font-bold text-slate-700">
-                        <span>Today's Consultation Queue ({queueList.length + 1} Patients)</span>
+                    <div className="sm:col-span-8 space-y-2 sm:space-y-3 min-w-0">
+                      <div className="flex justify-between items-center text-[11px] sm:text-xs font-bold text-slate-700 px-0.5">
+                        <span className="truncate pr-2">
+                          Today's Queue ({queueList.length + 1})
+                        </span>
                         {queueList.length > 0 ? (
-                          <span className="text-emerald-600 font-extrabold">Next: Token {queueList[0].token}</span>
+                          <span className="text-emerald-600 font-extrabold shrink-0 whitespace-nowrap">
+                            Next: {queueList[0].token}
+                          </span>
                         ) : (
-                          <span className="text-slate-400 font-bold">All queue seen</span>
+                          <span className="text-slate-400 font-bold shrink-0">All seen</span>
                         )}
                       </div>
 
                       {/* Active Patient Card */}
-                      <div className="bg-emerald-50/70 border border-emerald-300/80 rounded-2xl p-3.5 flex flex-wrap sm:flex-nowrap items-start sm:items-center justify-between gap-3 shadow-xs transition-all">
-                        <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
-                          <span className="w-10 h-10 shrink-0 rounded-xl bg-emerald-600 text-white font-mono font-bold text-sm flex items-center justify-center shadow-sm">
+                      <div className="bg-emerald-50/70 border border-emerald-300/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 flex items-center justify-between gap-2 shadow-xs transition-all w-full min-w-0">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                          <span className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 rounded-lg sm:rounded-xl bg-emerald-600 text-white font-mono font-bold text-xs sm:text-sm flex items-center justify-center shadow-sm">
                             {activeSession.token}
                           </span>
                           <div className="min-w-0">
-                            <div className="font-bold text-slate-900 text-sm flex flex-wrap items-center gap-2">
+                            <div className="font-bold text-slate-900 text-xs sm:text-sm flex items-center gap-1.5">
                               <span className="truncate">{activeSession.patient}</span>
-                              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse shrink-0 whitespace-nowrap">● IN VIDEO CALL</span>
+                              <span className="bg-emerald-100 text-emerald-800 text-[8px] sm:text-[10px] font-black px-1.5 py-0.2 rounded-full animate-pulse shrink-0 whitespace-nowrap">● LIVE</span>
                             </div>
-                            <p className="text-xs text-slate-500 mt-0.5 truncate">{activeSession.concern} • (Elapsed: {activeSession.elapsed} min)</p>
+                            <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 truncate">{activeSession.concern}</p>
                           </div>
                         </div>
-                        <span className="bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm shrink-0 whitespace-nowrap ml-auto sm:ml-0">
-                          <i className="fas fa-video"></i> Live Call
+                        <span className="bg-emerald-600 text-white font-bold px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs flex items-center gap-1 shadow-sm shrink-0 whitespace-nowrap">
+                          <i className="fas fa-video text-[9px] sm:text-[10px]"></i> Live Call
                         </span>
                       </div>
 
                       {/* Next Patient Card in Queue */}
                       {queueList.map((item, i) => (
-                        <div key={item.token} className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 flex flex-wrap sm:flex-nowrap items-start sm:items-center justify-between gap-3 transition-all">
-                          <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
-                            <span className="w-10 h-10 shrink-0 rounded-xl bg-slate-800 text-white font-mono font-bold text-sm flex items-center justify-center">
+                        <div key={item.token} className="bg-slate-50 border border-slate-200/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 flex items-center justify-between gap-2 transition-all w-full min-w-0">
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <span className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 rounded-lg sm:rounded-xl bg-slate-800 text-white font-mono font-bold text-xs sm:text-sm flex items-center justify-center">
                               {item.token}
                             </span>
                             <div className="min-w-0">
-                              <div className="font-bold text-slate-800 text-sm truncate">{item.patient}</div>
-                              <p className="text-xs text-slate-500 mt-0.5 truncate">{item.concern} • {item.time} (Waiting)</p>
+                              <div className="font-bold text-slate-800 text-xs sm:text-sm truncate">{item.patient}</div>
+                              <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 truncate">{item.concern} • {item.time}</p>
                             </div>
                           </div>
                           {i === 0 && (
                             <button
                               onClick={handleCallNext}
-                              className="bg-slate-900 hover:bg-aubergine-700 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm hover:scale-105 shrink-0 whitespace-nowrap ml-auto sm:ml-0"
+                              className="bg-slate-900 hover:bg-aubergine-700 text-white font-bold px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs transition-all flex items-center justify-center gap-1 shadow-sm hover:scale-105 shrink-0 whitespace-nowrap"
                             >
-                              <i className="fas fa-bullhorn text-[10px]"></i> Call Next
+                              <i className="fas fa-bullhorn text-[9px]"></i> Call Next
                             </button>
                           )}
                         </div>
@@ -265,13 +267,13 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                     </div>
 
                     {/* Right: Quick Action Widget */}
-                    <div className="sm:col-span-4 bg-slate-50 border border-slate-200/80 rounded-2xl p-4 flex flex-col justify-between space-y-3">
+                    <div className="sm:col-span-4 bg-slate-50 border border-slate-200/80 rounded-xl sm:rounded-2xl p-3 sm:p-4 flex flex-col justify-between space-y-2.5 sm:space-y-3 min-w-0">
                       <div>
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-rose-700 mb-1.5">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-rose-700 mb-1">
                           <i className="fas fa-triangle-exclamation"></i> Action Required
                         </div>
-                        <h4 className="font-bold text-slate-900 text-sm">Urgent Hormone Panel</h4>
-                        <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                        <h4 className="font-bold text-slate-900 text-xs sm:text-sm">Urgent Hormone Panel</h4>
+                        <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 leading-relaxed">
                           Priya Sharma's fasting insulin &amp; DHEAS uploaded by partner lab.
                         </p>
                       </div>
@@ -282,7 +284,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                             else if (typeof toast === 'function') toast("Viewing patient lab report details.", 'info');
                           }
                         }}
-                        className="w-full bg-rose-600 text-white font-bold py-2 rounded-xl text-xs hover:bg-rose-700 shadow-sm flex items-center justify-center gap-1.5 transition-colors"
+                        className="w-full bg-rose-600 text-white font-bold py-2 rounded-lg sm:rounded-xl text-xs hover:bg-rose-700 shadow-sm flex items-center justify-center gap-1.5 transition-colors"
                       >
                         <i className="fas fa-flask"></i> Review Biomarkers
                       </button>
