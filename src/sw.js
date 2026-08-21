@@ -149,7 +149,7 @@ self.addEventListener('push', (event) => {
     badge: '/brand/logo-icon.jpg',
     image: notifData.imageUrl || undefined,
     tag: appointmentId ? `call-${appointmentId}` : `notif-${notifData.id || notifType || Date.now()}`,
-    renotify: isIncomingCall || isUrgentLab,
+    renotify: true,
     requireInteraction: isIncomingCall || isUrgentLab,
     timestamp: notifData.timestamp || Date.now(),
     vibrate: vibratePattern,
