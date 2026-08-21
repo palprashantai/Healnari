@@ -38,8 +38,12 @@ export function NotificationPermissionModal({ isOpen, onClose, onPermissionHandl
       toast('Notifications blocked. You can enable them later in device settings.', 'warning');
       onPermissionHandled?.(false);
       onClose();
+    } else if (res?.reason === 'dismissed') {
+      toast('Notification permission was dismissed.', 'info');
+      onClose();
     } else {
-      toast('Could not enable notifications. Please ensure service worker is active.', 'error');
+      const errMsg = res?.error?.message || 'Could not enable notifications. Please try again.';
+      toast(errMsg, 'error');
       onClose();
     }
   };

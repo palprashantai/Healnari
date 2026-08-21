@@ -13,6 +13,16 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
+function arrayBufferToBase64(buffer) {
+  if (!buffer) return '';
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 function detectPlatform() {
   if (typeof navigator === 'undefined') return 'unknown';
   const ua = navigator.userAgent || '';
@@ -175,25 +185,63 @@ export function usePushSubscription(user) {
       const registration = await getRegistrationSafely();
       if (!registration || !registration.pushManager) {
         setLoading(false);
-        return { success: false, reason: 'sw_not_ready' };
+        return { success: false, reason: 'sw_not_ready', error: new Error('Service Worker push manager not ready.') };
       }
 
       let subscription = await registration.pushManager.getSubscription();
 
-      if (!subscription) {
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-        });
+      if (subscription) {
+        const subJson = subscription.toJSON();
+        if (!subJson?.keys?.p256dh || !subJson?.keys?.auth) {
+          await subscription.unsubscribe().catch(() => {});
+          subscription = null;
+        }
       }
 
-      const { endpoint, keys } = subscription.toJSON();
+      if (!subscription) {
+        try {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+          });
+        } catch (subErr) {
+          // If existing subscription had mismatched applicationServerKey, unsubscribe and retry
+          const existing = await registration.pushManager.getSubscription().catch(() => null);
+          if (existing) {
+            await existing.unsubscribe().catch(() => {});
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+            });
+          } else {
+            throw subErr;
+          }
+        }
+      }
+
+      const subJson = subscription.toJSON();
+      const p256dh =
+        subJson?.keys?.p256dh ||
+        (subscription.getKey ? arrayBufferToBase64(subscription.getKey('p256dh')) : '');
+      const auth =
+        subJson?.keys?.auth ||
+        (subscription.getKey ? arrayBufferToBase64(subscription.getKey('auth')) : '');
+
+      if (!subscription.endpoint || !p256dh || !auth) {
+        throw new Error('Device push encryption keys could not be generated.');
+      }
+
       const platform = detectPlatform();
       const userAgent = navigator.userAgent;
 
       await apiFetch('/push-subscriptions', {
         method: 'POST',
-        body: { endpoint, keys, platform, userAgent },
+        body: {
+          endpoint: subscription.endpoint,
+          keys: { p256dh, auth },
+          platform,
+          userAgent,
+        },
       });
 
       subscribedForRef.current = user?.id;

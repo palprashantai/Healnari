@@ -113,8 +113,15 @@ export function NotificationSettingsTab() {
         const res = await subscribePush();
         if (res?.success) {
           toast('Push notifications enabled for this device!', 'success');
+        } else if (res?.reason === 'ios_requires_pwa') {
+          toast('On iOS, please add HealNari to Home Screen first (Share > Add to Home Screen) to enable push notifications.', 'info');
+        } else if (res?.reason === 'denied') {
+          toast('Notifications blocked. You can enable them in your device settings.', 'warning');
+        } else if (res?.reason === 'dismissed') {
+          toast('Permission prompt dismissed.', 'info');
         } else {
-          toast('Could not enable push notifications.', 'error');
+          const errMsg = res?.error?.message || 'Could not enable push notifications.';
+          toast(errMsg, 'error');
         }
       }
     }
