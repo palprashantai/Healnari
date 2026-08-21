@@ -33,6 +33,10 @@ return {
       srcDir: 'src',
       filename: 'sw.js',
       injectManifest: {},
+      devOptions: {
+        enabled: true,
+        type: 'module',
+      },
       includeAssets: ['brand/logo-icon.jpg', 'brand/logo-full.jpg'],
       manifest: {
         name: 'HealNari | Women\'s Health',

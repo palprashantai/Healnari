@@ -539,11 +539,6 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
   const draftKey = `healnari_rx_draft_${session.id}`;
   const [draftSavedAt, setDraftSavedAt] = useState(null);
 
-  // ── WebRTC Reconnect ──
-  const [isReconnecting, setIsReconnecting] = useState(false);
-  const [audioOnlyMode, setAudioOnlyMode] = useState(false);
-  const reconnectTimerRef = useRef(null);
-
   // Fetch live catalog items
   useEffect(() => {
     apiFetch('/records/catalog?type=medicine')
@@ -707,24 +702,6 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
       }
     } catch (_) {}
   }, []);
-
-  // ── WebRTC Auto-Reconnect ──
-  useEffect(() => {
-    const badStates = ['connecting', 'failed'];
-    if (badStates.includes(call.connectionState) && joined) {
-      setIsReconnecting(true);
-      reconnectTimerRef.current = setTimeout(() => {
-        // After 8s still bad → suggest audio only
-        if (audioOnlyMode) return;
-        setAudioOnlyMode(true);
-        toast('📶 Connection poor — switched to Audio Only mode', 'info');
-      }, 8000);
-    } else {
-      setIsReconnecting(false);
-      clearTimeout(reconnectTimerRef.current);
-    }
-    return () => clearTimeout(reconnectTimerRef.current);
-  }, [call.connectionState, joined]);
 
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
@@ -1279,42 +1256,6 @@ PLAN:
                     )}
                     {STATUS_COPY[call.connectionState] || 'Connecting Encrypted Stream...'}
                   </p>
-                </div>
-              )}
-
-              {/* ── WebRTC Auto-Reconnect Overlay ── */}
-              {isReconnecting && (
-                <div className="absolute inset-0 z-40 bg-black/70 backdrop-blur-md flex flex-col items-center justify-center gap-5 rounded-[2rem]">
-                  <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center">
-                    <i className="fas fa-wifi text-2xl text-amber-400 animate-pulse"></i>
-                  </div>
-                  <div className="text-center space-y-1">
-                    <h4 className="text-white font-black text-base">Reconnecting…</h4>
-                    <p className="text-slate-300 text-xs">Encrypted stream lost. Attempting to re-establish.</p>
-                  </div>
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="flex items-center gap-1.5">
-                      {[0,1,2,3,4].map(i => (
-                        <div key={i} className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-bounce" style={{ animationDelay: `${i * 0.12}s` }}></div>
-                      ))}
-                    </div>
-                    {audioOnlyMode ? (
-                      <span className="text-[11px] font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full">
-                        <i className="fas fa-microphone mr-1.5"></i>Audio Only Mode Active
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setAudioOnlyMode(true);
-                          if (call.isVideoOff === false) call.toggleVideo();
-                          toast('Switched to Audio Only mode', 'info');
-                        }}
-                        className="text-[11px] font-bold text-slate-300 hover:text-white bg-slate-800/80 border border-slate-600 hover:border-slate-400 px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5"
-                      >
-                        <i className="fas fa-microphone"></i> Switch to Audio Only
-                      </button>
-                    )}
-                  </div>
                 </div>
               )}
 
