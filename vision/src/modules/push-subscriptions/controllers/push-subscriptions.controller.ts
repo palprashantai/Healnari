@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Post, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiProperty, ApiQuery } from '@nestjs/swagger';
-import { IsString, ValidateNested } from 'class-validator';
+import { IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PushSubscriptionsService } from '@/modules/push-subscriptions/services/push-subscriptions.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
@@ -19,8 +19,8 @@ export class SubscribeDto {
   @ValidateNested()
   @Type(() => PushSubscriptionKeysDto)
   keys: PushSubscriptionKeysDto;
-  @ApiProperty({ required: false }) platform?: string;
-  @ApiProperty({ required: false }) userAgent?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() platform?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() userAgent?: string;
 }
 
 @ApiTags('Push Subscriptions')
