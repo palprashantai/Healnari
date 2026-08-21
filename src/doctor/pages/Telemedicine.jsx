@@ -1015,108 +1015,115 @@ PLAN:
 
   return (
     <>
-      <div className="h-[88vh] flex flex-col bg-slate-950 rounded-[2.5rem] p-3 md:p-4 shadow-2xl border border-slate-800/80 ring-1 ring-white/5 overflow-hidden text-slate-100">
+      <div className="h-[calc(100dvh-5.5rem)] md:h-[88vh] flex flex-col bg-slate-950 rounded-2xl md:rounded-[2.5rem] p-2 sm:p-3 md:p-4 shadow-2xl border border-slate-800/80 ring-1 ring-white/5 overflow-hidden text-slate-100">
         
         {/* ── Top Bar / Consultation Header HUD ── */}
-        <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-2xl px-5 py-3 flex items-center justify-between gap-4 mb-3 shrink-0 shadow-lg">
-          {/* Patient Details & Live Call Status */}
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6B46C1] to-[#E23E8C] text-white flex items-center justify-center font-black text-sm shadow-md shrink-0 ring-2 ring-white/10">
-              {session.patient.split(' ').map(n => n[0]).join('')}
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="font-black text-sm text-white tracking-tight truncate">{session.patient}</h2>
-                <span className="text-[10px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700">{session.age || '28F'}</span>
-                
-                {/* ⚠️ Dynamic Patient Allergy Alert Badge */}
-                {patientRecord?.allergies?.length > 0 ? (
-                  <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/50 text-rose-300 px-2.5 py-0.5 rounded-full text-[10px] font-black animate-pulse">
-                    <i className="fas fa-triangle-exclamation text-rose-400"></i>
-                    <span>Allergy: {patientRecord.allergies.join(', ')}</span>
+        <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-800 rounded-xl sm:rounded-2xl p-2.5 sm:px-4 sm:py-3 mb-2 sm:mb-3 shrink-0 shadow-lg">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            {/* Patient Details & Live Call Status */}
+            <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-[#6B46C1] to-[#E23E8C] text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-md shrink-0 ring-2 ring-white/10">
+                {session.patient.split(' ').map(n => n[0]).join('')}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <h2 className="font-black text-xs sm:text-sm text-white tracking-tight truncate max-w-[120px] sm:max-w-[200px]">{session.patient}</h2>
+                  <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded-full border border-slate-700 shrink-0">{session.age || '28F'}</span>
+                </div>
+                <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium flex items-center gap-1.5 sm:gap-2 mt-0.5">
+                  <span className="text-emerald-400 font-bold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span className="hidden xs:inline">Live</span> HD
                   </span>
-                ) : (
-                  <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
-                    <i className="fas fa-shield-check text-[9px]"></i> No Allergies
+                  <span>•</span>
+                  <span className="font-mono text-slate-300 font-bold text-[10px] sm:text-xs">{fmt(elapsed)}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Layout & Actions */}
+            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+              {/* Draft Saved Pill */}
+              {draftSavedAt && (
+                <span className="hidden md:flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full animate-fade-in">
+                  <i className="fas fa-cloud-check text-[9px]"></i>
+                  Saved
+                </span>
+              )}
+
+              {/* Quick EMR Drawer Toggle */}
+              <button
+                onClick={() => setShowEmrDrawer(p => !p)}
+                title="Open Quick EMR Drawer"
+                className={`p-2 sm:px-3 sm:py-2 rounded-lg sm:rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all border shrink-0 ${
+                  showEmrDrawer
+                    ? 'bg-[#6B46C1] text-white border-[#6B46C1] shadow-md shadow-purple-500/30'
+                    : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:border-purple-500/50 hover:text-white'
+                }`}
+              >
+                <i className="fas fa-notes-medical"></i>
+                <span className="hidden sm:inline">EMR</span>
+              </button>
+
+              {/* View Layout Controls (Desktop only) */}
+              <div className="hidden lg:flex items-center bg-slate-800/90 rounded-xl p-1 border border-slate-700 text-xs">
+                <button
+                  onClick={() => setViewLayout('split')}
+                  title="Split Studio View"
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${viewLayout === 'split' ? 'bg-[#6B46C1] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                >
+                  <i className="fas fa-columns"></i> Split
+                </button>
+                <button
+                  onClick={() => setViewLayout('video-focus')}
+                  title="Focus on Patient Video"
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${viewLayout === 'video-focus' ? 'bg-[#6B46C1] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                >
+                  <i className="fas fa-video"></i> Video
+                </button>
+                <button
+                  onClick={() => setViewLayout('pad-focus')}
+                  title="Focus on Prescription Pad"
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${viewLayout === 'pad-focus' ? 'bg-[#6B46C1] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                >
+                  <i className="fas fa-file-prescription"></i> Pad
+                </button>
+              </div>
+
+              {/* Review & Finalize Button */}
+              <button
+                onClick={() => setShowSignModal(true)}
+                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all shrink-0"
+              >
+                <i className="fas fa-file-signature text-xs"></i>
+                <span className="hidden xs:inline">Review & Sign</span>
+                <span className="xs:hidden">Sign</span>
+                {(draftMeds.length > 0 || draftLabs.length > 0 || freehandRx) && (
+                  <span className="bg-emerald-950/60 text-emerald-200 px-1.5 py-0.2 rounded-full text-[9px] font-black">
+                    {freehandRx ? '🖊️' : `${draftMeds.length + draftLabs.length}`}
                   </span>
                 )}
-
-                <span className="text-[10px] font-black text-[#F98BD2] bg-[#E23E8C]/15 px-2.5 py-0.5 rounded-full border border-[#E23E8C]/30 flex items-center gap-1">
-                  <i className="fas fa-notes-medical text-[9px]"></i> {diagnosis}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 font-medium flex items-center gap-2 mt-0.5">
-                <span className="text-emerald-400 font-bold flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live HD Teleconsult
-                </span>
-                <span>•</span>
-                <span className="font-mono text-slate-300 font-bold">{fmt(elapsed)}</span>
-              </p>
+              </button>
             </div>
           </div>
 
-          {/* Quick Layout & Actions */}
-          <div className="flex items-center gap-2.5 shrink-0">
-            {/* Draft Saved Pill */}
-            {draftSavedAt && (
-              <span className="hidden md:flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full animate-fade-in">
-                <i className="fas fa-cloud-check text-[9px]"></i>
-                Draft Saved {draftSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {/* Sub-row for Badges on mobile & desktop */}
+          <div className="flex items-center gap-1.5 flex-wrap mt-2 pt-2 border-t border-slate-800/80">
+            {/* ⚠️ Dynamic Patient Allergy Alert Badge */}
+            {patientRecord?.allergies?.length > 0 ? (
+              <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/50 text-rose-300 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black animate-pulse">
+                <i className="fas fa-triangle-exclamation text-rose-400 text-[8px]"></i>
+                <span className="truncate max-w-[180px]">Allergy: {patientRecord.allergies.join(', ')}</span>
+              </span>
+            ) : (
+              <span className="text-[9px] sm:text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                <i className="fas fa-shield-check text-[8px]"></i> No Allergies
               </span>
             )}
 
-            {/* Quick EMR Drawer Toggle */}
-            <button
-              onClick={() => setShowEmrDrawer(p => !p)}
-              title="Open Quick EMR Drawer — view patient vitals, allergies & past notes without leaving the call"
-              className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border ${
-                showEmrDrawer
-                  ? 'bg-[#6B46C1] text-white border-[#6B46C1] shadow-md shadow-purple-500/30'
-                  : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:border-purple-500/50 hover:text-white'
-              }`}
-            >
-              <i className="fas fa-notes-medical"></i>
-              <span className="hidden sm:inline">EMR</span>
-            </button>
-
-            {/* View Layout Controls */}
-            <div className="hidden lg:flex items-center bg-slate-800/90 rounded-xl p-1 border border-slate-700 text-xs">
-              <button
-                onClick={() => setViewLayout('split')}
-                title="Split Studio View"
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${viewLayout === 'split' ? 'bg-[#6B46C1] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-              >
-                <i className="fas fa-columns"></i> Split
-              </button>
-              <button
-                onClick={() => setViewLayout('video-focus')}
-                title="Focus on Patient Video"
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${viewLayout === 'video-focus' ? 'bg-[#6B46C1] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-              >
-                <i className="fas fa-video"></i> Video
-              </button>
-              <button
-                onClick={() => setViewLayout('pad-focus')}
-                title="Focus on Prescription Pad"
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${viewLayout === 'pad-focus' ? 'bg-[#6B46C1] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-              >
-                <i className="fas fa-file-prescription"></i> Pad
-              </button>
-            </div>
-
-            {/* Review & Finalize Button */}
-            <button
-              onClick={() => setShowSignModal(true)}
-              className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black px-4 md:px-5 py-2 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 hover:-translate-y-0.5 transition-all"
-            >
-              <i className="fas fa-file-signature text-sm"></i>
-              <span>Review & Sign Rx</span>
-              {(draftMeds.length > 0 || draftLabs.length > 0 || freehandRx) && (
-                <span className="bg-emerald-950/60 text-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-black ml-1">
-                  {freehandRx ? '🖊️ Handwritten' : `${draftMeds.length} Meds`} • {draftLabs.length} Labs
-                </span>
-              )}
-            </button>
+            <span className="text-[9px] sm:text-[10px] font-black text-[#F98BD2] bg-[#E23E8C]/15 px-2 py-0.5 rounded-full border border-[#E23E8C]/30 flex items-center gap-1 truncate max-w-[160px] sm:max-w-none">
+              <i className="fas fa-notes-medical text-[8px]"></i> {diagnosis}
+            </span>
           </div>
         </div>
 
