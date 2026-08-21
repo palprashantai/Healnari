@@ -225,7 +225,7 @@ function AdminLayout() {
       )}
 
       {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <ModuleAccentBar color={hoveredColor || DEFAULT_ACCENT} className="rounded-none" />
         {/* Topbar */}
         <header className="h-16 border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0 bg-white">
@@ -300,7 +300,7 @@ function AdminLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full p-4 md:p-8">
           <PageTransition />
         </main>
       </div>

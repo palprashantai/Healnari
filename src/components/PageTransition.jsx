@@ -29,7 +29,7 @@ export function PageTransition() {
   return (
     <div
       key={display.location.pathname}
-      className={stage === 'out' ? 'page-transition-out' : 'page-transition-in'}
+      className={`w-full min-w-0 ${stage === 'out' ? 'page-transition-out' : 'page-transition-in'}`}
       onAnimationEnd={handleAnimationEnd}
     >
       {display.outlet}

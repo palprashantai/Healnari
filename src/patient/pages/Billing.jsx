@@ -219,13 +219,13 @@ function PatientBilling() {
           <table className="crm-table">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Doctor</th>
-                <th>Type</th>
-                <th>Method</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th className="text-right">Invoice</th>
+                <th className="whitespace-nowrap">Date</th>
+                <th className="whitespace-nowrap">Doctor</th>
+                <th className="whitespace-nowrap">Type</th>
+                <th className="whitespace-nowrap">Method</th>
+                <th className="whitespace-nowrap">Amount</th>
+                <th className="whitespace-nowrap">Status</th>
+                <th className="text-right whitespace-nowrap">Invoice</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

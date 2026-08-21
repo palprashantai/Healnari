@@ -545,7 +545,7 @@ function DoctorAppointments() {
           <table className="w-full text-left text-sm border-separate border-spacing-y-3">
             <thead>
               <tr className="text-[10px] text-slate-400 uppercase tracking-widest">
-                <th className="px-4 py-2 font-bold w-12">
+                <th className="px-4 py-2 font-bold w-12 whitespace-nowrap">
                   <label className="flex items-center justify-center cursor-pointer">
                     <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${selectedIds.length > 0 && selectedIds.length === filteredData.length ? 'bg-aubergine-600 shadow-sm text-white' : selectedIds.length > 0 ? 'bg-aubergine-200 text-aubergine-700 ring-1 ring-aubergine-400' : 'bg-slate-100/80 hover:bg-slate-200 ring-1 ring-slate-200/80 ring-inset'}`}>
                       {(selectedIds.length > 0 && selectedIds.length === filteredData.length) ? <i className="fas fa-check text-[9px]"></i> : selectedIds.length > 0 ? <div className="w-2 h-0.5 bg-aubergine-700 rounded-full"></div> : null}
@@ -553,14 +553,14 @@ function DoctorAppointments() {
                     <input type="checkbox" className="hidden" checked={selectedIds.length === filteredData.length} onChange={toggleSelectAll} />
                   </label>
                 </th>
-                {tab === 'queue' && <th className="px-4 py-2 font-bold">Token</th>}
-                <th className="px-4 py-2 font-bold">Patient</th>
-                <th className="px-4 py-2 font-bold">Purpose</th>
-                <th className="px-4 py-2 font-bold">{tab === 'past' ? 'Date' : 'Time'}</th>
-                {tab === 'queue' && <th className="px-4 py-2 font-bold">Est. Wait</th>}
-                <th className="px-4 py-2 font-bold">Format</th>
-                {tab === 'queue' && <th className="px-4 py-2 font-bold">Status</th>}
-                <th className="px-4 py-2 font-bold text-right">Actions</th>
+                {tab === 'queue' && <th className="px-4 py-2 font-bold whitespace-nowrap">Token</th>}
+                <th className="px-4 py-2 font-bold whitespace-nowrap">Patient</th>
+                <th className="px-4 py-2 font-bold whitespace-nowrap">Purpose</th>
+                <th className="px-4 py-2 font-bold whitespace-nowrap">{tab === 'past' ? 'Date' : 'Time'}</th>
+                {tab === 'queue' && <th className="px-4 py-2 font-bold whitespace-nowrap">Est. Wait</th>}
+                <th className="px-4 py-2 font-bold whitespace-nowrap">Format</th>
+                {tab === 'queue' && <th className="px-4 py-2 font-bold whitespace-nowrap">Status</th>}
+                <th className="px-4 py-2 font-bold text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>

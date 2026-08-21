@@ -93,9 +93,9 @@ function LabTests({ onBook }) {
   const c = colorMap[current.color];
 
   return (
-    <section id="lab-tests" className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20 scroll-mt-20">
+    <section id="lab-tests" className="max-w-6xl mx-auto py-16 md:py-20 scroll-mt-20 overflow-hidden">
       {/* Title */}
-      <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
+      <div className="text-center max-w-2xl mx-auto mb-10 space-y-3 px-5 md:px-8">
         <span className="text-xs font-bold text-aubergine-600 uppercase tracking-widest bg-aubergine-50 px-3 py-1 rounded-full">
           Diagnostic Guide
         </span>
@@ -108,7 +108,7 @@ function LabTests({ onBook }) {
       </div>
 
       {/* Concern Selector */}
-      <div className="flex overflow-x-auto hide-scrollbar gap-2 mb-10 pb-1 -mx-5 px-5 sm:mx-0 sm:px-0 sm:flex-wrap sm:justify-center sm:overflow-visible">
+      <div className="flex overflow-x-auto hide-scrollbar gap-2 mb-10 pb-1 px-5 md:px-8 sm:overflow-visible">
         {concerns.map((concern) => (
           <button
             key={concern}
@@ -125,7 +125,7 @@ function LabTests({ onBook }) {
       </div>
 
       {/* Results Panel */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden animate-fade-in">
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden animate-fade-in mx-5 md:mx-8">
         {/* Panel Header */}
         <div className={`bg-gradient-to-r ${c.header} to-white border-b border-slate-100 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
           <div className="flex items-center gap-3">

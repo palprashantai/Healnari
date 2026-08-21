@@ -1968,7 +1968,7 @@ function DoctorPatients() {
               Actions <i className={`fas fa-chevron-down text-[10px] transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}></i>
             </button>
             {showActionsMenu && (
-              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
+              <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
                 <div className="px-3 py-1.5 mb-1">
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p>
                 </div>
@@ -1998,8 +1998,8 @@ function DoctorPatients() {
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap gap-3 items-center">
-        <div className="relative flex-1 min-w-40">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap gap-3 items-center w-full min-w-0">
+        <div className="relative flex-1 min-w-[150px]">
           <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
           <input
             value={search}
@@ -2008,7 +2008,7 @@ function DoctorPatients() {
             className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50"
           />
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {[
             ['all', 'All Patients'],
             ['active', 'Active'],
@@ -2026,7 +2026,7 @@ function DoctorPatients() {
             </button>
           ))}
         </div>
-        <p className="text-xs text-slate-500 font-medium">{filtered.length} results</p>
+        <p className="text-xs text-slate-500 font-medium w-full sm:w-auto">{filtered.length} results</p>
       </div>
 
       {/* Select All Bar */}
@@ -2075,7 +2075,7 @@ function DoctorPatients() {
             <div className="flex-1 min-w-0 space-y-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-black text-slate-800 text-base">{p.name}</h3>
-                <span className="text-[11px] text-slate-500 font-mono font-semibold bg-slate-100 px-2 py-0.5 rounded">ID: #{p.id * 1042}</span>
+                <span className="text-[11px] text-slate-500 font-mono font-semibold bg-slate-100 px-2 py-0.5 rounded">ID: #{p.mrn || p.id}</span>
                 {p.alert && <span className="text-[10px] bg-rose-100 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full font-bold">⚠ {p.alert}</span>}
               </div>
 

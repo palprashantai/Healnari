@@ -302,7 +302,7 @@ function DoctorLayout() {
       )}
 
       {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden relative">
+      <div className="flex-1 flex flex-col overflow-hidden relative min-w-0">
         <ModuleAccentBar color={hoveredColor || DEFAULT_ACCENT} className="rounded-none" />
         <div ref={chromeRef}>
         {/* Topbar */}
@@ -391,16 +391,16 @@ function DoctorLayout() {
         {/* Persistent 2-Identifier Patient Header Bar (Clinical Safety).
             Full detail (allergy/risk chips) only on patient-scoped screens — elsewhere
             it collapses to one line so it stops outweighing the page's own content. */}
-        <div className={`bg-gradient-to-r from-aubergine-900 via-slate-900 to-aubergine-900 text-white px-4 md:px-6 flex flex-wrap items-center justify-between gap-3 text-xs z-10 border-b border-aubergine-800/40 shadow-xs transition-all ${isPatientScoped ? 'py-2' : 'py-1.5'}`}>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
-            <span className="bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-500/30 flex items-center gap-1 whitespace-nowrap">
+        <div className={`bg-gradient-to-r from-aubergine-900 via-slate-900 to-aubergine-900 text-white px-4 md:px-6 flex flex-wrap items-center justify-between gap-3 text-xs z-10 border-b border-aubergine-800/40 shadow-xs transition-all w-full min-w-0 ${isPatientScoped ? 'py-2' : 'py-1.5'}`}>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto min-w-0 flex-1">
+            <span className="bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-500/30 flex items-center gap-1 whitespace-nowrap shrink-0">
               <i className="fas fa-lock text-[9px]"></i> Active Patient
             </span>
-            <div className="flex flex-wrap items-center gap-2 font-bold">
-              <span className="text-white text-sm tracking-wide font-medium whitespace-nowrap">{activePatient.name}</span>
-              <span className="text-aubergine-300 font-mono text-[11px]">[{activePatient.mrn}]</span>
+            <div className="flex flex-wrap items-center gap-2 font-bold min-w-0 max-w-full">
+              <span className="text-white text-sm tracking-wide font-medium whitespace-nowrap truncate">{activePatient.name}</span>
+              <span className="text-aubergine-300 font-mono text-[11px] whitespace-nowrap shrink-0">[{activePatient.mrn}]</span>
               {isPatientScoped && (
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap min-w-0">
                   <span className="text-slate-400 whitespace-nowrap">• DOB: {activePatient.dob} ({activePatient.age})</span>
                   <span className="text-slate-400 whitespace-nowrap">• Blood: {activePatient.bloodGroup}</span>
                 </div>
@@ -408,7 +408,7 @@ function DoctorLayout() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 min-w-0">
             {isPatientScoped && (
               <>
                 {/* Allergy Flag */}
@@ -505,7 +505,7 @@ function DoctorLayout() {
         )}
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-28 md:pb-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full p-4 md:p-6 pb-28 md:pb-6">
           {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
           <PageTransition />
         </main>

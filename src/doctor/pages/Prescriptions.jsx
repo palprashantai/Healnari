@@ -676,7 +676,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
         </div>
 
         {/* 3-Way Mode Switcher Tabs */}
-        <div className="bg-white/20 p-1 rounded-2xl border border-white/30 flex items-center shadow-inner self-start md:self-auto">
+        <div className="bg-white/20 p-1 rounded-2xl border border-white/30 flex flex-wrap items-center shadow-inner self-start md:self-auto gap-1">
           <button
             type="button"
             onClick={() => setRxMode('digital')}
@@ -819,17 +819,17 @@ function WriteRxPage({ onBack, onSave, patients }) {
 
       {/* ── MODE 3: DIGITAL STRUCTURED FORM ── */}
       {rxMode === 'digital' && (
-        <div className="grid lg:grid-cols-5 gap-6 items-start">
+        <div className="grid lg:grid-cols-5 gap-6 items-start min-w-0 w-full">
           {/* ── Form column ── */}
-          <div className="lg:col-span-3 space-y-5">
+          <div className="lg:col-span-3 space-y-5 min-w-0 w-full">
             {/* ── 1-Click Clinical Protocol Bundles & Templates ── */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
+              <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
+                <div className="min-w-0 flex-1">
                   <label className="text-xs font-black text-slate-700 uppercase tracking-wide flex items-center gap-2">
-                    <i className="fas fa-wand-magic-sparkles text-aubergine-600"></i> 1-Click Clinical Protocol Bundles
+                    <i className="fas fa-wand-magic-sparkles text-aubergine-600 shrink-0"></i> <span className="truncate">1-Click Clinical Protocol Bundles</span>
                   </label>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Pre-configured evidence-based medication bundles with standard dosages &amp; schedules</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5 break-words">Pre-configured evidence-based medication bundles with standard dosages &amp; schedules</p>
                 </div>
                 {template && (
                   <button
@@ -940,11 +940,11 @@ function WriteRxPage({ onBack, onSave, patients }) {
                 </div>
               ) : (
                 /* CDSS Safety Checker Banner (Normal) */
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2.5">
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-start gap-2.5 min-w-0">
                   <i className="fas fa-shield-virus text-amber-600 text-sm mt-0.5 shrink-0"></i>
-                  <div>
-                    <p className="font-bold">CDSS Safety Check Active</p>
-                    <p className="text-[11px] text-amber-700 mt-0.5">
+                  <div className="min-w-0">
+                    <p className="font-bold truncate">CDSS Safety Check Active</p>
+                    <p className="text-[11px] text-amber-700 mt-0.5 break-words">
                       Automated allergy &amp; drug-drug interaction (DDI) validation enabled for patient: <span className="font-bold">{form.patient || 'Not Selected'}</span>
                       {patientAllergies.length > 0 && (
                         <span className="ml-1 text-slate-600">(Known Allergies: <strong className="text-rose-700">{patientAllergies.join(', ')}</strong>)</span>
@@ -966,8 +966,8 @@ function WriteRxPage({ onBack, onSave, patients }) {
                           : 'border-slate-100 bg-slate-50/60'
                       }`}
                     >
-                      <div className="grid grid-cols-12 gap-2 items-start">
-                        <div className="col-span-5 relative">
+                      <div className="flex flex-col sm:grid sm:grid-cols-12 gap-2 sm:items-start min-w-0">
+                        <div className="sm:col-span-5 relative w-full min-w-0">
                           <input
                             value={med.name}
                             onChange={e => {
@@ -1038,15 +1038,18 @@ function WriteRxPage({ onBack, onSave, patients }) {
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setTargetMedIndex(i);
-                                    setNewMedForm(prev => ({ ...prev, name: med.name }));
-                                    setShowAddMedModal(true);
-                                    setActiveDropdownIndex(null);
+                                    handleSelectCatalogMed(i, {
+                                      name: med.name.trim(),
+                                      category: 'Custom Entry',
+                                      defaultDose: 'Standard',
+                                      defaultFreq: 'As Directed',
+                                      isCustom: true
+                                    });
                                   }}
-                                  className="w-full text-left px-2.5 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-xs font-bold text-purple-800 flex items-center justify-between transition-colors mt-1 shadow-xs"
+                                  className="w-full text-left px-2.5 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-xs text-purple-900 transition-colors flex items-center justify-between group"
                                 >
-                                  <span className="flex items-center gap-1.5">
-                                    <i className="fas fa-plus-circle text-purple-600"></i>
+                                  <span className="flex items-center gap-2">
+                                    <i className="fas fa-plus-circle text-purple-500"></i>
                                     <span>Add &ldquo;{med.name}&rdquo; to Catalog</span>
                                   </span>
                                   <span className="text-[10px] font-mono text-purple-700 font-bold bg-white px-2 py-0.5 rounded border border-purple-200">Save Preset</span>
@@ -1055,45 +1058,49 @@ function WriteRxPage({ onBack, onSave, patients }) {
                             </div>
                           )}
                         </div>
-                        <input value={med.schedule} onChange={e => updateMed(i, 'schedule', e.target.value)} placeholder="Schedule (e.g. 1-0-1)"
-                          className="col-span-3 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
-                        <input value={med.duration} onChange={e => updateMed(i, 'duration', e.target.value)} placeholder="Duration"
-                          className="col-span-2 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
                         
-                        <div className="col-span-1 flex items-center justify-center">
-                          <AiButton
-                            variant="compact"
-                            size="sm"
-                            icon="fa-wand-magic-sparkles"
-                            title="AI Auto-Complete standard dosage and frequency"
-                            className="h-8 w-8 !p-0"
-                            onClick={async () => {
-                              if (!med.name.trim()) return;
-                              try {
-                                const res = await apiFetch('/ai/rx-autocomplete', { method: 'POST', body: { query: med.name } });
-                                const data = res?.data || res;
-                                if (data) {
-                                  updateMed(i, 'name', data.drugName || med.name);
-                                  updateMed(i, 'schedule', data.frequency || med.schedule);
-                                  updateMed(i, 'duration', data.duration || med.duration);
-                                  if (data.instructions && !form.instructions.includes(data.instructions)) {
-                                    setForm(prev => ({
-                                      ...prev,
-                                      instructions: prev.instructions ? `${prev.instructions}\n• ${data.drugName}: ${data.instructions}` : `• ${data.drugName}: ${data.instructions}`
-                                    }));
+                        {/* Secondary row on mobile, columns on desktop */}
+                        <div className="flex items-center gap-2 sm:contents">
+                          <input value={med.schedule} onChange={e => updateMed(i, 'schedule', e.target.value)} placeholder="Schedule (e.g. 1-0-1)"
+                            className="flex-[3] sm:flex-none sm:col-span-3 w-full min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+                          <input value={med.duration} onChange={e => updateMed(i, 'duration', e.target.value)} placeholder="Duration"
+                            className="flex-[2] sm:flex-none sm:col-span-2 w-full min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+                          
+                          <div className="w-8 sm:w-auto sm:col-span-1 shrink-0 flex items-center justify-center">
+                            <AiButton
+                              variant="compact"
+                              size="sm"
+                              icon="fa-wand-magic-sparkles"
+                              title="AI Auto-Complete standard dosage and frequency"
+                              className="h-8 w-8 !p-0"
+                              onClick={async () => {
+                                if (!med.name.trim()) return;
+                                try {
+                                  const res = await apiFetch('/ai/rx-autocomplete', { method: 'POST', body: { query: med.name } });
+                                  const data = res?.data || res;
+                                  if (data) {
+                                    updateMed(i, 'name', data.drugName || med.name);
+                                    updateMed(i, 'schedule', data.frequency || med.schedule);
+                                    updateMed(i, 'duration', data.duration || med.duration);
+                                    if (data.instructions && !form.instructions.includes(data.instructions)) {
+                                      setForm(prev => ({
+                                        ...prev,
+                                        instructions: prev.instructions ? `${prev.instructions}\n• ${data.drugName}: ${data.instructions}` : `• ${data.drugName}: ${data.instructions}`
+                                      }));
+                                    }
                                   }
+                                } catch {
+                                  // Silent fallback
                                 }
-                              } catch {
-                                // Silent fallback
-                              }
-                            }}
-                          />
-                        </div>
+                              }}
+                            />
+                          </div>
 
-                        <button onClick={() => removeMed(i)} disabled={form.meds.length === 1}
-                          className="col-span-1 h-8 rounded-xl bg-rose-50 text-rose-500 text-xs flex items-center justify-center hover:bg-rose-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-rose-100">
-                          <i className="fas fa-trash-can"></i>
-                        </button>
+                          <button onClick={() => removeMed(i)} disabled={form.meds.length === 1}
+                            className="w-8 sm:w-auto sm:col-span-1 shrink-0 h-8 rounded-xl bg-rose-50 text-rose-500 text-xs flex items-center justify-center hover:bg-rose-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-rose-100">
+                            <i className="fas fa-trash-can"></i>
+                          </button>
+                        </div>
                       </div>
 
                       {/* Quick schedule presets */}
@@ -1125,9 +1132,9 @@ function WriteRxPage({ onBack, onSave, patients }) {
 
             {/* ── Recommended Lab & Diagnostic Investigations ── */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xs font-black text-slate-500 uppercase tracking-wide flex items-center gap-2">
-                  <i className="fas fa-microscope text-aubergine-700"></i> Recommended Lab &amp; Diagnostic Tests ({selectedLabs.length})
+              <div className="flex items-center justify-between min-w-0 gap-2">
+                <h2 className="text-xs font-black text-slate-500 uppercase tracking-wide flex items-center gap-2 min-w-0">
+                  <i className="fas fa-microscope text-aubergine-700 shrink-0"></i> <span className="truncate">Recommended Lab &amp; Diagnostic Tests ({selectedLabs.length})</span>
                 </h2>
                 {selectedLabs.length > 0 && (
                   <button
@@ -1268,7 +1275,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
           </div>
 
           {/* ── Live prescription-pad preview ── */}
-          <div className="lg:col-span-2 lg:sticky lg:top-5">
+          <div className="lg:col-span-2 lg:sticky lg:top-5 min-w-0 w-full">
             <div className="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden">
               <div className="bg-slate-800 px-4 py-2.5 flex items-center gap-2">
                 <i className="fas fa-eye text-slate-400 text-xs"></i>
@@ -1703,7 +1710,7 @@ function DoctorPrescriptions() {
               Actions <i className={`fas fa-chevron-down text-[10px] transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}></i>
             </button>
             {showActionsMenu && (
-              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
+              <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
                 <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p></div>
                 <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-aubergine-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-envelope text-aubergine-600 w-4"></i> Bulk Email

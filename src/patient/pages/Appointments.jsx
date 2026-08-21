@@ -833,11 +833,11 @@ function PatientAppointments() {
           <table className="crm-table">
             <thead>
               <tr>
-                <th>Doctor</th>
-                <th>Date & Time</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th className="text-right">Actions</th>
+                <th className="whitespace-nowrap">Doctor</th>
+                <th className="whitespace-nowrap">Date & Time</th>
+                <th className="whitespace-nowrap">Type</th>
+                <th className="whitespace-nowrap">Status</th>
+                <th className="text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>

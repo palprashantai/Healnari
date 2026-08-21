@@ -112,7 +112,7 @@ function PatientFamily() {
 
       {/* Educational Card */}
       <div className="bg-gradient-to-r from-[#2A1647] via-[#3A1C78] to-[#2A1647] text-white rounded-3xl p-6 shadow-md relative overflow-hidden">
-        <div className="absolute right-0 top-0 opacity-10 text-9xl transform translate-x-12 translate-y-2">
+        <div className="absolute left-0 sm:left-auto sm:right-0 top-0 opacity-10 text-9xl transform translate-x-12 translate-y-2">
           <i className="fas fa-heart"></i>
         </div>
         <h3 className="font-bold text-base mb-2 flex items-center gap-2"><i className="fas fa-lightbulb text-amber-300"></i> Did You Know? (Cycle Syncing)</h3>

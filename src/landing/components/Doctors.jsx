@@ -244,10 +244,9 @@ function Doctors({ onSelectDoctor }) {
   }, [doctors, activeFilter]);
 
   return (
-    <section id="doctors" className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20 scroll-mt-20">
-
+    <section id="doctors" className="max-w-6xl mx-auto py-16 md:py-20 scroll-mt-20 overflow-hidden">
       {/* Header */}
-      <Reveal className="text-center max-w-2xl mx-auto mb-10 space-y-3">
+      <Reveal className="text-center max-w-2xl mx-auto mb-10 space-y-3 px-5 md:px-8">
         <span className="text-xs font-semibold text-aubergine-700 uppercase tracking-wider bg-aubergine-50 px-3.5 py-1.5 rounded-full border border-aubergine-100">
           Our Specialist Team
         </span>
@@ -260,7 +259,7 @@ function Doctors({ onSelectDoctor }) {
       </Reveal>
 
       {/* Filter Tabs — dynamic from DB */}
-      <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 mb-8 sm:mb-10">
+      <div className="flex flex-wrap justify-center gap-1.5 sm:gap-2 mb-8 sm:mb-10 px-5 md:px-8">
         {filterTabs.map(tab => (
           <button
             key={tab}
@@ -294,7 +293,7 @@ function Doctors({ onSelectDoctor }) {
         </div>
       ) : (
         /* Mobile: horizontal scroll snap showing ~1.15 cards; sm+: 2-col grid; lg+: 4-col grid */
-        <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 overflow-x-auto snap-x snap-mandatory pb-5 -mx-5 px-5 sm:mx-0 sm:px-0 sm:pb-0 sm:overflow-visible hide-scrollbar">
+        <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 overflow-x-auto snap-x snap-mandatory pb-5 px-5 md:px-8 sm:overflow-visible hide-scrollbar">
           {filteredDoctors.map((doc, idx) => (
             <Reveal
               key={doc.id || idx}

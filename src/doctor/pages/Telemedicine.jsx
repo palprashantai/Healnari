@@ -2580,11 +2580,11 @@ PLAN:
                   <table className="w-full text-left text-xs border-collapse">
                     <thead className="bg-slate-100 text-slate-600 font-black uppercase text-[10px] tracking-wider border-b border-slate-200">
                       <tr>
-                        <th className="p-3">#</th>
-                        <th className="p-3">Medication & Dosage</th>
-                        <th className="p-3">Frequency</th>
-                        <th className="p-3">Instructions</th>
-                        <th className="p-3">Duration</th>
+                        <th className="p-3 whitespace-nowrap">#</th>
+                        <th className="p-3 whitespace-nowrap">Medication & Dosage</th>
+                        <th className="p-3 whitespace-nowrap">Frequency</th>
+                        <th className="p-3 whitespace-nowrap">Instructions</th>
+                        <th className="p-3 whitespace-nowrap">Duration</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
@@ -3172,10 +3172,10 @@ function DoctorTelemedicine() {
 
           {/* Sessions Queue */}
           <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-2">
-                <h2 className="font-bold text-slate-800 tracking-tight">Video Consultation Queue</h2>
-                <LastUpdated at={lastUpdated} />
+            <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between bg-slate-50/50 gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <h2 className="font-bold text-slate-800 tracking-tight whitespace-nowrap sm:whitespace-normal">Video Consultation Queue</h2>
+                <div className="min-w-0 shrink-0"><LastUpdated at={lastUpdated} /></div>
               </div>
               <div className="flex items-center gap-3">
                 {selectedIds.length > 0 && <span className="text-xs text-slate-500 font-bold">{selectedIds.length} selected</span>}

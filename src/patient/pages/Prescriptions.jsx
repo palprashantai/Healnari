@@ -417,9 +417,9 @@ function PatientPrescriptions() {
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid lg:grid-cols-3 gap-6 min-w-0 w-full">
         {/* Prescription Cards */}
-        <div className="lg:col-span-2 space-y-5">
+        <div className="lg:col-span-2 space-y-5 min-w-0 w-full">
           {tabFiltered.map(rx => {
             const effectiveStatus = resolveRxStatus(rx);
             const canRefill = effectiveStatus === 'Active' || effectiveStatus === 'Expiring Soon';

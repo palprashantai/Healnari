@@ -10,9 +10,9 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
 
       <div className="grid lg:grid-cols-12 gap-6 lg:gap-12 items-center lg:items-stretch">
         {/* Left Column: Copy & Actions */}
-        <div className="lg:col-span-7 space-y-4 sm:space-y-7 text-center lg:text-left animate-slide-up order-2 lg:order-1">
+        <div className="lg:col-span-7 space-y-4 sm:space-y-7 text-center lg:text-left animate-slide-up order-2 lg:order-1 min-w-0">
           {/* Trust Badges - Horizontal Scroll Snap on Mobile for zero clutter */}
-          <div className="flex overflow-x-auto hide-scrollbar snap-x justify-start lg:justify-start gap-2 py-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
+          <div className="flex overflow-x-auto hide-scrollbar snap-x justify-start lg:justify-start gap-2 py-1 sm:flex-wrap">
             <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
               <i className="fas fa-lock text-aubergine-500"></i> 100% Private
             </span>
@@ -29,7 +29,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
 
           {/* Main Titles */}
           <div className="space-y-4 px-1 sm:px-0">
-            <h1 className="text-[28px] leading-[1.2] sm:text-4xl lg:text-5xl lg:leading-[1.15] font-extrabold tracking-tight text-slate-900 font-display">
+            <h1 className="text-3xl leading-[1.2] sm:text-4xl lg:text-5xl lg:leading-[1.15] font-extrabold tracking-tight text-slate-900 font-display">
               {title || (
                 <>
                   The Global Holistic Clinic for <br className="hidden lg:block" />

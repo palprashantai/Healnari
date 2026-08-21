@@ -88,9 +88,9 @@ function Conditions() {
   }, []);
 
   return (
-    <section id="conditions" className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-20 scroll-mt-20">
+    <section id="conditions" className="max-w-6xl mx-auto py-16 md:py-20 scroll-mt-20 overflow-hidden">
       {/* Title Header */}
-      <Reveal className="text-center max-w-2xl mx-auto mb-10 space-y-3">
+      <Reveal className="text-center max-w-2xl mx-auto mb-10 space-y-3 px-5 md:px-8">
         <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider bg-emerald-50 px-3.5 py-1 rounded-full border border-emerald-100">
           Clinical Focus
         </span>
@@ -105,7 +105,7 @@ function Conditions() {
       {/* Responsive Grid / Horizontal Scroll */}
       <div 
         ref={scrollRef}
-        className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-5 overflow-x-auto snap-x snap-mandatory pb-6 -mx-5 px-5 sm:mx-0 sm:px-0 sm:pb-0 hide-scrollbar sm:overflow-visible"
+        className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-5 overflow-x-auto snap-x snap-mandatory pb-6 px-5 md:px-8 sm:overflow-visible hide-scrollbar"
       >
         {list.map((cond, idx) => (
           <Reveal key={idx} delay={(idx % 4) * 70} className="w-[80vw] max-w-[16rem] sm:w-auto sm:max-w-none flex-shrink-0 snap-start sm:flex-shrink-1">

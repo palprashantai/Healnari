@@ -253,7 +253,7 @@ function PatientLayout() {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <ModuleAccentBar color={hoveredColor || DEFAULT_ACCENT} className="rounded-none" />
         {/* Topbar */}
         <header className="h-16 border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0" style={{ backgroundColor: 'var(--color-surface-page)' }}>
@@ -329,7 +329,7 @@ function PatientLayout() {
         </header>
 
         {/* Dynamic Content */}
-        <main className={`flex-1 overflow-y-auto p-4 md:p-6 pb-28 md:pb-6 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}>
+        <main className={`flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full p-4 md:p-6 pb-28 md:pb-6 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}>
           {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
           <PageTransition />
         </main>

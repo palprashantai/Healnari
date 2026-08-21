@@ -306,12 +306,12 @@ function DoctorCommunications() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100 text-xs text-slate-500 uppercase tracking-wider">
-                <th className="px-6 py-3 font-semibold">ID</th>
-                <th className="px-6 py-3 font-semibold">Date</th>
-                <th className="px-6 py-3 font-semibold">Audience</th>
-                <th className="px-6 py-3 font-semibold">Subject</th>
-                <th className="px-6 py-3 font-semibold">Status</th>
-                <th className="px-6 py-3 font-semibold">Opens</th>
+                <th className="px-6 py-3 font-semibold whitespace-nowrap">ID</th>
+                <th className="px-6 py-3 font-semibold whitespace-nowrap">Date</th>
+                <th className="px-6 py-3 font-semibold whitespace-nowrap">Audience</th>
+                <th className="px-6 py-3 font-semibold whitespace-nowrap">Subject</th>
+                <th className="px-6 py-3 font-semibold whitespace-nowrap">Status</th>
+                <th className="px-6 py-3 font-semibold whitespace-nowrap">Opens</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

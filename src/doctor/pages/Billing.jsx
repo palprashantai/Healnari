@@ -351,7 +351,7 @@ function DoctorBilling() {
             <div className="relative">
               <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient or ID..."
-                className="crm-input pl-9 min-w-[240px]" />
+                className="crm-input pl-9 min-w-[150px] sm:min-w-[240px]" />
             </div>
             <div className="flex gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
               {[['all', 'All'], ['settled', 'Settled'], ['pending', 'Pending'], ['refunded', 'Refunded']].map(([v, l]) => (
@@ -381,14 +381,14 @@ function DoctorBilling() {
           <table className="crm-table">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Patient</th>
-                <th>Date</th>
-                <th>Type</th>
-                <th>Method</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th className="text-right">Invoice</th>
+                <th className="whitespace-nowrap">ID</th>
+                <th className="whitespace-nowrap">Patient</th>
+                <th className="whitespace-nowrap">Date</th>
+                <th className="whitespace-nowrap">Type</th>
+                <th className="whitespace-nowrap">Method</th>
+                <th className="whitespace-nowrap">Amount</th>
+                <th className="whitespace-nowrap">Status</th>
+                <th className="text-right whitespace-nowrap">Invoice</th>
               </tr>
             </thead>
             <tbody>
