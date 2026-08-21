@@ -5,6 +5,7 @@ import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useNotifications, NOTIFICATION_STYLE, DEFAULT_NOTIFICATION_STYLE } from '../../context/NotificationsContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import { DoctorShareModal } from '../../components/DoctorShareModal.jsx';
 import { HealNariLogo } from '../../components/HealNariLogo.jsx';
 import { PageTransition } from '../../components/PageTransition.jsx';
 import { DataErrorBanner } from '../../components/DataErrorBanner.jsx';
@@ -260,6 +261,7 @@ function DoctorLayout() {
 
   const [activePatientMenu, setActivePatientMenu] = useState(false);
   const [alertDrawerOpen, setAlertDrawerOpen]     = useState(false);
+  const [shareOpen, setShareOpen]                 = useState(false);
 
   // Clinical Alerts is reserved for values that need an immediate decision. Routine
   // pending labs (urgent: false) surface instead in the Pending Lab Reports card on the
@@ -373,6 +375,16 @@ function DoctorLayout() {
               )}
               <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} notifications={notifications} onMarkAll={markAllRead} onMarkOne={markRead} hasMore={hasMore} loadMore={loadMore} />
             </div>
+
+            {/* Share Profile & Booking Link Button */}
+            <button
+              onClick={() => setShareOpen(true)}
+              title="Share Profile & Booking Link"
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border bg-purple-50 text-aubergine-700 border-purple-200 hover:bg-purple-100 active:scale-95 shadow-2xs"
+            >
+              <i className="fas fa-share-nodes text-aubergine-600 text-xs"></i>
+              <span className="hidden sm:inline">Share Link</span>
+            </button>
 
             {/* Doctor Avatar */}
             <div className="flex items-center gap-2 border-l border-slate-200 pl-3 cursor-pointer group" onClick={() => navigate('/doctor-dashboard/profile')}>
@@ -556,6 +568,9 @@ function DoctorLayout() {
       </nav>
 
       <AiChatWidget context="doctor" />
+
+      {/* Share Profile & Booking Modal */}
+      <DoctorShareModal isOpen={shareOpen} onClose={() => setShareOpen(false)} doctor={user} />
     </div>
   );
 }

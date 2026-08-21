@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
+import { DoctorShareModal } from '../../components/DoctorShareModal.jsx';
 import { formatCurrency } from '../../lib/currency.js';
 import { apiFetch } from '../../lib/apiClient.js';
 import NotificationSettingsTab from '../../components/NotificationSettingsTab.jsx';
@@ -49,6 +50,7 @@ function DoctorProfile() {
   const [pwdForm, setPwdForm] = useState({ current: '', newPwd: '', confirm: '' });
   const [showLogout, setShowLogout] = useState(false);
   const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [twoFA, setTwoFA] = useState(true);
   const [emailNotif, setEmailNotif] = useState(true);
   const [smsNotif, setSmsNotif] = useState(true);
@@ -161,10 +163,16 @@ function DoctorProfile() {
             )}
           </div>
         </div>
-        <button onClick={() => setShowPhotoModal(true)}
-          className="bg-white/20 hover:bg-white/30 border border-white/20 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors flex items-center gap-2 flex-shrink-0">
-          <i className="fas fa-camera"></i> Change Photo
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2.5 shrink-0">
+          <button onClick={() => setShowShareModal(true)}
+            className="bg-aubergine-600 hover:bg-aubergine-500 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2">
+            <i className="fas fa-share-nodes"></i> Share Booking Link
+          </button>
+          <button onClick={() => setShowPhotoModal(true)}
+            className="bg-white/20 hover:bg-white/30 border border-white/20 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+            <i className="fas fa-camera"></i> Change Photo
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -172,6 +180,7 @@ function DoctorProfile() {
         <div className="flex border-b border-slate-200 bg-slate-50 overflow-x-auto hide-scrollbar">
           {[
             ['profile', 'Practice Info', 'fa-stethoscope'],
+            ['share', 'Share & Booking Link', 'fa-share-nodes'],
             ['schedule', 'Availability', 'fa-calendar'],
             ['fees', 'Consultation Fees', 'fa-indian-rupee-sign'],
             ['notifications', 'Notifications & Alerts', 'fa-bell'],
@@ -271,6 +280,90 @@ function DoctorProfile() {
                 className={`px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${saved ? 'bg-emerald-500 text-white' : 'bg-aubergine-600 hover:bg-aubergine-700 text-white'}`}>
                 <i className={`fas ${saved ? 'fa-check' : 'fa-floppy-disk'}`}></i> {saved ? 'Saved!' : 'Save Changes'}
               </button>
+            </div>
+          )}
+
+          {/* ── SHARE & BOOKING LINK ── */}
+          {tab === 'share' && (
+            <div className="space-y-6">
+              <div className="bg-gradient-to-r from-aubergine-900 via-slate-900 to-aubergine-900 rounded-2xl p-6 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-lg">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                      Live Telehealth Link
+                    </span>
+                    <h3 className="text-lg font-black text-white">{form.name}</h3>
+                  </div>
+                  <p className="text-xs text-aubergine-200">
+                    Your direct public profile allows patients to book video consultations specifically with you.
+                  </p>
+                </div>
+
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => setShowShareModal(true)}
+                    className="bg-aubergine-600 hover:bg-aubergine-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md"
+                  >
+                    <i className="fas fa-qrcode"></i> View QR &amp; Poster
+                  </button>
+                  <a
+                    href={`${window.location.origin}/dr/${doc.id || 'sarah-mitchell'}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 border border-white/20"
+                  >
+                    <i className="fas fa-arrow-up-right-from-square"></i> Open Public Page
+                  </a>
+                </div>
+              </div>
+
+              {/* Direct Link Copy Card */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Your Public Profile &amp; Direct Booking URL:
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${window.location.origin}/dr/${doc.id || 'sarah-mitchell'}`}
+                    className="flex-1 bg-white border border-slate-200 text-slate-800 text-xs sm:text-sm rounded-xl px-3.5 py-2.5 font-mono select-all focus:outline-none"
+                  />
+                  <button
+                    onClick={() => {
+                      const url = `${window.location.origin}/dr/${doc.id || 'sarah-mitchell'}`;
+                      navigator.clipboard.writeText(url).then(() => {
+                        toast('Booking link copied to clipboard!', 'success');
+                      });
+                    }}
+                    className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-all flex items-center gap-1.5 shadow-sm shrink-0"
+                  >
+                    <i className="fas fa-copy"></i> Copy Link
+                  </button>
+                </div>
+              </div>
+
+              {/* WhatsApp Share Card */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-bold text-emerald-900 text-sm flex items-center gap-2">
+                    <i className="fab fa-whatsapp text-emerald-600 text-base"></i> WhatsApp Referral Message
+                  </h4>
+                  <a
+                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                      `Hello! You can view my verified clinical profile and book a direct video consultation with me (${form.name} — ${form.specialty}) on HealNari here:\n\n${window.location.origin}/dr/${doc.id || 'sarah-mitchell'}\n\n• NMC Verified & HIPAA Compliant\n• Direct digital prescription & follow-up care`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all"
+                  >
+                    <i className="fab fa-whatsapp"></i> Send via WhatsApp
+                  </a>
+                </div>
+                <div className="bg-white border border-emerald-100 rounded-xl p-3.5 text-xs text-slate-700 leading-relaxed font-sans whitespace-pre-line shadow-xs">
+                  {`Hello! You can view my verified clinical profile and book a direct video consultation with me (${form.name} — ${form.specialty}) on HealNari here:\n\n${window.location.origin}/dr/${doc.id || 'sarah-mitchell'}\n\n• NMC Verified & HIPAA Compliant\n• Direct digital prescription & follow-up care`}
+                </div>
+              </div>
             </div>
           )}
 
@@ -448,6 +541,9 @@ function DoctorProfile() {
           )}
         </div>
       </div>
+
+      {/* Share Modal */}
+      <DoctorShareModal isOpen={showShareModal} onClose={() => setShowShareModal(false)} doctor={doc} />
 
       {/* Photo Modal */}
       <Modal isOpen={showPhotoModal} onClose={() => setShowPhotoModal(false)} title="Change Profile Photo" size="sm">

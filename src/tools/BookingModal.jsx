@@ -49,9 +49,19 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
   useEffect(() => {
     apiFetch('/doctors/search', { skipAuth: true })
       .then(list => {
-        setDoctors(list || []);
+        const docs = list || [];
+        setDoctors(docs);
         if (selectedDoc) {
-          const match = (list || []).find(d => (d.specialty || '').toLowerCase().includes(selectedDoc.toLowerCase()));
+          const searchKey = String(selectedDoc).toLowerCase().trim();
+          const match = docs.find(d => 
+            String(d.id).toLowerCase() === searchKey ||
+            String(d.id) === String(selectedDoc?.id) ||
+            (d.full_name || '').toLowerCase() === searchKey ||
+            (d.name || '').toLowerCase() === searchKey ||
+            (d.full_name || '').toLowerCase().includes(searchKey) ||
+            (d.name || '').toLowerCase().includes(searchKey) ||
+            (d.specialty || '').toLowerCase().includes(searchKey)
+          );
           if (match) setFormData(prev => ({ ...prev, doctorId: match.id }));
         }
       })

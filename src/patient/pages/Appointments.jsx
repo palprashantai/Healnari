@@ -866,6 +866,21 @@ function PatientAppointments() {
                   <td className="text-right">
                     {tab === 'upcoming' ? (
                       <div className="flex justify-end items-center gap-2">
+                        <button
+                          onClick={() => {
+                            const docSlug = (apt.doctor || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                            const docUrl = `${window.location.origin}/dr/${apt.doctorId || docSlug}`;
+                            const msg = encodeURIComponent(
+                              `Hi! I recommend consulting with ${apt.doctor} (${apt.specialty}) on HealNari. You can view their verified profile and book direct appointments here:\n\n${docUrl}`
+                            );
+                            window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+                          }}
+                          className="crm-btn-secondary text-[11px] h-8 px-2.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50"
+                          title={`Recommend ${apt.doctor} to Friends & Family on WhatsApp`}
+                        >
+                          <i className="fab fa-whatsapp text-emerald-600 text-xs sm:mr-1"></i>
+                          <span className="hidden sm:inline">Recommend</span>
+                        </button>
                         <AIButton
                           variant="gradient"
                           size="sm"
@@ -895,6 +910,21 @@ function PatientAppointments() {
                       </div>
                     ) : (
                       <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            const docSlug = (apt.doctor || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                            const docUrl = `${window.location.origin}/dr/${apt.doctorId || docSlug}`;
+                            const msg = encodeURIComponent(
+                              `Hi! I recommend consulting with ${apt.doctor} (${apt.specialty}) on HealNari. You can view their verified profile and book direct appointments here:\n\n${docUrl}`
+                            );
+                            window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+                          }}
+                          className="crm-btn-secondary text-[11px] h-8 px-2.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50"
+                          title={`Recommend ${apt.doctor} to Friends & Family on WhatsApp`}
+                        >
+                          <i className="fab fa-whatsapp text-emerald-600 text-xs sm:mr-1"></i>
+                          <span className="hidden sm:inline">Recommend</span>
+                        </button>
                         <button onClick={() => toast('Appointment summaries are coming soon.', 'info')}
                           className="crm-btn-secondary text-[11px] h-8 px-3">
                           <i className="fas fa-download mr-1"></i> Summary

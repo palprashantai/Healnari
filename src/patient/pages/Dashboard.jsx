@@ -5,6 +5,7 @@ import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { StepIndicator } from '../../components/StepIndicator.jsx';
+import { PatientCarePassModal } from '../../components/PatientCarePassModal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
 import { LIFESTYLE_ITEMS, HEALTH_GOALS, MOVEMENT_CATEGORIES } from '../lifestyleConfig.js';
@@ -1712,6 +1713,7 @@ function PatientDashboard() {
   const [activeLifeMode, setActiveLifeMode] = useState(() => localStorage.getItem('patient_life_mode') || 'cycle');
   const [onboardingDone, setOnboardingDone] = useState(() => localStorage.getItem('healnari_onboarding_done') === 'true');
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showCarePassModal, setShowCarePassModal] = useState(false);
   const [discreet, setDiscreet] = useState(localStorage.getItem('discreet_mode') === 'true');
 
   const handleSelectLifeMode = (id) => {
@@ -1761,7 +1763,16 @@ function PatientDashboard() {
               </div>
             )}
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-2.5 sm:gap-3 flex-wrap">
+            <button
+              onClick={() => setShowCarePassModal(true)}
+              className="bg-white/80 hover:bg-white border border-aubergine-200 text-aubergine-800 font-bold px-4 py-3 rounded-2xl transition-all shadow-sm text-sm flex items-center gap-2 btn-interactive"
+              title="View your Emergency Care Card & QR Pass"
+            >
+              <i className="fas fa-id-card text-aubergine-600"></i>
+              <span>My Health Pass</span>
+            </button>
+
             <button onClick={() => navigate(`/patient-dashboard/appointments?joinCall=${nextAppointment.id}`)} disabled={!nextAppointment || nextAppointment.type !== 'Video Consult' || daysToNext !== 0}
               className="bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:from-aubergine-700 hover:to-magenta-700 disabled:opacity-40 disabled:grayscale text-white font-bold px-6 py-3 rounded-2xl transition-all shadow-lg shadow-aubergine-500/20 text-sm flex items-center gap-2 btn-interactive">
               <i className="fas fa-video"></i> Join Call
@@ -1893,6 +1904,45 @@ function PatientDashboard() {
               )}
             </div>
           </div>
+          {/* Digital Care Pass & Emergency QR Card */}
+          <div className="glass-panel rounded-3xl p-6 bg-gradient-to-br from-aubergine-900 via-slate-900 to-aubergine-950 text-white relative overflow-hidden shadow-lg border border-purple-500/30 space-y-4">
+            <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-pink-500/20 rounded-full blur-2xl pointer-events-none"></div>
+
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                Emergency Health Pass
+              </span>
+              <i className="fas fa-qrcode text-purple-300 text-sm"></i>
+            </div>
+
+            <div>
+              <h3 className="font-black text-sm text-white">My Emergency Care Pass</h3>
+              <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                Instant access to your verified medical QR, blood group, drug allergies, and doctor referral pass.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowCarePassModal(true)}
+                className="flex-1 bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:from-aubergine-500 hover:to-magenta-500 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
+              >
+                <i className="fas fa-id-card text-xs"></i> View Health Pass
+              </button>
+              <button
+                onClick={() => {
+                  const text = `🏥 HealNari Health Pass for ${user?.name || 'Patient'}\nBlood Group: ${own?.bloodGroup || 'B+'}\nAllergies: ${own?.allergies?.join(', ') || 'NKDA'}\nHelpline: +91 98765 43210`;
+                  navigator.clipboard.writeText(text).then(() => {
+                    toast('Emergency medical summary copied!', 'success');
+                  });
+                }}
+                className="bg-white/10 hover:bg-white/20 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition-colors flex items-center justify-center gap-1"
+                title="Copy emergency medical summary"
+              >
+                <i className="fas fa-copy"></i>
+              </button>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -1907,6 +1957,7 @@ function PatientDashboard() {
       </div>
 
       {/* Modals */}
+      <PatientCarePassModal isOpen={showCarePassModal} onClose={() => setShowCarePassModal(false)} patient={own} doctorName={nextAppointment?.doctorName || 'Dr. Sarah Mitchell'} />
       {showOnboarding && <OnboardingModal isOpen={showOnboarding} onClose={() => { localStorage.setItem('healnari_onboarding_done', 'true'); setOnboardingDone(true); setShowOnboarding(false); }} toast={toast} />}
       <SymptomCheckerModal isOpen={showSymptomChecker} onClose={() => setShowSymptomChecker(false)} toast={toast} />
       <LabReportsModal isOpen={showLabReports} onClose={() => setShowLabReports(false)} />

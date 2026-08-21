@@ -5,6 +5,7 @@ import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { Tilt3D } from '../../components/Tilt3D.jsx';
+import { DoctorShareModal } from '../../components/DoctorShareModal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
 
@@ -597,6 +598,7 @@ function DoctorDashboard() {
   const visibleLabs = labs.filter(l => !reviewedLabIds.includes(l.id));
   const [selectedRow, setSelectedRow] = useState(null);
   const [showKycModal, setShowKycModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
   const [kycBannerDismissed, setKycBannerDismissed] = useState(() => sessionStorage.getItem('kyc_banner_dismissed') === 'true');
   const [urgentLab, setUrgentLab] = useState(null);
   const [earnings, setEarnings] = useState(null);
@@ -726,7 +728,15 @@ function DoctorDashboard() {
               </p>
             </div>
 
-            <div className="flex gap-3 flex-wrap">
+            <div className="flex gap-2.5 sm:gap-3 flex-wrap">
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-md hover:scale-105 active:scale-95"
+              >
+                <i className="fas fa-share-nodes text-aubergine-300"></i>
+                <span>Share Booking Link</span>
+              </button>
+
               <button
                 onClick={() => navigate(`/doctor-dashboard/telemedicine?startCall=${currentPatient.id}`)}
                 disabled={!currentPatient}
@@ -830,6 +840,48 @@ function DoctorDashboard() {
 
         {/* Right Column */}
         <div className="space-y-6">
+          
+          {/* Patient Referral & Direct Booking Card */}
+          <div className="bg-gradient-to-br from-aubergine-900 via-slate-900 to-aubergine-950 text-white rounded-3xl p-5 shadow-lg border border-aubergine-500/30 relative overflow-hidden space-y-4">
+            <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-purple-500/20 rounded-full blur-2xl pointer-events-none"></div>
+            
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                Direct Patient Booking Link
+              </span>
+              <i className="fas fa-qrcode text-aubergine-300 text-sm"></i>
+            </div>
+
+            <div>
+              <h3 className="font-extrabold text-sm text-white">Share Your Clinical Profile</h3>
+              <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                Send your dedicated link or QR code to patients for direct video bookings.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="flex-1 bg-aubergine-600 hover:bg-aubergine-500 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
+              >
+                <i className="fas fa-share-nodes text-xs"></i> Share &amp; QR Poster
+              </button>
+              <button
+                onClick={() => {
+                  const docId = user?.id || (user?.name ? user.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'sarah-mitchell');
+                  const url = `${window.location.origin}/dr/${docId}`;
+                  navigator.clipboard.writeText(url).then(() => {
+                    toast('Direct booking link copied to clipboard!', 'success');
+                  });
+                }}
+                className="bg-white/10 hover:bg-white/20 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition-colors flex items-center justify-center gap-1"
+                title="Copy direct booking link"
+              >
+                <i className="fas fa-copy"></i>
+              </button>
+            </div>
+          </div>
+
           <PracticePerformanceCard earnings={earnings} navigate={navigate} queue={queue} />
           <PriorityInbox
             labs={visibleLabs}
@@ -845,6 +897,7 @@ function DoctorDashboard() {
       <QuickNotesPad />
 
       {/* Modals */}
+      <DoctorShareModal isOpen={showShareModal} onClose={() => setShowShareModal(false)} doctor={user} />
       <PatientFileModal row={selectedRow} onClose={() => setSelectedRow(null)} onWriteRx={handleWriteRx} />
       <KYCModal isOpen={showKycModal} onClose={() => setShowKycModal(false)} toast={toast} onVerify={verifyKyc} />
       <UrgentLabModal lab={urgentLab} onClose={handleUrgentLabClose} toast={toast} doctorName={user?.name} />

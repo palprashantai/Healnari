@@ -14,6 +14,7 @@ const queryClient = new QueryClient();
 
 const LandingPage = lazy(() => import('./landing/pages/LandingPage.jsx'));
 const DoctorLandingPage = lazy(() => import('./landing/pages/DoctorLandingPage.jsx'));
+const DoctorPublicProfile = lazy(() => import('./landing/pages/DoctorPublicProfile.jsx'));
 const ConditionPage = lazy(() => import('./landing/pages/ConditionPage.jsx'));
 const GlossaryArticle = lazy(() => import('./landing/pages/GlossaryArticle.jsx'));
 const GuidePage = lazy(() => import('./landing/pages/GuidePage.jsx'));
@@ -147,6 +148,9 @@ function App() {
             <Routes>
               <Route path="/" element={<RootRoute />} />
               <Route path="/for-doctors" element={<DoctorLandingPage />} />
+              <Route path="/dr/:doctorId" element={<DoctorPublicProfile />} />
+              <Route path="/book/:doctorId" element={<DoctorPublicProfile />} />
+              <Route path="/doctor/:doctorId" element={<DoctorPublicProfile />} />
               <Route path="/guide/:guideId" element={<GuidePage />} />
               <Route path="/legal/:document" element={<LegalPage />} />
               <Route path="/:conditionId" element={<ConditionPage />} />

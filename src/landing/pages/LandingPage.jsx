@@ -102,6 +102,13 @@ function LandingPage() {
       .then(d => setAdminSettings(d))
       .catch(console.error);
       
+    // Auto-open booking if requested via URL params
+    const params = new URLSearchParams(window.location.search);
+    const doctorParam = params.get('doctor') || params.get('book') || params.get('bookDoc');
+    if (doctorParam) {
+      openBooking(doctorParam);
+    }
+      
     return () => {
       document.title = originalTitle;
       if (prevDesc.el && prevDesc.original) prevDesc.el.setAttribute('content', prevDesc.original);

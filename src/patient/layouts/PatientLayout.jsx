@@ -6,6 +6,7 @@ import { useNotifications, NOTIFICATION_STYLE, DEFAULT_NOTIFICATION_STYLE } from
 import { useToast } from '../../components/Toast.jsx';
 import { HealNariLogo } from '../../components/HealNariLogo.jsx';
 import { PageTransition } from '../../components/PageTransition.jsx';
+import { PatientCarePassModal } from '../../components/PatientCarePassModal.jsx';
 import { DataErrorBanner } from '../../components/DataErrorBanner.jsx';
 import { NavHoverRail } from '../../components/NavHoverRail.jsx';
 import { ModuleAccentBar } from '../../components/ModuleAccentBar.jsx';
@@ -200,10 +201,11 @@ function PatientLayout() {
   const location = useLocation();
   const toast = useToast();
   const { notifications, unreadCount, markAllRead: markAllReadRemote, markRead } = useNotifications();
-  const { loadError, retryLoad } = useClinicData();
+  const { loadError, retryLoad, patients, appointments } = useClinicData();
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [carePassOpen, setCarePassOpen] = useState(false);
   const [hoveredColor, setHoveredColor] = useState(null);
   const notifRef = useRef(null);
   const notifBtnRef = useRef(null);
@@ -287,6 +289,16 @@ function PatientLayout() {
               className={`hidden md:flex w-9 h-9 rounded-full transition-all items-center justify-center border text-sm ${discreet ? 'bg-aubergine-100 border-aubergine-200 text-aubergine-700' : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-aubergine-50 hover:border-aubergine-100 hover:text-aubergine-600'}`}
               title={discreet ? 'Disable Discreet Mode' : 'Enable Discreet Mode'}>
               <i className={`fas ${discreet ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+            </button>
+
+            {/* Care Pass */}
+            <button
+              onClick={() => setCarePassOpen(true)}
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border bg-purple-50 text-aubergine-800 border-purple-200 hover:bg-purple-100 active:scale-95 shadow-2xs"
+              title="My Emergency Care Pass & Health QR"
+            >
+              <i className="fas fa-id-card text-aubergine-600 text-xs"></i>
+              <span className="hidden sm:inline">Care Pass</span>
             </button>
 
             {/* Notifications */}
@@ -382,6 +394,12 @@ function PatientLayout() {
       </nav>
 
       <AiChatWidget context="patient" />
+      <PatientCarePassModal
+        isOpen={carePassOpen}
+        onClose={() => setCarePassOpen(false)}
+        patient={patients?.[0]}
+        doctorName={appointments?.[0]?.doctorName || 'Dr. Sarah Mitchell'}
+      />
     </div>
   );
 }
