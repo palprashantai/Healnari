@@ -4,6 +4,7 @@ import { apiFetch } from '../lib/apiClient.js';
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
 function urlBase64ToUint8Array(base64String) {
+  if (!base64String) return new Uint8Array(0);
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = atob(base64);
@@ -25,10 +26,69 @@ function detectPlatform() {
   return 'web';
 }
 
+function isIosDevice() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function isStandaloneMode() {
+  if (typeof window === 'undefined') return false;
+  return (
+    ('standalone' in window.navigator && window.navigator.standalone === true) ||
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches
+  );
+}
+
+/**
+ * Safely resolves the active Service Worker registration with a timeout to avoid hangs on mobile.
+ */
+async function getRegistrationSafely() {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return null;
+  try {
+    const readyPromise = navigator.serviceWorker.ready;
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 3500));
+    const reg = await Promise.race([readyPromise, timeoutPromise]);
+    if (reg) return reg;
+    return await navigator.serviceWorker.getRegistration();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Dual Promise/Callback permission requester for compatibility across iOS, Android Chrome, and WebViews.
+ */
+async function requestNotificationPermission() {
+  if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
+  try {
+    return await new Promise((resolve) => {
+      let resolved = false;
+      const done = (perm) => {
+        if (!resolved) {
+          resolved = true;
+          resolve(perm);
+        }
+      };
+
+      try {
+        const p = Notification.requestPermission((status) => done(status));
+        if (p && typeof p.then === 'function') {
+          p.then(done).catch(() => done(Notification.permission || 'denied'));
+        }
+      } catch {
+        done(Notification.permission || 'denied');
+      }
+    });
+  } catch {
+    return Notification.permission || 'denied';
+  }
+}
+
 /**
  * Manages Web Push subscription lifecycle for HealNari.
- * Supports standards-based Web Push, iOS PWA Home Screen web apps (iOS 16.4+),
- * Android PWAs, and Desktop browsers.
+ * Supports iOS PWA Home Screen web apps (iOS 16.4+), Android Chrome/PWAs, and Desktop browsers.
  */
 export function usePushSubscription(user) {
   const [permissionState, setPermissionState] = useState(() => {
@@ -42,16 +102,20 @@ export function usePushSubscription(user) {
   const [loading, setLoading] = useState(false);
   const subscribedForRef = useRef(null);
 
+  const isIos = isIosDevice();
+  const isPwaStandalone = isStandaloneMode();
+
+  // iOS Safari requires PWA Home Screen install (standalone) for PushManager
   const isSupported =
     typeof window !== 'undefined' &&
-    'Notification' in window &&
     'serviceWorker' in navigator &&
-    'PushManager' in window &&
+    ('Notification' in window || (isIos && isPwaStandalone)) &&
+    ('PushManager' in window || (isIos && isPwaStandalone)) &&
     !!VAPID_PUBLIC_KEY;
 
   // Check active subscription status on mount or user change
   const refreshStatus = useCallback(async () => {
-    if (!isSupported) {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
       setPermissionState('unsupported');
       setIsSubscribed(false);
       return;
@@ -60,13 +124,17 @@ export function usePushSubscription(user) {
     setPermissionState(Notification.permission);
 
     try {
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await getRegistrationSafely();
+      if (!registration || !registration.pushManager) {
+        setIsSubscribed(false);
+        return;
+      }
       const subscription = await registration.pushManager.getSubscription();
       setIsSubscribed(!!subscription);
     } catch {
       setIsSubscribed(false);
     }
-  }, [isSupported]);
+  }, []);
 
   useEffect(() => {
     refreshStatus();
@@ -77,13 +145,24 @@ export function usePushSubscription(user) {
    * Prompts user for browser permission only when explicitly invoked by user gesture.
    */
   const subscribe = useCallback(async () => {
-    if (!isSupported) return { success: false, reason: 'unsupported' };
+    if (!VAPID_PUBLIC_KEY) {
+      console.warn('VITE_VAPID_PUBLIC_KEY is not configured.');
+      return { success: false, reason: 'unconfigured' };
+    }
+
+    if (isIos && !isPwaStandalone) {
+      return { success: false, reason: 'ios_requires_pwa' };
+    }
+
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      return { success: false, reason: 'unsupported' };
+    }
 
     setLoading(true);
     try {
       let currentPerm = Notification.permission;
       if (currentPerm === 'default') {
-        currentPerm = await Notification.requestPermission();
+        currentPerm = await requestNotificationPermission();
         setPermissionState(currentPerm);
       }
 
@@ -93,7 +172,12 @@ export function usePushSubscription(user) {
         return { success: false, reason: currentPerm === 'denied' ? 'denied' : 'dismissed' };
       }
 
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await getRegistrationSafely();
+      if (!registration || !registration.pushManager) {
+        setLoading(false);
+        return { success: false, reason: 'sw_not_ready' };
+      }
+
       let subscription = await registration.pushManager.getSubscription();
 
       if (!subscription) {
@@ -122,25 +206,24 @@ export function usePushSubscription(user) {
       setLoading(false);
       return { success: false, reason: 'error', error: err };
     }
-  }, [isSupported, user?.id]);
+  }, [isIos, isPwaStandalone, user?.id]);
 
   /**
    * Unsubscribes the current device cleanly from Web Push and backend registry.
    */
   const unsubscribe = useCallback(async () => {
-    if (!isSupported) return false;
-
     setLoading(true);
     try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
+      const registration = await getRegistrationSafely();
+      if (registration && registration.pushManager) {
+        const subscription = await registration.pushManager.getSubscription();
+        if (subscription) {
+          await apiFetch(`/push-subscriptions?endpoint=${encodeURIComponent(subscription.endpoint)}`, {
+            method: 'DELETE',
+          }).catch(() => {});
 
-      if (subscription) {
-        await apiFetch(`/push-subscriptions?endpoint=${encodeURIComponent(subscription.endpoint)}`, {
-          method: 'DELETE',
-        }).catch(() => {});
-
-        await subscription.unsubscribe().catch(() => {});
+          await subscription.unsubscribe().catch(() => {});
+        }
       }
 
       subscribedForRef.current = null;
@@ -152,9 +235,9 @@ export function usePushSubscription(user) {
       setLoading(false);
       return false;
     }
-  }, [isSupported]);
+  }, []);
 
-  // If permission was already granted in a previous session, ensure device registration is up to date
+  // If permission was already granted in a previous session, verify device registration
   useEffect(() => {
     if (!user?.id || !isSupported) {
       subscribedForRef.current = null;
@@ -162,8 +245,8 @@ export function usePushSubscription(user) {
     }
     if (subscribedForRef.current === user.id) return;
 
-    if (Notification.permission === 'granted') {
-      subscribe();
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      subscribe().catch(() => {});
     }
   }, [user?.id, isSupported, subscribe]);
 
@@ -173,6 +256,8 @@ export function usePushSubscription(user) {
     permissionState,
     isSubscribed,
     isSupported,
+    isIos,
+    isPwaStandalone,
     loading,
     refreshStatus,
   };

@@ -2,6 +2,7 @@ import { registerSW } from 'virtual:pwa-register';
 
 export function setupPWA() {
   const updateSW = registerSW({
+    immediate: true,
     onNeedRefresh() {
       // Create an iOS/Android style frosted glass PWA update banner
       const toast = document.createElement('div');

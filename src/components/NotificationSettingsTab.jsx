@@ -28,6 +28,8 @@ export function NotificationSettingsTab() {
     pushPermissionState,
     isPushSubscribed,
     isPushSupported,
+    isIos,
+    isPwaStandalone,
     pushLoading,
   } = useAuth();
 
@@ -173,7 +175,13 @@ export function NotificationSettingsTab() {
                     ? 'Blocked by browser settings'
                     : 'Not subscribed'}
                 </span>
-                {!isPushSupported && (
+                {isIos && !isPwaStandalone && (
+                  <span className="text-xs text-aubergine-700 bg-aubergine-50 px-2.5 py-0.5 rounded-full border border-aubergine-200 font-medium flex items-center gap-1">
+                    <i className="fa-solid fa-arrow-up-from-bracket text-[10px]"></i>
+                    iPhone Tip: Add to Home Screen to enable Push
+                  </span>
+                )}
+                {!isPushSupported && !isIos && (
                   <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 font-medium">
                     Web Push unsupported in this browser
                   </span>

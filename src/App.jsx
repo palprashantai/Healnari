@@ -121,6 +121,7 @@ function RootRoute() {
 import CookieBanner from './landing/components/CookieBanner.jsx';
 import PWASplashScreen from './components/PWASplashScreen.jsx';
 import { NetworkStatusIndicator } from './components/NetworkStatusIndicator.jsx';
+import { GlobalNotificationPrompt } from './components/GlobalNotificationPrompt.jsx';
 
 function App() {
   return (
@@ -133,6 +134,7 @@ function App() {
           <PWASplashScreen />
           <NetworkStatusIndicator />
           <IosInstallPrompt />
+          <GlobalNotificationPrompt />
           <IncomingCallModal />
           <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center bg-slate-50">

@@ -37,6 +37,8 @@ export function AuthProvider({ children }) {
     permissionState: pushPermissionState,
     isSubscribed: isPushSubscribed,
     isSupported: isPushSupported,
+    isIos,
+    isPwaStandalone,
     loading: pushLoading,
   } = usePushSubscription(user);
 
@@ -192,6 +194,8 @@ export function AuthProvider({ children }) {
     pushPermissionState,
     isPushSubscribed,
     isPushSupported,
+    isIos,
+    isPwaStandalone,
     pushLoading,
   };
 

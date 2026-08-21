@@ -30,12 +30,16 @@ export function NotificationPermissionModal({ isOpen, onClose, onPermissionHandl
       toast('Health alerts & reminders enabled!', 'success');
       onPermissionHandled?.(true);
       onClose();
+    } else if (res?.reason === 'ios_requires_pwa') {
+      toast('On iOS, please add HealNari to Home Screen first (Share > Add to Home Screen) to enable push notifications.', 'info');
+      onPermissionHandled?.(false);
+      onClose();
     } else if (res?.reason === 'denied') {
       toast('Notifications blocked. You can enable them later in device settings.', 'warning');
       onPermissionHandled?.(false);
       onClose();
     } else {
-      toast('Could not enable notifications. Please try again.', 'error');
+      toast('Could not enable notifications. Please ensure service worker is active.', 'error');
       onClose();
     }
   };
