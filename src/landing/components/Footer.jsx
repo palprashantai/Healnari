@@ -1,27 +1,46 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { HealNariLogo } from '../../components/HealNariLogo.jsx';
 import { useToast } from '../../components/Toast.jsx';
 
 function Footer() {
   const toast = useToast();
 
-  const notReady = (label) => (e) => {
-    e.preventDefault();
-    toast(`${label} page is coming soon. Connect with us on Instagram!`, 'info');
-  };
+  const specialties = [
+    { label: "Women's Health & Gynaecology", href: '/gynecology-womens-health' },
+    { label: "PCOS & Hormonal Health", href: '/pcos-treatment-online' },
+    { label: "Endocrinology & Thyroid", href: '/thyroid-consultation' },
+    { label: "Dermatology & Hormonal Acne", href: '/hormonal-dermatology-acne' },
+    { label: "Hair & Scalp / Trichology", href: '/hair-loss-trichology' },
+    { label: "Clinical Nutrition & Dietetics", href: '/clinical-nutrition-dietetics' },
+    { label: "Yoga & Movement Therapy", href: '/yoga-movement-therapy' },
+    { label: "Fertility & Preconception", href: '/fertility-preconception-care' },
+    { label: "Hormonal Weight Protocol", href: '/hormonal-weight-loss' },
+  ];
 
-  const exploreLinks = [
-    { label: 'Conditions We Treat', href: '#conditions' },
-    { label: 'How It Works', href: '#how-it-works' },
-    { label: 'Our Doctors', href: '#doctors' },
-    { label: 'Lab Tests Guide', href: '#lab-tests' },
-    { label: 'FAQ', href: '#faq' },
+  const clinicalGuides = [
+    { label: "PCOS vs PCOD Terminology", href: '/guide/pcos-vs-pcod-terminology' },
+    { label: "Evidence-Based PCOS Nutrition", href: '/guide/pcos-personalized-nutrition' },
+    { label: "Managing PCOS & Metabolism", href: '/guide/pcos-weight-loss' },
+    { label: "Hormonal Hair Loss Triggers", href: '/guide/hair-fall-triggers' },
+    { label: "Cortisol & Cycle Balance", href: '/guide/cortisol-balance' },
+    { label: "Anti-Inflammatory Nutrition", href: '/guide/anti-inflammatory-foods' },
+    { label: "Seed Cycling Clinical Guide", href: '/guide/seed-cycling-guide' },
+    { label: "Sleep Architecture & Hormones", href: '/guide/sleep-hormonal-health' },
+  ];
+
+  const diagnosticGlossary = [
+    { label: "High Testosterone in Women", href: '/learn/what-is-high-testosterone-in-women' },
+    { label: "Insulin Resistance Symptoms", href: '/learn/insulin-resistance-symptoms' },
+    { label: "Normal LH to FSH Ratio", href: '/learn/normal-lh-fsh-ratio' },
+    { label: "For Healthcare Providers", href: '/for-doctors' },
   ];
 
   const legalLinks = [
     { label: 'Terms of Service', href: '/legal/terms' },
     { label: 'Privacy Policy', href: '/legal/privacy' },
     { label: 'Refund & Cancellation', href: '/legal/refund' },
+    { label: 'Global Compliance & Security', href: '/legal/compliance' },
     { label: 'Medical Disclaimer', href: '#medical-disclaimer' },
   ];
 
@@ -38,23 +57,29 @@ function Footer() {
     { icon: 'fa-linkedin-in', label: 'LinkedIn', href: '#', isLive: false },
   ];
 
+  const notReady = (label) => (e) => {
+    e.preventDefault();
+    toast(`${label} page is coming soon. Connect with us on Instagram!`, 'info');
+  };
+
   return (
-    <footer className="mt-12 sm:mt-16 bg-gradient-to-b from-aubergine-900 to-indigo-950 text-aubergine-100 relative overflow-hidden">
+    <footer className="mt-12 sm:mt-16 bg-gradient-to-b from-[#1E1035] via-[#2A1647] to-[#120824] text-aubergine-100 relative overflow-hidden border-t border-sand-200/20">
       {/* Decorative ambient lighting */}
       <div className="absolute top-0 left-1/4 w-72 h-72 bg-aubergine-500/10 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-0 right-1/4 w-60 h-60 bg-magenta-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 md:px-8 pt-10 pb-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-7 md:gap-8">
+      <div className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 pt-12 pb-8">
+        
+        {/* Top 4-Column Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 md:gap-10 pb-10 border-b border-white/10">
           
           {/* Brand column */}
-          <div className="space-y-3">
+          <div className="space-y-4 lg:col-span-2">
             <HealNariLogo size="sm" variant="dark" />
-            <p className="text-xs text-aubergine-200 leading-relaxed max-w-xs font-normal">
-              Root-cause, doctor-led telemedicine for PCOS, hormonal health, and metabolic wellness worldwide.
+            <p className="text-xs text-aubergine-200 leading-relaxed max-w-sm font-normal">
+              HealNari is the connected women's health platform connecting patients with qualified specialists across Gynaecology, PCOS, Endocrinology, Dermatology, Hair &amp; Scalp, Nutrition, and Yoga. 
             </p>
 
-            {/* Social media icons with Instagram prominent */}
             <div className="flex items-center gap-2 pt-1">
               <a
                 href="https://www.instagram.com/healnarii/"
@@ -75,72 +100,100 @@ function Footer() {
               </a>
             </div>
 
-            <div className="flex items-center gap-1.5 pt-1">
-              {socials.filter(s => !s.isLive).map((s) => (
-                <button
-                  key={s.label}
-                  onClick={notReady(s.label)}
-                  aria-label={s.label}
-                  className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 flex items-center justify-center transition-colors text-xs text-aubergine-200"
-                >
-                  <i className={`fab ${s.icon} text-[11px]`}></i>
-                </button>
-              ))}
+            <div className="pt-2">
+              <Link
+                to="/for-doctors"
+                className="inline-flex items-center gap-2 text-xs font-extrabold text-white bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-2 rounded-xl transition-all"
+              >
+                <i className="fas fa-stethoscope text-emerald-400"></i> Join as a Specialist Doctor
+              </Link>
             </div>
           </div>
 
-          {/* Explore */}
+          {/* Specialties Column */}
           <div>
-            <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-3">Explore</h3>
+            <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-3.5">
+              Specialist Domains
+            </h3>
             <ul className="space-y-2 text-xs">
-              {exploreLinks.map((l) => (
-                <li key={l.label}>
-                  <a href={l.href} className="text-aubergine-200 hover:text-white transition-colors">{l.label}</a>
+              {specialties.map((s) => (
+                <li key={s.href}>
+                  <Link to={s.href} className="text-aubergine-200 hover:text-white transition-colors block py-0.5">
+                    {s.label}
+                  </Link>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Legal */}
+          {/* Clinical Guides Column */}
           <div>
-            <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-3">Legal &amp; Trust</h3>
+            <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-3.5">
+              Clinical Guides
+            </h3>
             <ul className="space-y-2 text-xs">
+              {clinicalGuides.map((g) => (
+                <li key={g.href}>
+                  <Link to={g.href} className="text-aubergine-200 hover:text-white transition-colors block py-0.5">
+                    {g.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Diagnostics & Trust Column */}
+          <div>
+            <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-3.5">
+              Diagnostics &amp; Trust
+            </h3>
+            <ul className="space-y-2 text-xs">
+              {diagnosticGlossary.map((d) => (
+                <li key={d.href}>
+                  <Link to={d.href} className="text-aubergine-200 hover:text-white transition-colors block py-0.5">
+                    {d.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+
+            <h3 className="text-xs font-bold text-white uppercase tracking-widest mt-5 mb-2.5">
+              Legal &amp; Compliance
+            </h3>
+            <ul className="space-y-1.5 text-xs">
               {legalLinks.map((l) => (
                 <li key={l.label}>
-                  {l.href ? (
-                    <a href={l.href} className="text-aubergine-200 hover:text-white transition-colors">{l.label}</a>
+                  {l.href.startsWith('/') ? (
+                    <Link to={l.href} className="text-aubergine-200 hover:text-white transition-colors">
+                      {l.label}
+                    </Link>
                   ) : (
-                    <a href="#" onClick={notReady(l.label)} className="text-aubergine-200 hover:text-white transition-colors">{l.label}</a>
+                    <a href={l.href} className="text-aubergine-200 hover:text-white transition-colors">
+                      {l.label}
+                    </a>
                   )}
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Compliance badges */}
-          <div>
-            <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-3">Global Compliance</h3>
-            <ul className="space-y-2 text-xs">
-              <li className="flex items-center gap-1.5 text-aubergine-200">
-                <i className="fas fa-shield-virus text-emerald-400 text-xs"></i> HIPAA-Aligned Practices
-              </li>
-              <li className="flex items-center gap-1.5 text-aubergine-200">
-                <i className="fas fa-user-lock text-emerald-400 text-xs"></i> GDPR-Aligned Privacy
-              </li>
-              <li className="flex items-center gap-1.5 text-aubergine-200">
-                <i className="fas fa-certificate text-emerald-400 text-xs"></i> DHA &amp; GCC Aligned
-              </li>
-              <li className="flex items-center gap-1.5 text-aubergine-200">
-                <i className="fas fa-lock text-emerald-400 text-xs"></i> 256-Bit TLS Video
-              </li>
-            </ul>
+        </div>
+
+        {/* Global Compliance Badges */}
+        <div className="pt-6 pb-4 flex flex-wrap items-center justify-between gap-4 text-xs text-aubergine-300">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+            <span className="flex items-center gap-1.5"><i className="fas fa-shield-virus text-emerald-400"></i> HIPAA Aligned</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-user-lock text-emerald-400"></i> GDPR Compliant</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-certificate text-emerald-400"></i> DHA &amp; GCC Aligned</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-lock text-emerald-400"></i> 256-Bit Encrypted WebRTC</span>
           </div>
+          <span className="text-[11px] text-aubergine-400">Available across India, UAE, UK, US, Germany &amp; Worldwide</span>
         </div>
 
         {/* Compact Medical Disclaimer */}
-        <div id="medical-disclaimer" className="mt-8 pt-4 border-t border-white/10 text-[10.5px] text-aubergine-300 leading-relaxed">
+        <div id="medical-disclaimer" className="pt-4 border-t border-white/10 text-[10.5px] text-aubergine-300 leading-relaxed">
           <p>
-            <strong className="text-aubergine-100">Medical Disclaimer:</strong> HealNari provides digital consultations and wellness protocols for educational and clinical guidance. Not a replacement for local emergency services (911/999/112).
+            <strong className="text-aubergine-100">Medical Notice:</strong> HealNari provides digital telehealth consultations, diagnostic coordination, and evidence-based wellness protocols. Telehealth consultations are not an alternative to emergency medical services. If you are experiencing acute pain, severe hemorrhage, or any clinical emergency, please call your local emergency services (112 / 999 / 911) or visit the nearest hospital emergency room.
           </p>
         </div>
 
@@ -158,7 +211,7 @@ function Footer() {
             </a>
             <span>•</span>
             <p className="flex items-center gap-1">
-              Serving patients worldwide with <i className="fas fa-heart text-magenta-400 text-[10px]"></i>
+              Serving women worldwide with <i className="fas fa-heart text-magenta-400 text-[10px]"></i>
             </p>
           </div>
         </div>

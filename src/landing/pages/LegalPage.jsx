@@ -1,11 +1,13 @@
 import React, { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import Header from '../components/Header.jsx';
 import Footer from '../components/Footer.jsx';
 
 const policies = {
   'terms': {
     title: 'Terms of Service',
+    seoTitle: 'Terms of Service & Clinical Care Policies | HealNari',
+    seoDescription: 'Read the HealNari Terms of Service, clinical consultation guidelines, payment policies, user responsibilities, and emergency care notices.',
     updated: 'August 18, 2026',
     content: (
       <div className="space-y-6 text-slate-700 leading-relaxed">
@@ -36,6 +38,8 @@ const policies = {
   },
   'privacy': {
     title: 'Privacy Policy',
+    seoTitle: 'Privacy Policy & HIPAA/GDPR Compliance | HealNari',
+    seoDescription: 'Learn how HealNari protects your sensitive Protected Health Information (PHI) with 256-bit AES encryption, HIPAA compliance, and GDPR data isolation.',
     updated: 'August 18, 2026',
     content: (
       <div className="space-y-6 text-slate-700 leading-relaxed">
@@ -62,7 +66,9 @@ const policies = {
     )
   },
   'refund': {
-    title: 'Refund & Cancellation',
+    title: 'Refund & Cancellation Policy',
+    seoTitle: 'Refund & Cancellation Policy | HealNari Telemedicine',
+    seoDescription: 'Review the HealNari consultation cancellation, doctor no-show, and refund policies. Transparent, fair terms for patients and providers.',
     updated: 'August 18, 2026',
     content: (
       <div className="space-y-6 text-slate-700 leading-relaxed">
@@ -90,7 +96,9 @@ const policies = {
     )
   },
   'compliance': {
-    title: 'Global Compliance & Security',
+    title: 'Global Compliance & Data Security',
+    seoTitle: 'Global Healthcare Compliance & Security Standards | HealNari',
+    seoDescription: 'Learn how HealNari adheres to HIPAA, GDPR, DHA (UAE), and NHS telemedicine data protection and encryption standards.',
     updated: 'August 18, 2026',
     content: (
       <div className="space-y-8 text-slate-700 leading-relaxed">
@@ -131,22 +139,52 @@ const policies = {
 };
 
 function LegalPage() {
-  const { document } = useParams();
+  const { document: docParam } = useParams();
   const navigate = useNavigate();
-  const policy = policies[document] || policies['privacy'];
+  const policy = policies[docParam] || policies['privacy'];
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [document]);
+
+    const originalTitle = document.title;
+    document.title = policy.seoTitle || `${policy.title} | HealNari`;
+
+    const updateMeta = (selector, content, attr = 'content') => {
+      let el = document.querySelector(selector);
+      const original = el ? el.getAttribute(attr) : null;
+      if (el) el.setAttribute(attr, content);
+      return { el, original };
+    };
+
+    const canonicalUrl = `https://healnari.care/legal/${docParam}`;
+    const prevDesc = updateMeta('meta[name="description"]', policy.seoDescription || policy.title);
+    const prevCanonical = updateMeta('link[rel="canonical"]', canonicalUrl, 'href');
+
+    return () => {
+      document.title = originalTitle;
+      if (prevDesc?.el && prevDesc?.original) prevDesc.el.setAttribute('content', prevDesc.original);
+      if (prevCanonical?.el && prevCanonical?.original) prevCanonical.el.setAttribute('href', prevCanonical.original);
+    };
+  }, [docParam, policy]);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 font-sans">
       <Header onOpenAuth={() => navigate('/')} />
 
+      <div className="bg-white border-b border-sand-200 px-5 md:px-8 py-3">
+        <div className="max-w-4xl mx-auto flex items-center gap-2 text-xs text-slate-500 font-semibold">
+          <Link to="/" className="hover:text-aubergine-600">Home</Link>
+          <i className="fas fa-chevron-right text-[9px] text-slate-400"></i>
+          <span>Legal &amp; Trust</span>
+          <i className="fas fa-chevron-right text-[9px] text-slate-400"></i>
+          <span className="text-aubergine-700 font-bold">{policy.title}</span>
+        </div>
+      </div>
+
       <div className="bg-aubergine-900 text-white py-12 px-5 sm:px-8">
         <div className="max-w-4xl mx-auto space-y-4">
           <h1 className="text-3xl md:text-5xl font-black font-display">{policy.title}</h1>
-          <p className="text-aubergine-200">Last Updated: {policy.updated}</p>
+          <p className="text-aubergine-200 text-sm">Last Updated: {policy.updated}</p>
         </div>
       </div>
 

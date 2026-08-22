@@ -2,8 +2,16 @@ User-agent: *
 Allow: /
 Allow: /for-doctors
 Allow: /pcos-treatment-online
+Allow: /gynecology-womens-health
 Allow: /thyroid-consultation
+Allow: /hormonal-dermatology-acne
+Allow: /hair-loss-trichology
+Allow: /clinical-nutrition-dietetics
+Allow: /yoga-movement-therapy
+Allow: /fertility-preconception-care
 Allow: /hormonal-weight-loss
+Allow: /dr/
+Allow: /doctor/
 Allow: /guide/
 Allow: /learn/
 Allow: /legal/

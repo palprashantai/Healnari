@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import Tilt3D from '../../components/Tilt3D.jsx';
 import Reveal from '../../components/Reveal.jsx';
 
@@ -11,56 +12,64 @@ function Conditions() {
       desc: "Irregular cycles, dysmenorrhea, heavy bleeding, pelvic pain & preventative care.",
       icon: "fa-venus",
       color: "text-aubergine-600 bg-aubergine-50 border-aubergine-100",
-      badge: "Gynaecologist"
+      badge: "Gynaecologist",
+      href: "/gynecology-womens-health"
     },
     {
       name: "PCOS & Hormonal Health",
       desc: "Root-cause metabolic care, androgen balancing, insulin sensitivity & cystic ovaries.",
       icon: "fa-venus-double",
       color: "text-magenta-600 bg-magenta-50 border-magenta-100",
-      badge: "Hormone Specialist"
+      badge: "Hormone Specialist",
+      href: "/pcos-treatment-online"
     },
     {
       name: "Endocrinology & Thyroid",
       desc: "Hypo/hyperthyroidism, Hashimoto's, adrenal health & metabolic endocrine balance.",
       icon: "fa-dna",
       color: "text-indigo-600 bg-indigo-50 border-indigo-100",
-      badge: "Endocrinologist"
+      badge: "Endocrinologist",
+      href: "/thyroid-consultation"
     },
     {
       name: "Dermatology & Skin Care",
       desc: "Hormonal acne, hirsutism, melasma, hyperpigmentation & skin barrier restoration.",
       icon: "fa-wand-magic-sparkles",
       color: "text-rose-600 bg-rose-50 border-rose-100",
-      badge: "Dermatologist"
+      badge: "Dermatologist",
+      href: "/hormonal-dermatology-acne"
     },
     {
       name: "Hair & Scalp Health",
       desc: "Female pattern hair loss, telogen effluvium, scalp inflammation & follicle revitalization.",
       icon: "fa-spa",
       color: "text-amber-600 bg-amber-50 border-amber-100",
-      badge: "Trichologist"
+      badge: "Trichologist",
+      href: "/hair-loss-trichology"
     },
     {
       name: "Nutrition & Dietetics",
       desc: "Clinical anti-inflammatory meal planning, gut-hormone axis & metabolic nutrition.",
       icon: "fa-seedling",
       color: "text-emerald-600 bg-emerald-50 border-emerald-100",
-      badge: "Clinical Dietitian"
+      badge: "Clinical Dietitian",
+      href: "/clinical-nutrition-dietetics"
     },
     {
       name: "Yoga & Movement Support",
       desc: "Cycle-synced movement, pelvic floor conditioning, somatic yoga & stress relief.",
       icon: "fa-person-praying",
       color: "text-teal-600 bg-teal-50 border-teal-100",
-      badge: "Movement Coach"
+      badge: "Movement Coach",
+      href: "/yoga-movement-therapy"
     },
     {
       name: "Fertility & Preconception",
       desc: "Ovulation mapping, egg quality optimization & holistic reproductive guidance.",
       icon: "fa-baby-carriage",
       color: "text-purple-600 bg-purple-50 border-purple-100",
-      badge: "Fertility Specialist"
+      badge: "Fertility Specialist",
+      href: "/fertility-preconception-care"
     }
   ];
 
@@ -156,8 +165,9 @@ function Conditions() {
         {specialties.map((spec, idx) => (
           <Reveal key={idx} delay={(idx % 4) * 60} className="w-[85vw] max-w-[18rem] sm:w-auto sm:max-w-none flex-shrink-0 snap-start sm:flex-shrink-1">
             <Tilt3D max={4}>
-              <div
-                className="group rounded-3xl p-6 border border-sand-200 shadow-sm flex flex-col justify-between h-full transition-all duration-300 hover:shadow-xl hover:border-aubergine-200 hover:-translate-y-1 bg-white"
+              <Link
+                to={spec.href}
+                className="group rounded-3xl p-6 border border-sand-200 shadow-sm flex flex-col justify-between h-full transition-all duration-300 hover:shadow-xl hover:border-aubergine-300 hover:-translate-y-1 bg-white block text-left"
               >
                 <div>
                   {/* Top Bar with Icon & Badge */}
@@ -179,11 +189,11 @@ function Conditions() {
                   </p>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-aubergine-600">
-                  <span>Discover specialists</span>
+                <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-aubergine-600 group-hover:text-aubergine-800">
+                  <span>Explore Care Protocol</span>
                   <i className="fas fa-arrow-right text-[10px] group-hover:translate-x-1 transition-transform"></i>
                 </div>
-              </div>
+              </Link>
             </Tilt3D>
           </Reveal>
         ))}

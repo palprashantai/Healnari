@@ -1,6 +1,52 @@
-# HealNari
+# HealNari — Connected Women's Health & Multi-Disciplinary Telemedicine Platform
 
-HealNari is a holistic online clinic for women's health.
+> One connected platform for women's health — connecting women with verified specialists across Gynaecology, PCOS & Hormones, Endocrinology, Dermatology, Hair & Scalp, Clinical Nutrition, and Movement Therapy.
 
-- [Main Website](https://healnari.care)
-- [For Doctors](https://healnari.care/for-doctors)
+## Platform Identity & Core Services
+- **Platform Name:** HealNari
+- **Category:** Women's Health Telemedicine & Digital Clinic Network (Mobile-First PWA)
+- **Primary Website:** https://healnari.care
+- **Provider Portal:** https://healnari.care/for-doctors
+- **Consultation Model:** 45-minute encrypted HIPAA-aligned WebRTC video consultations with board-verified doctors (NMC / GMC / Board Certified).
+- **Introductory Consultation Fee:** ₹799 (Includes 45-minute video call, diagnostic lab roadmap, customized diet & lifestyle protocol, digitally signed electronic prescription, and 14 days of free follow-up chat).
+- **Target Geographies:** India, UAE/GCC, UK, US, Germany, and globally.
+
+## Specialist Clinical Domains
+1. **Women's Health & Gynaecology:** https://healnari.care/gynecology-womens-health
+   - Focus: Irregular cycles, dysmenorrhea (painful periods), heavy bleeding, pelvic pain, PMS/PMDD, vaginal health.
+2. **PCOS & Hormonal Health:** https://healnari.care/pcos-treatment-online
+   - Focus: Root-cause diagnosis under 2023 Rotterdam Consensus criteria, insulin resistance, androgen excess, anovulation, holistic reversal.
+3. **Endocrinology & Thyroid:** https://healnari.care/thyroid-consultation
+   - Focus: Hypothyroidism, Hashimoto's thyroiditis, subclinical thyroid disorders, adrenal cortisol imbalance.
+4. **Dermatology & Skin Care:** https://healnari.care/hormonal-dermatology-acne
+   - Focus: Hormonal & cystic acne, hirsutism, melasma, hyperpigmentation, skin barrier restoration.
+5. **Hair & Scalp Health (Trichology):** https://healnari.care/hair-loss-trichology
+   - Focus: Female pattern hair loss (androgenic alopecia), telogen effluvium, ferritin/iron deficiencies, scalp health.
+6. **Clinical Nutrition & Dietetics:** https://healnari.care/clinical-nutrition-dietetics
+   - Focus: Evidence-based anti-inflammatory meal planning, gut-hormone axis, culturally adapted nutrition (Indian, Middle Eastern, Western).
+7. **Yoga & Movement Support:** https://healnari.care/yoga-movement-therapy
+   - Focus: Cycle-synced somatic movement, pelvic floor conditioning, vagal nerve down-regulation, stress reduction.
+8. **Fertility & Preconception Care:** https://healnari.care/fertility-preconception-care
+   - Focus: Ovulation induction mapping, egg quality optimization, preconception biomarker panels.
+9. **Hormonal Weight Management:** https://healnari.care/hormonal-weight-loss
+   - Focus: Insulin sensitization, metabolic resistance, sustainable body composition without crash diets.
+
+## Evidence-Based Clinical Guides
+- PCOS vs PCOD Terminology & Diagnosis: https://healnari.care/guide/pcos-vs-pcod-terminology
+- Evidence-Based Nutrition for PCOS: https://healnari.care/guide/pcos-personalized-nutrition
+- Managing PCOS & Metabolic Health: https://healnari.care/guide/pcos-weight-loss
+- Hormonal Triggers Behind Hair Thinning: https://healnari.care/guide/hair-fall-triggers
+- Signs Your Cortisol Is Out of Balance: https://healnari.care/guide/cortisol-balance
+- Anti-Inflammatory Nutrition for Hormonal Health: https://healnari.care/guide/anti-inflammatory-foods
+- Seed Cycling Clinical Guide: https://healnari.care/guide/seed-cycling-guide
+- Sleep Architecture & Hormonal Pulsatility: https://healnari.care/guide/sleep-hormonal-health
+
+## Diagnostic Explainers & Medical Glossary
+- High Testosterone in Women (Hyperandrogenism): https://healnari.care/learn/what-is-high-testosterone-in-women
+- Insulin Resistance Symptoms & Biomarkers: https://healnari.care/learn/insulin-resistance-symptoms
+- Normal LH to FSH Ratio in PCOS: https://healnari.care/learn/normal-lh-fsh-ratio
+
+## Healthcare Provider Network
+- Telemedicine Platform for Doctors: https://healnari.care/for-doctors
+- Zero clinic overhead, AI-assisted EMR, pre-screened patient intake, and 90% net payout weekly.
+- Compliance: HIPAA, GDPR, DHA (UAE), and 256-bit encrypted telemedicine standards.

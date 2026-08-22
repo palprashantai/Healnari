@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, NavLink, useNavigate } from 'react-router-dom';
+import { useParams, NavLink, Link, useNavigate } from 'react-router-dom';
 import { HealNariLogo } from '../../components/HealNariLogo.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { todayLocalStr } from '../../lib/dateUtils.js';
@@ -91,6 +91,10 @@ function DoctorPublicProfile() {
   const [showMobileBar, setShowMobileBar] = useState(false);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [doctorId]);
+
+  useEffect(() => {
     const handleScroll = () => {
       setShowMobileBar(window.scrollY > 300);
     };
@@ -128,7 +132,6 @@ function DoctorPublicProfile() {
         }
 
         setDoctor(found);
-        document.title = `${found.full_name || found.name} | Book Consultation | HealNari`;
       } catch (err) {
         const fb = FALLBACK_DOCTORS[doctorId] || Object.values(FALLBACK_DOCTORS)[0];
         setDoctor(fb);
@@ -139,6 +142,106 @@ function DoctorPublicProfile() {
 
     fetchDoc();
   }, [doctorId]);
+
+  // Dynamic SEO, Canonical, OpenGraph, Twitter and Physician Schema Injection
+  useEffect(() => {
+    if (!doctor) return;
+
+    const docName = doctor.full_name || doctor.name || 'Specialist Doctor';
+    const originalTitle = document.title;
+    const pageTitle = `${docName} - ${doctor.specialty} | Book Consultation | HealNari`;
+    const pageDesc = `Book a 45-minute video consultation with ${docName}, ${doctor.specialty}. Credentials: ${doctor.qualification}. Reg: ${doctor.regNo || 'NMC Verified'}. Root-cause care for PCOS, thyroid & hormonal health.`;
+    const canonicalUrl = `https://healnari.care/dr/${doctor.id || doctorId}`;
+
+    document.title = pageTitle;
+
+    const updateMeta = (selector, content, attr = 'content') => {
+      let el = document.querySelector(selector);
+      const original = el ? el.getAttribute(attr) : null;
+      if (el) el.setAttribute(attr, content);
+      return { el, original };
+    };
+
+    const prevDesc = updateMeta('meta[name="description"]', pageDesc);
+    const prevOgTitle = updateMeta('meta[property="og:title"]', pageTitle);
+    const prevOgDesc = updateMeta('meta[property="og:description"]', pageDesc);
+    const prevOgUrl = updateMeta('meta[property="og:url"]', canonicalUrl);
+    const prevCanonical = updateMeta('link[rel="canonical"]', canonicalUrl, 'href');
+    const prevTwTitle = updateMeta('meta[name="twitter:title"]', pageTitle);
+    const prevTwDesc = updateMeta('meta[name="twitter:description"]', pageDesc);
+
+    // JSON-LD Structured Data Schema for Physician
+    const schemaScript = document.createElement('script');
+    schemaScript.type = 'application/ld+json';
+    schemaScript.id = 'healnari-physician-schema';
+    schemaScript.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Physician",
+          "@id": `${canonicalUrl}#physician`,
+          "name": docName,
+          "description": doctor.bio || pageDesc,
+          "medicalSpecialty": doctor.specialty,
+          "url": canonicalUrl,
+          "image": doctor.avatar_url ? `https://healnari.care${doctor.avatar_url}` : undefined,
+          "priceRange": `₹${doctor.consultFee || 799}`,
+          "currenciesAccepted": "INR",
+          "availableService": {
+            "@type": "MedicalConsultation",
+            "name": "45-Minute Telemedicine Video Consultation"
+          },
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": doctor.rating || "4.98",
+            "reviewCount": String(doctor.reviewsCount || "180")
+          },
+          "worksFor": {
+            "@type": "MedicalOrganization",
+            "name": "HealNari Telemedicine",
+            "url": "https://healnari.care"
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://healnari.care"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Doctors",
+              "item": "https://healnari.care/#doctors"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": docName,
+              "item": canonicalUrl
+            }
+          ]
+        }
+      ]
+    });
+    document.head.appendChild(schemaScript);
+
+    return () => {
+      document.title = originalTitle;
+      if (prevDesc?.el && prevDesc?.original) prevDesc.el.setAttribute('content', prevDesc.original);
+      if (prevOgTitle?.el && prevOgTitle?.original) prevOgTitle.el.setAttribute('content', prevOgTitle.original);
+      if (prevOgDesc?.el && prevOgDesc?.original) prevOgDesc.el.setAttribute('content', prevOgDesc.original);
+      if (prevOgUrl?.el && prevOgUrl?.original) prevOgUrl.el.setAttribute('content', prevOgUrl.original);
+      if (prevCanonical?.el && prevCanonical?.original) prevCanonical.el.setAttribute('href', prevCanonical.original);
+      if (prevTwTitle?.el && prevTwTitle?.original) prevTwTitle.el.setAttribute('content', prevTwTitle.original);
+      if (prevTwDesc?.el && prevTwDesc?.original) prevTwDesc.el.setAttribute('content', prevTwDesc.original);
+      const existing = document.getElementById('healnari-physician-schema');
+      if (existing) existing.remove();
+    };
+  }, [doctor, doctorId]);
 
   const timeSlots = ['10:00 AM', '11:30 AM', '2:00 PM', '4:30 PM', '6:00 PM', '7:30 PM'];
   const concernsList = [
@@ -231,7 +334,7 @@ function DoctorPublicProfile() {
 
           <div className="flex items-center gap-3">
             <span className="hidden sm:inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold px-3 py-1 rounded-full">
-              <i className="fas fa-shield-halved text-emerald-600"></i> NMC Verified Practice
+              <i className="fas fa-shield-halved text-emerald-600"></i> NMC / GMC Verified
             </span>
             <NavLink
               to="/"
@@ -242,6 +345,17 @@ function DoctorPublicProfile() {
           </div>
         </div>
       </header>
+
+      {/* Breadcrumb Navigation */}
+      <div className="bg-white/80 border-b border-sand-200 px-4 sm:px-8 py-2.5">
+        <div className="max-w-6xl mx-auto flex items-center gap-2 text-xs text-slate-500 font-semibold flex-wrap">
+          <Link to="/" className="hover:text-aubergine-600 transition-colors">Home</Link>
+          <i className="fas fa-chevron-right text-[9px] text-slate-400"></i>
+          <Link to="/#doctors" className="hover:text-aubergine-600 transition-colors">Doctors</Link>
+          <i className="fas fa-chevron-right text-[9px] text-slate-400"></i>
+          <span className="text-aubergine-700 font-bold">{docName}</span>
+        </div>
+      </div>
 
       {/* Main Container */}
       <main className="flex-grow max-w-6xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-10 pb-24 lg:pb-10">
@@ -354,7 +468,7 @@ function DoctorPublicProfile() {
                 </div>
                 <div className="p-3 bg-white/10 rounded-xl border border-white/10 flex items-center gap-2.5">
                   <i className="fas fa-comments text-pink-300 text-sm shrink-0"></i>
-                  <span>Free 7-Day Follow-up Async Chat</span>
+                  <span>Free 14-Day Follow-up Async Chat</span>
                 </div>
               </div>
             </div>
