@@ -79,69 +79,59 @@
     }
     </script>
   </head>
-  <body style="background-color:#FDFBF7; color:#334155; margin:0; font-family:sans-serif;">
+  <body style="background-color:#FDFBF7;color:#334155;margin:0;font-family:system-ui,-apple-system,sans-serif;">
     <div id="root">
-      <!-- Pre-rendered shell: inline styles so LCP/FCP paint instantly, zero CLS -->
-      <header style="position:sticky;top:0;z-index:50;border-bottom:1px solid transparent;padding:14px 0;background-color:rgba(253,251,247,0.98);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+      <!-- Pre-rendered shell: 100% inline styles — no Tailwind dependency, zero CLS -->
+      <header style="position:sticky;top:0;z-index:50;padding:14px 0;background-color:rgba(253,251,247,0.98);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(0,0,0,0.06);">
         <div style="max-width:1280px;margin:0 auto;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;">
           <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:8px;flex-shrink:0;">
             <span style="font-size:1.4rem;font-weight:900;color:#6B46C1;font-family:Georgia,serif;letter-spacing:-0.02em;">Heal<span style="color:#E23E8C;">Nari</span></span>
           </a>
-          <a href="#consult" style="background:linear-gradient(to right,#7C3AED,#DB2777,#4F46E5);color:#fff;font-weight:800;padding:8px 16px;border-radius:12px;font-size:0.75rem;text-decoration:none;box-shadow:0 4px 12px rgba(124,58,237,0.35);">
+          <a href="#consult" style="background:linear-gradient(to right,#7C3AED,#DB2777,#4F46E5);color:#fff;font-weight:800;padding:8px 18px;border-radius:12px;font-size:0.75rem;text-decoration:none;box-shadow:0 4px 12px rgba(124,58,237,0.35);white-space:nowrap;">
             Book Consult
           </a>
         </div>
       </header>
 
-              <span class="shrink-0 inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-                100% Private
-              </span>
-              <span class="shrink-0 inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-                Specialist Doctors
-              </span>
-              <span class="shrink-0 inline-flex items-center gap-1.5 bg-amber-50 border border-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-                Evidence-Based
-              </span>
-            </div>
+      <section style="padding:24px 16px 60px;max-width:1024px;margin:0 auto;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:20px;">
 
-            <div class="space-y-4">
-              <h1 class="text-3xl leading-[1.2] sm:text-4xl lg:text-5xl lg:leading-[1.15] font-extrabold tracking-tight text-slate-900 font-display">
-                The Global Holistic Clinic for <br class="hidden lg:block" />
-                <span class="text-aubergine-600 inline-block">PCOS, PCOD, Hormones &amp; Women's Health</span>
-              </h1>
-              <div class="space-y-4 max-w-xl mx-auto lg:mx-0">
-                <p class="text-slate-600 text-[15px] sm:text-lg md:text-xl font-normal leading-relaxed">
-                  Your hormones control more than just your cycle &mdash; they dictate your energy, weight, skin, hair, and overall well-being. At <strong>HealNari</strong>, we treat the root cause, not just the symptoms.
-                </p>
-                <p class="text-slate-700 text-[15px] sm:text-base font-medium leading-relaxed">
-                  <span class="text-aubergine-700 font-bold">What's included:</span> 45-minute video consult • Personalized nutrition &amp; movement support • Lab-test roadmap • Digital prescription.
-                </p>
-              </div>
-            </div>
-
-            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-2">
-              <a href="#consult" class="bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 text-white font-extrabold px-6 py-3.5 rounded-xl shadow-xl text-center text-sm">
-                Book My ₹799 Consult
-              </a>
-            </div>
+          <!-- Hero image (shown first on mobile for fast LCP) -->
+          <div style="width:180px;height:180px;border-radius:50%;overflow:hidden;border:4px solid #fff;box-shadow:0 20px 48px rgba(0,0,0,0.14);flex-shrink:0;">
+            <img
+              src="/generated/hero.webp"
+              alt="Woman consulting online gynaecologist for PCOS and hormonal health at HealNari"
+              width="320"
+              height="320"
+              fetchpriority="high"
+              loading="eager"
+              decoding="async"
+              style="width:100%;height:100%;object-fit:cover;display:block;"
+            />
           </div>
 
-          <div class="lg:col-span-5 relative order-1 lg:order-2 mt-2 sm:mt-0">
-            <div class="relative w-44 h-44 sm:w-72 sm:h-72 lg:w-96 lg:h-96 mx-auto">
-              <div class="w-full h-full rounded-full overflow-hidden border-4 border-white shadow-2xl relative">
-                <img
-                  src="/generated/hero.webp"
-                  alt="Patient consulting an online gynaecologist for PCOS and hormonal health at HealNari"
-                  width="320"
-                  height="320"
-                  fetchpriority="high"
-                  loading="eager"
-                  decoding="async"
-                  class="w-full h-full object-cover"
-                />
-              </div>
+          <!-- Text content -->
+          <div style="text-align:center;max-width:600px;">
+            <div style="display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-bottom:14px;">
+              <span style="background:#F5F3FF;border:1px solid #DDD6FE;color:#6D28D9;font-size:0.7rem;font-weight:700;padding:4px 10px;border-radius:999px;">100% Private</span>
+              <span style="background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;font-size:0.7rem;font-weight:700;padding:4px 10px;border-radius:999px;">Specialist Doctors</span>
+              <span style="background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;font-size:0.7rem;font-weight:700;padding:4px 10px;border-radius:999px;">Evidence-Based</span>
             </div>
+
+            <h1 style="font-size:1.75rem;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:#0F172A;font-family:Georgia,serif;margin:0 0 12px;">
+              The Global Holistic Clinic for<br/>
+              <span style="color:#7C3AED;">PCOS, PCOD, Hormones &amp; Women's Health</span>
+            </h1>
+
+            <p style="color:#475569;font-size:0.95rem;line-height:1.7;margin:0 0 20px;">
+              Your hormones control more than just your cycle — they dictate your energy, weight, skin, hair, and overall well-being. At <strong>HealNari</strong>, we treat the root cause, not just the symptoms.
+            </p>
+
+            <a href="#consult" style="display:inline-block;background:linear-gradient(to right,#7C3AED,#DB2777,#4F46E5);color:#fff;font-weight:800;padding:14px 32px;border-radius:12px;font-size:0.875rem;text-decoration:none;box-shadow:0 8px 24px rgba(124,58,237,0.35);">
+              Book My &#x20B9;799 Consult
+            </a>
           </div>
+
         </div>
       </section>
     </div>
