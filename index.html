@@ -81,12 +81,76 @@
   </head>
   <body class="bg-aubergine-50/30 text-slate-700 antialiased scroll-smooth">
     <div id="root">
-      <div class="min-h-screen flex items-center justify-center bg-aubergine-50/30 text-center">
-        <div class="p-6">
-          <div class="w-10 h-10 border-4 border-aubergine-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p class="text-sm text-slate-500 font-semibold tracking-wide">Loading HealNari...</p>
+      <header class="sticky top-0 z-50 border-b border-transparent py-4" style="background-color: rgba(253,251,247,0.98); backdrop-filter: blur(12px);">
+        <div class="max-w-7xl mx-auto px-5 md:px-8 flex items-center justify-between gap-4">
+          <div class="flex items-center gap-6">
+            <a href="/" class="shrink-0 flex items-center gap-2">
+              <span class="text-2xl font-black text-[#6B46C1] font-serif">Heal<span class="text-[#E23E8C]">Nari</span></span>
+            </a>
+          </div>
+          <div class="flex items-center gap-3">
+            <a href="#consult" class="bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 text-white font-extrabold px-4 py-2 rounded-xl text-xs shadow-md">
+              Book Consult
+            </a>
+          </div>
         </div>
-      </div>
+      </header>
+
+      <section class="relative pt-6 pb-20 max-w-6xl mx-auto px-4 sm:px-5 md:px-8">
+        <div class="grid lg:grid-cols-12 gap-6 lg:gap-12 items-center lg:items-stretch">
+          <div class="lg:col-span-7 space-y-4 sm:space-y-7 text-center lg:text-left order-2 lg:order-1 min-w-0">
+            <div class="flex overflow-x-auto hide-scrollbar gap-2 py-1">
+              <span class="shrink-0 inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+                100% Private
+              </span>
+              <span class="shrink-0 inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+                Specialist Doctors
+              </span>
+              <span class="shrink-0 inline-flex items-center gap-1.5 bg-amber-50 border border-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+                Evidence-Based
+              </span>
+            </div>
+
+            <div class="space-y-4">
+              <h1 class="text-3xl leading-[1.2] sm:text-4xl lg:text-5xl lg:leading-[1.15] font-extrabold tracking-tight text-slate-900 font-display">
+                The Global Holistic Clinic for <br class="hidden lg:block" />
+                <span class="text-aubergine-600 inline-block">PCOS, PCOD, Hormones &amp; Women's Health</span>
+              </h1>
+              <div class="space-y-4 max-w-xl mx-auto lg:mx-0">
+                <p class="text-slate-600 text-[15px] sm:text-lg md:text-xl font-normal leading-relaxed">
+                  Your hormones control more than just your cycle &mdash; they dictate your energy, weight, skin, hair, and overall well-being. At <strong>HealNari</strong>, we treat the root cause, not just the symptoms.
+                </p>
+                <p class="text-slate-700 text-[15px] sm:text-base font-medium leading-relaxed">
+                  <span class="text-aubergine-700 font-bold">What's included:</span> 45-minute video consult • Personalized nutrition &amp; movement support • Lab-test roadmap • Digital prescription.
+                </p>
+              </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mt-2">
+              <a href="#consult" class="bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 text-white font-extrabold px-6 py-3.5 rounded-xl shadow-xl text-center text-sm">
+                Book My ₹799 Consult
+              </a>
+            </div>
+          </div>
+
+          <div class="lg:col-span-5 relative order-1 lg:order-2 mt-2 sm:mt-0">
+            <div class="relative w-44 h-44 sm:w-72 sm:h-72 lg:w-96 lg:h-96 mx-auto">
+              <div class="w-full h-full rounded-full overflow-hidden border-4 border-white shadow-2xl relative">
+                <img
+                  src="/generated/hero.webp"
+                  alt="Patient consulting an online gynaecologist for PCOS and hormonal health at HealNari"
+                  width="320"
+                  height="320"
+                  fetchpriority="high"
+                  loading="eager"
+                  decoding="async"
+                  class="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
