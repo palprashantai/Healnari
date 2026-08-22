@@ -230,8 +230,8 @@ export class BillingService {
       // Gateway consistency verification
       const gatewayAmount = Number(order.order_amount || 0);
       const gatewayCurrency = String(order.order_currency || 'INR').toUpperCase();
-      const expectedAmount = Number(payment.original_amount || payment.amount);
-      const expectedCurrency = String(payment.original_currency || payment.currency).toUpperCase();
+      const expectedAmount = Number(payment.original_amount ?? payment.amount ?? 0);
+      const expectedCurrency = String(payment.original_currency || payment.currency || 'INR').toUpperCase();
 
       if (gatewayAmount !== expectedAmount || gatewayCurrency !== expectedCurrency) {
         this.logger.error(`Gateway discrepancy on ${cfOrderId}: Expected ${expectedAmount} ${expectedCurrency}, got ${gatewayAmount} ${gatewayCurrency}`);

@@ -65,7 +65,7 @@ export class AuthService {
 
   async login(email: string, password: string) {
     const { data, error } = await this.supabase.anon.auth.signInWithPassword({ email, password });
-    if (error || !data.session) throw new UnauthorizedException(ERROR_MESSAGES.INVALID_CREDENTIALS);
+    if (error || !data?.session || !data?.user) throw new UnauthorizedException(ERROR_MESSAGES.INVALID_CREDENTIALS);
 
     const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', data.user.id).single();
     if (!profile) throw new UnauthorizedException(ERROR_MESSAGES.USER_NOT_FOUND);
