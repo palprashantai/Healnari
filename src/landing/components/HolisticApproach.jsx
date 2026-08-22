@@ -59,7 +59,7 @@ function HolisticApproach() {
           Our <span className="text-emerald-600">Holistic Care</span> Framework
         </h2>
         <p className="text-slate-600 text-lg md:text-xl font-normal leading-relaxed">
-          True women's wellness goes beyond quick fixes. We combine certified medical specialists with personalized nutrition, restorative movement, and intelligent mobile health tracking.
+          Comprehensive healthcare goes beyond quick fixes. We unite certified medical specialists across Endocrinology, Gynaecology, Dermatology, Trichology, Clinical Nutrition, and Movement Therapy.
         </p>
       </div>
 

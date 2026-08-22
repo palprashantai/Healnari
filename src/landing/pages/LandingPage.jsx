@@ -49,8 +49,8 @@ function LandingPage() {
 
     // Dynamic SEO, OpenGraph & Structured Data Schema Injection
     const originalTitle = document.title;
-    const docTitle = "Women's Health Platform | Specialist Consultations & Hormone Care | HealNari";
-    const docDesc = "Mobile-first women's healthcare platform connecting you with qualified Gynaecologists, Endocrinologists, Dermatologists, Trichologists, Dietitians & Yoga Therapists. Smart cycle tracking, AI guidance, and digital prescriptions.";
+    const docTitle = "Multi-Specialty Healthcare Platform | Doctors, Hormones, Skin & Nutrition | HealNari";
+    const docDesc = "Holistic digital healthcare platform connecting you with qualified specialists across Gynaecology, PCOS, Menstrual Health, Endocrinology, Dermatology, Hair & Scalp, Clinical Nutrition, and Yoga Therapy. Smart health tracking & 45-min video consults.";
     const docUrl = "https://healnari.care";
 
     document.title = docTitle;
@@ -78,7 +78,7 @@ function LandingPage() {
       "name": "HealNari",
       "url": "https://healnari.care",
       "logo": "https://healnari.care/brand/logo-full.jpg",
-      "description": "Mobile-first women's healthcare platform connecting women with qualified specialists in Gynecology, PCOS, Endocrinology, Dermatology, Trichology, Nutrition, and Yoga.",
+      "description": "Multi-specialty digital healthcare platform connecting patients with qualified specialists in Gynaecology, PCOS, Endocrinology, Dermatology, Hair & Scalp (Trichology), Clinical Nutrition, and Yoga.",
       "medicalSpecialty": [
         "https://schema.org/Gynecologic",
         "https://schema.org/Endocrine",
@@ -88,7 +88,7 @@ function LandingPage() {
       "availableService": [
         {
           "@type": "MedicalTest",
-          "name": "PCOS & Comprehensive Hormonal Panel"
+          "name": "Comprehensive Hormonal & Metabolic Blood Panels"
         },
         {
           "@type": "MedicalConsultation",

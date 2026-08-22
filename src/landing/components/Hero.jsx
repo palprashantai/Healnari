@@ -11,16 +11,17 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
       <div className="grid lg:grid-cols-12 gap-6 lg:gap-12 items-center lg:items-stretch">
         {/* Left Column: Copy & Actions */}
         <div className="lg:col-span-7 space-y-4 sm:space-y-7 text-center lg:text-left order-2 lg:order-1 min-w-0">
-          {/* Trust Badges - Horizontal Scroll Snap on Mobile for zero clutter */}
+          
+          {/* Trust Badges */}
           <div className="flex overflow-x-auto hide-scrollbar snap-x justify-start lg:justify-start gap-2 py-1 sm:flex-wrap">
             <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-mobile-screen text-aubergine-500"></i> Mobile-First PWA
+              <i className="fas fa-stethoscope text-aubergine-500"></i> 8+ Specialist Disciplines
             </span>
             <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-user-md text-emerald-500"></i> 8+ Specialist Disciplines
+              <i className="fas fa-user-md text-emerald-500"></i> Verified Medical Doctors
             </span>
             <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-wand-magic-sparkles text-indigo-500"></i> AI-Guided Triage
+              <i className="fas fa-wand-magic-sparkles text-indigo-500"></i> AI-Guided Triage &amp; Tracking
             </span>
             <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-magenta-50 border border-magenta-100 text-magenta-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
               <i className="fas fa-shield-halved text-magenta-600"></i> 100% Private &amp; Encrypted
@@ -32,8 +33,8 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
             <h1 className="text-3xl leading-[1.2] sm:text-4xl lg:text-5xl lg:leading-[1.15] font-extrabold tracking-tight text-slate-900 font-display">
               {title || (
                 <>
-                  The Holistic Care Platform for <br className="hidden lg:block" />
-                  <span className="text-aubergine-600 inline-block">Women's Health, Hormones &amp; Wellness</span>
+                  Multi-Specialty Healthcare for <br className="hidden lg:block" />
+                  <span className="text-aubergine-600 inline-block">Hormones, Skin, Hair &amp; Holistic Care</span>
                 </>
               )}
             </h1>
@@ -45,10 +46,10 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
               ) : (
                 <>
                   <p className="text-slate-600 text-[15px] sm:text-lg md:text-xl font-normal leading-relaxed">
-                    Connect with qualified specialists across <strong>Gynaecology, PCOS, Endocrinology, Dermatology, Hair &amp; Scalp, Nutrition, and Yoga</strong>. From symptom tracking and AI guidance to online consultations and digital prescriptions.
+                    Connect with qualified specialists across <strong>Gynaecology &amp; Women's Health, PCOS, Menstrual Care, Endocrinology, Dermatology, Hair &amp; Scalp Health, Clinical Nutrition, and Yoga &amp; Movement</strong>.
                   </p>
                   <p className="text-slate-600 text-[15px] sm:text-base md:text-lg font-normal leading-relaxed">
-                    <strong>Your personalized health journey in one installable app.</strong> Track cycles, log symptoms, screen hormonal risk factors with AI, and consult top verified doctors with structured root-cause care plans.
+                    <strong>Your personalized holistic health journey in one platform.</strong> Comprehensive root-cause care combining medical consultations, precision lab diagnostics, customized diet plans, and lifestyle pharmacology.
                   </p>
                   <p className="text-slate-700 text-[15px] sm:text-base md:text-lg font-medium leading-relaxed pt-2 pb-4 sm:pb-0">
                     <span className="text-aubergine-700 font-bold">Included in care:</span> 45-min video consult • Tailored nutrition &amp; yoga plans • Lab roadmap • Digital Rx • Free 14-day chat follow-up.
@@ -111,7 +112,6 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
             <span>45-min detailed video consult • Digital prescription &amp; lab roadmap • 14-day free chat follow-up</span>
           </div>
 
-
         </div>
 
         {/* Right Column: Visual Component */}
@@ -120,11 +120,11 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
           <div className="relative w-44 h-44 sm:w-72 sm:h-72 lg:w-96 lg:h-96 mx-auto lg:ml-auto lg:mr-0 lg:mt-8 lg:sticky lg:top-32">
             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-aubergine-600 via-magenta-400 to-indigo-300 opacity-25 blur-2xl animate-pulse-subtle"></div>
             
-            {/* Beautiful Profile Image with Soft Vignette */}
+            {/* Beautiful Profile Image */}
             <div className="w-full h-full rounded-full overflow-hidden border-4 sm:border-8 border-white shadow-2xl relative">
               <img
                 src="/generated/hero.webp"
-                alt="Patient consulting an online gynaecologist for PCOS and hormonal health at HealNari"
+                alt="Patient consulting specialist doctor for endocrinology, dermatology, and holistic health at HealNari"
                 width="320"
                 height="320"
                 fetchpriority="high"
