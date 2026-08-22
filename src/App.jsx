@@ -7,8 +7,6 @@ import { NotificationsProvider } from './context/NotificationsContext.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 import { IncomingCallModal } from './components/IncomingCallModal.jsx';
 import { IosInstallPrompt } from './components/IosInstallPrompt.jsx';
-import { SpeedInsights } from '@vercel/speed-insights/react';
-import { Analytics } from '@vercel/analytics/react';
 
 const queryClient = new QueryClient();
 
@@ -227,8 +225,6 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Routes>
             <CookieBanner />
-            <SpeedInsights />
-            <Analytics />
           </Suspense>
         </Router>
       </NotificationsProvider>
