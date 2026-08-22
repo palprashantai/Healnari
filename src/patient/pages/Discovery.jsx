@@ -11,15 +11,35 @@ import { formatCurrency } from '../../lib/currency.js';
 /* ─── "Not sure which specialist?" Modal ─────── */
 function ConcernPickerModal({ isOpen, onClose, specialties, onPick }) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Not Sure Which Specialist?" size="sm">
-      <div className="space-y-3">
-        <p className="text-sm text-slate-500">Tell us your main concern and we'll point you to the right specialist.</p>
-        <div className="grid gap-2">
+    <Modal isOpen={isOpen} onClose={onClose} title="Smart Specialist Navigator" size="md">
+      <div className="space-y-4">
+        <p className="text-xs text-slate-500 font-medium">
+          Select what you'd like guidance on. We'll match you to the right clinical or wellness specialist without forcing a diagnosis.
+        </p>
+        <div className="grid sm:grid-cols-2 gap-2.5 max-h-[60vh] overflow-y-auto pr-1">
           {CONCERN_OPTIONS.map(c => (
-            <button key={c.label} onClick={() => onPick(c, specialties)}
-              className="w-full text-left border border-slate-200 rounded-xl p-3 hover:border-aubergine-300 hover:bg-aubergine-50/30 transition-colors flex items-center justify-between">
-              <span className="font-bold text-sm text-slate-700">{c.label}</span>
-              <span className="text-[10px] font-bold text-aubergine-600 uppercase tracking-wide">{c.specialty}</span>
+            <button
+              key={c.label}
+              onClick={() => onPick(c, specialties)}
+              className="text-left border border-slate-200 rounded-2xl p-3.5 hover:border-aubergine-400 hover:bg-aubergine-50/40 hover:shadow-xs transition-all flex flex-col justify-between group"
+            >
+              <div className="flex items-start gap-2.5 mb-2">
+                <div className="w-8 h-8 rounded-xl bg-aubergine-50 text-aubergine-600 flex items-center justify-center text-xs shrink-0 group-hover:bg-aubergine-600 group-hover:text-white transition-colors">
+                  <i className={`fas ${c.icon || 'fa-stethoscope'}`}></i>
+                </div>
+                <div>
+                  <span className="font-bold text-xs text-slate-800 block leading-snug">{c.label}</span>
+                  <span className="text-[11px] text-slate-500 line-clamp-2 mt-0.5 leading-relaxed">{c.description}</span>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between w-full">
+                <span className="text-[10px] font-extrabold text-aubergine-700 uppercase tracking-wide">
+                  <i className="fas fa-user-doctor mr-1"></i> {c.specialty}
+                </span>
+                <span className="text-[10px] font-bold text-slate-400 group-hover:text-aubergine-600 transition-colors">
+                  Match →
+                </span>
+              </div>
             </button>
           ))}
         </div>

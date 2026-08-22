@@ -136,28 +136,41 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency:
       )}
       {phase === 'failed' && (
         <div className="space-y-4">
-          <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-4 text-center">
-            <i className="fas fa-circle-exclamation text-2xl mb-2"></i>
-            <p className="text-sm font-semibold">{error}</p>
+          <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl p-4 text-center space-y-2">
+            <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-lg">
+              <i className="fas fa-circle-exclamation"></i>
+            </div>
+            <h4 className="font-bold text-sm text-slate-800">Payment Could Not Be Completed</h4>
+            <p className="text-xs text-rose-700 font-medium leading-relaxed">{error}</p>
+            <div className="bg-white/80 rounded-xl p-2.5 border border-rose-150 text-[11px] text-slate-600 text-left space-y-1">
+              <p className="font-semibold text-emerald-700 flex items-center gap-1.5">
+                <i className="fas fa-shield-check"></i> <strong>No amount was charged.</strong>
+              </p>
+              <p className="text-slate-500">
+                If your bank placed a temporary hold, it will be automatically reversed in 24–48 hours. Your slot remains held for 5 minutes.
+              </p>
+            </div>
           </div>
-          <div className="flex gap-3">
-            <button onClick={onClose} className="crm-btn-secondary flex-1 font-semibold">Close</button>
-            <button onClick={retry} className="crm-btn-primary flex-1 font-bold">Try Again</button>
+          <div className="flex gap-2.5">
+            <button onClick={onClose} className="crm-btn-secondary flex-1 font-semibold text-xs py-3">Cancel</button>
+            <button onClick={retry} className="crm-btn-primary flex-1 font-bold text-xs py-3">Try Another Method</button>
           </div>
         </div>
       )}
       {phase === 'paid' && (
-        <div className="text-center space-y-5 py-4">
-          <div className="w-20 h-20 rounded-full bg-emerald-100 text-emerald-600 text-4xl flex items-center justify-center mx-auto border-4 border-emerald-200">
+        <div className="text-center space-y-4 py-3">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 text-3xl flex items-center justify-center mx-auto border-4 border-emerald-200 shadow-sm animate-bounce-subtle">
             <i className="fas fa-circle-check"></i>
           </div>
           <div>
-            <h3 className="font-bold text-slate-800 text-xl">Payment Successful!</h3>
-            <p className="text-sm text-slate-500 mt-1">{formatCurrency(settledAmount ?? amount, currency)} paid securely</p>
-            <p className="text-xs text-slate-500 mt-0.5">Receipt available in your billing history</p>
+            <h3 className="font-extrabold text-slate-800 text-xl font-display">Consultation Confirmed!</h3>
+            <p className="text-sm font-bold text-emerald-700 mt-1">{formatCurrency(settledAmount ?? amount, currency)} paid securely</p>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              Your appointment is locked in. Digital prescription access and free 14-day follow-up chat are now active.
+            </p>
           </div>
-          <button onClick={done} className="crm-btn-primary w-full">
-            Done
+          <button onClick={done} className="crm-btn-primary w-full py-3 text-sm font-bold">
+            View My Appointment Details →
           </button>
         </div>
       )}
