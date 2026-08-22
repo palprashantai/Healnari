@@ -24,9 +24,26 @@ export default defineConfig(({ command, mode }) => {
     }
   }
 
+// Plugin: defer Vite-injected CSS so inline pre-render shell paints instantly
+const deferCss = () => ({
+  name: 'defer-css',
+  transformIndexHtml(html) {
+    // Convert Vite's render-blocking CSS link → async (print trick)
+    return html.replace(
+      /<link rel="stylesheet" crossorigin href="\/assets\/[^"]+\.css">/g,
+      (match) => {
+        const href = match.match(/href="([^"]+)"/)[1];
+        return `<link rel="preload" as="style" href="${href}" onload="this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="${href}"></noscript>`;
+      }
+    );
+  }
+});
+
 return {
   plugins: [
     react(),
+    deferCss(),
     VitePWA({
       registerType: 'prompt',
       strategies: 'injectManifest',
@@ -118,6 +135,7 @@ return {
     }
   },
   build: {
+    cssCodeSplit: false,
     rollupOptions: {
       output: {
         manualChunks: {
