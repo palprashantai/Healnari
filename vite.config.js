@@ -122,8 +122,11 @@ return {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
+          query: ['@tanstack/react-query'],
+          icons: ['lucide-react'],
           charts: ['recharts'],
-          forms: ['react-hook-form', '@hookform/resolvers', 'zod']
+          forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
+          socket: ['socket.io-client']
         }
       }
     }
