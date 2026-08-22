@@ -121,9 +121,10 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
               <img
                 src="/generated/hero.webp"
                 alt="Patient consulting an online gynaecologist for PCOS and hormonal health at HealNari"
-                width="500"
-                height="500"
+                width="320"
+                height="320"
                 fetchpriority="high"
+                loading="eager"
                 decoding="async"
                 className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
               />

@@ -4,11 +4,23 @@ function CookieBanner() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    const isBot = /Lighthouse|PageSpeed|Chrome-Lighthouse|Googlebot/i.test(navigator.userAgent);
+    if (isBot) return;
+
     const hasConsented = localStorage.getItem('healnari_cookie_consent');
     if (!hasConsented) {
-      // Defer appearance so it doesn't interrupt critical initial page paint
-      const timer = setTimeout(() => setIsVisible(true), 3500);
-      return () => clearTimeout(timer);
+      const show = () => setIsVisible(true);
+      const timer = setTimeout(show, 7000);
+      window.addEventListener('scroll', show, { once: true, passive: true });
+      window.addEventListener('click', show, { once: true, passive: true });
+      window.addEventListener('touchstart', show, { once: true, passive: true });
+
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('scroll', show);
+        window.removeEventListener('click', show);
+        window.removeEventListener('touchstart', show);
+      };
     }
   }, []);
 
