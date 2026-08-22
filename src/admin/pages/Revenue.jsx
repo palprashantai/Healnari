@@ -1,23 +1,15 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, LineChart, Line } from 'recharts';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { Tilt3D } from '../../components/Tilt3D.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
-import { formatCurrency } from '../../lib/currency.js';
+import { formatCurrency, formatCompactCurrency, ISO_CURRENCIES, SUPPORTED_REPORTING_CURRENCIES } from '../../lib/currency.js';
+import { DashboardFilterBar } from '../../components/dashboard/DashboardFilterBar.jsx';
+import { KPITrendCard } from '../../components/dashboard/KPITrendCard.jsx';
+import { DashboardEmptyState } from '../../components/dashboard/DashboardEmptyState.jsx';
 
-const COUNTRY_FLAGS = {
-  US: '🇺🇸',
-  GB: '🇬🇧',
-  AE: '🇦🇪',
-  IN: '🇮🇳',
-  CA: '🇨🇦',
-  AU: '🇦🇺',
-  EU: '🇪🇺',
-  GLOBAL: '🌍',
-};
-
-function ProcessModal({ payout, isOpen, onClose, onProcess }) {
+function ProcessPayoutModal({ payout, isOpen, onClose, onProcess }) {
   const toast = useToast();
   const [refId, setRefId] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,7 +17,7 @@ function ProcessModal({ payout, isOpen, onClose, onProcess }) {
   if (!payout) return null;
 
   const handleProcess = async () => {
-    if (!refId) { toast('Please enter a transaction reference ID', 'error'); return; }
+    if (!refId) { toast('Please enter a bank wire / transaction reference ID', 'error'); return; }
     setLoading(true);
     try {
       await onProcess(payout.id, refId);
@@ -37,17 +29,19 @@ function ProcessModal({ payout, isOpen, onClose, onProcess }) {
     }
   };
 
+  const payoutCurr = payout.currency || payout.original_currency || 'USD';
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Process Doctor Payout" size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title="Process Doctor Payout Disbursement" size="sm">
       <div className="space-y-4">
         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-center relative overflow-hidden">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-aubergine-50 border border-aubergine-100 text-aubergine-800 text-xs font-bold mb-2">
-            <span>{COUNTRY_FLAGS[payout.country] || '🌍'}</span>
-            <span>{payout.currency || 'USD'} Payout</span>
+            <span>{ISO_CURRENCIES[payoutCurr]?.flag || '🌍'}</span>
+            <span>{payoutCurr} Provider Payout</span>
           </div>
           <p className="text-xs font-bold text-slate-500 mb-1">{payout.doctor}</p>
           <p className="text-3xl font-black text-slate-900 font-sans tracking-tight">
-            {formatCurrency(payout.amount, payout.currency || 'USD')}
+            {formatCurrency(payout.amount || payout.original_amount, payoutCurr)}
           </p>
           <p className="text-xs font-bold text-slate-400 mt-1 flex items-center justify-center gap-1">
             <i className="fas fa-building-columns text-[10px]"></i> Rail: {payout.method || 'Direct Wire Transfer'}
@@ -81,277 +75,533 @@ function ProcessModal({ payout, isOpen, onClose, onProcess }) {
 
 function AdminRevenue() {
   const toast = useToast();
+  
+  // Reporting currency state (Controls normalization across entire dashboard)
+  const [reportingCurrency, setReportingCurrency] = useState('USD');
+  
   const [revenueData, setRevenueData] = useState(null);
   const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processTarget, setProcessTarget] = useState(null);
-  const [selectedCurrency, setSelectedCurrency] = useState('ALL');
+  
+  // Filters
+  const [dateRange, setDateRange] = useState('30D');
+  const [selectedOriginalCurrency, setSelectedOriginalCurrency] = useState('ALL');
+  const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [chartType, setChartType] = useState('area'); // 'area' | 'bar'
+
+  const fetchRevenueData = useCallback(async (curr) => {
+    setLoading(true);
+    try {
+      const [rev, po] = await Promise.all([
+        apiFetch(`/admin/revenue?reportingCurrency=${curr}`),
+        apiFetch('/admin/revenue/payouts'),
+      ]);
+      setRevenueData(rev);
+      setPayouts(po || []);
+    } catch {
+      toast('Failed to load multi-currency revenue data from backend API', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
-    Promise.all([
-      apiFetch('/admin/revenue'),
-      apiFetch('/admin/revenue/payouts'),
-    ])
-      .then(([rev, po]) => {
-        setRevenueData(rev);
-        setPayouts(po || []);
-      })
-      .catch(() => toast('Failed to load revenue data', 'error'))
-      .finally(() => setLoading(false));
-  }, []);
+    fetchRevenueData(reportingCurrency);
+  }, [fetchRevenueData, reportingCurrency]);
 
-  const handleProcess = async (id, referenceId) => {
-    await apiFetch(`/admin/revenue/payouts/${id}/process`, { method: 'PUT', body: { referenceId } });
-    setPayouts(prev => prev.map(p => p.id === id ? { ...p, status: 'Processed' } : p));
-    toast('Payout processed and doctor notified.', 'success');
+  const handleReportingCurrencyChange = (newCurr) => {
+    setReportingCurrency(newCurr);
+    toast(`Switched reporting currency to ${newCurr}. Normalizing all metrics.`, 'info');
   };
 
-  const currencyBreakdown = revenueData?.currencyBreakdown || [
-    { currency: 'USD', amount: 4850, count: 167 },
-    { currency: 'GBP', amount: 2400, count: 98 },
-    { currency: 'AED', amount: 8900, count: 81 },
-    { currency: 'EUR', amount: 1680, count: 60 },
-    { currency: 'INR', amount: 148500, count: 186 },
-  ];
+  const handleProcessPayout = async (id, referenceId) => {
+    await apiFetch(`/admin/revenue/payouts/${id}/process`, { method: 'PUT', body: { referenceId } });
+    setPayouts(prev => prev.map(p => p.id === id ? { ...p, status: 'Processed', referenceId } : p));
+    toast('Payout processed and physician notified.', 'success');
+  };
 
+  // Normalized Metrics in Reporting Currency
+  const normalized = revenueData?.normalizedTotals || {
+    grossGMV: 0,
+    platformRevenue: 0,
+    providerPayouts: 0,
+    refundsTotal: 0,
+    netPlatformRevenue: 0,
+    totalTransactions: 0,
+    reportingCurrency,
+  };
+
+  // Original Currency Distribution (Immutable collections)
+  const currencyBreakdown = revenueData?.currencyBreakdown || [];
+
+  // Filtered Payouts
   const filteredPayouts = useMemo(() => {
-    if (selectedCurrency === 'ALL') return payouts;
-    return payouts.filter(p => (p.currency || 'USD') === selectedCurrency);
-  }, [payouts, selectedCurrency]);
+    return payouts.filter(p => {
+      const pCurr = (p.currency || p.original_currency || 'USD').toUpperCase();
+      const matchCurrency = selectedOriginalCurrency === 'ALL' || pCurr === selectedOriginalCurrency;
+      const matchStatus = selectedStatus === 'ALL' || p.status === selectedStatus;
+      const matchSearch = !searchQuery || 
+        (p.doctor || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (p.displayId || '').toLowerCase().includes(searchQuery.toLowerCase());
+      return matchCurrency && matchStatus && matchSearch;
+    });
+  }, [payouts, selectedOriginalCurrency, selectedStatus, searchQuery]);
 
   const pendingPayouts = payouts.filter(p => p.status === 'Pending');
 
-  // Multi-currency monthly trends data for chart
-  const monthlyRevenueStream = [
-    { month: 'Oct', USD: 2800, GBP: 1400, AED: 4500, EUR: 900, INR: 95000 },
-    { month: 'Nov', USD: 3400, GBP: 1850, AED: 6200, EUR: 1200, INR: 115000 },
-    { month: 'Dec', USD: 3900, GBP: 2100, AED: 7100, EUR: 1450, INR: 130000 },
-    { month: 'Jan', USD: 4300, GBP: 2250, AED: 7900, EUR: 1550, INR: 140000 },
-    { month: 'Feb', USD: 4850, GBP: 2400, AED: 8900, EUR: 1680, INR: 148500 },
-  ];
+  // Multi-currency monthly trends data from real backend response
+  const monthlyRevenueStream = useMemo(() => {
+    return revenueData?.monthlyRevenueStream || [];
+  }, [revenueData]);
 
+  // Specialty breakdown in reporting currency
+  const specialtyRevenueData = useMemo(() => {
+    if (!revenueData?.revenueBySpecialty || revenueData.revenueBySpecialty.length === 0) {
+      return [];
+    }
+
+    const palette = ['#6B46C1', '#E23E8C', '#10B981', '#F59E0B', '#8B5CF6', '#334155'];
+    return revenueData.revenueBySpecialty.map((s, idx) => ({
+      specialty: s.specialty || 'General Practice',
+      revenue: Number(s.revenue) || 0,
+      color: palette[idx % palette.length],
+    }));
+  }, [revenueData]);
+
+  const totalSpecialtyRevenue = useMemo(() => {
+    return specialtyRevenueData.reduce((acc, curr) => acc + curr.revenue, 0) || 1;
+  }, [specialtyRevenueData]);
+
+  // Export Full Multi-Currency Accounting Ledger CSV
   const exportAccountingCSV = () => {
-    const rows = [
-      ['Payout ID', 'Doctor', 'Country', 'Currency', 'Amount', 'Fee Cut', 'Status', 'Date'],
-      ...payouts.map(p => [
-        p.displayId,
-        `"${p.doctor}"`,
-        p.country || 'US',
-        p.currency || 'USD',
-        p.amount,
-        p.feeCut,
-        p.status,
-        p.date,
-      ]),
+    const transactions = revenueData?.transactions || [];
+    if (transactions.length === 0 && payouts.length === 0) {
+      toast('No accounting records to export.', 'info');
+      return;
+    }
+
+    const headers = [
+      'Transaction_ID',
+      'Date',
+      'Service_Category',
+      'Original_Amount',
+      'Original_Currency',
+      'Reporting_Amount',
+      'Reporting_Currency',
+      'FX_Rate',
+      'FX_Source',
+      'Platform_Fee_Retained',
+      'Provider_Payout_Owed',
+      'Status',
     ];
-    const csvContent = 'data:text/csv;charset=utf-8,' + rows.map(e => e.join(',')).join('\n');
+
+    const rows = transactions.map(t => [
+      t.txnRef,
+      `"${t.date}"`,
+      `"${t.service}"`,
+      t.originalAmount,
+      t.originalCurrency,
+      t.reportingAmount,
+      t.reportingCurrency,
+      t.fxRate,
+      t.fxRateSource,
+      t.platformFeeAmount,
+      t.providerPayoutAmount,
+      t.status,
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `healnari_accounting_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `healnari_multicurrency_ledger_${reportingCurrency}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast('Accounting ledger CSV downloaded successfully', 'success');
+    toast(`Multi-currency ledger (${reportingCurrency}) downloaded successfully`, 'success');
   };
 
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 animate-fade-in pb-12">
+      {/* Header & Global Reporting Currency Selector */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🌐</span>
-            <h1 className="text-2xl font-black text-slate-900">Multi-Currency Revenue &amp; Settlements</h1>
+          <div className="flex items-center gap-2.5">
+            <span className="text-2xl">🌐</span>
+            <h1 className="text-2xl font-black text-slate-900">Multi-Currency Revenue &amp; Treasury</h1>
           </div>
-          <p className="text-sm text-slate-500 mt-1">
-            Real-time cross-border patient billings, multi-currency balances, and international provider payout rails.
+          <p className="text-xs text-slate-500 mt-1">
+            Bank-grade multi-currency accounting with immutable original collections and transaction-date FX normalization.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+
+        {/* Global Reporting Currency Selector */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">
+            <span className="text-xs font-bold text-slate-500">Reporting Currency:</span>
+            <div className="flex gap-1">
+              {SUPPORTED_REPORTING_CURRENCIES.map(curr => (
+                <button
+                  key={curr.code}
+                  type="button"
+                  onClick={() => handleReportingCurrencyChange(curr.code)}
+                  className={`px-2.5 py-1 text-xs font-extrabold rounded-lg transition-all flex items-center gap-1 ${
+                    reportingCurrency === curr.code
+                      ? 'bg-aubergine-600 text-white shadow-xs'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <span>{curr.flag}</span>
+                  <span>{curr.code}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <button 
             onClick={exportAccountingCSV}
-            className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm"
+            className="bg-slate-900 hover:bg-aubergine-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-sm"
           >
-            <i className="fas fa-file-csv text-emerald-600"></i> Export Ledger CSV
+            <i className="fas fa-file-csv text-emerald-400"></i> Export Ledger CSV
           </button>
         </div>
       </div>
 
-      {/* Multi-Currency Gross Inflows Grid */}
-      <div>
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-xs font-black uppercase tracking-wider text-slate-500">
-            Global Revenue by Currency Inflow
-          </h2>
-          <span className="text-xs text-slate-400 font-medium">Automatic multi-currency conversion active</span>
-        </div>
+      {/* Global Filter Bar */}
+      <DashboardFilterBar
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        search={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search payout reference ID, doctor name..."
+        filters={[
+          {
+            key: 'origCurrency',
+            label: 'Original Currency',
+            value: selectedOriginalCurrency,
+            onChange: setSelectedOriginalCurrency,
+            options: [
+              { label: 'All Original Currencies', value: 'ALL' },
+              { label: '🇮🇳 INR (Indian Rupee)', value: 'INR' },
+              { label: '🇺🇸 USD (US Dollar)', value: 'USD' },
+              { label: '🇦🇪 AED (UAE Dirham)', value: 'AED' },
+              { label: '🇪🇺 EUR (Euro)', value: 'EUR' },
+              { label: '🇬🇧 GBP (British Pound)', value: 'GBP' },
+            ],
+          },
+          {
+            key: 'status',
+            label: 'Settlement Status',
+            value: selectedStatus,
+            onChange: setSelectedStatus,
+            options: [
+              { label: 'All Statuses', value: 'ALL' },
+              { label: 'Pending Action', value: 'Pending' },
+              { label: 'Processed / Settled', value: 'Processed' },
+            ],
+          },
+        ]}
+        onReset={() => {
+          setDateRange('30D');
+          setSelectedOriginalCurrency('ALL');
+          setSelectedStatus('ALL');
+          setSearchQuery('');
+        }}
+      />
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
-          {currencyBreakdown.map((item) => (
-            <Tilt3D key={item.currency} max={5}>
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all hover:border-aubergine-300 relative overflow-hidden">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-2xl">{COUNTRY_FLAGS[item.currency === 'USD' ? 'US' : item.currency === 'GBP' ? 'GB' : item.currency === 'AED' ? 'AE' : item.currency === 'EUR' ? 'EU' : 'IN'] || '🌍'}</span>
-                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono">
-                    {item.currency}
-                  </span>
-                </div>
-                <p className="text-xs font-bold text-slate-500">{item.count} Consults</p>
-                <p className="text-xl font-black text-slate-900 mt-1 font-sans">
-                  {formatCurrency(item.amount, item.currency)}
-                </p>
-              </div>
-            </Tilt3D>
-          ))}
-        </div>
+      {/* Level 1: Tier-1 KPI Cards Normalized in Reporting Currency */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        <KPITrendCard
+          title="Gross Transaction Value (GMV)"
+          value={formatCurrency(normalized.grossGMV, reportingCurrency)}
+          period={`Total Paid (${reportingCurrency})`}
+          icon="fa-money-bill-trend-up"
+          colorScheme="dark"
+          badgeText="Total GMV"
+          loading={loading}
+        />
+
+        <KPITrendCard
+          title="HealNari Platform Revenue"
+          value={formatCurrency(normalized.platformRevenue, reportingCurrency)}
+          period={`10% Take-Rate (${reportingCurrency})`}
+          icon="fa-sack-dollar"
+          colorScheme="purple"
+          badgeText="Retained"
+          loading={loading}
+        />
+
+        <KPITrendCard
+          title="Provider Payouts Owed"
+          value={formatCurrency(normalized.providerPayouts, reportingCurrency)}
+          period={`90% Specialist Share`}
+          icon="fa-user-doctor"
+          colorScheme="emerald"
+          loading={loading}
+        />
+
+        <KPITrendCard
+          title="Processed Refunds"
+          value={formatCurrency(-normalized.refundsTotal, reportingCurrency)}
+          period={`Returned Customer Funds`}
+          icon="fa-rotate-left"
+          colorScheme="magenta"
+          loading={loading}
+        />
+
+        <KPITrendCard
+          title="Net Platform Revenue"
+          value={formatCurrency(normalized.netPlatformRevenue, reportingCurrency)}
+          period={`Fee Minus Refund Losses`}
+          icon="fa-scale-balanced"
+          colorScheme="emerald"
+          badgeText="Net Earned"
+          loading={loading}
+        />
+
+        <KPITrendCard
+          title="Settled Transactions"
+          value={(normalized.totalTransactions || 0).toLocaleString()}
+          period="Completed Telehealth Sessions"
+          icon="fa-calendar-check"
+          colorScheme="dark"
+          loading={loading}
+        />
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <Tilt3D max={5}>
-          <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden flex flex-col justify-between h-full">
-            <div className="absolute -right-4 -top-4 w-32 h-32 bg-aubergine-500/20 rounded-full blur-2xl"></div>
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-aubergine-300">Pending Provider Payouts</span>
-                <i className="fas fa-money-bill-transfer text-aubergine-400"></i>
-              </div>
-              <p className="text-3xl font-black mb-1 font-sans">
-                {pendingPayouts.length} Requests
-              </p>
-              <p className="text-xs text-slate-300">
-                Doctors awaiting wire clearance across ACH, Sort Code &amp; IBAN
-              </p>
-            </div>
-            <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs font-bold">
-              <span className="text-amber-400">⚡ Fast-track Payouts</span>
-              <span className="text-slate-400">10% Platform Cut</span>
-            </div>
-          </div>
-        </Tilt3D>
-
-        <Tilt3D max={5}>
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between h-full">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Gross Platform Consultations</span>
-                <i className="fas fa-calendar-check text-emerald-500"></i>
-              </div>
-              <p className="text-3xl font-black text-slate-900 mb-1 font-sans">
-                {loading ? '…' : (revenueData?.completedConsultations || 482).toLocaleString()}
-              </p>
-              <p className="text-xs font-bold text-emerald-600 flex items-center gap-1">
-                <i className="fas fa-arrow-trend-up"></i> +28.4% MoM international expansion
-              </p>
-            </div>
-            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-              <span>Delivery: 82% Video</span>
-              <span>18% Clinic</span>
-            </div>
-          </div>
-        </Tilt3D>
-
-        <Tilt3D max={5}>
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between h-full">
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Payment Gateway Split</span>
-                <i className="fas fa-shield-halved text-aubergine-500"></i>
-              </div>
-              <div className="space-y-2 mt-2">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="font-bold text-slate-700">Stripe Global (USD/GBP/AED/EUR)</span>
-                  <span className="font-black text-aubergine-600">68%</span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="bg-aubergine-600 h-full w-[68%] rounded-full"></div>
-                </div>
-                <div className="flex justify-between items-center text-xs pt-1">
-                  <span className="font-bold text-slate-700">Cashfree (Multi-Currency + UPI)</span>
-                  <span className="font-black text-emerald-600">32%</span>
-                </div>
-                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div className="bg-emerald-500 h-full w-[32%] rounded-full"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Tilt3D>
-      </div>
-
-      {/* Multi-Currency Revenue Inflow Chart */}
+      {/* Level 2: Original Currency Breakdown (Immutable Actual Collections) */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="flex justify-between items-center mb-4">
           <div>
-            <h2 className="font-black text-slate-900 text-base">Global Telehealth Billing Volume Trends</h2>
-            <p className="text-xs text-slate-500">Monthly consultation inflows categorized by patient settlement currency.</p>
+            <h2 className="font-black text-slate-900 text-sm flex items-center gap-2">
+              <i className="fas fa-coins text-aubergine-600"></i> Revenue by Original Transaction Currency (Immutable Ledger)
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Exact customer funds collected in their respective native payment currencies before FX normalization.
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-400">Filter currency:</span>
-            <select 
-              value={selectedCurrency} 
-              onChange={e => setSelectedCurrency(e.target.value)}
-              className="bg-slate-50 border border-slate-200 text-xs font-extrabold rounded-xl px-3 py-1.5 text-slate-700 outline-none focus:ring-2 focus:ring-aubergine-400"
-            >
-              <option value="ALL">All Currencies</option>
-              <option value="USD">USD ($)</option>
-              <option value="GBP">GBP (£)</option>
-              <option value="AED">AED</option>
-              <option value="EUR">EUR (€)</option>
-              <option value="INR">INR (₹)</option>
-            </select>
-          </div>
+          <span className="text-xs font-bold text-aubergine-700 bg-aubergine-50 px-2.5 py-1 rounded-full border border-aubergine-100">
+            {currencyBreakdown.length} Active Currencies
+          </span>
         </div>
 
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={monthlyRevenueStream} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
-              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-              <Tooltip 
-                contentStyle={{ 
-                  borderRadius: '16px', 
-                  border: 'none', 
-                  boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.15)',
-                  backgroundColor: '#0f172a',
-                  color: '#fff',
-                  fontSize: '12px',
-                  fontWeight: '600'
-                }} 
+        {currencyBreakdown.length === 0 ? (
+          <DashboardEmptyState
+            icon="fa-money-bill-wave"
+            title="No Original Currency Records Yet"
+            description="Collections across INR, USD, AED, EUR, and GBP will disaggregate here."
+          />
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            {currencyBreakdown.map((item) => (
+              <Tilt3D key={item.currency} max={5}>
+                <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4.5 hover:shadow-md transition-all hover:border-aubergine-300 relative overflow-hidden flex flex-col justify-between h-full">
+                  <div>
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-2xl">{ISO_CURRENCIES[item.currency]?.flag || '🌍'}</span>
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 font-mono">
+                        {item.currency}
+                      </span>
+                    </div>
+                    <p className="text-xs font-bold text-slate-500">{item.count} Transactions</p>
+                    <p className="text-xl font-black text-slate-900 mt-1 font-sans">
+                      {formatCurrency(item.grossAmount, item.currency)}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-1 text-[11px]">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-medium">Platform Take (10%):</span>
+                      <span className="font-bold text-aubergine-700">{formatCurrency(item.platformFeeAmount, item.currency)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-medium">Provider Share (90%):</span>
+                      <span className="font-bold text-emerald-700">{formatCurrency(item.providerPayoutAmount, item.currency)}</span>
+                    </div>
+                    {item.refundAmount > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-500 font-medium">Refunds:</span>
+                        <span className="font-bold text-rose-600">{formatCurrency(-item.refundAmount, item.currency)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Tilt3D>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Level 3: Normalized Charts & Visualizations */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Normalized Inflow Trend in Reporting Currency */}
+        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-aubergine-600 animate-pulse"></span>
+                <h2 className="font-black text-slate-900 text-base">
+                  Normalized Revenue Trajectory ({reportingCurrency})
+                </h2>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Monthly gross transaction volume normalized to {reportingCurrency} using transaction-date FX rates.
+              </p>
+            </div>
+            
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setChartType('area')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                  chartType === 'area'
+                    ? 'bg-white text-aubergine-800 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <i className="fas fa-chart-area"></i> Area
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartType('bar')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                  chartType === 'bar'
+                    ? 'bg-white text-aubergine-800 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <i className="fas fa-chart-column"></i> Bar
+              </button>
+            </div>
+          </div>
+
+          {monthlyRevenueStream.length === 0 ? (
+            <DashboardEmptyState
+              icon="fa-chart-area"
+              title="No Monthly Revenue History"
+              description="Monthly payment trends will render here as patient sessions are finalized."
+            />
+          ) : (
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                {chartType === 'area' ? (
+                  <AreaChart data={monthlyRevenueStream} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorGrossReporting" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6B46C1" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#6B46C1" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorPlatformReporting" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(val) => formatCompactCurrency(val, reportingCurrency)} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        borderRadius: '16px', 
+                        border: 'none', 
+                        boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.15)',
+                        backgroundColor: '#0f172a',
+                        color: '#fff',
+                        fontSize: '12px',
+                        fontWeight: '600'
+                      }} 
+                      formatter={(val, name) => [formatCurrency(val, reportingCurrency), name]}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px', fontWeight: '700', paddingTop: '10px' }} />
+                    <Area type="monotone" dataKey="grossReporting" name={`Gross GMV (${reportingCurrency})`} stroke="#6B46C1" strokeWidth={3} fillOpacity={1} fill="url(#colorGrossReporting)" />
+                    <Area type="monotone" dataKey="platformReporting" name={`Platform Take (${reportingCurrency})`} stroke="#10B981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorPlatformReporting)" />
+                  </AreaChart>
+                ) : (
+                  <BarChart data={monthlyRevenueStream} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(val) => formatCompactCurrency(val, reportingCurrency)} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        borderRadius: '16px', 
+                        border: 'none', 
+                        boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.15)',
+                        backgroundColor: '#0f172a',
+                        color: '#fff',
+                        fontSize: '12px',
+                        fontWeight: '600'
+                      }} 
+                      formatter={(val, name) => [formatCurrency(val, reportingCurrency), name]}
+                    />
+                    <Legend wrapperStyle={{ fontSize: '11px', fontWeight: '700', paddingTop: '10px' }} />
+                    <Bar dataKey="grossReporting" name={`Gross GMV (${reportingCurrency})`} fill="#6B46C1" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="platformReporting" name={`Platform Take (${reportingCurrency})`} fill="#10B981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                )}
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        {/* Specialty Revenue Share in Reporting Currency */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-black text-slate-900 text-base">Specialty Revenue Share</h2>
+              <span className="text-[11px] font-black uppercase px-2 py-0.5 rounded bg-aubergine-50 text-aubergine-700">
+                {reportingCurrency}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mb-5">Department revenues converted to {reportingCurrency}.</p>
+
+            {specialtyRevenueData.length === 0 ? (
+              <DashboardEmptyState
+                icon="fa-stethoscope"
+                title="No Department Breakdown"
+                description="Completed consultation revenues will categorize by medical vertical."
               />
-              <Legend wrapperStyle={{ fontSize: '11px', fontWeight: '700', paddingTop: '10px' }} />
-              {(selectedCurrency === 'ALL' || selectedCurrency === 'USD') && <Bar dataKey="USD" name="USD ($)" fill="#6B46C1" radius={[4, 4, 0, 0]} />}
-              {(selectedCurrency === 'ALL' || selectedCurrency === 'GBP') && <Bar dataKey="GBP" name="GBP (£)" fill="#0ea5e9" radius={[4, 4, 0, 0]} />}
-              {(selectedCurrency === 'ALL' || selectedCurrency === 'AED') && <Bar dataKey="AED" name="AED" fill="#10b981" radius={[4, 4, 0, 0]} />}
-              {(selectedCurrency === 'ALL' || selectedCurrency === 'EUR') && <Bar dataKey="EUR" name="EUR (€)" fill="#f59e0b" radius={[4, 4, 0, 0]} />}
-            </BarChart>
-          </ResponsiveContainer>
+            ) : (
+              <div className="space-y-4">
+                {specialtyRevenueData.map((item) => {
+                  const percentage = Math.round((item.revenue / totalSpecialtyRevenue) * 100) || 0;
+                  return (
+                    <div key={item.specialty} className="space-y-1.5">
+                      <div className="flex justify-between items-center text-xs font-bold">
+                        <span className="text-slate-700 truncate pr-2">{item.specialty}</span>
+                        <span className="text-slate-900 font-mono font-black">{formatCurrency(item.revenue, reportingCurrency)} ({percentage}%)</span>
+                      </div>
+                      <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex">
+                        <div 
+                          className="h-full rounded-full transition-all duration-500" 
+                          style={{ width: `${percentage}%`, backgroundColor: item.color }}
+                        ></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span className="text-slate-500 font-bold">Fulfilled Appointments:</span>
+            <span className="font-extrabold text-aubergine-700">{revenueData?.completedConsultations || 0}</span>
+          </div>
         </div>
       </div>
 
-      {/* Doctor Payout Requests Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Level 4: Physician Payout Clearance Queue */}
+      <div id="payout-queue" className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
             <h2 className="font-black text-slate-900 text-sm">Physician Payout Clearance Queue</h2>
-            <p className="text-xs text-slate-500">Cross-border payout settlement via local clearing houses.</p>
+            <p className="text-xs text-slate-500">Cross-border payout settlement via local clearing rails (ACH / SWIFT / IMPS).</p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-500">Queue Filter:</span>
-            <select 
-              value={selectedCurrency} 
-              onChange={e => setSelectedCurrency(e.target.value)}
-              className="bg-white border border-slate-200 text-xs font-bold rounded-lg px-2.5 py-1 text-slate-700"
-            >
-              <option value="ALL">All Currencies</option>
-              <option value="USD">USD ($)</option>
-              <option value="GBP">GBP (£)</option>
-              <option value="AED">AED</option>
-              <option value="EUR">EUR (€)</option>
-              <option value="INR">INR (₹)</option>
-            </select>
+            <span className="text-xs font-bold text-slate-500">
+              Showing {filteredPayouts.length} of {payouts.length} records
+            </span>
           </div>
         </div>
 
@@ -361,10 +611,10 @@ function AdminRevenue() {
               <tr className="border-b border-slate-100 text-[11px] text-slate-400 uppercase tracking-wider font-extrabold bg-slate-50/50">
                 <th className="px-6 py-3.5">Request Ref</th>
                 <th className="px-6 py-3.5">Physician</th>
-                <th className="px-6 py-3.5">Country &amp; Rail</th>
+                <th className="px-6 py-3.5">Settlement Currency &amp; Rail</th>
                 <th className="px-6 py-3.5">Requested Date</th>
-                <th className="px-6 py-3.5">Platform Margin</th>
-                <th className="px-6 py-3.5">Net Payout</th>
+                <th className="px-6 py-3.5">Platform Take</th>
+                <th className="px-6 py-3.5">Net Payout Amount</th>
                 <th className="px-6 py-3.5">Status</th>
                 <th className="px-6 py-3.5 text-right">Action</th>
               </tr>
@@ -375,63 +625,74 @@ function AdminRevenue() {
                   <tr key={i}><td colSpan="8" className="px-6 py-4"><div className="animate-pulse h-8 bg-slate-100 rounded-lg"></div></td></tr>
                 ))
               ) : filteredPayouts.length === 0 ? (
-                <tr><td colSpan="8" className="px-6 py-10 text-center text-slate-400 font-bold">No payout requests in this currency queue.</td></tr>
+                <tr>
+                  <td colSpan="8" className="p-4">
+                    <DashboardEmptyState
+                      icon="fa-receipt"
+                      title="No Payouts Matching Filters"
+                      description="No provider withdrawal requests found matching your filter selection."
+                    />
+                  </td>
+                </tr>
               ) : (
-                filteredPayouts.map(p => (
-                  <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="px-6 py-4 font-mono text-xs font-bold text-slate-500">{p.displayId}</td>
-                    <td className="px-6 py-4">
-                      <div className="font-extrabold text-slate-800">{p.doctor}</div>
-                      <div className="text-[11px] text-slate-400">Telehealth Specialist</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-base">{COUNTRY_FLAGS[p.country] || '🌍'}</span>
-                        <span className="font-bold text-xs text-slate-700">{p.country || 'US'}</span>
-                      </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">{p.method || 'Direct Wire'}</div>
-                    </td>
-                    <td className="px-6 py-4 text-slate-500 text-xs font-medium">{p.date}</td>
-                    <td className="px-6 py-4">
-                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full border border-aubergine-200 bg-aubergine-50 text-aubergine-700">
-                        {p.feeCut || '10%'} take-rate
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 font-black text-emerald-700 font-sans text-base">
-                      {formatCurrency(p.amount, p.currency || 'USD')}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full border ${
-                        p.status === 'Processed' 
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                          : 'bg-amber-50 text-amber-700 border-amber-200'
-                      }`}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      {p.status === 'Pending' ? (
-                        <button 
-                          onClick={() => setProcessTarget(p)} 
-                          className="bg-slate-900 hover:bg-aubergine-700 text-white text-xs font-extrabold px-3.5 py-2 rounded-xl transition-all shadow-sm active:scale-95"
-                        >
-                          Process Wire
-                        </button>
-                      ) : (
-                        <span className="text-xs text-slate-400 font-bold flex items-center justify-end gap-1">
-                          <i className="fas fa-check-double text-emerald-500"></i> {p.referenceId ? `${p.referenceId.slice(0, 10)}…` : 'Settled'}
+                filteredPayouts.map(p => {
+                  const pCurr = (p.currency || p.original_currency || 'USD').toUpperCase();
+                  return (
+                    <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="px-6 py-4 font-mono text-xs font-bold text-slate-500">{p.displayId}</td>
+                      <td className="px-6 py-4">
+                        <div className="font-extrabold text-slate-800">{p.doctor}</div>
+                        <div className="text-[11px] text-slate-400">Telehealth Specialist</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-base">{ISO_CURRENCIES[pCurr]?.flag || '🌍'}</span>
+                          <span className="font-bold text-xs text-slate-700">{pCurr}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">{p.method || 'Direct Wire'}</div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-500 text-xs font-medium">{p.date}</td>
+                      <td className="px-6 py-4">
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full border border-aubergine-200 bg-aubergine-50 text-aubergine-700 w-fit">
+                          {p.feeCut || '10%'} take-rate
                         </span>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-6 py-4 font-black text-emerald-700 font-sans text-base">
+                        {formatCurrency(p.amount, pCurr)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full border ${
+                          p.status === 'Processed' 
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                          {p.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        {p.status === 'Pending' ? (
+                          <button 
+                            onClick={() => setProcessTarget(p)} 
+                            className="bg-slate-900 hover:bg-aubergine-700 text-white text-xs font-extrabold px-3.5 py-2 rounded-xl transition-all shadow-xs active:scale-95"
+                          >
+                            Process Wire
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-400 font-bold flex items-center justify-end gap-1">
+                            <i className="fas fa-check-double text-emerald-500"></i> {p.referenceId ? `${p.referenceId.slice(0, 10)}…` : 'Settled'}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      <ProcessModal payout={processTarget} isOpen={!!processTarget} onClose={() => setProcessTarget(null)} onProcess={handleProcess} />
+      <ProcessPayoutModal payout={processTarget} isOpen={!!processTarget} onClose={() => setProcessTarget(null)} onProcess={handleProcessPayout} />
     </div>
   );
 }

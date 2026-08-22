@@ -1,9 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
-import { Tilt3D } from '../../components/Tilt3D.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { formatCurrency } from '../../lib/currency.js';
+import { DashboardFilterBar } from '../../components/dashboard/DashboardFilterBar.jsx';
+import { KPITrendCard } from '../../components/dashboard/KPITrendCard.jsx';
+import { DashboardEmptyState } from '../../components/dashboard/DashboardEmptyState.jsx';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const COUNTRY_FLAGS = {
   US: '🇺🇸',
@@ -60,10 +64,10 @@ function DocumentViewerModal({ isOpen, onClose, doctor, onResolve }) {
               </div>
             ))}
           </div>
-          <div className="w-full sm:w-2/3 bg-slate-900 rounded-2xl flex flex-col items-center justify-center relative min-h-[260px] border border-slate-800 p-6 text-center">
+          <div className="w-full sm:w-2/3 bg-slate-900 rounded-2xl flex flex-col items-center justify-center relative min-h-[240px] border border-slate-800 p-6 text-center">
             <i className="fas fa-user-shield text-aubergine-400 text-3xl mb-3"></i>
             <span className="text-slate-200 text-sm font-extrabold">Encrypted Telehealth Credential Sandbox</span>
-            <span className="text-slate-500 text-xs mt-1">Verified against {doctor.medical_council || 'National Medical Registry'}</span>
+            <span className="text-slate-400 text-xs mt-1">Verified against {doctor.medical_council || 'National Medical Registry'}</span>
             <span className="text-[10px] text-emerald-400 mt-3 font-mono bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-800/60">
               ✓ Digital Signature Valid
             </span>
@@ -118,7 +122,7 @@ function RefundModal({ isOpen, onClose, refund, onProcess }) {
 function TicketModal({ isOpen, onClose, ticket, onResolve, toast }) {
   if (!ticket) return null;
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Support Inquiry #${ticket.id.slice(0, 8)}`} size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={`Support Inquiry #${String(ticket.id).slice(0, 8)}`} size="md">
       <div className="space-y-4">
         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-sm">
           <div className="flex items-center justify-between mb-2">
@@ -149,13 +153,21 @@ function TicketModal({ isOpen, onClose, ticket, onResolve, toast }) {
 
 /* ─── Main Admin Dashboard Component ─────────────────────────── */
 function AdminDashboard() {
+  const navigate = useNavigate();
   const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Data states
+  // Filters
+  const [dateRange, setDateRange] = useState('30D');
+  const [selectedRegion, setSelectedRegion] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeQueueTab, setActiveQueueTab] = useState('verifications'); // 'verifications' | 'refunds' | 'tickets'
+
+  // Data states from backend API
   const [stats, setStats] = useState(null);
   const [health, setHealth] = useState([]);
+  const [analyticsData, setAnalyticsData] = useState(null);
   const [verifications, setVerifications] = useState([]);
   const [refunds, setRefunds] = useState([]);
   const [tickets, setTickets] = useState([]);
@@ -166,18 +178,20 @@ function AdminDashboard() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const [dashStats, sysHealth, pendingVerifs, refundList, ticketList] = await Promise.all([
+      const [dashStats, sysHealth, pendingVerifs, refundList, ticketList, analytics] = await Promise.all([
         apiFetch('/admin/dashboard'),
         apiFetch('/admin/system-health'),
         apiFetch('/admin/verifications'),
         apiFetch('/admin/refunds'),
         apiFetch('/admin/tickets'),
+        apiFetch('/admin/analytics').catch(() => null),
       ]);
       setStats(dashStats);
-      setHealth(sysHealth);
+      setHealth(sysHealth || []);
       setVerifications(pendingVerifs || []);
       setRefunds((refundList || []).filter(r => r.status === 'Pending'));
       setTickets((ticketList || []).filter(t => t.status !== 'Resolved'));
+      setAnalyticsData(analytics);
     } catch (err) {
       console.error(err);
       toast(err.message || 'Failed to load admin telemetry', 'error');
@@ -194,7 +208,7 @@ function AdminDashboard() {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchDashboardData();
-    toast('Global telemetry refreshed.', 'success');
+    toast('Global telemetry refreshed from backend API.', 'success');
   };
 
   const handleResolveVerification = async (id, status) => {
@@ -204,7 +218,7 @@ function AdminDashboard() {
       setSelectedDoc(null);
       setVerifications(prev => prev.filter(v => v.id !== id));
       fetchDashboardData();
-    } catch (err) {
+    } catch {
       toast('Failed to update verification', 'error');
     }
   };
@@ -216,7 +230,7 @@ function AdminDashboard() {
       setSelectedRefund(null);
       setRefunds(prev => prev.filter(r => r.id !== id));
       fetchDashboardData();
-    } catch (err) {
+    } catch {
       toast('Failed to process refund', 'error');
     }
   };
@@ -228,32 +242,54 @@ function AdminDashboard() {
       setSelectedTicket(null);
       setTickets(prev => prev.filter(t => t.id !== id));
       fetchDashboardData();
-    } catch (err) {
+    } catch {
       toast('Failed to resolve ticket', 'error');
     }
   };
 
-  if (loading) return <div className="p-12 text-center text-slate-500 font-extrabold">Loading Global Telehealth Command Center...</div>;
+  // Filtered Queues
+  const filteredVerifications = useMemo(() => {
+    return verifications.filter(v => {
+      const matchSearch = !searchQuery || (v.full_name || v.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (v.specialty || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const matchRegion = selectedRegion === 'ALL' || (v.country || 'US') === selectedRegion;
+      return matchSearch && matchRegion;
+    });
+  }, [verifications, searchQuery, selectedRegion]);
 
-  const displayStats = [
-    { label: 'Global Patients', value: (stats?.totalUsers || 907).toLocaleString(), trend: '7 Target Markets', up: true, icon: 'fa-globe', color: 'text-aubergine-600', bg: 'bg-aubergine-50' },
-    { label: 'Licensed Specialists', value: (stats?.activeDoctors || 48).toLocaleString(), trend: 'US, UK, UAE, IN, AU', up: true, icon: 'fa-user-doctor', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Gross Volume (USD Eq.)', value: '$38,240', trend: 'Multi-Currency Settled', up: true, icon: 'fa-money-bill-trend-up', color: 'text-white', bg: 'bg-slate-900', dark: true },
-    { label: 'Credential Reviews', value: (verifications.length || 0).toString(), trend: 'Physician KYC Queue', up: null, icon: 'fa-user-check', color: 'text-amber-600', bg: 'bg-amber-50' },
-  ];
+  const filteredRefunds = useMemo(() => {
+    return refunds.filter(r => {
+      const matchSearch = !searchQuery || (r.patient_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (r.reason || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const matchRegion = selectedRegion === 'ALL' || (r.currency === 'USD' ? 'US' : r.currency === 'GBP' ? 'GB' : r.currency === 'AED' ? 'AE' : r.currency === 'EUR' ? 'EU' : 'IN') === selectedRegion;
+      return matchSearch && matchRegion;
+    });
+  }, [refunds, searchQuery, selectedRegion]);
 
-  const activeRegions = [
-    { code: 'US', flag: '🇺🇸', name: 'USA', fee: '$29 USD', active: true },
-    { code: 'GB', flag: '🇬🇧', name: 'UK', fee: '£24 GBP', active: true },
-    { code: 'AE', flag: '🇦🇪', name: 'UAE', fee: '110 AED', active: true },
-    { code: 'EU', flag: '🇪🇺', name: 'Europe', fee: '€28 EUR', active: true },
-    { code: 'IN', flag: '🇮🇳', name: 'India', fee: '₹799 INR', active: true },
-    { code: 'CA', flag: '🇨🇦', name: 'Canada', fee: 'CA$39', active: true },
-    { code: 'AU', flag: '🇦🇺', name: 'Australia', fee: 'A$45', active: true },
-  ];
+  const filteredTickets = useMemo(() => {
+    return tickets.filter(t => {
+      const matchSearch = !searchQuery || (t.user_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (t.issue || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const matchRegion = selectedRegion === 'ALL' || (t.country || 'US') === selectedRegion;
+      return matchSearch && matchRegion;
+    });
+  }, [tickets, searchQuery, selectedRegion]);
+
+  // Real consultation trend data from backend analytics or empty
+  const consultationTrendData = useMemo(() => {
+    if (analyticsData?.crossBorderTrends && analyticsData.crossBorderTrends.length > 0) {
+      return analyticsData.crossBorderTrends.map(t => ({
+        day: t.month,
+        consults: (t.International || 0) + (t.Domestic || 0),
+        international: t.International || 0,
+        domestic: t.Domestic || 0,
+      }));
+    }
+    return [];
+  }, [analyticsData]);
+
+  const totalAlertsCount = verifications.length + refunds.length + tickets.length;
+  const totalRevenueNumber = Number(stats?.platformRevenue || 0);
 
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
+    <div className="space-y-6 animate-fade-in pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -265,224 +301,420 @@ function AdminDashboard() {
             Cross-border clinical telemetry, physician credentialing, and multi-currency operations.
           </p>
         </div>
-        <button onClick={handleRefresh} disabled={refreshing}
-          className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-sm disabled:opacity-50">
-          <i className={`fas fa-rotate-right ${refreshing ? 'animate-spin' : ''}`}></i> Refresh Command Center
-        </button>
-      </div>
-
-      {/* Global Coverage Banner */}
-      <div className="bg-gradient-to-r from-aubergine-900 via-aubergine-950 to-slate-900 rounded-2xl p-4 sm:p-5 text-white shadow-lg flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-            <span className="text-xs font-black uppercase tracking-wider text-aubergine-200">Global Multi-Currency Active</span>
-          </div>
-          <p className="text-sm font-bold text-white mt-1">
-            Accepting patients globally across 7 regions with dynamic local pricing &amp; localized clearing.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {activeRegions.map(r => (
-            <span key={r.code} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 border border-white/15 text-xs font-bold text-slate-200 backdrop-blur-sm">
-              <span>{r.flag}</span>
-              <span>{r.name}</span>
-              <span className="text-[10px] text-aubergine-300 font-mono">({r.fee})</span>
-            </span>
-          ))}
+        <div className="flex items-center gap-2">
+          <button onClick={handleRefresh} disabled={refreshing}
+            className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-sm disabled:opacity-50">
+            <i className={`fas fa-rotate-right ${refreshing ? 'animate-spin' : ''}`}></i> Refresh Telemetry
+          </button>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
-        {displayStats.map(s => (
-          <Tilt3D key={s.label} max={5}>
-            <div className={`rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between h-full relative overflow-hidden ${s.dark ? 'bg-slate-900 text-white' : 'bg-white'}`}>
-              {s.dark && <div className="absolute -right-4 -top-4 w-28 h-28 bg-aubergine-500/20 rounded-full blur-xl"></div>}
-              <div className="flex justify-between items-start mb-3">
-                <div className={`w-10 h-10 rounded-xl ${s.dark ? 'bg-white/10' : s.bg} ${s.color} flex items-center justify-center text-base`}>
-                  <i className={`fas ${s.icon}`}></i>
-                </div>
-                {s.up !== null && (
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.dark ? 'bg-white/10 text-emerald-400' : 'bg-emerald-50 text-emerald-700'}`}>
-                    {s.trend}
-                  </span>
-                )}
+      {/* Global Filter Bar */}
+      <DashboardFilterBar
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        search={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search across verification queue, refunds, or support inquiries..."
+        filters={[
+          {
+            key: 'region',
+            label: 'Region',
+            value: selectedRegion,
+            onChange: setSelectedRegion,
+            options: [
+              { label: 'All Regions (Global)', value: 'ALL' },
+              { label: '🇺🇸 United States', value: 'US' },
+              { label: '🇬🇧 United Kingdom', value: 'GB' },
+              { label: '🇦🇪 UAE & GCC', value: 'AE' },
+              { label: '🇪🇺 European Union', value: 'EU' },
+              { label: '🇮🇳 India', value: 'IN' },
+              { label: '🇨🇦 Canada', value: 'CA' },
+              { label: '🇦🇺 Australia', value: 'AU' },
+            ],
+          },
+        ]}
+        onReset={() => {
+          setDateRange('30D');
+          setSelectedRegion('ALL');
+          setSearchQuery('');
+        }}
+      />
+
+      {/* Level 1: Tier-1 Critical KPI Cards Grid (Real Backend Data) */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPITrendCard
+          title="Global Patients"
+          value={(stats?.totalUsers ?? stats?.totalPatients ?? 0).toLocaleString()}
+          period="Total Registered Patient Base"
+          icon="fa-globe"
+          colorScheme="purple"
+          drillDownLabel="View Directory"
+          onDrillDown={() => navigate('/admin-dashboard/users')}
+          loading={loading}
+        />
+
+        <KPITrendCard
+          title="Licensed Specialists"
+          value={(stats?.activeDoctors ?? 0).toLocaleString()}
+          period="Active Verified Physicians"
+          icon="fa-user-doctor"
+          colorScheme="emerald"
+          badgeText={`${verifications.length} Pending`}
+          drillDownLabel="Manage Doctors"
+          onDrillDown={() => navigate('/admin-dashboard/doctors')}
+          loading={loading}
+        />
+
+        <KPITrendCard
+          title="Gross Platform Volume"
+          value={formatCurrency(totalRevenueNumber, 'USD')}
+          period="Total Consultation Gross Revenue"
+          icon="fa-money-bill-trend-up"
+          colorScheme="dark"
+          drillDownLabel="View Revenue"
+          onDrillDown={() => navigate('/admin-dashboard/revenue')}
+          loading={loading}
+        />
+
+        <KPITrendCard
+          title="Platform Take-Rate Margin"
+          value={formatCurrency(totalRevenueNumber * 0.1, 'USD')}
+          period="10% Effective Net Commission"
+          icon="fa-sack-dollar"
+          colorScheme="magenta"
+          drillDownLabel="View Settlements"
+          onDrillDown={() => navigate('/admin-dashboard/revenue')}
+          loading={loading}
+        />
+      </div>
+
+      {/* Level 3: Action Center Alert Strip */}
+      {totalAlertsCount > 0 && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-aubergine-500/10 border border-amber-200/80 rounded-2xl p-4.5 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-sm shadow-sm">
+                <i className="fas fa-bell animate-pulse"></i>
               </div>
               <div>
-                <p className={`text-2xl font-black font-sans ${s.dark ? 'text-white' : 'text-slate-900'}`}>{s.value}</p>
-                <p className={`text-xs font-bold mt-1 ${s.dark ? 'text-slate-400' : 'text-slate-500'}`}>{s.label}</p>
+                <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                  Action Center Bottlenecks
+                  <span className="bg-amber-100 text-amber-800 text-[10px] font-black px-2 py-0.5 rounded-full">
+                    {totalAlertsCount} Items Pending
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  {verifications.length} physician board verifications, {refunds.length} pending refunds, and {tickets.length} support inquiries require resolution.
+                </p>
               </div>
             </div>
-          </Tilt3D>
-        ))}
-      </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Left Column: Queues */}
-        <div className="lg:col-span-2 space-y-6 stagger-children">
-          {/* Verification Queue */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/70">
-              <div className="flex items-center gap-2">
-                <i className="fas fa-user-doctor text-aubergine-600 text-sm"></i>
-                <h2 className="font-black text-slate-900 text-sm">Physician Credentialing &amp; Board Verification Queue</h2>
-              </div>
-              <span className="text-xs font-black text-aubergine-700 bg-aubergine-50 px-2.5 py-1 rounded-full border border-aubergine-100">
-                {verifications.length} Pending
-              </span>
-            </div>
-            <div className="divide-y divide-slate-100">
-              {verifications.map(v => (
-                <div key={v.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-11 h-11 rounded-2xl bg-aubergine-50 text-aubergine-700 flex items-center justify-center font-black text-sm border border-aubergine-100">
-                      {COUNTRY_FLAGS[v.country] || '👩‍⚕️'}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-extrabold text-slate-900 text-sm">{v.full_name || 'Dr. Specialist'}</p>
-                        <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
-                          {v.country || 'US'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {v.specialty || 'PCOS & Hormone Specialist'} • Council: <span className="font-semibold text-slate-700">{v.medical_council || 'State Board'}</span>
-                      </p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => setSelectedDoc(v)} 
-                    className="bg-white border border-slate-200 hover:border-aubergine-500 hover:text-aubergine-700 text-slate-700 font-extrabold px-4 py-2 rounded-xl text-xs transition-all shadow-sm active:scale-95"
-                  >
-                    Verify Board
-                  </button>
-                </div>
-              ))}
-              {verifications.length === 0 && (
-                <div className="p-10 text-center text-slate-400">
-                  <i className="fas fa-circle-check text-3xl mb-2 block text-emerald-500"></i>
-                  <p className="text-sm font-extrabold text-slate-700">All International Physician Credentials Verified</p>
-                  <p className="text-xs text-slate-400 mt-0.5">No pending onboarding applications.</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Refund Queue */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/70">
-              <div className="flex items-center gap-2">
-                <i className="fas fa-money-bill-transfer text-amber-500 text-sm"></i>
-                <h2 className="font-black text-slate-900 text-sm">Patient Refund &amp; Reversal Queue</h2>
-              </div>
-              {refunds.length > 0 && (
-                <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
-                  {refunds.length} Action Needed
-                </span>
-              )}
-            </div>
-            <div className="divide-y divide-slate-100">
-              {refunds.map(r => (
-                <div key={r.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
-                  <div>
-                    <p className="font-extrabold text-slate-900 text-sm">{r.patient_name}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">Reason: {r.reason}</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="font-black text-rose-600 font-sans">
-                      {formatCurrency(r.amount, r.currency || 'USD')}
-                    </span>
-                    <button 
-                      onClick={() => setSelectedRefund(r)} 
-                      className="bg-slate-900 hover:bg-aubergine-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-colors shadow-sm"
-                    >
-                      Process
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {refunds.length === 0 && (
-                <div className="p-8 text-center text-slate-400">
-                  <i className="fas fa-circle-check text-2xl mb-1.5 block text-emerald-500"></i>
-                  <p className="text-sm font-bold text-slate-700">No pending refund requests.</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Support Tickets Queue */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/70">
-              <div className="flex items-center gap-2">
-                <i className="fas fa-headset text-aubergine-600 text-sm"></i>
-                <h2 className="font-black text-slate-900 text-sm">Global Telehealth Inquiries &amp; Patient Support</h2>
-              </div>
-              {tickets.length > 0 && <span className="bg-rose-100 text-rose-600 text-[10px] font-bold px-2 py-0.5 rounded animate-pulse">{tickets.length} Action Needed</span>}
-            </div>
-            <div className="divide-y divide-slate-100">
-              {tickets.map(t => (
-                <div key={t.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <p className="font-extrabold text-slate-900 text-sm">{t.user_name}</p>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 uppercase">{t.user_role}</span>
-                    </div>
-                    <p className="text-xs text-slate-600 mb-1">{t.issue}</p>
-                    <p className="text-[10px] text-slate-400">{new Date(t.created_at).toLocaleString()}</p>
-                  </div>
-                  <button onClick={() => setSelectedTicket(t)} className="bg-white border border-slate-200 hover:border-aubergine-400 hover:text-aubergine-700 text-slate-700 font-extrabold px-4 py-2 rounded-xl text-xs transition-all shadow-sm">
-                    Review Inquiry
-                  </button>
-                </div>
-              ))}
-              {tickets.length === 0 && (
-                <div className="p-8 text-center text-slate-400">
-                  <i className="fas fa-circle-check text-2xl mb-1.5 block text-emerald-500"></i>
-                  <p className="text-sm font-bold text-slate-700">All patient inquiries resolved.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Multi-Currency & Telehealth Engine Health */}
-        <div className="space-y-6 stagger-children">
-          {/* Infrastructure Health */}
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-fit">
-            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/70">
-              <h2 className="font-black text-slate-900 text-sm">Global Infrastructure SLA</h2>
-              <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div> OPERATIONAL
-              </span>
-            </div>
-            <div className="p-5 space-y-4">
-              {[
-                { name: 'Stripe Global Telehealth API', status: 'Operational', ping: '24ms', flag: '🌍' },
-                { name: 'Cashfree Multi-Currency Engine', status: 'Operational', ping: '38ms', flag: '🇮🇳' },
-                { name: 'WebRTC Global Relay (Video)', status: 'Operational', ping: '18ms', flag: '⚡' },
-                { name: 'HIPAA & GDPR Encryption Layer', status: 'Active', ping: '99.99%', flag: '🔒' },
-                { name: 'Doctor Calendar Availability Sync', status: 'Operational', ping: '31ms', flag: '📅' },
-              ].map(h => (
-                <div key={h.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-sm">{h.flag}</span>
-                    <span className="text-xs font-bold text-slate-700">{h.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-black text-slate-800">{h.status}</p>
-                    <p className="text-[10px] text-slate-400 font-mono">{h.ping}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="p-4 border-t border-slate-100 bg-slate-50 text-center mt-auto">
-              <button onClick={() => toast('All international telehealth gateways pinged successfully.', 'success')} className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5 w-full">
-                <i className="fas fa-server text-[10px]"></i> Ping International Nodes
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveQueueTab('verifications')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeQueueTab === 'verifications'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Board Queue ({verifications.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveQueueTab('refunds')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeQueueTab === 'refunds'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Refunds ({refunds.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveQueueTab('tickets')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeQueueTab === 'tickets'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Tickets ({tickets.length})
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Level 2: Real-time Telemetry Trend & SLA Health */}
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Weekly Consultation Throughput Chart (2 Cols) */}
+        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-aubergine-600 animate-pulse"></span>
+                <h2 className="font-black text-slate-900 text-base">Monthly Telehealth Patient Growth</h2>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">Real-time enrollment trends from database telemetry.</p>
+            </div>
+            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+              Live Aggregate
+            </span>
+          </div>
+
+          {consultationTrendData.length === 0 ? (
+            <DashboardEmptyState
+              icon="fa-chart-area"
+              title="No Patient Trends Recorded Yet"
+              description="Historical monthly growth will display here once patient consults are logged."
+            />
+          ) : (
+            <div className="h-56 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={consultationTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorConsults" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6B46C1" stopOpacity={0.35}/>
+                      <stop offset="95%" stopColor="#6B46C1" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      borderRadius: '12px', 
+                      border: 'none', 
+                      boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.15)',
+                      backgroundColor: '#0f172a',
+                      color: '#fff',
+                      fontSize: '11px',
+                      fontWeight: '700'
+                    }} 
+                  />
+                  <Area type="monotone" dataKey="consults" name="Enrolled Patients" stroke="#6B46C1" strokeWidth={2.5} fillOpacity={1} fill="url(#colorConsults)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2 justify-between items-center text-xs">
+            <span className="text-slate-500 font-medium">Completed Consultations: <strong>{stats?.completedConsultations ?? 0}</strong></span>
+            <span className="text-slate-500 font-medium">Total Sessions Booked: <strong>{stats?.totalAppointments ?? 0}</strong></span>
+          </div>
+        </div>
+
+        {/* Global SLA Health Nodes (1 Col) - Real from /admin/system-health */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col justify-between">
+          <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/70">
+            <h2 className="font-black text-slate-900 text-sm">System Health &amp; Nodes</h2>
+            <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div> OPERATIONAL
+            </span>
+          </div>
+
+          <div className="p-5 space-y-3.5 flex-1">
+            {health.length === 0 ? (
+              <p className="text-xs text-slate-400 text-center py-4">Checking system health...</p>
+            ) : (
+              health.map((h, i) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span className="font-bold text-slate-700">{h.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-black text-slate-900 font-mono text-[11px]">{h.ping || h.status}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="p-4 border-t border-slate-100 bg-slate-50 text-center">
+            <button onClick={handleRefresh} className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5 w-full">
+              <i className="fas fa-server text-[10px]"></i> Re-ping API Nodes
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Level 4 & 5: Interactive Tabbed Action Queues & Investigation Tables */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        {/* Table Header & Tabs */}
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActiveQueueTab('verifications')}
+              className={`px-3.5 py-1.5 text-xs font-extrabold rounded-xl transition-all flex items-center gap-2 ${
+                activeQueueTab === 'verifications'
+                  ? 'bg-aubergine-600 text-white shadow-xs'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <i className="fas fa-user-doctor"></i>
+              <span>Physician Onboarding &amp; Verification</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeQueueTab === 'verifications' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                {verifications.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveQueueTab('refunds')}
+              className={`px-3.5 py-1.5 text-xs font-extrabold rounded-xl transition-all flex items-center gap-2 ${
+                activeQueueTab === 'refunds'
+                  ? 'bg-aubergine-600 text-white shadow-xs'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <i className="fas fa-money-bill-transfer"></i>
+              <span>Refund Clearance</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeQueueTab === 'refunds' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                {refunds.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveQueueTab('tickets')}
+              className={`px-3.5 py-1.5 text-xs font-extrabold rounded-xl transition-all flex items-center gap-2 ${
+                activeQueueTab === 'tickets'
+                  ? 'bg-aubergine-600 text-white shadow-xs'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <i className="fas fa-headset"></i>
+              <span>Telehealth Inquiries</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${activeQueueTab === 'tickets' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                {tickets.length}
+              </span>
+            </button>
+          </div>
+
+          <span className="text-xs text-slate-500 font-medium">
+            {activeQueueTab === 'verifications' && `${filteredVerifications.length} specialists in queue`}
+            {activeQueueTab === 'refunds' && `${filteredRefunds.length} reversal requests in queue`}
+            {activeQueueTab === 'tickets' && `${filteredTickets.length} active inquiries in queue`}
+          </span>
+        </div>
+
+        {/* Tab 1: Physician Verification Queue */}
+        {activeQueueTab === 'verifications' && (
+          <div className="divide-y divide-slate-100">
+            {filteredVerifications.map(v => (
+              <div key={v.id} className="px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-slate-50/70 transition-colors">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-2xl bg-aubergine-50 text-aubergine-700 flex items-center justify-center font-black text-sm border border-aubergine-100">
+                    {COUNTRY_FLAGS[v.country] || '👩‍⚕️'}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-extrabold text-slate-900 text-sm">{v.full_name || v.name || 'Dr. Specialist'}</p>
+                      <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
+                        {v.country || 'US'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {v.specialty || 'PCOS & Hormone Specialist'} • Council: <span className="font-semibold text-slate-700">{v.medical_council || 'State Board'}</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                  <button 
+                    onClick={() => setSelectedDoc(v)} 
+                    className="bg-white border border-slate-200 hover:border-aubergine-500 hover:text-aubergine-700 text-slate-700 font-extrabold px-4 py-2 rounded-xl text-xs transition-all shadow-xs active:scale-95 flex items-center gap-1.5"
+                  >
+                    <i className="fas fa-file-shield text-aubergine-600"></i> Verify Credentials
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {filteredVerifications.length === 0 && (
+              <DashboardEmptyState
+                icon="fa-circle-check"
+                title="All Specialist Credentials Clear"
+                description="No pending physician onboarding or board licensing applications requiring review."
+              />
+            )}
+          </div>
+        )}
+
+        {/* Tab 2: Refund Clearance Queue */}
+        {activeQueueTab === 'refunds' && (
+          <div className="divide-y divide-slate-100">
+            {filteredRefunds.map(r => (
+              <div key={r.id} className="px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-slate-50/70 transition-colors">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-extrabold text-slate-900 text-sm">{r.patient_name}</p>
+                    <span className="text-[10px] font-mono px-2 py-0.5 bg-amber-50 text-amber-700 rounded border border-amber-200 font-bold">
+                      {r.gateway || 'Stripe Global'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">Reason: {r.reason || 'Session cancelled by patient'}</p>
+                </div>
+
+                <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                  <span className="font-black text-rose-600 font-sans text-base">
+                    {formatCurrency(r.amount, r.currency || 'USD')}
+                  </span>
+                  <button 
+                    onClick={() => setSelectedRefund(r)} 
+                    className="bg-slate-900 hover:bg-aubergine-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-colors shadow-xs active:scale-95"
+                  >
+                    Process Reversal
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {filteredRefunds.length === 0 && (
+              <DashboardEmptyState
+                icon="fa-circle-check"
+                title="No Pending Reversals"
+                description="All multi-currency refund requests have been settled."
+              />
+            )}
+          </div>
+        )}
+
+        {/* Tab 3: Support Inquiries Queue */}
+        {activeQueueTab === 'tickets' && (
+          <div className="divide-y divide-slate-100">
+            {filteredTickets.map(t => (
+              <div key={t.id} className="px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-slate-50/70 transition-colors">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-extrabold text-slate-900 text-sm">{t.user_name}</p>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 uppercase">{t.user_role}</span>
+                    <span className="text-xs">{COUNTRY_FLAGS[t.country] || '🌍'}</span>
+                  </div>
+                  <p className="text-xs text-slate-600 mb-1">{t.issue}</p>
+                  <p className="text-[10px] text-slate-400">{new Date(t.created_at).toLocaleString()}</p>
+                </div>
+
+                <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                  <button onClick={() => setSelectedTicket(t)} className="bg-white border border-slate-200 hover:border-aubergine-400 hover:text-aubergine-700 text-slate-700 font-extrabold px-4 py-2 rounded-xl text-xs transition-all shadow-xs">
+                    Review &amp; Act
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {filteredTickets.length === 0 && (
+              <DashboardEmptyState
+                icon="fa-circle-check"
+                title="All Inquiries Resolved"
+                description="Patient and physician support tickets are fully up to date."
+              />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Modals */}

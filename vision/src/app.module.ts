@@ -17,6 +17,7 @@ import { AuditLogInterceptor } from '@/core/interceptors/audit-log.interceptor';
 import { AdminModule } from '@/modules/admin/admin.module';
 import { AiModule } from '@/modules/ai/ai.module';
 import { SupabaseModule } from '@/core/supabase/supabase.module';
+import { FXModule } from '@/core/fx/fx.module';
 import { BillingModule } from '@/modules/billing/billing.module';
 import { TelemedicineModule } from '@/modules/telemedicine/telemedicine.module';
 import { StaffModule } from '@/modules/staff/staff.module';
@@ -34,6 +35,7 @@ import { LeadsModule } from '@/modules/leads/leads.module';
       limit: 100, // 100 requests per minute
     }]),
     SupabaseModule,
+    FXModule,
     AuthModule,
     PatientsModule,
     DoctorsModule,

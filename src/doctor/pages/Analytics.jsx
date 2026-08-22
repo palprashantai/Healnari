@@ -1,23 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, BarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, LineChart, Line, ComposedChart } from 'recharts';
+import React, { useState, useEffect, useMemo } from 'react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, BarChart, Bar, ComposedChart } from 'recharts';
 import { apiFetch } from '../../lib/apiClient.js';
+import { KPITrendCard } from '../../components/dashboard/KPITrendCard.jsx';
+import { DashboardEmptyState } from '../../components/dashboard/DashboardEmptyState.jsx';
 
-const CONSULT_TYPE_COLORS = { video: '#6366f1', clinic: '#10b981' };
-const CONSULT_TYPE_LABELS = { video: 'Video Consults', clinic: 'Clinic Visits' };
-const APPT_STATUS_COLORS = { Completed: '#8B5CF6', Scheduled: '#38BDF8', Cancelled: '#FB7185', NoShow: '#94a3b8' };
-const PAYMENT_COLORS = { UPI: '#6366F1', Card: '#14B8A6', Cash: '#F59E0B' };
-
-function EmptyChart({ label }) {
-  return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center m-3 z-10 bg-slate-50/80 backdrop-blur-sm rounded-xl border-2 border-dashed border-slate-200">
-      <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center mb-3 text-slate-300">
-        <i className="fas fa-chart-pie text-lg"></i>
-      </div>
-      <p className="font-bold text-slate-600 text-sm">{label}</p>
-      <p className="text-[11px] text-slate-400 mt-0.5">Data will appear here soon.</p>
-    </div>
-  );
-}
+const CONSULT_TYPE_COLORS = { video: '#6B46C1', clinic: '#10B981' };
+const CONSULT_TYPE_LABELS = { video: 'Video Consults (WebRTC)', clinic: 'Clinic Visits (In-Person)' };
+const APPT_STATUS_COLORS = { Completed: '#6B46C1', Scheduled: '#0284c7', Cancelled: '#EF4444', NoShow: '#94a3b8' };
 
 function DoctorAnalytics() {
   const [timeRange, setTimeRange] = useState('Year to Date');
@@ -31,58 +20,65 @@ function DoctorAnalytics() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Use REAL DATA from backend
-  const monthlyTrend = data?.monthlyTrend || [];
-  const weeklyLoad = data?.weeklyLoad || [];
-  const ageDemographics = data?.ageDemographics || [];
+  const monthlyTrend = useMemo(() => data?.monthlyTrend || [], [data]);
+  const weeklyLoad = useMemo(() => data?.weeklyLoad || [], [data]);
+  const ageDemographics = useMemo(() => data?.ageDemographics || [], [data]);
   
-  const consultTypeData = data
-    ? Object.entries(data.consultTypeSplit || {})
-        .filter(([, value]) => value > 0)
-        .map(([key, value]) => ({ name: CONSULT_TYPE_LABELS[key] || key, value, color: CONSULT_TYPE_COLORS[key] || '#94a3b8' }))
-    : [];
+  const consultTypeData = useMemo(() => {
+    if (!data?.consultTypeSplit) return [];
+    return Object.entries(data.consultTypeSplit)
+      .filter(([, value]) => value > 0)
+      .map(([key, value]) => ({ 
+        name: CONSULT_TYPE_LABELS[key] || key, 
+        value, 
+        color: CONSULT_TYPE_COLORS[key] || '#6B46C1' 
+      }));
+  }, [data]);
     
-  const apptStatusData = data
-    ? Object.entries(data.appointmentStatusSplit || {})
-        .filter(([, value]) => value > 0)
-        .map(([key, value]) => ({ name: key, value, color: APPT_STATUS_COLORS[key] || '#94a3b8' }))
-    : [];
+  const apptStatusData = useMemo(() => {
+    if (!data?.appointmentStatusSplit) return [];
+    return Object.entries(data.appointmentStatusSplit)
+      .filter(([, value]) => value > 0)
+      .map(([key, value]) => ({ 
+        name: key, 
+        value, 
+        color: APPT_STATUS_COLORS[key] || '#6B46C1' 
+      }));
+  }, [data]);
 
-  const paymentData = data
-    ? Object.entries(data.paymentMethodSplit || {})
-        .filter(([, value]) => value > 0)
-        .map(([key, value]) => ({ name: key, value, color: PAYMENT_COLORS[key] || '#94a3b8' }))
-    : [];
+  const topDiagnosesData = useMemo(() => {
+    if (!data?.topDiagnoses || data.topDiagnoses.length === 0) return [];
+    return data.topDiagnoses.map(d => ({
+      subject: d.condition || 'General Consultation',
+      A: d.count || 0,
+    }));
+  }, [data]);
 
-  const topDiagnosesMax = data?.topDiagnoses?.length ? Math.max(...data.topDiagnoses.map((d) => d.count)) : 0;
-  const topDiagnosesData = (data?.topDiagnoses || []).map((d) => ({ subject: d.condition, A: d.count, fullMark: Math.max(topDiagnosesMax, 1) }));
-
-  const hasConsults = data?.totalConsultations > 0;
-  const hasRevenue = data?.totalRevenue > 0;
-
-  const kpis = data ? [
-    { title: 'Total Revenue', value: `₹${data.totalRevenue.toLocaleString('en-IN')}`, icon: 'fa-indian-rupee-sign', color: 'text-aubergine-600', bg: 'bg-aubergine-50' },
-    { title: 'Consultations', value: data.totalConsultations.toLocaleString('en-IN'), icon: 'fa-users', color: 'text-magenta-600', bg: 'bg-magenta-50' },
-    { title: 'Total Patients', value: data.totalPatients.toLocaleString('en-IN'), icon: 'fa-user-plus', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { title: 'No-Show Rate', value: `${data.noShowRate}%`, icon: 'fa-user-slash', color: 'text-rose-600', bg: 'bg-rose-50' },
-  ] : [];
+  const completedPct = useMemo(() => {
+    if (apptStatusData.length === 0) return 0;
+    const completed = apptStatusData.find(s => s.name === 'Completed' || s.name === 'Done')?.value || 0;
+    const total = apptStatusData.reduce((sum, s) => sum + s.value, 0);
+    return total > 0 ? Math.round((completed / total) * 100) : 0;
+  }, [apptStatusData]);
 
   return (
-    <div className="space-y-6 animate-fade-in pb-10">
+    <div className="space-y-6 animate-fade-in pb-12">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Analytics & Growth</h1>
-          <p className="text-sm text-slate-500">Live data from your practice revenue and clinical metrics.</p>
+          <h1 className="text-2xl font-black text-slate-900">Practice Growth &amp; Clinical Analytics</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Real-time consultation volume, patient demographics, and completion metrics from database.</p>
         </div>
-        <div className="flex bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 shadow-sm backdrop-blur-sm">
+
+        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-xs">
           {['7 Days', '30 Days', '6 Months', 'Year to Date'].map((range) => (
             <button
               key={range}
               onClick={() => setTimeRange(range)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-3 py-1 text-xs font-extrabold rounded-lg transition-all ${
                 timeRange === range
-                  ? 'bg-white text-aubergine-700 shadow-sm border border-slate-200/60'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-white text-aubergine-700 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               {range}
@@ -91,194 +87,255 @@ function DoctorAnalytics() {
         </div>
       </div>
 
-      {loading ? (
-        <div className="text-center py-20 text-slate-400"><i className="fas fa-spinner fa-spin text-2xl"></i></div>
-      ) : !data ? (
-        <div className="text-center py-20 text-slate-400">
-          <i className="fas fa-triangle-exclamation text-2xl mb-2 block"></i>
-          Couldn't load analytics right now.
-        </div>
-      ) : (
-      <>
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        {kpis.map((kpi, idx) => (
-          <div key={kpi.title} className="relative group bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col justify-between z-10">
-            <div className={`absolute -right-10 -top-10 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-40 transition-opacity duration-500 ${kpi.bg.replace('50', '200')} -z-10`}></div>
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className={`w-12 h-12 rounded-2xl ${kpi.bg} ${kpi.color} flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-sm`}>
-                  <i className={`fas ${kpi.icon} text-lg`}></i>
-                </div>
-                <div className="bg-slate-50 border border-slate-100 text-[10px] font-bold text-slate-500 px-2 py-1 rounded-md uppercase tracking-wider">
-                  {idx === 3 ? 'Metric' : 'YTD'}
-                </div>
-              </div>
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">{kpi.title}</p>
-              <p className="text-3xl font-black text-slate-800 tabular-nums tracking-tight">{kpi.value}</p>
-            </div>
-          </div>
-        ))}
+      {/* Level 1: Tier-1 KPI Cards (Real Data) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPITrendCard
+          title="Total Practice Revenue"
+          value={data?.totalRevenue !== undefined ? `₹${Number(data.totalRevenue).toLocaleString('en-IN')}` : '₹0'}
+          period="Year-to-Date Earned"
+          icon="fa-indian-rupee-sign"
+          colorScheme="purple"
+          loading={loading}
+        />
+
+        <KPITrendCard
+          title="Completed Consultations"
+          value={(data?.totalConsultations ?? 0).toLocaleString('en-IN')}
+          period="Total Patient Sessions"
+          icon="fa-hospital-user"
+          colorScheme="magenta"
+          loading={loading}
+        />
+
+        <KPITrendCard
+          title="Active Patient Roster"
+          value={(data?.totalPatients ?? 0).toLocaleString('en-IN')}
+          period="Unique Enrolled Patients"
+          icon="fa-user-plus"
+          colorScheme="emerald"
+          loading={loading}
+        />
+
+        <KPITrendCard
+          title="No-Show Rate"
+          value={`${data?.noShowRate ?? 0}%`}
+          period="Target benchmark &lt; 5%"
+          icon="fa-user-slash"
+          colorScheme="emerald"
+          badgeText="Live Metric"
+          loading={loading}
+        />
       </div>
 
-      {/* 1. Revenue & Consultation Trend (Composed Chart) */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 group relative">
-        <h2 className="text-sm font-black text-slate-800 mb-6 flex items-center gap-2">
-          <i className="fas fa-chart-area text-aubergine-600"></i> Revenue & Consultation Trend
-        </h2>
-        <div className="h-[300px] w-full relative">
-          {!hasRevenue ? (
-            <EmptyChart label="No revenue recorded yet." />
-          ) : (
+      {/* Level 2: Composed Trend Chart (Revenue + Consultations) */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-6">
+          <div>
+            <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
+              <i className="fas fa-chart-area text-aubergine-600"></i> Revenue &amp; Consultation Volume Trajectory
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">Monthly billing volume correlated with completed patient sessions.</p>
+          </div>
+          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+            Live Trajectory
+          </span>
+        </div>
+
+        {monthlyTrend.length === 0 ? (
+          <DashboardEmptyState
+            icon="fa-chart-area"
+            title="No Monthly Practice History Yet"
+            description="Completed consultations and monthly revenue will automatically graph here."
+          />
+        ) : (
+          <div className="h-[280px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={monthlyTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6B46C1" stopOpacity={0.4}/>
+                  <linearGradient id="colorDoctorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6B46C1" stopOpacity={0.35}/>
                     <stop offset="95%" stopColor="#6B46C1" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} dy={10} minTickGap={20} />
-                <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={(val) => val >= 1000 ? `₹${(val/1000).toFixed(val % 1000 === 0 ? 0 : 1)}k` : `₹${val}`} />
-                <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} dy={5} />
+                <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(val) => val >= 1000 ? `₹${(val/1000).toFixed(0)}k` : `₹${val}`} />
+                <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
                 <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
-                <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} itemStyle={{ fontWeight: 'bold' }} />
-                <Bar yAxisId="right" dataKey="consultations" name="Consultations" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} opacity={0.3} />
-                <Area yAxisId="left" type="monotone" dataKey="revenue" name="Revenue" stroke="#6B46C1" strokeWidth={4} fillOpacity={1} fill="url(#colorRevenue)" activeDot={{ r: 6, strokeWidth: 0, fill: '#6B46C1' }} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px', fontWeight: 'bold' }} 
+                  formatter={(val, name) => [name === 'Revenue' ? `₹${Number(val).toLocaleString('en-IN')}` : val, name]}
+                />
+                <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
+                <Bar yAxisId="right" dataKey="consultations" name="Consultations" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={36} opacity={0.4} />
+                <Area yAxisId="left" type="monotone" dataKey="revenue" name="Revenue" stroke="#6B46C1" strokeWidth={3} fillOpacity={1} fill="url(#colorDoctorRevenue)" activeDot={{ r: 6 }} />
               </ComposedChart>
             </ResponsiveContainer>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
+      {/* Level 3: Diagnoses Breakdown, Completion, and Modality Split */}
       <div className="grid lg:grid-cols-3 gap-5">
-        {/* 2. Top Diagnoses (Horizontal Bar) */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col relative">
-          <h2 className="text-sm font-black text-slate-800 mb-2 flex items-center gap-2"><i className="fas fa-stethoscope text-rose-500"></i> Top Diagnoses</h2>
-          <p className="text-xs text-slate-500 mb-6">Conditions treated most.</p>
-          <div className="flex-1 min-h-[220px] relative">
+        {/* Top Diagnoses */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
+          <div>
+            <h2 className="text-sm font-black text-slate-900 mb-1 flex items-center gap-2">
+              <i className="fas fa-stethoscope text-aubergine-600"></i> Clinical Diagnoses Breakdown
+            </h2>
+            <p className="text-xs text-slate-500 mb-4">Patient cases grouped by diagnosis reason.</p>
+
             {topDiagnosesData.length === 0 ? (
-              <EmptyChart label="No diagnoses recorded." />
+              <DashboardEmptyState
+                icon="fa-stethoscope"
+                title="No Diagnoses Recorded"
+                description="Clinical diagnoses logged in consults will populate here."
+              />
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topDiagnosesData} layout="vertical" margin={{ top: 0, right: 20, left: 20, bottom: 0 }}>
-                  <CartesianGrid horizontal={true} vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
-                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                  <YAxis type="category" dataKey="subject" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#475569', fontWeight: 'bold' }} width={90} />
-                  <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#d946ef', fontWeight: 'bold' }} />
-                  <Bar dataKey="A" name="Cases" fill="#d946ef" radius={[0, 4, 4, 0]} barSize={20} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="space-y-3">
+                {topDiagnosesData.map((d) => (
+                  <div key={d.subject} className="space-y-1">
+                    <div className="flex justify-between items-center text-xs font-bold">
+                      <span className="text-slate-700 truncate pr-2">{d.subject}</span>
+                      <span className="font-mono text-slate-900">{d.A} cases</span>
+                    </div>
+                    <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-aubergine-600 rounded-full" 
+                        style={{ width: `${Math.min(100, Math.round((d.A / Math.max(1, topDiagnosesData[0].A)) * 100))}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
 
-        {/* 3. NEW: Appointment Status (Donut) */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col relative">
-          <h2 className="text-sm font-black text-slate-800 mb-2 flex items-center gap-2"><i className="fas fa-calendar-check text-blue-500"></i> Appt. Status</h2>
-          <p className="text-xs text-slate-500 mb-6">Completion vs Cancellations.</p>
-          <div className="flex-1 min-h-[220px] relative">
+        {/* Appointment Status */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
+          <div>
+            <h2 className="text-sm font-black text-slate-900 mb-1 flex items-center gap-2">
+              <i className="fas fa-calendar-check text-emerald-600"></i> Session Completion Rate
+            </h2>
+            <p className="text-xs text-slate-500 mb-4">Fulfilled vs cancelled sessions in practice schedule.</p>
+
             {apptStatusData.length === 0 ? (
-              <EmptyChart label="No appointments booked." />
+              <DashboardEmptyState
+                icon="fa-chart-pie"
+                title="No Session Statuses"
+                description="Status breakdown will compute from scheduled appointments."
+              />
             ) : (
-              <>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8 mt-1">
-                  <span className="text-3xl font-black text-slate-700 tracking-tight">{data.totalConsultations}</span>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Total</span>
-                </div>
+              <div className="h-48 relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={apptStatusData} cx="50%" cy="50%" innerRadius={75} outerRadius={95} paddingAngle={4} dataKey="value" stroke="none" cornerRadius={8}>
+                    <Pie data={apptStatusData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={4} dataKey="value" stroke="none">
                       {apptStatusData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip cursor={false} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)' }} itemStyle={{ fontWeight: 'bold' }} />
-                    <Legend iconType="circle" layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '11px', fontWeight: '600', color: '#64748b' }} />
+                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px' }} />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
                   </PieChart>
                 </ResponsiveContainer>
-              </>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-6">
+                  <span className="text-2xl font-black text-slate-800">{completedPct}%</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase">Fulfilled</span>
+                </div>
+              </div>
             )}
           </div>
         </div>
 
-        {/* 4. NEW: Revenue by Payment Method (Pie) */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col relative">
-          <h2 className="text-sm font-black text-slate-800 mb-2 flex items-center gap-2"><i className="fas fa-wallet text-amber-500"></i> Payment Methods</h2>
-          <p className="text-xs text-slate-500 mb-6">Revenue split by payment type.</p>
-          <div className="flex-1 min-h-[220px] relative">
-            {paymentData.length === 0 ? (
-              <EmptyChart label="No payments collected." />
+        {/* Modality Delivery Split */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
+          <div>
+            <h2 className="text-sm font-black text-slate-900 mb-1 flex items-center gap-2">
+              <i className="fas fa-video text-aubergine-600"></i> Consultation Modality
+            </h2>
+            <p className="text-xs text-slate-500 mb-4">WebRTC Video Consults vs In-Clinic Visits.</p>
+
+            {consultTypeData.length === 0 ? (
+              <DashboardEmptyState
+                icon="fa-video"
+                title="No Modalities Logged"
+                description="Video vs clinic breakdown will graph as appointments occur."
+              />
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={paymentData} cx="50%" cy="50%" innerRadius={70} outerRadius={95} paddingAngle={4} dataKey="value" stroke="none" cornerRadius={8}>
-                    {paymentData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                  </Pie>
-                  <Tooltip cursor={false} formatter={(value) => `₹${value.toLocaleString('en-IN')}`} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} itemStyle={{ fontWeight: 'bold' }} />
-                  <Legend iconType="circle" layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '11px', fontWeight: '600', color: '#64748b' }} />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={consultTypeData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={4} dataKey="value" stroke="none">
+                      {consultTypeData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px' }} />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </div>
         </div>
       </div>
 
+      {/* Row 4: Age Demographics & Weekly Appointment Load */}
       <div className="grid lg:grid-cols-2 gap-5">
-        {/* 5. Age Demographics (Area Chart) */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col relative">
-          <h2 className="text-sm font-black text-slate-800 mb-2 flex items-center gap-2"><i className="fas fa-users-viewfinder text-aubergine-600"></i> Patient Age Demographics</h2>
-          <p className="text-xs text-slate-500 mb-6">Distribution of your active patient base by age group.</p>
-          <div className="flex-1 min-h-[250px] relative">
-            {ageDemographics.every(d => d.count === 0) ? (
-              <EmptyChart label="No patient data." />
-            ) : (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <h2 className="text-sm font-black text-slate-900 mb-1 flex items-center gap-2">
+            <i className="fas fa-users text-aubergine-600"></i> Patient Age Demographics
+          </h2>
+          <p className="text-xs text-slate-500 mb-4">Distribution of patient roster by age bracket.</p>
+          {ageDemographics.length === 0 ? (
+            <DashboardEmptyState
+              icon="fa-users"
+              title="No Demographic Data"
+              description="Patient ages will aggregate here from patient records."
+            />
+          ) : (
+            <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={ageDemographics} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorAge" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#14b8a6" stopOpacity={0}/>
+                    <linearGradient id="colorAgeDemographics" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.35}/>
+                      <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
-                  <XAxis dataKey="age" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} allowDecimals={false} />
-                  <Tooltip cursor={{ stroke: '#99f6e4', strokeWidth: 2, strokeDasharray: '3 3' }} contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#14b8a6', fontWeight: 'bold' }} />
-                  <Area type="monotone" dataKey="count" name="Patients" stroke="#14b8a6" strokeWidth={4} fillOpacity={1} fill="url(#colorAge)" activeDot={{ r: 6, strokeWidth: 0, fill: '#14b8a6' }} />
+                  <XAxis dataKey="age" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px' }} />
+                  <Area type="monotone" dataKey="count" name="Patients" stroke="#10B981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorAgeDemographics)" />
                 </AreaChart>
               </ResponsiveContainer>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* 6. Weekly Appointment Load (Bar Chart) */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col relative">
-          <h2 className="text-sm font-black text-slate-800 mb-2 flex items-center gap-2"><i className="fas fa-calendar-week text-amber-500"></i> Weekly Appointment Load</h2>
-          <p className="text-xs text-slate-500 mb-6">Your busiest days of the week based on scheduled visits.</p>
-          <div className="flex-1 min-h-[250px] relative">
-            {weeklyLoad.length === 0 || weeklyLoad.every(d => d.consultations === 0) ? (
-              <EmptyChart label="No schedules recorded." />
-            ) : (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <h2 className="text-sm font-black text-slate-900 mb-1 flex items-center gap-2">
+            <i className="fas fa-calendar-week text-amber-500"></i> Weekly Consultation Load
+          </h2>
+          <p className="text-xs text-slate-500 mb-4">Distribution of appointments across days of the week.</p>
+          {weeklyLoad.length === 0 ? (
+            <DashboardEmptyState
+              icon="fa-calendar-week"
+              title="No Weekly Consultations"
+              description="Appointments distribution across the week will display here."
+            />
+          ) : (
+            <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={weeklyLoad} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorBar" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#8B5CF6" />
-                      <stop offset="100%" stopColor="#D946EF" />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid vertical={false} stroke="#f8fafc" strokeDasharray="3 3" />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8', fontWeight: 500 }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} allowDecimals={false} />
-                  <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} itemStyle={{ color: '#8B5CF6', fontWeight: 'bold' }} />
-                  <Bar dataKey="consultations" name="Consultations" fill="url(#colorBar)" radius={[6, 6, 6, 6]} maxBarSize={32} background={{ fill: '#f1f5f9', radius: [6,6,6,6] }} />
+                  <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
+                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px' }} />
+                  <Bar dataKey="consultations" name="Consultations" fill="#6B46C1" radius={[4, 4, 0, 0]} maxBarSize={28} />
                 </BarChart>
               </ResponsiveContainer>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
-      </>
-      )}
     </div>
   );
 }

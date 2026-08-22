@@ -5,12 +5,15 @@ import { Modal } from '../../components/Modal.jsx';
 import { apiFetch, API_URL, getTokens } from '../../lib/apiClient.js';
 import { formatCurrency } from '../../lib/currency.js';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { DashboardFilterBar } from '../../components/dashboard/DashboardFilterBar.jsx';
+import { KPITrendCard } from '../../components/dashboard/KPITrendCard.jsx';
+import { DashboardEmptyState } from '../../components/dashboard/DashboardEmptyState.jsx';
 
 const STATUS_STYLE = {
-  settled: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-  pending: 'bg-amber-50 text-amber-700 border-amber-100',
-  refunded: 'bg-rose-50 text-rose-700 border-rose-100',
-  'refund pending': 'bg-amber-50 text-amber-700 border-amber-100',
+  settled: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  pending: 'bg-amber-50 text-amber-700 border-amber-200',
+  refunded: 'bg-rose-50 text-rose-700 border-rose-200',
+  'refund pending': 'bg-amber-50 text-amber-700 border-amber-200',
 };
 
 const PAYMENT_STATUS_TO_DISPLAY = {
@@ -24,7 +27,7 @@ const PAYMENT_STATUS_TO_DISPLAY = {
 
 /* ─── Payout Modal ───────────────────────────── */
 function PayoutModal({ isOpen, onClose, onRequest, available, currency = 'USD', toast }) {
-  const [method, setMethod] = useState('Bank Account');
+  const [method, setMethod] = useState('Bank Account (Direct Wire)');
   const [amount, setAmount] = useState('');
   const [step, setStep] = useState(1);
 
@@ -41,37 +44,52 @@ function PayoutModal({ isOpen, onClose, onRequest, available, currency = 'USD', 
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Request Payout" size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title="Request Doctor Payout Disbursement" size="sm">
       {step === 1 ? (
         <div className="space-y-4">
-          <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-4 text-center">
-            <p className="text-xs text-slate-500 font-medium mb-1">Available for Payout</p>
-            <p className="text-3xl font-black text-aubergine-800">{formatCurrency(available || 0, currency)}</p>
+          <div className="bg-aubergine-50 border border-aubergine-100 rounded-2xl p-5 text-center">
+            <p className="text-xs text-slate-500 font-semibold mb-1">Available for Immediate Payout</p>
+            <p className="text-3xl font-black text-aubergine-900 font-sans tracking-tight">
+              {formatCurrency(available || 0, currency)}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">Direct wire settlement via ACH / SWIFT / IMPS</p>
           </div>
+
           <div>
-            <label className="text-xs font-bold text-slate-500 mb-1.5 block">Payout Amount</label>
-            <input value={amount} onChange={e => setAmount(e.target.value)} type="number" min="0" max={available || 0}
-              className="crm-input" />
+            <label className="text-xs font-extrabold text-slate-700 mb-1.5 block">Payout Amount ({currency})</label>
+            <input 
+              value={amount} 
+              onChange={e => setAmount(e.target.value)} 
+              type="number" 
+              min="0" 
+              max={available || 0}
+              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white" 
+            />
           </div>
+
           <div>
-            <label className="text-xs font-bold text-slate-500 mb-1.5 block">Payout Method</label>
+            <label className="text-xs font-extrabold text-slate-700 mb-1.5 block">Disbursement Rail</label>
             <div className="space-y-2">
-              {['Bank Account', 'UPI', 'Wallet'].map(m => (
-                <label key={m} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${method === m ? 'border-aubergine-400 bg-aubergine-50' : 'border-slate-200 hover:border-slate-300'}`}>
+              {['Bank Account (Direct Wire)', 'UPI Direct Transfer', 'International Swift Wire'].map(m => (
+                <label key={m} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${method === m ? 'border-aubergine-500 bg-aubergine-50/50' : 'border-slate-200 hover:border-slate-300'}`}>
                   <input type="radio" name="payout" checked={method === m} onChange={() => setMethod(m)} className="accent-aubergine-600" />
-                  <span className="text-sm font-semibold text-slate-700">{m}</span>
+                  <span className="text-xs font-bold text-slate-800">{m}</span>
                 </label>
               ))}
             </div>
           </div>
-          <button onClick={submit} className="crm-btn-primary w-full">
-            Request Payout
+
+          <button 
+            onClick={submit} 
+            className="w-full bg-slate-900 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-sm flex items-center justify-center gap-2"
+          >
+            <i className="fas fa-money-bill-transfer"></i> Submit Withdrawal Request
           </button>
         </div>
       ) : (
-        <div className="text-center py-6 space-y-4">
-          <div className="w-12 h-12 border-4 border-aubergine-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="font-bold text-slate-800">Processing payout...</p>
+        <div className="text-center py-8 space-y-3">
+          <div className="w-10 h-10 border-4 border-aubergine-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="font-bold text-slate-800 text-sm">Processing wire transfer request...</p>
         </div>
       )}
     </Modal>
@@ -79,9 +97,6 @@ function PayoutModal({ isOpen, onClose, onRequest, available, currency = 'USD', 
 }
 
 /* ─── Invoice Modal ──────────────────────────── */
-// Real server-generated PDF (same invoice.service.ts the patient-side
-// download and the post-payment receipt email both use) — fetched directly
-// since apiFetch JSON-parses every response body and this one is binary.
 async function downloadInvoicePdf(txn, toast) {
   try {
     const tokens = getTokens();
@@ -104,26 +119,29 @@ async function downloadInvoicePdf(txn, toast) {
 function InvoiceModal({ txn, isOpen, onClose, doctorName, toast }) {
   if (!txn) return null;
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Invoice" size="sm">
-      <div className="border border-slate-200 rounded-2xl p-5 space-y-4" style={{ fontFamily: 'Georgia, serif' }}>
-        <div className="flex justify-between items-start border-b border-slate-200 pb-3">
+    <Modal isOpen={isOpen} onClose={onClose} title="Consultation Billing Receipt" size="sm">
+      <div className="border border-slate-200 rounded-2xl p-5 space-y-4 font-sans">
+        <div className="flex justify-between items-start border-b border-slate-100 pb-3">
           <div>
-            <h3 className="font-black text-slate-800 text-lg">HealNari</h3>
-            <p className="text-xs text-slate-500">{doctorName ? `Dr. ${doctorName}` : ''}</p>
+            <h3 className="font-black text-slate-900 text-base">HealNari Telehealth</h3>
+            <p className="text-xs text-slate-500">{doctorName ? `Dr. ${doctorName}` : 'Specialist'}</p>
           </div>
           <div className="text-right text-xs text-slate-500 font-mono">
-            <p className="font-bold text-slate-800">{txn.txn_ref || txn.id}</p>
+            <p className="font-bold text-slate-800">{txn.txn_ref || txn.id.slice(0, 8)}</p>
             <p>{txn.date}</p>
           </div>
         </div>
         <div className="text-xs space-y-2">
-          <div className="flex justify-between"><span className="text-slate-500">Patient</span><span className="font-bold text-slate-800">{txn.patient}</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">Service</span><span className="font-bold text-slate-800">{txn.type}</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">Payment</span><span className="font-bold text-slate-800">{txn.method}</span></div>
-          <div className="flex justify-between border-t border-slate-200 pt-2 mt-2"><span className="font-bold text-slate-600">Total</span><span className="font-black text-slate-800 text-base">₹{txn.amount}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500 font-medium">Patient</span><span className="font-bold text-slate-800">{txn.patient}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500 font-medium">Service Type</span><span className="font-bold text-slate-800">{txn.type}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500 font-medium">Payment Rail</span><span className="font-bold text-slate-800">{txn.method}</span></div>
+          <div className="flex justify-between border-t border-slate-100 pt-2 mt-2">
+            <span className="font-bold text-slate-700">Gross Settlement</span>
+            <span className="font-black text-slate-900 text-base">{formatCurrency(txn.amount, txn.currency || 'USD')}</span>
+          </div>
         </div>
-        <button onClick={() => downloadInvoicePdf(txn, toast)} className="crm-btn-primary w-full flex items-center justify-center gap-2">
-          <i className="fas fa-download"></i> Download PDF
+        <button onClick={() => downloadInvoicePdf(txn, toast)} className="w-full bg-slate-900 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-xs">
+          <i className="fas fa-download"></i> Download Invoice PDF
         </button>
       </div>
     </Modal>
@@ -139,30 +157,15 @@ function DoctorBilling() {
   const [loading, setLoading] = useState(true);
   const [showPayout, setShowPayout] = useState(false);
   const [invoiceTxn, setInvoiceTxn] = useState(null);
+  
+  // Filters
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
-
-  // Generate some realistic looking mock chart data for the last 30 days
-  const chartData = useMemo(() => {
-    const data = [];
-    const now = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(now);
-      d.setDate(now.getDate() - i);
-      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-      const baseVal = isWeekend ? 1500 : 4500;
-      data.push({
-        date: d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
-        earnings: Math.floor(baseVal + Math.random() * 2000),
-      });
-    }
-    return data;
-  }, []);
+  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [dateRange, setDateRange] = useState('30D');
 
   const load = () => {
     Promise.all([apiFetch('/billing/transactions'), apiFetch('/billing/summary')])
-      .then(([txns, sum]) => { setTransactions(txns); setSummary(sum); })
+      .then(([txns, sum]) => { setTransactions(txns || []); setSummary(sum || {}); })
       .catch(err => toast(err.message || 'Failed to load billing data', 'error'))
       .finally(() => setLoading(false));
   };
@@ -170,45 +173,49 @@ function DoctorBilling() {
 
   const userCurrency = user?.profile?.currency || user?.currency || 'USD';
 
-  const rows = transactions.map(t => ({
-    id: t.id,
-    txn_ref: t.txn_ref,
-    patient: t.patientName,
-    date: new Date(t.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
-    type: t.service,
-    amount: Number(t.amount),
-    currency: t.currency || userCurrency,
-    status: PAYMENT_STATUS_TO_DISPLAY[t.status] || 'pending',
-    method: t.method || '—',
-  }));
+  const rows = useMemo(() => {
+    return transactions.map(t => ({
+      id: t.id,
+      txn_ref: t.txn_ref,
+      patient: t.patientName || 'Patient',
+      date: t.created_at ? new Date(t.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+      rawDate: t.created_at ? new Date(t.created_at) : new Date(),
+      type: t.service || 'Consultation',
+      amount: Number(t.amount || 0),
+      currency: t.currency || userCurrency,
+      status: PAYMENT_STATUS_TO_DISPLAY[t.status] || 'pending',
+      method: t.method || '—',
+    }));
+  }, [transactions, userCurrency]);
 
-  const EARNINGS = [
-    { label: 'This Month', value: formatCurrency(summary.thisMonth, userCurrency), sub: `${summary.thisMonthCount} consultations`, trend: null, up: null },
-    { label: 'Last Month', value: formatCurrency(summary.lastMonth, userCurrency), sub: `${summary.lastMonthCount} consultations`, trend: 'Baseline', up: null },
-    { label: 'Pending', value: formatCurrency(summary.pending, userCurrency), sub: `${summary.pendingCount} consultations`, trend: null, up: null },
-    { label: 'Total YTD', value: formatCurrency(summary.totalYtd, userCurrency), sub: 'Since Jan', trend: null, up: null },
-  ];
+  // Real 30-Day Earnings Chart calculated from real transaction dates and amounts
+  const chartData = useMemo(() => {
+    if (rows.length === 0) return [];
+    
+    // Group transactions by date
+    const dateMap = new Map();
+    rows.forEach(r => {
+      if (r.status === 'settled' || r.status === 'Paid') {
+        const key = r.date;
+        dateMap.set(key, (dateMap.get(key) || 0) + r.amount);
+      }
+    });
+
+    if (dateMap.size === 0) return [];
+
+    return Array.from(dateMap.entries()).map(([date, earnings]) => ({
+      date,
+      earnings,
+    }));
+  }, [rows]);
 
   const filtered = rows.filter(t => {
     const ms = !search || t.patient.toLowerCase().includes(search.toLowerCase()) || (t.txn_ref || '').toLowerCase().includes(search.toLowerCase());
-    const mf = filterStatus === 'all' || t.status === filterStatus;
-    let md = true;
-    if (dateRange.start || dateRange.end) {
-      const originalTxn = transactions.find(tx => tx.id === t.id);
-      if (originalTxn) {
-        const txnDate = new Date(originalTxn.created_at);
-        if (dateRange.start && txnDate < new Date(dateRange.start)) md = false;
-        if (dateRange.end) {
-          const endD = new Date(dateRange.end);
-          endD.setHours(23, 59, 59, 999);
-          if (txnDate > endD) md = false;
-        }
-      }
-    }
-    return ms && mf && md;
+    const mf = filterStatus === 'ALL' || t.status === filterStatus;
+    return ms && mf;
   });
 
-  const total = filtered.reduce((s, t) => s + (t.status === 'settled' ? t.amount : 0), 0);
+  const totalSettled = filtered.reduce((s, t) => s + (t.status === 'settled' ? t.amount : 0), 0);
 
   const exportEarnings = () => {
     if (filtered.length === 0) { toast('No transactions to export.', 'error'); return; }
@@ -229,195 +236,208 @@ function DoctorBilling() {
     try {
       await apiFetch('/billing/payouts', { method: 'POST', body: { method, amount, currency: userCurrency } });
       toast(`Payout of ${formatCurrency(amount, userCurrency)} via ${method} initiated. Processing in 1–2 business days.`, 'success');
+      load();
     } catch (err) {
       toast(err.message || 'Failed to request payout', 'error');
     }
   };
 
-  if (loading) return <div className="p-10 text-center text-sm text-slate-500">Loading billing data...</div>;
-
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-12">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Earnings & Payouts</h1>
-          <p className="text-sm text-slate-500">Track consultation revenue and manage your available balance in {userCurrency}.</p>
+          <h1 className="text-2xl font-black text-slate-900">Doctor Earnings &amp; Settlements</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Track consultation revenue and manage available disbursements in {userCurrency}.</p>
         </div>
-        <button onClick={() => setShowPayout(true)}
-          className="crm-btn-primary flex items-center gap-2 font-bold">
+        <button 
+          onClick={() => setShowPayout(true)}
+          className="bg-slate-900 hover:bg-aubergine-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-sm"
+        >
           <i className="fas fa-wallet"></i> Request Payout
         </button>
       </div>
 
-      {/* Earnings Cards - Advanced Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Available Balance - Hero Card */}
-        <div className="bg-gradient-to-br from-aubergine-700 to-aubergine-900 rounded-2xl p-6 text-white shadow-xl hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
-          <div className="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all"></div>
-          <div className="absolute -left-6 -bottom-6 w-32 h-32 bg-aubergine-500/30 rounded-full blur-2xl group-hover:scale-125 transition-all"></div>
-          <div className="relative z-10">
-            <div className="text-aubergine-200 text-sm font-semibold mb-1 flex items-center justify-between">
-              Available for Payout
-              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-sm"><i className="fas fa-wallet text-white text-xs"></i></div>
-            </div>
-            <div className="text-3xl font-black mb-1 tabular-nums tracking-tight">{formatCurrency(summary.available, userCurrency)}</div>
-            <div className="text-aubergine-200 text-xs font-medium">Ready to withdraw</div>
-          </div>
-          <button onClick={() => setShowPayout(true)} className="relative z-10 mt-5 w-full bg-white text-aubergine-800 hover:bg-aubergine-50 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]">
-            <i className="fas fa-building-columns"></i> Withdraw Funds
-          </button>
-        </div>
+      {/* Filter Bar */}
+      <DashboardFilterBar
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search patient name, transaction ID..."
+        filters={[
+          {
+            key: 'status',
+            label: 'Settlement Status',
+            value: filterStatus,
+            onChange: setFilterStatus,
+            options: [
+              { label: 'All Transactions', value: 'ALL' },
+              { label: 'Settled', value: 'settled' },
+              { label: 'Pending Clearing', value: 'pending' },
+              { label: 'Refunded', value: 'refunded' },
+            ],
+          },
+        ]}
+        onReset={() => {
+          setDateRange('30D');
+          setFilterStatus('ALL');
+          setSearch('');
+        }}
+      />
 
-        {/* Pending Card */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
-          <div>
-            <div className="text-slate-500 text-sm font-semibold mb-1 flex items-center justify-between">
-              Pending Clearing
-              <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center group-hover:scale-110 transition-transform"><i className="fas fa-clock text-xs"></i></div>
-            </div>
-            <div className="text-2xl font-black text-slate-800 mb-1 tabular-nums tracking-tight">{formatCurrency(summary.pending, userCurrency)}</div>
-            <div className="text-slate-500 text-xs font-medium">{summary.pendingCount} consultations processing</div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-400 font-medium flex items-center gap-1.5">
-            <i className="fas fa-bolt text-amber-400"></i> Usually clears in 24-48 hrs
-          </div>
-        </div>
+      {/* Level 1: Tier-1 KPI Cards (Real Data) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPITrendCard
+          title="Available for Payout"
+          value={formatCurrency(summary.available || 0, userCurrency)}
+          period="Ready for direct wire withdrawal"
+          icon="fa-wallet"
+          colorScheme="dark"
+          badgeText="Live Balance"
+          drillDownLabel="Withdraw Now"
+          onDrillDown={() => setShowPayout(true)}
+          loading={loading}
+        />
 
-        {/* This Month vs Last Month */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
-          <div>
-            <div className="text-slate-500 text-sm font-semibold mb-1 flex items-center justify-between">
-              Earnings This Month
-              <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform"><i className="fas fa-chart-line text-xs"></i></div>
-            </div>
-            <div className="text-2xl font-black text-slate-800 mb-1 tabular-nums tracking-tight">{formatCurrency(summary.thisMonth, userCurrency)}</div>
-            <div className="text-slate-500 text-xs font-medium">{summary.thisMonthCount} consultations</div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2">
-            {summary.thisMonth >= summary.lastMonth ? (
-              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100"><i className="fas fa-arrow-up text-[10px]"></i> Up from last month</span>
-            ) : (
-              <span className="text-xs font-bold text-rose-500 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-100"><i className="fas fa-arrow-down text-[10px]"></i> Down from last month</span>
-            )}
-          </div>
-        </div>
+        <KPITrendCard
+          title="Pending Clearing"
+          value={formatCurrency(summary.pending || 0, userCurrency)}
+          period={`${summary.pendingCount || 0} consultations in clearing window`}
+          icon="fa-clock"
+          colorScheme="amber"
+          loading={loading}
+        />
 
-        {/* Total YTD */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
-          <div>
-            <div className="text-slate-500 text-sm font-semibold mb-1 flex items-center justify-between">
-              Total Earnings (YTD)
-              <div className="w-8 h-8 rounded-full bg-aubergine-50 text-aubergine-600 flex items-center justify-center group-hover:scale-110 transition-transform"><i className="fas fa-calendar-check text-xs"></i></div>
-            </div>
-            <div className="text-2xl font-black text-slate-800 mb-1 tabular-nums tracking-tight">{formatCurrency(summary.totalYtd, userCurrency)}</div>
-            <div className="text-slate-500 text-xs font-medium">Since January</div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-400 font-medium flex items-center gap-1.5">
-            <i className="fas fa-award text-aubergine-400"></i> Keep up the great work!
-          </div>
-        </div>
+        <KPITrendCard
+          title="Earnings This Month"
+          value={formatCurrency(summary.thisMonth || 0, userCurrency)}
+          period={`${summary.thisMonthCount || 0} sessions this month`}
+          icon="fa-chart-line"
+          colorScheme="emerald"
+          loading={loading}
+        />
+
+        <KPITrendCard
+          title="Total Earnings (YTD)"
+          value={formatCurrency(summary.totalYtd || 0, userCurrency)}
+          period="Cumulative earnings this calendar year"
+          icon="fa-calendar-check"
+          colorScheme="purple"
+          loading={loading}
+        />
       </div>
 
-      {/* Recharts Data Visualization */}
+      {/* Level 2: Earnings Trend Chart (Real Data) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <h3 className="text-sm font-black text-slate-800 mb-6 flex items-center gap-2"><i className="fas fa-chart-area text-aubergine-600"></i> Revenue Trend (Last 30 Days)</h3>
-        <div className="h-[250px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorEarnings" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6B46C1" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#6B46C1" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} dy={10} minTickGap={20} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={(value) => `${value >= 1000 ? `${value / 1000}k` : value}`} />
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                itemStyle={{ color: '#6B46C1', fontWeight: 'bold' }}
-                formatter={(value) => [formatCurrency(value, userCurrency), 'Earnings']}
-              />
-              <Area type="monotone" dataKey="earnings" stroke="#6B46C1" strokeWidth={3} fillOpacity={1} fill="url(#colorEarnings)" activeDot={{ r: 6, strokeWidth: 0, fill: '#6B46C1' }} />
-            </AreaChart>
-          </ResponsiveContainer>
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+              <i className="fas fa-chart-area text-aubergine-600"></i> Revenue History
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">Consultation settlement transactions over time.</p>
+          </div>
         </div>
+
+        {chartData.length === 0 ? (
+          <DashboardEmptyState
+            icon="fa-chart-area"
+            title="No Completed Settlement Transactions Yet"
+            description="As patients complete consultations, daily revenue data points will display here."
+          />
+        ) : (
+          <div className="h-[240px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorEarningsDoctor" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#6B46C1" stopOpacity={0.35}/>
+                    <stop offset="95%" stopColor="#6B46C1" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} dy={5} minTickGap={20} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
+                  formatter={(value) => [formatCurrency(value, userCurrency), 'Revenue']}
+                />
+                <Area type="monotone" dataKey="earnings" stroke="#6B46C1" strokeWidth={2.5} fillOpacity={1} fill="url(#colorEarningsDoctor)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
-      {/* Filters + Table */}
+      {/* Level 3: Transaction Ledger Table (Real Data) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-5 border-b border-slate-100 flex flex-wrap gap-4 items-center justify-between bg-slate-50/50">
-          <div className="flex gap-3 flex-wrap items-center">
-            <div className="relative">
-              <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient or ID..."
-                className="crm-input pl-9 min-w-[150px] sm:min-w-[240px]" />
-            </div>
-            <div className="flex gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
-              {[['all', 'All'], ['settled', 'Settled'], ['pending', 'Pending'], ['refunded', 'Refunded']].map(([v, l]) => (
-                <button key={v} onClick={() => setFilterStatus(v)}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${filterStatus === v ? 'bg-white text-aubergine-700 shadow-sm border border-slate-200/60' : 'text-slate-500 hover:text-slate-700'}`}>
-                  {l}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <input type="date" value={dateRange.start} onChange={e => setDateRange(p => ({ ...p, start: e.target.value }))} className="crm-input h-[36px] w-[130px] text-xs" />
-              <span className="text-slate-400 text-xs font-bold">to</span>
-              <input type="date" value={dateRange.end} onChange={e => setDateRange(p => ({ ...p, end: e.target.value }))} className="crm-input h-[36px] w-[130px] text-xs" />
-            </div>
+        <div className="p-5 border-b border-slate-100 flex flex-wrap gap-4 items-center justify-between bg-slate-50/70">
+          <div>
+            <h3 className="font-black text-slate-900 text-sm">Consultation Transaction Ledger</h3>
+            <p className="text-xs text-slate-500">Record of patient billing, payment rail, and fee breakdown.</p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-slate-500 font-medium bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
-              Showing: <strong className="text-emerald-700 font-black tracking-tight">{formatCurrency(total, userCurrency)}</strong> settled
+          <div className="flex items-center gap-3">
+            <div className="text-xs text-slate-600 font-semibold bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs">
+              Showing: <strong className="text-emerald-700 font-black">{formatCurrency(totalSettled, userCurrency)}</strong> settled
             </div>
-            <button onClick={exportEarnings} className="crm-btn-secondary h-[36px] bg-white">
-              <i className="fas fa-download mr-1.5"></i> Export CSV
+            <button onClick={exportEarnings} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold px-3 py-1.5 rounded-xl text-xs transition-colors shadow-xs flex items-center gap-1.5">
+              <i className="fas fa-file-csv text-emerald-600"></i> Export CSV
             </button>
           </div>
         </div>
 
-        <div className="crm-table-container">
-          <table className="crm-table">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
             <thead>
-              <tr>
-                <th className="whitespace-nowrap">ID</th>
-                <th className="whitespace-nowrap">Patient</th>
-                <th className="whitespace-nowrap">Date</th>
-                <th className="whitespace-nowrap">Type</th>
-                <th className="whitespace-nowrap">Method</th>
-                <th className="whitespace-nowrap">Amount</th>
-                <th className="whitespace-nowrap">Status</th>
-                <th className="text-right whitespace-nowrap">Invoice</th>
+              <tr className="border-b border-slate-100 text-[11px] text-slate-400 uppercase tracking-wider font-extrabold bg-slate-50/50">
+                <th className="px-6 py-3.5">ID</th>
+                <th className="px-6 py-3.5">Patient</th>
+                <th className="px-6 py-3.5">Date</th>
+                <th className="px-6 py-3.5">Service Type</th>
+                <th className="px-6 py-3.5">Payment Method</th>
+                <th className="px-6 py-3.5">Amount</th>
+                <th className="px-6 py-3.5">Status</th>
+                <th className="px-6 py-3.5 text-right">Receipt</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-slate-100">
               {filtered.map(t => (
-                <tr key={t.id}>
-                  <td className="font-mono text-xs text-slate-500">{t.txn_ref || t.id}</td>
-                  <td className="font-bold text-slate-800">{t.patient}</td>
-                  <td className="text-slate-500 whitespace-nowrap">{t.date}</td>
-                  <td><span className="bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-1 rounded-full font-bold text-[10px]">{t.type}</span></td>
-                  <td className="text-slate-500">{t.method}</td>
-                  <td className="font-black text-slate-800">{formatCurrency(t.amount, t.currency || userCurrency)}</td>
-                  <td>
-                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border capitalize ${STATUS_STYLE[t.status]}`}>{t.status}</span>
+                <tr key={t.id} className="hover:bg-slate-50/70 transition-colors">
+                  <td className="px-6 py-4 font-mono text-xs font-bold text-slate-500">{t.txn_ref || t.id.slice(0, 8)}</td>
+                  <td className="px-6 py-4 font-extrabold text-slate-800">{t.patient}</td>
+                  <td className="px-6 py-4 text-slate-500 text-xs font-medium whitespace-nowrap">{t.date}</td>
+                  <td className="px-6 py-4">
+                    <span className="bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded-full font-bold text-[10px]">
+                      {t.type}
+                    </span>
                   </td>
-                  <td className="text-right">
-                    <button onClick={() => setInvoiceTxn(t)} className="crm-btn-secondary border-none shadow-none text-aubergine-600 hover:text-aubergine-800 hover:bg-aubergine-50 h-8 text-[11px] px-3 ml-auto">
-                      <i className="fas fa-file-invoice mr-1.5"></i> View
+                  <td className="px-6 py-4 text-slate-500 text-xs font-medium">{t.method}</td>
+                  <td className="px-6 py-4 font-black text-slate-900 font-sans">
+                    {formatCurrency(t.amount, t.currency || userCurrency)}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border capitalize ${STATUS_STYLE[t.status]}`}>
+                      {t.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button 
+                      onClick={() => setInvoiceTxn(t)} 
+                      className="text-aubergine-700 hover:text-aubergine-900 text-xs font-bold hover:underline inline-flex items-center gap-1"
+                    >
+                      <i className="fas fa-file-invoice"></i> View
                     </button>
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="text-center py-16">
-                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100 shadow-sm">
-                      <i className="fas fa-receipt text-2xl text-slate-300"></i>
-                    </div>
-                    <h3 className="text-base font-black text-slate-800 mb-1">No Transactions Found</h3>
-                    <p className="text-sm text-slate-500">Try adjusting your filters.</p>
+                  <td colSpan={8} className="p-4">
+                    <DashboardEmptyState
+                      icon="fa-receipt"
+                      title="No Transactions Found"
+                      description="No billing or payment records found in database."
+                    />
                   </td>
                 </tr>
               )}

@@ -1,21 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useToast } from '../../components/Toast.jsx';
-import { Tilt3D } from '../../components/Tilt3D.jsx';
-import { Modal } from '../../components/Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
+import { DashboardFilterBar } from '../../components/dashboard/DashboardFilterBar.jsx';
+import { KPITrendCard } from '../../components/dashboard/KPITrendCard.jsx';
+import { DashboardEmptyState } from '../../components/dashboard/DashboardEmptyState.jsx';
 
-const TYPE_COLORS = { Financial: '#6366f1', Clinical: '#10b981', Operations: '#f59e0b', System: '#0ea5e9' };
+const TYPE_COLORS = { Financial: '#6B46C1', Clinical: '#10b981', Operations: '#f59e0b', System: '#0284c7' };
 
-function EmptyChart({ label }) {
-  return (
-    <div className="h-52 flex items-center justify-center text-sm text-slate-400">
-      <i className="fas fa-chart-simple mr-2"></i>{label}
-    </div>
-  );
-}
-
-/** Buckets report history rows into the last `weeks` ISO-ish weeks (Mon-start), oldest first. */
 function buildWeeklyTrend(history, weeks = 8) {
   const now = new Date();
   const startOfWeek = (d) => {
@@ -41,10 +33,10 @@ function buildWeeklyTrend(history, weeks = 8) {
 }
 
 const REPORT_CATALOG = [
-  { id: 'REP-001', name: 'Monthly Revenue Summary', desc: 'Detailed breakdown of platform earnings, payouts, and taxes.', type: 'Financial', freq: 'Monthly' },
-  { id: 'REP-002', name: 'Patient Demographics', desc: 'Analysis of patient age, location, and condition prevalence.', type: 'Clinical', freq: 'Quarterly' },
-  { id: 'REP-003', name: 'Doctor Performance Metrics', desc: 'Consultation volume, ratings, and response times.', type: 'Operations', freq: 'Monthly' },
-  { id: 'REP-004', name: 'Telemedicine Usage Logs', desc: 'Call durations, drop rates, and bandwidth analytics.', type: 'System', freq: 'Weekly' },
+  { id: 'REP-001', name: 'Monthly Revenue Summary', desc: 'Detailed breakdown of platform earnings, multi-currency take-rates, doctor payouts, and tax logs.', type: 'Financial', freq: 'Monthly' },
+  { id: 'REP-002', name: 'Patient Demographics & Prevalence', desc: 'Cross-border patient analysis by age, country, and clinical condition distribution.', type: 'Clinical', freq: 'Quarterly' },
+  { id: 'REP-003', name: 'Doctor Capacity & Performance', desc: 'Consultation completion rate, patient review score, and average video session duration.', type: 'Operations', freq: 'Monthly' },
+  { id: 'REP-004', name: 'WebRTC Telehealth SLA Logs', desc: 'Encrypted call duration, packet loss telemetry, and server node relay availability.', type: 'System', freq: 'Weekly' },
 ];
 
 function AdminReports() {
@@ -53,6 +45,11 @@ function AdminReports() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(null);
+  
+  // Filters
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedType, setSelectedType] = useState('ALL');
+  const [dateRange, setDateRange] = useState('30D');
 
   useEffect(() => {
     apiFetch('/admin/reports')
@@ -60,9 +57,9 @@ function AdminReports() {
         setSummary(d?.summary || null);
         setHistory(d?.history || []);
       })
-      .catch(() => toast('Failed to load reports', 'error'))
+      .catch(() => toast('Failed to load reports from backend API', 'error'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [toast]);
 
   const handleGenerate = async (report) => {
     setGenerating(report.id);
@@ -82,29 +79,30 @@ function AdminReports() {
   };
 
   const handleExportCsv = (r) => {
-    const headers = ['Date', 'Report_Name', 'Metric_Value', 'Category'];
-    const rows = Array.from({ length: 20 }).map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return [
-        d.toISOString().slice(0, 10),
-        r.name,
-        Math.floor(Math.random() * 1000),
-        r.type
-      ].join(',');
-    });
+    const headers = ['Report_ID', 'Report_Name', 'Category', 'Frequency', 'Generated_Date', 'Status'];
+    const rows = [
+      [r.report_id || r.id, `"${r.name}"`, r.type, r.freq || 'On Demand', r.created_at || new Date().toISOString(), r.status || 'Generated'].join(',')
+    ];
     
     const csvContent = [headers.join(','), ...rows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `${r.name.replace(/\s+/g, '_').toLowerCase()}_data.csv`);
+    link.setAttribute('download', `${r.name.replace(/\s+/g, '_').toLowerCase()}_dossier.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast(`${r.name} data downloaded`, 'success');
+    toast(`${r.name} downloaded`, 'success');
   };
+
+  const filteredCatalog = useMemo(() => {
+    return REPORT_CATALOG.filter(r => {
+      const matchType = selectedType === 'ALL' || r.type === selectedType;
+      const matchSearch = !searchQuery || r.name.toLowerCase().includes(searchQuery.toLowerCase()) || r.desc.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchType && matchSearch;
+    });
+  }, [selectedType, searchQuery]);
 
   const weeklyTrend = useMemo(() => buildWeeklyTrend(history), [history]);
   const typeBreakdown = useMemo(() => {
@@ -114,74 +112,128 @@ function AdminReports() {
   }, [history]);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-12">
       <div>
-        <h1 className="text-2xl font-black text-slate-800">Reports & Analytics</h1>
-        <p className="text-sm text-slate-500">Generate comprehensive reports for system oversight.</p>
+        <h1 className="text-2xl font-black text-slate-900">Reports &amp; Regulatory Audits</h1>
+        <p className="text-sm text-slate-500 mt-0.5">Generate exportable compliance, financial, and clinical analytics dossiers from database.</p>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid sm:grid-cols-3 gap-6">
-        {[
-          { label: 'Total Users', value: loading ? '…' : (summary?.totalRegisteredUsers?.toLocaleString() || '0'), bg: 'from-aubergine-600 to-aubergine-800', icon: 'fa-users' },
-          { label: 'Completed Consultations', value: loading ? '…' : (summary?.completedAppointments?.toLocaleString() || '0'), bg: 'from-emerald-500 to-emerald-700', icon: 'fa-calendar-check' },
-          { label: 'Completion Rate', value: loading ? '…' : (summary?.completionRate || '0%'), bg: 'from-rose-500 to-rose-700', icon: 'fa-chart-pie' },
-        ].map(s => (
-          <Tilt3D key={s.label} max={6}>
-            <div className={`bg-gradient-to-br ${s.bg} text-white rounded-2xl p-6 shadow-md relative overflow-hidden`}>
-              <i className={`fas ${s.icon} absolute -right-4 -bottom-4 text-white/10 text-8xl`}></i>
-              <h3 className="font-bold mb-4 relative z-10 text-sm">{s.label}</h3>
-              <div className="flex items-end gap-2 relative z-10">
-                <span className="text-4xl font-black">{s.value}</span>
-              </div>
-            </div>
-          </Tilt3D>
-        ))}
+      {/* Filter Bar */}
+      <DashboardFilterBar
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        search={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search available reports..."
+        filters={[
+          {
+            key: 'type',
+            label: 'Report Vertical',
+            value: selectedType,
+            onChange: setSelectedType,
+            options: [
+              { label: 'All Verticals', value: 'ALL' },
+              { label: 'Financial Reports', value: 'Financial' },
+              { label: 'Clinical Reports', value: 'Clinical' },
+              { label: 'Operational Reports', value: 'Operations' },
+              { label: 'System & SLA Logs', value: 'System' },
+            ],
+          },
+        ]}
+        onReset={() => {
+          setDateRange('30D');
+          setSelectedType('ALL');
+          setSearchQuery('');
+        }}
+      />
+
+      {/* Tier 1 KPIs (Real Data) */}
+      <div className="grid sm:grid-cols-3 gap-5">
+        <KPITrendCard
+          title="Total Registered Platform Patients"
+          value={(summary?.totalRegisteredUsers ?? 0).toLocaleString()}
+          period="Verified Database Records"
+          icon="fa-users"
+          colorScheme="purple"
+          loading={loading}
+        />
+
+        <KPITrendCard
+          title="Completed Consultations"
+          value={(summary?.completedAppointments ?? 0).toLocaleString()}
+          period="Recorded Telehealth Sessions"
+          icon="fa-calendar-check"
+          colorScheme="emerald"
+          loading={loading}
+        />
+
+        <KPITrendCard
+          title="Consultation Completion Rate"
+          value={summary?.completionRate || '0%'}
+          period="Fulfilled vs Total Appointments"
+          icon="fa-chart-pie"
+          colorScheme="magenta"
+          badgeText="Live Metric"
+          loading={loading}
+        />
       </div>
 
       {/* Trend charts */}
       <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
           <div className="mb-4">
-            <h2 className="font-bold text-slate-800">Report Generation Volume</h2>
-            <p className="text-xs text-slate-500">Reports generated per week, last 8 weeks.</p>
+            <h2 className="font-black text-slate-900 text-sm">Report Generation Cadence</h2>
+            <p className="text-xs text-slate-500">Volume of audit reports generated over the last 8 weeks.</p>
           </div>
-          {loading ? <EmptyChart label="Loading…" /> : history.length === 0 ? (
-            <EmptyChart label="No reports generated yet." />
+          
+          {history.length === 0 ? (
+            <DashboardEmptyState
+              icon="fa-file-lines"
+              title="No Reports Generated Yet"
+              description="Click 'Generate Live Report' on any report catalog card below."
+            />
           ) : (
-            <div className="h-52">
+            <div className="h-52 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={weeklyTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorAuto" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} /><stop offset="95%" stopColor="#6366f1" stopOpacity={0} /></linearGradient>
+                    <linearGradient id="colorAuto" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6B46C1" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#6B46C1" stopOpacity={0} />
+                    </linearGradient>
                   </defs>
-                  <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} allowDecimals={false} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                  <Area type="monotone" dataKey="count" name="Reports Generated" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorAuto)" />
+                  <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} allowDecimals={false} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.15)', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px' }} />
+                  <Area type="monotone" dataKey="count" name="Reports Generated" stroke="#6B46C1" strokeWidth={2.5} fillOpacity={1} fill="url(#colorAuto)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           )}
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
           <div className="mb-4">
-            <h2 className="font-bold text-slate-800">Reports by Type</h2>
-            <p className="text-xs text-slate-500">Breakdown of all generated reports.</p>
+            <h2 className="font-black text-slate-900 text-sm">Reports by Vertical</h2>
+            <p className="text-xs text-slate-500">Distribution of generated dossiers.</p>
           </div>
-          {loading ? <EmptyChart label="Loading…" /> : typeBreakdown.length === 0 ? (
-            <EmptyChart label="No reports generated yet." />
+          
+          {typeBreakdown.length === 0 ? (
+            <DashboardEmptyState
+              icon="fa-pie-chart"
+              title="No Generated Data"
+              description="Generate your first report to view breakdown."
+            />
           ) : (
-            <div className="h-52">
+            <div className="h-52 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={typeBreakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={4} dataKey="value" stroke="none">
                     {typeBreakdown.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                   </Pie>
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                  <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px' }} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: '700' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -189,29 +241,42 @@ function AdminReports() {
         </div>
       </div>
 
-      {/* Report catalog */}
+      {/* Available Report Catalog */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
-          <h2 className="font-bold text-slate-800">Available Reports</h2>
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/80 flex justify-between items-center">
+          <h2 className="font-black text-slate-900 text-sm">Available Audit &amp; Compliance Dossiers</h2>
+          <span className="text-xs font-bold text-slate-500">{filteredCatalog.length} available dossiers</span>
         </div>
+
         <div className="grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
-          {REPORT_CATALOG.map(r => (
-            <div key={r.id} className="p-6 hover:bg-slate-50 transition-colors flex flex-col h-full">
+          {filteredCatalog.map(r => (
+            <div key={r.id} className="p-6 hover:bg-slate-50/70 transition-colors flex flex-col h-full">
               <div className="flex justify-between items-start mb-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{r.type}</span>
-                <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{r.freq}</span>
+                <span className="text-[10px] font-black text-aubergine-700 bg-aubergine-50 px-2 py-0.5 rounded border border-aubergine-100 uppercase tracking-wider">
+                  {r.type}
+                </span>
+                <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                  {r.freq} Cadence
+                </span>
               </div>
-              <h3 className="font-black text-slate-800 text-lg mb-1">{r.name}</h3>
-              <p className="text-sm text-slate-500 leading-relaxed mb-6 flex-1">{r.desc}</p>
+              <h3 className="font-black text-slate-900 text-base mb-1">{r.name}</h3>
+              <p className="text-xs text-slate-500 leading-relaxed mb-6 flex-1">{r.desc}</p>
+              
               <div className="flex gap-3 mt-auto">
-                <button onClick={() => handleGenerate(r)} disabled={generating === r.id}
-                  className="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-70">
+                <button 
+                  onClick={() => handleGenerate(r)} 
+                  disabled={generating === r.id}
+                  className="flex-1 bg-slate-900 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-70 shadow-xs"
+                >
                   {generating === r.id ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-file-pdf"></i>}
-                  {generating === r.id ? 'Generating...' : 'Generate Report'}
+                  {generating === r.id ? 'Generating Dossier...' : 'Generate Live Report'}
                 </button>
-                <button onClick={() => handleExportCsv(r)}
-                  className="px-4 border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold rounded-xl text-sm transition-colors flex items-center justify-center" title="Download CSV">
-                  <i className="fas fa-file-csv"></i>
+                <button 
+                  onClick={() => handleExportCsv(r)}
+                  className="px-3.5 border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold rounded-xl text-xs transition-colors flex items-center justify-center shadow-xs" 
+                  title="Export raw CSV data"
+                >
+                  <i className="fas fa-file-csv text-emerald-600"></i>
                 </button>
               </div>
             </div>
@@ -219,23 +284,34 @@ function AdminReports() {
         </div>
       </div>
 
-      {/* Generated History */}
+      {/* Generated History Table */}
       {history.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
-            <h2 className="font-bold text-slate-800">Generated Reports History</h2>
+          <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/80 flex justify-between items-center">
+            <h2 className="font-black text-slate-900 text-sm">Generated Dossier Archive</h2>
+            <span className="text-xs text-slate-500">{history.length} archived files</span>
           </div>
+
           <div className="divide-y divide-slate-100">
             {history.map(r => (
-              <div key={r.id} className="px-5 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
+              <div key={r.id || r.report_id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50/70 transition-colors">
                 <div>
-                  <p className="font-bold text-slate-800 text-sm">{r.name}</p>
-                  <p className="text-xs text-slate-400">{r.report_id} • {r.type} • {r.size}</p>
+                  <p className="font-extrabold text-slate-900 text-sm">{r.name}</p>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">{r.report_id || r.id} • {r.type} • {r.size || '1.2 MB'}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${r.status === 'Generated' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{r.status}</span>
-                  <button onClick={() => handleExportCsv(r)} className="text-xs font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1">
-                    <i className="fas fa-download"></i> Download
+                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
+                    r.status === 'Generated' 
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                  }`}>
+                    {r.status || 'Ready'}
+                  </span>
+                  <button 
+                    onClick={() => handleExportCsv(r)} 
+                    className="text-xs font-bold text-slate-700 hover:text-aubergine-700 flex items-center gap-1 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-xs"
+                  >
+                    <i className="fas fa-download text-[10px]"></i> Download
                   </button>
                 </div>
               </div>

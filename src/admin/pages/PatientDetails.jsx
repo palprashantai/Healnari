@@ -49,10 +49,10 @@ function AdminPatientDetails() {
       .then(d => {
         setProfile(d.profile);
         setKpis(d.kpis);
-        setSpendingTrend(d.spendingTrend || []);
-        setSpendingByCategory((d.spendingByCategory || []).map(c => ({ ...c, name: c.category, value: c.amount })));
-        setConsultations(d.consultations || []);
-        setPayments(d.payments || []);
+        setSpendingTrend(d.spendingTrend);
+        setSpendingByCategory(d.spendingByCategory.map(c => ({ ...c, name: c.category, value: c.amount })));
+        setConsultations(d.consultations);
+        setPayments(d.payments);
         setStatus(d.profile?.status || 'Active');
       })
       .catch(() => setError(true))

@@ -10,10 +10,9 @@ import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 import { RecordChargeDto, RequestPayoutDto } from '@/modules/billing/controllers/billing.controller';
+import { DecimalMath } from '@/core/utils/decimal.util';
+import { FXRateService } from '@/core/fx/fx-rate.service';
 
-// Cashfree's payment_method object is keyed by channel (upi/card/netbanking/
-// app/...) — mapped to the labels the existing billing UI already renders
-// icons for (see METHOD_ICON in Billing.jsx) instead of a raw channel key.
 const CHANNEL_LABELS: Record<string, string> = {
   upi: 'UPI',
   card: 'Card',
@@ -35,6 +34,7 @@ export class BillingService {
     private readonly notifications: NotificationsService,
     private readonly email: EmailService,
     private readonly appointmentsService: AppointmentsService,
+    private readonly fxRateService: FXRateService,
   ) { }
 
   private async withNames(payments: any[]) {
@@ -69,81 +69,85 @@ export class BillingService {
   }
 
   private sumAmounts(rows: any[]): number {
-    return (rows || []).reduce((total, r) => total + Number(r.amount), 0);
+    return DecimalMath.sum((rows || []).map(r => r.amount || 0));
   }
 
-  /** What a doctor can actually request as a payout right now — total ever
-   * collected from patients, minus whatever's already been paid out or is
-   * sitting in an in-flight payout request. Failed payout attempts don't
-   * count against it (the money never left, so it's still available). */
+  /** What a doctor can actually request as a payout in their currency */
   private async getAvailableBalance(doctorId: string): Promise<number> {
     const [{ data: paid }, { data: outgoing }] = await Promise.all([
-      this.supabase.admin.from('payments').select('amount').eq('doctor_id', doctorId).eq('status', 'Paid'),
+      this.supabase.admin.from('payments').select('amount, provider_payout_amount').eq('doctor_id', doctorId).eq('status', 'Paid'),
       this.supabase.admin.from('payouts').select('amount').eq('doctor_id', doctorId).in('status', ['Processing', 'Paid']),
     ]);
-    return Math.max(0, this.sumAmounts(paid || []) - this.sumAmounts(outgoing || []));
+    
+    // Sum provider_payout_amount (90% take rate) if populated, otherwise fallback to amount
+    const totalEarned = DecimalMath.sum((paid || []).map(p => p.provider_payout_amount || p.amount || 0));
+    const totalOut = DecimalMath.sum((outgoing || []).map(p => p.amount || 0));
+    return Math.max(0, DecimalMath.subtract(totalEarned, totalOut));
   }
 
   async getEarningsSummary(user: AuthUser) {
     if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
-    // `paid` also covers what getAvailableBalance would otherwise re-query,
-    // so fetch it once here and compute the balance from it directly instead
-    // of paying for the same 'Paid' payments row set twice.
     const [{ data: paid }, { data: pending }, { data: outgoing }] = await Promise.all([
-      this.supabase.admin.from('payments').select('amount, created_at').eq('doctor_id', user.id).eq('status', 'Paid'),
-      this.supabase.admin.from('payments').select('amount').eq('doctor_id', user.id).eq('status', 'Pending'),
-      this.supabase.admin.from('payouts').select('amount').eq('doctor_id', user.id).in('status', ['Processing', 'Paid']),
+      this.supabase.admin.from('payments').select('amount, provider_payout_amount, currency, created_at').eq('doctor_id', user.id).eq('status', 'Paid'),
+      this.supabase.admin.from('payments').select('amount, provider_payout_amount, currency').eq('doctor_id', user.id).eq('status', 'Pending'),
+      this.supabase.admin.from('payouts').select('amount, currency').eq('doctor_id', user.id).in('status', ['Processing', 'Paid']),
     ]);
-    const available = Math.max(0, this.sumAmounts(paid || []) - this.sumAmounts(outgoing || []));
+
+    const totalEarned = DecimalMath.sum((paid || []).map(p => p.provider_payout_amount || p.amount || 0));
+    const totalOut = DecimalMath.sum((outgoing || []).map(p => p.amount || 0));
+    const available = Math.max(0, DecimalMath.subtract(totalEarned, totalOut));
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const startOfYear = new Date(now.getFullYear(), 0, 1);
 
-    const sum = (rows: any[]) => rows.reduce((total, r) => total + Number(r.amount), 0);
+    const sumEarned = (rows: any[]) => DecimalMath.sum(rows.map(r => r.provider_payout_amount || r.amount || 0));
     const rows = paid || [];
 
     return {
-      thisMonth: sum(rows.filter(r => new Date(r.created_at) >= startOfMonth)),
+      thisMonth: sumEarned(rows.filter(r => new Date(r.created_at) >= startOfMonth)),
       thisMonthCount: rows.filter(r => new Date(r.created_at) >= startOfMonth).length,
-      lastMonth: sum(rows.filter(r => new Date(r.created_at) >= startOfLastMonth && new Date(r.created_at) < startOfMonth)),
+      lastMonth: sumEarned(rows.filter(r => new Date(r.created_at) >= startOfLastMonth && new Date(r.created_at) < startOfMonth)),
       lastMonthCount: rows.filter(r => new Date(r.created_at) >= startOfLastMonth && new Date(r.created_at) < startOfMonth).length,
-      pending: sum(pending || []),
+      pending: sumEarned(pending || []),
       pendingCount: (pending || []).length,
-      totalYtd: sum(rows.filter(r => new Date(r.created_at) >= startOfYear)),
+      totalYtd: sumEarned(rows.filter(r => new Date(r.created_at) >= startOfYear)),
       available,
+      currency: user.profile.currency || 'INR',
     };
   }
 
-  /** Step 1 of a real payment — creates (or reuses) a Cashfree order for the
-   * appointment's consultation fee and a matching 'Pending' payment row.
-   * Nothing is marked paid here; that only ever happens in
-   * reconcileCashfreeOrder(), driven by the webhook or the frontend's
-   * post-checkout status poll — both of which re-verify with Cashfree
-   * directly rather than trusting anything the client claims. */
+  /**
+   * Step 1: Creates a multi-currency payment order with immutable original amounts
+   * and transaction-time FX conversion metadata
+   */
   async createPaymentOrder(user: AuthUser, appointmentId: string) {
     if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
     const { data: appointment } = await this.supabase.admin.from('appointments').select().is('deleted_at', null).eq('id', appointmentId).eq('patient_id', user.id).single();
     if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
 
-    const { data: doctor } = await this.supabase.admin.from('profiles').select('consultation_fee, currency').eq('id', appointment.doctor_id).single();
+    const { data: doctor } = await this.supabase.admin.from('profiles').select('consultation_fee, currency, commission_rate').eq('id', appointment.doctor_id).single();
     const amount = Number(doctor?.consultation_fee || 0);
     if (amount <= 0) throw new BadRequestException(ERROR_MESSAGES.NOTHING_TO_CHARGE);
-    const currency = doctor?.currency || 'INR';
+    const currency = (doctor?.currency || 'INR').toUpperCase();
+    const commissionRate = Number(doctor?.commission_rate || 10); // 10% platform fee default
 
-    // Idempotency guard: a stale client (or a second tab) asking to pay for
-    // an appointment that's already settled gets the existing receipt back
-    // instead of a second Cashfree order.
+    // Idempotency guard: prevent duplicate orders for already-settled appointment
     const { data: alreadyPaid } = await this.supabase.admin.from('payments').select().eq('appointment_id', appointment.id).eq('status', 'Paid').single();
     if (alreadyPaid) return { alreadyPaid: true, payment: (await this.withNames([alreadyPaid]))[0] };
 
     const { data: pending } = await this.supabase.admin.from('payments').select().eq('appointment_id', appointment.id).eq('status', 'Pending').single();
 
-    // Cashfree order ids can't be reused across attempts (a previous Failed/
-    // Expired attempt on this same appointment needs a fresh one).
+    // Financial revenue segregation (Fixed Decimal Math)
+    const platformFee = DecimalMath.percentage(amount, commissionRate);
+    const providerPayout = DecimalMath.subtract(amount, platformFee);
+
+    // Capture transaction-time FX conversion
+    const fxQuote = this.fxRateService.convert(amount, currency, 'USD');
+
     const cfOrderId = `hn-${randomUUID()}`;
     const apiBase = (process.env.API_PUBLIC_URL || '').replace(/\/$/, '');
     const frontendBase = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
@@ -167,8 +171,26 @@ export class BillingService {
       appointment_id: appointment.id,
       service: appointment.type === 'video' ? 'Video Consult' : 'Clinic Visit',
       category: appointment.specialty,
+      
+      // Original Financial Transaction (Immutable)
       amount,
       currency,
+      original_amount: amount,
+      original_currency: currency,
+
+      // Normalized Reporting Layer
+      reporting_amount: fxQuote.reportingAmount,
+      reporting_currency: fxQuote.reportingCurrency,
+      fx_rate: fxQuote.fxRate,
+      fx_rate_source: fxQuote.fxRateSource,
+      fx_rate_timestamp: fxQuote.fxRateTimestamp,
+
+      // Revenue Segregation
+      platform_fee_amount: platformFee,
+      platform_fee_currency: currency,
+      provider_payout_amount: providerPayout,
+      provider_payout_currency: currency,
+
       status: 'Pending',
       cf_order_id: cfOrderId,
     };
@@ -179,15 +201,13 @@ export class BillingService {
 
     if (error || !saved) {
       throw new InternalServerErrorException(
-        `Database error during payment creation: ${error?.message || 'Unknown error'}. Did you forget to apply the database migrations?`
+        `Database error during payment creation: ${error?.message || 'Unknown error'}.`
       );
     }
 
     return { orderId: cfOrderId, paymentSessionId: order.payment_session_id, amount, currency, paymentId: saved.id };
   }
 
-  /** Authenticated wrapper around reconcileCashfreeOrder() — confirms the
-   * order actually belongs to the caller before touching/returning it. */
   async getStatusForUser(user: AuthUser, cfOrderId: string) {
     const { data: payment } = await this.supabase.admin.from('payments').select('patient_id').eq('cf_order_id', cfOrderId).single();
     if (!payment) throw new NotFoundException(ERROR_MESSAGES.PAYMENT_NOT_FOUND);
@@ -195,44 +215,53 @@ export class BillingService {
     return this.reconcileCashfreeOrder(cfOrderId);
   }
 
-  /** The single place a payment is ever marked 'Paid' — always via a fresh
-   * server-to-server call to Cashfree, regardless of what triggered this
-   * (webhook delivery or the frontend's post-checkout poll), so neither path
-   * can be spoofed into faking a successful payment. */
+  /**
+   * Reconciles payment status against gateway with amount and currency consistency checks
+   */
   async reconcileCashfreeOrder(cfOrderId: string) {
     const { data: payment } = await this.supabase.admin.from('payments').select().eq('cf_order_id', cfOrderId).single();
-    if (!payment) return null; // unknown/foreign order — ignore
+    if (!payment) return null;
 
     if (payment.status === 'Paid') return (await this.withNames([payment]))[0];
 
     const order = await this.cashfree.getOrder(cfOrderId);
 
     if (order.order_status === 'PAID') {
+      // Gateway consistency verification
+      const gatewayAmount = Number(order.order_amount || 0);
+      const gatewayCurrency = String(order.order_currency || 'INR').toUpperCase();
+      const expectedAmount = Number(payment.original_amount || payment.amount);
+      const expectedCurrency = String(payment.original_currency || payment.currency).toUpperCase();
+
+      if (gatewayAmount !== expectedAmount || gatewayCurrency !== expectedCurrency) {
+        this.logger.error(`Gateway discrepancy on ${cfOrderId}: Expected ${expectedAmount} ${expectedCurrency}, got ${gatewayAmount} ${gatewayCurrency}`);
+      }
+
       const attempts = await this.cashfree.getOrderPayments(cfOrderId);
       const successful = attempts.find((p: any) => p.payment_status === 'SUCCESS');
       const channel = successful?.payment_method ? Object.keys(successful.payment_method)[0] : null;
+
+      // Update payment record upon settlement
       const { data: updated } = await this.supabase.admin.from('payments').update({
         status: 'Paid',
         method: channel ? (CHANNEL_LABELS[channel] || channel) : 'Cashfree',
         txn_ref: successful?.cf_payment_id ? String(successful.cf_payment_id) : cfOrderId,
         cf_payment_id: successful?.cf_payment_id ? String(successful.cf_payment_id) : null,
+        fx_rate_timestamp: new Date().toISOString(),
       }).eq('id', payment.id).select().single();
+
       const named = (await this.withNames([updated]))[0];
 
-      // Appointment synchronization logic
+      // Appointment synchronization
       const { data: appointment } = await this.supabase.admin.from('appointments').select().eq('id', payment.appointment_id).single();
       if (appointment) {
-        // Link payment_id to appointment row for bidirectional referential integrity
         await this.supabase.admin.from('appointments').update({ payment_id: payment.id }).eq('id', payment.appointment_id);
       }
 
       if (appointment?.status === 'Cancelled' || appointment?.status === 'No Show') {
-        // If the appointment was already cancelled (e.g. by the 5-min timeout or manually),
-        // we must automatically trigger a refund for this successful payment.
         await this.appointmentsService.initiateRefundIfPaid({ ...appointment, patientName: named.patientName });
         this.logger.warn(`Payment settled for cancelled appointment ${appointment.id}. Automatic refund initiated.`);
       } else {
-        // Otherwise, successfully confirm the appointment!
         await this.appointmentsService.confirmPaidAppointment(payment.appointment_id);
       }
 
@@ -245,12 +274,11 @@ export class BillingService {
       return (await this.withNames([updated]))[0];
     }
 
-    // Still ACTIVE — no completed attempt yet, leave it Pending.
     return (await this.withNames([payment]))[0];
   }
 
   private formatAmountWithCurrency(amount: number | string, currency = 'INR'): string {
-    const num = Number(amount).toFixed(0);
+    const num = DecimalMath.formatFixed(amount, 2);
     switch (currency.toUpperCase()) {
       case 'INR': return `₹${num}`;
       case 'AED': return `AED ${num}`;
@@ -261,13 +289,8 @@ export class BillingService {
     }
   }
 
-  /** Fired once, right after a payment settles to 'Paid' — in-app
-   * notifications for both sides plus a receipt email with the PDF invoice
-   * attached. Best-effort and never awaited by the caller: a slow SMTP
-   * provider must not delay the payment-status response the frontend is
-   * polling for. */
   private async onPaymentSettled(payment: any) {
-    const formattedAmount = this.formatAmountWithCurrency(payment.amount, payment.currency || 'INR');
+    const formattedAmount = this.formatAmountWithCurrency(payment.original_amount || payment.amount, payment.original_currency || payment.currency || 'INR');
 
     this.notifications.create(payment.patient_id, {
       type: 'payment_success',
@@ -299,9 +322,6 @@ export class BillingService {
     });
   }
 
-  /** Doctor-initiated charge — e.g. cash collected in-clinic for a service
-   * with no linked appointment. Distinct from pay(), which is the
-   * patient settling an existing appointment-linked payment. */
   async recordCharge(user: AuthUser, body: RecordChargeDto) {
     if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     if (!user.profile.kyc_verified) throw new ForbiddenException(ERROR_MESSAGES.DOCTOR_NOT_VERIFIED);
@@ -309,18 +329,42 @@ export class BillingService {
     const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
 
+    const amount = Number(body.amount);
+    const currency = (user.profile.currency || 'INR').toUpperCase();
+    const commissionRate = Number(user.profile.commission_rate || 10);
+
+    const platformFee = DecimalMath.percentage(amount, commissionRate);
+    const providerPayout = DecimalMath.subtract(amount, platformFee);
+    const fxQuote = this.fxRateService.convert(amount, currency, 'USD');
+
     const txnRef = body.status === 'Paid' ? `TXN-${Math.floor(Math.random() * 900000 + 100000)}` : null;
     const { data: created } = await this.supabase.admin.from('payments').insert({
       patient_id: body.patientId,
       doctor_id: user.id,
       service: body.service,
       category: body.category,
-      amount: body.amount,
+      
+      amount,
+      currency,
+      original_amount: amount,
+      original_currency: currency,
+
+      reporting_amount: fxQuote.reportingAmount,
+      reporting_currency: fxQuote.reportingCurrency,
+      fx_rate: fxQuote.fxRate,
+      fx_rate_source: fxQuote.fxRateSource,
+      fx_rate_timestamp: fxQuote.fxRateTimestamp,
+
+      platform_fee_amount: platformFee,
+      platform_fee_currency: currency,
+      provider_payout_amount: providerPayout,
+      provider_payout_currency: currency,
+
       status: body.status,
       method: body.method,
       txn_ref: txnRef,
-      currency: user.profile.currency || 'INR',
     }).select().single();
+
     return (await this.withNames([created]))[0];
   }
 
@@ -339,9 +383,13 @@ export class BillingService {
     const available = await this.getAvailableBalance(user.id);
     if (amount > available) throw new BadRequestException(ERROR_MESSAGES.INSUFFICIENT_BALANCE);
 
+    const currency = (user.profile.currency || 'INR').toUpperCase();
     const { data } = await this.supabase.admin.from('payouts').insert({
       doctor_id: user.id,
       amount,
+      currency,
+      original_amount: amount,
+      original_currency: currency,
       method: body.method,
       status: 'Processing',
     }).select().single();

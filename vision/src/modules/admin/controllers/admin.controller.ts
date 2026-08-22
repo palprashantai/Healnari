@@ -90,9 +90,10 @@ export class AdminController {
   // ─── Dashboard ────────────────────────────────────────────────────
   @Get('dashboard')
   @ApiOperation({ summary: 'Platform stats (KPI cards)' })
-  async getStats(@CurrentUser() user: AuthUser) {
+  @ApiQuery({ name: 'reportingCurrency', required: false, enum: ['USD', 'INR', 'AED', 'EUR', 'GBP'] })
+  async getStats(@CurrentUser() user: AuthUser, @Query('reportingCurrency') reportingCurrency?: string) {
     this.checkAdmin(user);
-    const data = await this.adminService.getDashboardStats();
+    const data = await this.adminService.getDashboardStats(reportingCurrency || 'USD');
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
@@ -230,9 +231,10 @@ export class AdminController {
   // ─── Revenue ──────────────────────────────────────────────────────
   @Get('revenue')
   @ApiOperation({ summary: 'Platform revenue insights and payout requests' })
-  async getRevenue(@CurrentUser() user: AuthUser) {
+  @ApiQuery({ name: 'reportingCurrency', required: false, enum: ['USD', 'INR', 'AED', 'EUR', 'GBP'] })
+  async getRevenue(@CurrentUser() user: AuthUser, @Query('reportingCurrency') reportingCurrency?: string) {
     this.checkAdmin(user);
-    const data = await this.adminService.getRevenueData();
+    const data = await this.adminService.getRevenueData(reportingCurrency || 'USD');
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 

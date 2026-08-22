@@ -18,6 +18,11 @@ export interface Profile {
   created_at: Date;
   consultation_fee: number;
   currency?: string | null;
+  commission_rate?: number;
+  status?: string;
+  country?: string;
+  timezone?: string;
+  medical_council?: string | null;
   updated_at: Date;
   email_notifications: boolean;
   sms_notifications: boolean;
