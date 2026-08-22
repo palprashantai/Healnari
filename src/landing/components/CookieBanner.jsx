@@ -6,8 +6,8 @@ function CookieBanner() {
   useEffect(() => {
     const hasConsented = localStorage.getItem('healnari_cookie_consent');
     if (!hasConsented) {
-      // Small delay so it doesn't jarringly appear instantly on load
-      const timer = setTimeout(() => setIsVisible(true), 1500);
+      // Defer appearance so it doesn't interrupt critical initial page paint
+      const timer = setTimeout(() => setIsVisible(true), 3500);
       return () => clearTimeout(timer);
     }
   }, []);
