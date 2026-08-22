@@ -107,6 +107,7 @@ function ProviderCalculator({ onApply }) {
                 
                 <input
                   type="range"
+                  aria-label="Set Consultation Fee"
                   min={isUSD ? 20 : 300}
                   max={isUSD ? 150 : 3000}
                   step={isUSD ? 5 : 50}
@@ -147,6 +148,7 @@ function ProviderCalculator({ onApply }) {
 
                 <input
                   type="range"
+                  aria-label="Set Consultations Per Day"
                   min="1"
                   max="15"
                   step="1"

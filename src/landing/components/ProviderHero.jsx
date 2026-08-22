@@ -160,7 +160,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                           ● LIVE CLINIC
                         </span>
                       </div>
-                      <p className="text-[10px] sm:text-[11px] text-slate-400 truncate">Dr. Ananya Mehta • Reproductive Endocrinology</p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500 truncate">Dr. Ananya Mehta • Reproductive Endocrinology</p>
                     </div>
                   </div>
 
@@ -168,19 +168,19 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                   <div className="flex gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold w-full sm:w-auto overflow-x-auto hide-scrollbar shrink-0">
                     <button
                       onClick={() => setActiveWorkflow('queue')}
-                      className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-center text-[11px] sm:text-xs ${activeWorkflow === 'queue' ? 'bg-white text-aubergine-800 shadow-xs font-bold' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-center text-[11px] sm:text-xs ${activeWorkflow === 'queue' ? 'bg-white text-aubergine-800 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'}`}
                     >
                       <i className="fas fa-hospital-user mr-1"></i> Live Queue
                     </button>
                     <button
                       onClick={() => setActiveWorkflow('cdss')}
-                      className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-center text-[11px] sm:text-xs ${activeWorkflow === 'cdss' ? 'bg-white text-aubergine-800 shadow-xs font-bold' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-center text-[11px] sm:text-xs ${activeWorkflow === 'cdss' ? 'bg-white text-aubergine-800 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'}`}
                     >
                       <i className="fas fa-wand-magic-sparkles mr-1 text-indigo-500"></i> AI Insights
                     </button>
                     <button
                       onClick={() => setActiveWorkflow('earnings')}
-                      className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-center text-[11px] sm:text-xs ${activeWorkflow === 'earnings' ? 'bg-white text-aubergine-800 shadow-xs font-bold' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-center text-[11px] sm:text-xs ${activeWorkflow === 'earnings' ? 'bg-white text-aubergine-800 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'}`}
                     >
                       <i className="fas fa-wallet mr-1 text-emerald-500"></i> Earnings
                     </button>
@@ -272,7 +272,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                         <div className="flex items-center gap-1.5 text-xs font-bold text-rose-700 mb-1">
                           <i className="fas fa-triangle-exclamation"></i> Action Required
                         </div>
-                        <h4 className="font-bold text-slate-900 text-xs sm:text-sm">Urgent Hormone Panel</h4>
+                        <p className="font-bold text-slate-900 text-xs sm:text-sm">Urgent Hormone Panel</p>
                         <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 leading-relaxed">
                           Priya Sharma's fasting insulin &amp; DHEAS uploaded by partner lab.
                         </p>
@@ -321,17 +321,17 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                 {activeWorkflow === 'earnings' && (
                   <div className="grid sm:grid-cols-3 gap-4 animate-fade-in text-center">
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 hover:border-aubergine-200 transition-all">
-                      <p className="text-xs text-slate-400 font-extrabold uppercase">This Month (90% Net)</p>
+                      <p className="text-xs text-slate-500 font-extrabold uppercase">This Month (90% Net)</p>
                       <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-1 font-sans">₹1,48,500</p>
                       <p className="text-[11px] text-emerald-600 font-bold mt-0.5">+18% practice growth</p>
                     </div>
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 hover:border-indigo-200 transition-all">
-                      <p className="text-xs text-slate-400 font-extrabold uppercase">Completed Consults</p>
+                      <p className="text-xs text-slate-500 font-extrabold uppercase">Completed Consults</p>
                       <p className="text-2xl sm:text-3xl font-black text-indigo-950 mt-1 font-sans">124 Patients</p>
                       <p className="text-[11px] text-slate-500 font-medium mt-0.5">Avg 4.96/5.0 Rating</p>
                     </div>
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 hover:border-emerald-200 transition-all">
-                      <p className="text-xs text-slate-400 font-extrabold uppercase">Next Bank Settlement</p>
+                      <p className="text-xs text-slate-500 font-extrabold uppercase">Next Bank Settlement</p>
                       <p className="text-2xl sm:text-3xl font-black text-emerald-700 mt-1 font-sans">Monday</p>
                       <p className="text-[11px] text-emerald-600 font-bold mt-0.5">Automated Weekly Payout</p>
                     </div>

@@ -99,9 +99,9 @@ function ProviderFooter({ onApply, onOpenAuth }) {
 
           {/* Provider Portal Links */}
           <div>
-            <h4 className="text-xs font-black text-white uppercase tracking-widest mb-3 flex items-center gap-1.5">
+            <p className="text-xs font-black text-white uppercase tracking-widest mb-3 flex items-center gap-1.5">
               <i className="fas fa-compass text-purple-400 text-[11px]"></i> Provider Portal
-            </h4>
+            </p>
             <ul className="space-y-2 text-xs">
               {providerLinks.map((l) => (
                 <li key={l.label}>
@@ -120,9 +120,9 @@ function ProviderFooter({ onApply, onOpenAuth }) {
 
           {/* Clinical Governance & Legal */}
           <div>
-            <h4 className="text-xs font-black text-white uppercase tracking-widest mb-3 flex items-center gap-1.5">
+            <p className="text-xs font-black text-white uppercase tracking-widest mb-3 flex items-center gap-1.5">
               <i className="fas fa-scale-balanced text-indigo-400 text-[11px]"></i> Clinical Governance
-            </h4>
+            </p>
             <ul className="space-y-2 text-xs">
               {governanceLinks.map((l) => (
                 <li key={l.label}>
@@ -140,9 +140,9 @@ function ProviderFooter({ onApply, onOpenAuth }) {
 
           {/* Compliance & Security */}
           <div>
-            <h4 className="text-xs font-black text-white uppercase tracking-widest mb-3 flex items-center gap-1.5">
+            <p className="text-xs font-black text-white uppercase tracking-widest mb-3 flex items-center gap-1.5">
               <i className="fas fa-shield-virus text-emerald-400 text-[11px]"></i> Data Security
-            </h4>
+            </p>
             <ul className="space-y-2 text-xs">
               {complianceBadges.map((b) => (
                 <li key={b.label} className="flex items-center gap-2 text-slate-200 font-medium">

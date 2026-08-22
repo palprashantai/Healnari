@@ -131,7 +131,7 @@ function ProviderTestimonials() {
                   </div>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h4 className="font-extrabold text-slate-900 text-sm truncate">{doc.name}</h4>
+                  <p className="font-extrabold text-slate-900 text-sm truncate">{doc.name}</p>
                   <p className="text-[11px] text-aubergine-700 font-bold truncate">{doc.specialty}</p>
                   <p className="text-[10.5px] text-slate-400 font-medium truncate">{doc.hospital} • {doc.experience}</p>
                   <p className="text-[9.5px] text-slate-400 font-mono">Reg: {doc.regNo}</p>

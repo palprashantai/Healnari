@@ -6,23 +6,31 @@ export function ScrollProgressBar() {
 
   useEffect(() => {
     let ticking = false;
+    let docHeight = document.documentElement.scrollHeight - window.innerHeight;
+
+    // Cache the document height using ResizeObserver to avoid forced reflows on scroll
+    const resizeObserver = new ResizeObserver(() => {
+      docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    });
+    resizeObserver.observe(document.body);
+
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const scrollTop = window.scrollY;
-          const docHeight = document.documentElement.scrollHeight - window.innerHeight;
           setProgress(docHeight > 0 ? Math.min(100, (scrollTop / docHeight) * 100) : 0);
           ticking = false;
         });
         ticking = true;
       }
     };
+    
     handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', handleScroll);
+    
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleScroll);
+      resizeObserver.disconnect();
     };
   }, []);
 

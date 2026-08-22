@@ -198,7 +198,16 @@ export default function AiChatWidget({ context = 'landing' }) {
 
   useEffect(() => {
     if (!isDashboardRoute) {
-      const handleScroll = () => setIsScrolled(window.scrollY > 400);
+      let ticking = false;
+      const handleScroll = () => {
+        if (!ticking) {
+          window.requestAnimationFrame(() => {
+            setIsScrolled(window.scrollY > 400);
+            ticking = false;
+          });
+          ticking = true;
+        }
+      };
       window.addEventListener('scroll', handleScroll, { passive: true });
       return () => window.removeEventListener('scroll', handleScroll);
     }
