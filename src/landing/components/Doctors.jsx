@@ -7,26 +7,26 @@ const DEMO_DOCTORS = [
   {
     id: 'demo-1',
     full_name: 'Dr. Ananya Mehta',
-    specialty: 'Reproductive Endocrinologist',
+    specialty: 'Obstetrician & Gynaecologist, PCOS Specialist',
     registration_no: 'NMC / MCI-15201',
     avatar_url: '/generated/doc1.webp',
     experience_years: 15,
     languages: 'English, Hindi, Spanish',
     location: 'Global Telemedicine',
-    ethos: 'Root-Cause & Fertility Focus',
+    ethos: 'Root-Cause Hormonal & Cycle Regulation',
     availability: 'online',
-    tags: ['Gynaecologist', 'Endocrinologist'],
+    tags: ['Gynaecologist', 'PCOS Specialist'],
   },
   {
     id: 'demo-2',
     full_name: 'Dr. Ritu Khanna',
-    specialty: 'Endocrinologist & Metabolic Specialist',
+    specialty: 'Clinical Endocrinologist & Thyroid Lead',
     registration_no: 'DMC-92810',
     avatar_url: '/generated/doc2.webp',
     experience_years: 12,
     languages: 'English, Hindi, Arabic',
     location: 'Global Telemedicine',
-    ethos: 'Insulin Resistance Specialist',
+    ethos: 'Insulin Sensitivity & Metabolic Health',
     availability: 'busy',
     tags: ['Endocrinologist'],
   },
@@ -39,22 +39,48 @@ const DEMO_DOCTORS = [
     experience_years: 10,
     languages: 'English, Hindi, Tamil',
     location: 'Global Telemedicine',
-    ethos: 'Hormonal Acne & Hair Loss Lead',
+    ethos: 'Hormonal Acne & Hair Restoration Lead',
     availability: 'online',
-    tags: ['Trichologist'],
+    tags: ['Dermatologist', 'Trichologist'],
   },
   {
     id: 'demo-4',
-    full_name: 'Dr. Priya Nair',
-    specialty: 'Reproductive & Sexual Health Expert',
-    registration_no: 'NMC / MCI-77290',
+    full_name: 'Dt. Pooja Sen',
+    specialty: 'Clinical Dietitian & Metabolic Nutritionist',
+    registration_no: 'IDA-88412',
     avatar_url: '/generated/doc4.webp',
-    experience_years: 18,
+    experience_years: 9,
+    languages: 'English, Hindi, Bengali',
+    location: 'Global Telemedicine',
+    ethos: 'Anti-Inflammatory & Gut-Hormone Nutrition',
+    availability: 'online',
+    tags: ['Nutritionist'],
+  },
+  {
+    id: 'demo-5',
+    full_name: 'Dr. Priya Nair',
+    specialty: 'Integrative Women’s Health & Yoga Therapist',
+    registration_no: 'NMC / MCI-77290',
+    avatar_url: '/generated/doc1.webp',
+    experience_years: 14,
     languages: 'English, Malayalam, Tamil',
     location: 'Global Telemedicine',
-    ethos: 'LGBTQ+ Allied & Evidence-Based Care',
+    ethos: 'Pelvic Floor Rehabilitation & Somatic Yoga',
     availability: 'online',
-    tags: ['Gynaecologist'],
+    tags: ['Yoga & Movement', 'Gynaecologist'],
+  },
+  {
+    id: 'demo-6',
+    full_name: 'Dr. Maya Krishnan',
+    specialty: 'Reproductive Medicine & Fertility Consultant',
+    registration_no: 'TMC-44910',
+    avatar_url: '/generated/doc2.webp',
+    experience_years: 16,
+    languages: 'English, Hindi, Telugu',
+    location: 'Global Telemedicine',
+    ethos: 'Preconception Planning & Ovulation Care',
+    availability: 'online',
+    tags: ['Fertility Specialist', 'Gynaecologist'],
   },
 ];
 
@@ -65,13 +91,17 @@ const AVAIL = {
 };
 
 function deriveTags(doc) {
-  if (doc.tags) return doc.tags;
+  if (doc.tags && doc.tags.length > 0) return doc.tags;
   const sp = (doc.specialty || '').toLowerCase();
   const tags = [];
-  if (sp.includes('gynaecol') || sp.includes('gynecol') || sp.includes('reproductive') || sp.includes('fertility') || sp.includes('sexual')) tags.push('Gynaecologist');
+  if (sp.includes('gynaecol') || sp.includes('gynecol') || sp.includes('obstetric')) tags.push('Gynaecologist');
+  if (sp.includes('pcos') || sp.includes('pcod') || sp.includes('hormon')) tags.push('PCOS Specialist');
   if (sp.includes('endocrin') || sp.includes('metabolic') || sp.includes('thyroid') || sp.includes('insulin')) tags.push('Endocrinologist');
-  if (sp.includes('trichol') || sp.includes('hair') || sp.includes('dermatol')) tags.push('Trichologist');
-  if (sp.includes('nutrition') || sp.includes('dietit')) tags.push('Nutritionist');
+  if (sp.includes('dermatol') || sp.includes('skin') || sp.includes('acne')) tags.push('Dermatologist');
+  if (sp.includes('trichol') || sp.includes('hair') || sp.includes('scalp')) tags.push('Trichologist');
+  if (sp.includes('nutrition') || sp.includes('dietit') || sp.includes('diet')) tags.push('Nutritionist');
+  if (sp.includes('yoga') || sp.includes('movement') || sp.includes('lifestyle')) tags.push('Yoga & Movement');
+  if (sp.includes('fertility') || sp.includes('preconception') || sp.includes('reproductive')) tags.push('Fertility Specialist');
   return tags.length ? tags : ['Specialist'];
 }
 

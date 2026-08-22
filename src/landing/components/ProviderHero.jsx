@@ -20,11 +20,13 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
 
   const toast = useToast();
 
-  // 3-Line Typewriter Animation Effect
+  // 5-Line Typewriter Animation Effect
   const rotatingLines = [
     'Zero Clinic Overhead',
+    'Multi-Specialty Smart EMR',
+    'AI Clinical Decision Support',
+    '90% Net Weekly Payouts',
     'Full Clinical Autonomy',
-    'Weekly Direct Payouts',
   ];
 
   const [lineIndex, setLineIndex] = useState(0);
@@ -92,8 +94,8 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
           {/* Trust Pill */}
           <div className="inline-flex items-center gap-2 bg-white border border-aubergine-200/80 shadow-xs text-aubergine-800 text-[11px] sm:text-xs font-semibold px-3 sm:px-4 py-1.5 rounded-full text-center max-w-full">
             <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-            <span className="sm:hidden">Now Onboarding Top Specialists</span>
-            <span className="hidden sm:inline">Now Onboarding Gynaecologists, Endocrinologists, Trichologists &amp; Fertility Experts</span>
+            <span className="sm:hidden">Onboarding Women's Health Specialists</span>
+            <span className="hidden sm:inline">Now Onboarding Gynaecologists, Endocrinologists, Dermatologists, Trichologists, Dietitians &amp; Yoga Therapists</span>
           </div>
 
           {/* Typography Section */}
@@ -110,7 +112,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
               )}
             </h1>
             <p className="text-slate-600 text-sm sm:text-lg md:text-xl leading-relaxed max-w-2xl mx-auto font-normal px-1">
-              {subtitle || "Run your own digital clinic on HealNari — no rent, no staff, no commute. You get pre-screened patients sent to you, a smart clinical dashboard (EMR, lab triage, AI insights), and 90% of every consultation fee paid out weekly to your bank account. Takes 3 minutes to apply."}
+              {subtitle || "Run your multi-specialty digital clinic on HealNari — zero rent, zero staff overhead, zero commute. Connect with pre-screened patients across Gynecology, PCOS, Endocrinology, Dermatology, Nutrition, and Movement with built-in AI EMR, digital Rx, and 90% net weekly payouts."}
             </p>
           </div>
 
@@ -121,8 +123,8 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
               className="w-full sm:w-auto bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-6 sm:px-7 py-3.5 sm:py-4 rounded-2xl shadow-lg shadow-aubergine-200 transition-all hover:scale-[1.02] flex items-center justify-center gap-2.5 text-sm sm:text-base"
             >
               <i className="fas fa-stethoscope"></i>
-              <span className="sm:hidden">Apply as Specialist</span>
-              <span className="hidden sm:inline">Apply as a Specialist</span>
+              <span className="sm:hidden">Apply as Specialist (3 Mins)</span>
+              <span className="hidden sm:inline">Apply as Specialist (Takes 3 Mins)</span>
             </button>
             <button
               onClick={onOpenLogin}
@@ -134,10 +136,10 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
 
           {/* Trust Guarantees */}
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap justify-center items-center gap-2.5 sm:gap-6 pt-2 sm:pt-4 text-[11px] sm:text-xs font-medium text-slate-500 text-left sm:text-center">
-            <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-emerald-600"></i> NMC Verified</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-emerald-600"></i> Verified Credentials</span>
             <span className="flex items-center gap-1.5"><i className="fas fa-circle-dollar-to-slot text-emerald-600"></i> 90% Net Payout</span>
             <span className="flex items-center gap-1.5"><i className="fas fa-lock text-emerald-600"></i> Clinical Autonomy</span>
-            <span className="flex items-center gap-1.5"><i className="fas fa-users text-emerald-600"></i> 200+ Specialists</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-users text-emerald-600"></i> 8+ Specialties</span>
           </div>
         </div>
 

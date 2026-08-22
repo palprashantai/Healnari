@@ -49,8 +49,8 @@ function LandingPage() {
 
     // Dynamic SEO, OpenGraph & Structured Data Schema Injection
     const originalTitle = document.title;
-    const docTitle = "Online PCOS Treatment & Gynaecologist Consultations | HealNari";
-    const docDesc = "Consult top Gynaecologists & Endocrinologists online for PCOS, thyroid, irregular periods, and weight management. Get root-cause treatment with 100% privacy.";
+    const docTitle = "Women's Health Platform | Specialist Consultations & Hormone Care | HealNari";
+    const docDesc = "Mobile-first women's healthcare platform connecting you with qualified Gynaecologists, Endocrinologists, Dermatologists, Trichologists, Dietitians & Yoga Therapists. Smart cycle tracking, AI guidance, and digital prescriptions.";
     const docUrl = "https://healnari.care";
 
     document.title = docTitle;
@@ -68,7 +68,7 @@ function LandingPage() {
     const prevOgUrl = updateMeta('meta[property="og:url"]', docUrl);
     const prevCanonical = updateMeta('link[rel="canonical"]', docUrl, 'href');
 
-    // JSON-LD Structured Data Schema for Medical Clinic
+    // JSON-LD Structured Data Schema for Medical Clinic & Mobile Health Platform
     const schemaScript = document.createElement('script');
     schemaScript.type = 'application/ld+json';
     schemaScript.id = 'healnari-patient-schema';
@@ -78,16 +78,21 @@ function LandingPage() {
       "name": "HealNari",
       "url": "https://healnari.care",
       "logo": "https://healnari.care/brand/logo-full.jpg",
-      "description": "Premium digital healthcare platform for women globally. Specializing in root-cause treatment for PCOS, hormonal imbalances, and reproductive health.",
-      "medicalSpecialty": ["Gynecologic", "Endocrine"],
+      "description": "Mobile-first women's healthcare platform connecting women with qualified specialists in Gynecology, PCOS, Endocrinology, Dermatology, Trichology, Nutrition, and Yoga.",
+      "medicalSpecialty": [
+        "https://schema.org/Gynecologic",
+        "https://schema.org/Endocrine",
+        "https://schema.org/Dermatology",
+        "https://schema.org/DietNutrition"
+      ],
       "availableService": [
         {
           "@type": "MedicalTest",
-          "name": "PCOS Advanced Panel"
+          "name": "PCOS & Comprehensive Hormonal Panel"
         },
         {
           "@type": "MedicalConsultation",
-          "name": "Specialist Video Consultation"
+          "name": "Multi-Specialty Telemedicine Video Consultation"
         }
       ]
     });

@@ -30,8 +30,8 @@ function DoctorLandingPage() {
     });
 
     const originalTitle = document.title;
-    const docTitle = "Telemedicine Platform for Gynaecologists | EMR Software | HealNari";
-    const docDesc = "Expand your women's health practice with zero clinic overhead. Join HealNari's verified network of top Gynaecologists & Endocrinologists. AI-assisted EMR, tokenized queues, and 90% net weekly payouts.";
+    const docTitle = "Telemedicine Platform for Women's Health Specialists | EMR Software | HealNari";
+    const docDesc = "Expand your practice with zero clinic overhead. Join HealNari's verified network of Gynaecologists, Endocrinologists, Dermatologists, Trichologists, Dietitians & Yoga Therapists. AI-assisted EMR, tokenized live queues, and 90% net weekly payouts.";
     const docUrl = "https://healnari.care/for-doctors";
 
     document.title = docTitle;
@@ -79,10 +79,12 @@ function DoctorLandingPage() {
           "logo": "https://healnari.care/brand/logo-full.jpg",
           "medicalSpecialty": [
             "https://schema.org/Gynecologic",
-            "https://schema.org/Endocrine"
+            "https://schema.org/Endocrine",
+            "https://schema.org/Dermatology",
+            "https://schema.org/DietNutrition"
           ],
-          "description": "Premium digital clinic platform enabling licensed Gynaecologists, Endocrinologists, and Fertility Specialists to deliver root-cause telemedicine with integrated AI-assisted EMR and tokenized live queues.",
-          "knowsAbout": ["PCOS", "PCOD", "Endocrine Disorders", "Reproductive Medicine", "Telemedicine"],
+          "description": "Multi-specialty digital clinic platform enabling licensed Gynaecologists, Endocrinologists, Dermatologists, Trichologists, Dietitians, and Movement Therapists to deliver root-cause care with integrated AI-assisted EMR.",
+          "knowsAbout": ["Women's Health", "PCOS", "Endocrine Disorders", "Trichology", "Dermatology", "Clinical Nutrition", "Telemedicine"],
           "aggregateRating": {
             "@type": "AggregateRating",
             "ratingValue": "4.96",
@@ -93,7 +95,7 @@ function DoctorLandingPage() {
           "@type": "SoftwareApplication",
           "name": "HealNari Doctor Clinical EMR & Telehealth Suite",
           "applicationCategory": "HealthApplication",
-          "operatingSystem": "Web, iOS, Android",
+          "operatingSystem": "Web, iOS, Android, PWA",
           "offers": {
             "@type": "Offer",
             "price": "0",
@@ -133,8 +135,8 @@ function DoctorLandingPage() {
 
   const doctorFaqs = [
     {
-      q: "What exactly is HealNari and who is it for?",
-      a: "HealNari is a dedicated digital clinic platform for women's health specialists worldwide. If you are a licensed Gynaecologist, Endocrinologist, Trichologist, or Fertility Expert, you can join and run a fully online practice. Patients with PCOS, thyroid issues, hormonal hair fall, irregular periods, acne, and weight concerns come to you through our platform — pre-screened and ready for consultation."
+      q: "What exactly is HealNari and which specialists can join?",
+      a: "HealNari is a dedicated digital clinic ecosystem for women's health specialists. We actively onboard licensed Gynaecologists, Endocrinologists, Dermatologists, Trichologists, Clinical Dietitians, Yoga/Movement Therapists, and Fertility Experts. Patients with menstrual irregularities, PCOS, thyroid disorders, hormonal acne, hair loss, and metabolic concerns connect directly with you."
     },
     {
       q: "How much can I earn and how does the payout model work?",
@@ -142,11 +144,11 @@ function DoctorLandingPage() {
     },
     {
       q: "Are there any upfront fees, monthly software subscriptions, or lock-in contracts?",
-      a: "Zero. No setup fees, no monthly software subscription, no annual contract. You simply apply, get verified, and start earning. You can pause or deactivate your account at any time. We only succeed when you succeed."
+      a: "Zero. No setup fees, no monthly software subscription, no annual contract. You simply apply, get verified, and start practicing. You can pause or deactivate your account at any time. We only succeed when you succeed."
     },
     {
       q: "How do I get patients? Do I need to bring my own?",
-      a: "No — we bring pre-screened patients to you. Every patient on HealNari completes a detailed intake (symptoms, menstrual history, medications, past labs) before booking. You receive a structured clinical summary before each session so you can walk in prepared. You may also share your HealNari profile link to refer your existing patients for follow-ups."
+      a: "No — we bring pre-screened patients to you. Every patient completes a detailed intake (symptoms, menstrual history, medications, past labs, AI triage summary) before booking. You receive a structured clinical summary before each session so you can walk in prepared. You may also share your HealNari profile link to manage your existing patients."
     },
     {
       q: "Do I retain full clinical autonomy over my prescriptions and treatment protocols?",
@@ -154,7 +156,7 @@ function DoctorLandingPage() {
     },
     {
       q: "What documents do I need to get verified?",
-      a: "The verification process is simple and quick (typically under 48 hours). You'll need: your Medical Registration Certificate (NMC, State Medical Council, or international equivalent), degree certificates, and a valid government photo ID. Our credentialing team reviews and approves your application — no in-person visit required."
+      a: "The verification process is simple and completed within 48 hours. You'll need: your Medical Registration Certificate (NMC, State Medical Council, IDA, or relevant professional council), degree credentials, and a valid government photo ID. Our clinical credentialing team reviews and activates your account."
     }
   ];
 

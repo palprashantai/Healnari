@@ -4,35 +4,35 @@ function HolisticApproach() {
   const pillars = [
     {
       id: 1,
-      icon: "fas fa-leaf",
-      color: "emerald",
-      title: "Personalized Nutrition",
-      subtitle: "Sustainable Nourishment",
-      desc: "There is no single diet that works best for everyone with PCOS. We guide you toward a sustainable eating pattern tailored to your preferences, culture, lifestyle, and health goals."
+      icon: "fas fa-stethoscope",
+      color: "aubergine",
+      title: "Specialist Clinical Care",
+      subtitle: "Multi-Disciplinary Medical Team",
+      desc: "Licensed Gynaecologists, Endocrinologists, Dermatologists & Trichologists provide comprehensive diagnostic workups, targeted lab panels, and compliant digital prescriptions."
     },
     {
       id: 2,
-      icon: "fas fa-om",
-      color: "amber",
-      title: "Yoga & Mindful Movement",
-      subtitle: "Sustainable Physical Activity",
-      desc: "Yoga can be part of an active lifestyle and may support movement, flexibility, relaxation, and stress management. Choose physical activities you can perform safely and sustain over time."
+      icon: "fas fa-leaf",
+      color: "emerald",
+      title: "Personalized Nutrition",
+      subtitle: "Metabolic & Hormonal Nourishment",
+      desc: "Clinical dietitians design anti-inflammatory, insulin-sensitizing meal protocols tailored to your metabolic type, dietary preferences, and daily routine."
     },
     {
       id: 3,
-      icon: "fas fa-stethoscope",
-      color: "aubergine",
-      title: "Medical Guidance",
-      subtitle: "Evidence-Based Care",
-      desc: "Registered gynaecologists and endocrinologists prescribe targeted medications, lab panels, and clinical supplements when indicated, ensuring safe and comprehensive clinical oversight."
+      icon: "fas fa-person-praying",
+      color: "amber",
+      title: "Yoga & Movement Support",
+      subtitle: "Cycle-Synced Physical Wellness",
+      desc: "Mindful movement and somatic yoga protocols to alleviate pelvic congestion, enhance mobility, regulate autonomic stress, and support metabolic health."
     },
     {
       id: 4,
-      icon: "fas fa-bed",
+      icon: "fas fa-chart-line",
       color: "indigo",
-      title: "Lifestyle & Sleep",
-      subtitle: "Stress & Circadian Rhythm",
-      desc: "Chronic stress and circadian disruption directly impact metabolic and ovulatory health. We guide you with structured sleep hygiene and mindfulness practices for long-term hormonal resilience."
+      title: "Smart Tracking & AI Guidance",
+      subtitle: "Continuous Health Journey",
+      desc: "Daily menstrual and symptom tracking, phase predictions, 24/7 AI health guidance, lab trends, and timely notifications keeping your health journey on track."
     }
   ];
 
@@ -53,13 +53,13 @@ function HolisticApproach() {
 
       <div className="text-center max-w-3xl mx-auto space-y-4 mb-16 animate-slide-up">
         <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider shadow-sm">
-          <i className="fas fa-seedling"></i> Integrative Women's Health
+          <i className="fas fa-seedling"></i> 360° Integrative Ecosystem
         </span>
         <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900 font-display">
-          Our <span className="text-emerald-600">Holistic</span> Care Approach
+          Our <span className="text-emerald-600">Holistic Care</span> Framework
         </h2>
         <p className="text-slate-600 text-lg md:text-xl font-normal leading-relaxed">
-          Sustainable management of PCOS and hormonal health requires a 360° collaborative approach — combining specialist medical care with nourishing food, restorative movement, and healthy daily habits.
+          True women's wellness goes beyond quick fixes. We combine certified medical specialists with personalized nutrition, restorative movement, and intelligent mobile health tracking.
         </p>
       </div>
 
@@ -67,22 +67,29 @@ function HolisticApproach() {
         {pillars.map((pillar, idx) => (
           <div 
             key={pillar.id} 
-            className="group bg-white/80 backdrop-blur-md border border-slate-200/60 rounded-3xl p-8 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:bg-white"
+            className="group bg-white/90 backdrop-blur-md border border-slate-200/70 rounded-3xl p-8 hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:bg-white flex flex-col justify-between"
             style={{ animationDelay: `${idx * 150}ms` }}
           >
-            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mb-6 shadow-lg border ${getColorClasses(pillar.color)} transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3`}>
-              <i className={pillar.icon}></i>
+            <div>
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mb-6 shadow-lg border ${getColorClasses(pillar.color)} transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3`}>
+                <i className={pillar.icon}></i>
+              </div>
+              
+              <h3 className="text-xl font-bold text-slate-900 mb-2 font-display">{pillar.title}</h3>
+              {pillar.subtitle && (
+                <span className={`inline-block text-[11px] font-bold uppercase tracking-wider mb-3 ${getColorClasses(pillar.color).split(' ')[1]}`}>
+                  {pillar.subtitle}
+                </span>
+              )}
+              <p className="text-slate-600 leading-relaxed font-medium text-sm">
+                {pillar.desc}
+              </p>
             </div>
-            
-            <h3 className="text-xl font-bold text-slate-900 mb-2 font-display">{pillar.title}</h3>
-            {pillar.subtitle && (
-              <span className={`inline-block text-[11px] font-bold uppercase tracking-wider mb-3 ${getColorClasses(pillar.color).split(' ')[1]}`}>
-                {pillar.subtitle}
-              </span>
-            )}
-            <p className="text-slate-600 leading-relaxed font-medium">
-              {pillar.desc}
-            </p>
+
+            <div className="pt-5 mt-5 border-t border-slate-100 flex items-center gap-2 text-xs font-bold text-slate-500 group-hover:text-aubergine-700 transition-colors">
+              <span>Personalized for you</span>
+              <i className="fas fa-check-circle text-emerald-500 ml-auto"></i>
+            </div>
           </div>
         ))}
       </div>

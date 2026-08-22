@@ -14,16 +14,16 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
           {/* Trust Badges - Horizontal Scroll Snap on Mobile for zero clutter */}
           <div className="flex overflow-x-auto hide-scrollbar snap-x justify-start lg:justify-start gap-2 py-1 sm:flex-wrap">
             <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-lock text-aubergine-500"></i> 100% Private
+              <i className="fas fa-mobile-screen text-aubergine-500"></i> Mobile-First PWA
             </span>
             <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-user-md text-emerald-500"></i> Specialist Doctors
+              <i className="fas fa-user-md text-emerald-500"></i> 8+ Specialist Disciplines
             </span>
-            <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-amber-50 border border-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-microscope text-amber-600"></i> Evidence-Based
+            <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
+              <i className="fas fa-wand-magic-sparkles text-indigo-500"></i> AI-Guided Triage
             </span>
             <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-magenta-50 border border-magenta-100 text-magenta-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-video text-magenta-600"></i> 2-Min Booking
+              <i className="fas fa-shield-halved text-magenta-600"></i> 100% Private &amp; Encrypted
             </span>
           </div>
 
@@ -32,8 +32,8 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
             <h1 className="text-3xl leading-[1.2] sm:text-4xl lg:text-5xl lg:leading-[1.15] font-extrabold tracking-tight text-slate-900 font-display">
               {title || (
                 <>
-                  The Global Holistic Clinic for <br className="hidden lg:block" />
-                  <span className="text-aubergine-600 inline-block">PCOS, PCOD, Hormones & Women's Health</span>
+                  The Holistic Care Platform for <br className="hidden lg:block" />
+                  <span className="text-aubergine-600 inline-block">Women's Health, Hormones &amp; Wellness</span>
                 </>
               )}
             </h1>
@@ -45,13 +45,13 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
               ) : (
                 <>
                   <p className="text-slate-600 text-[15px] sm:text-lg md:text-xl font-normal leading-relaxed">
-                    Your hormones control more than just your cycle &mdash; they dictate your energy, weight, skin, hair, and overall well-being. At <strong>HealNari</strong>, we treat the root cause, not just the symptoms.
+                    Connect with qualified specialists across <strong>Gynaecology, PCOS, Endocrinology, Dermatology, Hair &amp; Scalp, Nutrition, and Yoga</strong>. From symptom tracking and AI guidance to online consultations and digital prescriptions.
                   </p>
                   <p className="text-slate-600 text-[15px] sm:text-base md:text-lg font-normal leading-relaxed">
-                    <strong>Manage PCOS with personalized medical, nutrition, movement and lifestyle support.</strong> Our specialist doctors, clinical dietitians, and mindful movement experts collaborate to build a protocol tailored to your preferences, metabolism, and health goals.
+                    <strong>Your personalized health journey in one installable app.</strong> Track cycles, log symptoms, screen hormonal risk factors with AI, and consult top verified doctors with structured root-cause care plans.
                   </p>
                   <p className="text-slate-700 text-[15px] sm:text-base md:text-lg font-medium leading-relaxed pt-2 pb-4 sm:pb-0">
-                    <span className="text-aubergine-700 font-bold">What's included:</span> 45-minute video consult • Personalized nutrition &amp; movement support • Lab-test roadmap • Digital prescription • 14-day free chat follow-up.
+                    <span className="text-aubergine-700 font-bold">Included in care:</span> 45-min video consult • Tailored nutrition &amp; yoga plans • Lab roadmap • Digital Rx • Free 14-day chat follow-up.
                   </p>
                 </>
               )}
@@ -61,7 +61,10 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
           {/* Pricing Banner */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-6 justify-center lg:justify-start text-sm sm:text-base font-semibold text-slate-700">
             <span className="inline-flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full text-emerald-800 border border-emerald-100 shadow-xs text-xs sm:text-sm">
-              <i className="fas fa-tag text-emerald-600"></i> Consultations starting at just ₹799
+              <i className="fas fa-tag text-emerald-600"></i> Specialist Consultations starting at ₹799
+            </span>
+            <span className="inline-flex items-center gap-1.5 bg-aubergine-50 px-3 py-1.5 rounded-full text-aubergine-800 border border-aubergine-100 shadow-xs text-xs sm:text-sm">
+              <i className="fas fa-heart-circle-bolt text-aubergine-600"></i> Free Health &amp; Cycle Tracking
             </span>
           </div>
 
@@ -79,7 +82,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
                 }}
                 className="w-full sm:w-auto relative bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 hover:from-aubergine-700 hover:via-magenta-700 hover:to-indigo-700 text-white font-extrabold px-5 sm:px-8 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl shadow-xl shadow-aubergine-200 hover:shadow-2xl hover:shadow-aubergine-300 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 sm:gap-2.5 text-[15px] sm:text-lg group-hover:ring-4 ring-aubergine-100 whitespace-nowrap"
               >
-                <i className="fas fa-stethoscope text-sm"></i> Book My ₹799 Consult
+                <i className="fas fa-stethoscope text-sm"></i> Book Specialist Consult
               </button>
             </div>
             <button
@@ -89,13 +92,13 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
               }}
               className="w-full sm:w-auto bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2 text-xs sm:text-base whitespace-nowrap"
             >
-              <i className="fas fa-heart-pulse text-rose-500"></i> 2-Min Symptom Check
+              <i className="fas fa-heart-pulse text-rose-500"></i> 2-Min Symptom Checker
             </button>
           </div>
 
           {/* Risk Reversal */}
           <div className="text-center lg:text-left text-xs font-bold text-slate-500 mt-3 pt-1">
-             <i className="fas fa-shield-halved text-emerald-500 mr-1"></i> Satisfaction Guaranteed. Don't love your doctor? Your next consult is on us.
+             <i className="fas fa-shield-halved text-emerald-500 mr-1"></i> 100% Confidentiality &amp; Satisfaction Guarantee. Don't love your doctor? Your next consult is on us.
           </div>
 
           {/* Consultation trust statement */}
@@ -103,8 +106,9 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
             <div className="flex -space-x-1 shrink-0">
               <span className="w-5 h-5 rounded-full bg-aubergine-500 flex items-center justify-center text-[10px] text-white font-bold border border-white">✓</span>
               <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-[10px] text-white font-bold border border-white">✓</span>
+              <span className="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center text-[10px] text-white font-bold border border-white">✓</span>
             </div>
-            <span>45-min detailed video consult • Free 14-day chat follow-up • Prescription included</span>
+            <span>45-min detailed video consult • Digital prescription &amp; lab roadmap • 14-day free chat follow-up</span>
           </div>
 
 
