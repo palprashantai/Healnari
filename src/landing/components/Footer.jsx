@@ -91,7 +91,7 @@ function Footer() {
 
           {/* Explore */}
           <div>
-            <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-3">Explore</h4>
+            <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-3">Explore</h3>
             <ul className="space-y-2 text-xs">
               {exploreLinks.map((l) => (
                 <li key={l.label}>
@@ -103,7 +103,7 @@ function Footer() {
 
           {/* Legal */}
           <div>
-            <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-3">Legal &amp; Trust</h4>
+            <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-3">Legal &amp; Trust</h3>
             <ul className="space-y-2 text-xs">
               {legalLinks.map((l) => (
                 <li key={l.label}>
@@ -119,7 +119,7 @@ function Footer() {
 
           {/* Compliance badges */}
           <div>
-            <h4 className="text-xs font-bold text-white uppercase tracking-widest mb-3">Global Compliance</h4>
+            <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-3">Global Compliance</h3>
             <ul className="space-y-2 text-xs">
               <li className="flex items-center gap-1.5 text-aubergine-200">
                 <i className="fas fa-shield-virus text-emerald-400 text-xs"></i> HIPAA-Aligned Practices

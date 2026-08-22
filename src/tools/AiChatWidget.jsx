@@ -129,6 +129,7 @@ export default function AiChatWidget({ context = 'landing' }) {
     const socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       auth: { token: getTokens()?.accessToken || null },
+      autoConnect: false,
     });
     socketRef.current = socket;
 
@@ -161,6 +162,12 @@ export default function AiChatWidget({ context = 'landing' }) {
 
     return () => socket.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (isOpen && socketRef.current && !socketRef.current.connected) {
+      socketRef.current.connect();
+    }
+  }, [isOpen]);
 
   const sendQuery = (text) => {
     if (!text.trim() || isLoading) return;

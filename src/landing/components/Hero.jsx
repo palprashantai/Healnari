@@ -69,7 +69,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mt-2 pt-3 sm:pt-0">
             {/* Primary Action Button */}
             <div className="relative group w-full sm:w-auto mt-2 sm:mt-0">
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:-right-2 z-10 bg-rose-500 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider py-0.5 sm:py-1 px-2 sm:px-2.5 rounded-full shadow-md shadow-rose-200/50 animate-bounce flex items-center gap-1 whitespace-nowrap">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:-right-2 z-10 bg-rose-700 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider py-0.5 sm:py-1 px-2 sm:px-2.5 rounded-full shadow-md shadow-rose-200/50 animate-bounce flex items-center gap-1 whitespace-nowrap">
                 <i className="fas fa-calendar-day"></i> Next Slot: Today
               </div>
               <button 
