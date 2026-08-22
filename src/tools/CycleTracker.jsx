@@ -134,8 +134,9 @@ function CycleTracker() {
             <h3 className="font-bold text-lg border-b pb-2">Basic Cycle Data</h3>
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className="text-xs font-bold text-slate-500 block mb-2">First day of last period *</label>
+                <label htmlFor="lastPeriodDate" className="text-xs font-bold text-slate-500 block mb-2">First day of last period *</label>
                 <input
+                  id="lastPeriodDate"
                   type="date"
                   value={data.lastPeriodDate}
                   max={todayLocalStr()}

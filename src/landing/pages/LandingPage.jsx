@@ -10,6 +10,7 @@ import FloatingCTA from '../../tools/FloatingCTA.jsx';
 import Reveal from '../../components/Reveal.jsx';
 import ScrollProgressBar from '../../components/ScrollProgressBar.jsx';
 import PromoBanner from '../components/PromoBanner.jsx';
+import LazyRender from '../../components/LazyRender.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 
 // Lazy load below-the-fold and modal components
@@ -174,35 +175,36 @@ function LandingPage() {
         />
         
         <Suspense fallback={<div className="h-32 flex items-center justify-center text-slate-400 text-sm">Loading...</div>}>
-          <Reveal><Stats /></Reveal>
+          <LazyRender><Reveal><Stats /></Reveal></LazyRender>
 
-          <Conditions />
+          <LazyRender><Conditions /></LazyRender>
 
-          <Reveal><PcosDiagram /></Reveal>
+          <LazyRender><Reveal><PcosDiagram /></Reveal></LazyRender>
 
-          <Reveal><HolisticApproach /></Reveal>
+          <LazyRender><Reveal><HolisticApproach /></Reveal></LazyRender>
 
-          <Reveal><HowItWorks /></Reveal>
+          <LazyRender><Reveal><HowItWorks /></Reveal></LazyRender>
 
           {adminSettings?.toggles?.showFeaturedDoctors !== false && (
-            <Doctors onSelectDoctor={openBooking} />
+            <LazyRender><Doctors onSelectDoctor={openBooking} /></LazyRender>
           )}
 
-          <Reveal><Outcomes /></Reveal>
+          <LazyRender><Reveal><Outcomes /></Reveal></LazyRender>
 
           {adminSettings?.toggles?.showTestimonials !== false && (
-            <Reveal><Testimonials /></Reveal>
+            <LazyRender><Reveal><Testimonials /></Reveal></LazyRender>
           )}
 
-          <Reveal><CycleTracker /></Reveal>
+          <LazyRender><Reveal><CycleTracker /></Reveal></LazyRender>
 
-          <Reveal><LabTests onBook={openBooking} /></Reveal>
+          <LazyRender><Reveal><LabTests onBook={openBooking} /></Reveal></LazyRender>
 
-          <Reveal><HealthTips onStartConsult={() => openBooking('')} /></Reveal>
+          <LazyRender><Reveal><HealthTips onStartConsult={() => openBooking('')} /></Reveal></LazyRender>
 
           {/* Customized Premium Inline CTA Section */}
           {adminSettings?.toggles?.showPricing !== false && (
             <section className="max-w-6xl mx-auto px-5 md:px-8 py-10">
+            <LazyRender>
             <Reveal>
               <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-600 to-brand-700 px-5 py-10 sm:px-8 sm:py-12 md:p-16 text-center text-white shadow-xl glow-purple">
                 {/* Background design accents */}
@@ -244,13 +246,14 @@ function LandingPage() {
                 </div>
               </div>
             </Reveal>
+            </LazyRender>
             </section>
           )}
 
-          <Reveal><Faq /></Reveal>
+          <LazyRender><Reveal><Faq /></Reveal></LazyRender>
 
           {adminSettings?.toggles?.showNewsletter !== false && (
-            <Reveal><NewsletterSignup /></Reveal>
+            <LazyRender><Reveal><NewsletterSignup /></Reveal></LazyRender>
           )}
         </Suspense>
       </main>

@@ -111,6 +111,9 @@ function AppInstallToast() {
               <img
                 src="/brand/logo-icon.jpg"
                 alt="HealNari"
+                width="48"
+                height="48"
+                loading="lazy"
                 className="w-12 h-12 rounded-xl object-cover shadow-sm shrink-0"
               />
               <div>
