@@ -10,7 +10,7 @@ import { IosInstallPrompt } from './components/IosInstallPrompt.jsx';
 
 const queryClient = new QueryClient();
 
-const LandingPage = lazy(() => import('./landing/pages/LandingPage.jsx'));
+import LandingPage from './landing/pages/LandingPage.jsx';
 const DoctorLandingPage = lazy(() => import('./landing/pages/DoctorLandingPage.jsx'));
 const DoctorPublicProfile = lazy(() => import('./landing/pages/DoctorPublicProfile.jsx'));
 const ConditionPage = lazy(() => import('./landing/pages/ConditionPage.jsx'));

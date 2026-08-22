@@ -17,7 +17,15 @@ export function AuthProvider({ children }) {
     }
   });
   
-  const [loading, setLoading] = useState(!user);
+  // Only start in loading state if there are existing cached credentials to verify
+  const [loading, setLoading] = useState(() => {
+    try {
+      const tokens = JSON.parse(localStorage.getItem('healnari_tokens'));
+      return Boolean(tokens?.accessToken);
+    } catch {
+      return false;
+    }
+  });
 
   const setAndCacheUser = useCallback((updater) => {
     setUser((prev) => {
