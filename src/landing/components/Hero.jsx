@@ -10,7 +10,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
 
       <div className="grid lg:grid-cols-12 gap-6 lg:gap-12 items-center lg:items-stretch">
         {/* Left Column: Copy & Actions */}
-        <div className="lg:col-span-7 space-y-4 sm:space-y-7 text-center lg:text-left animate-slide-up order-2 lg:order-1 min-w-0">
+        <div className="lg:col-span-7 space-y-4 sm:space-y-7 text-center lg:text-left order-2 lg:order-1 min-w-0">
           {/* Trust Badges - Horizontal Scroll Snap on Mobile for zero clutter */}
           <div className="flex overflow-x-auto hide-scrollbar snap-x justify-start lg:justify-start gap-2 py-1 sm:flex-wrap">
             <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">

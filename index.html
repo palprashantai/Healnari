@@ -45,12 +45,12 @@
     <!-- Google Fonts: Inter & Playfair Display (Official HealNari Typography) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400;1,600;1,700&amp;family=Satisfy&amp;display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400;1,600;1,700&amp;family=Satisfy&amp;display=swap"></noscript>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&amp;family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&amp;display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&amp;family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&amp;display=swap"></noscript>
     
     <!-- FontAwesome Icons -->
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" media="print" onload="this.media='all'" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer">
     <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer"></noscript>
     
     <!-- Structured Data -->
@@ -81,107 +81,11 @@
   </head>
   <body class="bg-aubergine-50/30 text-slate-700 antialiased scroll-smooth">
     <div id="root">
-      <!-- PWA Pre-render Loader (App Shell) -->
-      <style>
-        body, html { margin: 0; padding: 0; height: 100%; background-color: #fdfcff; overflow: hidden; }
-        .pwa-loader-wrapper {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
-          width: 100vw;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-          position: relative;
-        }
-        .pwa-medical-group {
-          position: relative;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          margin-bottom: 20px;
-        }
-        .pwa-loader-logo {
-          width: 50px;
-          height: 50px;
-          border-radius: 12px;
-          box-shadow: 0 8px 25px rgba(89, 46, 113, 0.3);
-          animation: cross-float 2.5s ease-in-out infinite;
-          margin-bottom: 10px;
-          position: relative;
-          z-index: 10;
-        }
-        
-        .ekg-container {
-          width: 180px;
-          height: 60px;
-          position: relative;
-        }
-        .ekg-line {
-          stroke: #10B981; /* Medical Emerald */
-          stroke-width: 3.5;
-          stroke-linecap: round;
-          stroke-linejoin: round;
-          fill: none;
-          stroke-dasharray: 400;
-          stroke-dashoffset: 400;
-          animation: ekg-draw 2.5s linear infinite;
-        }
-        .ekg-glow {
-          stroke: rgba(16, 185, 129, 0.5);
-          stroke-width: 8;
-          stroke-linecap: round;
-          stroke-linejoin: round;
-          fill: none;
-          stroke-dasharray: 400;
-          stroke-dashoffset: 400;
-          animation: ekg-draw 2.5s linear infinite;
-          filter: blur(4px);
-        }
-        
-        .pwa-loader-text {
-          color: #592E71;
-          font-weight: 900;
-          font-size: 16px;
-          letter-spacing: 2px;
-          text-transform: uppercase;
-        }
-        .pwa-loader-subtext {
-          color: #10B981;
-          font-size: 11px;
-          margin-top: 8px;
-          letter-spacing: 2.5px;
-          text-transform: uppercase;
-          font-weight: 700;
-          animation: ekg-fade 1.25s infinite alternate;
-        }
-        
-        @keyframes ekg-draw {
-          0% { stroke-dashoffset: 400; }
-          50% { stroke-dashoffset: 0; }
-          100% { stroke-dashoffset: -400; }
-        }
-        @keyframes cross-float {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
-        }
-        @keyframes ekg-fade {
-          from { opacity: 0.3; }
-          to { opacity: 1; }
-        }
-      </style>
-      <div class="pwa-loader-wrapper">
-        <div class="pwa-medical-group">
-          <img src="/brand/logo-icon.jpg" alt="HealNari Logo" class="pwa-loader-logo" />
-          <div class="ekg-container">
-            <svg viewBox="0 0 180 60" width="100%" height="100%">
-              <path class="ekg-glow" d="M 0 30 L 40 30 L 50 10 L 65 55 L 85 5 L 105 45 L 115 30 L 180 30" />
-              <path class="ekg-line" d="M 0 30 L 40 30 L 50 10 L 65 55 L 85 5 L 105 45 L 115 30 L 180 30" />
-            </svg>
-          </div>
+      <div class="min-h-screen flex items-center justify-center bg-aubergine-50/30 text-center">
+        <div class="p-6">
+          <div class="w-10 h-10 border-4 border-aubergine-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p class="text-sm text-slate-500 font-semibold tracking-wide">Loading HealNari...</p>
         </div>
-        <div class="pwa-loader-text">HealNari EHR</div>
-        <div class="pwa-loader-subtext">Initializing Clinical Data...</div>
       </div>
     </div>
     <script type="module" src="/src/main.jsx"></script>
