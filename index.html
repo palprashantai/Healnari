@@ -79,27 +79,20 @@
     }
     </script>
   </head>
-  <body class="bg-aubergine-50/30 text-slate-700 antialiased scroll-smooth">
+  <body style="background-color:#FDFBF7; color:#334155; margin:0; font-family:sans-serif;">
     <div id="root">
-      <header class="sticky top-0 z-50 border-b border-transparent py-4" style="background-color: rgba(253,251,247,0.98); backdrop-filter: blur(12px);">
-        <div class="max-w-7xl mx-auto px-5 md:px-8 flex items-center justify-between gap-4">
-          <div class="flex items-center gap-6">
-            <a href="/" class="shrink-0 flex items-center gap-2">
-              <span class="text-2xl font-black text-[#6B46C1] font-serif">Heal<span class="text-[#E23E8C]">Nari</span></span>
-            </a>
-          </div>
-          <div class="flex items-center gap-3">
-            <a href="#consult" class="bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 text-white font-extrabold px-4 py-2 rounded-xl text-xs shadow-md">
-              Book Consult
-            </a>
-          </div>
+      <!-- Pre-rendered shell: inline styles so LCP/FCP paint instantly, zero CLS -->
+      <header style="position:sticky;top:0;z-index:50;border-bottom:1px solid transparent;padding:14px 0;background-color:rgba(253,251,247,0.98);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+        <div style="max-width:1280px;margin:0 auto;padding:0 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;">
+          <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <span style="font-size:1.4rem;font-weight:900;color:#6B46C1;font-family:Georgia,serif;letter-spacing:-0.02em;">Heal<span style="color:#E23E8C;">Nari</span></span>
+          </a>
+          <a href="#consult" style="background:linear-gradient(to right,#7C3AED,#DB2777,#4F46E5);color:#fff;font-weight:800;padding:8px 16px;border-radius:12px;font-size:0.75rem;text-decoration:none;box-shadow:0 4px 12px rgba(124,58,237,0.35);">
+            Book Consult
+          </a>
         </div>
       </header>
 
-      <section class="relative pt-6 pb-20 max-w-6xl mx-auto px-4 sm:px-5 md:px-8">
-        <div class="grid lg:grid-cols-12 gap-6 lg:gap-12 items-center lg:items-stretch">
-          <div class="lg:col-span-7 space-y-4 sm:space-y-7 text-center lg:text-left order-2 lg:order-1 min-w-0">
-            <div class="flex overflow-x-auto hide-scrollbar gap-2 py-1">
               <span class="shrink-0 inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-semibold px-3 py-1.5 rounded-full">
                 100% Private
               </span>
