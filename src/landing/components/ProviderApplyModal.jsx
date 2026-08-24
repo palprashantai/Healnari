@@ -19,7 +19,7 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
     phone: '',
     regNo: '',
     medicalCouncil: initialCountry.councils[0],
-    specialty: 'Gynaecology & Obstetrics',
+    specialty: 'Gynaecologist',
     experienceYears: '5-10 years',
     consultationFee: `${initialCountry.symbol}${initialCountry.defaultDoctorFee}`,
     clinicName: '',
@@ -100,11 +100,14 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
   };
 
   const specialties = [
-    'Gynaecology & Obstetrics',
-    'Endocrinology & Diabetology',
-    'Reproductive Medicine / IVF',
-    'Dermatology & Trichology',
-    'Clinical Nutrition & Functional Medicine'
+    'Gynaecologist',
+    'PCOS Specialist',
+    'Endocrinologist',
+    'Dermatologist',
+    'Trichologist',
+    'Nutritionist',
+    'Yoga & Movement',
+    'Fertility Specialist'
   ];
 
   return (
@@ -290,14 +293,9 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {step === 2 && (
-                <div className="space-y-4 animate-fade-in">
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-700">Clinical Experience</label>
+                      <label className="text-xs font-bold text-slate-700">Clinical Experience *</label>
                       <select
                         value={formData.experienceYears}
                         onChange={e => handleChange('experienceYears', e.target.value)}
@@ -309,6 +307,13 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
                         <option value="10+ years">10+ years</option>
                       </select>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 2 && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
                         <span>Target Video Consult Fee</span>
