@@ -75,9 +75,18 @@ export const COUNTRIES = [
     defaultPatientFee: 799,
     defaultDoctorFee: 800,
     councils: [
-      'National Medical Commission (NMC - India)',
-      'State Medical Council (India)',
-      'Medical Council of India (MCI - Legacy)'
+      'National Medical Commission (NMC)',
+      'State Medical Council (SMC)',
+      'Dental Council of India (DCI)',
+      'State Dental Council (SDC)',
+      'Indian Nursing Council (INC)',
+      'State Nursing Council (SNC)',
+      'Rehabilitation Council of India (RCI)',
+      'Central Council of Indian Medicine (CCIM)',
+      'Central Council of Homoeopathy (CCH)',
+      'Pharmacy Council of India (PCI)',
+      'Indian Association of Physiotherapists (IAP)',
+      'Other / Not Listed'
     ],
     phonePrefix: '+91',
     payoutRail: 'NEFT / IMPS / Direct UPI Payouts',
