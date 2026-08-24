@@ -54,7 +54,7 @@ return {
         enabled: true,
         type: 'module',
       },
-      includeAssets: ['brand/logo-icon.jpg', 'brand/logo-full.jpg'],
+      includeAssets: ['brand/logo-icon.png', 'brand/logo-full.png'],
       manifest: {
         name: 'HealNari | Women\'s Health',
         short_name: 'HealNari',
@@ -71,53 +71,53 @@ return {
             short_name: 'Track',
             description: 'Log daily symptoms, cycle, and mood',
             url: '/patient-dashboard/tracking',
-            icons: [{ src: '/brand/logo-icon.jpg', sizes: '192x192' }]
+            icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
           },
           {
             name: 'Book ₹799 Consult',
             short_name: 'Consult',
             description: 'Book instant consultation with a doctor',
             url: '/patient-dashboard/find-doctor',
-            icons: [{ src: '/brand/logo-icon.jpg', sizes: '192x192' }]
+            icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
           },
           {
             name: 'Doctor Queue & Telemed',
             short_name: 'Doctor Queue',
             description: 'Open patient appointments & teleconsultation room',
             url: '/doctor-dashboard/appointments',
-            icons: [{ src: '/brand/logo-icon.jpg', sizes: '192x192' }]
+            icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
           },
           {
             name: 'Prescriptions & Vault',
             short_name: 'Rx Vault',
             description: 'Access digital prescriptions & lab records',
             url: '/patient-dashboard/records',
-            icons: [{ src: '/brand/logo-icon.jpg', sizes: '192x192' }]
+            icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
           }
         ],
         icons: [
           {
-            src: '/brand/logo-icon.jpg',
+            src: '/brand/logo-icon.png',
             sizes: '192x192',
-            type: 'image/jpeg',
+            type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/brand/logo-icon.jpg',
+            src: '/brand/logo-icon.png',
             sizes: '192x192',
-            type: 'image/jpeg',
+            type: 'image/png',
             purpose: 'maskable'
           },
           {
-            src: '/brand/logo-icon.jpg',
+            src: '/brand/logo-icon.png',
             sizes: '512x512',
-            type: 'image/jpeg',
+            type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/brand/logo-icon.jpg',
+            src: '/brand/logo-icon.png',
             sizes: '512x512',
-            type: 'image/jpeg',
+            type: 'image/png',
             purpose: 'maskable'
           }
         ]

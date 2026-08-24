@@ -3,11 +3,11 @@ import React from 'react';
 export function HealNariLogoMark({ className = "w-9 h-9" }) {
   return (
     <img
-      src="/brand/logo-icon.jpg"
+      src="/brand/logo-icon.svg"
       alt="HealNari Logo"
       className={`rounded-full object-contain shrink-0 transition-transform duration-300 group-hover:scale-105 ${className}`}
       onError={(e) => {
-        e.target.src = "/brand/logo-full.jpg";
+        e.target.src = "/favicon.svg";
       }}
     />
   );
@@ -25,11 +25,11 @@ export function HealNariLogo({ showTagline = false, size = "md", variant = "ligh
     return (
       <div className="flex flex-col">
         <img
-          src="/brand/logo-full.jpg"
+          src={isDark ? "/brand/logo-dark.svg" : "/brand/logo.svg"}
           alt="HealNari"
           className={`${sizeClasses.fullHeight} w-auto object-contain shrink-0`}
           onError={(e) => {
-            e.target.src = "/brand/logo-icon.jpg";
+            e.target.src = "/brand/logo-icon.svg";
           }}
         />
         {showTagline && (
