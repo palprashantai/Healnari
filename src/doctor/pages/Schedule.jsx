@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiFetch } from '../../lib/api';
+import { apiFetch } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast.jsx';
 
 const DAYS_OF_WEEK = [
