@@ -149,7 +149,10 @@ export class AuthService {
       patch.sms_notifications = body.smsNotifications;
 
     if (Object.keys(patch).length > 0) {
-      await this.supabase.admin.from('profiles').update(patch).eq('id', userId);
+      const { error } = await this.supabase.admin.from('profiles').update(patch).eq('id', userId);
+      if (error) {
+        throw new InternalServerErrorException(`Failed to update profile: ${error.message}`);
+      }
     }
     const { data: profile } = await this.supabase.admin
       .from('profiles')
