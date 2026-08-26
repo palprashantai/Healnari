@@ -16,6 +16,7 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
   const email = { isConfigured: false, sendMail: jest.fn() };
   const invoices = { generatePdf: jest.fn() };
   const appointments = { confirmPaidAppointment: jest.fn(), initiateRefundIfPaid: jest.fn() };
+  const mockFXRateService = { getRate: jest.fn() };
 
   const paidPayment = {
     id: 'pay-1', cf_order_id: 'cf-order-1', status: 'Paid', amount: 799,

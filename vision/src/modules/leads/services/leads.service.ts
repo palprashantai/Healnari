@@ -68,36 +68,61 @@ export class LeadsService {
     try {
       const existingProfile = await this.findExistingPatient(body.email, body.mobile);
 
-      if (existingProfile && body.doctorId) {
-        const { data: doctor } = await this.supabase.admin.from('profiles').select('full_name, specialty, currency').eq('id', body.doctorId).maybeSingle();
-        const scheduledDate = body.preferredDate || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-        const scheduledTime = body.preferredTime || '10:00 AM';
+      let patientId: string;
+      let generatedPassword: string | null = null;
 
-        const { data: appointment } = await this.supabase.admin.from('appointments').insert({
-          patient_id: existingProfile.id,
-          doctor_id: body.doctorId,
-          specialty: doctor?.specialty || body.specialtyRecommendation,
-          type: AppointmentType.VIDEO,
-          scheduled_date: scheduledDate,
-          scheduled_time: scheduledTime,
-          reason: body.concern || 'Consultation request',
-          status: AppointmentStatus.REQUESTED,
-          country: body.country || 'US',
-          currency: body.currency || doctor?.currency || 'USD',
-        }).select().maybeSingle();
-
-        this.notifications.create(body.doctorId, {
-          type: 'appointment_requested',
-          title: 'Patient booking request',
-          message: `${existingProfile.full_name} wants to book a consultation${body.concern ? ` for ${body.concern}` : ''}. Review and approve to confirm.`,
-          data: { appointmentId: appointment?.id },
-        }).catch(() => { });
-
-        return { ...appointment, isDirectAppointment: true };
+      if (existingProfile) {
+        patientId = existingProfile.id;
+      } else {
+        generatedPassword = randomBytes(9).toString('base64url') + 'A1!';
+        const { data: created, error } = await this.supabase.admin.auth.admin.createUser({
+          email: body.email,
+          password: generatedPassword,
+          email_confirm: true,
+          user_metadata: { role: ProfileRole.PATIENT, full_name: body.name },
+        });
+        if (error || !created?.user) throw new ForbiddenException(error?.message || 'Failed to create patient account');
+        patientId = created.user.id;
+        const profileUpdates: any = {};
+        if (body.mobile) profileUpdates.phone = body.mobile;
+        if (body.age) profileUpdates.age = body.age;
+        if (body.country) profileUpdates.country = body.country;
+        if (body.currency) profileUpdates.currency = body.currency;
+        if (Object.keys(profileUpdates).length > 0) {
+          await this.supabase.admin.from('profiles').update(profileUpdates).eq('id', patientId);
+        }
       }
 
-      // Normal Lead Logic (for new users)
-      const { data } = await this.supabase.admin
+      const { data: doctor } = await this.supabase.admin.from('profiles').select('full_name, specialty, currency').eq('id', body.doctorId).maybeSingle();
+      const scheduledDate = body.preferredDate || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const scheduledTime = body.preferredTime || '10:00 AM';
+
+      // Create appointment with HOLD status and 10 minute expiry
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      const { data: appointment, error: appointmentError } = await this.supabase.admin.from('appointments').insert({
+        patient_id: patientId,
+        doctor_id: body.doctorId,
+        specialty: doctor?.specialty || body.specialtyRecommendation,
+        type: AppointmentType.VIDEO,
+        scheduled_date: scheduledDate,
+        scheduled_time: scheduledTime,
+        reason: body.concern || 'Consultation request',
+        status: AppointmentStatus.HOLD,
+        hold_expires_at: expiresAt,
+        country: body.country || 'US',
+        currency: body.currency || doctor?.currency || 'USD',
+      }).select().maybeSingle();
+
+      if (appointmentError) {
+        // Handle double booking constraint error
+        if (appointmentError.code === '23505') {
+          throw new ForbiddenException('This slot is already booked or held. Please choose another slot.');
+        }
+        throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      }
+
+      // Also create the legacy consultation request for tracking purposes, but mark it converted
+      const { data: requestRow } = await this.supabase.admin
         .from('consultation_requests')
         .insert({
           name: body.name,
@@ -113,22 +138,36 @@ export class LeadsService {
           country: body.country || 'US',
           currency: body.currency || 'USD',
           fee: body.fee || null,
-          patient_id: null,
+          patient_id: patientId,
+          status: 'Converted'
         })
         .select()
         .maybeSingle();
 
-      if (body.doctorId) {
-        this.notifications.create(body.doctorId, {
-          type: 'consultation_request',
-          title: 'New patient request',
-          message: `${body.name} wants to book a consultation${body.concern ? ` for ${body.concern}` : ''}. Review and approve to confirm.`,
-          data: { consultationRequestId: data.id },
-        }).catch(() => { });
+      if (generatedPassword) {
+        const { data: linkData } = await this.supabase.admin.auth.admin.generateLink({
+          type: 'recovery',
+          email: body.email,
+        });
+        const setupLink = linkData?.properties?.action_link || 'https://app.healnari.com/reset-password';
+
+        await this.email.sendMail({
+          to: body.email,
+          subject: 'Welcome to HealNari - Complete your booking',
+          html: `
+            <p>Hi ${body.name},</p>
+            <p>Your consultation slot with Dr. ${doctor?.full_name || ''} is held for 10 minutes.</p>
+            <p>We've created your HealNari account. <strong>Email:</strong> ${body.email}</p>
+            <p>Please <a href="${setupLink}">click here to set your password</a>.</p>
+            <p>Complete your payment to confirm your booking for <strong>${scheduledDate} at ${scheduledTime}</strong>.</p>
+          `,
+          text: `Hi ${body.name}, your slot with Dr. ${doctor?.full_name || ''} is held for 10 mins. Set password here: ${setupLink}. Complete payment to confirm booking for ${scheduledDate} at ${scheduledTime}.`,
+        });
       }
 
-      return data;
+      return { ...appointment, isDirectAppointment: true };
     } catch (error) {
+      if (error instanceof ForbiddenException) throw error;
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
     }
   }

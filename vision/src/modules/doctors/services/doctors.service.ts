@@ -3,14 +3,19 @@ import { SupabaseService } from '@/core/supabase/supabase.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
+import { UpdateScheduleDto, CreateExceptionDto } from '@/modules/doctors/controllers/doctors.controller';
 
-const STATIC_SLOTS = ['9:00 AM', '10:30 AM', '12:00 PM', '2:00 PM', '4:00 PM', '5:30 PM'];
+
 
 @Injectable()
 export class DoctorsService {
   constructor(
     private readonly supabase: SupabaseService,
   ) { }
+
+  private requireDoctor(user: AuthUser) {
+    if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+  }
 
   private requireVerifiedDoctor(user: AuthUser) {
     if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
@@ -96,6 +101,56 @@ export class DoctorsService {
       return { doctorId, date, availableSlots: [] };
     }
 
+    // Check doctor exceptions
+    const { data: exception } = await this.supabase.admin
+      .from('doctor_exceptions')
+      .select('is_available')
+      .eq('doctor_id', doctorId)
+      .eq('exception_date', date)
+      .maybeSingle();
+
+    if (exception && !exception.is_available) {
+      return { doctorId, date, availableSlots: [] };
+    }
+
+    // Fetch schedule
+    const dayOfWeek = new Date(date).getDay();
+    const { data: schedule } = await this.supabase.admin
+      .from('doctor_schedules')
+      .select('start_time, end_time')
+      .eq('doctor_id', doctorId)
+      .eq('day_of_week', dayOfWeek)
+      .maybeSingle();
+
+    if (!schedule && !exception?.is_available) {
+      return { doctorId, date, availableSlots: [] };
+    }
+
+    const startStr = schedule?.start_time || '09:00:00';
+    const endStr = schedule?.end_time || '17:00:00';
+
+    const generateSlots = (start: string, end: string) => {
+      const slots: string[] = [];
+      let [sh, sm] = start.split(':').map(Number);
+      const [eh, em] = end.split(':').map(Number);
+      
+      while (sh < eh || (sh === eh && sm < em)) {
+        const ampm = sh >= 12 ? 'PM' : 'AM';
+        const displayHour = sh % 12 === 0 ? 12 : sh % 12;
+        const displayMin = sm.toString().padStart(2, '0');
+        slots.push(`${displayHour}:${displayMin} ${ampm}`);
+        
+        sm += 30;
+        if (sm >= 60) {
+          sm -= 60;
+          sh += 1;
+        }
+      }
+      return slots;
+    };
+
+    const dynamicSlots = generateSlots(startStr, endStr);
+
     const { data: booked } = await this.supabase.admin
       .from('appointments')
       .select('scheduled_time')
@@ -108,7 +163,7 @@ export class DoctorsService {
     const now = new Date();
     const isToday = now.toISOString().slice(0, 10) === date;
 
-    const availableSlots = STATIC_SLOTS.filter((slot) => {
+    const availableSlots = dynamicSlots.filter((slot) => {
       if (bookedTimes.has(slot)) return false;
 
       if (isToday) {
@@ -128,5 +183,90 @@ export class DoctorsService {
     });
 
     return { doctorId, date, availableSlots };
+  }
+
+  async getMySchedule(user: AuthUser) {
+    this.requireDoctor(user);
+
+    const [{ data: schedule }, { data: exceptions }] = await Promise.all([
+      this.supabase.admin
+        .from('doctor_schedules')
+        .select('*')
+        .eq('doctor_id', user.id)
+        .order('day_of_week', { ascending: true }),
+      this.supabase.admin
+        .from('doctor_exceptions')
+        .select('*')
+        .eq('doctor_id', user.id)
+        .gte('exception_date', new Date().toISOString().slice(0, 10))
+        .order('exception_date', { ascending: true })
+    ]);
+
+    return { schedule: schedule || [], exceptions: exceptions || [] };
+  }
+
+  async updateMySchedule(user: AuthUser, body: UpdateScheduleDto) {
+    this.requireDoctor(user);
+
+    // To handle upsert properly, we delete existing and insert new
+    await this.supabase.admin
+      .from('doctor_schedules')
+      .delete()
+      .eq('doctor_id', user.id);
+
+    const inserts = body.schedule.map(d => ({
+      doctor_id: user.id,
+      day_of_week: d.dayOfWeek,
+      start_time: d.startTime,
+      end_time: d.endTime
+    }));
+
+    const { data, error } = await this.supabase.admin
+      .from('doctor_schedules')
+      .insert(inserts)
+      .select();
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to update schedule');
+    }
+
+    return data;
+  }
+
+  async addException(user: AuthUser, body: CreateExceptionDto) {
+    this.requireDoctor(user);
+
+    const { data, error } = await this.supabase.admin
+      .from('doctor_exceptions')
+      .insert({
+        doctor_id: user.id,
+        exception_date: body.exceptionDate,
+        is_available: body.isAvailable,
+        reason: body.reason
+      })
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to add exception');
+    }
+
+    return data;
+  }
+
+  async removeException(user: AuthUser, id: string) {
+    this.requireDoctor(user);
+
+    const { error } = await this.supabase.admin
+      .from('doctor_exceptions')
+      .delete()
+      .eq('id', id)
+      .eq('doctor_id', user.id);
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to remove exception');
+    }
+
+    return { success: true };
   }
 }

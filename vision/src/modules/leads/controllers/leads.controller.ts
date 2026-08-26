@@ -66,7 +66,7 @@ export class LeadsController {
   @Post('check-existing')
   async checkExistingUser(@Body() body: CheckExistingUserDto) {
     const data = await this.leadsService.checkExistingUser(body.email, body.mobile);
-    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_FETCHED);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
   @Get('consultation-requests/mine')

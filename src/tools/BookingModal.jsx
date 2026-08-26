@@ -31,6 +31,9 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
     time: ''
   });
 
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+
   const [doctors, setDoctors] = useState([]);
   const [loadingDoctors, setLoadingDoctors] = useState(true);
   const [errors, setErrors] = useState({});
@@ -80,13 +83,19 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
     'Thyroid'
   ];
 
-  const timeSlots = [
-    '10:00 AM',
-    '11:30 AM',
-    '2:00 PM',
-    '4:30 PM',
-    '6:00 PM'
-  ];
+
+
+  useEffect(() => {
+    if (formData.doctorId && formData.date) {
+      setLoadingSlots(true);
+      apiFetch(`/doctors/${formData.doctorId}/slots?date=${formData.date}`, { skipAuth: true })
+        .then(res => setAvailableSlots(res?.availableSlots || []))
+        .catch(() => setAvailableSlots([]))
+        .finally(() => setLoadingSlots(false));
+    } else {
+      setAvailableSlots([]);
+    }
+  }, [formData.doctorId, formData.date]);
 
   const FIELD_VALIDATORS = {
     name: () => (!formData.name.trim() ? 'Full name is required' : null),
@@ -137,6 +146,9 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
     setFormData((prev) => ({ ...prev, [id]: value }));
     if (errors[id]) {
       setErrors((prev) => ({ ...prev, [id]: null }));
+    }
+    if (id === 'date') {
+      setFormData(prev => ({ ...prev, time: '' }));
     }
   };
 
@@ -487,8 +499,16 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                     className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-aubergine-500 focus:outline-none bg-white ${errors.time ? 'border-rose-400' : 'border-slate-200'
                       }`}
                   >
-                    <option value="" disabled>Select slot</option>
-                    {timeSlots.map(slot => <option key={slot}>{slot}</option>)}
+                    {loadingSlots ? (
+                      <option value="" disabled>Loading slots...</option>
+                    ) : availableSlots.length === 0 ? (
+                      <option value="" disabled>No slots available</option>
+                    ) : (
+                      <>
+                        <option value="" disabled>Select slot</option>
+                        {availableSlots.map(slot => <option key={slot}>{slot}</option>)}
+                      </>
+                    )}
                   </select>
                   {errors.time && <p className="text-rose-500 text-[10px] font-bold mt-1">{errors.time}</p>}
                 </div>

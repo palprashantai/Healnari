@@ -261,7 +261,7 @@ export class AppointmentsService {
 
     if (!appointment) return null;
 
-    if (appointment.status === AppointmentStatus.REQUESTED || appointment.status === AppointmentStatus.APPROVED) {
+    if (appointment.status === AppointmentStatus.REQUESTED || appointment.status === AppointmentStatus.APPROVED || appointment.status === 'HOLD') {
       const { data: updated } = await this.supabase.admin
         .from('appointments')
         .update({ status: AppointmentStatus.UPCOMING })
@@ -846,7 +846,7 @@ export class AppointmentsService {
 
   @Cron(CronExpression.EVERY_5_MINUTES, { name: 'appointments_unpaid_release' })
   async releaseUnpaidSlots() {
-    // Free any slot where the payment wasn't completed within 5 minutes
+    // Free any slot where the payment wasn't completed within 5 minutes (legacy)
     const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
     const { data: expired, error } = await this.supabase.admin
@@ -857,12 +857,24 @@ export class AppointmentsService {
       .select('id');
 
     if (error) {
-      this.logger.error('Failed to release unpaid slots:', error);
-      return;
+      this.logger.error('Failed to release unpaid requested slots:', error);
+    } else if (expired?.length) {
+      this.logger.log(`Released ${expired.length} unpaid slots due to payment timeout.`);
     }
 
-    if (expired?.length) {
-      this.logger.log(`Released ${expired.length} unpaid slots due to payment timeout.`);
+    // Free explicitly HELD slots that have expired (10 minutes)
+    const nowStr = new Date().toISOString();
+    const { data: expiredHolds, error: holdError } = await this.supabase.admin
+      .from('appointments')
+      .update({ status: AppointmentStatus.CANCELLED })
+      .eq('status', 'HOLD')
+      .lt('hold_expires_at', nowStr)
+      .select('id');
+
+    if (holdError) {
+      this.logger.error('Failed to release expired hold slots:', holdError);
+    } else if (expiredHolds?.length) {
+      this.logger.log(`Released ${expiredHolds.length} expired hold slots.`);
     }
   }
 }

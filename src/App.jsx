@@ -46,6 +46,7 @@ const DoctorBilling = lazy(() => import('./doctor/pages/Billing.jsx'));
 const DoctorStaff = lazy(() => import('./doctor/pages/Staff.jsx'));
 const DoctorProfile = lazy(() => import('./doctor/pages/Profile.jsx'));
 const DoctorCommunications = lazy(() => import('./doctor/pages/Communications.jsx'));
+const DoctorSchedule = lazy(() => import('./doctor/pages/Schedule.jsx'));
 const NotFound = lazy(() => import('./NotFound.jsx'));
 
 // Admin Pages
@@ -185,6 +186,7 @@ function App() {
                 <Route index element={<DoctorDashboard />} />
                 <Route path="analytics" element={<DoctorAnalytics />} />
                 <Route path="appointments" element={<DoctorAppointments />} />
+                <Route path="schedule" element={<DoctorSchedule />} />
                 <Route path="requests" element={<DoctorPatientRequests />} />
                 <Route path="patients" element={<DoctorPatients />} />
                 <Route path="prescriptions" element={<DoctorPrescriptions />} />
