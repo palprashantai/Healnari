@@ -448,7 +448,7 @@ function PriorityInbox({ labs, refillRequests, onReviewLab, onApproveRefill, onR
 }
 
 /* ─── Practice Performance Card ─── */
-function PracticePerformanceCard({ earnings, navigate, queue }) {
+function PracticePerformanceCard({ earnings, navigate, queue, userCurrency }) {
   const done = queue.filter(q => q.status === 'Done').length;
   const total = queue.length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -884,7 +884,7 @@ function DoctorDashboard() {
             </div>
           </div>
 
-          <PracticePerformanceCard earnings={earnings} navigate={navigate} queue={queue} />
+          <PracticePerformanceCard earnings={earnings} navigate={navigate} queue={queue} userCurrency={userCurrency} />
           <PriorityInbox
             labs={visibleLabs}
             refillRequests={refillRequests}

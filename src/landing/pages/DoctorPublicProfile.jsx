@@ -268,18 +268,16 @@ function DoctorPublicProfile() {
       mobile: patientMobile.trim(),
       age: patientAge ? Number(patientAge) : undefined,
       doctorId: doctor?.id,
-      doctor: docName,
       concern,
-      date,
-      time: timeSlot,
-      consultType,
-      fee: doctor?.consultFee || doctor?.fee || 799,
+      preferredDate: date,
+      preferredTime: timeSlot,
       country: countryCode,
-      source: 'direct_doctor_link'
+      currency: doctor?.currency || 'INR',
+      fee: doctor?.consultFee || doctor?.fee || 799,
     };
 
     try {
-      await apiFetch('/leads/capture', {
+      await apiFetch('/leads/consultation-request', {
         method: 'POST',
         body: payload,
         skipAuth: true

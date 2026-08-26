@@ -19,6 +19,7 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
   const docQual = doc.qualification || doc.qualifications || 'MBBS, MD (OBG)';
   const docReg = doc.regNo || doc.registration_no || doc.mci_number || 'NMC Verified • Reg: 15201';
   const consultFee = doc.consultFee || doc.fee || 799;
+  const docCurrency = doc.currency || 'INR';
 
   // Real doctor photo resolution
   const resolvePhoto = (d) => {
