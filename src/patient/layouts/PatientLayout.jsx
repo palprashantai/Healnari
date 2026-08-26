@@ -16,17 +16,37 @@ import { triggerHaptic } from '../../lib/haptics.js';
 
 const DEFAULT_ACCENT = '#6B46C1';
 
-const MENU_ITEMS = [
-  { name: 'Dashboard',          icon: 'fa-house',          path: '/patient-dashboard',              color: '#6B46C1' },
-  { name: 'Find a Doctor',      icon: 'fa-user-doctor',    path: '/patient-dashboard/find-doctor',   color: '#0ea5e9' },
-  { name: 'My Appointments',    icon: 'fa-calendar-check', path: '/patient-dashboard/appointments',  color: '#10b981' },
-  { name: 'Medical Records',    icon: 'fa-file-medical',   path: '/patient-dashboard/records',       color: '#f59e0b' },
-  { name: 'Prescriptions',      icon: 'fa-pills',          path: '/patient-dashboard/prescriptions', color: '#f43f5e' },
-  { name: 'Health Tracking',    icon: 'fa-heart-pulse',    path: '/patient-dashboard/tracking',      color: '#6366f1' },
-  { name: 'Fertility Insights', icon: 'fa-circle-dot',     path: '/patient-dashboard/fertility',     color: '#e11d48' },
-  { name: 'Partner & Support',  icon: 'fa-users',          path: '/patient-dashboard/family',        color: '#d946ef' },
-  { name: 'Billing & Payments', icon: 'fa-credit-card',    path: '/patient-dashboard/billing',       color: '#14b8a6' },
-  { name: 'My Profile',         icon: 'fa-circle-user',    path: '/patient-dashboard/profile',       color: '#64748b' },
+const MENU_CATEGORIES = [
+  {
+    title: 'Core',
+    items: [
+      { name: 'Dashboard',          icon: 'fa-house',          path: '/patient-dashboard',              color: '#6B46C1' },
+      { name: 'Find a Doctor',      icon: 'fa-user-doctor',    path: '/patient-dashboard/find-doctor',   color: '#0ea5e9' },
+    ]
+  },
+  {
+    title: 'Care & Records',
+    items: [
+      { name: 'My Appointments',    icon: 'fa-calendar-check', path: '/patient-dashboard/appointments',  color: '#10b981' },
+      { name: 'Medical Records',    icon: 'fa-file-medical',   path: '/patient-dashboard/records',       color: '#f59e0b' },
+      { name: 'Prescriptions',      icon: 'fa-pills',          path: '/patient-dashboard/prescriptions', color: '#f43f5e' },
+    ]
+  },
+  {
+    title: 'Wellness',
+    items: [
+      { name: 'Health Tracking',    icon: 'fa-heart-pulse',    path: '/patient-dashboard/tracking',      color: '#6366f1' },
+      { name: 'Fertility Insights', icon: 'fa-circle-dot',     path: '/patient-dashboard/fertility',     color: '#e11d48' },
+    ]
+  },
+  {
+    title: 'Account',
+    items: [
+      { name: 'Partner & Support',  icon: 'fa-users',          path: '/patient-dashboard/family',        color: '#d946ef' },
+      { name: 'Billing & Payments', icon: 'fa-credit-card',    path: '/patient-dashboard/billing',       color: '#14b8a6' },
+      { name: 'My Profile',         icon: 'fa-circle-user',    path: '/patient-dashboard/profile',       color: '#64748b' },
+    ]
+  }
 ];
 
 // Bottom 5 ergonomic tabs shown on mobile with elevated Center Consult
@@ -91,30 +111,36 @@ function Sidebar({ onClose, onItemHover }) {
 
       {/* Navigation */}
       <div className="p-3 flex-1 overflow-y-auto hide-scrollbar">
-        <div className="text-[11px] font-bold text-aubergine-300/60 uppercase tracking-widest mb-3 px-3">Patient Portal</div>
         <NavHoverRail indicatorClassName="bg-aubergine-800/40 rounded-xl">
-          {MENU_ITEMS.map(item => (
-            <NavLink key={item.name} to={item.path} end={item.path === '/patient-dashboard'}
-              onClick={onClose}
-              onMouseEnter={() => onItemHover?.(item.color)}
-              onMouseLeave={() => onItemHover?.(null)}
-              data-nav-item
-              className={({ isActive }) =>
-                `group flex items-center gap-3.5 px-4 py-3 mb-1 rounded-xl font-medium text-[14px] tracking-wide transition-all duration-300 ${
-                  isActive
-                    ? 'bg-gradient-to-r from-aubergine-600/90 to-aubergine-700/50 text-white shadow-md shadow-aubergine-900/40 border border-aubergine-500/30'
-                    : 'text-aubergine-200/70 hover:text-white border border-transparent'
-                }`
-              }>
-              {({ isActive }) => (
-                <>
-                  <div className={`w-6 flex justify-center items-center transition-all duration-300 ${isActive ? 'text-white drop-shadow-md scale-110' : 'text-aubergine-300/70 group-hover:text-white group-hover:scale-110'}`}>
-                    <i className={`fas ${item.icon} text-[16px]`}></i>
-                  </div>
-                  <span className="flex-1 truncate">{item.name}</span>
-                </>
-              )}
-            </NavLink>
+          {MENU_CATEGORIES.map((category, catIdx) => (
+            <div key={category.title} className={catIdx > 0 ? "mt-4" : ""}>
+              <div className="text-[10px] font-bold text-aubergine-300/50 uppercase tracking-widest mb-1.5 px-3">
+                {category.title}
+              </div>
+              {category.items.map(item => (
+                <NavLink key={item.name} to={item.path} end={item.path === '/patient-dashboard'}
+                  onClick={onClose}
+                  onMouseEnter={() => onItemHover?.(item.color)}
+                  onMouseLeave={() => onItemHover?.(null)}
+                  data-nav-item
+                  className={({ isActive }) =>
+                    `group flex items-center gap-3.5 px-4 py-2.5 mb-0.5 rounded-xl font-medium text-[13.5px] tracking-wide transition-all duration-300 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-aubergine-600/90 to-aubergine-700/50 text-white shadow-md shadow-aubergine-900/40 border border-aubergine-500/30'
+                        : 'text-aubergine-200/70 hover:text-white border border-transparent'
+                    }`
+                  }>
+                  {({ isActive }) => (
+                    <>
+                      <div className={`w-5 flex justify-center items-center transition-all duration-300 ${isActive ? 'text-white drop-shadow-md scale-110' : 'text-aubergine-300/70 group-hover:text-white group-hover:scale-110'}`}>
+                        <i className={`fas ${item.icon} text-[15px]`}></i>
+                      </div>
+                      <span className="flex-1 truncate">{item.name}</span>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </NavHoverRail>
       </div>

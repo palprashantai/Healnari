@@ -17,20 +17,40 @@ import { triggerHaptic } from '../../lib/haptics.js';
 
 const DEFAULT_ACCENT = '#6B46C1';
 
-const NAV_ITEMS = [
-  { name: 'Dashboard',        icon: 'fa-chart-pie',           path: '/doctor-dashboard',              end: true,  color: '#6B46C1' },
-  { name: 'Analytics & Growth',icon: 'fa-chart-line',         path: '/doctor-dashboard/analytics',    end: false, color: '#f59e0b' },
-  { name: 'Appointments',     icon: 'fa-calendar-check',      path: '/doctor-dashboard/appointments', end: false, color: '#10b981' },
-  { name: 'My Schedule',      icon: 'fa-clock',               path: '/doctor-dashboard/schedule',     end: false, color: '#059669' },
-  { name: 'Patient Requests', icon: 'fa-user-plus',           path: '/doctor-dashboard/requests',     end: false, color: '#22c55e' },
-  { name: 'Patients & EMR',   icon: 'fa-users',               path: '/doctor-dashboard/patients',     end: false, color: '#0ea5e9' },
-  { name: 'Prescriptions',    icon: 'fa-file-prescription',   path: '/doctor-dashboard/prescriptions',end: false, color: '#f43f5e' },
-  { name: 'Telemedicine',     icon: 'fa-video',               path: '/doctor-dashboard/telemedicine', end: false, color: '#6366f1' },
-  { name: 'Communication Center',icon: 'fa-bullhorn',         path: '/doctor-dashboard/communications',end:false, color: '#ec4899' },
-  { name: 'Lab & Reports',    icon: 'fa-flask',               path: '/doctor-dashboard/reports',      end: false, color: '#f59e0b' },
-  { name: 'Earnings & Payouts', icon: 'fa-file-invoice-dollar', path: '/doctor-dashboard/billing',      end: false, color: '#14b8a6' },
-  { name: 'Staff Management', icon: 'fa-user-nurse',          path: '/doctor-dashboard/staff',        end: false, color: '#d946ef' },
-  { name: 'My Profile',       icon: 'fa-circle-user',         path: '/doctor-dashboard/profile',      end: false, color: '#64748b' },
+const NAV_CATEGORIES = [
+  {
+    title: 'Core',
+    items: [
+      { name: 'Dashboard',        icon: 'fa-chart-pie',           path: '/doctor-dashboard',              end: true,  color: '#6B46C1' },
+      { name: 'Analytics & Growth',icon: 'fa-chart-line',         path: '/doctor-dashboard/analytics',    end: false, color: '#f59e0b' },
+    ]
+  },
+  {
+    title: 'Scheduling',
+    items: [
+      { name: 'Appointments',     icon: 'fa-calendar-check',      path: '/doctor-dashboard/appointments', end: false, color: '#10b981' },
+      { name: 'My Schedule',      icon: 'fa-clock',               path: '/doctor-dashboard/schedule',     end: false, color: '#059669' },
+      { name: 'Patient Requests', icon: 'fa-user-plus',           path: '/doctor-dashboard/requests',     end: false, color: '#22c55e' },
+    ]
+  },
+  {
+    title: 'Clinical',
+    items: [
+      { name: 'Patients & EMR',   icon: 'fa-users',               path: '/doctor-dashboard/patients',     end: false, color: '#0ea5e9' },
+      { name: 'Prescriptions',    icon: 'fa-file-prescription',   path: '/doctor-dashboard/prescriptions',end: false, color: '#f43f5e' },
+      { name: 'Telemedicine',     icon: 'fa-video',               path: '/doctor-dashboard/telemedicine', end: false, color: '#6366f1' },
+      { name: 'Lab & Reports',    icon: 'fa-flask',               path: '/doctor-dashboard/reports',      end: false, color: '#f59e0b' },
+    ]
+  },
+  {
+    title: 'Practice Management',
+    items: [
+      { name: 'Communication',    icon: 'fa-bullhorn',            path: '/doctor-dashboard/communications',end:false, color: '#ec4899' },
+      { name: 'Earnings',         icon: 'fa-file-invoice-dollar', path: '/doctor-dashboard/billing',      end: false, color: '#14b8a6' },
+      { name: 'Staff Management', icon: 'fa-user-nurse',          path: '/doctor-dashboard/staff',        end: false, color: '#d946ef' },
+      { name: 'My Profile',       icon: 'fa-circle-user',         path: '/doctor-dashboard/profile',      end: false, color: '#64748b' },
+    ]
+  }
 ];
 
 const DOCTOR_BOTTOM_TABS = [
@@ -142,29 +162,35 @@ function SidebarContent({ user, onClose, onItemHover }) {
 
       {/* Nav */}
       <nav className="px-3 pt-2 flex-1 overflow-y-auto hide-scrollbar">
-        <p className="text-[11px] font-bold text-aubergine-300/60 uppercase tracking-widest mb-3 px-3">Main Menu</p>
         <NavHoverRail indicatorClassName="bg-aubergine-800/40 rounded-xl">
-          {NAV_ITEMS.map(item => (
-            <NavLink key={item.name} to={item.path} end={item.end} onClick={onClose}
-              onMouseEnter={() => onItemHover?.(item.color)}
-              onMouseLeave={() => onItemHover?.(null)}
-              data-nav-item
-              className={({ isActive }) =>
-                `group flex items-center gap-3.5 px-4 py-3 mb-1 rounded-xl font-medium text-[14px] tracking-wide transition-all duration-300 ${
-                  isActive
-                    ? 'bg-gradient-to-r from-aubergine-600/90 to-aubergine-700/50 text-white shadow-md shadow-aubergine-900/40 border border-aubergine-500/30'
-                    : 'text-aubergine-200/70 hover:text-white border border-transparent'
-                }`
-              }>
-              {({ isActive }) => (
-                <>
-                  <div className={`w-6 flex justify-center items-center transition-all duration-300 ${isActive ? 'text-white drop-shadow-md scale-110' : 'text-aubergine-300/70 group-hover:text-white group-hover:scale-110'}`}>
-                    <i className={`fas ${item.icon} text-[16px]`}></i>
-                  </div>
-                  <span className="flex-1 truncate">{item.name}</span>
-                </>
-              )}
-            </NavLink>
+          {NAV_CATEGORIES.map((category, catIdx) => (
+            <div key={category.title} className={catIdx > 0 ? "mt-4" : ""}>
+              <p className="text-[10px] font-bold text-aubergine-300/50 uppercase tracking-widest mb-1.5 px-3">
+                {category.title}
+              </p>
+              {category.items.map(item => (
+                <NavLink key={item.name} to={item.path} end={item.end} onClick={onClose}
+                  onMouseEnter={() => onItemHover?.(item.color)}
+                  onMouseLeave={() => onItemHover?.(null)}
+                  data-nav-item
+                  className={({ isActive }) =>
+                    `group flex items-center gap-3.5 px-4 py-2.5 mb-0.5 rounded-xl font-medium text-[13.5px] tracking-wide transition-all duration-300 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-aubergine-600/90 to-aubergine-700/50 text-white shadow-md shadow-aubergine-900/40 border border-aubergine-500/30'
+                        : 'text-aubergine-200/70 hover:text-white border border-transparent'
+                    }`
+                  }>
+                  {({ isActive }) => (
+                    <>
+                      <div className={`w-5 flex justify-center items-center transition-all duration-300 ${isActive ? 'text-white drop-shadow-md scale-110' : 'text-aubergine-300/70 group-hover:text-white group-hover:scale-110'}`}>
+                        <i className={`fas ${item.icon} text-[15px]`}></i>
+                      </div>
+                      <span className="flex-1 truncate">{item.name}</span>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </NavHoverRail>
       </nav>

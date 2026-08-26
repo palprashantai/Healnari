@@ -20,23 +20,47 @@ function timeAgo(iso) {
 
 const DEFAULT_ACCENT = '#6B46C1';
 
-const NAV_ITEMS = [
-  { name: 'Dashboard',          icon: 'fa-chart-pie',         path: '/admin-dashboard',              end: true,  color: '#6B46C1' },
-  { name: 'Analytics & Growth', icon: 'fa-chart-line',        path: '/admin-dashboard/analytics',    end: false, color: '#f59e0b' },
-  { name: 'Landing Page',       icon: 'fa-globe',             path: '/admin-dashboard/landing',      end: false, color: '#06b6d4' },
-  { name: 'Doctor Management',  icon: 'fa-user-doctor',       path: '/admin-dashboard/doctors',      end: false, color: '#8b5cf6' },
-  { name: 'Specialty Manager',  icon: 'fa-stethoscope',       path: '/admin-dashboard/specialties',  end: false, color: '#10b981' },
-  { name: 'Patient Management', icon: 'fa-users-gear',        path: '/admin-dashboard/users',        end: false, color: '#0ea5e9' },
-  { name: 'Communication Center',icon: 'fa-bullhorn',         path: '/admin-dashboard/communications',end:false, color: '#f43f5e' },
-  { name: 'Message Templates',  icon: 'fa-pager',             path: '/admin-dashboard/templates',    end: false, color: '#fb923c' },
-  { name: 'Doctor Verification',icon: 'fa-user-check',        path: '/admin-dashboard/verification', end: false, color: '#10b981' },
-  { name: 'Revenue & Payouts',  icon: 'fa-money-bill-transfer',path:'/admin-dashboard/revenue',      end: false, color: '#ef4444' },
-  { name: 'CMS & Content',      icon: 'fa-pen-to-square',     path: '/admin-dashboard/cms',          end: false, color: '#d946ef' },
-  { name: 'Reports',            icon: 'fa-file-contract',     path: '/admin-dashboard/reports',      end: false, color: '#6366f1' },
-  { name: 'Audit Logs (HIPAA)', icon: 'fa-shield-halved',     path: '/admin-dashboard/audit-logs',   end: false, color: '#0ea5e9' },
-  { name: 'Leads',              icon: 'fa-address-book',      path: '/admin-dashboard/leads',        end: false, color: '#14b8a6' },
-  { name: 'Cron & Automations', icon: 'fa-clock-rotate-left', path: '/admin-dashboard/crons',        end: false, color: '#10b981' },
-
+const NAV_CATEGORIES = [
+  {
+    title: 'Core & Analytics',
+    items: [
+      { name: 'Dashboard',          icon: 'fa-chart-pie',         path: '/admin-dashboard',              end: true,  color: '#6B46C1' },
+      { name: 'Analytics & Growth', icon: 'fa-chart-line',        path: '/admin-dashboard/analytics',    end: false, color: '#f59e0b' },
+      { name: 'Revenue & Payouts',  icon: 'fa-money-bill-transfer',path:'/admin-dashboard/revenue',      end: false, color: '#ef4444' },
+      { name: 'Reports',            icon: 'fa-file-contract',     path: '/admin-dashboard/reports',      end: false, color: '#6366f1' },
+    ]
+  },
+  {
+    title: 'User Management',
+    items: [
+      { name: 'Doctor Management',  icon: 'fa-user-doctor',       path: '/admin-dashboard/doctors',      end: false, color: '#8b5cf6' },
+      { name: 'Doctor Verification',icon: 'fa-user-check',        path: '/admin-dashboard/verification', end: false, color: '#10b981' },
+      { name: 'Patient Management', icon: 'fa-users-gear',        path: '/admin-dashboard/users',        end: false, color: '#0ea5e9' },
+    ]
+  },
+  {
+    title: 'Platform config',
+    items: [
+      { name: 'Landing Page',       icon: 'fa-globe',             path: '/admin-dashboard/landing',      end: false, color: '#06b6d4' },
+      { name: 'CMS & Content',      icon: 'fa-pen-to-square',     path: '/admin-dashboard/cms',          end: false, color: '#d946ef' },
+      { name: 'Specialty Manager',  icon: 'fa-stethoscope',       path: '/admin-dashboard/specialties',  end: false, color: '#10b981' },
+    ]
+  },
+  {
+    title: 'Marketing & Ops',
+    items: [
+      { name: 'Communication',      icon: 'fa-bullhorn',          path: '/admin-dashboard/communications',end:false, color: '#f43f5e' },
+      { name: 'Message Templates',  icon: 'fa-pager',             path: '/admin-dashboard/templates',    end: false, color: '#fb923c' },
+      { name: 'Leads',              icon: 'fa-address-book',      path: '/admin-dashboard/leads',        end: false, color: '#14b8a6' },
+    ]
+  },
+  {
+    title: 'System & Security',
+    items: [
+      { name: 'Audit Logs (HIPAA)', icon: 'fa-shield-halved',     path: '/admin-dashboard/audit-logs',   end: false, color: '#0ea5e9' },
+      { name: 'Cron & Automations', icon: 'fa-clock-rotate-left', path: '/admin-dashboard/crons',        end: false, color: '#10b981' },
+    ]
+  }
 ];
 
 /* ─── Notification Panel ─────────────────────── */
@@ -132,29 +156,35 @@ function SidebarContent({ user, onClose, onItemHover }) {
 
       {/* Nav */}
       <nav className="px-3 pt-2 flex-1 overflow-y-auto hide-scrollbar">
-        <p className="text-[11px] font-bold text-aubergine-300/60 uppercase tracking-widest mb-3 px-3">Control Panel</p>
         <NavHoverRail indicatorClassName="bg-aubergine-800/40 rounded-xl">
-          {NAV_ITEMS.map(item => (
-            <NavLink key={item.name} to={item.path} end={item.end} onClick={onClose}
-              onMouseEnter={() => onItemHover?.(item.color)}
-              onMouseLeave={() => onItemHover?.(null)}
-              data-nav-item
-              className={({ isActive }) =>
-                `group flex items-center gap-3.5 px-4 py-3 mb-1 rounded-xl font-medium text-[14px] tracking-wide transition-all duration-300 ${
-                  isActive
-                    ? 'bg-gradient-to-r from-aubergine-600/90 to-aubergine-700/50 text-white shadow-md shadow-aubergine-900/40 border border-aubergine-500/30'
-                    : 'text-aubergine-200/70 hover:text-white border border-transparent'
-                }`
-              }>
-              {({ isActive }) => (
-                <>
-                  <div className={`w-6 flex justify-center items-center transition-all duration-300 ${isActive ? 'text-white drop-shadow-md scale-110' : 'text-aubergine-300/70 group-hover:text-white group-hover:scale-110'}`}>
-                    <i className={`fas ${item.icon} text-[16px]`}></i>
-                  </div>
-                  <span className="flex-1 truncate">{item.name}</span>
-                </>
-              )}
-            </NavLink>
+          {NAV_CATEGORIES.map((category, catIdx) => (
+            <div key={category.title} className={catIdx > 0 ? "mt-4" : ""}>
+              <p className="text-[10px] font-bold text-aubergine-300/50 uppercase tracking-widest mb-1.5 px-3">
+                {category.title}
+              </p>
+              {category.items.map(item => (
+                <NavLink key={item.name} to={item.path} end={item.end} onClick={onClose}
+                  onMouseEnter={() => onItemHover?.(item.color)}
+                  onMouseLeave={() => onItemHover?.(null)}
+                  data-nav-item
+                  className={({ isActive }) =>
+                    `group flex items-center gap-3.5 px-4 py-2.5 mb-0.5 rounded-xl font-medium text-[13.5px] tracking-wide transition-all duration-300 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-aubergine-600/90 to-aubergine-700/50 text-white shadow-md shadow-aubergine-900/40 border border-aubergine-500/30'
+                        : 'text-aubergine-200/70 hover:text-white border border-transparent'
+                    }`
+                  }>
+                  {({ isActive }) => (
+                    <>
+                      <div className={`w-5 flex justify-center items-center transition-all duration-300 ${isActive ? 'text-white drop-shadow-md scale-110' : 'text-aubergine-300/70 group-hover:text-white group-hover:scale-110'}`}>
+                        <i className={`fas ${item.icon} text-[15px]`}></i>
+                      </div>
+                      <span className="flex-1 truncate">{item.name}</span>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </NavHoverRail>
       </nav>
