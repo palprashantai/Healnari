@@ -30,7 +30,7 @@ export class AppointmentsService {
     private readonly notifications: NotificationsService,
     private readonly ai: AiService,
     private readonly email: EmailService,
-  ) {}
+  ) { }
 
   private appointmentWhen(a: Appointment) {
     return `${a.scheduled_date} at ${a.scheduled_time}`;
@@ -277,7 +277,7 @@ export class AppointmentsService {
             label: this.typeLabel(withNames.type),
           },
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     return withNames;
@@ -588,11 +588,14 @@ export class AppointmentsService {
       const { data: updated } = await this.supabase.admin
         .from('appointments')
         .update({ status: AppointmentStatus.UPCOMING })
+        .in('status', [AppointmentStatus.REQUESTED, AppointmentStatus.APPROVED, 'HOLD'])
         .eq('id', id)
         .select(
           '*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url, email), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)',
         )
         .maybeSingle();
+
+      if (!updated) return null;
 
       const [withNames] = await this.withNames([updated]);
 
@@ -633,7 +636,7 @@ export class AppointmentsService {
               dashboardUrl: 'https://app.healnari.com/patient/appointments',
             },
           })
-          .catch(() => {});
+          .catch(() => { });
       }
 
       return withNames;
@@ -753,7 +756,7 @@ export class AppointmentsService {
               dashboardUrl: 'https://app.healnari.com/patient/appointments',
             },
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     } else if (
       isDoctorActing &&
@@ -801,7 +804,7 @@ export class AppointmentsService {
               dashboardUrl: 'https://app.healnari.com/patient/appointments',
             },
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     } else if (
       isDoctorActing &&
@@ -843,7 +846,7 @@ export class AppointmentsService {
               dashboardUrl: 'https://healnari.vercel.app/patient/appointments',
             },
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     } else if (
       !isDoctorActing &&
@@ -1104,7 +1107,7 @@ export class AppointmentsService {
     const peopleAhead = index;
     const avgMinutes =
       AppointmentsService.AVG_CONSULT_MINUTES[
-        appointment.type as AppointmentType
+      appointment.type as AppointmentType
       ] ?? 15;
 
     return {
@@ -1224,7 +1227,7 @@ export class AppointmentsService {
           message: `You have a ${apt.type} appointment tomorrow at ${apt.scheduled_time}.`,
           data: { appointmentId: apt.id },
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }
 
@@ -1324,7 +1327,7 @@ export class AppointmentsService {
               path: '/patient-dashboard/appointments',
             },
           })
-          .catch(() => {}),
+          .catch(() => { }),
       ),
     );
 
@@ -1395,7 +1398,7 @@ export class AppointmentsService {
 
         const avgMinutes =
           AppointmentsService.AVG_CONSULT_MINUTES[
-            apt.type as AppointmentType
+          apt.type as AppointmentType
           ] ?? 15;
         const projectedStartMs = now + index * avgMinutes * 60 * 1000;
         const delayMinutes =
@@ -1441,7 +1444,7 @@ export class AppointmentsService {
             path: '/patient-dashboard/appointments',
           },
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     if (claimed?.length)

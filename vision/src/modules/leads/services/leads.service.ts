@@ -18,6 +18,7 @@ import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ConsultationRequestDto } from '@/modules/leads/controllers/leads.controller';
 import { DoctorsService } from '@/modules/doctors/services/doctors.service';
+import { AppointmentsService } from '@/modules/appointments/services/appointments.service';
 
 @Injectable()
 export class LeadsService {
@@ -26,6 +27,7 @@ export class LeadsService {
     private readonly notifications: NotificationsService,
     private readonly email: EmailService,
     private readonly doctorsService: DoctorsService,
+    private readonly appointmentsService: AppointmentsService,
   ) {}
 
   private requireVerifiedDoctor(user: AuthUser) {
@@ -109,6 +111,42 @@ export class LeadsService {
       if (!availability.availableSlots.includes(scheduledTime)) {
         throw new ForbiddenException(
           'The selected time slot is no longer available. Please choose another slot.',
+        );
+      }
+
+      const existingProfile = await this.findExistingPatient(
+        body.email,
+        body.mobile,
+      );
+
+      if (existingProfile) {
+        const mockUser = {
+          id: existingProfile.id,
+          profile: { role: ProfileRole.PATIENT },
+        } as AuthUser;
+
+        return this.appointmentsService.create(mockUser, {
+          doctorId: body.doctorId,
+          specialty: body.specialtyRecommendation,
+          type: AppointmentType.VIDEO,
+          scheduledDate: scheduledDate,
+          scheduledTime: scheduledTime,
+          reason: body.concern || 'Consultation request',
+        });
+      }
+
+      // Prevent duplicate active requests for the same email and doctor
+      const { data: existingRequest } = await this.supabase.admin
+        .from('consultation_requests')
+        .select('id')
+        .eq('email', body.email)
+        .eq('doctor_id', body.doctorId)
+        .eq('status', 'New')
+        .maybeSingle();
+      
+      if (existingRequest) {
+        throw new ForbiddenException(
+          'You already have a pending consultation request for this doctor.',
         );
       }
 
@@ -249,12 +287,27 @@ export class LeadsService {
         .select()
         .maybeSingle();
 
+      // Optimistic lock: only update if still 'New'. If this yields no rows, a concurrent request beat us to it.
       const { data: updated } = await this.supabase.admin
         .from('consultation_requests')
         .update({ status: 'Converted', patient_id: patientId })
         .eq('id', id)
+        .eq('status', 'New')
         .select()
         .maybeSingle();
+
+      if (!updated) {
+        // We lost the race condition. Clean up the duplicate appointment we just created.
+        if (appointment?.id) {
+          await this.supabase.admin.from('appointments').delete().eq('id', appointment.id);
+        }
+        const { data: actualRequest } = await this.supabase.admin
+          .from('consultation_requests')
+          .select()
+          .eq('id', id)
+          .maybeSingle();
+        return { ...actualRequest, emailSent: true }; // Idempotent return
+      }
 
       const appointmentLine = `<p>Your appointment with Dr. ${doctor?.full_name || ''} is confirmed for <strong>${scheduledDate} at ${scheduledTime}</strong>.</p>`;
 
@@ -319,12 +372,18 @@ export class LeadsService {
       if (request.doctor_id !== user.id)
         throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
+      if (request.status !== 'New') return request;
+
       const { data: updated } = await this.supabase.admin
         .from('consultation_requests')
         .update({ status: 'Closed' })
         .eq('id', id)
+        .eq('status', 'New')
         .select()
         .maybeSingle();
+      
+      if (!updated) return request;
+      
       return updated;
     } catch (error) {
       if (

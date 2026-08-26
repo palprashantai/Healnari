@@ -404,8 +404,11 @@ export class BillingService {
           fx_rate_timestamp: new Date().toISOString(),
         })
         .eq('id', payment.id)
+        .neq('status', 'Paid')
         .select()
         .maybeSingle();
+
+      if (!updated) return (await this.withNames([payment]))[0];
 
       const named = (await this.withNames([updated]))[0];
 
