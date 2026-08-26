@@ -24,130 +24,130 @@ export default defineConfig(({ command, mode }) => {
     }
   }
 
-// Plugin: defer Vite-injected CSS so inline pre-render shell paints instantly
-const deferCss = () => ({
-  name: 'defer-css',
-  transformIndexHtml(html) {
-    // Convert Vite's render-blocking CSS link → async (print trick)
-    return html.replace(
-      /<link rel="stylesheet" crossorigin href="\/assets\/[^"]+\.css">/g,
-      (match) => {
-        const href = match.match(/href="([^"]+)"/)[1];
-        return `<link rel="preload" as="style" href="${href}" onload="this.rel='stylesheet'">
+  // Plugin: defer Vite-injected CSS so inline pre-render shell paints instantly
+  const deferCss = () => ({
+    name: 'defer-css',
+    transformIndexHtml(html) {
+      // Convert Vite's render-blocking CSS link → async (print trick)
+      return html.replace(
+        /<link rel="stylesheet" crossorigin href="\/assets\/[^"]+\.css">/g,
+        (match) => {
+          const href = match.match(/href="([^"]+)"/)[1];
+          return `<link rel="preload" as="style" href="${href}" onload="this.rel='stylesheet'">
     <noscript><link rel="stylesheet" href="${href}"></noscript>`;
-      }
-    );
-  }
-});
-
-return {
-  plugins: [
-    react(),
-    deferCss(),
-    VitePWA({
-      registerType: 'prompt',
-      strategies: 'injectManifest',
-      srcDir: 'src',
-      filename: 'sw.js',
-      injectManifest: {},
-      devOptions: {
-        enabled: true,
-        type: 'module',
-      },
-      includeAssets: ['brand/logo-icon.png', 'brand/logo-full.png'],
-      manifest: {
-        name: 'HealNari | Women\'s Health',
-        short_name: 'HealNari',
-        description: 'Root-cause, doctor-led care for PCOS, hormonal imbalance, and women\'s health.',
-        theme_color: '#2A1647',
-        background_color: '#F8F6FF',
-        display: 'standalone',
-        start_url: '/',
-        orientation: 'portrait',
-        categories: ['medical', 'health', 'lifestyle'],
-        shortcuts: [
-          {
-            name: 'Log Health & Period',
-            short_name: 'Track',
-            description: 'Log daily symptoms, cycle, and mood',
-            url: '/patient-dashboard/tracking',
-            icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
-          },
-          {
-            name: 'Book ₹799 Consult',
-            short_name: 'Consult',
-            description: 'Book instant consultation with a doctor',
-            url: '/patient-dashboard/find-doctor',
-            icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
-          },
-          {
-            name: 'Doctor Queue & Telemed',
-            short_name: 'Doctor Queue',
-            description: 'Open patient appointments & teleconsultation room',
-            url: '/doctor-dashboard/appointments',
-            icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
-          },
-          {
-            name: 'Prescriptions & Vault',
-            short_name: 'Rx Vault',
-            description: 'Access digital prescriptions & lab records',
-            url: '/patient-dashboard/records',
-            icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
-          }
-        ],
-        icons: [
-          {
-            src: '/brand/logo-icon.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any'
-          },
-          {
-            src: '/brand/logo-icon.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'maskable'
-          },
-          {
-            src: '/brand/logo-icon.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any'
-          },
-          {
-            src: '/brand/logo-icon.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable'
-          }
-        ]
-      }
-    })
-  ],
-  server: {
-    port: 3000,
-    open: true,
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:5000',
-        changeOrigin: true,
-      }
+        }
+      );
     }
-  },
-  build: {
-    cssCodeSplit: false,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          query: ['@tanstack/react-query'],
-          icons: ['lucide-react'],
-          charts: ['recharts'],
-          forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
-          socket: ['socket.io-client']
+  });
+
+  return {
+    plugins: [
+      react(),
+      deferCss(),
+      VitePWA({
+        registerType: 'prompt',
+        strategies: 'injectManifest',
+        srcDir: 'src',
+        filename: 'sw.js',
+        injectManifest: {},
+        devOptions: {
+          enabled: true,
+          type: 'module',
+        },
+        includeAssets: ['brand/logo-icon.png', 'brand/logo-full.png'],
+        manifest: {
+          name: 'HealNari | Women\'s Health',
+          short_name: 'HealNari',
+          description: 'Root-cause, doctor-led care for PCOS, hormonal imbalance, and women\'s health.',
+          theme_color: '#2A1647',
+          background_color: '#F8F6FF',
+          display: 'standalone',
+          start_url: '/',
+          orientation: 'portrait',
+          categories: ['medical', 'health', 'lifestyle'],
+          shortcuts: [
+            {
+              name: 'Log Health & Period',
+              short_name: 'Track',
+              description: 'Log daily symptoms, cycle, and mood',
+              url: '/patient-dashboard/tracking',
+              icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
+            },
+            {
+              name: 'Book ₹799 Consult',
+              short_name: 'Consult',
+              description: 'Book instant consultation with a doctor',
+              url: '/patient-dashboard/find-doctor',
+              icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
+            },
+            {
+              name: 'Doctor Queue & Telemed',
+              short_name: 'Doctor Queue',
+              description: 'Open patient appointments & teleconsultation room',
+              url: '/doctor-dashboard/appointments',
+              icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
+            },
+            {
+              name: 'Prescriptions & Vault',
+              short_name: 'Rx Vault',
+              description: 'Access digital prescriptions & lab records',
+              url: '/patient-dashboard/records',
+              icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
+            }
+          ],
+          icons: [
+            {
+              src: '/brand/logo-icon.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any'
+            },
+            {
+              src: '/brand/logo-icon.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'maskable'
+            },
+            {
+              src: '/brand/logo-icon.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any'
+            },
+            {
+              src: '/brand/logo-icon.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
+            }
+          ]
+        }
+      })
+    ],
+    server: {
+      port: 3000,
+      open: true,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+        }
+      }
+    },
+    build: {
+      cssCodeSplit: false,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom', 'react-router-dom'],
+            query: ['@tanstack/react-query'],
+            icons: ['lucide-react'],
+            charts: ['recharts'],
+            forms: ['react-hook-form', '@hookform/resolvers', 'zod'],
+            socket: ['socket.io-client']
+          }
         }
       }
     }
-  }
-};
+  };
 });
