@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { EmailService } from '@/core/email/email.service';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
@@ -8,6 +8,7 @@ import { AppointmentStatus, AppointmentType } from '@/shared/interfaces/appointm
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ConsultationRequestDto } from '@/modules/leads/controllers/leads.controller';
+import { DoctorsService } from '@/modules/doctors/services/doctors.service';
 
 @Injectable()
 export class LeadsService {
@@ -15,6 +16,7 @@ export class LeadsService {
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
     private readonly email: EmailService,
+    private readonly doctorsService: DoctorsService,
   ) { }
 
   private requireVerifiedDoctor(user: AuthUser) {
@@ -65,6 +67,10 @@ export class LeadsService {
   }
 
   async createConsultationRequest(body: ConsultationRequestDto) {
+    if (!body.doctorId) {
+      throw new BadRequestException('A specific doctor must be selected to book a consultation.');
+    }
+
     try {
       const existingProfile = await this.findExistingPatient(body.email, body.mobile);
 
@@ -96,6 +102,12 @@ export class LeadsService {
       const { data: doctor } = await this.supabase.admin.from('profiles').select('full_name, specialty, currency').eq('id', body.doctorId).maybeSingle();
       const scheduledDate = body.preferredDate || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const scheduledTime = body.preferredTime || '10:00 AM';
+
+      // Validate slot availability
+      const availability = await this.doctorsService.getAvailableSlots(body.doctorId, scheduledDate);
+      if (!availability.availableSlots.includes(scheduledTime)) {
+        throw new ForbiddenException('The selected time slot is no longer available. Please choose another slot.');
+      }
 
       // Create appointment with HOLD status and 10 minute expiry
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();

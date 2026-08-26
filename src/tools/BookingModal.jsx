@@ -13,6 +13,26 @@ const STEP_FIELDS = [
   ['date', 'time'],
 ];
 
+function formatSchedules(schedules) {
+  if (!schedules || schedules.length === 0) return 'Available upon request';
+  const sorted = [...schedules].sort((a, b) => a.day_of_week - b.day_of_week);
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const formatTime = (t) => {
+    const [h, m] = t.split(':');
+    const hour = parseInt(h, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const disp = hour % 12 || 12;
+    return `${disp}:${m} ${ampm}`;
+  };
+  const startDay = days[sorted[0].day_of_week];
+  const endDay = days[sorted[sorted.length - 1].day_of_week];
+  const startTime = formatTime(sorted[0].start_time);
+  const endTime = formatTime(sorted[0].end_time);
+  return startDay === endDay 
+    ? `${startDay} • ${startTime} - ${endTime}`
+    : `${startDay}-${endDay} • ${startTime} - ${endTime}`;
+}
+
 function BookingModal({ selectedDoc, onClose, onSuccess }) {
   const [step, setStep] = useState(1);
   const initialCountryCode = detectUserCountry();
@@ -324,7 +344,11 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                           </div>
                           <div className="min-w-0">
                             <p className="font-bold text-slate-800 text-sm truncate">Dr. {d.full_name}</p>
-                            <p className="text-xs text-slate-500 truncate">{d.specialty || 'Women’s Health Specialist'}</p>
+                            <p className="text-[11px] text-slate-500 truncate mb-0.5">{d.specialty || 'Women’s Health Specialist'}</p>
+                            <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-medium">
+                              <i className="far fa-clock"></i>
+                              <span>{formatSchedules(d.doctor_schedules)}</span>
+                            </div>
                           </div>
                         </div>
                         <span className="text-xs font-bold text-aubergine-700 bg-white border border-aubergine-200 px-2 py-1 rounded-md shrink-0 ml-2">

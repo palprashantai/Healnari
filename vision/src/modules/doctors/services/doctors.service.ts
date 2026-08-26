@@ -25,7 +25,7 @@ export class DoctorsService {
   async search(q?: string, specialty?: string) {
     // Public directory — only ever surface admin-verified doctors, matching
     // what patients are told they're browsing.
-    let query = this.supabase.admin.from('profiles').select().eq('role', ProfileRole.DOCTOR).eq('kyc_verified', true);
+    let query = this.supabase.admin.from('profiles').select('*, doctor_schedules(day_of_week, start_time, end_time)').eq('role', ProfileRole.DOCTOR).eq('kyc_verified', true);
 
     if (specialty) {
       query = query.eq('specialty', specialty);
