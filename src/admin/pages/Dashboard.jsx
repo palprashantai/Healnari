@@ -50,7 +50,7 @@ function DocumentViewerModal({ isOpen, onClose, doctor, onResolve }) {
             </div>
           </div>
           <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-aubergine-50 text-aubergine-700 border border-aubergine-100">
-            {doctor.currency || 'USD'} Settlement
+            {doctor.currency || 'INR'} Settlement
           </span>
         </div>
 
@@ -96,7 +96,7 @@ function RefundModal({ isOpen, onClose, refund, onProcess }) {
           <div className="flex justify-between items-center">
             <span className="text-slate-500 text-xs font-bold">Refund Amount</span>
             <span className="font-black text-lg text-slate-900 font-sans">
-              {formatCurrency(refund.amount, refund.currency || 'USD')}
+              {formatCurrency(refund.amount, refund.currency || 'INR')}
             </span>
           </div>
           <div className="flex justify-between items-center">
@@ -368,7 +368,7 @@ function AdminDashboard() {
 
         <KPITrendCard
           title="Gross Platform Volume"
-          value={formatCurrency(totalRevenueNumber, 'USD')}
+          value={formatCurrency(totalRevenueNumber, 'INR')}
           period="Total Consultation Gross Revenue"
           icon="fa-money-bill-trend-up"
           colorScheme="dark"
@@ -379,7 +379,7 @@ function AdminDashboard() {
 
         <KPITrendCard
           title="Platform Take-Rate Margin"
-          value={formatCurrency(totalRevenueNumber * 0.1, 'USD')}
+          value={formatCurrency(totalRevenueNumber * 0.1, 'INR')}
           period="10% Effective Net Commission"
           icon="fa-sack-dollar"
           colorScheme="magenta"
@@ -661,7 +661,7 @@ function AdminDashboard() {
 
                 <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
                   <span className="font-black text-rose-600 font-sans text-base">
-                    {formatCurrency(r.amount, r.currency || 'USD')}
+                    {formatCurrency(r.amount, r.currency || 'INR')}
                   </span>
                   <button 
                     onClick={() => setSelectedRefund(r)} 

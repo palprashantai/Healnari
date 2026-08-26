@@ -26,7 +26,7 @@ const PAYMENT_STATUS_TO_DISPLAY = {
 };
 
 /* ─── Payout Modal ───────────────────────────── */
-function PayoutModal({ isOpen, onClose, onRequest, available, currency = 'USD', toast }) {
+function PayoutModal({ isOpen, onClose, onRequest, available, currency = 'INR', toast }) {
   const [method, setMethod] = useState('Bank Account (Direct Wire)');
   const [amount, setAmount] = useState('');
   const [step, setStep] = useState(1);
@@ -137,7 +137,7 @@ function InvoiceModal({ txn, isOpen, onClose, doctorName, toast }) {
           <div className="flex justify-between"><span className="text-slate-500 font-medium">Payment Rail</span><span className="font-bold text-slate-800">{txn.method}</span></div>
           <div className="flex justify-between border-t border-slate-100 pt-2 mt-2">
             <span className="font-bold text-slate-700">Gross Settlement</span>
-            <span className="font-black text-slate-900 text-base">{formatCurrency(txn.amount, txn.currency || 'USD')}</span>
+            <span className="font-black text-slate-900 text-base">{formatCurrency(txn.amount, txn.currency || 'INR')}</span>
           </div>
         </div>
         <button onClick={() => downloadInvoicePdf(txn, toast)} className="w-full bg-slate-900 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-xs">
@@ -171,7 +171,7 @@ function DoctorBilling() {
   };
   useEffect(() => { load(); }, []);
 
-  const userCurrency = user?.profile?.currency || user?.currency || 'USD';
+  const userCurrency = user?.profile?.currency || user?.currency || 'INR';
 
   const rows = useMemo(() => {
     return transactions.map(t => ({

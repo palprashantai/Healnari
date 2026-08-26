@@ -20,7 +20,7 @@ function getCashfree() {
  * with Cashfree before ever showing "Payment Successful". Used anywhere a
  * patient can pay for an appointment (Billing, Appointments) so there is
  * exactly one real payment path instead of a per-page fake one. */
-export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency: initialCurrency = 'USD', description, onPaid, onSuccess }) {
+export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency: initialCurrency = 'INR', description, onPaid, onSuccess }) {
   // idle -> creating-order -> checkout -> verifying -> paid | failed
   const [phase, setPhase] = useState('idle');
   const [error, setError] = useState(null);

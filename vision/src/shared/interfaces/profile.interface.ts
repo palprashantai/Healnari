@@ -23,6 +23,7 @@ export interface Profile {
   country?: string;
   timezone?: string;
   medical_council?: string | null;
+  bio?: string | null;
   updated_at: Date;
   email_notifications: boolean;
   sms_notifications: boolean;

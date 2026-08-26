@@ -71,7 +71,7 @@ function PatientProfile() {
   const [photoSaving, setPhotoSaving] = useState(false);
   const [emailNotif, setEmailNotif] = useState(user?.emailNotifications ?? true);
   const [smsNotif, setSmsNotif] = useState(user?.smsNotifications ?? true);
-  const [selectedCurrency, setSelectedCurrency] = useState(() => localStorage.getItem('healnari_currency') || 'USD');
+  const [selectedCurrency, setSelectedCurrency] = useState(() => localStorage.getItem('healnari_currency') || 'INR');
   const [selectedLifeMode, setSelectedLifeMode] = useState(() => localStorage.getItem('patient_life_mode') || 'cycle');
   const [discreetMode, setDiscreetMode] = useState(() => localStorage.getItem('discreet_mode') === 'true');
 

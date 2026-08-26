@@ -32,8 +32,8 @@ export const SUPPORTED_CURRENCIES = Object.values(ISO_CURRENCIES).map(c => ({
 /**
  * Get ISO symbol for currency
  */
-export function getCurrencySymbol(currency = 'USD') {
-  const code = (currency || 'USD').toUpperCase().trim();
+export function getCurrencySymbol(currency = 'INR') {
+  const code = (currency || 'INR').toUpperCase().trim();
   return ISO_CURRENCIES[code]?.symbol || `${code} `;
 }
 
@@ -46,8 +46,8 @@ export function getCurrencySymbol(currency = 'USD') {
  * formatCurrency(-18.5, 'USD') => "-$18.50"
  * formatCurrency(3200.5, 'AED') => "AED 3,200.50"
  */
-export function formatCurrency(amount, currency = 'USD', options = {}) {
-  const code = (currency || 'USD').toUpperCase().trim();
+export function formatCurrency(amount, currency = 'INR', options = {}) {
+  const code = (currency || 'INR').toUpperCase().trim();
   const meta = ISO_CURRENCIES[code] || {
     symbol: `${code} `,
     locale: 'en-US',
@@ -74,8 +74,8 @@ export function formatCurrency(amount, currency = 'USD', options = {}) {
 /**
  * Format compact amounts for charts or small KPI cards (e.g. $42.5k)
  */
-export function formatCompactCurrency(amount, currency = 'USD') {
-  const code = (currency || 'USD').toUpperCase().trim();
+export function formatCompactCurrency(amount, currency = 'INR') {
+  const code = (currency || 'INR').toUpperCase().trim();
   const symbol = getCurrencySymbol(code);
   const rawNum = Number(amount || 0);
   const absNum = Math.abs(rawNum);

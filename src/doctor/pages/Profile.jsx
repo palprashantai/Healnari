@@ -420,8 +420,8 @@ function DoctorProfile() {
             <div className="space-y-5 max-w-lg">
               <div className="grid grid-cols-2 gap-5">
                 {[
-                  { label: `Video Consult Fee (${doc?.profile?.currency || 'USD'})`, key: 'videoFee', icon: 'fa-video', color: 'bg-aubergine-50 text-aubergine-700 border-aubergine-100' },
-                  { label: `Clinic Visit Fee (${doc?.profile?.currency || 'USD'})`, key: 'clinicFee', icon: 'fa-hospital', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+                  { label: `Video Consult Fee (${doc?.profile?.currency || 'INR'})`, key: 'videoFee', icon: 'fa-video', color: 'bg-aubergine-50 text-aubergine-700 border-aubergine-100' },
+                  { label: `Clinic Visit Fee (${doc?.profile?.currency || 'INR'})`, key: 'clinicFee', icon: 'fa-hospital', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
                 ].map(f => (
                   <div key={f.key} className={`border ${f.color} rounded-2xl p-5`}>
                     <div className="text-base mb-2"><i className={`fas ${f.icon}`}></i></div>
@@ -436,9 +436,9 @@ function DoctorProfile() {
                 <h4 className="font-bold text-slate-700 text-sm mb-2">Platform Deductions & Take-Home</h4>
                 <div className="space-y-2 text-xs">
                   {[
-                    ['Video Consult Gross', formatCurrency(form.videoFee, doc?.profile?.currency || 'USD')],
-                    ['Platform & Clinical Infrastructure Fee (10%)', `-${formatCurrency(Math.round(form.videoFee * 0.10), doc?.profile?.currency || 'USD')}`],
-                    ['Your Direct Net Take-Home (90%)', formatCurrency(Math.round(form.videoFee * 0.90), doc?.profile?.currency || 'USD')]
+                    ['Video Consult Gross', formatCurrency(form.videoFee, doc?.profile?.currency || 'INR')],
+                    ['Platform & Clinical Infrastructure Fee (10%)', `-${formatCurrency(Math.round(form.videoFee * 0.10), doc?.profile?.currency || 'INR')}`],
+                    ['Your Direct Net Take-Home (90%)', formatCurrency(Math.round(form.videoFee * 0.90), doc?.profile?.currency || 'INR')]
                   ].map(([k, v]) => (
                     <div key={k} className="flex justify-between">
                       <span className="text-slate-500">{k}</span>

@@ -29,7 +29,7 @@ function ProcessPayoutModal({ payout, isOpen, onClose, onProcess }) {
     }
   };
 
-  const payoutCurr = payout.currency || payout.original_currency || 'USD';
+  const payoutCurr = payout.currency || payout.original_currency || 'INR';
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Process Doctor Payout Disbursement" size="sm">
@@ -77,7 +77,7 @@ function AdminRevenue() {
   const toast = useToast();
   
   // Reporting currency state (Controls normalization across entire dashboard)
-  const [reportingCurrency, setReportingCurrency] = useState('USD');
+  const [reportingCurrency, setReportingCurrency] = useState('INR');
   
   const [revenueData, setRevenueData] = useState(null);
   const [payouts, setPayouts] = useState([]);
@@ -139,7 +139,7 @@ function AdminRevenue() {
   // Filtered Payouts
   const filteredPayouts = useMemo(() => {
     return payouts.filter(p => {
-      const pCurr = (p.currency || p.original_currency || 'USD').toUpperCase();
+      const pCurr = (p.currency || p.original_currency || 'INR').toUpperCase();
       const matchCurrency = selectedOriginalCurrency === 'ALL' || pCurr === selectedOriginalCurrency;
       const matchStatus = selectedStatus === 'ALL' || p.status === selectedStatus;
       const matchSearch = !searchQuery || 
@@ -636,7 +636,7 @@ function AdminRevenue() {
                 </tr>
               ) : (
                 filteredPayouts.map(p => {
-                  const pCurr = (p.currency || p.original_currency || 'USD').toUpperCase();
+                  const pCurr = (p.currency || p.original_currency || 'INR').toUpperCase();
                   return (
                     <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="px-6 py-4 font-mono text-xs font-bold text-slate-500">{p.displayId}</td>

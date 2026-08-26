@@ -85,6 +85,10 @@ export class UpdateMeDto {
   @IsOptional()
   @IsString()
   registrationNo?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  bio?: string;
   @ApiProperty({ required: false }) @IsOptional() emailNotifications?: boolean;
   @ApiProperty({ required: false }) @IsOptional() smsNotifications?: boolean;
 }

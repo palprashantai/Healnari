@@ -54,7 +54,7 @@ function PatientBilling() {
     apiFetch(`/billing/pay/status/${cfOrderId}`)
       .then((result) => {
         syncPayment(result);
-        if (result.status === 'Paid') toast(`Payment of ${formatCurrency(result.amount, result.currency || 'USD')} successful!`, 'success');
+        if (result.status === 'Paid') toast(`Payment of ${formatCurrency(result.amount, result.currency || 'INR')} successful!`, 'success');
         else if (result.status === 'Failed') toast('Payment did not go through.', 'error');
       })
       .catch(() => {});
@@ -67,7 +67,7 @@ function PatientBilling() {
     doctor: t.doctorName ? `Dr. ${t.doctorName}` : '—',
     type: t.service,
     amount: Number(t.amount),
-    currency: t.currency || 'USD',
+    currency: t.currency || 'INR',
     status: PAYMENT_STATUS_TO_DISPLAY[t.status] || 'pending',
     method: t.method || '—',
   })), [rawTransactions]);
@@ -92,14 +92,14 @@ function PatientBilling() {
       doctor: `Dr. ${next.doctorName}`,
       date: next.date,
       amount: doc?.consultation_fee ?? 29,
-      currency: doc?.currency || next.currency || 'USD',
+      currency: doc?.currency || next.currency || 'INR',
     };
   }, [appointments, doctorById, paidAppointmentIds]);
 
-  const defaultCurrency = transactions[0]?.currency || upcomingPayment?.currency || 'USD';
+  const defaultCurrency = transactions[0]?.currency || upcomingPayment?.currency || 'INR';
   const totalPaid = transactions.filter(t => t.status === 'paid').reduce((s, t) => s + t.amount, 0);
 
-  const openPay = (amount, description, appointmentId, currency = 'USD') => {
+  const openPay = (amount, description, appointmentId, currency = 'INR') => {
     setPayFor({ amount, description, currency });
     setPayTarget(appointmentId);
     setShowPayModal(true);
