@@ -164,7 +164,8 @@ export function AuthProvider({ children }) {
     if (updates.phone !== undefined) patch.phone = updates.phone;
     if (updates.dob !== undefined) patch.dob = updates.dob;
     if (updates.bloodGroup !== undefined) patch.bloodGroup = updates.bloodGroup;
-    if (updates.bio !== undefined) patch.bio = updates.bio;
+    // Temporarily disabled until the 'bio' column is added to the production DB
+    // if (updates.bio !== undefined) patch.bio = updates.bio;
     if (updates.specialty !== undefined) patch.specialty = updates.specialty;
     if (updates.qualifications !== undefined) patch.qualifications = updates.qualifications;
     if (updates.experienceYears !== undefined) patch.experienceYears = Number(updates.experienceYears);

@@ -142,7 +142,8 @@ export class AuthService {
     if (body.specialty !== undefined) patch.specialty = body.specialty;
     if (body.registrationNo !== undefined)
       patch.registration_no = body.registrationNo;
-    if (body.bio !== undefined) patch.bio = body.bio;
+    // Temporarily disabled until the 'bio' column is added to the production DB
+    // if (body.bio !== undefined) patch.bio = body.bio;
     if (body.emailNotifications !== undefined)
       patch.email_notifications = body.emailNotifications;
     if (body.smsNotifications !== undefined)

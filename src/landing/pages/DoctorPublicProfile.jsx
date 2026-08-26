@@ -282,8 +282,10 @@ function DoctorPublicProfile() {
         body: payload,
         skipAuth: true
       });
-    } catch {
-      // Offline fallback success
+    } catch (err) {
+      setSubmitting(false);
+      toast(err.message || 'Failed to submit booking request', 'error');
+      return;
     }
 
     trackEvent(AnalyticsEvents.BOOKING_SUCCESS, {
