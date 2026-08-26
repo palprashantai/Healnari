@@ -205,7 +205,117 @@ export class AppointmentsService {
     return withNames;
   }
 
-  async updateStatus(user: AuthUser, id: string, status: AppointmentStatus) {
+  /** Atomically reschedules an appointment to a new date/time.
+   * The DB unique index (appointments_no_double_booking) prevents two
+   * appointments from landing on the same doctor/date/time — if the new
+   * slot is already taken, Postgres returns 23505 and we translate that
+   * to a clean conflict message, exactly like create() does. */
+  async reschedule(user: AuthUser, id: string, body: { newDate: string; newTime: string; reason?: string }) {
+    const { data: appointment } = await this.supabase.admin
+      .from('appointments')
+      .select('*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)')
+      .is('deleted_at', null)
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
+
+    // Authorization: only the patient or doctor on this appointment
+    if (appointment.patient_id !== user.id && appointment.doctor_id !== user.id) {
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    }
+
+    // Only reschedulable statuses
+    const reschedulableStatuses = [
+      AppointmentStatus.REQUESTED,
+      AppointmentStatus.APPROVED,
+      AppointmentStatus.UPCOMING,
+    ];
+    if (!reschedulableStatuses.includes(appointment.status)) {
+      throw new BadRequestException(
+        `Cannot reschedule an appointment that is ${appointment.status.toLowerCase()}. Only pending, approved, or upcoming appointments can be rescheduled.`,
+      );
+    }
+
+    // Validate the new date is not in the past
+    const { data: doctor } = await this.supabase.admin
+      .from('profiles')
+      .select('timezone')
+      .eq('id', appointment.doctor_id)
+      .maybeSingle();
+    const doctorTz = doctor?.timezone || 'Asia/Kolkata';
+    const doctorNowStr = new Date().toLocaleString('en-US', { timeZone: doctorTz, hour12: false });
+    const doctorNow = new Date(doctorNowStr);
+
+    const isPM = body.newTime.toLowerCase().includes('pm');
+    const timeMatches = body.newTime.match(/(\d+):(\d+)/);
+    if (timeMatches) {
+      let hour = parseInt(timeMatches[1], 10);
+      const min = parseInt(timeMatches[2], 10);
+      if (isPM && hour < 12) hour += 12;
+      if (!isPM && hour === 12) hour = 0;
+      const newDateTime = new Date(`${body.newDate}T${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}:00`);
+      if (newDateTime < doctorNow) {
+        throw new BadRequestException('Cannot reschedule to a time in the past.');
+      }
+    }
+
+    // Check leave on new date
+    const { data: leaves } = await this.supabase.admin
+      .from('leave_requests')
+      .select('id')
+      .eq('doctor_id', appointment.doctor_id)
+      .eq('status', 'Approved')
+      .lte('from_date', body.newDate)
+      .gte('to_date', body.newDate);
+
+    if (leaves && leaves.length > 0) {
+      throw new ConflictException('The doctor is on leave on the requested date.');
+    }
+
+    // Atomic update — old slot is released, new slot is claimed in one UPDATE.
+    // The unique index prevents the new slot from conflicting.
+    const { data: updated, error: updateError } = await this.supabase.admin
+      .from('appointments')
+      .update({
+        scheduled_date: body.newDate,
+        scheduled_time: body.newTime,
+        rescheduled_from_date: appointment.scheduled_date,
+        rescheduled_from_time: appointment.scheduled_time,
+        rescheduled_at: new Date().toISOString(),
+        rescheduled_by: user.id,
+        reschedule_reason: body.reason || null,
+      })
+      .eq('id', id)
+      .select('*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)')
+      .maybeSingle();
+
+    if (updateError) {
+      if (updateError.code === '23505') {
+        throw new ConflictException('The new time slot is already booked. Please select a different time.');
+      }
+      throw updateError;
+    }
+
+    const [withNames] = await this.withNames([updated]);
+    const isDoctorActing = user.id === appointment.doctor_id;
+    const oldWhen = `${appointment.scheduled_date} at ${appointment.scheduled_time}`;
+    const newWhen = this.appointmentWhen(withNames);
+
+    // Notify the other party
+    const recipientId = isDoctorActing ? appointment.patient_id : appointment.doctor_id;
+    const actorLabel = isDoctorActing ? `Dr. ${withNames.doctorName}` : withNames.patientName;
+    await this.notifications.create(recipientId, {
+      type: 'appointment_rescheduled',
+      title: 'Appointment Rescheduled',
+      message: `${actorLabel} rescheduled the ${this.typeLabel(withNames.type)} from ${oldWhen} to ${newWhen}.`,
+      data: { appointmentId: withNames.id },
+    });
+
+    return withNames;
+  }
+
+  async updateStatus(user: AuthUser, id: string, status: AppointmentStatus, cancellationReason?: string) {
     const { data: appointment } = await this.supabase.admin.from('appointments').select().is('deleted_at', null).eq('id', id).maybeSingle();
     if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
 
@@ -239,7 +349,15 @@ export class AppointmentsService {
       throw new BadRequestException('Cannot cancel a consultation that has already started.');
     }
 
-    const { data: saved } = await this.supabase.admin.from('appointments').update({ status }).eq('id', id).select('*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)').is('deleted_at', null).maybeSingle();
+    // Build the update payload — add cancellation tracking when relevant
+    const updatePayload: Record<string, any> = { status };
+    if (status === AppointmentStatus.CANCELLED) {
+      updatePayload.cancelled_by = user.id;
+      updatePayload.cancelled_at = new Date().toISOString();
+      if (cancellationReason) updatePayload.cancellation_reason = cancellationReason;
+    }
+
+    const { data: saved } = await this.supabase.admin.from('appointments').update(updatePayload).eq('id', id).select('*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)').is('deleted_at', null).maybeSingle();
     const [withNames] = await this.withNames([saved]);
 
     await this.notifyStatusChange(user, withNames, appointment.status);

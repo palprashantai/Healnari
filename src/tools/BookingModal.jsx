@@ -53,6 +53,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
 
   const [availableSlots, setAvailableSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [slotInfo, setSlotInfo] = useState({ reason: null, message: null, suggestedDates: [] });
 
   const [doctors, setDoctors] = useState([]);
   const [loadingDoctors, setLoadingDoctors] = useState(true);
@@ -108,12 +109,24 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
   useEffect(() => {
     if (formData.doctorId && formData.date) {
       setLoadingSlots(true);
+      setSlotInfo({ reason: null, message: null, suggestedDates: [] });
       apiFetch(`/doctors/${formData.doctorId}/slots?date=${formData.date}`, { skipAuth: true })
-        .then(res => setAvailableSlots(res?.availableSlots || []))
-        .catch(() => setAvailableSlots([]))
+        .then(res => {
+          setAvailableSlots(res?.availableSlots || []);
+          setSlotInfo({
+            reason: res?.reason || null,
+            message: res?.message || null,
+            suggestedDates: res?.suggestedDates || []
+          });
+        })
+        .catch(() => {
+          setAvailableSlots([]);
+          setSlotInfo({ reason: null, message: null, suggestedDates: [] });
+        })
         .finally(() => setLoadingSlots(false));
     } else {
       setAvailableSlots([]);
+      setSlotInfo({ reason: null, message: null, suggestedDates: [] });
     }
   }, [formData.doctorId, formData.date]);
 
@@ -520,11 +533,14 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                     required
                     value={formData.time}
                     onChange={handleInputChange}
-                    className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-aubergine-500 focus:outline-none bg-white ${errors.time ? 'border-rose-400' : 'border-slate-200'
+                    disabled={loadingSlots || availableSlots.length === 0}
+                    className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-aubergine-500 focus:outline-none bg-white ${errors.time ? 'border-rose-400' : availableSlots.length === 0 && formData.date && !loadingSlots ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200'
                       }`}
                   >
                     {loadingSlots ? (
                       <option value="" disabled>Loading slots...</option>
+                    ) : !formData.date ? (
+                      <option value="" disabled>Pick a date first</option>
                     ) : availableSlots.length === 0 ? (
                       <option value="" disabled>No slots available</option>
                     ) : (
@@ -537,6 +553,70 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                   {errors.time && <p className="text-rose-500 text-[10px] font-bold mt-1">{errors.time}</p>}
                 </div>
               </div>
+
+              {/* Unavailability reason + suggested dates */}
+              {!loadingSlots && formData.date && availableSlots.length === 0 && slotInfo.reason && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 space-y-2.5 animate-slide-up">
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-amber-200/70 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <i className={`fas text-amber-700 text-sm ${
+                        slotInfo.reason === 'on_leave' ? 'fa-suitcase' :
+                        slotInfo.reason === 'day_off' ? 'fa-calendar-xmark' :
+                        slotInfo.reason === 'not_working' ? 'fa-moon' :
+                        slotInfo.reason === 'fully_booked' ? 'fa-calendar-check' :
+                        'fa-clock'
+                      }`}></i>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-amber-800">
+                        {slotInfo.reason === 'on_leave' && 'Doctor is on leave'}
+                        {slotInfo.reason === 'day_off' && 'Day off'}
+                        {slotInfo.reason === 'not_working' && 'Non-working day'}
+                        {slotInfo.reason === 'fully_booked' && 'Fully booked'}
+                        {slotInfo.reason === 'past_hours' && 'No more slots today'}
+                      </p>
+                      <p className="text-xs text-amber-700 mt-0.5">{slotInfo.message}</p>
+                    </div>
+                  </div>
+
+                  {slotInfo.suggestedDates && slotInfo.suggestedDates.length > 0 && (
+                    <div className="pt-2 border-t border-amber-200/60">
+                      <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-2">
+                        <i className="fas fa-lightbulb mr-1"></i> Next available dates
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {slotInfo.suggestedDates.map(d => {
+                          const dateObj = new Date(d + 'T00:00:00');
+                          const label = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                          return (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() => {
+                                setFormData(prev => ({ ...prev, date: d, time: '' }));
+                                if (errors.date) setErrors(prev => ({ ...prev, date: null }));
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-amber-300 hover:border-aubergine-400 hover:bg-aubergine-50 text-xs font-bold text-amber-800 hover:text-aubergine-700 transition-all shadow-sm"
+                            >
+                              <i className="far fa-calendar-check text-[10px]"></i>
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {slotInfo.suggestedDates && slotInfo.suggestedDates.length === 0 && (
+                    <div className="pt-2 border-t border-amber-200/60">
+                      <p className="text-xs text-amber-600">
+                        <i className="fas fa-info-circle mr-1"></i>
+                        No available dates found in the next 2 weeks. Please try a later date or contact the clinic.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
                 <div className="flex justify-between items-center text-xs">

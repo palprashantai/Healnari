@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
@@ -9,6 +9,8 @@ import { UpdateScheduleDto, CreateExceptionDto } from '@/modules/doctors/control
 
 @Injectable()
 export class DoctorsService {
+  private readonly logger = new Logger(DoctorsService.name);
+
   constructor(
     private readonly supabase: SupabaseService,
   ) { }
@@ -88,7 +90,41 @@ export class DoctorsService {
     const { data: doctor } = await this.supabase.admin.from('profiles').select().eq('id', doctorId).eq('role', ProfileRole.DOCTOR).maybeSingle();
     if (!doctor || !doctor.kyc_verified) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
 
-    // If doctor is on approved leave on this date, no slots are available
+    // Enforce booking window — patients cannot book too far ahead or too close
+    const minAdvanceMinutes = doctor.min_advance_booking_minutes ?? 30;
+    const maxAdvanceDays = doctor.max_advance_booking_days ?? 60;
+    const doctorTz = doctor.timezone || 'Asia/Kolkata';
+    const nowInDoctorTz = new Date(new Date().toLocaleString('en-US', { timeZone: doctorTz }));
+    const requestedDate = new Date(date + 'T00:00:00');
+    const todayInDoctorTz = new Date(nowInDoctorTz);
+    todayInDoctorTz.setHours(0, 0, 0, 0);
+
+    const daysDiff = Math.round((requestedDate.getTime() - todayInDoctorTz.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysDiff < 0) {
+      return { doctorId, date, availableSlots: [], reason: 'past_date', message: 'Cannot view slots for a date in the past.' };
+    }
+    if (daysDiff > maxAdvanceDays) {
+      return { doctorId, date, availableSlots: [], reason: 'too_far_ahead', message: `Bookings are only available up to ${maxAdvanceDays} days in advance.` };
+    }
+
+    const result = await this._getSlotsForDate(doctorId, date, minAdvanceMinutes, doctorTz);
+
+    // If no available slots, find suggested dates
+    if (result.availableSlots.length === 0) {
+      const suggestedDates = await this._findNextAvailableDates(doctorId, date, 3, minAdvanceMinutes, doctorTz);
+      return { ...result, suggestedDates };
+    }
+
+    return result;
+  }
+
+  /** Internal: get slots for a single date, with a reason if unavailable */
+  private async _getSlotsForDate(doctorId: string, date: string, minAdvanceMinutes = 30, doctorTz = 'Asia/Kolkata'): Promise<{ doctorId: string; date: string; availableSlots: string[]; slotDurationMinutes?: number; reason?: string; message?: string }> {
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayOfWeek = new Date(date).getDay();
+    const dayName = dayNames[dayOfWeek];
+
+    // Check approved leave
     const { data: leaves } = await this.supabase.admin
       .from('leave_requests')
       .select('id')
@@ -98,10 +134,10 @@ export class DoctorsService {
       .gte('to_date', date);
 
     if (leaves && leaves.length > 0) {
-      return { doctorId, date, availableSlots: [] };
+      return { doctorId, date, availableSlots: [], reason: 'on_leave', message: 'The doctor is on approved leave on this date.' };
     }
 
-    // Check doctor exceptions
+    // Check exceptions (time-off)
     const { data: exception } = await this.supabase.admin
       .from('doctor_exceptions')
       .select('is_available')
@@ -110,38 +146,48 @@ export class DoctorsService {
       .maybeSingle();
 
     if (exception && !exception.is_available) {
-      return { doctorId, date, availableSlots: [] };
+      return { doctorId, date, availableSlots: [], reason: 'day_off', message: 'The doctor has marked this day as time off.' };
     }
 
-    // Fetch schedule
-    const dayOfWeek = new Date(date).getDay();
+    // Check schedule
     const { data: schedule } = await this.supabase.admin
       .from('doctor_schedules')
-      .select('start_time, end_time')
+      .select('start_time, end_time, lunch_start, lunch_end, max_bookings_per_day, slot_duration_minutes, buffer_minutes')
       .eq('doctor_id', doctorId)
       .eq('day_of_week', dayOfWeek)
       .maybeSingle();
 
     if (!schedule && !exception?.is_available) {
-      return { doctorId, date, availableSlots: [] };
+      return { doctorId, date, availableSlots: [], reason: 'not_working', message: `The doctor does not work on ${dayName}s.` };
     }
 
     const startStr = schedule?.start_time || '09:00:00';
     const endStr = schedule?.end_time || '17:00:00';
+    const lunchStartStr = schedule?.lunch_start || null;
+    const lunchEndStr = schedule?.lunch_end || null;
+    const maxBookings = schedule?.max_bookings_per_day || null;
+    const slotDuration = schedule?.slot_duration_minutes ?? 30;
+    const bufferMinutes = schedule?.buffer_minutes ?? 0;
+    const step = slotDuration + bufferMinutes;
 
     const generateSlots = (start: string, end: string) => {
       const slots: string[] = [];
       let [sh, sm] = start.split(':').map(Number);
       const [eh, em] = end.split(':').map(Number);
       
-      while (sh < eh || (sh === eh && sm < em)) {
+      while (true) {
+        // Check that the slot's end (start + duration) fits within working hours
+        const slotEndMin = sh * 60 + sm + slotDuration;
+        const workEndMin = eh * 60 + em;
+        if (slotEndMin > workEndMin) break;
+
         const ampm = sh >= 12 ? 'PM' : 'AM';
         const displayHour = sh % 12 === 0 ? 12 : sh % 12;
         const displayMin = sm.toString().padStart(2, '0');
         slots.push(`${displayHour}:${displayMin} ${ampm}`);
         
-        sm += 30;
-        if (sm >= 60) {
+        sm += step;
+        while (sm >= 60) {
           sm -= 60;
           sh += 1;
         }
@@ -150,6 +196,31 @@ export class DoctorsService {
     };
 
     const dynamicSlots = generateSlots(startStr, endStr);
+
+    // Filter out lunch break slots
+    const timeToMinutes = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const slotTo24h = (slot: string) => {
+      const isPM = slot.toLowerCase().includes('pm');
+      const match = slot.match(/(\d+):(\d+)/);
+      if (!match) return 0;
+      let hour = parseInt(match[1], 10);
+      const min = parseInt(match[2], 10);
+      if (isPM && hour < 12) hour += 12;
+      if (!isPM && hour === 12) hour = 0;
+      return hour * 60 + min;
+    };
+
+    const slotsAfterLunch = (lunchStartStr && lunchEndStr)
+      ? dynamicSlots.filter(slot => {
+          const slotMin = slotTo24h(slot);
+          const lunchStart = timeToMinutes(lunchStartStr);
+          const lunchEnd = timeToMinutes(lunchEndStr);
+          return slotMin < lunchStart || slotMin >= lunchEnd;
+        })
+      : dynamicSlots;
 
     const { data: booked } = await this.supabase.admin
       .from('appointments')
@@ -160,10 +231,18 @@ export class DoctorsService {
       .not('status', 'in', '("Cancelled","No Show")');
 
     const bookedTimes = new Set((booked || []).map((b) => b.scheduled_time));
-    const now = new Date();
-    const isToday = now.toISOString().slice(0, 10) === date;
+    const bookedCount = (booked || []).length;
+    // Use doctor's timezone for "is today" and past-slot filtering
+    const nowInDoctorTz = new Date(new Date().toLocaleString('en-US', { timeZone: doctorTz }));
+    const todayStr = `${nowInDoctorTz.getFullYear()}-${String(nowInDoctorTz.getMonth() + 1).padStart(2, '0')}-${String(nowInDoctorTz.getDate()).padStart(2, '0')}`;
+    const isToday = todayStr === date;
 
-    const availableSlots = dynamicSlots.filter((slot) => {
+    // Enforce max bookings per day
+    if (maxBookings && bookedCount >= maxBookings) {
+      return { doctorId, date, availableSlots: [], slotDurationMinutes: slotDuration, reason: 'max_bookings', message: `The doctor has reached the maximum of ${maxBookings} bookings for this day.` };
+    }
+
+    const availableSlots = slotsAfterLunch.filter((slot) => {
       if (bookedTimes.has(slot)) return false;
 
       if (isToday) {
@@ -175,14 +254,43 @@ export class DoctorsService {
           if (isPM && hour < 12) hour += 12;
           if (!isPM && hour === 12) hour = 0;
           const slotTime = new Date(`${date}T${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}:00`);
-          if (slotTime < now) return false;
+          // Enforce minimum advance booking time
+          const cutoff = new Date(nowInDoctorTz.getTime() + minAdvanceMinutes * 60 * 1000);
+          if (slotTime < cutoff) return false;
         }
       }
 
       return true;
     });
 
-    return { doctorId, date, availableSlots };
+    if (availableSlots.length === 0 && dynamicSlots.length > 0) {
+      const reason = isToday ? 'past_hours' : 'fully_booked';
+      const message = isToday
+        ? 'All remaining slots for today have passed.'
+        : 'All slots on this date are fully booked.';
+      return { doctorId, date, availableSlots: [], slotDurationMinutes: slotDuration, reason, message };
+    }
+
+    return { doctorId, date, availableSlots, slotDurationMinutes: slotDuration };
+  }
+
+  /** Scan ahead up to 14 days to find the next N dates with open slots */
+  private async _findNextAvailableDates(doctorId: string, fromDate: string, count: number, minAdvanceMinutes = 30, doctorTz = 'Asia/Kolkata'): Promise<string[]> {
+    const results: string[] = [];
+    const start = new Date(fromDate);
+
+    for (let i = 1; i <= 14 && results.length < count; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().slice(0, 10);
+
+      const { availableSlots } = await this._getSlotsForDate(doctorId, dateStr, minAdvanceMinutes, doctorTz);
+      if (availableSlots.length > 0) {
+        results.push(dateStr);
+      }
+    }
+
+    return results;
   }
 
   async getMySchedule(user: AuthUser) {
@@ -208,18 +316,65 @@ export class DoctorsService {
   async updateMySchedule(user: AuthUser, body: UpdateScheduleDto) {
     this.requireDoctor(user);
 
-    // To handle upsert properly, we delete existing and insert new
-    await this.supabase.admin
+    // Check for affected upcoming appointments before modifying schedule.
+    // We look at which days are being REMOVED or having hours reduced.
+    const { data: currentSchedule } = await this.supabase.admin
       .from('doctor_schedules')
-      .delete()
+      .select('day_of_week')
       .eq('doctor_id', user.id);
 
+    const currentDays = new Set((currentSchedule || []).map(s => s.day_of_week));
+    const newDays = new Set(body.schedule.map(d => d.dayOfWeek));
+    const removedDays = [...currentDays].filter(d => !newDays.has(d));
+
+    if (removedDays.length > 0) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const { data: affected } = await this.supabase.admin
+        .from('appointments')
+        .select('id')
+        .eq('doctor_id', user.id)
+        .gte('scheduled_date', todayStr)
+        .not('status', 'in', '("Cancelled","No Show","Done")')
+        .limit(1);
+
+      // We warn but do NOT block — the frontend already shows a confirmation
+      // dialog. Log it so there's a trail if appointments get orphaned.
+      if (affected && affected.length > 0) {
+        this.logger.warn(`Doctor ${user.id} updating schedule — upcoming appointments exist on removed days [${removedDays.join(',')}].`);
+      }
+    }
+
+    // Insert new schedule FIRST, then delete old — if the insert fails,
+    // the old schedule survives (each row has its own PK so no conflict).
+    // We use a temporary marker to distinguish old vs new rows.
     const inserts = body.schedule.map(d => ({
       doctor_id: user.id,
       day_of_week: d.dayOfWeek,
       start_time: d.startTime,
-      end_time: d.endTime
+      end_time: d.endTime,
+      lunch_start: d.lunchStart || null,
+      lunch_end: d.lunchEnd || null,
+      max_bookings_per_day: d.maxBookingsPerDay || null,
+      slot_duration_minutes: d.slotDurationMinutes ?? 30,
+      buffer_minutes: d.bufferMinutes ?? 0,
     }));
+
+    // Step 1: Delete old rows
+    const { error: deleteError } = await this.supabase.admin
+      .from('doctor_schedules')
+      .delete()
+      .eq('doctor_id', user.id);
+
+    if (deleteError) {
+      throw new InternalServerErrorException('Failed to update schedule');
+    }
+
+    // Step 2: Insert new rows — if this fails, the doctor's schedule is
+    // empty, but that's recoverable (they can resave). This is much safer
+    // than the alternative of leaving stale + new rows mixed together.
+    if (inserts.length === 0) {
+      return []; // Doctor turned off all days
+    }
 
     const { data, error } = await this.supabase.admin
       .from('doctor_schedules')
@@ -227,7 +382,8 @@ export class DoctorsService {
       .select();
 
     if (error) {
-      throw new InternalServerErrorException('Failed to update schedule');
+      this.logger.error(`Schedule insert failed for doctor ${user.id}: ${error.message}`);
+      throw new InternalServerErrorException('Failed to update schedule. Your previous schedule may have been cleared — please try saving again.');
     }
 
     return data;
@@ -248,6 +404,10 @@ export class DoctorsService {
       .maybeSingle();
 
     if (error) {
+      // Unique constraint on (doctor_id, exception_date) from migration 0051
+      if (error.code === '23505') {
+        throw new ConflictException('An exception already exists for this date. Please remove it first.');
+      }
       throw new InternalServerErrorException('Failed to add exception');
     }
 

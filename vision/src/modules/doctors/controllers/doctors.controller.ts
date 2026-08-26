@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Put, Query, Post, Body, Delete } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiProperty } from '@nestjs/swagger';
-import { IsString, IsArray, IsBoolean, IsOptional, ValidateNested, IsDateString } from 'class-validator';
+import { IsString, IsInt, IsArray, IsBoolean, IsOptional, ValidateNested, IsDateString, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DoctorsService } from '@/modules/doctors/services/doctors.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
@@ -13,6 +13,11 @@ export class ScheduleDayDto {
   @ApiProperty() dayOfWeek: number;
   @ApiProperty() startTime: string | null;
   @ApiProperty() endTime: string | null;
+  @ApiProperty({ required: false }) @IsOptional() lunchStart?: string | null;
+  @ApiProperty({ required: false }) @IsOptional() lunchEnd?: string | null;
+  @ApiProperty({ required: false }) @IsOptional() @IsInt() @Min(1) maxBookingsPerDay?: number | null;
+  @ApiProperty({ required: false, default: 30 }) @IsOptional() @IsInt() @Min(5) slotDurationMinutes?: number;
+  @ApiProperty({ required: false, default: 0 }) @IsOptional() @IsInt() @Min(0) bufferMinutes?: number;
 }
 
 export class UpdateScheduleDto {

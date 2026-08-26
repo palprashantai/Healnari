@@ -62,8 +62,16 @@ export class AppointmentsController {
   @ApiParam({ name: 'id' })
   @Put(':id/status')
   async updateStatus(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: UpdateStatusDto) {
-    const data = await this.appointmentsService.updateStatus(user, id, body.status);
+    const data = await this.appointmentsService.updateStatus(user, id, body.status, (body as any).cancellationReason);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.APPOINTMENT_UPDATED);
+  }
+
+  @ApiOperation({ summary: 'Reschedule an appointment to a new date/time' })
+  @ApiParam({ name: 'id' })
+  @Post(':id/reschedule')
+  async reschedule(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: { newDate: string; newTime: string; reason?: string }) {
+    const data = await this.appointmentsService.reschedule(user, id, body);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.APPOINTMENT_RESCHEDULED);
   }
 
   @ApiOperation({ summary: "Decline an incoming call — ends it on the caller's side too, like a real phone call" })

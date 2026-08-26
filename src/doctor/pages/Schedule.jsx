@@ -35,8 +35,12 @@ function hoursFromRange(start, end) {
   return Math.max(0, (eh * 60 + em - sh * 60 - sm) / 60);
 }
 
-function slotsFromRange(start, end) {
-  return Math.floor(hoursFromRange(start, end) * 2);
+function slotsFromRange(start, end, lunchStart, lunchEnd) {
+  let total = Math.floor(hoursFromRange(start, end) * 2);
+  if (lunchStart && lunchEnd) {
+    total -= Math.floor(hoursFromRange(lunchStart, lunchEnd) * 2);
+  }
+  return Math.max(0, total);
 }
 
 function relativeDate(dateStr) {
@@ -95,7 +99,13 @@ export default function Schedule() {
           letter: day.letter,
           isActive: !!existing,
           startTime: existing ? existing.start_time.slice(0,5) : '09:00',
-          endTime: existing ? existing.end_time.slice(0,5) : '17:00'
+          endTime: existing ? existing.end_time.slice(0,5) : '17:00',
+          lunchStart: existing?.lunch_start ? existing.lunch_start.slice(0,5) : '',
+          lunchEnd: existing?.lunch_end ? existing.lunch_end.slice(0,5) : '',
+          hasLunch: !!(existing?.lunch_start && existing?.lunch_end),
+          maxBookingsPerDay: existing?.max_bookings_per_day || '',
+          slotDurationMinutes: existing?.slot_duration_minutes || 30,
+          bufferMinutes: existing?.buffer_minutes || 0,
         };
       });
       
@@ -115,9 +125,14 @@ export default function Schedule() {
 
   const stats = useMemo(() => {
     const activeDays = schedule.filter(d => d.isActive);
-    const totalHours = activeDays.reduce((sum, d) => sum + hoursFromRange(d.startTime, d.endTime), 0);
-    const totalSlots = activeDays.reduce((sum, d) => sum + slotsFromRange(d.startTime, d.endTime), 0);
-    return { activeDays: activeDays.length, totalHours, totalSlots };
+    const totalHours = activeDays.reduce((sum, d) => {
+      let h = hoursFromRange(d.startTime, d.endTime);
+      if (d.hasLunch && d.lunchStart && d.lunchEnd) h -= hoursFromRange(d.lunchStart, d.lunchEnd);
+      return sum + Math.max(0, h);
+    }, 0);
+    const totalSlots = activeDays.reduce((sum, d) => sum + slotsFromRange(d.startTime, d.endTime, d.hasLunch ? d.lunchStart : null, d.hasLunch ? d.lunchEnd : null), 0);
+    const totalMaxBookings = activeDays.reduce((sum, d) => sum + (d.maxBookingsPerDay ? Number(d.maxBookingsPerDay) : slotsFromRange(d.startTime, d.endTime, d.hasLunch ? d.lunchStart : null, d.hasLunch ? d.lunchEnd : null)), 0);
+    return { activeDays: activeDays.length, totalHours, totalSlots, totalMaxBookings };
   }, [schedule]);
 
   const handleScheduleChange = useCallback((dayId, field, value) => {
@@ -135,7 +150,7 @@ export default function Schedule() {
       if (preset.satEnd && day.dayOfWeek === 6) endTime = preset.satEnd;
       else if (preset.weekdayEnd && day.dayOfWeek !== 6) endTime = preset.weekdayEnd;
 
-      return { ...day, isActive: true, startTime: preset.start, endTime };
+      return { ...day, isActive: true, startTime: preset.start, endTime, lunchStart: day.lunchStart, lunchEnd: day.lunchEnd, hasLunch: day.hasLunch, maxBookingsPerDay: day.maxBookingsPerDay };
     }));
     setShowPresets(false);
     toast('Preset applied — review and save when ready', 'success');
@@ -145,7 +160,7 @@ export default function Schedule() {
     const source = schedule.find(d => d.dayOfWeek === sourceDayId);
     if (!source || !source.isActive) return;
     setSchedule(prev => prev.map(day =>
-      day.dayOfWeek === sourceDayId ? day : { ...day, isActive: true, startTime: source.startTime, endTime: source.endTime }
+      day.dayOfWeek === sourceDayId ? day : { ...day, isActive: true, startTime: source.startTime, endTime: source.endTime, lunchStart: source.lunchStart, lunchEnd: source.lunchEnd, hasLunch: source.hasLunch, maxBookingsPerDay: source.maxBookingsPerDay }
     ));
     toast(`Copied ${source.short}'s hours to all days`, 'success');
   }, [schedule, toast]);
@@ -157,6 +172,11 @@ export default function Schedule() {
       toast(`${invalid.name}: end time must be after start time`, 'error');
       return;
     }
+    const invalidLunch = schedule.find(d => d.isActive && d.hasLunch && d.lunchStart && d.lunchEnd && (d.lunchStart >= d.lunchEnd || d.lunchStart < d.startTime || d.lunchEnd > d.endTime));
+    if (invalidLunch) {
+      toast(`${invalidLunch.name}: lunch break must be within working hours`, 'error');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -164,7 +184,12 @@ export default function Schedule() {
         schedule: schedule.filter(d => d.isActive).map(d => ({
           dayOfWeek: d.dayOfWeek,
           startTime: d.startTime,
-          endTime: d.endTime
+          endTime: d.endTime,
+          lunchStart: d.hasLunch && d.lunchStart ? d.lunchStart : null,
+          lunchEnd: d.hasLunch && d.lunchEnd ? d.lunchEnd : null,
+          maxBookingsPerDay: d.maxBookingsPerDay ? Number(d.maxBookingsPerDay) : null,
+          slotDurationMinutes: Number(d.slotDurationMinutes) || 30,
+          bufferMinutes: Number(d.bufferMinutes) || 0,
         }))
       };
       
@@ -384,8 +409,10 @@ export default function Schedule() {
             <div className="divide-y divide-slate-100 flex-1">
               {schedule.map(day => {
                 const isToday = day.dayOfWeek === todayDay;
-                const hours = day.isActive ? hoursFromRange(day.startTime, day.endTime) : 0;
-                const slots = day.isActive ? slotsFromRange(day.startTime, day.endTime) : 0;
+                let hours = day.isActive ? hoursFromRange(day.startTime, day.endTime) : 0;
+                if (day.isActive && day.hasLunch && day.lunchStart && day.lunchEnd) hours -= hoursFromRange(day.lunchStart, day.lunchEnd);
+                hours = Math.max(0, hours);
+                const slots = day.isActive ? slotsFromRange(day.startTime, day.endTime, day.hasLunch ? day.lunchStart : null, day.hasLunch ? day.lunchEnd : null) : 0;
                 const timeError = day.isActive && day.startTime >= day.endTime;
 
                 return (
@@ -419,44 +446,128 @@ export default function Schedule() {
                     </div>
 
                     {day.isActive ? (
-                      <div className="flex items-center gap-2 sm:gap-3 ml-14 sm:ml-0 flex-wrap">
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="time" 
-                            value={day.startTime}
-                            onChange={(e) => handleScheduleChange(day.dayOfWeek, 'startTime', e.target.value)}
-                            className={`px-3 py-2 border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white ${timeError ? 'border-rose-300 bg-rose-50' : 'border-slate-200'}`}
-                          />
-                          <span className="text-slate-400 text-xs font-bold">→</span>
-                          <input 
-                            type="time" 
-                            value={day.endTime}
-                            onChange={(e) => handleScheduleChange(day.dayOfWeek, 'endTime', e.target.value)}
-                            className={`px-3 py-2 border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white ${timeError ? 'border-rose-300 bg-rose-50' : 'border-slate-200'}`}
-                          />
+                      <div className="flex-1 ml-14 sm:ml-0 space-y-2">
+                        {/* Working hours row */}
+                        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="time" 
+                              value={day.startTime}
+                              onChange={(e) => handleScheduleChange(day.dayOfWeek, 'startTime', e.target.value)}
+                              className={`px-3 py-2 border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white ${timeError ? 'border-rose-300 bg-rose-50' : 'border-slate-200'}`}
+                            />
+                            <span className="text-slate-400 text-xs font-bold">→</span>
+                            <input 
+                              type="time" 
+                              value={day.endTime}
+                              onChange={(e) => handleScheduleChange(day.dayOfWeek, 'endTime', e.target.value)}
+                              className={`px-3 py-2 border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white ${timeError ? 'border-rose-300 bg-rose-50' : 'border-slate-200'}`}
+                            />
+                          </div>
+
+                          {!timeError && (
+                            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-md flex-shrink-0 hidden sm:inline-flex items-center gap-1">
+                              <i className="fas fa-clock text-[8px]"></i> {hours}h · {slots} slots
+                            </span>
+                          )}
+                          {timeError && (
+                            <span className="text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                              <i className="fas fa-exclamation-triangle"></i> Invalid
+                            </span>
+                          )}
+
+                          <button
+                            onClick={() => copyToAll(day.dayOfWeek)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-aubergine-600 hover:bg-aubergine-50 transition-colors opacity-0 group-hover:opacity-100"
+                            title={`Copy ${day.short}'s settings to all days`}
+                          >
+                            <i className="fas fa-copy text-xs"></i>
+                          </button>
                         </div>
 
-                        {/* Hours & Slots badge */}
-                        {!timeError && (
-                          <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-md flex-shrink-0 hidden sm:inline-flex items-center gap-1">
-                            <i className="fas fa-clock text-[8px]"></i> {hours}h · {slots} slots
-                          </span>
-                        )}
+                        {/* Lunch break + Max bookings row */}
+                        <div className="flex items-center gap-3 flex-wrap">
+                          {/* Lunch toggle + inputs */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleScheduleChange(day.dayOfWeek, 'hasLunch', !day.hasLunch)}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors ${
+                                day.hasLunch
+                                  ? 'bg-amber-50 border-amber-200 text-amber-700'
+                                  : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'
+                              }`}
+                            >
+                              <i className={`fas fa-utensils text-[9px]`}></i>
+                              Lunch
+                            </button>
+                            {day.hasLunch && (
+                              <div className="flex items-center gap-1.5 animate-slide-up">
+                                <input
+                                  type="time"
+                                  value={day.lunchStart}
+                                  onChange={(e) => handleScheduleChange(day.dayOfWeek, 'lunchStart', e.target.value)}
+                                  className="px-2 py-1.5 border border-amber-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50/50 w-[5.5rem]"
+                                />
+                                <span className="text-slate-300 text-[10px] font-bold">→</span>
+                                <input
+                                  type="time"
+                                  value={day.lunchEnd}
+                                  onChange={(e) => handleScheduleChange(day.dayOfWeek, 'lunchEnd', e.target.value)}
+                                  className="px-2 py-1.5 border border-amber-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50/50 w-[5.5rem]"
+                                />
+                              </div>
+                            )}
+                          </div>
 
-                        {timeError && (
-                          <span className="text-[10px] font-bold text-rose-500 flex items-center gap-1">
-                            <i className="fas fa-exclamation-triangle"></i> Invalid
-                          </span>
-                        )}
+                          {/* Max bookings */}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-slate-400 hidden sm:inline">
+                              <i className="fas fa-hashtag text-[8px] mr-0.5"></i>Max/day
+                            </span>
+                            <input
+                              type="number"
+                              min="1"
+                              max="50"
+                              placeholder="∞"
+                              value={day.maxBookingsPerDay}
+                              onChange={(e) => handleScheduleChange(day.dayOfWeek, 'maxBookingsPerDay', e.target.value)}
+                              className="w-14 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-center focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white placeholder:text-slate-300"
+                            />
+                          </div>
 
-                        {/* Copy to all button */}
-                        <button
-                          onClick={() => copyToAll(day.dayOfWeek)}
-                          className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-aubergine-600 hover:bg-aubergine-50 transition-colors opacity-0 group-hover:opacity-100"
-                          title={`Copy ${day.short}'s hours to all days`}
-                        >
-                          <i className="fas fa-copy text-xs"></i>
-                        </button>
+                          {/* Slot Duration */}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-slate-400 hidden sm:inline">
+                              <i className="fas fa-stopwatch text-[8px] mr-0.5"></i>Slot (m)
+                            </span>
+                            <input
+                              type="number"
+                              min="10"
+                              max="120"
+                              step="5"
+                              value={day.slotDurationMinutes}
+                              onChange={(e) => handleScheduleChange(day.dayOfWeek, 'slotDurationMinutes', e.target.value)}
+                              className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-center focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white"
+                            />
+                          </div>
+
+                          {/* Buffer Duration */}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-slate-400 hidden sm:inline">
+                              <i className="fas fa-pause text-[8px] mr-0.5"></i>Buffer (m)
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="60"
+                              step="5"
+                              value={day.bufferMinutes}
+                              onChange={(e) => handleScheduleChange(day.dayOfWeek, 'bufferMinutes', e.target.value)}
+                              className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-center focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white"
+                            />
+                          </div>
+                        </div>
                       </div>
                     ) : (
                       <div className="text-sm text-slate-400 font-medium italic ml-14 sm:ml-0 flex items-center gap-2">

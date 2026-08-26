@@ -188,6 +188,134 @@ function JoinWaitlistModal({ isOpen, onClose, doctors, onJoin }) {
   );
 }
 
+/* ─── Cancel Modal with Reason ───────────────── */
+function CancelModal({ isOpen, onClose, onConfirm, apt }) {
+  const [reason, setReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) setReason('');
+  }, [isOpen]);
+
+  const confirm = async () => {
+    setCancelling(true);
+    await onConfirm(reason);
+    setCancelling(false);
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="sm" title="Cancel Appointment?">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600">
+          Are you sure you want to cancel your appointment with <strong>Dr. {apt?.doctor}</strong>? A refund will be initiated within 3–5 business days if applicable.
+        </p>
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Cancellation Reason (optional)</label>
+          <textarea rows={2} value={reason} onChange={e => setReason(e.target.value)}
+            placeholder="Why are you cancelling?"
+            className="crm-input resize-none" />
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button onClick={onClose} disabled={cancelling} className="crm-btn-secondary flex-1 disabled:opacity-40">Keep it</button>
+          <button onClick={confirm} disabled={cancelling} className="crm-btn-primary flex-1 disabled:opacity-40 bg-rose-600 hover:bg-rose-700 border-none">
+            {cancelling ? 'Cancelling...' : 'Yes, Cancel'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ─── Reschedule Modal ───────────────────────── */
+function RescheduleModal({ isOpen, onClose, onReschedule, apt }) {
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState({ date: '', slot: '', reason: '' });
+  const [slots, setSlots] = useState([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsRefreshKey, setSlotsRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (isOpen) setForm({ date: '', slot: '', reason: '' });
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!apt?.doctorId || !form.date) { setSlots([]); return; }
+    setForm(p => ({ ...p, slot: '' }));
+    setSlotsLoading(true);
+    apiFetch(`/doctors/${apt.doctorId}/slots?date=${form.date}`)
+      .then(res => setSlots(res.availableSlots || []))
+      .catch(() => setSlots([]))
+      .finally(() => setSlotsLoading(false));
+  }, [apt?.doctorId, form.date, slotsRefreshKey]);
+
+  const reset = () => { setStep(1); onClose(); };
+  const [booking, setBooking] = useState(false);
+
+  const confirm = async () => {
+    setBooking(true);
+    try {
+      await onReschedule({ newDate: form.date, newTime: form.slot, reason: form.reason });
+      reset();
+    } catch {
+      setSlotsRefreshKey(k => k + 1);
+    } finally {
+      setBooking(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={reset} title="Reschedule Appointment" size="md">
+      {step === 1 && (
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+            Rescheduling from: <strong>{apt?.date} at {apt?.time}</strong>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 mb-1.5 block">New Preferred Date *</label>
+            <input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
+              min={todayLocalStr()} className="crm-input" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-slate-500 mb-1.5 block">Reason (optional)</label>
+            <textarea rows={2} value={form.reason} onChange={e => setForm(p => ({ ...p, reason: e.target.value }))}
+              placeholder="Why do you need to reschedule?" className="crm-input resize-none" />
+          </div>
+          <button disabled={!form.date} onClick={() => setStep(2)} className="crm-btn-primary w-full disabled:opacity-40">
+            Choose Time Slot →
+          </button>
+        </div>
+      )}
+      {step === 2 && (
+        <div className="space-y-4">
+          <p className="text-sm font-bold text-slate-700">Available slots for {form.date}: <span className="font-normal text-slate-500 text-xs ml-1">(Local Time)</span></p>
+          {slotsLoading ? (
+            <div className="grid grid-cols-3 gap-2 animate-pulse">
+              {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-10 bg-slate-100 rounded-xl"></div>)}
+            </div>
+          ) : slots.length === 0 ? (
+            <p className="text-xs text-slate-500 py-2">No slots left for this date — go back and try another date.</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {slots.map(slot => (
+                <button key={slot} onClick={() => setForm(p => ({ ...p, slot }))}
+                  className={`py-3 rounded-xl text-xs font-bold border transition-all ${form.slot === slot ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-aubergine-300'}`}>
+                  {slot}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button onClick={() => setStep(1)} disabled={booking} className="crm-btn-secondary flex-1 disabled:opacity-40">← Back</button>
+            <button disabled={!form.slot || booking} onClick={confirm} className="crm-btn-primary flex-1 disabled:opacity-40 bg-emerald-600 hover:bg-emerald-700 border-none">
+              <i className={`fas ${booking ? 'fa-spinner fa-spin' : 'fa-check'} mr-2`}></i> {booking ? 'Saving...' : 'Confirm'}
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 /* ─── Booking Modal ──────────────────────────── */
 function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
   const [step, setStep] = useState(1);
@@ -288,9 +416,11 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
       )}
       {step === 2 && (
         <div className="space-y-4">
-          <p className="text-sm font-bold text-slate-700">Available slots for {form.date}:</p>
+          <p className="text-sm font-bold text-slate-700">Available slots for {form.date}: <span className="font-normal text-slate-500 text-xs ml-1">(Local Time)</span></p>
           {slotsLoading ? (
-            <p className="text-xs text-slate-400 py-2"><i className="fas fa-spinner fa-spin mr-1.5"></i>Loading slots…</p>
+            <div className="grid grid-cols-3 gap-2 animate-pulse">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => <div key={i} className="h-10 bg-slate-100 rounded-xl"></div>)}
+            </div>
           ) : slots.length === 0 ? (
             <p className="text-xs text-slate-500 py-2">No slots left for this date — go back and try another date.</p>
           ) : (
@@ -575,7 +705,7 @@ function PatientAppointments() {
   // transactions/syncPayment come from ClinicDataContext (not fetched
   // locally) — the same cache Billing.jsx reads, so a payment made on
   // either page is immediately reflected on both.
-  const { appointments, addAppointment, cancelAppointment, waitlist, joinWaitlist, leaveWaitlist, transactions, syncPayment, refreshAppointments } = useClinicData();
+  const { appointments, addAppointment, cancelAppointment, rescheduleAppointment, transactions, syncPayment, waitlist, joinWaitlist, leaveWaitlist, refreshAppointments } = useClinicData();
   const [doctors, setDoctors] = useState([]);
   const [tab, setTab] = useState('upcoming');
   const [showJoinWaitlist, setShowJoinWaitlist] = useState(false);
@@ -628,6 +758,7 @@ function PatientAppointments() {
   const [showBook, setShowBook] = useState(false);
   const [bookPrefill, setBookPrefill] = useState({});
   const [cancelTarget, setCancelTarget] = useState(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState(null);
   const [videoTarget, setVideoTarget] = useState(null);
   const [aiPrepTarget, setAiPrepTarget] = useState(null);
   const [autoJoinTarget, setAutoJoinTarget] = useState(false);
@@ -707,18 +838,26 @@ function PatientAppointments() {
     }
   };
 
-  const handleCancel = async () => {
-    // Read before the await — ConfirmModal calls onClose() right after this
-    // regardless of outcome, so cancelTarget may already be null by the time
-    // a rejected promise unwinds here.
+  const handleCancel = async (reason) => {
     const { id, doctor: doctorName } = cancelTarget;
     try {
-      await cancelAppointment(id);
+      await cancelAppointment(id, reason);
       toast(`Appointment with ${doctorName} cancelled. Refund initiated.`, 'info');
+      setCancelTarget(null);
     } catch (err) {
-      // ConfirmModal doesn't await onConfirm, so without this catch a failed
-      // cancellation silently rolled the row back with zero feedback.
       toast(err.message || 'Failed to cancel appointment. Please try again.', 'error');
+    }
+  };
+
+  const handleReschedule = async ({ newDate, newTime, reason }) => {
+    try {
+      await rescheduleAppointment(rescheduleTarget.id, newDate, newTime, reason);
+      toast(`Appointment rescheduled successfully to ${newDate} at ${newTime}.`, 'success');
+      setRescheduleTarget(null);
+      await refreshAppointments();
+    } catch (err) {
+      toast(err.message || 'Failed to reschedule appointment.', 'error');
+      throw err;
     }
   };
 
@@ -871,21 +1010,6 @@ function PatientAppointments() {
                   <td className="text-right">
                     {tab === 'upcoming' ? (
                       <div className="flex justify-end items-center gap-2">
-                        <button
-                          onClick={() => {
-                            const docSlug = (apt.doctor || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-                            const docUrl = `${window.location.origin}/dr/${apt.doctorId || docSlug}`;
-                            const msg = encodeURIComponent(
-                              `Hi! I recommend consulting with ${apt.doctor} (${apt.specialty}) on HealNari. You can view their verified profile and book direct appointments here:\n\n${docUrl}`
-                            );
-                            window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
-                          }}
-                          className="crm-btn-secondary text-[11px] h-8 px-2.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50"
-                          title={`Recommend ${apt.doctor} to Friends & Family on WhatsApp`}
-                        >
-                          <i className="fab fa-whatsapp text-emerald-600 text-xs sm:mr-1"></i>
-                          <span className="hidden sm:inline">Recommend</span>
-                        </button>
                         <AIButton
                           variant="gradient"
                           size="sm"
@@ -896,10 +1020,25 @@ function PatientAppointments() {
                         >
                           <span className="hidden sm:inline">AI Prep</span>
                         </AIButton>
-                        <button onClick={() => setCancelTarget(apt)}
-                          className="crm-btn-secondary border-none shadow-none text-rose-500 hover:text-rose-700 hover:bg-rose-50 text-[11px] h-8 px-3">
-                          Cancel
-                        </button>
+                        <div className="relative group">
+                          <button className="crm-btn-secondary h-8 w-8 !p-0">
+                            <i className="fas fa-ellipsis-v"></i>
+                          </button>
+                          <div className="absolute right-0 mt-1 w-36 bg-white border border-slate-200 shadow-xl rounded-xl py-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all z-20">
+                            {(apt.status === 'Requested' || apt.status === 'Approved (Pending Payment)' || apt.status === 'Confirmed') && (
+                              <>
+                                <button onClick={() => setRescheduleTarget(apt)}
+                                  className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                                  Reschedule
+                                </button>
+                                <button onClick={() => setCancelTarget(apt)}
+                                  className="w-full text-left px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50">
+                                  Cancel 
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
                         {apt.type === 'Video Consult' && apt.status === 'Confirmed' && (
                           <button onClick={() => setVideoTarget(apt)}
                             className="crm-btn-primary bg-emerald-500 hover:bg-emerald-600 border-none text-[11px] h-8 px-3">
@@ -1005,14 +1144,17 @@ function PatientAppointments() {
       {/* Modals */}
       <BookingModal isOpen={showBook} onClose={() => setShowBook(false)} onBook={handleBook} prefill={bookPrefill} doctors={doctors} />
       <JoinWaitlistModal isOpen={showJoinWaitlist} onClose={() => setShowJoinWaitlist(false)} doctors={doctors} onJoin={handleJoinWaitlist} />
-      <ConfirmModal
+      <CancelModal
         isOpen={!!cancelTarget}
         onClose={() => setCancelTarget(null)}
         onConfirm={handleCancel}
-        title="Cancel Appointment?"
-        message={`Are you sure you want to cancel your appointment with ${cancelTarget?.doctor}? A refund will be initiated within 3–5 business days.`}
-        confirmLabel="Yes, Cancel"
-        confirmStyle="danger"
+        apt={cancelTarget}
+      />
+      <RescheduleModal
+        isOpen={!!rescheduleTarget}
+        onClose={() => setRescheduleTarget(null)}
+        onReschedule={handleReschedule}
+        apt={rescheduleTarget}
       />
       {videoTarget && (
         <VideoCallModal

@@ -535,9 +535,38 @@ export function ClinicDataProvider({ children }) {
     });
   };
 
-  const cancelAppointment = (id) => updateAppointmentStatus(id, 'Cancelled');
+  const cancelAppointment = async (id, reason) => {
+    try {
+      const res = await apiFetch(`/appointments/${id}/status`, { 
+        method: 'PUT', 
+        body: { status: 'Cancelled', cancellationReason: reason } 
+      });
+      const newApt = adaptAppointment(res);
+      setAppointments(cur => cur.map(a => (a.id === id ? newApt : a)));
+      return newApt;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const rescheduleAppointment = async (id, newDate, newTime, reason) => {
+    try {
+      const res = await apiFetch(`/appointments/${id}/reschedule`, {
+        method: 'POST',
+        body: { newDate, newTime, reason }
+      });
+      const newApt = adaptAppointment(res);
+      setAppointments(cur => cur.map(a => (a.id === id ? newApt : a)));
+      return newApt;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
   const approveRequest = (id) => updateAppointmentStatus(id, 'Approved');
-  const rejectRequest = (id) => updateAppointmentStatus(id, 'Cancelled');
+  const rejectRequest = (id) => cancelAppointment(id, 'Request rejected by doctor');
 
   const callNextForDoctor = async (doctorName) => {
     try {
@@ -692,7 +721,7 @@ export function ClinicDataProvider({ children }) {
   const value = {
     patients, updatePatient, addPatient, addRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
     uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, refreshPatients: fetchData,
-    appointments, addAppointment, updateAppointmentStatus, cancelAppointment, refreshAppointments,
+    appointments, addAppointment, updateAppointmentStatus, cancelAppointment, rescheduleAppointment, refreshAppointments,
     approveRequest, rejectRequest, callNextForDoctor,
     transactions, syncPayment,
     cycleLogs, logCycle,

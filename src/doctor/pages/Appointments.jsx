@@ -158,6 +158,44 @@ function NotesModal({ patient, isOpen, onClose, onSave }) {
   );
 }
 
+/* ─── Cancel Modal with Reason ───────────────── */
+function CancelModal({ isOpen, onClose, onConfirm, apt }) {
+  const [reason, setReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) setReason('');
+  }, [isOpen]);
+
+  const confirm = async () => {
+    setCancelling(true);
+    await onConfirm(reason);
+    setCancelling(false);
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="sm" title="Cancel Appointment?">
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600">
+          Are you sure you want to cancel the appointment with <strong>{apt?.name}</strong>? They will be notified.
+        </p>
+        <div>
+          <label className="text-xs font-bold text-slate-500 mb-1.5 block">Cancellation Reason (optional)</label>
+          <textarea rows={2} value={reason} onChange={e => setReason(e.target.value)}
+            placeholder="Why are you cancelling?"
+            className="crm-input resize-none" />
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button onClick={onClose} disabled={cancelling} className="crm-btn-secondary flex-1 disabled:opacity-40">Keep it</button>
+          <button onClick={confirm} disabled={cancelling} className="crm-btn-primary flex-1 disabled:opacity-40 bg-rose-600 hover:bg-rose-700 border-none">
+            {cancelling ? 'Cancelling...' : 'Yes, Cancel'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 /* ─── Video Call Modal ───────────────────────── */
 /* ─── Main Component ─────────────────────────── */
 function DoctorAppointments() {
@@ -374,16 +412,15 @@ function DoctorAppointments() {
     }
   };
 
-  const handleCancel = async () => {
+  const handleCancel = async (reason) => {
     const name = cancelTarget.name;
     const id = cancelTarget.id;
     try {
-      await cancelAppointment(id);
+      await cancelAppointment(id, reason);
       toast(`Appointment with ${name} cancelled`, 'info');
+      setCancelTarget(null);
     } catch (err) {
       toast(err.message || `Failed to cancel appointment with ${name}`, 'error');
-    } finally {
-      setCancelTarget(null);
     }
   };
 
@@ -772,9 +809,12 @@ function DoctorAppointments() {
       </div>
 
       <NotesModal patient={notesTarget} isOpen={!!notesTarget} onClose={() => setNotesTarget(null)} onSave={saveNotes} />
-      <ConfirmModal isOpen={!!cancelTarget} onClose={() => setCancelTarget(null)} onConfirm={handleCancel}
-        title="Cancel Appointment?" message={`Cancel appointment with ${cancelTarget?.name}? They will be notified.`}
-        confirmLabel="Cancel Appointment" confirmStyle="danger" />
+      <CancelModal
+        isOpen={!!cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={handleCancel}
+        apt={cancelTarget}
+      />
 
       <BulkMessageModal
         isOpen={bulkModalParams.isOpen}
