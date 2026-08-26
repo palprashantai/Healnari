@@ -57,41 +57,62 @@ export class DoctorsCronService {
       .select('id, full_name, email')
       .in('id', doctorIds);
 
-    const doctorProfileMap = new Map((doctors || []).map(d => [d.id, d]));
+    const doctorProfileMap = new Map((doctors || []).map((d) => [d.id, d]));
 
     await Promise.all(
       [...byDoctor.entries()].map(async ([doctorId, list]) => {
-        const videoCount = list.filter(a => a.type?.toLowerCase().includes('video')).length;
+        const videoCount = list.filter((a) =>
+          a.type?.toLowerCase().includes('video'),
+        ).length;
         const clinicCount = list.length - videoCount;
         const firstTime = list[0]?.scheduled_time || '9:00 AM';
         const doc = doctorProfileMap.get(doctorId);
         const docName = doc?.full_name || 'Doctor';
 
         // 1. In-App Notification & Web Push
-        this.notifications.create(doctorId, {
-          type: 'doctor_daily_agenda',
-          title: `Good morning, Dr. ${docName}`,
-          message: `You have ${list.length} consultation(s) scheduled today (${videoCount} Video, ${clinicCount} Clinic). First patient is at ${firstTime}.`,
-          idempotencyKey: `doctor_agenda_${doctorId}_${todayStr}`,
-          data: { totalAppointments: list.length, firstAppointmentTime: firstTime, path: '/doctor-dashboard/appointments' },
-        }).catch(err => this.logger.warn(`Failed to send agenda push to doctor ${doctorId}: ${err.message}`));
+        this.notifications
+          .create(doctorId, {
+            type: 'doctor_daily_agenda',
+            title: `Good morning, Dr. ${docName}`,
+            message: `You have ${list.length} consultation(s) scheduled today (${videoCount} Video, ${clinicCount} Clinic). First patient is at ${firstTime}.`,
+            idempotencyKey: `doctor_agenda_${doctorId}_${todayStr}`,
+            data: {
+              totalAppointments: list.length,
+              firstAppointmentTime: firstTime,
+              path: '/doctor-dashboard/appointments',
+            },
+          })
+          .catch((err) =>
+            this.logger.warn(
+              `Failed to send agenda push to doctor ${doctorId}: ${err.message}`,
+            ),
+          );
 
         // 2. Transactional HTML Email Digest via database-managed template
         if (doc?.email) {
-          const formattedDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-          const appointmentRows = list.map(apt => `
+          const formattedDate = new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'short',
+            day: 'numeric',
+          });
+          const appointmentRows = list
+            .map(
+              (apt) => `
             <tr>
               <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;font-weight:bold;color:#0f172a;">${apt.scheduled_time || 'Scheduled'}</td>
               <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;color:#64748b;">${apt.type || 'Consultation'}</td>
               <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;"><span style="background:${apt.type?.toLowerCase().includes('video') ? '#e0f2fe;color:#0369a1' : '#f1f5f9;color:#475569'};padding:2px 8px;border-radius:6px;font-size:11px;font-weight:bold;">${apt.status || 'Upcoming'}</span></td>
             </tr>
-          `).join('');
+          `,
+            )
+            .join('');
 
-          this.email.sendTemplatedMail({
-            to: doc.email,
-            slug: 'doctor_daily_agenda',
-            defaultSubject: `Daily Patient Agenda ({{totalPatients}} appointments) - Dr. {{doctorName}}`,
-            defaultHtml: `
+          this.email
+            .sendTemplatedMail({
+              to: doc.email,
+              slug: 'doctor_daily_agenda',
+              defaultSubject: `Daily Patient Agenda ({{totalPatients}} appointments) - Dr. {{doctorName}}`,
+              defaultHtml: `
                 <h2 style="color:#0f172a;margin-top:0;">🌅 Good morning, Dr. {{doctorName}}</h2>
                 <p style="color:#475569;font-size:14px;margin-bottom:16px;">Here is your scheduled consultation agenda for <strong>{{formattedDate}}</strong>:</p>
                 
@@ -128,21 +149,24 @@ export class DoctorsCronService {
                 </div>
                 <p style="color:#94a3b8;font-size:11px;margin-top:20px;">HealNari Practice Management • Auto-generated daily at 7:45 AM</p>
             `,
-            variables: {
-              doctorName: docName,
-              formattedDate,
-              totalPatients: list.length,
-              videoCount,
-              firstTime,
-              appointmentsTable: appointmentRows,
-              dashboardUrl: 'https://healnari.vercel.app/doctor/dashboard',
-            },
-          }).catch(() => {});
+              variables: {
+                doctorName: docName,
+                formattedDate,
+                totalPatients: list.length,
+                videoCount,
+                firstTime,
+                appointmentsTable: appointmentRows,
+                dashboardUrl: 'https://healnari.vercel.app/doctor/dashboard',
+              },
+            })
+            .catch(() => {});
         }
       }),
     );
 
-    this.logger.log(`Sent morning agenda digests & emails to ${byDoctor.size} doctor(s).`);
+    this.logger.log(
+      `Sent morning agenda digests & emails to ${byDoctor.size} doctor(s).`,
+    );
   }
 
   /**
@@ -150,7 +174,9 @@ export class DoctorsCronService {
    * Sweeps stale appointments from previous days that were accidentally left
    * in 'In Progress' or 'Waiting' without being finalized, and auto-archives them.
    */
-  @Cron(CronExpression.EVERY_DAY_AT_2AM, { name: 'doctor_stale_consultation_archival' })
+  @Cron(CronExpression.EVERY_DAY_AT_2AM, {
+    name: 'doctor_stale_consultation_archival',
+  })
   async archiveStaleConsultations() {
     this.logger.log('Starting stale consultation archival sweep...');
 
@@ -158,7 +184,10 @@ export class DoctorsCronService {
 
     const { data: staleApts, error } = await this.supabase.admin
       .from('appointments')
-      .update({ status: 'Cancelled', notes: 'Auto-closed by system midnight maintenance.' })
+      .update({
+        status: 'Cancelled',
+        notes: 'Auto-closed by system midnight maintenance.',
+      })
       .lt('scheduled_date', todayStr)
       .in('status', ['In Progress', 'Waiting', 'Requested'])
       .select('id');
@@ -169,7 +198,9 @@ export class DoctorsCronService {
     }
 
     if (staleApts?.length) {
-      this.logger.log(`Auto-archived ${staleApts.length} stale consultation(s) from previous days.`);
+      this.logger.log(
+        `Auto-archived ${staleApts.length} stale consultation(s) from previous days.`,
+      );
     }
   }
 }

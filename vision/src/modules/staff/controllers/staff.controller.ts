@@ -1,4 +1,12 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsString } from 'class-validator';
 import { StaffService } from '@/modules/staff/services/staff.service';
@@ -19,7 +27,10 @@ export class UpdateStaffDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() role?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() shift?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() phone?: string;
-  @ApiProperty({ required: false, enum: ['On Duty', 'Off Duty'] }) @IsOptional() @IsIn(['On Duty', 'Off Duty']) status?: string;
+  @ApiProperty({ required: false, enum: ['On Duty', 'Off Duty'] })
+  @IsOptional()
+  @IsIn(['On Duty', 'Off Duty'])
+  status?: string;
 }
 
 export class CreateLeaveDto {
@@ -30,7 +41,9 @@ export class CreateLeaveDto {
 }
 
 export class UpdateLeaveDto {
-  @ApiProperty({ enum: ['Approved', 'Rejected'] }) @IsIn(['Approved', 'Rejected']) status: string;
+  @ApiProperty({ enum: ['Approved', 'Rejected'] })
+  @IsIn(['Approved', 'Rejected'])
+  status: string;
 }
 
 @ApiTags('Staff')
@@ -55,7 +68,11 @@ export class StaffController {
   @ApiOperation({ summary: 'Update a staff member' })
   @ApiParam({ name: 'id' })
   @Put(':id')
-  async update(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: UpdateStaffDto) {
+  async update(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: UpdateStaffDto,
+  ) {
     const data = await this.staffService.update(user, id, body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.STAFF_UPDATED);
   }
@@ -77,7 +94,10 @@ export class StaffController {
 
   @ApiOperation({ summary: 'File a leave request for a staff member' })
   @Post('leaves')
-  async createLeave(@CurrentUser() user: AuthUser, @Body() body: CreateLeaveDto) {
+  async createLeave(
+    @CurrentUser() user: AuthUser,
+    @Body() body: CreateLeaveDto,
+  ) {
     const data = await this.staffService.createLeave(user, body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.LEAVE_UPDATED);
   }
@@ -85,7 +105,11 @@ export class StaffController {
   @ApiOperation({ summary: 'Approve or reject a leave request' })
   @ApiParam({ name: 'id' })
   @Put('leaves/:id')
-  async updateLeave(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: UpdateLeaveDto) {
+  async updateLeave(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: UpdateLeaveDto,
+  ) {
     const data = await this.staffService.updateLeave(user, id, body.status);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.LEAVE_UPDATED);
   }

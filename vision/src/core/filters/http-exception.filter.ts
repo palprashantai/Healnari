@@ -1,4 +1,11 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
@@ -22,24 +29,39 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const exceptionResponse = exception.getResponse();
 
       // Handle class-validator validation errors (usually sent as an object with message arrays)
-      if (typeof exceptionResponse === 'object' && exceptionResponse !== null && 'message' in exceptionResponse) {
+      if (
+        typeof exceptionResponse === 'object' &&
+        exceptionResponse !== null &&
+        'message' in exceptionResponse
+      ) {
         const res = exceptionResponse as any;
-        message = Array.isArray(res.message) ? res.message.join(', ') : res.message;
+        message = Array.isArray(res.message)
+          ? res.message.join(', ')
+          : res.message;
         errorDetails = res.error || exception.name;
       } else {
-        message = typeof exceptionResponse === 'string' ? exceptionResponse : exception.message;
+        message =
+          typeof exceptionResponse === 'string'
+            ? exceptionResponse
+            : exception.message;
         errorDetails = exception.name;
       }
     } else if (exception instanceof Error) {
       // Unhandled exceptions (e.g. TypeError, ReferenceError) — the ones
       // that actually need someone paged, not just logged to stdout.
-      this.logger.error(`Unhandled Exception: ${exception.message}`, exception.stack);
+      this.logger.error(
+        `Unhandled Exception: ${exception.message}`,
+        exception.stack,
+      );
       captureException(exception);
       message = ERROR_MESSAGES.INTERNAL_SERVER_ERROR;
       // Safe-by-default (AUDIT_REPORT.md OPS-6): only reveal a stack trace
       // when NODE_ENV is explicitly 'development' — an unset NODE_ENV on a
       // misconfigured deploy host now hides internals instead of leaking them.
-      errorDetails = process.env.NODE_ENV === 'development' ? exception.stack : 'Internal server error';
+      errorDetails =
+        process.env.NODE_ENV === 'development'
+          ? exception.stack
+          : 'Internal server error';
     } else {
       this.logger.error('Unknown Exception', exception);
     }

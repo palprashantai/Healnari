@@ -18,7 +18,13 @@ export class ResponseHelper {
     };
   }
 
-  static paginated(data: any[], total: number, page: number, limit: number, message: string = 'Success') {
+  static paginated(
+    data: any[],
+    total: number,
+    page: number,
+    limit: number,
+    message: string = 'Success',
+  ) {
     return {
       success: true,
       message,

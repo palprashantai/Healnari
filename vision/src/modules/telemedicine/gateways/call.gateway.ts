@@ -11,7 +11,10 @@ import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { resolveSupabaseToken } from '@/core/auth/supabase-token.util';
-import { AppointmentStatus, AppointmentType } from '@/shared/interfaces/appointment.interface';
+import {
+  AppointmentStatus,
+  AppointmentType,
+} from '@/shared/interfaces/appointment.interface';
 
 /** Relays WebRTC SDP offers/answers and ICE candidates between exactly the
  * two participants (doctor + patient) of one video appointment. Media never
@@ -44,8 +47,12 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(@ConnectedSocket() client: Socket) {
     const appointmentId = client.data.appointmentId as string | undefined;
     if (appointmentId) {
-      this.logger.log(`disconnect: user=${client.data.userId} left call:${appointmentId} (socket disconnected)`);
-      client.to(`call:${appointmentId}`).emit('call:peer-left', { userId: client.data.userId });
+      this.logger.log(
+        `disconnect: user=${client.data.userId} left call:${appointmentId} (socket disconnected)`,
+      );
+      client
+        .to(`call:${appointmentId}`)
+        .emit('call:peer-left', { userId: client.data.userId });
     }
   }
 
@@ -55,7 +62,10 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * consult. Tells the newcomer whether a peer is already waiting so the
    * frontend knows which side should create the SDP offer. */
   @SubscribeMessage('call:join')
-  async handleJoin(@MessageBody() body: { appointmentId: string }, @ConnectedSocket() client: Socket) {
+  async handleJoin(
+    @MessageBody() body: { appointmentId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
     const userId = client.data.userId as string | undefined;
     if (!userId) {
       client.emit('call:error', { message: 'Not authenticated' });
@@ -74,16 +84,28 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .eq('id', appointmentId)
       .maybeSingle();
 
-    if (!appointment || (appointment.patient_id !== userId && appointment.doctor_id !== userId)) {
-      client.emit('call:error', { message: 'Not authorized for this appointment' });
+    if (
+      !appointment ||
+      (appointment.patient_id !== userId && appointment.doctor_id !== userId)
+    ) {
+      client.emit('call:error', {
+        message: 'Not authorized for this appointment',
+      });
       return;
     }
     if (appointment.type !== AppointmentType.VIDEO) {
-      client.emit('call:error', { message: 'This appointment is not a video consultation' });
+      client.emit('call:error', {
+        message: 'This appointment is not a video consultation',
+      });
       return;
     }
-    if (appointment.status === AppointmentStatus.CANCELLED || appointment.status === AppointmentStatus.DONE) {
-      client.emit('call:error', { message: 'This consultation has already ended' });
+    if (
+      appointment.status === AppointmentStatus.CANCELLED ||
+      appointment.status === AppointmentStatus.DONE
+    ) {
+      client.emit('call:error', {
+        message: 'This consultation has already ended',
+      });
       return;
     }
 
@@ -105,28 +127,48 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('call:offer')
-  handleOffer(@MessageBody() body: { appointmentId: string; sdp: unknown }, @ConnectedSocket() client: Socket) {
-    this.logger.log(`call:offer relayed appointment=${body.appointmentId} from=${client.data.userId}`);
-    client.to(`call:${body.appointmentId}`).emit('call:offer', { sdp: body.sdp, from: client.data.userId });
+  handleOffer(
+    @MessageBody() body: { appointmentId: string; sdp: unknown },
+    @ConnectedSocket() client: Socket,
+  ) {
+    this.logger.log(
+      `call:offer relayed appointment=${body.appointmentId} from=${client.data.userId}`,
+    );
+    client
+      .to(`call:${body.appointmentId}`)
+      .emit('call:offer', { sdp: body.sdp, from: client.data.userId });
   }
 
   @SubscribeMessage('call:answer')
-  handleAnswer(@MessageBody() body: { appointmentId: string; sdp: unknown }, @ConnectedSocket() client: Socket) {
-    this.logger.log(`call:answer relayed appointment=${body.appointmentId} from=${client.data.userId}`);
-    client.to(`call:${body.appointmentId}`).emit('call:answer', { sdp: body.sdp, from: client.data.userId });
+  handleAnswer(
+    @MessageBody() body: { appointmentId: string; sdp: unknown },
+    @ConnectedSocket() client: Socket,
+  ) {
+    this.logger.log(
+      `call:answer relayed appointment=${body.appointmentId} from=${client.data.userId}`,
+    );
+    client
+      .to(`call:${body.appointmentId}`)
+      .emit('call:answer', { sdp: body.sdp, from: client.data.userId });
   }
 
   @SubscribeMessage('call:ice-candidate')
-  handleIceCandidate(@MessageBody() body: { appointmentId: string; candidate: unknown }, @ConnectedSocket() client: Socket) {
+  handleIceCandidate(
+    @MessageBody() body: { appointmentId: string; candidate: unknown },
+    @ConnectedSocket() client: Socket,
+  ) {
     // Candidate type (host/srflx/relay) is embedded in the SDP candidate
     // string itself — logging it is the fastest way to see, from server
     // logs alone, whether a relay (TURN) candidate ever got gathered at all.
-    const candidateStr = (body.candidate as { candidate?: string })?.candidate || '';
+    const candidateStr =
+      (body.candidate as { candidate?: string })?.candidate || '';
     const typeMatch = candidateStr.match(/typ (\w+)/);
     this.logger.log(
       `call:ice-candidate relayed appointment=${body.appointmentId} from=${client.data.userId} type=${typeMatch?.[1] || 'unknown'}`,
     );
-    client.to(`call:${body.appointmentId}`).emit('call:ice-candidate', { candidate: body.candidate });
+    client
+      .to(`call:${body.appointmentId}`)
+      .emit('call:ice-candidate', { candidate: body.candidate });
   }
 
   /** Lets a peer announce it muted/unmuted or turned its camera on/off,
@@ -134,16 +176,25 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * without that state ever needing to touch the media stream itself. */
   @SubscribeMessage('call:media-state')
   handleMediaState(
-    @MessageBody() body: { appointmentId: string; muted?: boolean; videoOff?: boolean },
+    @MessageBody()
+    body: { appointmentId: string; muted?: boolean; videoOff?: boolean },
     @ConnectedSocket() client: Socket,
   ) {
-    client.to(`call:${body.appointmentId}`).emit('call:peer-media-state', { muted: body.muted, videoOff: body.videoOff });
+    client.to(`call:${body.appointmentId}`).emit('call:peer-media-state', {
+      muted: body.muted,
+      videoOff: body.videoOff,
+    });
   }
 
   @SubscribeMessage('call:leave')
-  handleLeave(@MessageBody() body: { appointmentId: string }, @ConnectedSocket() client: Socket) {
+  handleLeave(
+    @MessageBody() body: { appointmentId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
     const room = `call:${body.appointmentId}`;
-    this.logger.log(`call:leave user=${client.data.userId} appointment=${body.appointmentId}`);
+    this.logger.log(
+      `call:leave user=${client.data.userId} appointment=${body.appointmentId}`,
+    );
     client.to(room).emit('call:peer-left', { userId: client.data.userId });
     client.leave(room);
     client.data.appointmentId = undefined;

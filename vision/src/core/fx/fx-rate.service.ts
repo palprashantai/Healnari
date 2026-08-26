@@ -24,12 +24,12 @@ export class FXRateService {
   // Standard interbank reference rates normalized against USD (1 USD = X Currency)
   private readonly USD_BASE_RATES: Record<string, number> = {
     USD: 1.0,
-    INR: 84.60,       // 1 USD = 84.60 INR (1 INR = ~0.01182 USD)
-    AED: 3.6725,      // 1 USD = 3.6725 AED (1 AED = ~0.2723 USD)
-    EUR: 0.9216,      // 1 USD = 0.9216 EUR (1 EUR = ~1.085 USD)
-    GBP: 0.7812,      // 1 USD = 0.7812 GBP (1 GBP = ~1.280 USD)
-    CAD: 1.3650,      // 1 USD = 1.3650 CAD
-    AUD: 1.5220,      // 1 USD = 1.5220 AUD
+    INR: 84.6, // 1 USD = 84.60 INR (1 INR = ~0.01182 USD)
+    AED: 3.6725, // 1 USD = 3.6725 AED (1 AED = ~0.2723 USD)
+    EUR: 0.9216, // 1 USD = 0.9216 EUR (1 EUR = ~1.085 USD)
+    GBP: 0.7812, // 1 USD = 0.7812 GBP (1 GBP = ~1.280 USD)
+    CAD: 1.365, // 1 USD = 1.3650 CAD
+    AUD: 1.522, // 1 USD = 1.5220 AUD
   };
 
   /**
@@ -58,7 +58,11 @@ export class FXRateService {
   /**
    * Convert an amount from one currency to a target reporting currency
    */
-  convert(amount: number | string, fromCurrency = 'INR', toCurrency = 'USD'): FXConversionResult {
+  convert(
+    amount: number | string,
+    fromCurrency = 'INR',
+    toCurrency = 'USD',
+  ): FXConversionResult {
     const origAmount = Number(amount || 0);
     const from = fromCurrency.toUpperCase().trim();
     const to = toCurrency.toUpperCase().trim();
@@ -86,7 +90,7 @@ export class FXRateService {
     originalCurrency: string,
     targetReportingCurrency = 'USD',
     storedFxRate?: number,
-    storedReportingCurrency?: string
+    storedReportingCurrency?: string,
   ): number {
     const from = (originalCurrency || 'INR').toUpperCase();
     const target = targetReportingCurrency.toUpperCase();
@@ -96,7 +100,11 @@ export class FXRateService {
     }
 
     // If already stored in the requested target currency, reuse exact stored value
-    if (storedReportingCurrency && storedReportingCurrency.toUpperCase() === target && storedFxRate) {
+    if (
+      storedReportingCurrency &&
+      storedReportingCurrency.toUpperCase() === target &&
+      storedFxRate
+    ) {
       return DecimalMath.multiply(originalAmount, storedFxRate, 2);
     }
 

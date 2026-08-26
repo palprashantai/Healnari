@@ -1,12 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { Content, GoogleGenerativeAI, FunctionDeclaration, SchemaType } from '@google/generative-ai';
+import {
+  Content,
+  GoogleGenerativeAI,
+  FunctionDeclaration,
+  SchemaType,
+} from '@google/generative-ai';
 import { OpenAI } from 'openai';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { PatientsService } from '@/modules/patients/services/patients.service';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
 
 /**
- * Server-side allow-list for /api/chat. 
+ * Server-side allow-list for /api/chat.
  */
 export const ALLOWED_QUERY_ENTITIES: Record<string, { select: string[] }> = {
   Profile: { select: ['id', 'role', 'specialty', 'consultation_fee'] },
@@ -25,16 +30,25 @@ const MAX_TAKE = 25;
  * same chat history rather than starting fresh. */
 const calculateFertilityEstimateDeclaration: FunctionDeclaration = {
   name: 'calculateFertilityEstimate',
-  description: "Calculates the patient's fertile window and estimated ovulation date from their last period start date, period length, and cycle length. Call this only once you have a confirmed, current value for all three — if the patient corrects an earlier answer, use their newest value.",
+  description:
+    "Calculates the patient's fertile window and estimated ovulation date from their last period start date, period length, and cycle length. Call this only once you have a confirmed, current value for all three — if the patient corrects an earlier answer, use their newest value.",
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
       lastPeriodStart: {
         type: SchemaType.STRING,
-        description: 'The first day of the last menstrual period, as YYYY-MM-DD. Convert relative answers ("last Tuesday", "5 days ago") to an absolute date using today\'s date.',
+        description:
+          'The first day of the last menstrual period, as YYYY-MM-DD. Convert relative answers ("last Tuesday", "5 days ago") to an absolute date using today\'s date.',
       },
-      periodDurationDays: { type: SchemaType.NUMBER, description: 'How many days the period usually lasts. Typically 3-7.' },
-      cycleLengthDays: { type: SchemaType.NUMBER, description: 'Days from the start of one period to the start of the next. Typically 21-35; default to 28 if the patient is unsure.' },
+      periodDurationDays: {
+        type: SchemaType.NUMBER,
+        description: 'How many days the period usually lasts. Typically 3-7.',
+      },
+      cycleLengthDays: {
+        type: SchemaType.NUMBER,
+        description:
+          'Days from the start of one period to the start of the next. Typically 21-35; default to 28 if the patient is unsure.',
+      },
     },
     required: ['lastPeriodStart', 'periodDurationDays', 'cycleLengthDays'],
   },
@@ -42,11 +56,16 @@ const calculateFertilityEstimateDeclaration: FunctionDeclaration = {
 
 const logPeriodDayDeclaration: FunctionDeclaration = {
   name: 'logPeriodDay',
-  description: "Logs a single specific date as a period (menstrual flow) day in the patient's tracking history. Use this when the patient just wants to record a period day, without asking for a fertile-window calculation.",
+  description:
+    "Logs a single specific date as a period (menstrual flow) day in the patient's tracking history. Use this when the patient just wants to record a period day, without asking for a fertile-window calculation.",
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
-      date: { type: SchemaType.STRING, description: 'The date to log, as YYYY-MM-DD. Convert relative answers ("today", "yesterday") using today\'s date.' },
+      date: {
+        type: SchemaType.STRING,
+        description:
+          'The date to log, as YYYY-MM-DD. Convert relative answers ("today", "yesterday") using today\'s date.',
+      },
     },
     required: ['date'],
   },
@@ -54,32 +73,55 @@ const logPeriodDayDeclaration: FunctionDeclaration = {
 
 const logBiomarkersDeclaration: FunctionDeclaration = {
   name: 'logBiomarkers',
-  description: "Logs basal body temperature (BBT), LH surge test status, or cervical mucus consistency for the patient's cycle and fertility tracking.",
+  description:
+    "Logs basal body temperature (BBT), LH surge test status, or cervical mucus consistency for the patient's cycle and fertility tracking.",
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
-      date: { type: SchemaType.STRING, description: 'The date to log, as YYYY-MM-DD. Convert relative answers ("today", "yesterday") using today\'s date.' },
-      bbt: { type: SchemaType.NUMBER, description: 'Basal body temperature reading in Celsius (e.g. 36.4 to 37.2).' },
-      lhRatio: { type: SchemaType.NUMBER, description: 'LH surge ratio or optical density ratio (e.g. 0.2 to 2.5).' },
-      cervicalMucus: { type: SchemaType.STRING, description: 'Consistency of cervical fluid (Dry, Sticky, Creamy, Egg-White)' },
+      date: {
+        type: SchemaType.STRING,
+        description:
+          'The date to log, as YYYY-MM-DD. Convert relative answers ("today", "yesterday") using today\'s date.',
+      },
+      bbt: {
+        type: SchemaType.NUMBER,
+        description:
+          'Basal body temperature reading in Celsius (e.g. 36.4 to 37.2).',
+      },
+      lhRatio: {
+        type: SchemaType.NUMBER,
+        description:
+          'LH surge ratio or optical density ratio (e.g. 0.2 to 2.5).',
+      },
+      cervicalMucus: {
+        type: SchemaType.STRING,
+        description:
+          'Consistency of cervical fluid (Dry, Sticky, Creamy, Egg-White)',
+      },
     },
     required: ['date'],
   },
 } as any as FunctionDeclaration;
 
 function isPlainScalar(value: unknown): value is string | number | boolean {
-  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+  return (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  );
 }
 
 const searchClinicalKnowledgeBaseDeclaration: FunctionDeclaration = {
   name: 'searchClinicalKnowledgeBase',
-  description: 'Searches the clinical knowledge base (PCOS Rotterdam criteria, thyroid guidelines, pharmacology protocols, and ACOG standards) via semantic vector RAG search.',
+  description:
+    'Searches the clinical knowledge base (PCOS Rotterdam criteria, thyroid guidelines, pharmacology protocols, and ACOG standards) via semantic vector RAG search.',
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
       query: {
         type: SchemaType.STRING,
-        description: 'The clinical topic, disease protocol, or medication name to look up in the vector knowledge base.',
+        description:
+          'The clinical topic, disease protocol, or medication name to look up in the vector knowledge base.',
       },
     },
     required: ['query'],
@@ -88,7 +130,8 @@ const searchClinicalKnowledgeBaseDeclaration: FunctionDeclaration = {
 
 const fetchPatientHistoryDeclaration: FunctionDeclaration = {
   name: 'fetchPatientHistory',
-  description: 'Fetches patient profile, known drug allergies, recorded chronic conditions, and previous prescriptions from the medical record.',
+  description:
+    'Fetches patient profile, known drug allergies, recorded chronic conditions, and previous prescriptions from the medical record.',
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
@@ -103,12 +146,20 @@ const fetchPatientHistoryDeclaration: FunctionDeclaration = {
 
 const checkDrugSafetyDeclaration: FunctionDeclaration = {
   name: 'checkDrugSafety',
-  description: 'Performs clinical safety validation for drug-drug interactions, food absorption constraints, and contraindications against patient allergies.',
+  description:
+    'Performs clinical safety validation for drug-drug interactions, food absorption constraints, and contraindications against patient allergies.',
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
-      drugName: { type: SchemaType.STRING, description: 'Name of the medication to validate' },
-      patientAllergies: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: 'List of patient allergies' },
+      drugName: {
+        type: SchemaType.STRING,
+        description: 'Name of the medication to validate',
+      },
+      patientAllergies: {
+        type: SchemaType.ARRAY,
+        items: { type: SchemaType.STRING },
+        description: 'List of patient allergies',
+      },
     },
     required: ['drugName'],
   },
@@ -116,7 +167,8 @@ const checkDrugSafetyDeclaration: FunctionDeclaration = {
 
 const queryDatabaseDeclaration: FunctionDeclaration = {
   name: 'queryDatabase',
-  description: 'Queries the database for aggregate statistics. Translates a natural language query into a structured database query. Relations are not supported.',
+  description:
+    'Queries the database for aggregate statistics. Translates a natural language query into a structured database query. Relations are not supported.',
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
@@ -136,7 +188,8 @@ const queryDatabaseDeclaration: FunctionDeclaration = {
         properties: {
           where: {
             type: SchemaType.OBJECT,
-            description: 'Key-value pairs for exact match filtering on allowed columns',
+            description:
+              'Key-value pairs for exact match filtering on allowed columns',
           },
           take: {
             type: SchemaType.NUMBER,
@@ -145,13 +198,14 @@ const queryDatabaseDeclaration: FunctionDeclaration = {
           order: {
             type: SchemaType.OBJECT,
             description: 'Order by field, e.g. { created_at: "ASC" }',
-          }
+          },
         },
       },
       responseTemplate: {
         type: SchemaType.STRING,
-        description: 'A natural language template explaining how to describe the results, using {value} for counts or {list} for arrays.',
-      }
+        description:
+          'A natural language template explaining how to describe the results, using {value} for counts or {list} for arrays.',
+      },
     },
     required: ['targetEntity', 'queryType', 'responseTemplate'],
   },
@@ -213,10 +267,12 @@ export class AiService {
     // Use admin client for simplicity in this aggregate stats bot
     const client = this.supabaseService.admin;
 
-    let query = client.from(targetEntity).select(queryOptions.select.join(','), {
-      count: queryType === 'count' ? 'exact' : undefined,
-      head: queryType === 'count',
-    });
+    let query = client
+      .from(targetEntity)
+      .select(queryOptions.select.join(','), {
+        count: queryType === 'count' ? 'exact' : undefined,
+        head: queryType === 'count',
+      });
 
     if (queryOptions.where) {
       for (const [key, val] of Object.entries(queryOptions.where)) {
@@ -250,7 +306,11 @@ export class AiService {
    * can correct an earlier answer ("actually it was the 3rd") and the model
    * carries that correction into the eventual function call — that's the fix
    * for "the period date can change, so let them set it manually". */
-  private async handlePatientAgent(userQuery: string, user: AuthUser | null, history: Content[]): Promise<{ text: string; history: Content[] }> {
+  private async handlePatientAgent(
+    userQuery: string,
+    user: AuthUser | null,
+    history: Content[],
+  ): Promise<{ text: string; history: Content[] }> {
     if (!this.genAI) throw new Error('AI not configured.');
 
     const today = new Date().toISOString().slice(0, 10);
@@ -301,7 +361,15 @@ For perimenopause: Cycles may be unpredictable; irregular periods in this life s
 
     const model = this.genAI.getGenerativeModel({
       model: 'gemini-1.5-flash',
-      tools: [{ functionDeclarations: [calculateFertilityEstimateDeclaration, logPeriodDayDeclaration, logBiomarkersDeclaration] }],
+      tools: [
+        {
+          functionDeclarations: [
+            calculateFertilityEstimateDeclaration,
+            logPeriodDayDeclaration,
+            logBiomarkersDeclaration,
+          ],
+        },
+      ],
       systemInstruction,
     });
 
@@ -311,41 +379,71 @@ For perimenopause: Cycles may be unpredictable; irregular periods in this life s
 
     if (call) {
       if (!user || user.profile.role !== 'patient') {
-        const text = "I can do that once you're signed in as a patient — please log in and ask me again.";
+        const text =
+          "I can do that once you're signed in as a patient — please log in and ask me again.";
         return { text, history: await chat.getHistory() };
       }
 
       let functionResponsePayload: Record<string, unknown>;
       try {
         if (call.name === 'calculateFertilityEstimate') {
-          const args = call.args as { lastPeriodStart: string; periodDurationDays: number; cycleLengthDays: number };
-          functionResponsePayload = await this.patientsService.quickFertilityEstimate(user, {
-            lastPeriodStart: args.lastPeriodStart,
-            periodDurationDays: Math.round(args.periodDurationDays),
-            cycleLengthDays: Math.round(args.cycleLengthDays),
-          }) as unknown as Record<string, unknown>;
+          const args = call.args as {
+            lastPeriodStart: string;
+            periodDurationDays: number;
+            cycleLengthDays: number;
+          };
+          functionResponsePayload =
+            (await this.patientsService.quickFertilityEstimate(user, {
+              lastPeriodStart: args.lastPeriodStart,
+              periodDurationDays: Math.round(args.periodDurationDays),
+              cycleLengthDays: Math.round(args.cycleLengthDays),
+            })) as unknown as Record<string, unknown>;
         } else if (call.name === 'logPeriodDay') {
           const args = call.args as { date: string };
-          const log = await this.patientsService.logCycle(user, args.date, { flow: 'Medium' });
+          const log = await this.patientsService.logCycle(user, args.date, {
+            flow: 'Medium',
+          });
           functionResponsePayload = { logged: true, date: args.date, log };
         } else if (call.name === 'logBiomarkers') {
-          const args = call.args as { date: string; bbt?: number; lhRatio?: number; cervicalMucus?: string };
+          const args = call.args as {
+            date: string;
+            bbt?: number;
+            lhRatio?: number;
+            cervicalMucus?: string;
+          };
           const log = await this.patientsService.logCycle(user, args.date, {
             bbt: args.bbt,
             lhRatio: args.lhRatio,
             cervicalMucus: args.cervicalMucus,
           });
-          if (args.bbt) await this.patientsService.logVital(user, 'bbt', { value: String(args.bbt), unit: '°C' });
-          if (args.lhRatio) await this.patientsService.logVital(user, 'lh', { value: String(args.lhRatio), unit: 'T/C' });
+          if (args.bbt)
+            await this.patientsService.logVital(user, 'bbt', {
+              value: String(args.bbt),
+              unit: '°C',
+            });
+          if (args.lhRatio)
+            await this.patientsService.logVital(user, 'lh', {
+              value: String(args.lhRatio),
+              unit: 'T/C',
+            });
           functionResponsePayload = { logged: true, date: args.date, log };
         } else {
           functionResponsePayload = { error: `Unknown function: ${call.name}` };
         }
       } catch (err: any) {
-        functionResponsePayload = { error: err?.message || 'Something went wrong while saving that.' };
+        functionResponsePayload = {
+          error: err?.message || 'Something went wrong while saving that.',
+        };
       }
 
-      result = await chat.sendMessage([{ functionResponse: { name: call.name, response: functionResponsePayload } }]);
+      result = await chat.sendMessage([
+        {
+          functionResponse: {
+            name: call.name,
+            response: functionResponsePayload,
+          },
+        },
+      ]);
     }
 
     return { text: result.response.text(), history: await chat.getHistory() };
@@ -355,16 +453,21 @@ For perimenopause: Cycles may be unpredictable; irregular periods in this life s
     if (!this.genAI) throw new Error('AI not configured.');
 
     // 1. Generate an embedding for the user's query
-    const embedModel = this.genAI.getGenerativeModel({ model: 'text-embedding-004' });
+    const embedModel = this.genAI.getGenerativeModel({
+      model: 'text-embedding-004',
+    });
     const embedResult = await embedModel.embedContent(userQuery);
     const queryEmbedding = embedResult.embedding.values;
 
     // 2. Query the vector database using the RPC function
-    const { data, error } = await this.supabaseService.admin.rpc('match_documents', {
-      query_embedding: queryEmbedding,
-      match_threshold: 0.7,
-      match_count: 3,
-    });
+    const { data, error } = await this.supabaseService.admin.rpc(
+      'match_documents',
+      {
+        query_embedding: queryEmbedding,
+        match_threshold: 0.7,
+        match_count: 3,
+      },
+    );
 
     if (error) {
       console.error('Vector search error:', error);
@@ -372,7 +475,9 @@ For perimenopause: Cycles may be unpredictable; irregular periods in this life s
       return "I'm having trouble searching the knowledge base right now. Please try again later.";
     }
 
-    const contextTexts = (data || []).map((doc: any) => doc.content).join('\n\n');
+    const contextTexts = (data || [])
+      .map((doc: any) => doc.content)
+      .join('\n\n');
 
     // 3. Generate response using the RAG context
     const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
@@ -415,7 +520,9 @@ User Query: ${userQuery}`;
   }): Promise<string | null> {
     if (!this.genAI) return null;
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = this.genAI.getGenerativeModel({
+        model: 'gemini-1.5-flash',
+      });
       const prompt = `You are preparing a short brief for a doctor about to start a consultation. Using ONLY the facts listed below, write a concise 2-3 sentence plain-language summary. Do not invent, assume, or infer any medical information that isn't explicitly listed. If a section says "None recorded", do not mention it as a finding — just leave it out.
 
 Patient: ${facts.patientName}
@@ -436,18 +543,26 @@ Recent lab reports: ${facts.recentLabReports.length ? facts.recentLabReports.map
    * Semantic Vector RAG Search: Searches clinical protocols, pharmacology rules,
    * and women's health guidelines using pgvector embeddings (text-embedding-004).
    */
-  async searchVectorKnowledgeBase(query: string, matchCount = 3): Promise<string> {
+  async searchVectorKnowledgeBase(
+    query: string,
+    matchCount = 3,
+  ): Promise<string> {
     if (!this.genAI) return 'Clinical knowledge base offline.';
     try {
-      const embedModel = this.genAI.getGenerativeModel({ model: 'text-embedding-004' });
+      const embedModel = this.genAI.getGenerativeModel({
+        model: 'text-embedding-004',
+      });
       const embedResult = await embedModel.embedContent(query);
       const queryEmbedding = embedResult.embedding.values;
 
-      const { data, error } = await this.supabaseService.admin.rpc('match_documents', {
-        query_embedding: queryEmbedding,
-        match_threshold: 0.55,
-        match_count: matchCount,
-      });
+      const { data, error } = await this.supabaseService.admin.rpc(
+        'match_documents',
+        {
+          query_embedding: queryEmbedding,
+          match_threshold: 0.55,
+          match_count: matchCount,
+        },
+      );
 
       if (error || !data?.length) {
         // High-yield clinical fallback protocols aligned with 2023 International Guidelines
@@ -487,7 +602,7 @@ Recent lab reports: ${facts.recentLabReports.length ? facts.recentLabReports.map
         patientActionPlan: [
           `Take any prescribed medications as directed.`,
           `Monitor symptoms daily and keep notes.`,
-          `Schedule a follow-up consultation in 2-4 weeks.`
+          `Schedule a follow-up consultation in 2-4 weeks.`,
         ],
       };
     }
@@ -495,13 +610,15 @@ Recent lab reports: ${facts.recentLabReports.length ? facts.recentLabReports.map
     try {
       const model = this.genAI.getGenerativeModel({
         model: 'gemini-1.5-flash',
-        tools: [{
-          functionDeclarations: [
-            searchClinicalKnowledgeBaseDeclaration,
-            fetchPatientHistoryDeclaration,
-            checkDrugSafetyDeclaration,
-          ],
-        }],
+        tools: [
+          {
+            functionDeclarations: [
+              searchClinicalKnowledgeBaseDeclaration,
+              fetchPatientHistoryDeclaration,
+              checkDrugSafetyDeclaration,
+            ],
+          },
+        ],
         systemInstruction: `You are an expert clinical documentation assistant for HealNari, a women's telemedicine network.
 Your mission is to generate structured, evidence-based SOAP notes (Subjective, Objective, Assessment, Plan) and a 3-bullet plain-language Patient Action Plan.
 When clinical guidelines or disease protocols (PCOS, thyroid, abnormal uterine bleeding, fertility) are relevant, use the searchClinicalKnowledgeBase tool to retrieve evidence-based protocols.
@@ -542,7 +659,11 @@ Return your final answer ONLY as valid JSON matching this schema:
 
         if (call.name === 'searchClinicalKnowledgeBase') {
           const args = call.args as { query: string };
-          toolResult = { clinicalGuidelineContext: await this.searchVectorKnowledgeBase(args.query) };
+          toolResult = {
+            clinicalGuidelineContext: await this.searchVectorKnowledgeBase(
+              args.query,
+            ),
+          };
         } else if (call.name === 'fetchPatientHistory' && facts.patientId) {
           const { data: patientProfile } = await this.supabaseService.admin
             .from('profiles')
@@ -551,7 +672,10 @@ Return your final answer ONLY as valid JSON matching this schema:
             .maybeSingle();
           toolResult = patientProfile || { status: 'No record on file' };
         } else if (call.name === 'checkDrugSafety') {
-          const args = call.args as { drugName: string; patientAllergies?: string[] };
+          const args = call.args as {
+            drugName: string;
+            patientAllergies?: string[];
+          };
           toolResult = {
             drug: args.drugName,
             isSafe: true,
@@ -561,7 +685,9 @@ Return your final answer ONLY as valid JSON matching this schema:
           toolResult = { status: 'Unknown tool call' };
         }
 
-        response = await chat.sendMessage([{ functionResponse: { name: call.name, response: toolResult } }]);
+        response = await chat.sendMessage([
+          { functionResponse: { name: call.name, response: toolResult } },
+        ]);
       }
 
       const rawText = response.response.text();
@@ -572,7 +698,7 @@ Return your final answer ONLY as valid JSON matching this schema:
         plan: `1. Follow medical guidance provided during consultation.\n2. Review in 2 weeks.`,
         patientActionPlan: [
           `Follow the doctor's prescribed care instructions.`,
-          `Schedule a follow-up if symptoms persist.`
+          `Schedule a follow-up if symptoms persist.`,
         ],
       };
       return this.safeJsonParse(rawText, fallbackSoap);
@@ -584,7 +710,7 @@ Return your final answer ONLY as valid JSON matching this schema:
         plan: `1. Follow medical guidance provided during consultation.\n2. Review in 2 weeks.`,
         patientActionPlan: [
           `Follow the doctor's prescribed care instructions.`,
-          `Schedule a follow-up if symptoms persist.`
+          `Schedule a follow-up if symptoms persist.`,
         ],
       };
     }
@@ -610,7 +736,14 @@ Return your final answer ONLY as valid JSON matching this schema:
     try {
       const model = this.genAI.getGenerativeModel({
         model: 'gemini-1.5-flash',
-        tools: [{ functionDeclarations: [searchClinicalKnowledgeBaseDeclaration, checkDrugSafetyDeclaration] }],
+        tools: [
+          {
+            functionDeclarations: [
+              searchClinicalKnowledgeBaseDeclaration,
+              checkDrugSafetyDeclaration,
+            ],
+          },
+        ],
         systemInstruction: `You are a clinical pharmacology assistant for HealNari.
 When queried for a medication, search clinical knowledge base if needed, then output standard evidence-based prescription details for women's healthcare.
 Return your answer ONLY as valid JSON:
@@ -624,7 +757,9 @@ Return your answer ONLY as valid JSON:
       });
 
       const chat = model.startChat();
-      let response = await chat.sendMessage(`Suggest standard prescription protocol for medication: "${query}"`);
+      let response = await chat.sendMessage(
+        `Suggest standard prescription protocol for medication: "${query}"`,
+      );
 
       // Handle function calling if model requests RAG lookup
       if (response.response.functionCalls()?.length) {
@@ -632,11 +767,15 @@ Return your answer ONLY as valid JSON:
         let toolResult: any;
         if (call.name === 'searchClinicalKnowledgeBase') {
           const args = call.args as { query: string };
-          toolResult = { protocols: await this.searchVectorKnowledgeBase(args.query) };
+          toolResult = {
+            protocols: await this.searchVectorKnowledgeBase(args.query),
+          };
         } else {
           toolResult = { validated: true };
         }
-        response = await chat.sendMessage([{ functionResponse: { name: call.name, response: toolResult } }]);
+        response = await chat.sendMessage([
+          { functionResponse: { name: call.name, response: toolResult } },
+        ]);
       }
 
       const rawText = response.response.text();
@@ -650,8 +789,14 @@ Return your answer ONLY as valid JSON:
    * Analyzes lab report text or image to extract biomarkers, out-of-range flags,
    * plain-English explanation, and suggested doctor questions.
    */
-  async analyzeLabReport(reportText: string, reportName?: string, cyclePhase?: string) {
-    const phaseContext = cyclePhase ? `Patient's Reported Cycle Phase / Status: ${cyclePhase}. Use phase-specific reference ranges for reproductive hormones (FSH, LH, Estradiol, Progesterone, Beta-hCG).` : 'Cycle phase not specified (use standard adult female reference limits).';
+  async analyzeLabReport(
+    reportText: string,
+    reportName?: string,
+    cyclePhase?: string,
+  ) {
+    const phaseContext = cyclePhase
+      ? `Patient's Reported Cycle Phase / Status: ${cyclePhase}. Use phase-specific reference ranges for reproductive hormones (FSH, LH, Estradiol, Progesterone, Beta-hCG).`
+      : 'Cycle phase not specified (use standard adult female reference limits).';
 
     if (!this.genAI) {
       return {
@@ -659,11 +804,18 @@ Return your answer ONLY as valid JSON:
         cyclePhase: cyclePhase || 'Not specified',
         summary: `Your lab report has been reviewed (${cyclePhase || 'General'}). Values appear within expected standard limits. Please consult your physician for comprehensive clinical interpretation.`,
         biomarkers: [
-          { name: 'Standard Biomarker Review', value: 'Recorded', unit: '', referenceRange: 'Normal', status: 'NORMAL', explanation: 'All parameters noted on file.' }
+          {
+            name: 'Standard Biomarker Review',
+            value: 'Recorded',
+            unit: '',
+            referenceRange: 'Normal',
+            status: 'NORMAL',
+            explanation: 'All parameters noted on file.',
+          },
         ],
         questionsForDoctor: [
           'Are my hormone levels within optimal range for my cycle phase?',
-          'Do I need any follow-up blood tests in the next 3 months?'
+          'Do I need any follow-up blood tests in the next 3 months?',
         ],
       };
     }
@@ -714,11 +866,12 @@ Return ONLY a valid JSON object matching this exact schema:
       const fallbackLab = {
         reportName: reportName || 'Diagnostic Report',
         cyclePhase: cyclePhase || 'General',
-        summary: 'Report successfully parsed. Please review the findings with your doctor for clinical guidance.',
+        summary:
+          'Report successfully parsed. Please review the findings with your doctor for clinical guidance.',
         biomarkers: [],
         questionsForDoctor: [
           'What do these test results indicate for my overall treatment plan?',
-          'Should we repeat this test in the future?'
+          'Should we repeat this test in the future?',
         ],
       };
       return this.safeJsonParse(result.response.text(), fallbackLab);
@@ -726,11 +879,12 @@ Return ONLY a valid JSON object matching this exact schema:
       return {
         reportName: reportName || 'Diagnostic Report',
         cyclePhase: cyclePhase || 'General',
-        summary: 'Report successfully parsed. Please review the findings with your doctor for clinical guidance.',
+        summary:
+          'Report successfully parsed. Please review the findings with your doctor for clinical guidance.',
         biomarkers: [],
         questionsForDoctor: [
           'What do these test results indicate for my overall treatment plan?',
-          'Should we repeat this test in the future?'
+          'Should we repeat this test in the future?',
         ],
       };
     }
@@ -749,7 +903,7 @@ Return ONLY a valid JSON object matching this exact schema:
     }
 
     const defaultInteractions = {
-      guidelines: medications.map(med => ({
+      guidelines: medications.map((med) => ({
         medName: med,
         bestTime: 'With meals',
         keyRule: 'Take consistently at the same time daily.',
@@ -803,7 +957,11 @@ Return ONLY a valid JSON object matching this schema:
   /**
    * Generates a medically reviewed, educational CMS Article draft on women's health topics.
    */
-  async generateCmsArticle(topic: string, category: string, tone = 'Empathetic & Educational') {
+  async generateCmsArticle(
+    topic: string,
+    category: string,
+    tone = 'Empathetic & Educational',
+  ) {
     const defaultArticle = {
       title: topic,
       summary: `Comprehensive educational guide on ${topic} covering symptoms, causes, and evidence-based lifestyle strategies.`,
@@ -848,7 +1006,12 @@ Return ONLY valid JSON matching this schema:
   /**
    * Triages incoming support tickets and drafts an intelligent proposed resolution.
    */
-  async triageSupportTicket(ticket: { subject: string; message: string; category?: string; userRole?: string }) {
+  async triageSupportTicket(ticket: {
+    subject: string;
+    message: string;
+    category?: string;
+    userRole?: string;
+  }) {
     const defaultTriage = {
       urgency: 'Medium',
       category: ticket.category || 'General',
@@ -894,7 +1057,10 @@ Return ONLY valid JSON matching this schema:
     } catch {
       try {
         // 2. Extract from markdown code fences or matching braces
-        const cleaned = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const cleaned = rawText
+          .replace(/```json/gi, '')
+          .replace(/```/g, '')
+          .trim();
         const jsonMatch = cleaned.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
         if (jsonMatch) {
           return JSON.parse(jsonMatch[0]);
@@ -909,12 +1075,22 @@ Return ONLY valid JSON matching this schema:
   sanitizeQueryOptions(parsedQuery: any): {
     targetEntity: string;
     queryType: 'find' | 'count' | 'unsupported';
-    queryOptions: { select: string[]; where?: Record<string, unknown>; take: number; order?: Record<string, 'ASC' | 'DESC'> };
+    queryOptions: {
+      select: string[];
+      where?: Record<string, unknown>;
+      take: number;
+      order?: Record<string, 'ASC' | 'DESC'>;
+    };
   } {
-    const entity = typeof parsedQuery?.targetEntity === 'string' ? parsedQuery.targetEntity : '';
+    const entity =
+      typeof parsedQuery?.targetEntity === 'string'
+        ? parsedQuery.targetEntity
+        : '';
     const allowed = ALLOWED_QUERY_ENTITIES[entity];
     if (!allowed) {
-      throw new Error(`Querying "${entity || 'unknown entity'}" is not permitted through the chat assistant.`);
+      throw new Error(
+        `Querying "${entity || 'unknown entity'}" is not permitted through the chat assistant.`,
+      );
     }
 
     const rawWhere = parsedQuery?.queryOptions?.where;
@@ -928,22 +1104,29 @@ Return ONLY valid JSON matching this schema:
     }
 
     const rawTake = Number(parsedQuery?.queryOptions?.take);
-    const take = Number.isFinite(rawTake) && rawTake > 0 ? Math.min(Math.floor(rawTake), MAX_TAKE) : MAX_TAKE;
+    const take =
+      Number.isFinite(rawTake) && rawTake > 0
+        ? Math.min(Math.floor(rawTake), MAX_TAKE)
+        : MAX_TAKE;
 
     const rawOrder = parsedQuery?.queryOptions?.order;
     const order: Record<string, 'ASC' | 'DESC'> = {};
     if (rawOrder && typeof rawOrder === 'object') {
       for (const key of Object.keys(rawOrder)) {
         const direction = rawOrder[key];
-        if (allowed.select.includes(key) && (direction === 'ASC' || direction === 'DESC')) {
+        if (
+          allowed.select.includes(key) &&
+          (direction === 'ASC' || direction === 'DESC')
+        ) {
           order[key] = direction;
         }
       }
     }
 
-    const queryType = parsedQuery?.queryType === 'find' || parsedQuery?.queryType === 'count'
-      ? parsedQuery.queryType
-      : 'unsupported';
+    const queryType =
+      parsedQuery?.queryType === 'find' || parsedQuery?.queryType === 'count'
+        ? parsedQuery.queryType
+        : 'unsupported';
 
     return {
       targetEntity: entity,
@@ -959,19 +1142,24 @@ Return ONLY valid JSON matching this schema:
 
   async parseQuery(userQuery: string): Promise<any> {
     if (this.genAI) {
-      const model = this.genAI.getGenerativeModel({ 
+      const model = this.genAI.getGenerativeModel({
         model: 'gemini-1.5-flash',
         tools: [{ functionDeclarations: [queryDatabaseDeclaration] }],
       });
-      
-      const result = await model.generateContent(`You are an AI Operations Assistant for the HealNari platform. Please answer this user query using the queryDatabase tool: "${userQuery}"`);
+
+      const result = await model.generateContent(
+        `You are an AI Operations Assistant for the HealNari platform. Please answer this user query using the queryDatabase tool: "${userQuery}"`,
+      );
       const call = result.response.functionCalls()?.[0];
-      
+
       if (call && call.name === 'queryDatabase') {
         return call.args;
       }
-      
-      throw new Error('Model did not return a valid queryDatabase function call. Response: ' + result.response.text());
+
+      throw new Error(
+        'Model did not return a valid queryDatabase function call. Response: ' +
+          result.response.text(),
+      );
     }
     throw new Error('AI credentials missing or parsing failed.');
   }

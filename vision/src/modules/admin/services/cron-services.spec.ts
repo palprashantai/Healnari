@@ -7,12 +7,27 @@ import { createSupabaseMock } from '@/test-utils/supabase-mock';
 describe('Background Cron Services Suite', () => {
   describe('AdminCronService.reconcileDailyPlatformRevenue', () => {
     const notifications = { create: jest.fn().mockResolvedValue({}) };
-    const email = { sendMail: jest.fn().mockResolvedValue(true), sendTemplatedMail: jest.fn().mockResolvedValue(true) };
+    const email = {
+      sendMail: jest.fn().mockResolvedValue(true),
+      sendTemplatedMail: jest.fn().mockResolvedValue(true),
+    };
 
     it('accurately reconciles gross, 15% platform commission, and doctor net payouts for Paid payments', async () => {
       const mockPayments = [
-        { id: 'p-1', amount: 1000, status: 'Paid', created_at: new Date().toISOString(), doctor_id: 'doc-1' },
-        { id: 'p-2', amount: 2000, status: 'Paid', created_at: new Date().toISOString(), doctor_id: 'doc-2' },
+        {
+          id: 'p-1',
+          amount: 1000,
+          status: 'Paid',
+          created_at: new Date().toISOString(),
+          doctor_id: 'doc-1',
+        },
+        {
+          id: 'p-2',
+          amount: 2000,
+          status: 'Paid',
+          created_at: new Date().toISOString(),
+          doctor_id: 'doc-2',
+        },
       ];
       const mockAdmins = [{ id: 'admin-1' }];
 
@@ -21,11 +36,18 @@ describe('Background Cron Services Suite', () => {
         profiles: [{ data: mockAdmins, error: null }],
       });
 
-      const service = new AdminCronService(supabase as any, notifications as any, email as any);
+      const service = new AdminCronService(
+        supabase as any,
+        notifications as any,
+        email as any,
+      );
       await service.reconcileDailyPlatformRevenue();
 
       // Assert it filtered by status 'Paid'
-      const statusCall = calls.find(c => c.table === 'payments' && c.method === 'eq' && c.args[0] === 'status');
+      const statusCall = calls.find(
+        (c) =>
+          c.table === 'payments' && c.method === 'eq' && c.args[0] === 'status',
+      );
       expect(statusCall).toBeDefined();
       expect(statusCall?.args[1]).toBe('Paid');
 
@@ -42,8 +64,13 @@ describe('Background Cron Services Suite', () => {
 
   describe('BillingCronService.processAutomatedRefundsForCancelledAppointments', () => {
     const notifications = { create: jest.fn().mockResolvedValue({}) };
-    const cashfree = { createRefund: jest.fn().mockResolvedValue({ refund_id: 'ref-123' }) };
-    const email = { sendMail: jest.fn().mockResolvedValue(true), sendTemplatedMail: jest.fn().mockResolvedValue(true) };
+    const cashfree = {
+      createRefund: jest.fn().mockResolvedValue({ refund_id: 'ref-123' }),
+    };
+    const email = {
+      sendMail: jest.fn().mockResolvedValue(true),
+      sendTemplatedMail: jest.fn().mockResolvedValue(true),
+    };
 
     it('triggers automated Cashfree refund and marks payment status as Refunded', async () => {
       const mockPendingPayments = [
@@ -63,15 +90,16 @@ describe('Background Cron Services Suite', () => {
           { data: mockPendingPayments, error: null },
           { data: { id: 'pay-123', status: 'Refunded' }, error: null },
         ],
-        appointments: [
-          { data: { id: 'apt-999' }, error: null },
-        ],
-        refund_requests: [
-          { data: {}, error: null },
-        ],
+        appointments: [{ data: { id: 'apt-999' }, error: null }],
+        refund_requests: [{ data: {}, error: null }],
       });
 
-      const service = new BillingCronService(supabase as any, cashfree as any, notifications as any, email as any);
+      const service = new BillingCronService(
+        supabase as any,
+        cashfree as any,
+        notifications as any,
+        email as any,
+      );
       await service.processAutomatedRefundsForCancelledAppointments();
 
       // Verified Cashfree createRefund was invoked with cf_order_id and amount
@@ -96,7 +124,10 @@ describe('Background Cron Services Suite', () => {
   describe('AppointmentsService.processNoShows', () => {
     const notifications = { create: jest.fn().mockResolvedValue({}) };
     const ai = {};
-    const email = { sendMail: jest.fn().mockResolvedValue(true), sendTemplatedMail: jest.fn().mockResolvedValue(true) };
+    const email = {
+      sendMail: jest.fn().mockResolvedValue(true),
+      sendTemplatedMail: jest.fn().mockResolvedValue(true),
+    };
 
     it('marks overdue appointments as NO_SHOW via atomic bulk update', async () => {
       const overdueApts = [
@@ -111,10 +142,17 @@ describe('Background Cron Services Suite', () => {
         ],
       });
 
-      const service = new AppointmentsService(supabase as any, notifications as any, ai as any, email as any);
+      const service = new AppointmentsService(
+        supabase as any,
+        notifications as any,
+        ai as any,
+        email as any,
+      );
       await service.processNoShows();
 
-      const updateCall = calls.find(c => c.table === 'appointments' && c.method === 'update');
+      const updateCall = calls.find(
+        (c) => c.table === 'appointments' && c.method === 'update',
+      );
       expect(updateCall).toBeDefined();
       expect(updateCall?.args[0]).toEqual({ status: 'No Show' });
     });
@@ -122,18 +160,38 @@ describe('Background Cron Services Suite', () => {
 
   describe('PrescriptionsCronService.sendLifestyleDailyReminder', () => {
     const notifications = { create: jest.fn().mockResolvedValue({}) };
-    const email = { isConfigured: false, sendMail: jest.fn(), sendTemplatedMail: jest.fn() };
+    const email = {
+      isConfigured: false,
+      sendMail: jest.fn(),
+      sendTemplatedMail: jest.fn(),
+    };
 
     it('queries lifestyle_logs using the correct log_date column', async () => {
       const { supabase, calls } = createSupabaseMock({
-        prescriptions: [{ data: [{ patient_id: 'pat-1', instructions: '{"type":"healnari-holistic-v1"}' }], error: null }],
+        prescriptions: [
+          {
+            data: [
+              {
+                patient_id: 'pat-1',
+                instructions: '{"type":"healnari-holistic-v1"}',
+              },
+            ],
+            error: null,
+          },
+        ],
         lifestyle_logs: [{ data: [], error: null }], // pat-1 has not logged today
       });
 
-      const service = new PrescriptionsCronService(supabase as any, notifications as any, email as any);
+      const service = new PrescriptionsCronService(
+        supabase as any,
+        notifications as any,
+        email as any,
+      );
       await service.sendLifestyleDailyReminder();
 
-      const logDateCall = calls.find(c => c.table === 'lifestyle_logs' && c.method === 'eq');
+      const logDateCall = calls.find(
+        (c) => c.table === 'lifestyle_logs' && c.method === 'eq',
+      );
       expect(logDateCall).toBeDefined();
       expect(logDateCall?.args[0]).toBe('log_date');
 

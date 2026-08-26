@@ -8,6 +8,8 @@ export interface AuthUser {
 }
 
 /** Reads the caller identity SupabaseAuthGuard attached to the request. */
-export const CurrentUser = createParamDecorator((_: unknown, ctx: ExecutionContext): AuthUser => {
-  return ctx.switchToHttp().getRequest().user;
-});
+export const CurrentUser = createParamDecorator(
+  (_: unknown, ctx: ExecutionContext): AuthUser => {
+    return ctx.switchToHttp().getRequest().user;
+  },
+);

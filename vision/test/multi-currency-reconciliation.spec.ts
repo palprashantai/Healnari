@@ -15,19 +15,19 @@ describe('Multi-Currency Payment & Revenue Reconciliation Test Suite', () => {
     });
 
     it('should accurately calculate percentage platform take-rate (10%)', () => {
-      const gmv = 1500.00;
+      const gmv = 1500.0;
       const platformFee = DecimalMath.percentage(gmv, 10);
       const providerPayout = DecimalMath.subtract(gmv, platformFee);
 
-      expect(platformFee).toBe(150.00);
-      expect(providerPayout).toBe(1350.00);
+      expect(platformFee).toBe(150.0);
+      expect(providerPayout).toBe(1350.0);
       expect(DecimalMath.add(platformFee, providerPayout)).toBe(gmv);
     });
 
     it('should sum 10,000 micro transactions without drift', () => {
       const amounts = Array(1000).fill(12.35);
       const total = DecimalMath.sum(amounts);
-      expect(total).toBe(12350.00);
+      expect(total).toBe(12350.0);
     });
   });
 
@@ -50,16 +50,22 @@ describe('Multi-Currency Payment & Revenue Reconciliation Test Suite', () => {
       expect(conversion.originalAmount).toBe(10000);
       expect(conversion.originalCurrency).toBe('INR');
       expect(conversion.reportingCurrency).toBe('USD');
-      expect(conversion.reportingAmount).toBeCloseTo(118.20, 1);
+      expect(conversion.reportingAmount).toBeCloseTo(118.2, 1);
       expect(conversion.fxRate).toBeDefined();
       expect(conversion.fxRateTimestamp).toBeDefined();
     });
 
     it('should reproduce exact historical value using stored FX rate', () => {
       const historicalAmount = 10000;
-      const storedRate = 0.012500; // Historical rate at transaction time
-      const reproduced = fxService.reproduceReportingValue(historicalAmount, 'INR', 'USD', storedRate, 'USD');
-      expect(reproduced).toBe(125.00);
+      const storedRate = 0.0125; // Historical rate at transaction time
+      const reproduced = fxService.reproduceReportingValue(
+        historicalAmount,
+        'INR',
+        'USD',
+        storedRate,
+        'USD',
+      );
+      expect(reproduced).toBe(125.0);
     });
   });
 
@@ -73,7 +79,7 @@ describe('Multi-Currency Payment & Revenue Reconciliation Test Suite', () => {
         { id: '5', amount: 150, currency: 'EUR', feeRate: 10 },
       ];
 
-      transactions.forEach(t => {
+      transactions.forEach((t) => {
         const fee = DecimalMath.percentage(t.amount, t.feeRate);
         const payout = DecimalMath.subtract(t.amount, fee);
         const reconstructedGMV = DecimalMath.add(fee, payout);
@@ -89,7 +95,7 @@ describe('Multi-Currency Payment & Revenue Reconciliation Test Suite', () => {
       const refundLoss = DecimalMath.percentage(refundAmount, 10); // 500 INR
 
       const netPlatformRevenue = DecimalMath.subtract(platformFee, refundLoss);
-      expect(netPlatformRevenue).toBe(0.00);
+      expect(netPlatformRevenue).toBe(0.0);
     });
   });
 });

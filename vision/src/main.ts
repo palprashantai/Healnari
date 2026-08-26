@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module'; import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { AppModule } from './app.module';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { AllExceptionsFilter } from './core/filters/http-exception.filter';
 import { initSentry } from './core/monitoring/sentry';
@@ -13,7 +14,7 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:3000',
   'https://healnari-api.onrender.com',
-  'https://healnari.onrender.com'
+  'https://healnari.onrender.com',
 ];
 
 async function bootstrap() {
@@ -34,7 +35,9 @@ async function bootstrap() {
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
-  const allowedOrigins = Array.from(new Set([...envOrigins, ...DEFAULT_ALLOWED_ORIGINS]));
+  const allowedOrigins = Array.from(
+    new Set([...envOrigins, ...DEFAULT_ALLOWED_ORIGINS]),
+  );
 
   app.enableCors({
     origin: allowedOrigins,

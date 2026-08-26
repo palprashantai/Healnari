@@ -1,6 +1,30 @@
-import { Controller, Get, Param, Put, Query, Post, Body, Delete } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiProperty } from '@nestjs/swagger';
-import { IsString, IsInt, IsArray, IsBoolean, IsOptional, ValidateNested, IsDateString, Min } from 'class-validator';
+import {
+  Controller,
+  Get,
+  Param,
+  Put,
+  Query,
+  Post,
+  Body,
+  Delete,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiProperty,
+} from '@nestjs/swagger';
+import {
+  IsString,
+  IsInt,
+  IsArray,
+  IsBoolean,
+  IsOptional,
+  ValidateNested,
+  IsDateString,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { DoctorsService } from '@/modules/doctors/services/doctors.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
@@ -15,9 +39,21 @@ export class ScheduleDayDto {
   @ApiProperty() endTime: string | null;
   @ApiProperty({ required: false }) @IsOptional() lunchStart?: string | null;
   @ApiProperty({ required: false }) @IsOptional() lunchEnd?: string | null;
-  @ApiProperty({ required: false }) @IsOptional() @IsInt() @Min(1) maxBookingsPerDay?: number | null;
-  @ApiProperty({ required: false, default: 30 }) @IsOptional() @IsInt() @Min(5) slotDurationMinutes?: number;
-  @ApiProperty({ required: false, default: 0 }) @IsOptional() @IsInt() @Min(0) bufferMinutes?: number;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxBookingsPerDay?: number | null;
+  @ApiProperty({ required: false, default: 30 })
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  slotDurationMinutes?: number;
+  @ApiProperty({ required: false, default: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  bufferMinutes?: number;
 }
 
 export class UpdateScheduleDto {
@@ -49,28 +85,37 @@ export class DoctorsController {
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  @ApiOperation({ summary: 'Submit / mark the caller\'s own KYC as verified (doctor only)' })
+  @ApiOperation({
+    summary: "Submit / mark the caller's own KYC as verified (doctor only)",
+  })
   @Put('me/kyc')
   async submitKyc(@CurrentUser() user: AuthUser) {
     const data = await this.doctorsService.verifyKyc(user);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.KYC_SUBMITTED);
   }
 
-  @ApiOperation({ summary: "Doctor's practice analytics — revenue, consultations, patient demographics (doctor only)" })
+  @ApiOperation({
+    summary:
+      "Doctor's practice analytics — revenue, consultations, patient demographics (doctor only)",
+  })
   @Get('me/analytics')
   async analytics(@CurrentUser() user: AuthUser) {
     const data = await this.doctorsService.getAnalytics(user);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  @ApiOperation({ summary: "Doctor's own system access logs (what they accessed)" })
+  @ApiOperation({
+    summary: "Doctor's own system access logs (what they accessed)",
+  })
   @Get('me/audit-logs')
   async getMyAuditLogs(@CurrentUser() user: AuthUser) {
     const data = await this.doctorsService.getMyAuditLogs(user);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  @ApiOperation({ summary: "Fetch doctor's weekly schedule and upcoming exceptions" })
+  @ApiOperation({
+    summary: "Fetch doctor's weekly schedule and upcoming exceptions",
+  })
   @Get('me/schedule')
   async getMySchedule(@CurrentUser() user: AuthUser) {
     const data = await this.doctorsService.getMySchedule(user);
@@ -79,31 +124,46 @@ export class DoctorsController {
 
   @ApiOperation({ summary: "Update doctor's weekly schedule" })
   @Put('me/schedule')
-  async updateMySchedule(@CurrentUser() user: AuthUser, @Body() body: UpdateScheduleDto) {
+  async updateMySchedule(
+    @CurrentUser() user: AuthUser,
+    @Body() body: UpdateScheduleDto,
+  ) {
     const data = await this.doctorsService.updateMySchedule(user, body);
     return ResponseHelper.success(data, 'Schedule updated successfully');
   }
 
-  @ApiOperation({ summary: "Add a time-off exception" })
+  @ApiOperation({ summary: 'Add a time-off exception' })
   @Post('me/exceptions')
-  async addException(@CurrentUser() user: AuthUser, @Body() body: CreateExceptionDto) {
+  async addException(
+    @CurrentUser() user: AuthUser,
+    @Body() body: CreateExceptionDto,
+  ) {
     const data = await this.doctorsService.addException(user, body);
     return ResponseHelper.success(data, 'Exception added successfully');
   }
 
-  @ApiOperation({ summary: "Remove a time-off exception" })
+  @ApiOperation({ summary: 'Remove a time-off exception' })
   @Delete('me/exceptions/:id')
-  async removeException(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async removeException(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
     const data = await this.doctorsService.removeException(user, id);
     return ResponseHelper.success(data, 'Exception removed successfully');
   }
 
   @Public()
-  @ApiOperation({ summary: 'Get available time slots for a doctor on a date (static placeholder)' })
+  @ApiOperation({
+    summary:
+      'Get available time slots for a doctor on a date (static placeholder)',
+  })
   @ApiParam({ name: 'doctorId' })
   @ApiQuery({ name: 'date', required: true })
   @Get(':doctorId/slots')
-  async getAvailableSlots(@Param('doctorId') doctorId: string, @Query('date') date: string) {
+  async getAvailableSlots(
+    @Param('doctorId') doctorId: string,
+    @Query('date') date: string,
+  ) {
     const data = await this.doctorsService.getAvailableSlots(doctorId, date);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }

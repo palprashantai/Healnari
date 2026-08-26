@@ -62,7 +62,10 @@ describe('Authentication, Security & Access Control QA Suite', () => {
         }),
       });
 
-      const result = await authService.login('ananya@example.com', 'password123');
+      const result = await authService.login(
+        'ananya@example.com',
+        'password123',
+      );
       expect(result.accessToken).toBe('valid_access_jwt');
       expect(result.refreshToken).toBe('valid_refresh_token');
       expect(result.user.name).toBe('Ananya Sharma');
@@ -72,7 +75,10 @@ describe('Authentication, Security & Access Control QA Suite', () => {
     it('rejects login for suspended accounts with ACCOUNT_SUSPENDED error', async () => {
       supabaseMock.anon.auth.signInWithPassword.mockResolvedValue({
         data: {
-          user: { id: 'patient-uuid-suspended', email: 'suspended@example.com' },
+          user: {
+            id: 'patient-uuid-suspended',
+            email: 'suspended@example.com',
+          },
           session: {
             access_token: 'valid_access_jwt',
             refresh_token: 'valid_refresh_token',
@@ -96,12 +102,12 @@ describe('Authentication, Security & Access Control QA Suite', () => {
         }),
       });
 
-      await expect(authService.login('suspended@example.com', 'pass123')).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(authService.login('suspended@example.com', 'pass123')).rejects.toThrow(
-        ERROR_MESSAGES.ACCOUNT_SUSPENDED,
-      );
+      await expect(
+        authService.login('suspended@example.com', 'pass123'),
+      ).rejects.toThrow(UnauthorizedException);
+      await expect(
+        authService.login('suspended@example.com', 'pass123'),
+      ).rejects.toThrow(ERROR_MESSAGES.ACCOUNT_SUSPENDED);
     });
 
     it('rejects invalid password credentials with INVALID_CREDENTIALS error', async () => {
@@ -110,12 +116,12 @@ describe('Authentication, Security & Access Control QA Suite', () => {
         error: new Error('Invalid login credentials'),
       });
 
-      await expect(authService.login('user@example.com', 'wrong_pass')).rejects.toThrow(
-        UnauthorizedException,
-      );
-      await expect(authService.login('user@example.com', 'wrong_pass')).rejects.toThrow(
-        ERROR_MESSAGES.INVALID_CREDENTIALS,
-      );
+      await expect(
+        authService.login('user@example.com', 'wrong_pass'),
+      ).rejects.toThrow(UnauthorizedException);
+      await expect(
+        authService.login('user@example.com', 'wrong_pass'),
+      ).rejects.toThrow(ERROR_MESSAGES.INVALID_CREDENTIALS);
     });
   });
 
@@ -139,8 +145,12 @@ describe('Authentication, Security & Access Control QA Suite', () => {
         }),
       };
 
-      await expect(guard.canActivate(contextMock)).rejects.toThrow(UnauthorizedException);
-      await expect(guard.canActivate(contextMock)).rejects.toThrow('Missing bearer token');
+      await expect(guard.canActivate(contextMock)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(guard.canActivate(contextMock)).rejects.toThrow(
+        'Missing bearer token',
+      );
     });
 
     it('rejects requests when account is marked Suspended mid-session', async () => {
@@ -172,8 +182,12 @@ describe('Authentication, Security & Access Control QA Suite', () => {
         }),
       });
 
-      await expect(guard.canActivate(contextMock)).rejects.toThrow(ForbiddenException);
-      await expect(guard.canActivate(contextMock)).rejects.toThrow(ERROR_MESSAGES.ACCOUNT_SUSPENDED);
+      await expect(guard.canActivate(contextMock)).rejects.toThrow(
+        ForbiddenException,
+      );
+      await expect(guard.canActivate(contextMock)).rejects.toThrow(
+        ERROR_MESSAGES.ACCOUNT_SUSPENDED,
+      );
     });
   });
 });

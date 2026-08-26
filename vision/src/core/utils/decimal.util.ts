@@ -12,7 +12,10 @@ export class DecimalMath {
    * Convert any float, number, or string to safe integer minor units (e.g. 15.50 -> 1550)
    */
   static toMinorUnits(amount: number | string, decimals = 2): bigint {
-    const str = typeof amount === 'number' ? amount.toFixed(decimals + 4) : String(amount || '0');
+    const str =
+      typeof amount === 'number'
+        ? amount.toFixed(decimals + 4)
+        : String(amount || '0');
     const [intPart = '0', decPart = ''] = str.split('.');
     const paddedDec = decPart.slice(0, decimals).padEnd(decimals, '0');
     return BigInt(intPart + paddedDec);
@@ -25,7 +28,7 @@ export class DecimalMath {
     const str = minorUnits.toString();
     const isNeg = str.startsWith('-');
     const absStr = isNeg ? str.slice(1) : str;
-    
+
     let result = '';
     if (absStr.length <= decimals) {
       result = '0.' + absStr.padStart(decimals, '0');
@@ -49,7 +52,11 @@ export class DecimalMath {
   /**
    * Exact subtraction of two financial amounts (a - b)
    */
-  static subtract(a: number | string, b: number | string, decimals = 2): number {
+  static subtract(
+    a: number | string,
+    b: number | string,
+    decimals = 2,
+  ): number {
     const minorA = this.toMinorUnits(a, decimals);
     const minorB = this.toMinorUnits(b, decimals);
     return this.fromMinorUnits(minorA - minorB, decimals);
@@ -58,7 +65,11 @@ export class DecimalMath {
   /**
    * Exact multiplication of amount by rate or factor
    */
-  static multiply(amount: number | string, rate: number | string, decimals = 2): number {
+  static multiply(
+    amount: number | string,
+    rate: number | string,
+    decimals = 2,
+  ): number {
     const numAmount = Number(amount || 0);
     const numRate = Number(rate || 0);
     const raw = numAmount * numRate;
@@ -68,7 +79,11 @@ export class DecimalMath {
   /**
    * Exact division of amount
    */
-  static divide(amount: number | string, divisor: number | string, decimals = 2): number {
+  static divide(
+    amount: number | string,
+    divisor: number | string,
+    decimals = 2,
+  ): number {
     const numAmount = Number(amount || 0);
     const numDivisor = Number(divisor || 1);
     if (numDivisor === 0) return 0;
@@ -79,7 +94,11 @@ export class DecimalMath {
   /**
    * Calculate percentage take-rate (e.g. 10% of 1500 => 150.00)
    */
-  static percentage(amount: number | string, percent: number | string, decimals = 2): number {
+  static percentage(
+    amount: number | string,
+    percent: number | string,
+    decimals = 2,
+  ): number {
     const numAmount = Number(amount || 0);
     const numPercent = Number(percent || 0);
     const raw = (numAmount * numPercent) / 100;
@@ -90,7 +109,10 @@ export class DecimalMath {
    * Safe sum array of amounts
    */
   static sum(amounts: (number | string)[], decimals = 2): number {
-    return amounts.reduce<number>((acc, curr) => this.add(acc, curr, decimals), 0);
+    return amounts.reduce<number>(
+      (acc, curr) => this.add(acc, curr, decimals),
+      0,
+    );
   }
 
   /**

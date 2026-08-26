@@ -22,8 +22,17 @@ import type { AuthUser } from '@/core/decorators/current-user.decorator';
  * available (CI/staging), never as part of the default `npm test`.
  */
 describe('AppointmentsService.create — double-booking conflict handling', () => {
-  const patient: AuthUser = { id: 'patient-1', email: 'p@x.com', profile: { role: ProfileRole.PATIENT } as any };
-  const doctorProfile = { id: 'doctor-1', role: ProfileRole.DOCTOR, kyc_verified: true, specialty: 'Gynecology' };
+  const patient: AuthUser = {
+    id: 'patient-1',
+    email: 'p@x.com',
+    profile: { role: ProfileRole.PATIENT } as any,
+  };
+  const doctorProfile = {
+    id: 'doctor-1',
+    role: ProfileRole.DOCTOR,
+    kyc_verified: true,
+    specialty: 'Gynecology',
+  };
   const notifications = { create: jest.fn().mockResolvedValue(null) };
   const ai = {};
 
@@ -34,16 +43,33 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
     scheduledTime: '10:00 AM',
   } as any;
 
-  const email = { sendTemplatedMail: jest.fn().mockResolvedValue({ success: true }) };
+  const email = {
+    sendTemplatedMail: jest.fn().mockResolvedValue({ success: true }),
+  };
 
   it('translates a 23505 unique-violation into a ConflictException, not a raw DB error', async () => {
     const { supabase } = createSupabaseMock({
       profiles: [{ data: doctorProfile }],
-      appointments: [{ data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint' } }],
+      appointments: [
+        {
+          data: null,
+          error: {
+            code: '23505',
+            message: 'duplicate key value violates unique constraint',
+          },
+        },
+      ],
     });
-    const service = new AppointmentsService(supabase as any, notifications as any, ai as any, email as any);
+    const service = new AppointmentsService(
+      supabase as any,
+      notifications as any,
+      ai as any,
+      email as any,
+    );
 
-    await expect(service.create(patient, body)).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.create(patient, body)).rejects.toBeInstanceOf(
+      ConflictException,
+    );
   });
 
   it('rethrows a non-conflict DB error as-is rather than swallowing it', async () => {
@@ -52,21 +78,50 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
       profiles: [{ data: doctorProfile }],
       appointments: [{ data: null, error: dbError }],
     });
-    const service = new AppointmentsService(supabase as any, notifications as any, ai as any, email as any);
+    const service = new AppointmentsService(
+      supabase as any,
+      notifications as any,
+      ai as any,
+      email as any,
+    );
 
     await expect(service.create(patient, body)).rejects.toBe(dbError);
   });
 
   it('succeeds and notifies the doctor when no conflict occurs', async () => {
-    const savedAppointment = { id: 'apt-1', patient_id: 'patient-1', doctor_id: 'doctor-1', type: 'video', scheduled_date: '2099-01-01', scheduled_time: '10:00 AM', status: 'Requested' };
+    const savedAppointment = {
+      id: 'apt-1',
+      patient_id: 'patient-1',
+      doctor_id: 'doctor-1',
+      type: 'video',
+      scheduled_date: '2099-01-01',
+      scheduled_time: '10:00 AM',
+      status: 'Requested',
+    };
     const { supabase } = createSupabaseMock({
-      profiles: [{ data: doctorProfile }, { data: [{ id: 'patient-1', full_name: 'Priya' }, { id: 'doctor-1', full_name: 'Dr. Rao' }] }],
+      profiles: [
+        { data: doctorProfile },
+        {
+          data: [
+            { id: 'patient-1', full_name: 'Priya' },
+            { id: 'doctor-1', full_name: 'Dr. Rao' },
+          ],
+        },
+      ],
       appointments: [{ data: savedAppointment, error: null }],
     });
-    const service = new AppointmentsService(supabase as any, notifications as any, ai as any, email as any);
+    const service = new AppointmentsService(
+      supabase as any,
+      notifications as any,
+      ai as any,
+      email as any,
+    );
 
     const result = await service.create(patient, body);
     expect(result.id).toBe('apt-1');
-    expect(notifications.create).toHaveBeenCalledWith('doctor-1', expect.objectContaining({ type: 'appointment_requested' }));
+    expect(notifications.create).toHaveBeenCalledWith(
+      'doctor-1',
+      expect.objectContaining({ type: 'appointment_requested' }),
+    );
   });
 });

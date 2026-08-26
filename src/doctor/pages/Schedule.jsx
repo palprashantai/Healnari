@@ -485,89 +485,102 @@ export default function Schedule() {
                           </button>
                         </div>
 
-                        {/* Lunch break + Max bookings row */}
-                        <div className="flex items-center gap-3 flex-wrap">
-                          {/* Lunch toggle + inputs */}
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleScheduleChange(day.dayOfWeek, 'hasLunch', !day.hasLunch)}
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-colors ${
-                                day.hasLunch
-                                  ? 'bg-amber-50 border-amber-200 text-amber-700'
-                                  : 'bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300'
-                              }`}
-                            >
-                              <i className={`fas fa-utensils text-[9px]`}></i>
-                              Lunch
-                            </button>
-                            {day.hasLunch && (
-                              <div className="flex items-center gap-1.5 animate-slide-up">
-                                <input
-                                  type="time"
-                                  value={day.lunchStart}
-                                  onChange={(e) => handleScheduleChange(day.dayOfWeek, 'lunchStart', e.target.value)}
-                                  className="px-2 py-1.5 border border-amber-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50/50 w-[5.5rem]"
-                                />
-                                <span className="text-slate-300 text-[10px] font-bold">→</span>
-                                <input
-                                  type="time"
-                                  value={day.lunchEnd}
-                                  onChange={(e) => handleScheduleChange(day.dayOfWeek, 'lunchEnd', e.target.value)}
-                                  className="px-2 py-1.5 border border-amber-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50/50 w-[5.5rem]"
-                                />
-                              </div>
-                            )}
-                          </div>
+                        {/* Advanced Settings */}
+                        <details className="w-full group/details">
+                          <summary className="text-[11px] font-bold text-slate-400 cursor-pointer list-none hover:text-aubergine-600 transition-colors flex items-center gap-1.5 select-none w-max">
+                            <i className="fas fa-sliders-h text-[10px]"></i> Advanced Options
+                            <i className="fas fa-chevron-down text-[9px] transition-transform group-open/details:-rotate-180"></i>
+                          </summary>
+                          
+                          <div className="pt-3 flex items-center gap-4 flex-wrap bg-slate-50/50 p-3 rounded-xl border border-slate-100 mt-2">
+                            {/* Lunch toggle + inputs */}
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleScheduleChange(day.dayOfWeek, 'hasLunch', !day.hasLunch)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-colors ${
+                                  day.hasLunch
+                                    ? 'bg-amber-50 border-amber-200 text-amber-700'
+                                    : 'bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-300 shadow-sm'
+                                }`}
+                              >
+                                <i className={`fas fa-utensils text-[10px]`}></i>
+                                Break
+                              </button>
+                              {day.hasLunch && (
+                                <div className="flex items-center gap-1.5 animate-slide-up">
+                                  <input
+                                    type="time"
+                                    value={day.lunchStart}
+                                    onChange={(e) => handleScheduleChange(day.dayOfWeek, 'lunchStart', e.target.value)}
+                                    className="px-2.5 py-1.5 border border-amber-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50/50 w-[5.5rem]"
+                                  />
+                                  <span className="text-slate-300 text-[10px] font-bold">→</span>
+                                  <input
+                                    type="time"
+                                    value={day.lunchEnd}
+                                    onChange={(e) => handleScheduleChange(day.dayOfWeek, 'lunchEnd', e.target.value)}
+                                    className="px-2.5 py-1.5 border border-amber-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50/50 w-[5.5rem]"
+                                  />
+                                </div>
+                              )}
+                            </div>
 
-                          {/* Max bookings */}
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-bold text-slate-400 hidden sm:inline">
-                              <i className="fas fa-hashtag text-[8px] mr-0.5"></i>Max/day
-                            </span>
-                            <input
-                              type="number"
-                              min="1"
-                              max="50"
-                              placeholder="∞"
-                              value={day.maxBookingsPerDay}
-                              onChange={(e) => handleScheduleChange(day.dayOfWeek, 'maxBookingsPerDay', e.target.value)}
-                              className="w-14 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-center focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white placeholder:text-slate-300"
-                            />
-                          </div>
+                            <div className="w-px h-6 bg-slate-200 hidden sm:block"></div>
 
-                          {/* Slot Duration */}
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-bold text-slate-400 hidden sm:inline">
-                              <i className="fas fa-stopwatch text-[8px] mr-0.5"></i>Slot (m)
-                            </span>
-                            <input
-                              type="number"
-                              min="10"
-                              max="120"
-                              step="5"
-                              value={day.slotDurationMinutes}
-                              onChange={(e) => handleScheduleChange(day.dayOfWeek, 'slotDurationMinutes', e.target.value)}
-                              className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-center focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white"
-                            />
-                          </div>
+                            {/* Max bookings */}
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-bold text-slate-500">
+                                Max Patients/day
+                              </span>
+                              <input
+                                type="number"
+                                min="1"
+                                max="50"
+                                placeholder="∞"
+                                value={day.maxBookingsPerDay}
+                                onChange={(e) => handleScheduleChange(day.dayOfWeek, 'maxBookingsPerDay', e.target.value)}
+                                className="w-14 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-center focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white placeholder:text-slate-300 shadow-sm"
+                              />
+                            </div>
 
-                          {/* Buffer Duration */}
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-bold text-slate-400 hidden sm:inline">
-                              <i className="fas fa-pause text-[8px] mr-0.5"></i>Buffer (m)
-                            </span>
-                            <input
-                              type="number"
-                              min="0"
-                              max="60"
-                              step="5"
-                              value={day.bufferMinutes}
-                              onChange={(e) => handleScheduleChange(day.dayOfWeek, 'bufferMinutes', e.target.value)}
-                              className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-center focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white"
-                            />
+                            <div className="w-px h-6 bg-slate-200 hidden sm:block"></div>
+
+                            {/* Slot Duration */}
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-bold text-slate-500">
+                                Slot (min)
+                              </span>
+                              <input
+                                type="number"
+                                min="10"
+                                max="120"
+                                step="5"
+                                value={day.slotDurationMinutes}
+                                onChange={(e) => handleScheduleChange(day.dayOfWeek, 'slotDurationMinutes', e.target.value)}
+                                className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-center focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white shadow-sm"
+                              />
+                            </div>
+
+                            <div className="w-px h-6 bg-slate-200 hidden sm:block"></div>
+
+                            {/* Buffer Duration */}
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[11px] font-bold text-slate-500">
+                                Gap (min)
+                              </span>
+                              <input
+                                type="number"
+                                min="0"
+                                max="60"
+                                step="5"
+                                value={day.bufferMinutes}
+                                onChange={(e) => handleScheduleChange(day.dayOfWeek, 'bufferMinutes', e.target.value)}
+                                className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-center focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white shadow-sm"
+                              />
+                            </div>
                           </div>
-                        </div>
+                        </details>
                       </div>
                     ) : (
                       <div className="text-sm text-slate-400 font-medium italic ml-14 sm:ml-0 flex items-center gap-2">

@@ -49,7 +49,9 @@ export class PushSubscriptionsService {
       .maybeSingle();
 
     if (error) throw error;
-    this.logger.log(`Registered push subscription for user ${user.id} (${dto.platform || 'web'})`);
+    this.logger.log(
+      `Registered push subscription for user ${user.id} (${dto.platform || 'web'})`,
+    );
     return data;
   }
 
@@ -69,7 +71,9 @@ export class PushSubscriptionsService {
   async sendToUser(userId: string, payload: PushPayload) {
     const vapid = this.getVapidDetails();
     if (!vapid) {
-      this.logger.warn(`VAPID keys not configured. Skipping Web Push for user ${userId}.`);
+      this.logger.warn(
+        `VAPID keys not configured. Skipping Web Push for user ${userId}.`,
+      );
       return;
     }
 
@@ -79,16 +83,22 @@ export class PushSubscriptionsService {
       .eq('user_id', userId);
 
     if (error) {
-      this.logger.error(`Failed to fetch push subscriptions for user ${userId}: ${error.message}`);
+      this.logger.error(
+        `Failed to fetch push subscriptions for user ${userId}: ${error.message}`,
+      );
       return;
     }
 
     if (!subscriptions?.length) {
-      this.logger.debug(`No active push subscriptions found for user ${userId}.`);
+      this.logger.debug(
+        `No active push subscriptions found for user ${userId}.`,
+      );
       return;
     }
 
-    this.logger.log(`Dispatching high-urgency lockscreen push to user ${userId} across ${subscriptions.length} device(s)...`);
+    this.logger.log(
+      `Dispatching high-urgency lockscreen push to user ${userId} across ${subscriptions.length} device(s)...`,
+    );
 
     await Promise.all(
       subscriptions.map(async (sub) => {
@@ -105,14 +115,23 @@ export class PushSubscriptionsService {
               vapidDetails: vapid,
             },
           );
-          this.logger.debug(`Lockscreen push delivered to endpoint ${sub.endpoint.slice(0, 40)}...`);
+          this.logger.debug(
+            `Lockscreen push delivered to endpoint ${sub.endpoint.slice(0, 40)}...`,
+          );
         } catch (err: any) {
           const statusCode = err?.statusCode;
           if (statusCode === 404 || statusCode === 410) {
-            this.logger.log(`Pruning expired push subscription ${sub.id} (status: ${statusCode}).`);
-            await this.supabase.admin.from('push_subscriptions').delete().eq('id', sub.id);
+            this.logger.log(
+              `Pruning expired push subscription ${sub.id} (status: ${statusCode}).`,
+            );
+            await this.supabase.admin
+              .from('push_subscriptions')
+              .delete()
+              .eq('id', sub.id);
           } else {
-            this.logger.warn(`Push delivery failed for subscription ${sub.id}: ${err.message}`);
+            this.logger.warn(
+              `Push delivery failed for subscription ${sub.id}: ${err.message}`,
+            );
           }
         }
       }),

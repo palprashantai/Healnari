@@ -12,13 +12,34 @@ export class CreateBroadcastDto {
   @ApiProperty() @IsString() body: string;
   @ApiProperty() @IsString() audience: string;
   @ApiProperty({ type: [String] }) @IsArray() channels: string[];
-  @ApiProperty({ required: false, enum: ['immediate', 'scheduled'] }) @IsOptional() @IsIn(['immediate', 'scheduled']) scheduleType?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() scheduledFor?: string;
-  @ApiProperty({ required: false, type: [String], description: 'Specific patient ids to target (e.g. a selection from the Appointments page). When channels includes "push", each gets a real in-app/socket notification.' })
-  @IsOptional() @IsArray() @IsUUID(undefined, { each: true }) patientIds?: string[];
-  
-  @ApiProperty({ required: false, type: [String], description: 'File names to attach (mock implementation for now)' })
-  @IsOptional() @IsArray() @IsString({ each: true }) attachments?: string[];
+  @ApiProperty({ required: false, enum: ['immediate', 'scheduled'] })
+  @IsOptional()
+  @IsIn(['immediate', 'scheduled'])
+  scheduleType?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  scheduledFor?: string;
+  @ApiProperty({
+    required: false,
+    type: [String],
+    description:
+      'Specific patient ids to target (e.g. a selection from the Appointments page). When channels includes "push", each gets a real in-app/socket notification.',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsUUID(undefined, { each: true })
+  patientIds?: string[];
+
+  @ApiProperty({
+    required: false,
+    type: [String],
+    description: 'File names to attach (mock implementation for now)',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  attachments?: string[];
 }
 
 @ApiTags('Communications')
@@ -33,11 +54,19 @@ export class CommunicationsController {
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  @ApiOperation({ summary: 'Send or schedule a broadcast message to a patient audience' })
+  @ApiOperation({
+    summary: 'Send or schedule a broadcast message to a patient audience',
+  })
   @Post('broadcasts')
-  async create(@CurrentUser() user: AuthUser, @Body() body: CreateBroadcastDto) {
+  async create(
+    @CurrentUser() user: AuthUser,
+    @Body() body: CreateBroadcastDto,
+  ) {
     const data = await this.communicationsService.create(user, body);
-    const msg = body.scheduleType === 'scheduled' ? SUCCESS_MESSAGES.BROADCAST_SCHEDULED : SUCCESS_MESSAGES.BROADCAST_SENT;
+    const msg =
+      body.scheduleType === 'scheduled'
+        ? SUCCESS_MESSAGES.BROADCAST_SCHEDULED
+        : SUCCESS_MESSAGES.BROADCAST_SENT;
     return ResponseHelper.success(data, msg);
   }
 }

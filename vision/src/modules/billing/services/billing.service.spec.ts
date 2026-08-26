@@ -15,23 +15,47 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
   const notifications = { create: jest.fn() };
   const email = { isConfigured: false, sendMail: jest.fn() };
   const invoices = { generatePdf: jest.fn() };
-  const appointments = { confirmPaidAppointment: jest.fn(), initiateRefundIfPaid: jest.fn() };
+  const appointments = {
+    confirmPaidAppointment: jest.fn(),
+    initiateRefundIfPaid: jest.fn(),
+  };
   const mockFXRateService = { getRate: jest.fn() };
 
   const paidPayment = {
-    id: 'pay-1', cf_order_id: 'cf-order-1', status: 'Paid', amount: 799,
-    patient_id: 'patient-1', doctor_id: 'doctor-1', service: 'Video Consult',
+    id: 'pay-1',
+    cf_order_id: 'cf-order-1',
+    status: 'Paid',
+    amount: 799,
+    patient_id: 'patient-1',
+    doctor_id: 'doctor-1',
+    service: 'Video Consult',
   };
   const pendingPayment = { ...paidPayment, status: 'Pending' };
-  const profileNames = { data: [{ id: 'patient-1', full_name: 'Priya' }, { id: 'doctor-1', full_name: 'Dr. Rao' }] };
+  const profileNames = {
+    data: [
+      { id: 'patient-1', full_name: 'Priya' },
+      { id: 'doctor-1', full_name: 'Dr. Rao' },
+    ],
+  };
 
   it('never calls Cashfree for a payment already marked Paid', async () => {
-    const cashfree = { getOrder: jest.fn(), getOrderPayments: jest.fn(), createRefund: jest.fn() };
+    const cashfree = {
+      getOrder: jest.fn(),
+      getOrderPayments: jest.fn(),
+      createRefund: jest.fn(),
+    };
     const { supabase } = createSupabaseMock({
       payments: [{ data: paidPayment }],
       profiles: [profileNames],
     });
-    const service = new BillingService(supabase as any, cashfree as any, invoices as any, notifications as any, email as any, appointments as any);
+    const service = new BillingService(
+      supabase as any,
+      cashfree as any,
+      invoices,
+      notifications as any,
+      email as any,
+      appointments as any,
+    );
 
     const result = await service.reconcileCashfreeOrder('cf-order-1');
 
@@ -42,17 +66,34 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
   it('calls Cashfree exactly once to settle a Pending payment, then never again on a repeat call', async () => {
     const cashfree = {
       getOrder: jest.fn().mockResolvedValue({ order_status: 'PAID' }),
-      getOrderPayments: jest.fn().mockResolvedValue([{ payment_status: 'SUCCESS', cf_payment_id: 'cfp-1', payment_method: { upi: {} } }]),
+      getOrderPayments: jest.fn().mockResolvedValue([
+        {
+          payment_status: 'SUCCESS',
+          cf_payment_id: 'cfp-1',
+          payment_method: { upi: {} },
+        },
+      ]),
       createRefund: jest.fn(),
     };
     const { supabase } = createSupabaseMock({
       // 1st call: payment is Pending, gets updated to Paid.
       // 2nd call (simulating a duplicate webhook after the DB now reflects
       // Paid): payment is already Paid.
-      payments: [{ data: pendingPayment }, { data: paidPayment }, { data: paidPayment }],
+      payments: [
+        { data: pendingPayment },
+        { data: paidPayment },
+        { data: paidPayment },
+      ],
       profiles: [profileNames, profileNames],
     });
-    const service = new BillingService(supabase as any, cashfree as any, invoices as any, notifications as any, email as any, appointments as any);
+    const service = new BillingService(
+      supabase as any,
+      cashfree as any,
+      invoices,
+      notifications as any,
+      email as any,
+      appointments as any,
+    );
 
     const first = await service.reconcileCashfreeOrder('cf-order-1');
     expect(first.status).toBe('Paid');
@@ -65,9 +106,20 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
   });
 
   it('returns null for an order id with no matching payment, without calling Cashfree', async () => {
-    const cashfree = { getOrder: jest.fn(), getOrderPayments: jest.fn(), createRefund: jest.fn() };
+    const cashfree = {
+      getOrder: jest.fn(),
+      getOrderPayments: jest.fn(),
+      createRefund: jest.fn(),
+    };
     const { supabase } = createSupabaseMock({ payments: [{ data: null }] });
-    const service = new BillingService(supabase as any, cashfree as any, invoices as any, notifications as any, email as any, appointments as any);
+    const service = new BillingService(
+      supabase as any,
+      cashfree as any,
+      invoices,
+      notifications as any,
+      email as any,
+      appointments as any,
+    );
 
     const result = await service.reconcileCashfreeOrder('unknown-order');
 

@@ -10,11 +10,13 @@ export const ERROR_MESSAGES = {
 
   // Patients
   PATIENT_NOT_FOUND: 'Patient profile not found.',
-  ONBOARDING_INCOMPLETE: 'Please complete onboarding before accessing this feature.',
+  ONBOARDING_INCOMPLETE:
+    'Please complete onboarding before accessing this feature.',
 
   // Family / Care Circle
   CONNECTION_NOT_FOUND: 'Care circle connection not found.',
-  CONNECTION_ALREADY_INVITED: 'This person has already been invited to your care circle.',
+  CONNECTION_ALREADY_INVITED:
+    'This person has already been invited to your care circle.',
 
   // Discovery / Waitlist
   FAVORITE_ALREADY_EXISTS: 'This doctor is already in your favourites.',
@@ -24,7 +26,8 @@ export const ERROR_MESSAGES = {
   // Doctors
   DOCTOR_NOT_FOUND: 'Doctor not found or not verified.',
   KYC_ALREADY_SUBMITTED: 'KYC documents have already been submitted.',
-  DOCTOR_NOT_VERIFIED: 'Your account is pending admin verification. You will get access to patient data once approved.',
+  DOCTOR_NOT_VERIFIED:
+    'Your account is pending admin verification. You will get access to patient data once approved.',
 
   // Appointments
   APPOINTMENT_NOT_FOUND: 'Appointment not found.',
@@ -37,9 +40,11 @@ export const ERROR_MESSAGES = {
   LAB_RESULT_NOT_FOUND: 'Lab result not found.',
   REFILL_NOT_FOUND: 'Refill request not found.',
   LAB_REPORT_REQUEST_NOT_FOUND: 'Lab report request not found.',
-  LAB_REPORT_ALREADY_REVIEWED: 'This report has already been reviewed and can no longer be removed.',
+  LAB_REPORT_ALREADY_REVIEWED:
+    'This report has already been reviewed and can no longer be removed.',
   INVALID_FILE_TYPE: 'Unsupported file type. Please upload a PDF, JPG, or PNG.',
-  INVALID_IMAGE_TYPE: 'Unsupported file type. Please upload a JPG, PNG, or WebP image.',
+  INVALID_IMAGE_TYPE:
+    'Unsupported file type. Please upload a JPG, PNG, or WebP image.',
   FILE_TOO_LARGE: 'File is too large. Maximum size is 15MB.',
   FILE_REQUIRED: 'Please attach a file.',
 

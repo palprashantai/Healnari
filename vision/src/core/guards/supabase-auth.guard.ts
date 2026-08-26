@@ -1,4 +1,10 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '@/core/decorators/public.decorator';
 import { SupabaseService } from '@/core/supabase/supabase.service';
@@ -24,19 +30,27 @@ export class SupabaseAuthGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
     const authHeader: string | undefined = request.headers['authorization'];
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : undefined;
+    const token = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : undefined;
     if (!token) throw new UnauthorizedException('Missing bearer token');
 
     const identity = await resolveSupabaseToken(this.supabase.anon, token);
     if (!identity) throw new UnauthorizedException('Invalid or expired token');
 
-    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', identity.id).single();
-    if (!profile) throw new UnauthorizedException('No profile for this account');
+    const { data: profile } = await this.supabase.admin
+      .from('profiles')
+      .select()
+      .eq('id', identity.id)
+      .single();
+    if (!profile)
+      throw new UnauthorizedException('No profile for this account');
     // AUDIT_REPORT.md DB-9 — confirmed this guard resolves the profile fresh
     // on every request (not just at login), so this is the one place a
     // suspension actually needs to be enforced — a still-valid JWT for a
     // just-suspended account is otherwise usable until natural expiry.
-    if (profile.status === 'Suspended') throw new ForbiddenException(ERROR_MESSAGES.ACCOUNT_SUSPENDED);
+    if (profile.status === 'Suspended')
+      throw new ForbiddenException(ERROR_MESSAGES.ACCOUNT_SUSPENDED);
 
     request.user = { id: profile.id, email: identity.email, profile };
     return true;

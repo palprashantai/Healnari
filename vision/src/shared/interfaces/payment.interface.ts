@@ -15,7 +15,7 @@ export interface Payment {
   appointment_id: string | null;
   service: string;
   category: string | null;
-  
+
   // Original Transaction (Immutable)
   amount: number | string;
   currency: string;

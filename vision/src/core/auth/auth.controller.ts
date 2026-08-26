@@ -1,9 +1,31 @@
-import { BadRequestException, Body, Controller, Delete, Get, Headers, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Post,
+  Put,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { ApiTags, ApiOperation, ApiProperty, ApiConsumes } from '@nestjs/swagger';
-import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiProperty,
+  ApiConsumes,
+} from '@nestjs/swagger';
+import {
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 import { AuthService } from '@/core/auth/auth.service';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 import { ResponseHelper } from '@/core/helpers/response.helper';
@@ -16,19 +38,35 @@ import { ProfileRole } from '@/shared/interfaces/profile.interface';
 const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export class RegisterDto {
-  @ApiProperty({ example: 'priya.sharma@example.com' }) @IsEmail() email: string;
-  @ApiProperty({ example: 'password123' }) @IsString() @MinLength(6) password: string;
+  @ApiProperty({ example: 'priya.sharma@example.com' })
+  @IsEmail()
+  email: string;
+  @ApiProperty({ example: 'password123' })
+  @IsString()
+  @MinLength(6)
+  password: string;
   // Admin accounts are provisioned manually, never through public self-signup.
-  @ApiProperty({ enum: [ProfileRole.DOCTOR, ProfileRole.PATIENT], example: ProfileRole.PATIENT })
+  @ApiProperty({
+    enum: [ProfileRole.DOCTOR, ProfileRole.PATIENT],
+    example: ProfileRole.PATIENT,
+  })
   @IsIn([ProfileRole.DOCTOR, ProfileRole.PATIENT])
   role: ProfileRole;
   @ApiProperty({ example: 'Priya Sharma' }) @IsString() fullName: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() specialty?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() registrationNo?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  specialty?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  registrationNo?: string;
 }
 
 export class LoginDto {
-  @ApiProperty({ example: 'priya.sharma@example.com' }) @IsEmail() email: string;
+  @ApiProperty({ example: 'priya.sharma@example.com' })
+  @IsEmail()
+  email: string;
   @ApiProperty({ example: 'password123' }) @IsString() password: string;
 }
 
@@ -39,15 +77,24 @@ export class RefreshDto {
 export class UpdateMeDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() fullName?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() phone?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() specialty?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() registrationNo?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  specialty?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  registrationNo?: string;
   @ApiProperty({ required: false }) @IsOptional() emailNotifications?: boolean;
   @ApiProperty({ required: false }) @IsOptional() smsNotifications?: boolean;
 }
 
 export class UpdatePasswordDto {
   @ApiProperty() @IsString() currentPassword: string;
-  @ApiProperty({ example: 'newPassword123' }) @IsString() @MinLength(6) newPassword: string;
+  @ApiProperty({ example: 'newPassword123' })
+  @IsString()
+  @MinLength(6)
+  newPassword: string;
 }
 
 /** All identity/session state lives in Supabase Auth. This controller is a
@@ -56,7 +103,7 @@ export class UpdatePasswordDto {
 @ApiTags('Auth')
 @Controller('api/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   // AUDIT_REPORT.md SEC-3 — the only other rate limit anywhere is a flat
   // 100 req/min/IP applied to every route; that's far too permissive for
@@ -114,20 +161,36 @@ export class AuthController {
 
   @ApiOperation({ summary: "Change the caller's password" })
   @Put('password')
-  async updatePassword(@CurrentUser() user: AuthUser, @Body() body: UpdatePasswordDto) {
-    await this.authService.updatePassword(user, body.currentPassword, body.newPassword);
+  async updatePassword(
+    @CurrentUser() user: AuthUser,
+    @Body() body: UpdatePasswordDto,
+  ) {
+    await this.authService.updatePassword(
+      user,
+      body.currentPassword,
+      body.newPassword,
+    );
     return ResponseHelper.success(null, SUCCESS_MESSAGES.PASSWORD_UPDATED);
   }
 
   @ApiOperation({ summary: "Upload the caller's profile photo" })
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
   @Post('me/avatar')
-  async uploadAvatar(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File) {
+  async uploadAvatar(
+    @CurrentUser() user: AuthUser,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
     if (!file) throw new BadRequestException(ERROR_MESSAGES.BAD_REQUEST);
     // AUDIT_REPORT.md SEC-5 — previously only size-limited; lab report
     // uploads already enforce a mimetype allow-list, avatars didn't.
-    if (!ALLOWED_AVATAR_TYPES.includes(file.mimetype)) throw new BadRequestException(ERROR_MESSAGES.INVALID_IMAGE_TYPE);
+    if (!ALLOWED_AVATAR_TYPES.includes(file.mimetype))
+      throw new BadRequestException(ERROR_MESSAGES.INVALID_IMAGE_TYPE);
     const result = await this.authService.uploadAvatar(user, file);
     return ResponseHelper.success(result, SUCCESS_MESSAGES.PROFILE_UPDATED);
   }

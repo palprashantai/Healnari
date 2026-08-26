@@ -1,4 +1,12 @@
-import { Body, Controller, ForbiddenException, Get, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  Param,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { CronManagerService } from '@/modules/admin/services/cron-manager.service';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
@@ -25,19 +33,14 @@ export class CronManagerController {
   }
 
   @Get('logs')
-  async getRecentLogs(
-    @CurrentUser() user: AuthUser,
-  ) {
+  async getRecentLogs(@CurrentUser() user: AuthUser) {
     this.checkAdmin(user);
     const data = await this.cronManager.getExecutionLogs(undefined, 100);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
   @Get(':name/logs')
-  async getJobLogs(
-    @CurrentUser() user: AuthUser,
-    @Param('name') name: string,
-  ) {
+  async getJobLogs(@CurrentUser() user: AuthUser, @Param('name') name: string) {
     this.checkAdmin(user);
     const data = await this.cronManager.getExecutionLogs(name, 50);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);

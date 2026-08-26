@@ -7,7 +7,11 @@ export interface FertilityPrediction {
    * enough logged history to detect real variability. */
   source: 'history' | 'manual';
   pcosFlag: boolean;
-  cycleStats: { count: number; meanLength: number | null; stdDev: number | null };
+  cycleStats: {
+    count: number;
+    meanLength: number | null;
+    stdDev: number | null;
+  };
   lastPeriodStart: string | null;
   /** How many days the most recent logged (or manually entered) period ran — used to
    * shade actual period days on the calendar, not just the single start date. */

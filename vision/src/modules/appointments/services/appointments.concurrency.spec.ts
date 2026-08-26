@@ -44,16 +44,24 @@ describeIfLive('Appointment double-booking — live concurrency guard', () => {
 
   afterEach(async () => {
     for (const id of createdIds.splice(0)) {
-      await rest(`/appointments?id=eq.${id}`, { method: 'DELETE' }).catch(() => {});
+      await rest(`/appointments?id=eq.${id}`, { method: 'DELETE' }).catch(
+        () => {},
+      );
     }
   });
 
   it('lets exactly one of many simultaneous bookings for the same slot succeed', async () => {
-    if (!SUPABASE_URL || !SERVICE_KEY) throw new Error('SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY must be set to run this test.');
+    if (!SUPABASE_URL || !SERVICE_KEY)
+      throw new Error(
+        'SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY must be set to run this test.',
+      );
 
     const [patient] = await rest(`/profiles?role=eq.patient&select=id&limit=1`);
     const [doctor] = await rest(`/profiles?role=eq.doctor&select=id&limit=1`);
-    if (!patient || !doctor) throw new Error('Need at least one patient and one doctor profile in the target database.');
+    if (!patient || !doctor)
+      throw new Error(
+        'Need at least one patient and one doctor profile in the target database.',
+      );
 
     const slot = { scheduled_date: '2099-06-15', scheduled_time: '11:15 AM' };
 

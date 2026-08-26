@@ -9,16 +9,36 @@
  * both patterns are used throughout the real services. */
 export function createSupabaseMock(tableResponses: Record<string, any[]>) {
   const queues: Record<string, any[]> = {};
-  for (const [table, results] of Object.entries(tableResponses)) queues[table] = [...results];
+  for (const [table, results] of Object.entries(tableResponses))
+    queues[table] = [...results];
 
   const calls: { table: string; method: string; args: any[] }[] = [];
 
   const from = jest.fn((table: string) => {
     const queue = queues[table] || [];
-    const result = queue.length > 0 ? queue.shift() : { data: null, error: null };
+    const result =
+      queue.length > 0 ? queue.shift() : { data: null, error: null };
 
     const builder: any = {};
-    const chainMethods = ['select', 'eq', 'neq', 'in', 'order', 'limit', 'insert', 'update', 'delete', 'gte', 'lte', 'is', 'or', 'upsert', 'not', 'filter', 'textSearch'];
+    const chainMethods = [
+      'select',
+      'eq',
+      'neq',
+      'in',
+      'order',
+      'limit',
+      'insert',
+      'update',
+      'delete',
+      'gte',
+      'lte',
+      'is',
+      'or',
+      'upsert',
+      'not',
+      'filter',
+      'textSearch',
+    ];
     for (const method of chainMethods) {
       builder[method] = jest.fn((...args: any[]) => {
         calls.push({ table, method, args });
@@ -27,7 +47,8 @@ export function createSupabaseMock(tableResponses: Record<string, any[]>) {
     }
     builder.single = jest.fn(() => Promise.resolve(result));
     builder.maybeSingle = jest.fn(() => Promise.resolve(result));
-    builder.then = (resolve: any, reject: any) => Promise.resolve(result).then(resolve, reject);
+    builder.then = (resolve: any, reject: any) =>
+      Promise.resolve(result).then(resolve, reject);
     return builder;
   });
 

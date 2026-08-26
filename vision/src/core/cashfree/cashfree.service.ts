@@ -1,4 +1,9 @@
-import { Injectable, InternalServerErrorException, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 
 export interface CreateCashfreeOrderParams {
   orderId: string;
@@ -31,9 +36,12 @@ export class CashfreeService {
   private readonly logger = new Logger(CashfreeService.name);
   private readonly appId = process.env.CASHFREE_APP_ID;
   private readonly secretKey = process.env.CASHFREE_SECRET_KEY;
-  private readonly apiVersion = process.env.CASHFREE_API_VERSION || '2023-08-01';
+  private readonly apiVersion =
+    process.env.CASHFREE_API_VERSION || '2023-08-01';
   private readonly baseUrl =
-    process.env.CASHFREE_ENV === 'production' ? 'https://api.cashfree.com/pg' : 'https://sandbox.cashfree.com/pg';
+    process.env.CASHFREE_ENV === 'production'
+      ? 'https://api.cashfree.com/pg'
+      : 'https://sandbox.cashfree.com/pg';
 
   get isConfigured(): boolean {
     return !!(this.appId && this.secretKey);
@@ -50,19 +58,28 @@ export class CashfreeService {
 
   private requireConfigured() {
     if (!this.isConfigured) {
-      throw new ServiceUnavailableException('Payment gateway is not configured yet. Please try again later.');
+      throw new ServiceUnavailableException(
+        'Payment gateway is not configured yet. Please try again later.',
+      );
     }
   }
 
   private async request(path: string, init?: RequestInit) {
-    const res = await fetch(`${this.baseUrl}${path}`, { ...init, headers: this.headers() });
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      ...init,
+      headers: this.headers(),
+    });
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       // AUDIT_REPORT.md SEC-7 — Cashfree's error body can echo back customer
       // email/phone; log only what's needed to diagnose a failed call, not
       // the full response.
-      this.logger.error(`Cashfree ${init?.method || 'GET'} ${path} -> ${res.status}: ${data?.code || data?.type || 'unknown_error'} — ${data?.message || 'no message'}`);
-      throw new InternalServerErrorException(data?.message || 'Payment gateway request failed.');
+      this.logger.error(
+        `Cashfree ${init?.method || 'GET'} ${path} -> ${res.status}: ${data?.code || data?.type || 'unknown_error'} — ${data?.message || 'no message'}`,
+      );
+      throw new InternalServerErrorException(
+        data?.message || 'Payment gateway request failed.',
+      );
     }
     return data;
   }
@@ -81,7 +98,11 @@ export class CashfreeService {
           customer_email: params.customerEmail || 'patient@healnari.app',
           // Cashfree requires a 10-digit phone; fall back to a placeholder
           // sandbox-safe number when the profile has none on file.
-          customer_phone: (params.customerPhone || '').replace(/\D/g, '').slice(-10).padStart(10, '9') || '9999999999',
+          customer_phone:
+            (params.customerPhone || '')
+              .replace(/\D/g, '')
+              .slice(-10)
+              .padStart(10, '9') || '9999999999',
         },
         order_meta: {
           ...(params.notifyUrl ? { notify_url: params.notifyUrl } : {}),
@@ -102,17 +123,28 @@ export class CashfreeService {
    * channel used (upi/card/netbanking/…) and Cashfree's payment id once PAID. */
   async getOrderPayments(orderId: string): Promise<any[]> {
     this.requireConfigured();
-    const data = await this.request(`/orders/${encodeURIComponent(orderId)}/payments`);
+    const data = await this.request(
+      `/orders/${encodeURIComponent(orderId)}/payments`,
+    );
     return Array.isArray(data) ? data : [];
   }
 
   /** refundId must be unique per order (Cashfree rejects a reused one on
    * retry) — callers should pass a fresh id per attempt. */
-  async createRefund(orderId: string, refundAmount: number, refundId: string, note?: string) {
+  async createRefund(
+    orderId: string,
+    refundAmount: number,
+    refundId: string,
+    note?: string,
+  ) {
     this.requireConfigured();
     return this.request(`/orders/${encodeURIComponent(orderId)}/refunds`, {
       method: 'POST',
-      body: JSON.stringify({ refund_amount: refundAmount, refund_id: refundId, refund_note: note || 'Appointment cancelled' }),
+      body: JSON.stringify({
+        refund_amount: refundAmount,
+        refund_id: refundId,
+        refund_note: note || 'Appointment cancelled',
+      }),
     });
   }
 }

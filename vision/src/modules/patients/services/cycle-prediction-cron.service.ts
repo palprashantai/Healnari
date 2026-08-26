@@ -30,7 +30,10 @@ export class CyclePredictionCronService {
       .is('deleted_at', null)
       .order('log_date', { ascending: false });
 
-    const userLatest = new Map<string, { userId: string; lastStart: Date; cycleLength: number }>();
+    const userLatest = new Map<
+      string,
+      { userId: string; lastStart: Date; cycleLength: number }
+    >();
 
     if (cycleLogs && cycleLogs.length > 0) {
       for (const log of cycleLogs) {
@@ -70,8 +73,13 @@ export class CyclePredictionCronService {
     const dueToNotify: Array<{ userId: string; daysUntil: number }> = [];
 
     for (const [userId, record] of userLatest) {
-      const nextExpectedPeriod = new Date(record.lastStart.getTime() + record.cycleLength * 24 * 60 * 60 * 1000);
-      const diffDays = Math.ceil((nextExpectedPeriod.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+      const nextExpectedPeriod = new Date(
+        record.lastStart.getTime() + record.cycleLength * 24 * 60 * 60 * 1000,
+      );
+      const diffDays = Math.ceil(
+        (nextExpectedPeriod.getTime() - today.getTime()) /
+          (24 * 60 * 60 * 1000),
+      );
 
       // Alert when period is 2 days away or due today
       if (diffDays === 2 || diffDays === 1 || diffDays === 0) {
@@ -82,19 +90,29 @@ export class CyclePredictionCronService {
     if (dueToNotify.length === 0) return;
 
     await Promise.all(
-      dueToNotify.map(async item => {
-        const timeCopy = item.daysUntil === 0 ? 'today' : `in ${item.daysUntil} day${item.daysUntil > 1 ? 's' : ''}`;
-        return this.notifications.create(item.userId, {
-          type: 'period_prediction',
-          title: 'Period Approaching',
-          message: `Your period is predicted to start ${timeCopy}. Keep a sanitary pad handy and log any symptoms in your HealNari tracker.`,
-          idempotencyKey: `period_${item.userId}_${todayStr}_${item.daysUntil}`,
-          data: { expectedInDays: item.daysUntil, path: '/patient-dashboard/tracking' },
-        }).catch(() => {});
+      dueToNotify.map(async (item) => {
+        const timeCopy =
+          item.daysUntil === 0
+            ? 'today'
+            : `in ${item.daysUntil} day${item.daysUntil > 1 ? 's' : ''}`;
+        return this.notifications
+          .create(item.userId, {
+            type: 'period_prediction',
+            title: 'Period Approaching',
+            message: `Your period is predicted to start ${timeCopy}. Keep a sanitary pad handy and log any symptoms in your HealNari tracker.`,
+            idempotencyKey: `period_${item.userId}_${todayStr}_${item.daysUntil}`,
+            data: {
+              expectedInDays: item.daysUntil,
+              path: '/patient-dashboard/tracking',
+            },
+          })
+          .catch(() => {});
       }),
     );
 
-    this.logger.log(`Sent ${dueToNotify.length} period prediction notification(s).`);
+    this.logger.log(
+      `Sent ${dueToNotify.length} period prediction notification(s).`,
+    );
   }
 
   /**
@@ -114,7 +132,10 @@ export class CyclePredictionCronService {
       .is('deleted_at', null)
       .order('log_date', { ascending: false });
 
-    const userLatest = new Map<string, { userId: string; lastStart: Date; cycleLength: number }>();
+    const userLatest = new Map<
+      string,
+      { userId: string; lastStart: Date; cycleLength: number }
+    >();
 
     if (cycleLogs && cycleLogs.length > 0) {
       for (const log of cycleLogs) {
@@ -147,35 +168,56 @@ export class CyclePredictionCronService {
 
     if (userLatest.size === 0) return;
 
-    const dueToNotify: Array<{ userId: string; phase: string; phaseKey: string }> = [];
+    const dueToNotify: Array<{
+      userId: string;
+      phase: string;
+      phaseKey: string;
+    }> = [];
 
     for (const [userId, log] of userLatest) {
       const lastStart = log.lastStart;
       const cycleLength = log.cycleLength || 28;
-      const daysSinceStart = Math.floor((today.getTime() - lastStart.getTime()) / (24 * 60 * 60 * 1000));
+      const daysSinceStart = Math.floor(
+        (today.getTime() - lastStart.getTime()) / (24 * 60 * 60 * 1000),
+      );
 
       const ovulationDay = cycleLength - 14; // Typical luteal phase estimation
       const fertileWindowStart = ovulationDay - 5;
       const fertileWindowEnd = ovulationDay + 1;
 
       if (daysSinceStart === fertileWindowStart) {
-        dueToNotify.push({ userId, phase: 'Your fertile window begins today. High chance of conception over the next 5 days.', phaseKey: 'fertile_start' });
+        dueToNotify.push({
+          userId,
+          phase:
+            'Your fertile window begins today. High chance of conception over the next 5 days.',
+          phaseKey: 'fertile_start',
+        });
       } else if (daysSinceStart === ovulationDay) {
-        dueToNotify.push({ userId, phase: 'Peak fertility day (predicted ovulation). Log your basal body temperature and LH strip tests.', phaseKey: 'ovulation_day' });
+        dueToNotify.push({
+          userId,
+          phase:
+            'Peak fertility day (predicted ovulation). Log your basal body temperature and LH strip tests.',
+          phaseKey: 'ovulation_day',
+        });
       }
     }
 
     if (dueToNotify.length === 0) return;
 
     await Promise.all(
-      dueToNotify.map(async item => {
-        return this.notifications.create(item.userId, {
-          type: 'fertility_window',
-          title: 'Fertility & Ovulation Update',
-          message: item.phase,
-          idempotencyKey: `fertility_${item.userId}_${todayStr}_${item.phaseKey}`,
-          data: { trackingType: 'fertility', path: '/patient-dashboard/fertility' },
-        }).catch(() => {});
+      dueToNotify.map(async (item) => {
+        return this.notifications
+          .create(item.userId, {
+            type: 'fertility_window',
+            title: 'Fertility & Ovulation Update',
+            message: item.phase,
+            idempotencyKey: `fertility_${item.userId}_${todayStr}_${item.phaseKey}`,
+            data: {
+              trackingType: 'fertility',
+              path: '/patient-dashboard/fertility',
+            },
+          })
+          .catch(() => {});
       }),
     );
 

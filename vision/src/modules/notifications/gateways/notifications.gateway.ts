@@ -19,7 +19,9 @@ import { resolveSupabaseToken } from '@/core/auth/supabase-token.util';
     origin: '*', // Adjust for production
   },
 })
-export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class NotificationsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 

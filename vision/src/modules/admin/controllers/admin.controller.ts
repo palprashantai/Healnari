@@ -1,6 +1,31 @@
-import { Controller, Get, Put, Post, Delete, Param, Body, ForbiddenException, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiProperty, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { IsString, IsOptional, IsIn, IsArray, IsNumber, Min, Max } from 'class-validator';
+import {
+  Controller,
+  Get,
+  Put,
+  Post,
+  Delete,
+  Param,
+  Body,
+  ForbiddenException,
+  Query,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiProperty,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
+import {
+  IsString,
+  IsOptional,
+  IsIn,
+  IsArray,
+  IsNumber,
+  Min,
+  Max,
+} from 'class-validator';
 import { AdminService } from '@/modules/admin/services/admin.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
@@ -11,10 +36,15 @@ import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { Public } from '@/core/decorators/public.decorator';
 
 export class UpdateVerificationDto {
-  @ApiProperty({ enum: ['approved', 'rejected'] }) @IsIn(['approved', 'rejected']) status: string;
+  @ApiProperty({ enum: ['approved', 'rejected'] })
+  @IsIn(['approved', 'rejected'])
+  status: string;
 }
 export class ResolveTicketDto {
-  @ApiProperty({ required: false }) @IsOptional() @IsString() resolution?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  resolution?: string;
 }
 export class CmsArticleDto {
   @ApiProperty() @IsString() title: string;
@@ -22,7 +52,10 @@ export class CmsArticleDto {
   @ApiProperty() @IsString() category: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() summary?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() content?: string;
-  @ApiProperty({ enum: ['Draft', 'Published', 'Archived'], required: false }) @IsOptional() @IsIn(['Draft', 'Published', 'Archived']) status?: string;
+  @ApiProperty({ enum: ['Draft', 'Published', 'Archived'], required: false })
+  @IsOptional()
+  @IsIn(['Draft', 'Published', 'Archived'])
+  status?: string;
 }
 export class UpdateCmsArticleDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() title?: string;
@@ -30,34 +63,79 @@ export class UpdateCmsArticleDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() category?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() summary?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() content?: string;
-  @ApiProperty({ enum: ['Draft', 'Published', 'Archived'], required: false }) @IsOptional() @IsIn(['Draft', 'Published', 'Archived']) status?: string;
+  @ApiProperty({ enum: ['Draft', 'Published', 'Archived'], required: false })
+  @IsOptional()
+  @IsIn(['Draft', 'Published', 'Archived'])
+  status?: string;
 }
 export class UpdateLandingSettingsDto {
-  @ApiProperty({ required: false }) @IsOptional() @IsString() heroTitle?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() heroSubtitle?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() providerHeroTitle?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() providerHeroSubtitle?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsNumber() pricingAmount?: number;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  heroTitle?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  heroSubtitle?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  providerHeroTitle?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  providerHeroSubtitle?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  pricingAmount?: number;
   @ApiProperty({ required: false }) @IsOptional() toggles?: any;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() promoText?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  promoText?: string;
 }
 export class MessageTemplateDto {
   @ApiProperty() @IsString() name: string;
   @ApiProperty() @IsString() content: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() subject?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() slug?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() description?: string;
-  @ApiProperty({ enum: ['email', 'whatsapp', 'push'], required: false }) @IsOptional() @IsIn(['email', 'whatsapp', 'push']) type?: string;
-  @ApiProperty({ enum: ['General', 'Patient', 'Doctor'], required: false }) @IsOptional() @IsIn(['General', 'Patient', 'Doctor']) audience?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  description?: string;
+  @ApiProperty({ enum: ['email', 'whatsapp', 'push'], required: false })
+  @IsOptional()
+  @IsIn(['email', 'whatsapp', 'push'])
+  type?: string;
+  @ApiProperty({ enum: ['General', 'Patient', 'Doctor'], required: false })
+  @IsOptional()
+  @IsIn(['General', 'Patient', 'Doctor'])
+  audience?: string;
 }
 export class BroadcastDto {
   @ApiProperty() @IsString() subject: string;
   @ApiProperty() @IsString() audience: string;
   @ApiProperty() @IsString() body: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() scheduleAt?: string;
-  @ApiProperty({ required: false, type: [String] }) @IsOptional() @IsArray() @IsString({ each: true }) channels?: string[];
-  @ApiProperty({ required: false, type: [String], description: 'Target these specific profile ids instead of resolving `audience` (e.g. a checkbox selection on Users.jsx/DoctorManager.jsx)' })
-  @IsOptional() @IsArray() @IsString({ each: true }) userIds?: string[];
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  scheduleAt?: string;
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  channels?: string[];
+  @ApiProperty({
+    required: false,
+    type: [String],
+    description:
+      'Target these specific profile ids instead of resolving `audience` (e.g. a checkbox selection on Users.jsx/DoctorManager.jsx)',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  userIds?: string[];
 }
 export class GenerateReportDto {
   @ApiProperty() @IsString() name: string;
@@ -69,13 +147,21 @@ export class NotifyUserDto {
   @ApiProperty() @IsString() message: string;
 }
 export class UpdateUserStatusDto {
-  @ApiProperty({ enum: ['Active', 'Suspended'] }) @IsIn(['Active', 'Suspended']) status: string;
+  @ApiProperty({ enum: ['Active', 'Suspended'] })
+  @IsIn(['Active', 'Suspended'])
+  status: string;
 }
 export class UpdateCommissionDto {
-  @ApiProperty({ minimum: 0, maximum: 100 }) @IsNumber() @Min(0) @Max(100) commissionRate: number;
+  @ApiProperty({ minimum: 0, maximum: 100 })
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  commissionRate: number;
 }
 export class UpdateLeadStatusDto {
-  @ApiProperty({ enum: ['New', 'Contacted', 'Converted', 'Closed'] }) @IsIn(['New', 'Contacted', 'Converted', 'Closed']) status: string;
+  @ApiProperty({ enum: ['New', 'Contacted', 'Converted', 'Closed'] })
+  @IsIn(['New', 'Contacted', 'Converted', 'Closed'])
+  status: string;
 }
 
 @ApiTags('Admin')
@@ -84,16 +170,26 @@ export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   private checkAdmin(user: AuthUser) {
-    if (user.profile.role !== ProfileRole.ADMIN) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    if (user.profile.role !== ProfileRole.ADMIN)
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
   }
 
   // ─── Dashboard ────────────────────────────────────────────────────
   @Get('dashboard')
   @ApiOperation({ summary: 'Platform stats (KPI cards)' })
-  @ApiQuery({ name: 'reportingCurrency', required: false, enum: ['USD', 'INR', 'AED', 'EUR', 'GBP'] })
-  async getStats(@CurrentUser() user: AuthUser, @Query('reportingCurrency') reportingCurrency?: string) {
+  @ApiQuery({
+    name: 'reportingCurrency',
+    required: false,
+    enum: ['USD', 'INR', 'AED', 'EUR', 'GBP'],
+  })
+  async getStats(
+    @CurrentUser() user: AuthUser,
+    @Query('reportingCurrency') reportingCurrency?: string,
+  ) {
     this.checkAdmin(user);
-    const data = await this.adminService.getDashboardStats(reportingCurrency || 'USD');
+    const data = await this.adminService.getDashboardStats(
+      reportingCurrency || 'USD',
+    );
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
@@ -130,9 +226,23 @@ export class AdminController {
   ) {
     this.checkAdmin(user);
     const page = Math.max(1, parseInt(pageRaw ?? '1', 10) || 1);
-    const limit = Math.min(200, Math.max(1, parseInt(limitRaw ?? '50', 10) || 50));
-    const { users, total } = await this.adminService.getAllUsers(role, page, limit, search);
-    return ResponseHelper.paginated(users, total, page, limit, SUCCESS_MESSAGES.DATA_RETRIEVED);
+    const limit = Math.min(
+      200,
+      Math.max(1, parseInt(limitRaw ?? '50', 10) || 50),
+    );
+    const { users, total } = await this.adminService.getAllUsers(
+      role,
+      page,
+      limit,
+      search,
+    );
+    return ResponseHelper.paginated(
+      users,
+      total,
+      page,
+      limit,
+      SUCCESS_MESSAGES.DATA_RETRIEVED,
+    );
   }
 
   @Get('users/:id')
@@ -145,7 +255,11 @@ export class AdminController {
 
   @Put('users/:id/status')
   @ApiOperation({ summary: 'Suspend or activate a user' })
-  async updateUserStatus(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: UpdateUserStatusDto) {
+  async updateUserStatus(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: UpdateUserStatusDto,
+  ) {
     this.checkAdmin(user);
     const data = await this.adminService.updateUserStatus(id, body.status);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
@@ -162,7 +276,10 @@ export class AdminController {
 
   @Get('clinics/:id')
   @ApiOperation({ summary: 'Single doctor/clinic detail with appointments' })
-  async getDoctorDetail(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async getDoctorDetail(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
     this.checkAdmin(user);
     const data = await this.adminService.getDoctorDetail(id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
@@ -170,9 +287,16 @@ export class AdminController {
 
   @Put('clinics/:id/commission')
   @ApiOperation({ summary: 'Update doctor commission rate' })
-  async updateCommission(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: UpdateCommissionDto) {
+  async updateCommission(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: UpdateCommissionDto,
+  ) {
     this.checkAdmin(user);
-    const data = await this.adminService.updateDoctorCommission(id, body.commissionRate);
+    const data = await this.adminService.updateDoctorCommission(
+      id,
+      body.commissionRate,
+    );
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
   }
 
@@ -187,10 +311,21 @@ export class AdminController {
 
   @Put('verifications/:id')
   @ApiOperation({ summary: 'Approve or reject a doctor verification' })
-  async updateVerification(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: UpdateVerificationDto) {
+  async updateVerification(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: UpdateVerificationDto,
+  ) {
     this.checkAdmin(user);
-    const data = await this.adminService.updateDoctorVerification(user, id, body.status);
-    const msg = body.status === 'approved' ? SUCCESS_MESSAGES.VERIFICATION_APPROVED : SUCCESS_MESSAGES.VERIFICATION_REJECTED;
+    const data = await this.adminService.updateDoctorVerification(
+      user,
+      id,
+      body.status,
+    );
+    const msg =
+      body.status === 'approved'
+        ? SUCCESS_MESSAGES.VERIFICATION_APPROVED
+        : SUCCESS_MESSAGES.VERIFICATION_REJECTED;
     return ResponseHelper.success(data, msg);
   }
 
@@ -231,10 +366,19 @@ export class AdminController {
   // ─── Revenue ──────────────────────────────────────────────────────
   @Get('revenue')
   @ApiOperation({ summary: 'Platform revenue insights and payout requests' })
-  @ApiQuery({ name: 'reportingCurrency', required: false, enum: ['USD', 'INR', 'AED', 'EUR', 'GBP'] })
-  async getRevenue(@CurrentUser() user: AuthUser, @Query('reportingCurrency') reportingCurrency?: string) {
+  @ApiQuery({
+    name: 'reportingCurrency',
+    required: false,
+    enum: ['USD', 'INR', 'AED', 'EUR', 'GBP'],
+  })
+  async getRevenue(
+    @CurrentUser() user: AuthUser,
+    @Query('reportingCurrency') reportingCurrency?: string,
+  ) {
     this.checkAdmin(user);
-    const data = await this.adminService.getRevenueData(reportingCurrency || 'USD');
+    const data = await this.adminService.getRevenueData(
+      reportingCurrency || 'USD',
+    );
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
@@ -248,9 +392,17 @@ export class AdminController {
 
   @Put('revenue/payouts/:id/process')
   @ApiOperation({ summary: 'Mark a payout as processed' })
-  async processPayout(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: { referenceId: string }) {
+  async processPayout(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: { referenceId: string },
+  ) {
     this.checkAdmin(user);
-    const data = await this.adminService.processPayout(user, id, body.referenceId);
+    const data = await this.adminService.processPayout(
+      user,
+      id,
+      body.referenceId,
+    );
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
   }
 
@@ -265,7 +417,10 @@ export class AdminController {
 
   @Post('reports/generate')
   @ApiOperation({ summary: 'Generate a new report' })
-  async generateReport(@CurrentUser() user: AuthUser, @Body() body: GenerateReportDto) {
+  async generateReport(
+    @CurrentUser() user: AuthUser,
+    @Body() body: GenerateReportDto,
+  ) {
     this.checkAdmin(user);
     const data = await this.adminService.generateReport(body.name, body.type);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
@@ -282,7 +437,10 @@ export class AdminController {
 
   @Post('cms')
   @ApiOperation({ summary: 'Create a CMS article' })
-  async createCmsArticle(@CurrentUser() user: AuthUser, @Body() body: CmsArticleDto) {
+  async createCmsArticle(
+    @CurrentUser() user: AuthUser,
+    @Body() body: CmsArticleDto,
+  ) {
     this.checkAdmin(user);
     const data = await this.adminService.createCmsArticle(body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
@@ -290,15 +448,26 @@ export class AdminController {
 
   @Put('cms/:id/status')
   @ApiOperation({ summary: 'Toggle CMS article status (publish/unpublish)' })
-  async toggleCmsStatus(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: { status: string }) {
+  async toggleCmsStatus(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: { status: string },
+  ) {
     this.checkAdmin(user);
-    const data = await this.adminService.updateCmsArticleStatus(id, body.status);
+    const data = await this.adminService.updateCmsArticleStatus(
+      id,
+      body.status,
+    );
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
   }
 
   @Put('cms/:id')
   @ApiOperation({ summary: 'Update a CMS article' })
-  async updateCmsArticle(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: UpdateCmsArticleDto) {
+  async updateCmsArticle(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: UpdateCmsArticleDto,
+  ) {
     this.checkAdmin(user);
     const data = await this.adminService.updateCmsArticle(id, body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
@@ -306,7 +475,10 @@ export class AdminController {
 
   @Delete('cms/:id')
   @ApiOperation({ summary: 'Delete a CMS article' })
-  async deleteCmsArticle(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async deleteCmsArticle(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
     this.checkAdmin(user);
     await this.adminService.deleteCmsArticle(id);
     return ResponseHelper.success(null, SUCCESS_MESSAGES.DATA_UPDATED);
@@ -323,7 +495,10 @@ export class AdminController {
 
   @Put('landing-settings')
   @ApiOperation({ summary: 'Update landing page settings' })
-  async updateLandingSettings(@CurrentUser() user: AuthUser, @Body() dto: UpdateLandingSettingsDto) {
+  async updateLandingSettings(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateLandingSettingsDto,
+  ) {
     this.checkAdmin(user);
     const data = await this.adminService.updateLandingSettings(dto);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
@@ -347,7 +522,10 @@ export class AdminController {
 
   @Post('communications/templates')
   @ApiOperation({ summary: 'Create a message template' })
-  async createTemplate(@CurrentUser() user: AuthUser, @Body() body: MessageTemplateDto) {
+  async createTemplate(
+    @CurrentUser() user: AuthUser,
+    @Body() body: MessageTemplateDto,
+  ) {
     this.checkAdmin(user);
     const data = await this.adminService.createMessageTemplate(body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
@@ -355,7 +533,11 @@ export class AdminController {
 
   @Put('communications/templates/:id')
   @ApiOperation({ summary: 'Update a message template' })
-  async updateTemplate(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: MessageTemplateDto) {
+  async updateTemplate(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: MessageTemplateDto,
+  ) {
     this.checkAdmin(user);
     const data = await this.adminService.updateMessageTemplate(id, body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
@@ -387,7 +569,6 @@ export class AdminController {
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-
   @Get('specialties')
   @ApiOperation({ summary: 'Get all specialties' })
   async getSpecialties(@CurrentUser() user: AuthUser) {
@@ -398,7 +579,10 @@ export class AdminController {
 
   @Post('specialties')
   @ApiOperation({ summary: 'Create a specialty' })
-  async createSpecialty(@CurrentUser() user: AuthUser, @Body() body: { name: string }) {
+  async createSpecialty(
+    @CurrentUser() user: AuthUser,
+    @Body() body: { name: string },
+  ) {
     this.checkAdmin(user);
     const data = await this.adminService.createSpecialty(body.name);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
@@ -418,12 +602,14 @@ export class AdminController {
 
   @Delete('specialties/:id')
   @ApiOperation({ summary: 'Delete a specialty' })
-  async deleteSpecialty(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async deleteSpecialty(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
     this.checkAdmin(user);
     await this.adminService.deleteSpecialty(id);
     return ResponseHelper.success(null, SUCCESS_MESSAGES.DATA_UPDATED);
   }
-
 
   // ─── Broadcasts ───────────────────────────────────────────────────
   @Get('communications/broadcasts')
@@ -436,17 +622,27 @@ export class AdminController {
 
   @Post('communications/broadcasts')
   @ApiOperation({ summary: 'Send a broadcast message' })
-  async sendBroadcast(@CurrentUser() user: AuthUser, @Body() body: BroadcastDto) {
+  async sendBroadcast(
+    @CurrentUser() user: AuthUser,
+    @Body() body: BroadcastDto,
+  ) {
     this.checkAdmin(user);
     const data = await this.adminService.sendBroadcast(user, body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
   }
 
   @Post('notify')
-  @ApiOperation({ summary: 'Send a single real push notification to one user (e.g. from a Doctor/Patient detail page)' })
+  @ApiOperation({
+    summary:
+      'Send a single real push notification to one user (e.g. from a Doctor/Patient detail page)',
+  })
   async notifyUser(@CurrentUser() user: AuthUser, @Body() body: NotifyUserDto) {
     this.checkAdmin(user);
-    const data = await this.adminService.notifyUser(body.userId, body.title, body.message);
+    const data = await this.adminService.notifyUser(
+      body.userId,
+      body.title,
+      body.message,
+    );
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
   }
 
@@ -460,7 +656,10 @@ export class AdminController {
   }
 
   @Get('leads/consultation-requests')
-  @ApiOperation({ summary: 'All consultation requests from the public symptom-checker / booking flow' })
+  @ApiOperation({
+    summary:
+      'All consultation requests from the public symptom-checker / booking flow',
+  })
   async getConsultationRequests(@CurrentUser() user: AuthUser) {
     this.checkAdmin(user);
     const data = await this.adminService.getConsultationRequests();
@@ -468,10 +667,19 @@ export class AdminController {
   }
 
   @Put('leads/consultation-requests/:id/status')
-  @ApiOperation({ summary: 'Update a consultation request status as the care team follows up' })
-  async updateConsultationRequestStatus(@CurrentUser() user: AuthUser, @Param('id') id: string, @Body() body: UpdateLeadStatusDto) {
+  @ApiOperation({
+    summary: 'Update a consultation request status as the care team follows up',
+  })
+  async updateConsultationRequestStatus(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: UpdateLeadStatusDto,
+  ) {
     this.checkAdmin(user);
-    const data = await this.adminService.updateConsultationRequestStatus(id, body.status);
+    const data = await this.adminService.updateConsultationRequestStatus(
+      id,
+      body.status,
+    );
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
   }
 

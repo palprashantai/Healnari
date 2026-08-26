@@ -14,21 +14,35 @@ export class CommunicationsService {
   ) {}
 
   async list(user: AuthUser) {
-    if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
-    const { data } = await this.supabase.admin.from('broadcasts').select().eq('doctor_id', user.id).order('created_at', { ascending: false });
+    if (user.profile.role !== ProfileRole.DOCTOR)
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    const { data } = await this.supabase.admin
+      .from('broadcasts')
+      .select()
+      .eq('doctor_id', user.id)
+      .order('created_at', { ascending: false });
     return data || [];
   }
 
   /** Resolves Communications.jsx's audience-segment dropdown into real
    * patient ids scoped to this doctor's own appointments — used when the
    * caller doesn't already hand over an explicit `patientIds` selection. */
-  private async resolveDoctorAudience(doctorId: string, audience: string): Promise<string[]> {
-    let query = this.supabase.admin.from('appointments').select('patient_id').is('deleted_at', null).eq('doctor_id', doctorId);
+  private async resolveDoctorAudience(
+    doctorId: string,
+    audience: string,
+  ): Promise<string[]> {
+    let query = this.supabase.admin
+      .from('appointments')
+      .select('patient_id')
+      .is('deleted_at', null)
+      .eq('doctor_id', doctorId);
 
     if (audience === 'upcoming') {
       query = query.in('status', ['Upcoming', 'Waiting']);
     } else if (audience === 'recent') {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
       query = query.eq('status', 'Done').gte('scheduled_date', thirtyDaysAgo);
     }
     // 'all-patients' (and any other/unknown value) falls through to every
@@ -39,18 +53,23 @@ export class CommunicationsService {
   }
 
   async create(user: AuthUser, body: CreateBroadcastDto) {
-    if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    if (user.profile.role !== ProfileRole.DOCTOR)
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
     const scheduled = body.scheduleType === 'scheduled';
-    const { data } = await this.supabase.admin.from('broadcasts').insert({
-      doctor_id: user.id,
-      subject: body.subject,
-      body: body.body,
-      audience: body.audience,
-      channels: body.channels,
-      status: scheduled ? 'Scheduled' : 'Sent',
-      scheduled_for: scheduled ? body.scheduledFor : null,
-    }).select().maybeSingle();
+    const { data } = await this.supabase.admin
+      .from('broadcasts')
+      .insert({
+        doctor_id: user.id,
+        subject: body.subject,
+        body: body.body,
+        audience: body.audience,
+        channels: body.channels,
+        status: scheduled ? 'Scheduled' : 'Sent',
+        scheduled_for: scheduled ? body.scheduledFor : null,
+      })
+      .select()
+      .maybeSingle();
 
     // "Push Notification" is the one channel we can actually deliver
     // ourselves (no email/SMS/WhatsApp provider is wired up) — fan it out
@@ -58,19 +77,29 @@ export class CommunicationsService {
     // actually have an appointment with this doctor.
     if (!scheduled && body.channels.includes('Push Notification')) {
       const recipientIds = body.patientIds?.length
-        ? [...new Set((await this.supabase.admin
-            .from('appointments')
-            .select('patient_id')
-            .eq('doctor_id', user.id)
-            .in('patient_id', body.patientIds)).data?.map((a) => a.patient_id) || [])]
+        ? [
+            ...new Set(
+              (
+                await this.supabase.admin
+                  .from('appointments')
+                  .select('patient_id')
+                  .eq('doctor_id', user.id)
+                  .in('patient_id', body.patientIds)
+              ).data?.map((a) => a.patient_id) || [],
+            ),
+          ]
         : await this.resolveDoctorAudience(user.id, body.audience);
 
-      await Promise.all(recipientIds.map(patientId => this.notifications.create(patientId, {
-        type: 'broadcast',
-        title: body.subject,
-        message: body.body,
-        data: { broadcastId: data.id },
-      })));
+      await Promise.all(
+        recipientIds.map((patientId) =>
+          this.notifications.create(patientId, {
+            type: 'broadcast',
+            title: body.subject,
+            message: body.body,
+            data: { broadcastId: data.id },
+          }),
+        ),
+      );
     }
 
     return data;

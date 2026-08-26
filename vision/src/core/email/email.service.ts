@@ -87,7 +87,14 @@ export class EmailService {
    * Interpolates {{variableName}} placeholders.
    */
   async sendTemplatedMail(options: TemplatedMailOptions): Promise<boolean> {
-    const { to, slug, defaultSubject, defaultHtml, variables = {}, attachments } = options;
+    const {
+      to,
+      slug,
+      defaultSubject,
+      defaultHtml,
+      variables = {},
+      attachments,
+    } = options;
 
     let templateSubject = defaultSubject;
     let templateHtml = defaultHtml;
@@ -119,7 +126,9 @@ export class EmailService {
         }
       }
     } catch (err) {
-      this.logger.warn(`Could not load template '${slug}' from database, using code default: ${err.message}`);
+      this.logger.warn(
+        `Could not load template '${slug}' from database, using code default: ${err.message}`,
+      );
     }
 
     // 3. Interpolate variables into subject and HTML
@@ -137,7 +146,10 @@ export class EmailService {
   /**
    * Replaces all {{key}} placeholders in text with the provided variable values.
    */
-  private interpolate(text: string, variables: Record<string, string | number | undefined | null>): string {
+  private interpolate(
+    text: string,
+    variables: Record<string, string | number | undefined | null>,
+  ): string {
     if (!text) return '';
     return text.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, key) => {
       const val = variables[key];
@@ -205,7 +217,9 @@ export class EmailService {
 
   async sendMail(payload: MailPayload): Promise<boolean> {
     if (!this.transporter) {
-      this.logger.warn(`Email not configured — skipped "${payload.subject}" to ${maskEmail(payload.to)}`);
+      this.logger.warn(
+        `Email not configured — skipped "${payload.subject}" to ${maskEmail(payload.to)}`,
+      );
       return false;
     }
 
@@ -223,10 +237,15 @@ export class EmailService {
         text: payload.text,
         attachments: payload.attachments,
       });
-      this.logger.log(`Sent mail "${payload.subject}" to ${maskEmail(payload.to)} (${info.messageId})`);
+      this.logger.log(
+        `Sent mail "${payload.subject}" to ${maskEmail(payload.to)} (${info.messageId})`,
+      );
       return true;
     } catch (err) {
-      this.logger.error(`Failed to send mail to ${maskEmail(payload.to)}: ${err.message}`, err.stack);
+      this.logger.error(
+        `Failed to send mail to ${maskEmail(payload.to)}: ${err.message}`,
+        err.stack,
+      );
       return false;
     }
   }

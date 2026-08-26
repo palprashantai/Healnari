@@ -8,17 +8,50 @@ import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
 
 export class UpdateNotificationPreferencesDto {
-  @ApiProperty({ required: false }) @IsOptional() @IsBoolean() appointment_reminders?: boolean;
-  @ApiProperty({ required: false }) @IsOptional() @IsBoolean() doctor_messages?: boolean;
-  @ApiProperty({ required: false }) @IsOptional() @IsBoolean() consultation_updates?: boolean;
-  @ApiProperty({ required: false }) @IsOptional() @IsBoolean() health_reminders?: boolean;
-  @ApiProperty({ required: false }) @IsOptional() @IsBoolean() medication_reminders?: boolean;
-  @ApiProperty({ required: false }) @IsOptional() @IsBoolean() cycle_reminders?: boolean;
-  @ApiProperty({ required: false }) @IsOptional() @IsBoolean() marketing_notifications?: boolean;
-  @ApiProperty({ required: false }) @IsOptional() @IsBoolean() sound_enabled?: boolean;
-  @ApiProperty({ required: false }) @IsOptional() @IsBoolean() quiet_hours_enabled?: boolean;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() quiet_hours_start?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() quiet_hours_end?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  appointment_reminders?: boolean;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  doctor_messages?: boolean;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  consultation_updates?: boolean;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  health_reminders?: boolean;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  medication_reminders?: boolean;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  cycle_reminders?: boolean;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  marketing_notifications?: boolean;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  sound_enabled?: boolean;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  quiet_hours_enabled?: boolean;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  quiet_hours_start?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  quiet_hours_end?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() timezone?: string;
 }
 
@@ -27,7 +60,9 @@ export class UpdateNotificationPreferencesDto {
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
-  @ApiOperation({ summary: "List the caller's notifications, most recent first" })
+  @ApiOperation({
+    summary: "List the caller's notifications, most recent first",
+  })
   @Get()
   async list(
     @CurrentUser() user: AuthUser,
@@ -49,7 +84,10 @@ export class NotificationsController {
 
   @ApiOperation({ summary: "Update the caller's notification preferences" })
   @Put('preferences')
-  async updatePreferences(@CurrentUser() user: AuthUser, @Body() body: UpdateNotificationPreferencesDto) {
+  async updatePreferences(
+    @CurrentUser() user: AuthUser,
+    @Body() body: UpdateNotificationPreferencesDto,
+  ) {
     const data = await this.notificationsService.updatePreferences(user, body);
     return ResponseHelper.success(data, 'Notification preferences updated.');
   }

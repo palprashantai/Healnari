@@ -5,7 +5,7 @@ import {
   ConnectedSocket,
   OnGatewayConnection,
   OnGatewayDisconnect,
-  WebSocketServer
+  WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Content } from '@google/generative-ai';
@@ -31,7 +31,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly aiService: AiService,
     private readonly supabase: SupabaseService,
-  ) { }
+  ) {}
 
   async handleConnection(client: Socket) {
     console.log(`Client connected: ${client.id}`);
@@ -53,7 +53,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const identity = await resolveSupabaseToken(this.supabase.anon, token);
     if (!identity) return null;
 
-    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', identity.id).maybeSingle();
+    const { data: profile } = await this.supabase.admin
+      .from('profiles')
+      .select()
+      .eq('id', identity.id)
+      .maybeSingle();
     if (!profile) return null;
 
     return { id: profile.id, email: identity.email as string, profile };
@@ -61,7 +65,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('chat_message')
   async handleMessage(
-    @MessageBody() data: { message: string; context: 'doctor' | 'patient' | 'landing' },
+    @MessageBody()
+    data: { message: string; context: 'doctor' | 'patient' | 'landing' },
     @ConnectedSocket() client: Socket,
   ) {
     try {
@@ -69,7 +74,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const user: AuthUser | null = client.data.user ?? null;
       const history: Content[] = client.data.history ?? [];
 
-      const { text, history: updatedHistory } = await this.aiService.processQuery(message, context, user, history);
+      const { text, history: updatedHistory } =
+        await this.aiService.processQuery(message, context, user, history);
       client.data.history = updatedHistory;
 
       client.emit('chat_reply', { status: 'success', data: text });

@@ -15,18 +15,34 @@ import type { AuthUser } from '@/core/decorators/current-user.decorator';
  */
 describe('RecordsService — doctor/patient access boundary', () => {
   const notifications = { create: jest.fn() };
-  const verifiedDoctor: AuthUser = { id: 'doctor-1', email: 'd@x.com', profile: { role: ProfileRole.DOCTOR, kyc_verified: true } as any };
-  const unverifiedDoctor: AuthUser = { id: 'doctor-2', email: 'd2@x.com', profile: { role: ProfileRole.DOCTOR, kyc_verified: false } as any };
-  const patient: AuthUser = { id: 'patient-1', email: 'p@x.com', profile: { role: ProfileRole.PATIENT } as any };
+  const verifiedDoctor: AuthUser = {
+    id: 'doctor-1',
+    email: 'd@x.com',
+    profile: { role: ProfileRole.DOCTOR, kyc_verified: true } as any,
+  };
+  const unverifiedDoctor: AuthUser = {
+    id: 'doctor-2',
+    email: 'd2@x.com',
+    profile: { role: ProfileRole.DOCTOR, kyc_verified: false } as any,
+  };
+  const patient: AuthUser = {
+    id: 'patient-1',
+    email: 'p@x.com',
+    profile: { role: ProfileRole.PATIENT } as any,
+  };
 
   it('rejects a doctor with no appointment and no walk-in registration for this patient', async () => {
     const { supabase } = createSupabaseMock({
       appointments: [{ count: 0 }],
-      patient_records: [{ data: { created_by_doctor_id: 'some-other-doctor' } }],
+      patient_records: [
+        { data: { created_by_doctor_id: 'some-other-doctor' } },
+      ],
     });
     const service = new RecordsService(supabase as any, notifications as any);
 
-    await expect(service.getDocuments(verifiedDoctor, 'patient-1')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.getDocuments(verifiedDoctor, 'patient-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('allows a doctor who has an appointment with this patient', async () => {
@@ -49,14 +65,18 @@ describe('RecordsService — doctor/patient access boundary', () => {
     });
     const service = new RecordsService(supabase as any, notifications as any);
 
-    await expect(service.getDocuments(verifiedDoctor, 'patient-1')).resolves.toEqual([]);
+    await expect(
+      service.getDocuments(verifiedDoctor, 'patient-1'),
+    ).resolves.toEqual([]);
   });
 
   it('rejects an unverified doctor outright, before any relationship check', async () => {
     const { supabase, from } = createSupabaseMock({});
     const service = new RecordsService(supabase as any, notifications as any);
 
-    await expect(service.getDocuments(unverifiedDoctor, 'patient-1')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.getDocuments(unverifiedDoctor, 'patient-1'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
     expect(from).not.toHaveBeenCalled();
   });
 
@@ -74,10 +94,12 @@ describe('RecordsService — doctor/patient access boundary', () => {
     expect(from).toHaveBeenCalledWith('patient_documents');
   });
 
-  it('blocks a patient from reaching another patient\'s records', async () => {
+  it("blocks a patient from reaching another patient's records", async () => {
     const { supabase } = createSupabaseMock({});
     const service = new RecordsService(supabase as any, notifications as any);
 
-    await expect(service.getDocuments(patient, 'someone-elses-id')).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.getDocuments(patient, 'someone-elses-id'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

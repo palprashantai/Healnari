@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { NotificationsGateway } from '@/modules/notifications/gateways/notifications.gateway';
 import { PushSubscriptionsService } from '@/modules/push-subscriptions/services/push-subscriptions.service';
@@ -188,7 +193,11 @@ export class NotificationsService {
   }
 
   /** Determines if current time in the user's timezone falls within configured quiet hours */
-  private isWithinQuietHours(startStr: string, endStr: string, timezone: string): boolean {
+  private isWithinQuietHours(
+    startStr: string,
+    endStr: string,
+    timezone: string,
+  ): boolean {
     try {
       const now = new Date();
       // Format current time in user's timezone as HH:mm
@@ -199,10 +208,15 @@ export class NotificationsService {
         hour12: false,
       });
       const parts = formatter.format(now).split(':');
-      const currentMinutes = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+      const currentMinutes =
+        parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
 
-      const [startH, startM] = (startStr || '22:00').split(':').map((v) => parseInt(v, 10));
-      const [endH, endM] = (endStr || '07:00').split(':').map((v) => parseInt(v, 10));
+      const [startH, startM] = (startStr || '22:00')
+        .split(':')
+        .map((v) => parseInt(v, 10));
+      const [endH, endM] = (endStr || '07:00')
+        .split(':')
+        .map((v) => parseInt(v, 10));
 
       const startMinutes = startH * 60 + startM;
       const endMinutes = endH * 60 + endM;
@@ -272,7 +286,8 @@ export class NotificationsService {
   async create(userId: string, input: NotificationInput) {
     try {
       const category = input.category || this.getCategoryForType(input.type);
-      const sensitivity = input.sensitivity || this.getSensitivityForType(input.type);
+      const sensitivity =
+        input.sensitivity || this.getSensitivityForType(input.type);
 
       // 1. Idempotency Check: prevent duplicate notifications
       if (input.idempotencyKey) {
@@ -284,7 +299,9 @@ export class NotificationsService {
           .maybeSingle();
 
         if (existing) {
-          this.logger.debug(`Skipping duplicate notification with idempotency key: ${input.idempotencyKey}`);
+          this.logger.debug(
+            `Skipping duplicate notification with idempotency key: ${input.idempotencyKey}`,
+          );
           return existing;
         }
       }
@@ -293,9 +310,11 @@ export class NotificationsService {
       const prefs = await this.getPreferences(userId);
 
       // Check if user has disabled this notification category
-      const isCategoryEnabled = (prefs as any)[category] ?? true;
+      const isCategoryEnabled = prefs[category] ?? true;
       if (!isCategoryEnabled) {
-        this.logger.log(`User ${userId} opted out of category ${category}. Storing muted.`);
+        this.logger.log(
+          `User ${userId} opted out of category ${category}. Storing muted.`,
+        );
         const { data: mutedData } = await this.supabase.admin
           .from('notifications')
           .insert({
@@ -339,13 +358,21 @@ export class NotificationsService {
       this.gateway.emitToUser(userId, data);
 
       // 5. Check Quiet Hours for Web Push
-      const isUrgent = input.type === 'appointment_called' || input.type === 'urgent_lab_result';
+      const isUrgent =
+        input.type === 'appointment_called' ||
+        input.type === 'urgent_lab_result';
       const inQuietHours =
         prefs.quiet_hours_enabled &&
-        this.isWithinQuietHours(prefs.quiet_hours_start, prefs.quiet_hours_end, prefs.timezone);
+        this.isWithinQuietHours(
+          prefs.quiet_hours_start,
+          prefs.quiet_hours_end,
+          prefs.timezone,
+        );
 
       if (inQuietHours && !isUrgent) {
-        this.logger.log(`Push deferred/suppressed for user ${userId} during quiet hours (${prefs.quiet_hours_start}-${prefs.quiet_hours_end}).`);
+        this.logger.log(
+          `Push deferred/suppressed for user ${userId} during quiet hours (${prefs.quiet_hours_start}-${prefs.quiet_hours_end}).`,
+        );
         return data;
       }
 
@@ -374,7 +401,9 @@ export class NotificationsService {
 
       return data;
     } catch (err: any) {
-      this.logger.warn(`Failed to create notification for user ${userId}: ${err.message}`);
+      this.logger.warn(
+        `Failed to create notification for user ${userId}: ${err.message}`,
+      );
       return null;
     }
   }
@@ -400,9 +429,15 @@ export class NotificationsService {
   }
 
   async markRead(user: AuthUser, id: string) {
-    const { data: existing } = await this.supabase.admin.from('notifications').select().eq('id', id).maybeSingle();
-    if (!existing) throw new NotFoundException(ERROR_MESSAGES.NOTIFICATION_NOT_FOUND);
-    if (existing.user_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    const { data: existing } = await this.supabase.admin
+      .from('notifications')
+      .select()
+      .eq('id', id)
+      .maybeSingle();
+    if (!existing)
+      throw new NotFoundException(ERROR_MESSAGES.NOTIFICATION_NOT_FOUND);
+    if (existing.user_id !== user.id)
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
     const { data } = await this.supabase.admin
       .from('notifications')

@@ -13,7 +13,12 @@ export const addDays = (dateStr: string, days: number): string => {
   return d.toISOString().slice(0, 10);
 };
 
-const daysBetween = (a: string, b: string): number => Math.round((new Date(b + 'T00:00:00Z').getTime() - new Date(a + 'T00:00:00Z').getTime()) / MS_PER_DAY);
+const daysBetween = (a: string, b: string): number =>
+  Math.round(
+    (new Date(b + 'T00:00:00Z').getTime() -
+      new Date(a + 'T00:00:00Z').getTime()) /
+      MS_PER_DAY,
+  );
 
 /** A single day the patient forgot to log mid-period shouldn't split one real period
  * into two — bridge gaps of up to this many days when grouping flow-logged dates. */
@@ -27,10 +32,16 @@ const MIN_PLAUSIBLE_CYCLE_LENGTH_DAYS = 15;
  * many days were actually logged). Reuses the existing cycle_logs.flow field instead
  * of a separate "period start" input, so this works with whatever the patient has
  * already logged via Tracking/Dashboard. */
-function derivePeriodStreaks(logs: CycleLogRow[]): { start: string; length: number }[] {
-  const flowDates = Array.from(new Set(
-    logs.filter(l => l.flow && l.flow.toLowerCase() !== 'none').map(l => l.log_date),
-  )).sort();
+function derivePeriodStreaks(
+  logs: CycleLogRow[],
+): { start: string; length: number }[] {
+  const flowDates = Array.from(
+    new Set(
+      logs
+        .filter((l) => l.flow && l.flow.toLowerCase() !== 'none')
+        .map((l) => l.log_date),
+    ),
+  ).sort();
 
   const streaks: { start: string; length: number }[] = [];
   let prev: string | null = null;
@@ -58,11 +69,18 @@ function insufficientData(lastPeriodStart: string | null): FertilityPrediction {
     fertileWindow: null,
     probabilities: {},
     confidenceScore: 0,
-    message: "Log at least two full cycles (mark flow days on the Tracking page) so we can learn your pattern. Once there's enough history, your fertile window prediction will appear here.",
+    message:
+      "Log at least two full cycles (mark flow days on the Tracking page) so we can learn your pattern. Once there's enough history, your fertile window prediction will appear here.",
   };
 }
 
-function buildMessage(classification: 'regular' | 'irregular', pcosFlag: boolean, estimatedOvulationDate: string, fertileWindow: [string, string], confidenceScore: number): string {
+function buildMessage(
+  classification: 'regular' | 'irregular',
+  pcosFlag: boolean,
+  estimatedOvulationDate: string,
+  fertileWindow: [string, string],
+  confidenceScore: number,
+): string {
   if (classification === 'regular') {
     const confidenceLabel = confidenceScore >= 0.8 ? 'High' : 'Moderate';
     return `Your cycles have been fairly consistent. Estimated ovulation around ${estimatedOvulationDate}, with a fertile window of ${fertileWindow[0]} to ${fertileWindow[1]}. Confidence: ${confidenceLabel}.`;
@@ -79,7 +97,14 @@ function buildMessage(classification: 'regular' | 'irregular', pcosFlag: boolean
  * and normalizing those gives a day-wise ovulation probability, from which we take the
  * peak day and the smallest contiguous window covering ~85% of the mass.
  */
-function predictIrregular(lastStart: string, cycleLengths: number[]): { estimatedOvulationDate: string; fertileWindow: [string, string]; probabilities: Record<string, number> } {
+function predictIrregular(
+  lastStart: string,
+  cycleLengths: number[],
+): {
+  estimatedOvulationDate: string;
+  fertileWindow: [string, string];
+  probabilities: Record<string, number>;
+} {
   const maxLen = Math.max(...cycleLengths, 35);
   const dayProb = new Map<number, number>();
   const SPREAD = 3; // days of Gaussian spread per contributing cycle
@@ -95,8 +120,12 @@ function predictIrregular(lastStart: string, cycleLengths: number[]): { estimate
   const total = Array.from(dayProb.values()).reduce((a, b) => a + b, 0) || 1;
   for (const [day, val] of dayProb) dayProb.set(day, val / total);
 
-  const sortedByProb = Array.from(dayProb.entries()).sort((a, b) => b[1] - a[1]);
-  const peakDay = sortedByProb[0]?.[0] ?? Math.round(cycleLengths[cycleLengths.length - 1] - 14);
+  const sortedByProb = Array.from(dayProb.entries()).sort(
+    (a, b) => b[1] - a[1],
+  );
+  const peakDay =
+    sortedByProb[0]?.[0] ??
+    Math.round(cycleLengths[cycleLengths.length - 1] - 14);
 
   let cumulative = 0;
   const windowDays: number[] = [];
@@ -117,25 +146,41 @@ function predictIrregular(lastStart: string, cycleLengths: number[]): { estimate
 
   return {
     estimatedOvulationDate: addDays(lastStart, peakDay - 1),
-    fertileWindow: [addDays(lastStart, minDay - 1), addDays(lastStart, maxDay - 1)],
+    fertileWindow: [
+      addDays(lastStart, minDay - 1),
+      addDays(lastStart, maxDay - 1),
+    ],
     probabilities,
   };
 }
 
 /** Calendar model for regular cycles: ovulation ≈ mean_cycle_length - 14, fertile window
  * is the 6 days ending on that estimate. Probability curve is a tight Gaussian for the chart. */
-function predictRegular(lastStart: string, meanLength: number): { estimatedOvulationDate: string; fertileWindow: [string, string]; probabilities: Record<string, number> } {
+function predictRegular(
+  lastStart: string,
+  meanLength: number,
+): {
+  estimatedOvulationDate: string;
+  fertileWindow: [string, string];
+  probabilities: Record<string, number>;
+} {
   const ovOffset = Math.max(meanLength - 14, 7);
   const estimatedOvulationDate = addDays(lastStart, ovOffset);
-  const fertileWindow: [string, string] = [addDays(estimatedOvulationDate, -5), estimatedOvulationDate];
+  const fertileWindow: [string, string] = [
+    addDays(estimatedOvulationDate, -5),
+    estimatedOvulationDate,
+  ];
 
   const probabilities: Record<string, number> = {};
   const weights: number[] = [];
-  for (let offset = -4; offset <= 2; offset++) weights.push(Math.exp(-(offset * offset) / (2 * 1.5 * 1.5)));
+  for (let offset = -4; offset <= 2; offset++)
+    weights.push(Math.exp(-(offset * offset) / (2 * 1.5 * 1.5)));
   const total = weights.reduce((a, b) => a + b, 0);
   let i = 0;
   for (let offset = -4; offset <= 2; offset++) {
-    probabilities[addDays(estimatedOvulationDate, offset)] = +(weights[i] / total).toFixed(4);
+    probabilities[addDays(estimatedOvulationDate, offset)] = +(
+      weights[i] / total
+    ).toFixed(4);
     i++;
   }
 
@@ -153,19 +198,24 @@ export interface BiomarkerLog {
  * Evaluates BBT logs for biphasic thermal shift using the standard clinical 3-over-6 rule:
  * Identifies if 3 consecutive temperatures are at least 0.1°C higher than the highest of the preceding 6 temperatures.
  */
-export function detectBbtThermalShift(bbtLogs: { date: string; temp: number }[]): {
+export function detectBbtThermalShift(
+  bbtLogs: { date: string; temp: number }[],
+): {
   shiftDetected: boolean;
   coverlineTemp: number | null;
   shiftDate: string | null;
 } {
-  const valid = bbtLogs.filter(b => b.temp >= 35.5 && b.temp <= 38.5).sort((a, b) => a.date.localeCompare(b.date));
-  if (valid.length < 9) return { shiftDetected: false, coverlineTemp: null, shiftDate: null };
+  const valid = bbtLogs
+    .filter((b) => b.temp >= 35.5 && b.temp <= 38.5)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (valid.length < 9)
+    return { shiftDetected: false, coverlineTemp: null, shiftDate: null };
 
   for (let i = 6; i < valid.length - 2; i++) {
     const priorSix = valid.slice(i - 6, i);
     const nextThree = valid.slice(i, i + 3);
-    const maxPrior = Math.max(...priorSix.map(p => p.temp));
-    const isShift = nextThree.every(n => n.temp >= maxPrior + 0.1);
+    const maxPrior = Math.max(...priorSix.map((p) => p.temp));
+    const isShift = nextThree.every((n) => n.temp >= maxPrior + 0.1);
     if (isShift) {
       return {
         shiftDetected: true,
@@ -181,22 +231,26 @@ export function computeFertilityPrediction(
   logs: CycleLogRow[],
   pcosFlag: boolean,
   biomarkers?: BiomarkerLog[],
-  customLutealPhaseDays = 14
+  customLutealPhaseDays = 14,
 ): FertilityPrediction {
   const streaks = derivePeriodStreaks(logs);
-  const periodStarts = streaks.map(s => s.start);
-  if (periodStarts.length < 2) return insufficientData(periodStarts[periodStarts.length - 1] || null);
+  const periodStarts = streaks.map((s) => s.start);
+  if (periodStarts.length < 2)
+    return insufficientData(periodStarts[periodStarts.length - 1] || null);
 
   const cycleLengths: number[] = [];
   for (let i = 1; i < periodStarts.length; i++) {
     const len = daysBetween(periodStarts[i - 1], periodStarts[i]);
-    if (len >= MIN_PLAUSIBLE_CYCLE_LENGTH_DAYS && len < 90) cycleLengths.push(len);
+    if (len >= MIN_PLAUSIBLE_CYCLE_LENGTH_DAYS && len < 90)
+      cycleLengths.push(len);
   }
-  if (cycleLengths.length === 0) return insufficientData(periodStarts[periodStarts.length - 1]);
+  if (cycleLengths.length === 0)
+    return insufficientData(periodStarts[periodStarts.length - 1]);
 
   const lastStart = periodStarts[periodStarts.length - 1];
   const mean = cycleLengths.reduce((a, b) => a + b, 0) / cycleLengths.length;
-  const variance = cycleLengths.reduce((a, b) => a + (b - mean) ** 2, 0) / cycleLengths.length;
+  const variance =
+    cycleLengths.reduce((a, b) => a + (b - mean) ** 2, 0) / cycleLengths.length;
   const stdDev = Math.sqrt(variance);
 
   // Regular: consistent (low spread) and within the ACOG-typical 21–35 day range.
@@ -212,7 +266,10 @@ export function computeFertilityPrediction(
   // If LH peak or BBT shift was logged in the active cycle, adjust ovulation anchor
   let biomarkerNote = '';
   if (biomarkers?.length) {
-    const lhPeak = biomarkers.find(b => (b.lhRatio && b.lhRatio >= 1.0) && daysBetween(lastStart, b.date) > 5);
+    const lhPeak = biomarkers.find(
+      (b) =>
+        b.lhRatio && b.lhRatio >= 1.0 && daysBetween(lastStart, b.date) > 5,
+    );
     if (lhPeak) {
       estimatedOvulationDate = addDays(lhPeak.date, 1);
       fertileWindow = [addDays(lhPeak.date, -3), addDays(lhPeak.date, 1)];
@@ -224,13 +281,19 @@ export function computeFertilityPrediction(
     ? Math.max(0.5, Math.min(0.95, 1 - stdDev / 10))
     : Math.max(0.2, Math.min(0.6, 1 - stdDev / 15));
 
-  const avgPeriodLength = Math.round(streaks.reduce((a, s) => a + s.length, 0) / streaks.length);
+  const avgPeriodLength = Math.round(
+    streaks.reduce((a, s) => a + s.length, 0) / streaks.length,
+  );
 
   return {
     classification,
     source: 'history',
     pcosFlag,
-    cycleStats: { count: cycleLengths.length, meanLength: +mean.toFixed(1), stdDev: +stdDev.toFixed(1) },
+    cycleStats: {
+      count: cycleLengths.length,
+      meanLength: +mean.toFixed(1),
+      stdDev: +stdDev.toFixed(1),
+    },
     lastPeriodStart: lastStart,
     periodDurationDays: avgPeriodLength,
     nextPeriodEstimate: addDays(lastStart, mean),
@@ -238,7 +301,14 @@ export function computeFertilityPrediction(
     fertileWindow,
     probabilities,
     confidenceScore: +confidenceScore.toFixed(2),
-    message: buildMessage(classification, pcosFlag, estimatedOvulationDate, fertileWindow, confidenceScore) + biomarkerNote,
+    message:
+      buildMessage(
+        classification,
+        pcosFlag,
+        estimatedOvulationDate,
+        fertileWindow,
+        confidenceScore,
+      ) + biomarkerNote,
   };
 }
 
@@ -250,20 +320,26 @@ export function computeQuickEstimate(
   periodDurationDays: number,
   cycleLengthDays: number,
   pcosFlag: boolean,
-  lutealPhaseDays = 14
+  lutealPhaseDays = 14,
 ): FertilityPrediction {
   const luteal = Math.max(10, Math.min(16, lutealPhaseDays || 14));
   const ovOffset = Math.max(cycleLengthDays - luteal, 7);
   const estimatedOvulationDate = addDays(lastPeriodStart, ovOffset);
-  const fertileWindow: [string, string] = [addDays(estimatedOvulationDate, -5), estimatedOvulationDate];
+  const fertileWindow: [string, string] = [
+    addDays(estimatedOvulationDate, -5),
+    estimatedOvulationDate,
+  ];
 
   const probabilities: Record<string, number> = {};
   const weights: number[] = [];
-  for (let offset = -4; offset <= 2; offset++) weights.push(Math.exp(-(offset * offset) / (2 * 1.5 * 1.5)));
+  for (let offset = -4; offset <= 2; offset++)
+    weights.push(Math.exp(-(offset * offset) / (2 * 1.5 * 1.5)));
   const total = weights.reduce((a, b) => a + b, 0);
   let i = 0;
   for (let offset = -4; offset <= 2; offset++) {
-    probabilities[addDays(estimatedOvulationDate, offset)] = +(weights[i] / total).toFixed(4);
+    probabilities[addDays(estimatedOvulationDate, offset)] = +(
+      weights[i] / total
+    ).toFixed(4);
     i++;
   }
 

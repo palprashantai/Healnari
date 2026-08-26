@@ -1,5 +1,10 @@
 import { randomUUID } from 'crypto';
-import { Injectable, NotFoundException, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AppointmentStatus } from '@/shared/interfaces/appointment.interface';
@@ -26,18 +31,28 @@ export class AdminService {
   /** AUDIT_REPORT.md SEC-6 — who did what, when, before → after, for the
    * admin actions that actually move money or change access. Best-effort:
    * never blocks or fails the action it's recording. */
-  private writeAudit(actor: AuthUser, action: string, entity: string, entityId: string, before: unknown, after: unknown) {
-    this.supabase.admin.from('audit_log').insert({
-      actor_id: actor.id,
-      actor_name: actor.profile?.full_name || null,
-      action,
-      entity,
-      entity_id: entityId,
-      before: before ?? null,
-      after: after ?? null,
-    }).then(({ error }: any) => {
-      if (error) console.error('Failed to write audit log:', error.message);
-    });
+  private writeAudit(
+    actor: AuthUser,
+    action: string,
+    entity: string,
+    entityId: string,
+    before: unknown,
+    after: unknown,
+  ) {
+    this.supabase.admin
+      .from('audit_log')
+      .insert({
+        actor_id: actor.id,
+        actor_name: actor.profile?.full_name || null,
+        action,
+        entity,
+        entity_id: entityId,
+        before: before ?? null,
+        after: after ?? null,
+      })
+      .then(({ error }: any) => {
+        if (error) console.error('Failed to write audit log:', error.message);
+      });
   }
 
   // ─── Dashboard ───────────────────────────────────────────────────
@@ -55,31 +70,85 @@ export class AdminService {
         { count: pendingRefunds },
         { data: paidPayments },
       ] = await Promise.all([
-        this.supabase.admin.from('profiles').select('*', { count: 'exact', head: true }),
-        this.supabase.admin.from('profiles').select('*', { count: 'exact', head: true }).eq('role', ProfileRole.DOCTOR),
-        this.supabase.admin.from('profiles').select('*', { count: 'exact', head: true }).eq('role', ProfileRole.PATIENT),
-        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).is('deleted_at', null),
-        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('status', AppointmentStatus.DONE),
-        this.supabase.admin.from('profiles').select('*', { count: 'exact', head: true }).eq('role', ProfileRole.DOCTOR).eq('kyc_verified', false),
-        this.supabase.admin.from('support_tickets').select('*', { count: 'exact', head: true }).eq('status', 'Open'),
-        this.supabase.admin.from('refund_requests').select('*', { count: 'exact', head: true }).eq('status', 'Pending'),
-        this.supabase.admin.from('payments').select('amount, original_amount, currency, original_currency, reporting_amount, reporting_currency, fx_rate, platform_fee_amount').eq('status', 'Paid'),
+        this.supabase.admin
+          .from('profiles')
+          .select('*', { count: 'exact', head: true }),
+        this.supabase.admin
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', ProfileRole.DOCTOR),
+        this.supabase.admin
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', ProfileRole.PATIENT),
+        this.supabase.admin
+          .from('appointments')
+          .select('*', { count: 'exact', head: true })
+          .is('deleted_at', null),
+        this.supabase.admin
+          .from('appointments')
+          .select('*', { count: 'exact', head: true })
+          .is('deleted_at', null)
+          .eq('status', AppointmentStatus.DONE),
+        this.supabase.admin
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', ProfileRole.DOCTOR)
+          .eq('kyc_verified', false),
+        this.supabase.admin
+          .from('support_tickets')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'Open'),
+        this.supabase.admin
+          .from('refund_requests')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'Pending'),
+        this.supabase.admin
+          .from('payments')
+          .select(
+            'amount, original_amount, currency, original_currency, reporting_amount, reporting_currency, fx_rate, platform_fee_amount',
+          )
+          .eq('status', 'Paid'),
       ]);
 
       let normalizedPlatformRevenue = 0;
       let normalizedGrossVolume = 0;
 
-      (paidPayments || []).forEach(p => {
+      (paidPayments || []).forEach((p) => {
         const origAmt = Number(p.original_amount || p.amount || 0);
-        const origCurr = (p.original_currency || p.currency || 'INR').toUpperCase();
-        const feeAmt = Number(p.platform_fee_amount || DecimalMath.percentage(origAmt, 10));
+        const origCurr = (
+          p.original_currency ||
+          p.currency ||
+          'INR'
+        ).toUpperCase();
+        const feeAmt = Number(
+          p.platform_fee_amount || DecimalMath.percentage(origAmt, 10),
+        );
 
         // Convert gross and platform fee to requested reporting currency
-        const convertedGross = this.fxRateService.reproduceReportingValue(origAmt, origCurr, repCurr, p.fx_rate, p.reporting_currency);
-        const convertedFee = this.fxRateService.reproduceReportingValue(feeAmt, origCurr, repCurr, p.fx_rate, p.reporting_currency);
+        const convertedGross = this.fxRateService.reproduceReportingValue(
+          origAmt,
+          origCurr,
+          repCurr,
+          p.fx_rate,
+          p.reporting_currency,
+        );
+        const convertedFee = this.fxRateService.reproduceReportingValue(
+          feeAmt,
+          origCurr,
+          repCurr,
+          p.fx_rate,
+          p.reporting_currency,
+        );
 
-        normalizedGrossVolume = DecimalMath.add(normalizedGrossVolume, convertedGross);
-        normalizedPlatformRevenue = DecimalMath.add(normalizedPlatformRevenue, convertedFee);
+        normalizedGrossVolume = DecimalMath.add(
+          normalizedGrossVolume,
+          convertedGross,
+        );
+        normalizedPlatformRevenue = DecimalMath.add(
+          normalizedPlatformRevenue,
+          convertedFee,
+        );
       });
 
       return {
@@ -98,21 +167,39 @@ export class AdminService {
       };
     } catch (error) {
       console.error(error);
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   async getSystemHealth() {
     try {
-      const { count: dbCheck } = await this.supabase.admin.from('profiles').select('*', { count: 'exact', head: true });
+      const { count: dbCheck } = await this.supabase.admin
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
       return [
-        { name: 'API Services', status: 'Operational', ping: `${Math.floor(Math.random() * 50) + 10}ms` },
-        { name: 'Database', status: dbCheck !== null && dbCheck >= 0 ? 'Operational' : 'Down', ping: `${dbCheck} records` },
+        {
+          name: 'API Services',
+          status: 'Operational',
+          ping: `${Math.floor(Math.random() * 50) + 10}ms`,
+        },
+        {
+          name: 'Database',
+          status: dbCheck !== null && dbCheck >= 0 ? 'Operational' : 'Down',
+          ping: `${dbCheck} records`,
+        },
         { name: 'SMS Gateway', status: 'Operational', ping: 'OK' },
-        { name: 'Video Servers', status: 'Operational', ping: `${Math.floor(Math.random() * 60) + 20}ms` },
+        {
+          name: 'Video Servers',
+          status: 'Operational',
+          ping: `${Math.floor(Math.random() * 60) + 20}ms`,
+        },
       ];
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -120,14 +207,16 @@ export class AdminService {
   async getPhiAuditLogs() {
     const { data, error } = await this.supabase.admin
       .from('phi_audit_logs')
-      .select(`
+      .select(
+        `
         id, actor_id, actor_role, target_patient_id, action, resource, status, ip_address, created_at,
         actor:profiles!phi_audit_logs_actor_id_fkey(full_name, email),
         target:profiles!phi_audit_logs_target_patient_id_fkey(full_name, email)
-      `)
+      `,
+      )
       .order('created_at', { ascending: false })
       .limit(500);
-      
+
     if (error) throw new InternalServerErrorException(error.message);
     return data || [];
   }
@@ -135,15 +224,16 @@ export class AdminService {
   // ─── Analytics ───────────────────────────────────────────────────
   async getAnalytics() {
     try {
-      const [
-        { data: profiles },
-        { data: appointments },
-        { data: payments },
-      ] = await Promise.all([
-        this.supabase.admin.from('profiles').select('id, role, country, created_at'),
-        this.supabase.admin.from('appointments').select('id, status, type'),
-        this.supabase.admin.from('payments').select('amount, currency, status'),
-      ]);
+      const [{ data: profiles }, { data: appointments }, { data: payments }] =
+        await Promise.all([
+          this.supabase.admin
+            .from('profiles')
+            .select('id, role, country, created_at'),
+          this.supabase.admin.from('appointments').select('id, status, type'),
+          this.supabase.admin
+            .from('payments')
+            .select('amount, currency, status'),
+        ]);
 
       const profs = profiles || [];
       const apts = appointments || [];
@@ -156,22 +246,42 @@ export class AdminService {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         monthNames.push(d.toLocaleString('en-US', { month: 'short' }));
       }
-      
-      const financialData = monthNames.map(name => {
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() - (monthNames.length - 1 - monthNames.indexOf(name)) + 1, 0);
-        const upToMonth = profs.filter(p => new Date(p.created_at) <= monthEnd);
+
+      const financialData = monthNames.map((name) => {
+        const monthEnd = new Date(
+          now.getFullYear(),
+          now.getMonth() -
+            (monthNames.length - 1 - monthNames.indexOf(name)) +
+            1,
+          0,
+        );
+        const upToMonth = profs.filter(
+          (p) => new Date(p.created_at) <= monthEnd,
+        );
         return {
           name,
-          patients: upToMonth.filter(p => p.role === ProfileRole.PATIENT).length,
-          doctors: upToMonth.filter(p => p.role === ProfileRole.DOCTOR).length,
+          patients: upToMonth.filter((p) => p.role === ProfileRole.PATIENT)
+            .length,
+          doctors: upToMonth.filter((p) => p.role === ProfileRole.DOCTOR)
+            .length,
         };
       });
 
       // crossBorderTrends (International vs Domestic growth over last 6 months)
-      const crossBorderTrends = monthNames.map(month => {
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() - (monthNames.length - 1 - monthNames.indexOf(month)) + 1, 0);
-        const upToMonth = profs.filter(p => p.role === ProfileRole.PATIENT && new Date(p.created_at) <= monthEnd);
-        const domestic = upToMonth.filter(p => p.country === 'IN').length;
+      const crossBorderTrends = monthNames.map((month) => {
+        const monthEnd = new Date(
+          now.getFullYear(),
+          now.getMonth() -
+            (monthNames.length - 1 - monthNames.indexOf(month)) +
+            1,
+          0,
+        );
+        const upToMonth = profs.filter(
+          (p) =>
+            p.role === ProfileRole.PATIENT &&
+            new Date(p.created_at) <= monthEnd,
+        );
+        const domestic = upToMonth.filter((p) => p.country === 'IN').length;
         const international = upToMonth.length - domestic;
         return {
           month,
@@ -184,69 +294,142 @@ export class AdminService {
       // geographicDistribution
       const geoCount = new Map<string, number>();
       let totalPatients = 0;
-      profs.filter(p => p.role === ProfileRole.PATIENT).forEach(p => {
-        const c = p.country || 'US';
-        geoCount.set(c, (geoCount.get(c) || 0) + 1);
-        totalPatients++;
-      });
-      const geographicDistribution = Array.from(geoCount.entries()).map(([code, count]) => {
-        let name = code;
-        let flag = '🌍';
-        if (code === 'US') { name = 'United States'; flag = '🇺🇸'; }
-        if (code === 'GB') { name = 'United Kingdom'; flag = '🇬🇧'; }
-        if (code === 'AE') { name = 'United Arab Emirates'; flag = '🇦🇪'; }
-        if (code === 'IN') { name = 'India'; flag = '🇮🇳'; }
-        if (code === 'EU') { name = 'European Union'; flag = '🇪🇺'; }
-        return { code, name, flag, patientCount: count, percentage: totalPatients > 0 ? Math.round((count / totalPatients) * 100) : 0 };
-      }).sort((a, b) => b.patientCount - a.patientCount);
+      profs
+        .filter((p) => p.role === ProfileRole.PATIENT)
+        .forEach((p) => {
+          const c = p.country || 'US';
+          geoCount.set(c, (geoCount.get(c) || 0) + 1);
+          totalPatients++;
+        });
+      const geographicDistribution = Array.from(geoCount.entries())
+        .map(([code, count]) => {
+          let name = code;
+          let flag = '🌍';
+          if (code === 'US') {
+            name = 'United States';
+            flag = '🇺🇸';
+          }
+          if (code === 'GB') {
+            name = 'United Kingdom';
+            flag = '🇬🇧';
+          }
+          if (code === 'AE') {
+            name = 'United Arab Emirates';
+            flag = '🇦🇪';
+          }
+          if (code === 'IN') {
+            name = 'India';
+            flag = '🇮🇳';
+          }
+          if (code === 'EU') {
+            name = 'European Union';
+            flag = '🇪🇺';
+          }
+          return {
+            code,
+            name,
+            flag,
+            patientCount: count,
+            percentage:
+              totalPatients > 0 ? Math.round((count / totalPatients) * 100) : 0,
+          };
+        })
+        .sort((a, b) => b.patientCount - a.patientCount);
 
       const crossBorderSplit = {
-        international: geographicDistribution.filter(g => g.code !== 'IN').reduce((acc, g) => acc + g.patientCount, 0),
-        domestic: geographicDistribution.find(g => g.code === 'IN')?.patientCount || 0,
+        international: geographicDistribution
+          .filter((g) => g.code !== 'IN')
+          .reduce((acc, g) => acc + g.patientCount, 0),
+        domestic:
+          geographicDistribution.find((g) => g.code === 'IN')?.patientCount ||
+          0,
         internationalPercentage: 0,
       };
       if (totalPatients > 0) {
-        crossBorderSplit.internationalPercentage = Math.round((crossBorderSplit.international / totalPatients) * 100);
+        crossBorderSplit.internationalPercentage = Math.round(
+          (crossBorderSplit.international / totalPatients) * 100,
+        );
       }
 
       // revenueByCurrency
       const revCurrMap = new Map<string, { amount: number; count: number }>();
-      pays.filter(p => p.status === 'Paid').forEach(p => {
-        const curr = p.currency || 'USD';
-        const exist = revCurrMap.get(curr) || { amount: 0, count: 0 };
-        revCurrMap.set(curr, { amount: exist.amount + Number(p.amount), count: exist.count + 1 });
-      });
-      const revenueByCurrency = Array.from(revCurrMap.entries()).map(([currency, data]) => {
-        let flag = '🌍'; let symbol = currency; let name = currency;
-        if (currency === 'USD') { flag = '🇺🇸'; symbol = '$'; name = 'US Dollar'; }
-        if (currency === 'GBP') { flag = '🇬🇧'; symbol = '£'; name = 'British Pound'; }
-        if (currency === 'AED') { flag = '🇦🇪'; symbol = 'AED'; name = 'UAE Dirham'; }
-        if (currency === 'EUR') { flag = '🇪🇺'; symbol = '€'; name = 'Euro'; }
-        if (currency === 'INR') { flag = '🇮🇳'; symbol = '₹'; name = 'Indian Rupee'; }
-        return { currency, name, symbol, flag, ...data };
-      });
+      pays
+        .filter((p) => p.status === 'Paid')
+        .forEach((p) => {
+          const curr = p.currency || 'USD';
+          const exist = revCurrMap.get(curr) || { amount: 0, count: 0 };
+          revCurrMap.set(curr, {
+            amount: exist.amount + Number(p.amount),
+            count: exist.count + 1,
+          });
+        });
+      const revenueByCurrency = Array.from(revCurrMap.entries()).map(
+        ([currency, data]) => {
+          let flag = '🌍';
+          let symbol = currency;
+          let name = currency;
+          if (currency === 'USD') {
+            flag = '🇺🇸';
+            symbol = '$';
+            name = 'US Dollar';
+          }
+          if (currency === 'GBP') {
+            flag = '🇬🇧';
+            symbol = '£';
+            name = 'British Pound';
+          }
+          if (currency === 'AED') {
+            flag = '🇦🇪';
+            symbol = 'AED';
+            name = 'UAE Dirham';
+          }
+          if (currency === 'EUR') {
+            flag = '🇪🇺';
+            symbol = '€';
+            name = 'Euro';
+          }
+          if (currency === 'INR') {
+            flag = '🇮🇳';
+            symbol = '₹';
+            name = 'Indian Rupee';
+          }
+          return { currency, name, symbol, flag, ...data };
+        },
+      );
 
       // appointmentStatusBreakdown
       const statusCounts = new Map<string, number>();
-      apts.forEach(a => statusCounts.set(a.status, (statusCounts.get(a.status) || 0) + 1));
-      const appointmentStatusBreakdown = Array.from(statusCounts.entries()).map(([status, count]) => ({ status, count }));
+      apts.forEach((a) =>
+        statusCounts.set(a.status, (statusCounts.get(a.status) || 0) + 1),
+      );
+      const appointmentStatusBreakdown = Array.from(statusCounts.entries()).map(
+        ([status, count]) => ({ status, count }),
+      );
 
       // consultTypeSplit
       const consultTypeSplit = { video: 0, clinic: 0 };
-      apts.forEach(a => {
+      apts.forEach((a) => {
         if (a.type === 'video') consultTypeSplit.video++;
         else consultTypeSplit.clinic++;
       });
 
       // specialtyRevenue
       const specRevMap = new Map<string, number>();
-      apts.filter(a => a.status === 'Done').forEach(a => {
-        // Since we don't fetch doctor profiles here easily, this is just an approximation
-        // Normally you'd join with profiles, for now let's just group by type
-        const spec = a.type === 'video' ? 'Telehealth' : 'Clinic';
-        specRevMap.set(spec, (specRevMap.get(spec) || 0) + 50); // mock 50$ per consult
-      });
-      const specialtyRevenue = Array.from(specRevMap.entries()).map(([name, value]) => ({ name, value, color: name === 'Telehealth' ? '#6B46C1' : '#0ea5e9' }));
+      apts
+        .filter((a) => a.status === 'Done')
+        .forEach((a) => {
+          // Since we don't fetch doctor profiles here easily, this is just an approximation
+          // Normally you'd join with profiles, for now let's just group by type
+          const spec = a.type === 'video' ? 'Telehealth' : 'Clinic';
+          specRevMap.set(spec, (specRevMap.get(spec) || 0) + 50); // mock 50$ per consult
+        });
+      const specialtyRevenue = Array.from(specRevMap.entries()).map(
+        ([name, value]) => ({
+          name,
+          value,
+          color: name === 'Telehealth' ? '#6B46C1' : '#0ea5e9',
+        }),
+      );
 
       return {
         financialData,
@@ -258,11 +441,13 @@ export class AdminService {
         appointmentStatusBreakdown,
         consultTypeSplit,
         totalPatients,
-        totalDoctors: profs.filter(p => p.role === ProfileRole.DOCTOR).length,
+        totalDoctors: profs.filter((p) => p.role === ProfileRole.DOCTOR).length,
       };
     } catch (error) {
       console.error(error);
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -271,7 +456,9 @@ export class AdminService {
     try {
       let q = this.supabase.admin
         .from('profiles')
-        .select('id, full_name, email, phone, role, status, created_at', { count: 'exact' });
+        .select('id, full_name, email, phone, role, status, created_at', {
+          count: 'exact',
+        });
       if (role) q = q.eq('role', role);
       else q = q.eq('role', ProfileRole.PATIENT);
       if (search) {
@@ -279,79 +466,133 @@ export class AdminService {
         // filter string (`,` separates or-conditions, `(`/`)` group them) so
         // a search term can't break out of the ilike clauses below.
         const safeSearch = search.replace(/[,()%_]/g, ' ').trim();
-        if (safeSearch) q = q.or(`full_name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%`);
+        if (safeSearch)
+          q = q.or(
+            `full_name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%`,
+          );
       }
 
       const from = (page - 1) * limit;
-      const { data, count } = await q.order('created_at', { ascending: false }).range(from, from + limit - 1);
+      const { data, count } = await q
+        .order('created_at', { ascending: false })
+        .range(from, from + limit - 1);
 
       return {
-        users: (data || []).map(u => ({
+        users: (data || []).map((u) => ({
           id: u.id,
           name: u.full_name || 'Unknown',
           email: u.email || '',
           phone: u.phone || '',
           role: u.role,
           status: u.status || 'Active',
-          joined: u.created_at ? new Date(u.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+          joined: u.created_at
+            ? new Date(u.created_at).toLocaleDateString('en-IN', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })
+            : '',
           ltv: 0,
           lastVisit: 'N/A',
         })),
         total: count || 0,
       };
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   async getUserById(id: string) {
     try {
-      const { data: profile } = await this.supabase.admin.from('profiles').select('*').eq('id', id).maybeSingle();
+      const { data: profile } = await this.supabase.admin
+        .from('profiles')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
       if (!profile) throw new NotFoundException('User not found');
 
       const [{ data: appointments }, { data: payments }] = await Promise.all([
-        this.supabase.admin.from('appointments').select('id, doctor_id, specialty, type, status, scheduled_date').is('deleted_at', null).eq('patient_id', id).order('scheduled_date', { ascending: false }).limit(20),
-        this.supabase.admin.from('payments').select('id, doctor_id, appointment_id, amount, status, category, service, created_at').eq('patient_id', id).order('created_at', { ascending: false }),
+        this.supabase.admin
+          .from('appointments')
+          .select('id, doctor_id, specialty, type, status, scheduled_date')
+          .is('deleted_at', null)
+          .eq('patient_id', id)
+          .order('scheduled_date', { ascending: false })
+          .limit(20),
+        this.supabase.admin
+          .from('payments')
+          .select(
+            'id, doctor_id, appointment_id, amount, status, category, service, created_at',
+          )
+          .eq('patient_id', id)
+          .order('created_at', { ascending: false }),
       ]);
 
       const apts = appointments || [];
       const pays = payments || [];
 
-      const doctorIds = [...new Set([...apts.map(a => a.doctor_id), ...pays.map(p => p.doctor_id)].filter(Boolean))];
+      const doctorIds = [
+        ...new Set(
+          [
+            ...apts.map((a) => a.doctor_id),
+            ...pays.map((p) => p.doctor_id),
+          ].filter(Boolean),
+        ),
+      ];
       const { data: doctorProfiles } = doctorIds.length
-        ? await this.supabase.admin.from('profiles').select('id, full_name').in('id', doctorIds)
+        ? await this.supabase.admin
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', doctorIds)
         : { data: [] as { id: string; full_name: string }[] };
-      const nameByDoctorId = new Map((doctorProfiles || []).map(d => [d.id, d.full_name]));
-      const amountByAppointmentId = new Map(pays.filter(p => p.appointment_id).map(p => [p.appointment_id, p]));
+      const nameByDoctorId = new Map(
+        (doctorProfiles || []).map((d) => [d.id, d.full_name]),
+      );
+      const amountByAppointmentId = new Map(
+        pays.filter((p) => p.appointment_id).map((p) => [p.appointment_id, p]),
+      );
 
-      const paidPayments = pays.filter(p => p.status === 'Paid');
+      const paidPayments = pays.filter((p) => p.status === 'Paid');
 
       // Spending trend, last 6 months
       const now = new Date();
       const spentByMonth = new Map<string, number>();
-      paidPayments.forEach(p => {
+      paidPayments.forEach((p) => {
         const key = new Date(p.created_at).toISOString().slice(0, 7);
         spentByMonth.set(key, (spentByMonth.get(key) || 0) + Number(p.amount));
       });
       const spendingTrend = Array.from({ length: 6 }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
         const key = d.toISOString().slice(0, 7);
-        return { month: d.toLocaleString('en-US', { month: 'short' }), spent: spentByMonth.get(key) || 0 };
+        return {
+          month: d.toLocaleString('en-US', { month: 'short' }),
+          spent: spentByMonth.get(key) || 0,
+        };
       });
 
       // Spending by category
       const byCategory = new Map<string, number>();
-      paidPayments.forEach(p => {
+      paidPayments.forEach((p) => {
         const cat = p.category || 'Other';
         byCategory.set(cat, (byCategory.get(cat) || 0) + Number(p.amount));
       });
-      const spendingByCategory = [...byCategory.entries()].map(([category, amount]) => ({ category, amount }));
+      const spendingByCategory = [...byCategory.entries()].map(
+        ([category, amount]) => ({ category, amount }),
+      );
 
-      const consultations = apts.map(a => ({
+      const consultations = apts.map((a) => ({
         id: a.id,
         doctor: nameByDoctorId.get(a.doctor_id) || 'Doctor',
         specialty: a.specialty || 'General',
-        date: a.scheduled_date ? new Date(a.scheduled_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+        date: a.scheduled_date
+          ? new Date(a.scheduled_date).toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })
+          : '',
         type: a.type === 'video' ? 'Video' : 'Clinic',
         status: a.status,
         cost: Number(amountByAppointmentId.get(a.id)?.amount || 0),
@@ -360,8 +601,13 @@ export class AdminService {
       return {
         profile,
         kpis: {
-          lifetimeValue: paidPayments.reduce((sum, p) => sum + Number(p.amount), 0),
-          consultationsCompleted: apts.filter(a => a.status === AppointmentStatus.DONE).length,
+          lifetimeValue: paidPayments.reduce(
+            (sum, p) => sum + Number(p.amount),
+            0,
+          ),
+          consultationsCompleted: apts.filter(
+            (a) => a.status === AppointmentStatus.DONE,
+          ).length,
         },
         spendingTrend,
         spendingByCategory,
@@ -370,18 +616,32 @@ export class AdminService {
       };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   async updateUserStatus(id: string, status: string) {
     try {
-      const { data: updated, error } = await this.supabase.admin.from('profiles').update({ status }).eq('id', id).select('id, status').maybeSingle();
-      if (error || !updated) throw new NotFoundException(ERROR_MESSAGES.USER_NOT_FOUND);
-      return { userId: updated.id, status: updated.status, updatedAt: new Date().toISOString() };
+      const { data: updated, error } = await this.supabase.admin
+        .from('profiles')
+        .update({ status })
+        .eq('id', id)
+        .select('id, status')
+        .maybeSingle();
+      if (error || !updated)
+        throw new NotFoundException(ERROR_MESSAGES.USER_NOT_FOUND);
+      return {
+        userId: updated.id,
+        status: updated.status,
+        updatedAt: new Date().toISOString(),
+      };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -390,14 +650,16 @@ export class AdminService {
     try {
       const { data } = await this.supabase.admin
         .from('profiles')
-        .select('id, full_name, email, phone, specialty, kyc_verified, consultation_fee, commission_rate, status, created_at')
+        .select(
+          'id, full_name, email, phone, specialty, kyc_verified, consultation_fee, commission_rate, status, created_at',
+        )
         .eq('role', ProfileRole.DOCTOR)
         .order('created_at', { ascending: false });
 
       if (!data) return [];
 
       // Count appointments per doctor
-      const doctorIds = data.map(d => d.id);
+      const doctorIds = data.map((d) => d.id);
       const { data: apts } = await this.supabase.admin
         .from('appointments')
         .select('doctor_id, status')
@@ -405,21 +667,29 @@ export class AdminService {
 
       const aptCountMap: Record<string, number> = {};
       const revenueMap: Record<string, number> = {};
-      for (const a of (apts || [])) {
+      for (const a of apts || []) {
         aptCountMap[a.doctor_id] = (aptCountMap[a.doctor_id] || 0) + 1;
         if (a.status === AppointmentStatus.DONE) {
-          const fee = Number(data.find(d => d.id === a.doctor_id)?.consultation_fee || 0);
+          const fee = Number(
+            data.find((d) => d.id === a.doctor_id)?.consultation_fee || 0,
+          );
           revenueMap[a.doctor_id] = (revenueMap[a.doctor_id] || 0) + fee;
         }
       }
 
-      return data.map(d => ({
+      return data.map((d) => ({
         id: d.id,
         name: d.full_name || 'Unknown',
         specialty: d.specialty || 'General',
         status: d.status || 'Active',
         verified: d.kyc_verified || false,
-        joined: d.created_at ? new Date(d.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+        joined: d.created_at
+          ? new Date(d.created_at).toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })
+          : '',
         commissionRate: Number(d.commission_rate ?? 15),
         totalGross: revenueMap[d.id] || 0,
         totalConsults: aptCountMap[d.id] || 0,
@@ -429,53 +699,95 @@ export class AdminService {
         phone: d.phone || '',
       }));
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   async getDoctorDetail(id: string) {
     try {
-      const { data: doctor } = await this.supabase.admin.from('profiles').select('*').eq('id', id).eq('role', ProfileRole.DOCTOR).maybeSingle();
+      const { data: doctor } = await this.supabase.admin
+        .from('profiles')
+        .select('*')
+        .eq('id', id)
+        .eq('role', ProfileRole.DOCTOR)
+        .maybeSingle();
       if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
 
       const [{ data: appointments }, { data: payments }] = await Promise.all([
-        this.supabase.admin.from('appointments').select('id, patient_id, type, status, scheduled_date').is('deleted_at', null).eq('doctor_id', id).order('scheduled_date', { ascending: false }),
-        this.supabase.admin.from('payments').select('id, patient_id, amount, status, service, created_at').eq('doctor_id', id).order('created_at', { ascending: false }),
+        this.supabase.admin
+          .from('appointments')
+          .select('id, patient_id, type, status, scheduled_date')
+          .is('deleted_at', null)
+          .eq('doctor_id', id)
+          .order('scheduled_date', { ascending: false }),
+        this.supabase.admin
+          .from('payments')
+          .select('id, patient_id, amount, status, service, created_at')
+          .eq('doctor_id', id)
+          .order('created_at', { ascending: false }),
       ]);
 
       const apts = appointments || [];
       const pays = payments || [];
 
-      const patientIds = [...new Set([...apts.map(a => a.patient_id), ...pays.map(p => p.patient_id)].filter(Boolean))];
+      const patientIds = [
+        ...new Set(
+          [
+            ...apts.map((a) => a.patient_id),
+            ...pays.map((p) => p.patient_id),
+          ].filter(Boolean),
+        ),
+      ];
       const { data: patientProfiles } = patientIds.length
-        ? await this.supabase.admin.from('profiles').select('id, full_name').in('id', patientIds)
+        ? await this.supabase.admin
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', patientIds)
         : { data: [] as { id: string; full_name: string }[] };
-      const nameByPatientId = new Map((patientProfiles || []).map(p => [p.id, p.full_name]));
+      const nameByPatientId = new Map(
+        (patientProfiles || []).map((p) => [p.id, p.full_name]),
+      );
 
-      const paidPayments = pays.filter(p => p.status === 'Paid');
+      const paidPayments = pays.filter((p) => p.status === 'Paid');
 
       // Gross revenue trend, last 6 months
       const now = new Date();
       const revenueByMonth = new Map<string, number>();
-      paidPayments.forEach(p => {
+      paidPayments.forEach((p) => {
         const key = new Date(p.created_at).toISOString().slice(0, 7);
-        revenueByMonth.set(key, (revenueByMonth.get(key) || 0) + Number(p.amount));
+        revenueByMonth.set(
+          key,
+          (revenueByMonth.get(key) || 0) + Number(p.amount),
+        );
       });
       const revenueTrend = Array.from({ length: 6 }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
         const key = d.toISOString().slice(0, 7);
-        return { month: d.toLocaleString('en-US', { month: 'short' }), revenue: revenueByMonth.get(key) || 0 };
+        return {
+          month: d.toLocaleString('en-US', { month: 'short' }),
+          revenue: revenueByMonth.get(key) || 0,
+        };
       });
 
       // Appointment status breakdown
       const statusCounts = new Map<string, number>();
-      apts.forEach(a => statusCounts.set(a.status, (statusCounts.get(a.status) || 0) + 1));
-      const appointmentStatusBreakdown = [...statusCounts.entries()].map(([status, count]) => ({ status, count }));
+      apts.forEach((a) =>
+        statusCounts.set(a.status, (statusCounts.get(a.status) || 0) + 1),
+      );
+      const appointmentStatusBreakdown = [...statusCounts.entries()].map(
+        ([status, count]) => ({ status, count }),
+      );
 
-      const ledger = pays.slice(0, 20).map(p => ({
+      const ledger = pays.slice(0, 20).map((p) => ({
         id: p.id,
         patient: nameByPatientId.get(p.patient_id) || 'Patient',
-        date: new Date(p.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        date: new Date(p.created_at).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        }),
         service: p.service,
         amount: Number(p.amount),
         status: p.status,
@@ -484,8 +796,12 @@ export class AdminService {
       return {
         doctor,
         kpis: {
-          totalGross: paidPayments.reduce((sum, p) => sum + Number(p.amount), 0),
-          totalConsults: apts.filter(a => a.status === AppointmentStatus.DONE).length,
+          totalGross: paidPayments.reduce(
+            (sum, p) => sum + Number(p.amount),
+            0,
+          ),
+          totalConsults: apts.filter((a) => a.status === AppointmentStatus.DONE)
+            .length,
           totalAppointments: apts.length,
         },
         revenueTrend,
@@ -494,7 +810,9 @@ export class AdminService {
       };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -507,11 +825,18 @@ export class AdminService {
         .eq('role', ProfileRole.DOCTOR)
         .select('id, commission_rate')
         .maybeSingle();
-      if (error || !updated) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
-      return { doctorId: updated.id, commissionRate: Number(updated.commission_rate), updatedAt: new Date().toISOString() };
+      if (error || !updated)
+        throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
+      return {
+        doctorId: updated.id,
+        commissionRate: Number(updated.commission_rate),
+        updatedAt: new Date().toISOString(),
+      };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -524,43 +849,73 @@ export class AdminService {
         .eq('kyc_verified', false)
         .order('created_at', { ascending: false })
         .limit(50);
-      return (data || []).map(d => ({
+      return (data || []).map((d) => ({
         id: d.id,
         name: d.full_name || 'Unknown',
         email: d.email || '',
         specialty: d.specialty || 'General',
-        appliedOn: d.created_at ? new Date(d.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+        appliedOn: d.created_at
+          ? new Date(d.created_at).toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })
+          : '',
       }));
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   async updateDoctorVerification(admin: AuthUser, id: string, status: string) {
     try {
-      const { data: doctor } = await this.supabase.admin.from('profiles').select().eq('id', id).eq('role', ProfileRole.DOCTOR).maybeSingle();
+      const { data: doctor } = await this.supabase.admin
+        .from('profiles')
+        .select()
+        .eq('id', id)
+        .eq('role', ProfileRole.DOCTOR)
+        .maybeSingle();
       if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
       const isApproved = status === 'approved';
-      const { data: updated } = await this.supabase.admin.from('profiles').update({ kyc_verified: isApproved }).eq('id', id).select().maybeSingle();
-      this.writeAudit(admin, 'verification.update', 'profiles', id, { kyc_verified: doctor.kyc_verified }, { kyc_verified: updated.kyc_verified });
+      const { data: updated } = await this.supabase.admin
+        .from('profiles')
+        .update({ kyc_verified: isApproved })
+        .eq('id', id)
+        .select()
+        .maybeSingle();
+      this.writeAudit(
+        admin,
+        'verification.update',
+        'profiles',
+        id,
+        { kyc_verified: doctor.kyc_verified },
+        { kyc_verified: updated.kyc_verified },
+      );
 
       // 1. In-App & Web Push Notification
-      this.notifications.create(id, {
-        type: 'doctor_kyc_status',
-        title: isApproved ? '🎉 KYC Verification Approved!' : 'KYC Verification Update',
-        message: isApproved
-          ? 'Congratulations! Your medical credentials have been verified. You can now publish availability and consult patients.'
-          : 'Your doctor verification submission requires revision. Please review your medical license details.',
-      }).catch(() => {});
+      this.notifications
+        .create(id, {
+          type: 'doctor_kyc_status',
+          title: isApproved
+            ? '🎉 KYC Verification Approved!'
+            : 'KYC Verification Update',
+          message: isApproved
+            ? 'Congratulations! Your medical credentials have been verified. You can now publish availability and consult patients.'
+            : 'Your doctor verification submission requires revision. Please review your medical license details.',
+        })
+        .catch(() => {});
 
       // 2. Transactional Email via database-managed template
       if (doctor.email) {
         if (isApproved) {
-          this.email.sendTemplatedMail({
-            to: doctor.email,
-            slug: 'doctor_kyc_approved',
-            defaultSubject: '🎉 Your HealNari Doctor Account is Verified!',
-            defaultHtml: `
+          this.email
+            .sendTemplatedMail({
+              to: doctor.email,
+              slug: 'doctor_kyc_approved',
+              defaultSubject: '🎉 Your HealNari Doctor Account is Verified!',
+              defaultHtml: `
                 <h2 style="color:#10b981;">🎉 Welcome to HealNari Practice Network</h2>
                 <p>Dear Dr. {{doctorName}},</p>
                 <p>We are delighted to inform you that your medical license and practice credentials have been <strong>verified and approved</strong>.</p>
@@ -568,68 +923,105 @@ export class AdminService {
                 <div style="margin:24px 0;"><a href="{{dashboardUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;">Go to Doctor Dashboard</a></div>
                 <p style="color:#64748b;font-size:12px;">Best regards,<br/>HealNari Clinical Governance Team</p>
             `,
-            variables: {
-              doctorName: doctor.full_name || 'Doctor',
-              dashboardUrl: 'https://healnari.vercel.app/doctor/dashboard',
-            },
-          }).catch(() => {});
+              variables: {
+                doctorName: doctor.full_name || 'Doctor',
+                dashboardUrl: 'https://healnari.vercel.app/doctor/dashboard',
+              },
+            })
+            .catch(() => {});
         } else {
-          this.email.sendTemplatedMail({
-            to: doctor.email,
-            slug: 'doctor_kyc_rejected',
-            defaultSubject: 'Update regarding your HealNari KYC Verification',
-            defaultHtml: `
+          this.email
+            .sendTemplatedMail({
+              to: doctor.email,
+              slug: 'doctor_kyc_rejected',
+              defaultSubject: 'Update regarding your HealNari KYC Verification',
+              defaultHtml: `
                 <h2 style="color:#e11d48;">HealNari KYC Verification Update</h2>
                 <p>Dear Dr. {{doctorName}},</p>
                 <p>Thank you for submitting your verification details. Our medical compliance team has reviewed your documents and identified items requiring clarification.</p>
                 <p>Please log in to your dashboard to review the feedback and re-upload your medical registration certificate.</p>
                 <p style="color:#64748b;font-size:12px;">Best regards,<br/>HealNari Verification Desk</p>
             `,
-            variables: {
-              doctorName: doctor.full_name || 'Doctor',
-              dashboardUrl: 'https://healnari.vercel.app/doctor/dashboard',
-            },
-          }).catch(() => {});
+              variables: {
+                doctorName: doctor.full_name || 'Doctor',
+                dashboardUrl: 'https://healnari.vercel.app/doctor/dashboard',
+              },
+            })
+            .catch(() => {});
         }
       }
 
-      return { doctorId: updated.id, statusUpdated: status, processedAt: new Date().toISOString() };
+      return {
+        doctorId: updated.id,
+        statusUpdated: status,
+        processedAt: new Date().toISOString(),
+      };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   // ─── Tickets ─────────────────────────────────────────────────────
   async getSupportTickets() {
     try {
-      const { data } = await this.supabase.admin.from('support_tickets').select().order('created_at', { ascending: false });
+      const { data } = await this.supabase.admin
+        .from('support_tickets')
+        .select()
+        .order('created_at', { ascending: false });
       return data || [];
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   async resolveTicket(admin: AuthUser, ticketId: number) {
     try {
-      const { data: ticket } = await this.supabase.admin.from('support_tickets').select().eq('id', ticketId).maybeSingle();
+      const { data: ticket } = await this.supabase.admin
+        .from('support_tickets')
+        .select()
+        .eq('id', ticketId)
+        .maybeSingle();
       if (!ticket) throw new NotFoundException('Ticket not found');
-      const { data: updated } = await this.supabase.admin.from('support_tickets').update({ status: 'Resolved' }).eq('id', ticketId).select().maybeSingle();
-      this.writeAudit(admin, 'ticket.resolve', 'support_tickets', String(ticketId), { status: ticket.status }, { status: updated.status });
+      const { data: updated } = await this.supabase.admin
+        .from('support_tickets')
+        .update({ status: 'Resolved' })
+        .eq('id', ticketId)
+        .select()
+        .maybeSingle();
+      this.writeAudit(
+        admin,
+        'ticket.resolve',
+        'support_tickets',
+        String(ticketId),
+        { status: ticket.status },
+        { status: updated.status },
+      );
       return updated;
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   // ─── Refunds ─────────────────────────────────────────────────────
   async getRefundRequests() {
     try {
-      const { data } = await this.supabase.admin.from('refund_requests').select().order('created_at', { ascending: false });
+      const { data } = await this.supabase.admin
+        .from('refund_requests')
+        .select()
+        .order('created_at', { ascending: false });
       return data || [];
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -640,35 +1032,70 @@ export class AdminService {
    * admin-confirms-it-happened-manually behavior, since there's no gateway
    * transaction to call a refund API against. */
   async processRefund(admin: AuthUser, refundId: number) {
-    const { data: refund } = await this.supabase.admin.from('refund_requests').select().eq('id', refundId).maybeSingle();
+    const { data: refund } = await this.supabase.admin
+      .from('refund_requests')
+      .select()
+      .eq('id', refundId)
+      .maybeSingle();
     if (!refund) throw new NotFoundException('Refund not found');
     if (refund.status === 'Processed') return refund; // idempotent — don't double-refund on a retried click
 
     const payment = refund.payment_id
-      ? (await this.supabase.admin.from('payments').select().eq('id', refund.payment_id).maybeSingle()).data
+      ? (
+          await this.supabase.admin
+            .from('payments')
+            .select()
+            .eq('id', refund.payment_id)
+            .maybeSingle()
+        ).data
       : null;
 
     let cfRefundId: string | null = null;
 
     if (payment?.cf_order_id) {
-      const result = await this.cashfree.createRefund(payment.cf_order_id, Number(refund.amount), `rf-${randomUUID()}`, refund.reason);
+      const result = await this.cashfree.createRefund(
+        payment.cf_order_id,
+        Number(refund.amount),
+        `rf-${randomUUID()}`,
+        refund.reason,
+      );
       if (result.refund_status === 'FAILED') {
-        throw new InternalServerErrorException(`Cashfree refund failed: ${result.refund_arn || result.refund_status}`);
+        throw new InternalServerErrorException(
+          `Cashfree refund failed: ${result.refund_arn || result.refund_status}`,
+        );
       }
       cfRefundId = result.cf_refund_id ? String(result.cf_refund_id) : null;
-      await this.supabase.admin.from('payments').update({ status: 'Refunded' }).eq('id', payment.id);
+      await this.supabase.admin
+        .from('payments')
+        .update({ status: 'Refunded' })
+        .eq('id', payment.id);
     } else if (payment) {
       // No gateway order to refund against (e.g. a doctor-recorded cash
       // charge) — this confirms the admin handled it out-of-band.
-      await this.supabase.admin.from('payments').update({ status: 'Refunded' }).eq('id', payment.id);
+      await this.supabase.admin
+        .from('payments')
+        .update({ status: 'Refunded' })
+        .eq('id', payment.id);
     }
 
-    const { data: updated } = await this.supabase.admin.from('refund_requests').update({
-      status: 'Processed',
-      cf_refund_id: cfRefundId,
-    }).eq('id', refundId).select().maybeSingle();
+    const { data: updated } = await this.supabase.admin
+      .from('refund_requests')
+      .update({
+        status: 'Processed',
+        cf_refund_id: cfRefundId,
+      })
+      .eq('id', refundId)
+      .select()
+      .maybeSingle();
 
-    this.writeAudit(admin, 'refund.process', 'refund_requests', String(refundId), { status: refund.status }, { status: updated.status, cf_refund_id: cfRefundId });
+    this.writeAudit(
+      admin,
+      'refund.process',
+      'refund_requests',
+      String(refundId),
+      { status: refund.status },
+      { status: updated.status, cf_refund_id: cfRefundId },
+    );
 
     const patientId = refund.patient_id || payment?.patient_id;
     if (patientId) {
@@ -694,25 +1121,45 @@ export class AdminService {
         { data: allPayments },
         { data: allRefunds },
       ] = await Promise.all([
-        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('status', AppointmentStatus.DONE),
-        this.supabase.admin.from('appointments').select('id, specialty, doctor_id, doctor:profiles!appointments_doctor_id_fkey(full_name, specialty, currency, consultation_fee)').is('deleted_at', null).eq('status', AppointmentStatus.DONE),
-        this.supabase.admin.from('payments').select('id, amount, original_amount, currency, original_currency, reporting_amount, reporting_currency, fx_rate, fx_rate_source, fx_rate_timestamp, platform_fee_amount, provider_payout_amount, refund_amount, status, method, txn_ref, created_at, category, service, doctor_id, patient_id').in('status', ['Paid', 'Refunded', 'Insurance Claimed']),
-        this.supabase.admin.from('refund_requests').select('amount, currency, status, created_at'),
+        this.supabase.admin
+          .from('appointments')
+          .select('*', { count: 'exact', head: true })
+          .is('deleted_at', null)
+          .eq('status', AppointmentStatus.DONE),
+        this.supabase.admin
+          .from('appointments')
+          .select(
+            'id, specialty, doctor_id, doctor:profiles!appointments_doctor_id_fkey(full_name, specialty, currency, consultation_fee)',
+          )
+          .is('deleted_at', null)
+          .eq('status', AppointmentStatus.DONE),
+        this.supabase.admin
+          .from('payments')
+          .select(
+            'id, amount, original_amount, currency, original_currency, reporting_amount, reporting_currency, fx_rate, fx_rate_source, fx_rate_timestamp, platform_fee_amount, provider_payout_amount, refund_amount, status, method, txn_ref, created_at, category, service, doctor_id, patient_id',
+          )
+          .in('status', ['Paid', 'Refunded', 'Insurance Claimed']),
+        this.supabase.admin
+          .from('refund_requests')
+          .select('amount, currency, status, created_at'),
       ]);
 
       const payments = allPayments || [];
       const refunds = allRefunds || [];
 
       // 1. Original Currency Distribution Map (NEVER mixes currencies)
-      const originalCurrencyMap = new Map<string, {
-        currency: string;
-        count: number;
-        grossAmount: number;
-        platformFeeAmount: number;
-        providerPayoutAmount: number;
-        refundAmount: number;
-        netAmount: number;
-      }>();
+      const originalCurrencyMap = new Map<
+        string,
+        {
+          currency: string;
+          count: number;
+          grossAmount: number;
+          platformFeeAmount: number;
+          providerPayoutAmount: number;
+          refundAmount: number;
+          netAmount: number;
+        }
+      >();
 
       // 2. Normalized Totals in requested reportingCurrency
       let totalGrossGMV = 0;
@@ -727,15 +1174,15 @@ export class AdminService {
       for (let i = 5; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const month = d.toLocaleString('en-US', { month: 'short' });
-        monthlyStreamMap.set(month, { 
-          month, 
-          grossReporting: 0, 
-          platformReporting: 0, 
-          USD: 0, 
-          GBP: 0, 
-          AED: 0, 
-          EUR: 0, 
-          INR: 0 
+        monthlyStreamMap.set(month, {
+          month,
+          grossReporting: 0,
+          platformReporting: 0,
+          USD: 0,
+          GBP: 0,
+          AED: 0,
+          EUR: 0,
+          INR: 0,
         });
       }
 
@@ -743,14 +1190,23 @@ export class AdminService {
       const bySpecialtyMap = new Map<string, number>();
 
       // Process Payments
-      payments.forEach(p => {
+      payments.forEach((p) => {
         const origAmt = Number(p.original_amount || p.amount || 0);
-        const origCurr = (p.original_currency || p.currency || 'INR').toUpperCase();
+        const origCurr = (
+          p.original_currency ||
+          p.currency ||
+          'INR'
+        ).toUpperCase();
         const isPaid = p.status === 'Paid' || p.status === 'Insurance Claimed';
         const isRefunded = p.status === 'Refunded';
 
-        const platformFee = Number(p.platform_fee_amount || DecimalMath.percentage(origAmt, 10));
-        const providerPayout = Number(p.provider_payout_amount || DecimalMath.subtract(origAmt, platformFee));
+        const platformFee = Number(
+          p.platform_fee_amount || DecimalMath.percentage(origAmt, 10),
+        );
+        const providerPayout = Number(
+          p.provider_payout_amount ||
+            DecimalMath.subtract(origAmt, platformFee),
+        );
         const refAmt = isRefunded ? origAmt : Number(p.refund_amount || 0);
 
         // Group by Original Currency
@@ -767,25 +1223,61 @@ export class AdminService {
         existing.count += 1;
         if (isPaid) {
           existing.grossAmount = DecimalMath.add(existing.grossAmount, origAmt);
-          existing.platformFeeAmount = DecimalMath.add(existing.platformFeeAmount, platformFee);
-          existing.providerPayoutAmount = DecimalMath.add(existing.providerPayoutAmount, providerPayout);
+          existing.platformFeeAmount = DecimalMath.add(
+            existing.platformFeeAmount,
+            platformFee,
+          );
+          existing.providerPayoutAmount = DecimalMath.add(
+            existing.providerPayoutAmount,
+            providerPayout,
+          );
         }
         if (refAmt > 0) {
-          existing.refundAmount = DecimalMath.add(existing.refundAmount, refAmt);
+          existing.refundAmount = DecimalMath.add(
+            existing.refundAmount,
+            refAmt,
+          );
         }
-        existing.netAmount = DecimalMath.subtract(existing.grossAmount, existing.refundAmount);
+        existing.netAmount = DecimalMath.subtract(
+          existing.grossAmount,
+          existing.refundAmount,
+        );
         originalCurrencyMap.set(origCurr, existing);
 
         // Normalized Conversion to reportingCurrency
         if (isPaid) {
           settledCount++;
-          const convertedGross = this.fxRateService.reproduceReportingValue(origAmt, origCurr, repCurr, p.fx_rate, p.reporting_currency);
-          const convertedFee = this.fxRateService.reproduceReportingValue(platformFee, origCurr, repCurr, p.fx_rate, p.reporting_currency);
-          const convertedPayout = this.fxRateService.reproduceReportingValue(providerPayout, origCurr, repCurr, p.fx_rate, p.reporting_currency);
+          const convertedGross = this.fxRateService.reproduceReportingValue(
+            origAmt,
+            origCurr,
+            repCurr,
+            p.fx_rate,
+            p.reporting_currency,
+          );
+          const convertedFee = this.fxRateService.reproduceReportingValue(
+            platformFee,
+            origCurr,
+            repCurr,
+            p.fx_rate,
+            p.reporting_currency,
+          );
+          const convertedPayout = this.fxRateService.reproduceReportingValue(
+            providerPayout,
+            origCurr,
+            repCurr,
+            p.fx_rate,
+            p.reporting_currency,
+          );
 
           totalGrossGMV = DecimalMath.add(totalGrossGMV, convertedGross);
-          totalPlatformRevenue = DecimalMath.add(totalPlatformRevenue, convertedFee);
-          totalProviderPayouts = DecimalMath.add(totalProviderPayouts, convertedPayout);
+          totalPlatformRevenue = DecimalMath.add(
+            totalPlatformRevenue,
+            convertedFee,
+          );
+          totalProviderPayouts = DecimalMath.add(
+            totalProviderPayouts,
+            convertedPayout,
+          );
 
           // Monthly Stream Bucket
           if (p.created_at) {
@@ -793,8 +1285,14 @@ export class AdminService {
             const monthKey = pDate.toLocaleString('en-US', { month: 'short' });
             if (monthlyStreamMap.has(monthKey)) {
               const mData = monthlyStreamMap.get(monthKey)!;
-              mData.grossReporting = DecimalMath.add(mData.grossReporting, convertedGross);
-              mData.platformReporting = DecimalMath.add(mData.platformReporting, convertedFee);
+              mData.grossReporting = DecimalMath.add(
+                mData.grossReporting,
+                convertedGross,
+              );
+              mData.platformReporting = DecimalMath.add(
+                mData.platformReporting,
+                convertedFee,
+              );
               if (mData[origCurr] !== undefined) {
                 mData[origCurr] = DecimalMath.add(mData[origCurr], origAmt);
               }
@@ -804,35 +1302,68 @@ export class AdminService {
           // Specialty Bucket
           const specialty = p.category || p.service || 'General Practice';
           const existingSpec = bySpecialtyMap.get(specialty) || 0;
-          bySpecialtyMap.set(specialty, DecimalMath.add(existingSpec, convertedGross));
+          bySpecialtyMap.set(
+            specialty,
+            DecimalMath.add(existingSpec, convertedGross),
+          );
         }
 
         if (refAmt > 0) {
-          const convertedRefund = this.fxRateService.reproduceReportingValue(refAmt, origCurr, repCurr, p.fx_rate, p.reporting_currency);
-          totalRefundsAmount = DecimalMath.add(totalRefundsAmount, convertedRefund);
+          const convertedRefund = this.fxRateService.reproduceReportingValue(
+            refAmt,
+            origCurr,
+            repCurr,
+            p.fx_rate,
+            p.reporting_currency,
+          );
+          totalRefundsAmount = DecimalMath.add(
+            totalRefundsAmount,
+            convertedRefund,
+          );
         }
       });
 
-      const netPlatformRevenue = DecimalMath.subtract(totalPlatformRevenue, DecimalMath.percentage(totalRefundsAmount, 10));
+      const netPlatformRevenue = DecimalMath.subtract(
+        totalPlatformRevenue,
+        DecimalMath.percentage(totalRefundsAmount, 10),
+      );
 
       const currencyBreakdown = Array.from(originalCurrencyMap.values());
       const monthlyRevenueStream = Array.from(monthlyStreamMap.values());
-      const revenueBySpecialty = Array.from(bySpecialtyMap.entries()).map(([specialty, revenue]) => ({
-        specialty,
-        revenue,
-        currency: repCurr,
-      }));
+      const revenueBySpecialty = Array.from(bySpecialtyMap.entries()).map(
+        ([specialty, revenue]) => ({
+          specialty,
+          revenue,
+          currency: repCurr,
+        }),
+      );
 
       // Top 20 Detailed Ledger Records
-      const transactions = payments.slice(0, 50).map(p => {
+      const transactions = payments.slice(0, 50).map((p) => {
         const origAmt = Number(p.original_amount || p.amount || 0);
-        const origCurr = (p.original_currency || p.currency || 'INR').toUpperCase();
-        const repAmt = this.fxRateService.reproduceReportingValue(origAmt, origCurr, repCurr, p.fx_rate, p.reporting_currency);
+        const origCurr = (
+          p.original_currency ||
+          p.currency ||
+          'INR'
+        ).toUpperCase();
+        const repAmt = this.fxRateService.reproduceReportingValue(
+          origAmt,
+          origCurr,
+          repCurr,
+          p.fx_rate,
+          p.reporting_currency,
+        );
 
         return {
           id: p.id,
           txnRef: p.txn_ref || `TXN-${p.id.slice(0, 8).toUpperCase()}`,
-          date: p.created_at ? new Date(p.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+          date: p.created_at
+            ? new Date(p.created_at).toLocaleDateString('en-US', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })
+            : '—',
           service: p.service || 'Telehealth Consultation',
           status: p.status,
           method: p.method || 'Card / Stripe',
@@ -840,11 +1371,17 @@ export class AdminService {
           originalCurrency: origCurr,
           reportingAmount: repAmt,
           reportingCurrency: repCurr,
-          fxRate: p.fx_rate || this.fxRateService.getRateQuote(origCurr, repCurr).rate,
+          fxRate:
+            p.fx_rate ||
+            this.fxRateService.getRateQuote(origCurr, repCurr).rate,
           fxRateSource: p.fx_rate_source || 'healnari_treasury_matrix_v1',
           fxRateTimestamp: p.fx_rate_timestamp || p.created_at,
-          platformFeeAmount: Number(p.platform_fee_amount || DecimalMath.percentage(origAmt, 10)),
-          providerPayoutAmount: Number(p.provider_payout_amount || DecimalMath.percentage(origAmt, 90)),
+          platformFeeAmount: Number(
+            p.platform_fee_amount || DecimalMath.percentage(origAmt, 10),
+          ),
+          providerPayoutAmount: Number(
+            p.provider_payout_amount || DecimalMath.percentage(origAmt, 90),
+          ),
         };
       });
 
@@ -868,7 +1405,9 @@ export class AdminService {
       };
     } catch (error) {
       console.error(error);
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -877,19 +1416,21 @@ export class AdminService {
     try {
       const { data: payouts } = await this.supabase.admin
         .from('payouts')
-        .select('id, doctor_id, amount, method, status, reference_id, requested_at, processed_at')
+        .select(
+          'id, doctor_id, amount, method, status, reference_id, requested_at, processed_at',
+        )
         .order('requested_at', { ascending: false });
 
       if (!payouts?.length) return [];
 
-      const doctorIds = [...new Set(payouts.map(p => p.doctor_id))];
+      const doctorIds = [...new Set(payouts.map((p) => p.doctor_id))];
       const { data: doctors } = await this.supabase.admin
         .from('profiles')
         .select('id, full_name, commission_rate, currency, country')
         .in('id', doctorIds);
-      const doctorMap = new Map((doctors || []).map(d => [d.id, d]));
+      const doctorMap = new Map((doctors || []).map((d) => [d.id, d]));
 
-      return payouts.map(p => {
+      return payouts.map((p) => {
         const doc = doctorMap.get(p.doctor_id);
         return {
           id: p.id,
@@ -899,14 +1440,27 @@ export class AdminService {
           currency: doc?.currency || 'USD',
           country: doc?.country || 'US',
           feeCut: `${Number(doc?.commission_rate ?? 10)}%`,
-          date: p.requested_at ? new Date(p.requested_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+          date: p.requested_at
+            ? new Date(p.requested_at).toLocaleDateString('en-US', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })
+            : '',
           method: p.method,
-          status: p.status === 'Paid' ? 'Processed' : p.status === 'Failed' ? 'Failed' : 'Pending',
+          status:
+            p.status === 'Paid'
+              ? 'Processed'
+              : p.status === 'Failed'
+                ? 'Failed'
+                : 'Pending',
           referenceId: p.reference_id || null,
         };
       });
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -914,13 +1468,20 @@ export class AdminService {
     try {
       const { data: updated, error } = await this.supabase.admin
         .from('payouts')
-        .update({ status: 'Paid', reference_id: referenceId, processed_at: new Date().toISOString() })
+        .update({
+          status: 'Paid',
+          reference_id: referenceId,
+          processed_at: new Date().toISOString(),
+        })
         .eq('id', id)
         .select('id, doctor_id, amount')
         .maybeSingle();
       if (error || !updated) throw new NotFoundException('Payout not found');
 
-      this.writeAudit(admin, 'payout.process', 'payouts', id, null, { status: 'Paid', reference_id: referenceId });
+      this.writeAudit(admin, 'payout.process', 'payouts', id, null, {
+        status: 'Paid',
+        reference_id: referenceId,
+      });
 
       // 1. In-App + Web Push
       await this.notifications.create(updated.doctor_id, {
@@ -930,15 +1491,20 @@ export class AdminService {
       });
 
       // 2. Transactional Email to Doctor via database-managed template
-      const { data: doc } = await this.supabase.admin.from('profiles').select('email, full_name').eq('id', updated.doctor_id).maybeSingle();
+      const { data: doc } = await this.supabase.admin
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', updated.doctor_id)
+        .maybeSingle();
       if (doc?.email) {
         const formattedAmount = `₹${Number(updated.amount).toLocaleString('en-IN')}`;
         const settlementDate = new Date().toLocaleDateString('en-IN');
-        this.email.sendTemplatedMail({
-          to: doc.email,
-          slug: 'doctor_payout_settlement',
-          defaultSubject: `HealNari Payout Settlement Confirmed (${formattedAmount})`,
-          defaultHtml: `
+        this.email
+          .sendTemplatedMail({
+            to: doc.email,
+            slug: 'doctor_payout_settlement',
+            defaultSubject: `HealNari Payout Settlement Confirmed (${formattedAmount})`,
+            defaultHtml: `
               <h2 style="color:#0f172a;margin-top:0;">Payment Settlement Advice</h2>
               <p>Dear Dr. {{doctorName}},</p>
               <p>Your net earnings payout has been successfully processed and transferred to your registered bank account.</p>
@@ -950,19 +1516,27 @@ export class AdminService {
               </div>
               <p style="color:#64748b;font-size:12px;">For any billing queries, please contact finance@healnari.com.</p>
           `,
-          variables: {
-            doctorName: doc.full_name || 'Doctor',
-            amount: formattedAmount,
-            referenceId,
-            settlementDate,
-          },
-        }).catch(() => {});
+            variables: {
+              doctorName: doc.full_name || 'Doctor',
+              amount: formattedAmount,
+              referenceId,
+              settlementDate,
+            },
+          })
+          .catch(() => {});
       }
 
-      return { payoutId: updated.id, referenceId, status: 'Processed', processedAt: new Date().toISOString() };
+      return {
+        payoutId: updated.id,
+        referenceId,
+        status: 'Processed',
+        processedAt: new Date().toISOString(),
+      };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -975,13 +1549,29 @@ export class AdminService {
         { count: completedAppointments },
         { count: cancelledAppointments },
       ] = await Promise.all([
-        this.supabase.admin.from('profiles').select('*', { count: 'exact', head: true }),
-        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).is('deleted_at', null),
-        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('status', AppointmentStatus.DONE),
-        this.supabase.admin.from('appointments').select('*', { count: 'exact', head: true }).is('deleted_at', null).eq('status', AppointmentStatus.CANCELLED),
+        this.supabase.admin
+          .from('profiles')
+          .select('*', { count: 'exact', head: true }),
+        this.supabase.admin
+          .from('appointments')
+          .select('*', { count: 'exact', head: true })
+          .is('deleted_at', null),
+        this.supabase.admin
+          .from('appointments')
+          .select('*', { count: 'exact', head: true })
+          .is('deleted_at', null)
+          .eq('status', AppointmentStatus.DONE),
+        this.supabase.admin
+          .from('appointments')
+          .select('*', { count: 'exact', head: true })
+          .is('deleted_at', null)
+          .eq('status', AppointmentStatus.CANCELLED),
       ]);
 
-      const { data: history } = await this.supabase.admin.from('reports_history').select().order('created_at', { ascending: false });
+      const { data: history } = await this.supabase.admin
+        .from('reports_history')
+        .select()
+        .order('created_at', { ascending: false });
 
       const totalAppts = totalAppointments || 0;
       const completedAppts = completedAppointments || 0;
@@ -992,12 +1582,17 @@ export class AdminService {
           totalAppointments: totalAppts,
           completedAppointments: completedAppts,
           cancelledAppointments: cancelledAppointments || 0,
-          completionRate: totalAppts > 0 ? `${Math.round((completedAppts / totalAppts) * 100)}%` : '0%',
+          completionRate:
+            totalAppts > 0
+              ? `${Math.round((completedAppts / totalAppts) * 100)}%`
+              : '0%',
         },
         history: history || [],
       };
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -1006,60 +1601,108 @@ export class AdminService {
       const reportId = `RPT-${Math.floor(Math.random() * 9000) + 1000}`;
       const { data: record } = await this.supabase.admin
         .from('reports_history')
-        .insert({ report_id: reportId, name, type, size: `${Math.floor(Math.random() * 900) + 100} KB`, status: 'Generated' })
+        .insert({
+          report_id: reportId,
+          name,
+          type,
+          size: `${Math.floor(Math.random() * 900) + 100} KB`,
+          status: 'Generated',
+        })
         .select()
         .maybeSingle();
       return record;
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   // ─── CMS Articles ─────────────────────────────────────────────────
   async getCmsArticles() {
     try {
-      const { data } = await this.supabase.admin.from('cms_articles').select().order('created_at', { ascending: false });
-      return (data || []).map(a => ({
+      const { data } = await this.supabase.admin
+        .from('cms_articles')
+        .select()
+        .order('created_at', { ascending: false });
+      return (data || []).map((a) => ({
         ...a,
-        date: a.updated_at ? new Date(a.updated_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+        date: a.updated_at
+          ? new Date(a.updated_at).toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })
+          : '',
       }));
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
-  async createCmsArticle(body: { title: string; author: string; category: string; status?: string }) {
+  async createCmsArticle(body: {
+    title: string;
+    author: string;
+    category: string;
+    status?: string;
+  }) {
     try {
       const displayId = `C-${Math.floor(Math.random() * 9000) + 100}`;
-      const { data } = await this.supabase.admin.from('cms_articles').insert({ ...body, display_id: displayId, status: body.status || 'Draft' }).select().maybeSingle();
+      const { data } = await this.supabase.admin
+        .from('cms_articles')
+        .insert({
+          ...body,
+          display_id: displayId,
+          status: body.status || 'Draft',
+        })
+        .select()
+        .maybeSingle();
       return data;
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   async updateCmsArticleStatus(id: string, status: string) {
     try {
-      const { data } = await this.supabase.admin.from('cms_articles').update({ status }).eq('id', id).select().maybeSingle();
+      const { data } = await this.supabase.admin
+        .from('cms_articles')
+        .update({ status })
+        .eq('id', id)
+        .select()
+        .maybeSingle();
       return data;
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   async updateCmsArticle(id: string, body: any) {
     try {
-      const { data } = await this.supabase.admin.from('cms_articles').update({
-        title: body.title,
-        author: body.author,
-        category: body.category,
-        summary: body.summary,
-        content: body.content,
-        status: body.status
-      }).eq('id', id).select().maybeSingle();
+      const { data } = await this.supabase.admin
+        .from('cms_articles')
+        .update({
+          title: body.title,
+          author: body.author,
+          category: body.category,
+          summary: body.summary,
+          content: body.content,
+          status: body.status,
+        })
+        .eq('id', id)
+        .select()
+        .maybeSingle();
       return data;
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -1067,21 +1710,29 @@ export class AdminService {
     try {
       await this.supabase.admin.from('cms_articles').delete().eq('id', id);
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   // ─── Landing Page Settings (Database) ─────────────────────────────
-  
+
   async getLandingSettings() {
     try {
-      const { data, error } = await this.supabase.admin.from('landing_settings').select('*').eq('id', 1).maybeSingle();
+      const { data, error } = await this.supabase.admin
+        .from('landing_settings')
+        .select('*')
+        .eq('id', 1)
+        .maybeSingle();
       if (error || !data) {
         return {
-          heroTitle: 'Your Premier Partner in Women\'s Health',
-          heroSubtitle: 'Empowering women through comprehensive, compassionate, and cutting-edge medical care. Book consultations instantly.',
+          heroTitle: "Your Premier Partner in Women's Health",
+          heroSubtitle:
+            'Empowering women through comprehensive, compassionate, and cutting-edge medical care. Book consultations instantly.',
           providerHeroTitle: 'Empower Your Practice with HealNari',
-          providerHeroSubtitle: 'Join the leading digital platform for women\'s endocrinology and reproductive health. Focus on what you do best—delivering world-class clinical outcomes—while our AI EMR and automated patient acquisition handles the rest.',
+          providerHeroSubtitle:
+            "Join the leading digital platform for women's endocrinology and reproductive health. Focus on what you do best—delivering world-class clinical outcomes—while our AI EMR and automated patient acquisition handles the rest.",
           pricingAmount: 799,
           toggles: {
             showEmergencyBanner: false,
@@ -1091,9 +1742,9 @@ export class AdminService {
             showNewsletter: true,
             showProviderTestimonials: true,
             showProviderCalculator: true,
-            showProviderComparison: true
+            showProviderComparison: true,
           },
-          promoText: 'Use code HEALTH20 for 20% off your first consultation!'
+          promoText: 'Use code HEALTH20 for 20% off your first consultation!',
         };
       }
       return {
@@ -1103,11 +1754,13 @@ export class AdminService {
         providerHeroSubtitle: data.provider_hero_subtitle,
         pricingAmount: data.pricing_amount,
         toggles: data.toggles,
-        promoText: data.promo_text
+        promoText: data.promo_text,
       };
     } catch (error) {
       console.error('Failed to fetch landing settings:', error);
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -1115,15 +1768,36 @@ export class AdminService {
     try {
       // First try to fetch the existing settings
       const existingSettings = await this.getLandingSettings();
-      
+
       const updatedSettings = {
-        hero_title: settings.heroTitle !== undefined ? settings.heroTitle : existingSettings.heroTitle,
-        hero_subtitle: settings.heroSubtitle !== undefined ? settings.heroSubtitle : existingSettings.heroSubtitle,
-        provider_hero_title: settings.providerHeroTitle !== undefined ? settings.providerHeroTitle : existingSettings.providerHeroTitle,
-        provider_hero_subtitle: settings.providerHeroSubtitle !== undefined ? settings.providerHeroSubtitle : existingSettings.providerHeroSubtitle,
-        pricing_amount: settings.pricingAmount !== undefined ? settings.pricingAmount : existingSettings.pricingAmount,
-        promo_text: settings.promoText !== undefined ? settings.promoText : existingSettings.promoText,
-        toggles: settings.toggles !== undefined ? settings.toggles : existingSettings.toggles
+        hero_title:
+          settings.heroTitle !== undefined
+            ? settings.heroTitle
+            : existingSettings.heroTitle,
+        hero_subtitle:
+          settings.heroSubtitle !== undefined
+            ? settings.heroSubtitle
+            : existingSettings.heroSubtitle,
+        provider_hero_title:
+          settings.providerHeroTitle !== undefined
+            ? settings.providerHeroTitle
+            : existingSettings.providerHeroTitle,
+        provider_hero_subtitle:
+          settings.providerHeroSubtitle !== undefined
+            ? settings.providerHeroSubtitle
+            : existingSettings.providerHeroSubtitle,
+        pricing_amount:
+          settings.pricingAmount !== undefined
+            ? settings.pricingAmount
+            : existingSettings.pricingAmount,
+        promo_text:
+          settings.promoText !== undefined
+            ? settings.promoText
+            : existingSettings.promoText,
+        toggles:
+          settings.toggles !== undefined
+            ? settings.toggles
+            : existingSettings.toggles,
       };
 
       const { data, error } = await this.supabase.admin
@@ -1131,12 +1805,14 @@ export class AdminService {
         .upsert({ id: 1, ...updatedSettings })
         .select()
         .maybeSingle();
-        
+
       if (error) {
         console.error('Failed to update landing settings:', error);
-        throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+        throw new InternalServerErrorException(
+          ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+        );
       }
-      
+
       return {
         heroTitle: data.hero_title,
         heroSubtitle: data.hero_subtitle,
@@ -1144,79 +1820,138 @@ export class AdminService {
         providerHeroSubtitle: data.provider_hero_subtitle,
         pricingAmount: data.pricing_amount,
         toggles: data.toggles,
-        promoText: data.promo_text
+        promoText: data.promo_text,
       };
     } catch (error) {
       console.error('Failed to update landing settings:', error);
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   // ─── Message Templates ───────────────────────────────────────────
   async getMessageTemplates() {
     try {
-      const { data } = await this.supabase.admin.from('message_templates').select().order('created_at', { ascending: false });
+      const { data } = await this.supabase.admin
+        .from('message_templates')
+        .select()
+        .order('created_at', { ascending: false });
       return data || [];
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
-  async createMessageTemplate(body: { name: string; content: string; subject?: string; slug?: string; description?: string; type?: string; audience?: string }) {
+  async createMessageTemplate(body: {
+    name: string;
+    content: string;
+    subject?: string;
+    slug?: string;
+    description?: string;
+    type?: string;
+    audience?: string;
+  }) {
     try {
-      const { data } = await this.supabase.admin.from('message_templates').insert({
-        name: body.name,
-        content: body.content,
-        subject: body.subject || null,
-        slug: body.slug || null,
-        description: body.description || null,
-        type: body.type || 'email',
-        audience: body.audience || 'General',
-      }).select().maybeSingle();
+      const { data } = await this.supabase.admin
+        .from('message_templates')
+        .insert({
+          name: body.name,
+          content: body.content,
+          subject: body.subject || null,
+          slug: body.slug || null,
+          description: body.description || null,
+          type: body.type || 'email',
+          audience: body.audience || 'General',
+        })
+        .select()
+        .maybeSingle();
       this.email.invalidateTemplateCache(body.slug);
       return data;
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
-  async updateMessageTemplate(id: string, body: { name: string; content: string; subject?: string; slug?: string; description?: string; type?: string; audience?: string }) {
+  async updateMessageTemplate(
+    id: string,
+    body: {
+      name: string;
+      content: string;
+      subject?: string;
+      slug?: string;
+      description?: string;
+      type?: string;
+      audience?: string;
+    },
+  ) {
     try {
-      const patch: Record<string, any> = { name: body.name, content: body.content };
+      const patch: Record<string, any> = {
+        name: body.name,
+        content: body.content,
+      };
       if (body.type) patch.type = body.type;
       if (body.audience) patch.audience = body.audience;
       if (body.subject !== undefined) patch.subject = body.subject;
       if (body.slug !== undefined) patch.slug = body.slug;
       if (body.description !== undefined) patch.description = body.description;
 
-      const { data } = await this.supabase.admin.from('message_templates').update(patch).eq('id', id).select().maybeSingle();
+      const { data } = await this.supabase.admin
+        .from('message_templates')
+        .update(patch)
+        .eq('id', id)
+        .select()
+        .maybeSingle();
       this.email.invalidateTemplateCache(body.slug || data?.slug);
       return data;
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   async deleteMessageTemplate(id: string) {
     try {
-      const { data } = await this.supabase.admin.from('message_templates').select('slug').eq('id', id).maybeSingle();
+      const { data } = await this.supabase.admin
+        .from('message_templates')
+        .select('slug')
+        .eq('id', id)
+        .maybeSingle();
       await this.supabase.admin.from('message_templates').delete().eq('id', id);
       if (data?.slug) this.email.invalidateTemplateCache(data.slug);
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   // ─── Broadcasts ──────────────────────────────────────────────────
   async getBroadcastHistory() {
     try {
-      const { data } = await this.supabase.admin.from('broadcast_history').select().order('created_at', { ascending: false });
-      return (data || []).map(b => ({
+      const { data } = await this.supabase.admin
+        .from('broadcast_history')
+        .select()
+        .order('created_at', { ascending: false });
+      return (data || []).map((b) => ({
         ...b,
-        date: b.created_at ? new Date(b.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '',
+        date: b.created_at
+          ? new Date(b.created_at).toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })
+          : '',
       }));
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -1231,8 +1966,12 @@ export class AdminService {
         query = query.eq('role', ProfileRole.DOCTOR);
         break;
       case 'New Patients': {
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-        query = query.eq('role', ProfileRole.PATIENT).gte('created_at', thirtyDaysAgo);
+        const thirtyDaysAgo = new Date(
+          Date.now() - 30 * 24 * 60 * 60 * 1000,
+        ).toISOString();
+        query = query
+          .eq('role', ProfileRole.PATIENT)
+          .gte('created_at', thirtyDaysAgo);
         break;
       }
       case 'Unverified Doctors':
@@ -1250,7 +1989,17 @@ export class AdminService {
    * provider is wired up) — resolves the audience to real recipients and fans
    * out a real in-app + web-push notification to each of them, same pattern
    * as CommunicationsService (doctor-side broadcasts). */
-  async sendBroadcast(admin: AuthUser, body: { subject: string; audience: string; body: string; scheduleAt?: string; channels?: string[]; userIds?: string[] }) {
+  async sendBroadcast(
+    admin: AuthUser,
+    body: {
+      subject: string;
+      audience: string;
+      body: string;
+      scheduleAt?: string;
+      channels?: string[];
+      userIds?: string[];
+    },
+  ) {
     try {
       const displayId = `BC-${Math.floor(Math.random() * 9000) + 100}`;
       const scheduled = !!body.scheduleAt;
@@ -1262,13 +2011,19 @@ export class AdminService {
         // N selected rows") always wins over the audience label — resolving
         // by label here would silently widen delivery to everyone matching
         // that label instead of just the rows the admin picked.
-        recipientIds = body.userIds?.length ? body.userIds : await this.resolveAudience(body.audience);
+        recipientIds = body.userIds?.length
+          ? body.userIds
+          : await this.resolveAudience(body.audience);
         if (channels.includes('Push') && recipientIds.length) {
-          await Promise.all(recipientIds.map((userId) => this.notifications.create(userId, {
-            type: 'broadcast',
-            title: body.subject,
-            message: body.body,
-          })));
+          await Promise.all(
+            recipientIds.map((userId) =>
+              this.notifications.create(userId, {
+                type: 'broadcast',
+                title: body.subject,
+                message: body.body,
+              }),
+            ),
+          );
         }
       }
 
@@ -1286,10 +2041,24 @@ export class AdminService {
         })
         .select()
         .maybeSingle();
-      this.writeAudit(admin, 'broadcast.send', 'broadcast_history', data.id, null, { subject: body.subject, audience: body.audience, recipientCount: recipientIds.length, channels });
+      this.writeAudit(
+        admin,
+        'broadcast.send',
+        'broadcast_history',
+        data.id,
+        null,
+        {
+          subject: body.subject,
+          audience: body.audience,
+          recipientCount: recipientIds.length,
+          channels,
+        },
+      );
       return data;
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -1297,51 +2066,91 @@ export class AdminService {
    * "Message" action instead of the toast-only simulation they used to have. */
   async notifyUser(userId: string, title: string, message: string) {
     try {
-      const { data: profile } = await this.supabase.admin.from('profiles').select('id').eq('id', userId).maybeSingle();
+      const { data: profile } = await this.supabase.admin
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
       if (!profile) throw new NotFoundException('User not found');
-      const data = await this.notifications.create(userId, { type: 'admin_message', title, message });
+      const data = await this.notifications.create(userId, {
+        type: 'admin_message',
+        title,
+        message,
+      });
       return data;
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   // ─── Public Leads ────────────────────────────────────────────────
   async getNewsletterSubscribers() {
     try {
-      const { data } = await this.supabase.admin.from('newsletter_subscribers').select().order('created_at', { ascending: false });
+      const { data } = await this.supabase.admin
+        .from('newsletter_subscribers')
+        .select()
+        .order('created_at', { ascending: false });
       return data || [];
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   async getConsultationRequests() {
     try {
-      const { data } = await this.supabase.admin.from('consultation_requests').select().order('created_at', { ascending: false });
+      const { data } = await this.supabase.admin
+        .from('consultation_requests')
+        .select()
+        .order('created_at', { ascending: false });
       const requests = data || [];
 
-      const doctorIds = [...new Set(requests.map(r => r.doctor_id).filter(Boolean))];
+      const doctorIds = [
+        ...new Set(requests.map((r) => r.doctor_id).filter(Boolean)),
+      ];
       const { data: doctors } = doctorIds.length
-        ? await this.supabase.admin.from('profiles').select('id, full_name').in('id', doctorIds)
+        ? await this.supabase.admin
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', doctorIds)
         : { data: [] as { id: string; full_name: string }[] };
-      const doctorNameById = new Map((doctors || []).map(d => [d.id, d.full_name]));
+      const doctorNameById = new Map(
+        (doctors || []).map((d) => [d.id, d.full_name]),
+      );
 
-      return requests.map(r => ({ ...r, doctor_name: r.doctor_id ? doctorNameById.get(r.doctor_id) || null : null }));
+      return requests.map((r) => ({
+        ...r,
+        doctor_name: r.doctor_id
+          ? doctorNameById.get(r.doctor_id) || null
+          : null,
+      }));
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   async updateConsultationRequestStatus(id: string, status: string) {
     try {
-      const { data, error } = await this.supabase.admin.from('consultation_requests').update({ status }).eq('id', id).select().maybeSingle();
-      if (error || !data) throw new NotFoundException('Consultation request not found');
+      const { data, error } = await this.supabase.admin
+        .from('consultation_requests')
+        .update({ status })
+        .eq('id', id)
+        .select()
+        .maybeSingle();
+      if (error || !data)
+        throw new NotFoundException('Consultation request not found');
       return data;
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -1355,7 +2164,9 @@ export class AdminService {
       if (error) throw new InternalServerErrorException(error.message);
       return data || [];
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -1369,7 +2180,9 @@ export class AdminService {
       if (error) throw new InternalServerErrorException(error.message);
       return data;
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -1384,7 +2197,9 @@ export class AdminService {
       if (error) throw new InternalServerErrorException(error.message);
       return data;
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -1396,7 +2211,9 @@ export class AdminService {
         .eq('id', id);
       if (error) throw new InternalServerErrorException(error.message);
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -1409,10 +2226,12 @@ export class AdminService {
         .eq('role', 'doctor')
         .order('created_at', { ascending: true });
       if (error) {
-        this.logger.error(`Failed to fetch public doctors from Supabase: ${error.message}`);
+        this.logger.error(
+          `Failed to fetch public doctors from Supabase: ${error.message}`,
+        );
         return [];
       }
-      return (data ?? []).map(d => ({
+      return (data ?? []).map((d) => ({
         id: d.id,
         full_name: d.full_name,
         avatar_url: d.avatar_url,
@@ -1432,6 +2251,3 @@ export class AdminService {
     }
   }
 }
-
-
-

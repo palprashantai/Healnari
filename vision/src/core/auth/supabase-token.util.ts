@@ -18,11 +18,16 @@ interface SupabaseAccessTokenPayload extends jwt.JwtPayload {
  * `anonClient.auth.getUser()` when the secret isn't set. Shared by
  * SupabaseAuthGuard (REST) and the WebSocket gateways' handshake auth, all
  * of which previously each ran their own copy of the network round trip. */
-export async function resolveSupabaseToken(anonClient: SupabaseClient, token: string): Promise<ResolvedIdentity | null> {
+export async function resolveSupabaseToken(
+  anonClient: SupabaseClient,
+  token: string,
+): Promise<ResolvedIdentity | null> {
   const jwtSecret = process.env.SUPABASE_JWT_SECRET;
   if (jwtSecret) {
     try {
-      const payload = jwt.verify(token, jwtSecret, { algorithms: ['HS256'] }) as SupabaseAccessTokenPayload;
+      const payload = jwt.verify(token, jwtSecret, {
+        algorithms: ['HS256'],
+      }) as SupabaseAccessTokenPayload;
       if (!payload.sub) return null;
       return { id: payload.sub, email: payload.email };
     } catch {

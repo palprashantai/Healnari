@@ -20,25 +20,37 @@ export class SubscribeDto {
   @Type(() => PushSubscriptionKeysDto)
   keys: PushSubscriptionKeysDto;
   @ApiProperty({ required: false }) @IsOptional() @IsString() platform?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() userAgent?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  userAgent?: string;
 }
 
 @ApiTags('Push Subscriptions')
 @Controller('api/push-subscriptions')
 export class PushSubscriptionsController {
-  constructor(private readonly pushSubscriptionsService: PushSubscriptionsService) {}
+  constructor(
+    private readonly pushSubscriptionsService: PushSubscriptionsService,
+  ) {}
 
-  @ApiOperation({ summary: "Register (or refresh) the caller's browser push subscription" })
+  @ApiOperation({
+    summary: "Register (or refresh) the caller's browser push subscription",
+  })
   @Post()
   async subscribe(@CurrentUser() user: AuthUser, @Body() body: SubscribeDto) {
     const data = await this.pushSubscriptionsService.subscribe(user, body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.PUSH_SUBSCRIBED);
   }
 
-  @ApiOperation({ summary: "Remove one of the caller's push subscriptions (e.g. on logout)" })
+  @ApiOperation({
+    summary: "Remove one of the caller's push subscriptions (e.g. on logout)",
+  })
   @ApiQuery({ name: 'endpoint', required: true })
   @Delete()
-  async unsubscribe(@CurrentUser() user: AuthUser, @Query('endpoint') endpoint: string) {
+  async unsubscribe(
+    @CurrentUser() user: AuthUser,
+    @Query('endpoint') endpoint: string,
+  ) {
     await this.pushSubscriptionsService.unsubscribe(user, endpoint);
     return ResponseHelper.success(null, SUCCESS_MESSAGES.PUSH_UNSUBSCRIBED);
   }

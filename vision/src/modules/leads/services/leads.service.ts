@@ -1,10 +1,19 @@
 import { randomBytes } from 'crypto';
-import { BadRequestException, ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { EmailService } from '@/core/email/email.service';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
-import { AppointmentStatus, AppointmentType } from '@/shared/interfaces/appointment.interface';
+import {
+  AppointmentStatus,
+  AppointmentType,
+} from '@/shared/interfaces/appointment.interface';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ConsultationRequestDto } from '@/modules/leads/controllers/leads.controller';
@@ -17,11 +26,13 @@ export class LeadsService {
     private readonly notifications: NotificationsService,
     private readonly email: EmailService,
     private readonly doctorsService: DoctorsService,
-  ) { }
+  ) {}
 
   private requireVerifiedDoctor(user: AuthUser) {
-    if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
-    if (!user.profile.kyc_verified) throw new ForbiddenException(ERROR_MESSAGES.DOCTOR_NOT_VERIFIED);
+    if (user.profile.role !== ProfileRole.DOCTOR)
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    if (!user.profile.kyc_verified)
+      throw new ForbiddenException(ERROR_MESSAGES.DOCTOR_NOT_VERIFIED);
   }
 
   async subscribeNewsletter(email: string) {
@@ -34,14 +45,19 @@ export class LeadsService {
         .maybeSingle();
       return data || { email };
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   private async findExistingPatient(email?: string, mobile?: string) {
     if (!email && !mobile) return null;
 
-    let query = this.supabase.admin.from('profiles').select().eq('role', ProfileRole.PATIENT);
+    let query = this.supabase.admin
+      .from('profiles')
+      .select()
+      .eq('role', ProfileRole.PATIENT);
 
     const conditions: string[] = [];
     if (email) conditions.push(`email.eq.${email}`);
@@ -68,11 +84,16 @@ export class LeadsService {
 
   async createConsultationRequest(body: ConsultationRequestDto) {
     if (!body.doctorId) {
-      throw new BadRequestException('A specific doctor must be selected to book a consultation.');
+      throw new BadRequestException(
+        'A specific doctor must be selected to book a consultation.',
+      );
     }
 
     try {
-      const existingProfile = await this.findExistingPatient(body.email, body.mobile);
+      const existingProfile = await this.findExistingPatient(
+        body.email,
+        body.mobile,
+      );
 
       let patientId: string;
       let generatedPassword: string | null = null;
@@ -81,13 +102,17 @@ export class LeadsService {
         patientId = existingProfile.id;
       } else {
         generatedPassword = randomBytes(9).toString('base64url') + 'A1!';
-        const { data: created, error } = await this.supabase.admin.auth.admin.createUser({
-          email: body.email,
-          password: generatedPassword,
-          email_confirm: true,
-          user_metadata: { role: ProfileRole.PATIENT, full_name: body.name },
-        });
-        if (error || !created?.user) throw new ForbiddenException(error?.message || 'Failed to create patient account');
+        const { data: created, error } =
+          await this.supabase.admin.auth.admin.createUser({
+            email: body.email,
+            password: generatedPassword,
+            email_confirm: true,
+            user_metadata: { role: ProfileRole.PATIENT, full_name: body.name },
+          });
+        if (error || !created?.user)
+          throw new ForbiddenException(
+            error?.message || 'Failed to create patient account',
+          );
         patientId = created.user.id;
         const profileUpdates: any = {};
         if (body.mobile) profileUpdates.phone = body.mobile;
@@ -95,42 +120,65 @@ export class LeadsService {
         if (body.country) profileUpdates.country = body.country;
         if (body.currency) profileUpdates.currency = body.currency;
         if (Object.keys(profileUpdates).length > 0) {
-          await this.supabase.admin.from('profiles').update(profileUpdates).eq('id', patientId);
+          await this.supabase.admin
+            .from('profiles')
+            .update(profileUpdates)
+            .eq('id', patientId);
         }
       }
 
-      const { data: doctor } = await this.supabase.admin.from('profiles').select('full_name, specialty, currency').eq('id', body.doctorId).maybeSingle();
-      const scheduledDate = body.preferredDate || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const { data: doctor } = await this.supabase.admin
+        .from('profiles')
+        .select('full_name, specialty, currency')
+        .eq('id', body.doctorId)
+        .maybeSingle();
+      const scheduledDate =
+        body.preferredDate ||
+        new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const scheduledTime = body.preferredTime || '10:00 AM';
 
       // Validate slot availability
-      const availability = await this.doctorsService.getAvailableSlots(body.doctorId, scheduledDate);
+      const availability = await this.doctorsService.getAvailableSlots(
+        body.doctorId,
+        scheduledDate,
+      );
       if (!availability.availableSlots.includes(scheduledTime)) {
-        throw new ForbiddenException('The selected time slot is no longer available. Please choose another slot.');
+        throw new ForbiddenException(
+          'The selected time slot is no longer available. Please choose another slot.',
+        );
       }
 
       // Create appointment with HOLD status and 10 minute expiry
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-      const { data: appointment, error: appointmentError } = await this.supabase.admin.from('appointments').insert({
-        patient_id: patientId,
-        doctor_id: body.doctorId,
-        specialty: doctor?.specialty || body.specialtyRecommendation,
-        type: AppointmentType.VIDEO,
-        scheduled_date: scheduledDate,
-        scheduled_time: scheduledTime,
-        reason: body.concern || 'Consultation request',
-        status: AppointmentStatus.HOLD,
-        hold_expires_at: expiresAt,
-        country: body.country || 'US',
-        currency: body.currency || doctor?.currency || 'USD',
-      }).select().maybeSingle();
+      const { data: appointment, error: appointmentError } =
+        await this.supabase.admin
+          .from('appointments')
+          .insert({
+            patient_id: patientId,
+            doctor_id: body.doctorId,
+            specialty: doctor?.specialty || body.specialtyRecommendation,
+            type: AppointmentType.VIDEO,
+            scheduled_date: scheduledDate,
+            scheduled_time: scheduledTime,
+            reason: body.concern || 'Consultation request',
+            status: AppointmentStatus.HOLD,
+            hold_expires_at: expiresAt,
+            country: body.country || 'US',
+            currency: body.currency || doctor?.currency || 'USD',
+          })
+          .select()
+          .maybeSingle();
 
       if (appointmentError) {
         // Handle double booking constraint error
         if (appointmentError.code === '23505') {
-          throw new ForbiddenException('This slot is already booked or held. Please choose another slot.');
+          throw new ForbiddenException(
+            'This slot is already booked or held. Please choose another slot.',
+          );
         }
-        throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+        throw new InternalServerErrorException(
+          ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+        );
       }
 
       // Also create the legacy consultation request for tracking purposes, but mark it converted
@@ -151,17 +199,20 @@ export class LeadsService {
           currency: body.currency || 'USD',
           fee: body.fee || null,
           patient_id: patientId,
-          status: 'Converted'
+          status: 'Converted',
         })
         .select()
         .maybeSingle();
 
       if (generatedPassword) {
-        const { data: linkData } = await this.supabase.admin.auth.admin.generateLink({
-          type: 'recovery',
-          email: body.email,
-        });
-        const setupLink = linkData?.properties?.action_link || 'https://app.healnari.com/reset-password';
+        const { data: linkData } =
+          await this.supabase.admin.auth.admin.generateLink({
+            type: 'recovery',
+            email: body.email,
+          });
+        const setupLink =
+          linkData?.properties?.action_link ||
+          'https://app.healnari.com/reset-password';
 
         await this.email.sendMail({
           to: body.email,
@@ -180,7 +231,9 @@ export class LeadsService {
       return { ...appointment, isDirectAppointment: true };
     } catch (error) {
       if (error instanceof ForbiddenException) throw error;
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -194,7 +247,9 @@ export class LeadsService {
         .order('created_at', { ascending: false });
       return data || [];
     } catch (error) {
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -208,13 +263,23 @@ export class LeadsService {
   async approveConsultationRequest(user: AuthUser, id: string) {
     this.requireVerifiedDoctor(user);
     try {
-      const { data: request } = await this.supabase.admin.from('consultation_requests').select().eq('id', id).maybeSingle();
-      if (!request) throw new NotFoundException('Consultation request not found');
-      if (request.doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+      const { data: request } = await this.supabase.admin
+        .from('consultation_requests')
+        .select()
+        .eq('id', id)
+        .maybeSingle();
+      if (!request)
+        throw new NotFoundException('Consultation request not found');
+      if (request.doctor_id !== user.id)
+        throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
       if (request.status === 'Converted') return request; // idempotent — already approved
-      if (request.status !== 'New') throw new ForbiddenException('This request has already been closed.');
+      if (request.status !== 'New')
+        throw new ForbiddenException('This request has already been closed.');
 
-      const existingProfile = await this.findExistingPatient(request.email, request.mobile);
+      const existingProfile = await this.findExistingPatient(
+        request.email,
+        request.mobile,
+      );
 
       let patientId: string;
       let generatedPassword: string | null = null;
@@ -223,40 +288,60 @@ export class LeadsService {
         patientId = existingProfile.id;
       } else {
         generatedPassword = randomBytes(9).toString('base64url') + 'A1!';
-        const { data: created, error } = await this.supabase.admin.auth.admin.createUser({
-          email: request.email,
-          password: generatedPassword,
-          email_confirm: true,
-          user_metadata: { role: ProfileRole.PATIENT, full_name: request.name },
-        });
-        if (error || !created?.user) throw new ForbiddenException(error?.message || 'Failed to create patient account');
+        const { data: created, error } =
+          await this.supabase.admin.auth.admin.createUser({
+            email: request.email,
+            password: generatedPassword,
+            email_confirm: true,
+            user_metadata: {
+              role: ProfileRole.PATIENT,
+              full_name: request.name,
+            },
+          });
+        if (error || !created?.user)
+          throw new ForbiddenException(
+            error?.message || 'Failed to create patient account',
+          );
         patientId = created.user.id;
         const profileUpdates: any = {};
         if (request.mobile) profileUpdates.phone = request.mobile;
         if (request.country) profileUpdates.country = request.country;
         if (request.currency) profileUpdates.currency = request.currency;
         if (Object.keys(profileUpdates).length > 0) {
-          await this.supabase.admin.from('profiles').update(profileUpdates).eq('id', patientId);
+          await this.supabase.admin
+            .from('profiles')
+            .update(profileUpdates)
+            .eq('id', patientId);
         }
       }
 
-      const { data: doctor } = await this.supabase.admin.from('profiles').select('full_name, specialty, currency').eq('id', user.id).maybeSingle();
+      const { data: doctor } = await this.supabase.admin
+        .from('profiles')
+        .select('full_name, specialty, currency')
+        .eq('id', user.id)
+        .maybeSingle();
 
-      const scheduledDate = request.preferred_date || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const scheduledDate =
+        request.preferred_date ||
+        new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const scheduledTime = request.preferred_time || '10:00 AM';
 
-      const { data: appointment } = await this.supabase.admin.from('appointments').insert({
-        patient_id: patientId,
-        doctor_id: user.id,
-        specialty: doctor?.specialty || request.specialty_recommendation,
-        type: AppointmentType.VIDEO,
-        scheduled_date: scheduledDate,
-        scheduled_time: scheduledTime,
-        reason: request.concern || 'Consultation request',
-        status: AppointmentStatus.APPROVED,
-        country: request.country || 'US',
-        currency: request.currency || doctor?.currency || 'USD',
-      }).select().maybeSingle();
+      const { data: appointment } = await this.supabase.admin
+        .from('appointments')
+        .insert({
+          patient_id: patientId,
+          doctor_id: user.id,
+          specialty: doctor?.specialty || request.specialty_recommendation,
+          type: AppointmentType.VIDEO,
+          scheduled_date: scheduledDate,
+          scheduled_time: scheduledTime,
+          reason: request.concern || 'Consultation request',
+          status: AppointmentStatus.APPROVED,
+          country: request.country || 'US',
+          currency: request.currency || doctor?.currency || 'USD',
+        })
+        .select()
+        .maybeSingle();
 
       const { data: updated } = await this.supabase.admin
         .from('consultation_requests')
@@ -268,11 +353,14 @@ export class LeadsService {
       const appointmentLine = `<p>Your appointment with Dr. ${doctor?.full_name || ''} is confirmed for <strong>${scheduledDate} at ${scheduledTime}</strong>.</p>`;
 
       if (generatedPassword) {
-        const { data: linkData } = await this.supabase.admin.auth.admin.generateLink({
-          type: 'recovery',
-          email: request.email,
-        });
-        const setupLink = linkData?.properties?.action_link || 'https://app.healnari.com/reset-password';
+        const { data: linkData } =
+          await this.supabase.admin.auth.admin.generateLink({
+            type: 'recovery',
+            email: request.email,
+          });
+        const setupLink =
+          linkData?.properties?.action_link ||
+          'https://app.healnari.com/reset-password';
 
         await this.email.sendMail({
           to: request.email,
@@ -301,17 +389,29 @@ export class LeadsService {
 
       return { ...updated, appointment, emailSent: this.email.isConfigured };
     } catch (error) {
-      if (error instanceof NotFoundException || error instanceof ForbiddenException) throw error;
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException
+      )
+        throw error;
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
   async declineConsultationRequest(user: AuthUser, id: string) {
     this.requireVerifiedDoctor(user);
     try {
-      const { data: request } = await this.supabase.admin.from('consultation_requests').select().eq('id', id).maybeSingle();
-      if (!request) throw new NotFoundException('Consultation request not found');
-      if (request.doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+      const { data: request } = await this.supabase.admin
+        .from('consultation_requests')
+        .select()
+        .eq('id', id)
+        .maybeSingle();
+      if (!request)
+        throw new NotFoundException('Consultation request not found');
+      if (request.doctor_id !== user.id)
+        throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
       const { data: updated } = await this.supabase.admin
         .from('consultation_requests')
@@ -321,8 +421,14 @@ export class LeadsService {
         .maybeSingle();
       return updated;
     } catch (error) {
-      if (error instanceof NotFoundException || error instanceof ForbiddenException) throw error;
-      throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
+      if (
+        error instanceof NotFoundException ||
+        error instanceof ForbiddenException
+      )
+        throw error;
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }

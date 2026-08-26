@@ -19,7 +19,9 @@ export class AdminCronService {
    * Aggregates completed payments from the past 24 hours, calculates gross volume,
    * platform commission (e.g. 15%), and logs the financial settlement summary.
    */
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { name: 'admin_daily_revenue_reconciliation' })
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
+    name: 'admin_daily_revenue_reconciliation',
+  })
   async reconcileDailyPlatformRevenue() {
     this.logger.log('Starting daily platform revenue reconciliation sweep...');
 
@@ -34,11 +36,16 @@ export class AdminCronService {
       .lte('created_at', now);
 
     if (error) {
-      this.logger.error(`Daily revenue reconciliation failed: ${error.message}`);
+      this.logger.error(
+        `Daily revenue reconciliation failed: ${error.message}`,
+      );
       return;
     }
 
-    const totalGross = (payments || []).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const totalGross = (payments || []).reduce(
+      (sum, p) => sum + (Number(p.amount) || 0),
+      0,
+    );
     const platformCommission = Math.round(totalGross * 0.15); // 15% Platform fee
     const doctorNetPayouts = totalGross - platformCommission;
 
@@ -54,23 +61,31 @@ export class AdminCronService {
 
     if (admins?.length && totalGross > 0) {
       await Promise.all(
-        admins.map(admin => {
+        admins.map((admin) => {
           // 1. In-App + Web Push
-          this.notifications.create(admin.id, {
-            type: 'admin_daily_revenue_summary',
-            title: 'Daily Platform Revenue Summary',
-            message: `Yesterday's Settlement: ₹${totalGross.toLocaleString('en-IN')} gross volume across ${payments?.length || 0} consults (Platform Net: ₹${platformCommission.toLocaleString('en-IN')}).`,
-            idempotencyKey: `admin_rev_${yesterday.slice(0, 10)}_${admin.id}`,
-            data: { gross: totalGross, commission: platformCommission, date: yesterday.slice(0, 10), path: '/admin-dashboard/revenue' },
-          }).catch(() => {});
+          this.notifications
+            .create(admin.id, {
+              type: 'admin_daily_revenue_summary',
+              title: 'Daily Platform Revenue Summary',
+              message: `Yesterday's Settlement: ₹${totalGross.toLocaleString('en-IN')} gross volume across ${payments?.length || 0} consults (Platform Net: ₹${platformCommission.toLocaleString('en-IN')}).`,
+              idempotencyKey: `admin_rev_${yesterday.slice(0, 10)}_${admin.id}`,
+              data: {
+                gross: totalGross,
+                commission: platformCommission,
+                date: yesterday.slice(0, 10),
+                path: '/admin-dashboard/revenue',
+              },
+            })
+            .catch(() => {});
 
           // 2. Email Summary via database-managed template
           if (admin.email) {
-            this.email.sendTemplatedMail({
-              to: admin.email,
-              slug: 'admin_daily_revenue_reconciliation',
-              defaultSubject: `HealNari Daily Settlement Report ({{date}})`,
-              defaultHtml: `
+            this.email
+              .sendTemplatedMail({
+                to: admin.email,
+                slug: 'admin_daily_revenue_reconciliation',
+                defaultSubject: `HealNari Daily Settlement Report ({{date}})`,
+                defaultHtml: `
                   <h2 style="color:#0f172a;margin-top:0;">📊 HealNari 24h Revenue Settlement Report</h2>
                   <p>Hello {{adminName}},</p>
                   <p>Here is the 24-hour financial reconciliation summary for <strong>{{date}}</strong>:</p>
@@ -85,16 +100,17 @@ export class AdminCronService {
                   </div>
                   <p style="color:#94a3b8;font-size:11px;margin-top:20px;">HealNari Financial Operations • Automated Midnight Reconciliation</p>
             `,
-              variables: {
-                adminName: admin.full_name || 'Admin',
-                date: yesterday.slice(0, 10),
-                totalGross: `₹${totalGross.toLocaleString('en-IN')}`,
-                platformCommission: `₹${platformCommission.toLocaleString('en-IN')}`,
-                doctorNetPayouts: `₹${doctorNetPayouts.toLocaleString('en-IN')}`,
-                paidCount: payments?.length || 0,
-                analyticsUrl: 'https://healnari.vercel.app/admin/revenue',
-              },
-            }).catch(() => {});
+                variables: {
+                  adminName: admin.full_name || 'Admin',
+                  date: yesterday.slice(0, 10),
+                  totalGross: `₹${totalGross.toLocaleString('en-IN')}`,
+                  platformCommission: `₹${platformCommission.toLocaleString('en-IN')}`,
+                  doctorNetPayouts: `₹${doctorNetPayouts.toLocaleString('en-IN')}`,
+                  paidCount: payments?.length || 0,
+                  analyticsUrl: 'https://healnari.vercel.app/admin/revenue',
+                },
+              })
+              .catch(() => {});
           }
         }),
       );
@@ -110,7 +126,9 @@ export class AdminCronService {
   async escalatePendingDoctorKyc() {
     this.logger.log('Starting pending doctor KYC escalation sweep...');
 
-    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    const fortyEightHoursAgo = new Date(
+      Date.now() - 48 * 60 * 60 * 1000,
+    ).toISOString();
 
     const { data: pendingDoctors, error } = await this.supabase.admin
       .from('profiles')
@@ -133,23 +151,31 @@ export class AdminCronService {
     if (!admins?.length) return;
 
     await Promise.all(
-      admins.map(admin => {
+      admins.map((admin) => {
         // 1. In-App + Web Push
-        this.notifications.create(admin.id, {
-          type: 'admin_kyc_escalation',
-          title: 'Doctor KYC Reviews Overdue',
-          message: `${pendingDoctors.length} doctor profile(s) have been waiting for verification for over 48 hours. Please review their medical licenses.`,
-          data: { pendingCount: pendingDoctors.length },
-        }).catch(() => {});
+        this.notifications
+          .create(admin.id, {
+            type: 'admin_kyc_escalation',
+            title: 'Doctor KYC Reviews Overdue',
+            message: `${pendingDoctors.length} doctor profile(s) have been waiting for verification for over 48 hours. Please review their medical licenses.`,
+            data: { pendingCount: pendingDoctors.length },
+          })
+          .catch(() => {});
 
         // 2. Email Escalation via database-managed template
         if (admin.email) {
-          const doctorListHtml = pendingDoctors.map(d => `<li style="margin-bottom:6px;"><strong>Dr. ${d.full_name || 'Unknown'}</strong> (Submitted: ${new Date(d.kyc_submitted_at).toLocaleDateString()})</li>`).join('');
-          this.email.sendTemplatedMail({
-            to: admin.email,
-            slug: 'admin_doctor_kyc_escalation',
-            defaultSubject: `⚠️ [Escalation] {{pendingCount}} Doctor KYC Verifications Overdue (>48h)`,
-            defaultHtml: `
+          const doctorListHtml = pendingDoctors
+            .map(
+              (d) =>
+                `<li style="margin-bottom:6px;"><strong>Dr. ${d.full_name || 'Unknown'}</strong> (Submitted: ${new Date(d.kyc_submitted_at).toLocaleDateString()})</li>`,
+            )
+            .join('');
+          this.email
+            .sendTemplatedMail({
+              to: admin.email,
+              slug: 'admin_doctor_kyc_escalation',
+              defaultSubject: `⚠️ [Escalation] {{pendingCount}} Doctor KYC Verifications Overdue (>48h)`,
+              defaultHtml: `
               <h2 style="color:#e11d48;margin-top:0;">⚠️ Action Required: Doctor KYC Review Escalation</h2>
               <p>Hello {{adminName}},</p>
               <p>There are <strong>{{pendingCount}} doctor verification(s)</strong> that have been pending review for over 48 hours:</p>
@@ -160,17 +186,21 @@ export class AdminCronService {
                 <a href="{{verificationsUrl}}" style="background:#e11d48;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">Review Pending Doctor KYCs</a>
               </div>
           `,
-            variables: {
-              adminName: admin.full_name || 'Admin',
-              pendingCount: pendingDoctors.length,
-              doctorListHtml,
-              verificationsUrl: 'https://healnari.vercel.app/admin/verifications',
-            },
-          }).catch(() => {});
+              variables: {
+                adminName: admin.full_name || 'Admin',
+                pendingCount: pendingDoctors.length,
+                doctorListHtml,
+                verificationsUrl:
+                  'https://healnari.vercel.app/admin/verifications',
+              },
+            })
+            .catch(() => {});
         }
       }),
     );
 
-    this.logger.log(`Escalated ${pendingDoctors.length} overdue KYC review(s) to ${admins.length} admin(s).`);
+    this.logger.log(
+      `Escalated ${pendingDoctors.length} overdue KYC review(s) to ${admins.length} admin(s).`,
+    );
   }
 }

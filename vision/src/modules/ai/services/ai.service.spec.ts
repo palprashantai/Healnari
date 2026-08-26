@@ -22,9 +22,13 @@ describe('AiService — Safety, JSON Extraction, and RAG Resilience', () => {
     });
 
     it('extracts valid JSON enclosed in markdown code fences', () => {
-      const input = '```json\n{\n  "status": "NORMAL",\n  "explanation": "Healthy biomarker"\n}\n```';
+      const input =
+        '```json\n{\n  "status": "NORMAL",\n  "explanation": "Healthy biomarker"\n}\n```';
       const result = service.safeJsonParse(input, { status: 'UNKNOWN' });
-      expect(result).toEqual({ status: 'NORMAL', explanation: 'Healthy biomarker' });
+      expect(result).toEqual({
+        status: 'NORMAL',
+        explanation: 'Healthy biomarker',
+      });
     });
 
     it('returns default fallback object when JSON is completely invalid or truncated', () => {
@@ -38,7 +42,9 @@ describe('AiService — Safety, JSON Extraction, and RAG Resilience', () => {
       const fallback = { valid: false };
       expect(service.safeJsonParse('', fallback)).toEqual(fallback);
       expect(service.safeJsonParse(null as any, fallback)).toEqual(fallback);
-      expect(service.safeJsonParse(undefined as any, fallback)).toEqual(fallback);
+      expect(service.safeJsonParse(undefined as any, fallback)).toEqual(
+        fallback,
+      );
     });
   });
 
