@@ -220,13 +220,18 @@ export class LeadsService {
       if (request.status !== 'New')
         throw new ForbiddenException('This request has already been closed.');
 
-      const existingProfile = await this.findExistingPatient(
-        request.email,
-        request.mobile,
-      );
+      const [existingProfile, { data: doctor }] = await Promise.all([
+        this.findExistingPatient(request.email, request.mobile),
+        this.supabase.admin
+          .from('profiles')
+          .select('full_name, specialty, currency')
+          .eq('id', user.id)
+          .maybeSingle()
+      ]);
 
       let patientId: string;
       let generatedPassword: string | null = null;
+      let profileUpdatePromise: any = null;
 
       if (existingProfile) {
         patientId = existingProfile.id;
@@ -252,25 +257,19 @@ export class LeadsService {
         if (request.country) profileUpdates.country = request.country;
         if (request.currency) profileUpdates.currency = request.currency;
         if (Object.keys(profileUpdates).length > 0) {
-          await this.supabase.admin
+          profileUpdatePromise = this.supabase.admin
             .from('profiles')
             .update(profileUpdates)
             .eq('id', patientId);
         }
       }
 
-      const { data: doctor } = await this.supabase.admin
-        .from('profiles')
-        .select('full_name, specialty, currency')
-        .eq('id', user.id)
-        .maybeSingle();
-
       const scheduledDate =
         request.preferred_date ||
         new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const scheduledTime = request.preferred_time || '10:00 AM';
 
-      const { data: appointment } = await this.supabase.admin
+      const appointmentPromise = this.supabase.admin
         .from('appointments')
         .insert({
           patient_id: patientId,
@@ -287,14 +286,20 @@ export class LeadsService {
         .select()
         .maybeSingle();
 
-      // Optimistic lock: only update if still 'New'. If this yields no rows, a concurrent request beat us to it.
-      const { data: updated } = await this.supabase.admin
+      const updateReqPromise = this.supabase.admin
         .from('consultation_requests')
         .update({ status: 'Converted', patient_id: patientId })
         .eq('id', id)
         .eq('status', 'New')
         .select()
         .maybeSingle();
+
+      const promises: any[] = [appointmentPromise, updateReqPromise];
+      if (profileUpdatePromise) promises.push(profileUpdatePromise);
+
+      const [appointmentRes, updatedReqRes] = await Promise.all(promises);
+      const appointment = appointmentRes.data;
+      const updated = updatedReqRes.data;
 
       if (!updated) {
         // We lost the race condition. Clean up the duplicate appointment we just created.
@@ -309,19 +314,8 @@ export class LeadsService {
         return { ...actualRequest, emailSent: true }; // Idempotent return
       }
 
-      const appointmentLine = `<p>Your appointment with Dr. ${doctor?.full_name || ''} is confirmed for <strong>${scheduledDate} at ${scheduledTime}</strong>.</p>`;
-
       if (generatedPassword) {
-        const { data: linkData } =
-          await this.supabase.admin.auth.admin.generateLink({
-            type: 'recovery',
-            email: request.email,
-          });
-        const setupLink =
-          linkData?.properties?.action_link ||
-          'https://app.healnari.com/reset-password';
-
-        await this.email.sendMail({
+        this.email.sendMail({
           to: request.email,
           subject: 'Your HealNari account is ready - Action Required',
           html: `
@@ -335,22 +329,26 @@ export class LeadsService {
                 <p style="margin: 8px 0 0 0;">📅 <strong>Date:</strong> ${scheduledDate}<br>⏰ <strong>Time:</strong> ${scheduledTime}</p>
               </div>
               
-              <p style="font-size: 16px;">We have set up your secure HealNari account. Your registered email address is <strong>${request.email}</strong>.</p>
-              <p style="font-size: 16px;">To access your account and complete your booking, please set up your password by clicking the button below:</p>
+              <p style="font-size: 16px;">We have set up your secure HealNari account with the following login details:</p>
+              <div style="background-color: #f8fafc; padding: 16px; margin: 16px 0; border: 1px dashed #cbd5e1; border-radius: 4px;">
+                <p style="margin: 0; font-size: 16px;"><strong>Email:</strong> ${request.email}</p>
+                <p style="margin: 8px 0 0 0; font-size: 16px;"><strong>Password:</strong> ${generatedPassword}</p>
+              </div>
+              
+              <p style="font-size: 16px;">Please log in to your account to complete your booking.</p>
               
               <div style="text-align: center; margin: 32px 0;">
-                <a href="${setupLink}" style="background-color: #0ea5e9; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Set Your Password</a>
+                <a href="https://app.healnari.com/login" style="background-color: #0ea5e9; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Log In to HealNari</a>
               </div>
 
               <p style="font-size: 16px; margin-top: 32px;"><strong>Next Step:</strong> Once logged in, please complete the payment to confirm your booking.</p>
-              <p style="font-size: 14px; color: #64748b; margin-top: 24px;">If the button above doesn't work, you can copy and paste this link into your browser:<br>
-              <a href="${setupLink}" style="color: #0ea5e9; word-break: break-all;">${setupLink}</a></p>
+              <p style="font-size: 14px; color: #64748b; margin-top: 24px;">For security reasons, we recommend changing your password after your first login.</p>
             </div>
           `,
-          text: `Hi ${request.name}, Dr. ${doctor?.full_name || ''} has approved your consultation request. Please set your password using this link: ${setupLink}. Once logged in, complete the payment to confirm your booking for ${scheduledDate} at ${scheduledTime}.`,
-        });
+          text: `Hi ${request.name}, Dr. ${doctor?.full_name || ''} has approved your consultation request. Your HealNari account is ready. Email: ${request.email}, Password: ${generatedPassword}. Please log in at https://app.healnari.com/login and complete the payment to confirm your booking for ${scheduledDate} at ${scheduledTime}.`,
+        }).catch(err => console.error('Failed to send approval email async', err));
       } else {
-        await this.email.sendMail({
+        this.email.sendMail({
           to: request.email,
           subject: 'Your consultation request was approved - Action Required',
           html: `
