@@ -86,7 +86,7 @@ function DoctorCommunications() {
           channels, 
           scheduleType, 
           scheduledFor: scheduleType === 'scheduled' ? scheduleDate : undefined,
-          attachments: attachments.map(f => f.name) // Pass file names (real file upload requires FormData)
+          ...(attachments.length > 0 && { attachments: attachments.map(f => f.name) }) // Only send if not empty
         },
       });
       await loadBroadcasts();

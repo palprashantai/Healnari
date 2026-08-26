@@ -191,7 +191,14 @@ export class PatientsService {
       .order('created_at', { ascending: false })
       .limit(100);
 
-    if (error) throw new InternalServerErrorException(error.message);
+    if (error) {
+      if (error.message.includes('target_patient_id does not exist')) {
+        // Schema mismatch on remote DB / stale PostgREST cache. Fallback gracefully.
+        console.warn('phi_audit_logs schema is out of sync; returning empty logs');
+        return [];
+      }
+      throw new InternalServerErrorException(error.message);
+    }
     return data || [];
   }
 

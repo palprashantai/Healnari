@@ -36,8 +36,67 @@ export class LeadsService {
     }
   }
 
+  private async findExistingPatient(email?: string, mobile?: string) {
+    if (!email && !mobile) return null;
+    
+    let query = this.supabase.admin.from('profiles').select().eq('role', ProfileRole.PATIENT);
+    
+    const conditions: string[] = [];
+    if (email) conditions.push(`email.eq.${email}`);
+    if (mobile) conditions.push(`phone.eq.${mobile}`);
+    
+    if (conditions.length > 0) {
+      query = query.or(conditions.join(','));
+    }
+    
+    const { data } = await query;
+    return data && data.length > 0 ? data[0] : null;
+  }
+
+  async checkExistingUser(email?: string, mobile?: string) {
+    const existing = await this.findExistingPatient(email, mobile);
+    if (existing) {
+      return {
+        name: existing.full_name,
+        age: existing.age,
+      };
+    }
+    return null;
+  }
+
   async createConsultationRequest(body: ConsultationRequestDto) {
     try {
+      const existingProfile = await this.findExistingPatient(body.email, body.mobile);
+
+      if (existingProfile && body.doctorId) {
+        const { data: doctor } = await this.supabase.admin.from('profiles').select('full_name, specialty, currency').eq('id', body.doctorId).maybeSingle();
+        const scheduledDate = body.preferredDate || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const scheduledTime = body.preferredTime || '10:00 AM';
+
+        const { data: appointment } = await this.supabase.admin.from('appointments').insert({
+          patient_id: existingProfile.id,
+          doctor_id: body.doctorId,
+          specialty: doctor?.specialty || body.specialtyRecommendation,
+          type: AppointmentType.VIDEO,
+          scheduled_date: scheduledDate,
+          scheduled_time: scheduledTime,
+          reason: body.concern || 'Consultation request',
+          status: AppointmentStatus.REQUESTED,
+          country: body.country || 'US',
+          currency: body.currency || doctor?.currency || 'USD',
+        }).select().maybeSingle();
+
+        this.notifications.create(body.doctorId, {
+          type: 'appointment_requested',
+          title: 'Patient booking request',
+          message: `${existingProfile.full_name} wants to book a consultation${body.concern ? ` for ${body.concern}` : ''}. Review and approve to confirm.`,
+          data: { appointmentId: appointment?.id },
+        }).catch(() => {});
+
+        return { ...appointment, isDirectAppointment: true };
+      }
+
+      // Normal Lead Logic (for new users)
       const { data } = await this.supabase.admin
         .from('consultation_requests')
         .insert({
@@ -54,6 +113,7 @@ export class LeadsService {
           country: body.country || 'US',
           currency: body.currency || 'USD',
           fee: body.fee || null,
+          patient_id: null,
         })
         .select()
         .maybeSingle();
@@ -62,7 +122,7 @@ export class LeadsService {
         this.notifications.create(body.doctorId, {
           type: 'consultation_request',
           title: 'New patient request',
-          message: `${body.name} wants to book a consultation${body.concern ? ` for ${body.concern}` : ''}. Review and approve to create their account.`,
+          message: `${body.name} wants to book a consultation${body.concern ? ` for ${body.concern}` : ''}. Review and approve to confirm.`,
           data: { consultationRequestId: data.id },
         }).catch(() => {});
       }
@@ -103,15 +163,12 @@ export class LeadsService {
       if (request.status === 'Converted') return request; // idempotent — already approved
       if (request.status !== 'New') throw new ForbiddenException('This request has already been closed.');
 
-      const { data: existingProfile } = await this.supabase.admin.from('profiles').select().eq('email', request.email).maybeSingle();
+      const existingProfile = await this.findExistingPatient(request.email, request.mobile);
 
       let patientId: string;
       let generatedPassword: string | null = null;
 
       if (existingProfile) {
-        if (existingProfile.role !== ProfileRole.PATIENT) {
-          throw new ForbiddenException('This email already belongs to a non-patient account.');
-        }
         patientId = existingProfile.id;
       } else {
         generatedPassword = randomBytes(9).toString('base64url') + 'A1!';

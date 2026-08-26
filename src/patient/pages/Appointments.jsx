@@ -699,7 +699,7 @@ function PatientAppointments() {
         reason: form.notes,
       });
       setSuccessApt(toRow(saved));
-      toast('Appointment requested! We\'ll confirm it shortly.', 'success');
+      toast('Your request has been sent! You will be asked to pay once the doctor confirms.', 'success');
     } catch (err) {
       toast(err.message || 'Failed to book appointment', 'error');
       throw err; // let BookingModal know booking failed so it doesn't reset/close
@@ -777,17 +777,21 @@ function PatientAppointments() {
 
       {/* Success Banner */}
       {successApt && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 flex items-center justify-between gap-4 animate-fade-in">
+        <div className={`border rounded-2xl p-5 flex items-center justify-between gap-4 animate-fade-in ${successApt.status === 'Pending' ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-              <i className="fas fa-circle-check"></i>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${successApt.status === 'Pending' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
+              <i className={`fas ${successApt.status === 'Pending' ? 'fa-clock' : 'fa-circle-check'}`}></i>
             </div>
             <div>
-              <p className="font-bold text-emerald-800">Appointment Confirmed!</p>
-              <p className="text-xs text-emerald-700">{successApt.doctor} • {successApt.dateLabel} • {successApt.time}</p>
+              <p className={`font-bold ${successApt.status === 'Pending' ? 'text-amber-800' : 'text-emerald-800'}`}>
+                {successApt.status === 'Pending' ? 'Booking Request Sent!' : 'Appointment Confirmed!'}
+              </p>
+              <p className={`text-xs ${successApt.status === 'Pending' ? 'text-amber-700' : 'text-emerald-700'}`}>
+                {successApt.doctor} • {successApt.dateLabel} • {successApt.time}
+              </p>
             </div>
           </div>
-          <button onClick={() => setSuccessApt(null)} className="text-emerald-600 hover:text-emerald-800"><i className="fas fa-xmark"></i></button>
+          <button onClick={() => setSuccessApt(null)} className={`${successApt.status === 'Pending' ? 'text-amber-600 hover:text-amber-800' : 'text-emerald-600 hover:text-emerald-800'}`}><i className="fas fa-xmark"></i></button>
         </div>
       )}
 
@@ -901,7 +905,7 @@ function PatientAppointments() {
                             <i className="fas fa-video mr-1"></i> Join Call
                           </button>
                         )}
-                        {!apt.isPaid && (
+                        {!apt.isPaid && apt.status === 'Confirmed' && (
                           <button onClick={() => openPayFor(apt)}
                             className="crm-btn-primary bg-amber-500 hover:bg-amber-600 border-none text-[11px] h-8 px-3">
                             <i className="fas fa-credit-card mr-1"></i> Pay Now

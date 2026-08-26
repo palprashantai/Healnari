@@ -109,6 +109,29 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
     return Object.keys(errs).length === 0;
   };
 
+  const handleBlurCheckUser = async () => {
+    if (!formData.email && formData.mobile.replace(/[^0-9]/g, '').length < 7) return;
+    try {
+      const data = await apiFetch('/leads/check-existing', {
+        method: 'POST',
+        skipAuth: true,
+        body: {
+          email: formData.email || undefined,
+          mobile: formData.mobile || undefined,
+        },
+      });
+      if (data && data.name) {
+        setFormData((prev) => ({
+          ...prev,
+          name: prev.name || data.name,
+          age: prev.age || data.age,
+        }));
+      }
+    } catch (e) {
+      // Ignore errors if check fails
+    }
+  };
+
   const handleInputChange = (e) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
@@ -153,7 +176,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
       fee: currentCountry.defaultPatientFee
     });
     try {
-      await apiFetch('/leads/consultation-request', {
+      const data = await apiFetch('/leads/consultation-request', {
         method: 'POST',
         skipAuth: true,
         body: {
@@ -330,23 +353,6 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
           {step === 2 && (
             <>
               <div>
-                <label htmlFor="name" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  required
-                  placeholder="Jane Doe"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.name ? 'border-red-400' : 'border-slate-200'
-                    }`}
-                />
-                {errors.name && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.name}</p>}
-              </div>
-
-              <div>
                 <label htmlFor="email" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
                   Email Address (For Prescription &amp; Link) *
                 </label>
@@ -357,13 +363,65 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                   placeholder="jane@example.com"
                   value={formData.email}
                   onChange={handleInputChange}
+                  onBlur={handleBlurCheckUser}
                   className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.email ? 'border-red-400' : 'border-slate-200'
                     }`}
                 />
                 {errors.email && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.email}</p>}
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label htmlFor="mobile" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                  Phone Number *
+                </label>
+                <div className={`flex rounded-xl border bg-slate-50 focus-within:bg-white focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-100 transition-all overflow-hidden ${errors.mobile ? 'border-red-400' : 'border-slate-200'}`}>
+                  <select
+                    value={countryCode}
+                    onChange={(e) => handleCountrySelect(e.target.value)}
+                    className="px-2.5 py-3 bg-slate-100/90 hover:bg-slate-200/80 border-r border-slate-200 text-base sm:text-sm font-bold text-slate-700 outline-none cursor-pointer max-w-[110px] sm:max-w-[125px]"
+                    aria-label="Country Dial Code"
+                  >
+                    {COUNTRY_DIAL_CODES.map((item) => (
+                      <option key={item.code} value={item.code}>
+                        {item.flag} {item.dialCode}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="tel"
+                    id="mobile"
+                    required
+                    placeholder="98765 43210"
+                    value={formData.mobile.replace(/^\+\d+\s*/, '')}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData(prev => ({ ...prev, mobile: `${currentCountry.phonePrefix} ${val}`.trim() }));
+                      if (errors.mobile) setErrors(prev => ({ ...prev, mobile: null }));
+                    }}
+                    onBlur={handleBlurCheckUser}
+                    className="flex-1 px-3.5 py-3 bg-transparent text-base sm:text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                  />
+                </div>
+                {errors.mobile && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.mobile}</p>}
+              </div>
+
+              <div className="grid grid-cols-4 gap-3">
+                <div className="col-span-3">
+                  <label htmlFor="name" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    required
+                    placeholder="Jane Doe"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.name ? 'border-red-400' : 'border-slate-200'
+                      }`}
+                  />
+                  {errors.name && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.name}</p>}
+                </div>
                 <div className="col-span-1">
                   <label htmlFor="age" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
                     Age *
@@ -381,40 +439,6 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                       }`}
                   />
                   {errors.age && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.age}</p>}
-                </div>
-
-                <div className="col-span-2">
-                  <label htmlFor="mobile" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
-                    Phone Number *
-                  </label>
-                  <div className={`flex rounded-xl border bg-slate-50 focus-within:bg-white focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-100 transition-all overflow-hidden ${errors.mobile ? 'border-red-400' : 'border-slate-200'}`}>
-                    <select
-                      value={countryCode}
-                      onChange={(e) => handleCountrySelect(e.target.value)}
-                      className="px-2.5 py-3 bg-slate-100/90 hover:bg-slate-200/80 border-r border-slate-200 text-base sm:text-sm font-bold text-slate-700 outline-none cursor-pointer max-w-[110px] sm:max-w-[125px]"
-                      aria-label="Country Dial Code"
-                    >
-                      {COUNTRY_DIAL_CODES.map((item) => (
-                        <option key={item.code} value={item.code}>
-                          {item.flag} {item.dialCode}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="tel"
-                      id="mobile"
-                      required
-                      placeholder="98765 43210"
-                      value={formData.mobile.replace(/^\+\d+\s*/, '')}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setFormData(prev => ({ ...prev, mobile: `${currentCountry.phonePrefix} ${val}`.trim() }));
-                        if (errors.mobile) setErrors(prev => ({ ...prev, mobile: null }));
-                      }}
-                      className="flex-1 px-3.5 py-3 bg-transparent text-base sm:text-sm text-slate-800 outline-none placeholder:text-slate-400"
-                    />
-                  </div>
-                  {errors.mobile && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.mobile}</p>}
                 </div>
               </div>
 

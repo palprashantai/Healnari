@@ -12,6 +12,11 @@ export class NewsletterSubscribeDto {
   @ApiProperty() @IsEmail() email: string;
 }
 
+export class CheckExistingUserDto {
+  @ApiProperty({ required: false }) @IsOptional() @IsEmail() email?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() mobile?: string;
+}
+
 export class ConsultationRequestDto {
   @ApiProperty() @IsString() name: string;
   @ApiProperty() @IsEmail() email: string;
@@ -54,6 +59,14 @@ export class LeadsController {
   async createConsultationRequest(@Body() body: ConsultationRequestDto) {
     const data = await this.leadsService.createConsultationRequest(body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  @Public()
+  @ApiOperation({ summary: 'Check if a user exists to autofill details' })
+  @Post('check-existing')
+  async checkExistingUser(@Body() body: CheckExistingUserDto) {
+    const data = await this.leadsService.checkExistingUser(body.email, body.mobile);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_FETCHED);
   }
 
   @Get('consultation-requests/mine')

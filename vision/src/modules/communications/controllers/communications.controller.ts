@@ -16,6 +16,9 @@ export class CreateBroadcastDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() scheduledFor?: string;
   @ApiProperty({ required: false, type: [String], description: 'Specific patient ids to target (e.g. a selection from the Appointments page). When channels includes "push", each gets a real in-app/socket notification.' })
   @IsOptional() @IsArray() @IsUUID(undefined, { each: true }) patientIds?: string[];
+  
+  @ApiProperty({ required: false, type: [String], description: 'File names to attach (mock implementation for now)' })
+  @IsOptional() @IsArray() @IsString({ each: true }) attachments?: string[];
 }
 
 @ApiTags('Communications')
