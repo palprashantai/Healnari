@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency, getCurrencySymbol } from '../lib/currency.js';
-import { useAuth } from '../../context/AuthContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { Modal } from './Modal.jsx';
 import { useToast } from './Toast.jsx';
 import { generateQrUrl } from '../lib/qrCode.js';
