@@ -505,7 +505,7 @@ export default function Schedule() {
                                 }`}
                               >
                                 <i className={`fas fa-utensils text-[10px]`}></i>
-                                Break
+                                Lunch
                               </button>
                               {day.hasLunch && (
                                 <div className="flex items-center gap-1.5 animate-slide-up">
