@@ -113,34 +113,37 @@ function Sidebar({ onClose, onItemHover }) {
       <div className="p-3 flex-1 overflow-y-auto hide-scrollbar">
         <NavHoverRail indicatorClassName="bg-aubergine-800/40 rounded-xl">
           {MENU_CATEGORIES.map((category, catIdx) => (
-            <div key={category.title} className={catIdx > 0 ? "mt-4" : ""}>
-              <div className="text-[10px] font-bold text-aubergine-300/50 uppercase tracking-widest mb-1.5 px-3">
+            <details key={category.title} className={`group/nav-cat ${catIdx > 0 ? "mt-4" : ""}`} open>
+              <summary className="text-[10px] font-bold text-aubergine-300/60 uppercase tracking-widest mb-1.5 px-3 cursor-pointer list-none flex items-center justify-between hover:text-white transition-colors select-none">
                 {category.title}
+                <i className="fas fa-chevron-down text-[8px] transition-transform group-open/nav-cat:-rotate-180"></i>
+              </summary>
+              <div className="space-y-0.5">
+                {category.items.map(item => (
+                  <NavLink key={item.name} to={item.path} end={item.path === '/patient-dashboard'}
+                    onClick={onClose}
+                    onMouseEnter={() => onItemHover?.(item.color)}
+                    onMouseLeave={() => onItemHover?.(null)}
+                    data-nav-item
+                    className={({ isActive }) =>
+                      `group flex items-center gap-3.5 px-4 py-2.5 rounded-xl font-medium text-[13.5px] tracking-wide transition-all duration-300 ${
+                        isActive
+                          ? 'bg-gradient-to-r from-aubergine-600/90 to-aubergine-700/50 text-white shadow-md shadow-aubergine-900/40 border border-aubergine-500/30'
+                          : 'text-aubergine-200/70 hover:text-white border border-transparent'
+                      }`
+                    }>
+                    {({ isActive }) => (
+                      <>
+                        <div className={`w-5 flex justify-center items-center transition-all duration-300 ${isActive ? 'text-white drop-shadow-md scale-110' : 'text-aubergine-300/70 group-hover:text-white group-hover:scale-110'}`}>
+                          <i className={`fas ${item.icon} text-[15px]`}></i>
+                        </div>
+                        <span className="flex-1 truncate">{item.name}</span>
+                      </>
+                    )}
+                  </NavLink>
+                ))}
               </div>
-              {category.items.map(item => (
-                <NavLink key={item.name} to={item.path} end={item.path === '/patient-dashboard'}
-                  onClick={onClose}
-                  onMouseEnter={() => onItemHover?.(item.color)}
-                  onMouseLeave={() => onItemHover?.(null)}
-                  data-nav-item
-                  className={({ isActive }) =>
-                    `group flex items-center gap-3.5 px-4 py-2.5 mb-0.5 rounded-xl font-medium text-[13.5px] tracking-wide transition-all duration-300 ${
-                      isActive
-                        ? 'bg-gradient-to-r from-aubergine-600/90 to-aubergine-700/50 text-white shadow-md shadow-aubergine-900/40 border border-aubergine-500/30'
-                        : 'text-aubergine-200/70 hover:text-white border border-transparent'
-                    }`
-                  }>
-                  {({ isActive }) => (
-                    <>
-                      <div className={`w-5 flex justify-center items-center transition-all duration-300 ${isActive ? 'text-white drop-shadow-md scale-110' : 'text-aubergine-300/70 group-hover:text-white group-hover:scale-110'}`}>
-                        <i className={`fas ${item.icon} text-[15px]`}></i>
-                      </div>
-                      <span className="flex-1 truncate">{item.name}</span>
-                    </>
-                  )}
-                </NavLink>
-              ))}
-            </div>
+            </details>
           ))}
         </NavHoverRail>
       </div>
