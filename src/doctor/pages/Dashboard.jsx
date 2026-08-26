@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { formatCurrency, getCurrencySymbol } from '../../lib/currency.js';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
@@ -487,7 +488,7 @@ function PracticePerformanceCard({ earnings, navigate, queue }) {
             </div>
             <div className="space-y-2">
               <div>
-                <p className="text-3xl font-black">₹{(earnings?.thisMonth ?? 0).toLocaleString('en-IN')}</p>
+                <p className="text-3xl font-black">{formatCurrency(earnings?.thisMonth ?? 0, userCurrency)}</p>
                 <p className="text-xs text-aubergine-200">{earnings ? `${earnings.thisMonthCount} consultations` : 'Loading...'}</p>
               </div>
               <div className="flex items-center gap-1.5 text-emerald-300">
@@ -560,6 +561,7 @@ function AIInsightStrip({ queue, labs, refillRequests }) {
 /* ─── Main Component ─── */
 function DoctorDashboard() {
   const { user } = useAuth();
+  const userCurrency = user?.profile?.currency || user?.currency || 'INR';
   const navigate = useNavigate();
   const toast = useToast();
   const { patients, appointments, refillRequests, approveRefill: ctxApproveRefill, rejectRefill: ctxRejectRefill, callNextForDoctor, kycVerified, kycSubmitted, verifyKyc } = useClinicData();

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { formatCurrency, getCurrencySymbol } from '../lib/currency.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { Modal } from './Modal.jsx';
 import { useToast } from './Toast.jsx';
 import { generateQrUrl } from '../lib/qrCode.js';
@@ -75,7 +77,7 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
   };
 
   const whatsappMessage = encodeURIComponent(
-    `Hello! You can view my verified clinical profile and book a direct video consultation with me (${docName} — ${docSpecialty}) on HealNari here:\n\n${publicProfileUrl}\n\n• NMC Verified & HIPAA Compliant\n• Fee: ₹${consultFee}\n• Direct digital prescription & follow-up care`
+    `Hello! You can view my verified clinical profile and book a direct video consultation with me (${docName} — ${docSpecialty}) on HealNari here:\n\n${publicProfileUrl}\n\n• NMC Verified & HIPAA Compliant\n• Fee: ${formatCurrency(consultFee, docCurrency || 'INR')}\n• Direct digital prescription & follow-up care`
   );
 
   const whatsappUrl = `https://api.whatsapp.com/send?text=${whatsappMessage}`;
@@ -195,7 +197,7 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
               </div>
               <div class="fee-badge">
                 <span class="fee-label">Consultation Fee</span>
-                <span class="fee-val">₹${consultFee}</span>
+                <span class="fee-val">${formatCurrency(consultFee, docCurrency || 'INR')}</span>
               </div>
             </div>
 
@@ -265,7 +267,7 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
           </div>
           <p class="mini-cta">Scan with Camera to Book</p>
           <div class="mini-footer">
-            <span>₹${consultFee} / consult</span>
+            <span>${formatCurrency(consultFee, docCurrency || 'INR')} / consult</span>
             <span>dr/${docId}</span>
           </div>
         </div>
@@ -712,7 +714,7 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
                   NMC VERIFIED
                 </span>
               </div>
-              <p className="text-xs text-aubergine-200 truncate">{docSpecialty} • ₹{consultFee} / consult</p>
+              <p className="text-xs text-aubergine-200 truncate">{docSpecialty} • {formatCurrency(consultFee, docCurrency || 'INR')} / consult</p>
             </div>
           </div>
 
@@ -1048,7 +1050,7 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
 ${publicProfileUrl}
 
 • NMC Verified & HIPAA Compliant
-• Fee: ₹${consultFee}
+• Fee: ${formatCurrency(consultFee, docCurrency || 'INR')}
 • Direct digital prescription & follow-up care`}
               </div>
             </div>

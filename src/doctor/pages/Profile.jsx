@@ -182,7 +182,14 @@ function DoctorProfile() {
             ['profile', 'Practice Info', 'fa-stethoscope'],
             ['share', 'Share & Booking Link', 'fa-share-nodes'],
             ['schedule', 'Availability', 'fa-calendar'],
-            ['fees', 'Consultation Fees', 'fa-indian-rupee-sign'],
+            ['fees', 'Consultation Fees', (() => {
+              const code = (doc?.profile?.currency || 'INR').toUpperCase();
+              if (['USD', 'CAD', 'AUD'].includes(code)) return 'fa-dollar-sign';
+              if (code === 'EUR') return 'fa-euro-sign';
+              if (code === 'GBP') return 'fa-sterling-sign';
+              if (code === 'INR') return 'fa-indian-rupee-sign';
+              return 'fa-money-bill-wave';
+            })()],
             ['notifications', 'Notifications & Alerts', 'fa-bell'],
             ['security', 'Security', 'fa-shield-halved'],
           ].map(([key, label, icon]) => (

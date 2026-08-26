@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { formatCurrency, getCurrencySymbol } from '../../lib/currency.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, BarChart, Bar, ComposedChart } from 'recharts';
 import { apiFetch } from '../../lib/apiClient.js';
 import { KPITrendCard } from '../../components/dashboard/KPITrendCard.jsx';
@@ -9,6 +11,8 @@ const CONSULT_TYPE_LABELS = { video: 'Video Consults (WebRTC)', clinic: 'Clinic 
 const APPT_STATUS_COLORS = { Completed: '#6B46C1', Scheduled: '#0284c7', Cancelled: '#EF4444', NoShow: '#94a3b8' };
 
 function DoctorAnalytics() {
+  const { user } = useAuth();
+  const userCurrency = user?.profile?.currency || user?.currency || 'INR';
   const [timeRange, setTimeRange] = useState('Year to Date');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -91,9 +95,9 @@ function DoctorAnalytics() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPITrendCard
           title="Total Practice Revenue"
-          value={data?.totalRevenue !== undefined ? `₹${Number(data.totalRevenue).toLocaleString('en-IN')}` : '₹0'}
+          value={data?.totalRevenue !== undefined ? formatCurrency(data.totalRevenue, userCurrency) : formatCurrency(0, userCurrency)}
           period="Year-to-Date Earned"
-          icon="fa-indian-rupee-sign"
+          icon={['USD','CAD','AUD'].includes(userCurrency) ? 'fa-dollar-sign' : userCurrency === 'EUR' ? 'fa-euro-sign' : userCurrency === 'GBP' ? 'fa-sterling-sign' : userCurrency === 'INR' ? 'fa-indian-rupee-sign' : 'fa-money-bill-wave'}
           colorScheme="purple"
           loading={loading}
         />
@@ -158,12 +162,12 @@ function DoctorAnalytics() {
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} dy={5} />
-                <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(val) => val >= 1000 ? `₹${(val/1000).toFixed(0)}k` : `₹${val}`} />
+                <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(val) => val >= 1000 ? `${getCurrencySymbol(userCurrency)}${(val/1000).toFixed(0)}k` : `${getCurrencySymbol(userCurrency)}${val}`} />
                 <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
                 <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
                 <Tooltip 
                   contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px', fontWeight: 'bold' }} 
-                  formatter={(val, name) => [name === 'Revenue' ? `₹${Number(val).toLocaleString('en-IN')}` : val, name]}
+                  formatter={(val, name) => [name === 'Revenue' ? formatCurrency(val, userCurrency) : val, name]}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
                 <Bar yAxisId="right" dataKey="consultations" name="Consultations" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={36} opacity={0.4} />

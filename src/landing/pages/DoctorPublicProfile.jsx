@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatCurrency, getCurrencySymbol } from '../../lib/currency.js';
 import { useParams, NavLink, Link, useNavigate } from 'react-router-dom';
 import { HealNariLogo } from '../../components/HealNariLogo.jsx';
 import { useToast } from '../../components/Toast.jsx';
@@ -185,7 +186,7 @@ function DoctorPublicProfile() {
           "medicalSpecialty": doctor.specialty,
           "url": canonicalUrl,
           "image": doctor.avatar_url ? `https://healnari.care${doctor.avatar_url}` : undefined,
-          "priceRange": `₹${doctor.consultFee || 799}`,
+          "priceRange": formatCurrency(doctor.consultFee || 799, doctor.currency || 'INR'),
           "currenciesAccepted": "INR",
           "availableService": {
             "@type": "MedicalConsultation",
@@ -422,7 +423,7 @@ function DoctorPublicProfile() {
                 </div>
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 col-span-2 sm:col-span-1">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block">Video Fee</span>
-                  <strong className="text-emerald-700 font-black text-xs font-sans">₹{consultFee} <span className="text-[10px] font-normal text-slate-400">/ consult</span></strong>
+                  <strong className="text-emerald-700 font-black text-xs font-sans">{formatCurrency(consultFee, doctor?.currency || 'INR')} <span className="text-[10px] font-normal text-slate-400">/ consult</span></strong>
                 </div>
               </div>
 
@@ -488,7 +489,7 @@ function DoctorPublicProfile() {
                 </div>
                 <div className="text-right">
                   <span className="text-xs text-slate-400 font-bold block">Fee</span>
-                  <span className="text-xl font-black text-aubergine-700 font-sans">₹{consultFee}</span>
+                  <span className="text-xl font-black text-aubergine-700 font-sans">{formatCurrency(consultFee, doctor?.currency || 'INR')}</span>
                 </div>
               </div>
 
@@ -640,7 +641,7 @@ function DoctorPublicProfile() {
                   className="w-full bg-aubergine-700 hover:bg-aubergine-800 text-white font-extrabold py-3.5 px-4 rounded-xl text-sm shadow-lg shadow-aubergine-200 transition-all hover:scale-[1.02] flex items-center justify-center gap-2 mt-2 active:scale-95 disabled:opacity-50"
                 >
                   <i className="fas fa-calendar-check"></i>
-                  {submitting ? 'Confirming...' : `Confirm & Book Video Slot (₹${consultFee})`}
+                  {submitting ? 'Confirming...' : `Confirm & Book Video Slot (${formatCurrency(consultFee, doctor?.currency || 'INR')})`}
                 </button>
 
                 <p className="text-[10px] text-slate-400 text-center">
@@ -669,7 +670,7 @@ function DoctorPublicProfile() {
             </div>
             <div className="min-w-0">
               <p className="text-xs font-black text-slate-900 truncate">{docName}</p>
-              <p className="text-[11px] font-bold text-aubergine-700">₹{consultFee} <span className="text-slate-400 font-normal">/ consult</span></p>
+              <p className="text-[11px] font-bold text-aubergine-700">{formatCurrency(consultFee, doctor?.currency || 'INR')} <span className="text-slate-400 font-normal">/ consult</span></p>
             </div>
           </div>
 

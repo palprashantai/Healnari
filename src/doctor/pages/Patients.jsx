@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { formatCurrency, getCurrencySymbol } from '../../lib/currency.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
@@ -557,7 +559,7 @@ function InlineRecordPaymentModal({ isOpen, onClose, patient, onSavePayment }) {
             </select>
           </div>
           <div>
-            <label className="font-bold text-slate-500 mb-1 block">Amount (₹) *</label>
+            <label className="font-bold text-slate-500 mb-1 block">Amount ({getCurrencySymbol(userCurrency)}) *</label>
             <input
               type="number"
               required
@@ -663,13 +665,13 @@ function ViewInvoiceModal({ invoice, patient, isOpen, onClose }) {
               <tr>
                 <td className="font-bold text-slate-800">{invoice.service}</td>
                 <td>{invoice.category}</td>
-                <td className="text-right font-black text-slate-900">₹{invoice.amount.toLocaleString('en-IN')}</td>
+                <td className="text-right font-black text-slate-900">{formatCurrency(invoice.amount, invoice.currency || userCurrency)}</td>
               </tr>
             </tbody>
           </table>
           <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-between items-center text-[14px]">
             <span className="font-bold text-slate-700">Total Billed Amount Paid</span>
-            <span className="font-black text-aubergine-900 text-[16px]">₹{invoice.amount.toLocaleString('en-IN')}</span>
+            <span className="font-black text-aubergine-900 text-[16px]">{formatCurrency(invoice.amount, invoice.currency || userCurrency)}</span>
           </div>
         </div>
 
@@ -1143,7 +1145,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
           </div>
           <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
             <span className="text-white/60 text-[10px] block font-medium">Billed</span>
-            <span className="font-black text-white text-base">₹{(totalPaid + totalPending).toLocaleString('en-IN')}</span>
+            <span className="font-black text-white text-base">{formatCurrency(totalPaid + totalPending, userCurrency)}</span>
           </div>
           <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
             <span className="text-white/60 text-[10px] block font-medium">Last Visit</span>
@@ -1284,12 +1286,12 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                 <div className="grid grid-cols-2 gap-3 bg-white p-3 rounded-xl border border-slate-200">
                   <div>
                     <span className="text-slate-500 font-bold text-[10px] block uppercase">Total Settled Paid</span>
-                    <span className="font-black text-emerald-700 text-base">₹{totalPaid.toLocaleString('en-IN')}</span>
+                    <span className="font-black text-emerald-700 text-base">{formatCurrency(totalPaid, userCurrency)}</span>
                   </div>
                   <div>
                     <span className="text-slate-500 font-bold text-[10px] block uppercase">Outstanding Due</span>
                     <span className={`font-black text-base ${totalPending > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
-                      ₹{totalPending.toLocaleString('en-IN')}
+                      {formatCurrency(totalPending, userCurrency)}
                     </span>
                   </div>
                 </div>
@@ -1536,11 +1538,11 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                 <span className="text-slate-500 font-bold text-[10px] uppercase">Total Billed</span>
-                <p className="font-black text-slate-900 text-xl mt-1">₹{(totalPaid + totalPending).toLocaleString('en-IN')}</p>
+                <p className="font-black text-slate-900 text-xl mt-1">{formatCurrency(totalPaid + totalPending, userCurrency)}</p>
               </div>
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                 <span className="text-slate-500 font-bold text-[10px] uppercase">Total Settled Payments</span>
-                <p className="font-black text-emerald-700 text-xl mt-1">₹{totalPaid.toLocaleString('en-IN')}</p>
+                <p className="font-black text-emerald-700 text-xl mt-1">{formatCurrency(totalPaid, userCurrency)}</p>
                 <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
                   <i className="fas fa-check-circle"></i> Successfully Received
                 </span>
@@ -1548,7 +1550,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                 <span className="text-slate-500 font-bold text-[10px] uppercase">Outstanding Due</span>
                 <p className={`font-black text-xl mt-1 ${totalPending > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
-                  ₹{totalPending.toLocaleString('en-IN')}
+                  {formatCurrency(totalPending, userCurrency)}
                 </p>
               </div>
             </div>
@@ -1580,7 +1582,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                         </span>
                       </td>
                       <td className="font-medium">{pay.method}</td>
-                      <td className="font-black text-slate-900">₹{pay.amount.toLocaleString('en-IN')}</td>
+                      <td className="font-black text-slate-900">{formatCurrency(pay.amount, pay.currency || userCurrency)}</td>
                       <td>
                         <span
                           className={`crm-badge border ${pay.status === 'Paid'
