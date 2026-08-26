@@ -325,11 +325,27 @@ export class LeadsService {
           to: request.email,
           subject: 'Your HealNari account is ready - Action Required',
           html: `
-            <p>Hi ${request.name},</p>
-            <p>Dr. ${doctor?.full_name || ''} has approved your consultation request.</p>
-            <p>We've created your HealNari account. <strong>Email:</strong> ${request.email}</p>
-            <p>Please <a href="${setupLink}">click here to set your password</a> and log in.</p>
-            <p><strong>Next Step:</strong> Once logged in, please complete the payment to confirm your booking for <strong>${scheduledDate} at ${scheduledTime}</strong>.</p>
+            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #334155; line-height: 1.6;">
+              <h2 style="color: #0f172a; margin-top: 0;">Welcome to HealNari!</h2>
+              <p style="font-size: 16px;">Hi <strong>${request.name}</strong>,</p>
+              <p style="font-size: 16px;">Great news! <strong>Dr. ${doctor?.full_name || ''}</strong> has approved your consultation request.</p>
+              
+              <div style="background-color: #f1f5f9; border-left: 4px solid #0ea5e9; padding: 16px; margin: 24px 0; border-radius: 4px;">
+                <p style="margin: 0; font-size: 16px; color: #0f172a;"><strong>Appointment Details</strong></p>
+                <p style="margin: 8px 0 0 0;">📅 <strong>Date:</strong> ${scheduledDate}<br>⏰ <strong>Time:</strong> ${scheduledTime}</p>
+              </div>
+              
+              <p style="font-size: 16px;">We have set up your secure HealNari account. Your registered email address is <strong>${request.email}</strong>.</p>
+              <p style="font-size: 16px;">To access your account and complete your booking, please set up your password by clicking the button below:</p>
+              
+              <div style="text-align: center; margin: 32px 0;">
+                <a href="${setupLink}" style="background-color: #0ea5e9; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Set Your Password</a>
+              </div>
+
+              <p style="font-size: 16px; margin-top: 32px;"><strong>Next Step:</strong> Once logged in, please complete the payment to confirm your booking.</p>
+              <p style="font-size: 14px; color: #64748b; margin-top: 24px;">If the button above doesn't work, you can copy and paste this link into your browser:<br>
+              <a href="${setupLink}" style="color: #0ea5e9; word-break: break-all;">${setupLink}</a></p>
+            </div>
           `,
           text: `Hi ${request.name}, Dr. ${doctor?.full_name || ''} has approved your consultation request. Please set your password using this link: ${setupLink}. Once logged in, complete the payment to confirm your booking for ${scheduledDate} at ${scheduledTime}.`,
         });
@@ -338,9 +354,22 @@ export class LeadsService {
           to: request.email,
           subject: 'Your consultation request was approved - Action Required',
           html: `
-            <p>Hi ${request.name},</p>
-            <p>Dr. ${doctor?.full_name || ''} has approved your consultation request.</p>
-            <p><strong>Next Step:</strong> Please log in to your HealNari account and complete the payment to confirm your booking for <strong>${scheduledDate} at ${scheduledTime}</strong>.</p>
+            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #334155; line-height: 1.6;">
+              <h2 style="color: #0f172a; margin-top: 0;">Consultation Approved!</h2>
+              <p style="font-size: 16px;">Hi <strong>${request.name}</strong>,</p>
+              <p style="font-size: 16px;">Great news! <strong>Dr. ${doctor?.full_name || ''}</strong> has approved your consultation request.</p>
+              
+              <div style="background-color: #f1f5f9; border-left: 4px solid #0ea5e9; padding: 16px; margin: 24px 0; border-radius: 4px;">
+                <p style="margin: 0; font-size: 16px; color: #0f172a;"><strong>Appointment Details</strong></p>
+                <p style="margin: 8px 0 0 0;">📅 <strong>Date:</strong> ${scheduledDate}<br>⏰ <strong>Time:</strong> ${scheduledTime}</p>
+              </div>
+              
+              <p style="font-size: 16px;"><strong>Next Step:</strong> Please log in to your HealNari account to complete the payment and confirm your booking.</p>
+              
+              <div style="text-align: center; margin: 32px 0;">
+                <a href="https://app.healnari.com/login" style="background-color: #0ea5e9; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Log In to HealNari</a>
+              </div>
+            </div>
           `,
           text: `Hi ${request.name}, Dr. ${doctor?.full_name || ''} has approved your consultation request. Please log in to your HealNari account and complete the payment to confirm your booking for ${scheduledDate} at ${scheduledTime}.`,
         });
