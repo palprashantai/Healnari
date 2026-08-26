@@ -156,7 +156,7 @@ export class AppointmentsService {
     }
     const { data: doctor } = await this.supabase.admin
       .from('profiles')
-      .select('specialty, kyc_verified, timezone')
+      .select('specialty, kyc_verified, timezone, email, full_name')
       .eq('id', body.doctorId)
       .eq('role', ProfileRole.DOCTOR)
       .maybeSingle();
@@ -249,6 +249,36 @@ export class AppointmentsService {
       message: `${withNames.patientName} requested a ${this.typeLabel(withNames.type)} on ${this.appointmentWhen(withNames)}.`,
       data: { appointmentId: withNames.id },
     });
+
+    // Notify doctor via email
+    if (doctor?.email) {
+      this.email
+        .sendTemplatedMail({
+          to: doctor.email,
+          slug: 'appointment_requested',
+          defaultSubject: `New Appointment Request from ${withNames.patientName}`,
+          defaultHtml: `
+            <h2 style="color:#3b82f6;margin-top:0;">New Appointment Request</h2>
+            <p>Hello Dr. ${doctor.full_name || 'Doctor'},</p>
+            <p><strong>${withNames.patientName}</strong> has requested a ${this.typeLabel(withNames.type)}.</p>
+            <div style="background:#eff6ff;padding:16px;border-radius:8px;border:1px solid #bfdbfe;margin:16px 0;">
+              <p style="margin:4px 0;font-size:13px;color:#1e3a8a;">Requested Date & Time:</p>
+              <h3 style="margin:4px 0;color:#1e40af;">${this.appointmentWhen(withNames)}</h3>
+              <p style="margin:8px 0 0 0;font-size:12px;color:#1e3a8a;">Reason: <strong>${body.reason || 'Not provided'}</strong></p>
+            </div>
+            <div style="margin:20px 0;">
+              <a href="https://healnari.vercel.app/doctor/telemedicine" style="background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">Review Request</a>
+            </div>
+        `,
+          variables: {
+            doctorName: doctor.full_name || 'Doctor',
+            patientName: withNames.patientName,
+            when: this.appointmentWhen(withNames),
+            label: this.typeLabel(withNames.type),
+          },
+        })
+        .catch(() => {});
+    }
 
     return withNames;
   }
@@ -736,6 +766,43 @@ export class AppointmentsService {
         message: `Dr. ${appointment.doctorName} confirmed your ${label} on ${when}.`,
         data: { appointmentId: appointment.id },
       });
+
+      const { data: patientProfile } = await this.supabase.admin
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', appointment.patient_id)
+        .maybeSingle();
+
+      if (patientProfile?.email) {
+        this.email
+          .sendTemplatedMail({
+            to: patientProfile.email,
+            slug: 'appointment_confirmed',
+            defaultSubject: `✅ Confirmed: Consultation with Dr. {{doctorName}} on {{when}}`,
+            defaultHtml: `
+              <h2 style="color:#10b981;margin-top:0;">✅ Appointment Confirmed</h2>
+              <p>Hello {{patientName}},</p>
+              <p>Your {{label}} with <strong>Dr. {{doctorName}}</strong> has been fully confirmed.</p>
+              <div style="background:#f8fafc;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin:16px 0;">
+                <p style="margin:4px 0;font-size:13px;color:#64748b;">Consultation Date & Time:</p>
+                <h3 style="margin:4px 0;color:#0f172a;">{{when}}</h3>
+                <p style="margin:8px 0 0 0;font-size:12px;color:#64748b;">Type: <strong>{{label}}</strong></p>
+              </div>
+              <div style="margin:20px 0;">
+                <a href="{{dashboardUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">View Appointment Details</a>
+              </div>
+              <p style="color:#94a3b8;font-size:11px;">Please log in 5 minutes early to test your camera and audio.</p>
+          `,
+            variables: {
+              patientName: patientProfile.full_name || 'Patient',
+              doctorName: appointment.doctorName,
+              when,
+              label,
+              dashboardUrl: 'https://app.healnari.com/patient/appointments',
+            },
+          })
+          .catch(() => {});
+      }
     } else if (
       isDoctorActing &&
       appointment.status === AppointmentStatus.CANCELLED
