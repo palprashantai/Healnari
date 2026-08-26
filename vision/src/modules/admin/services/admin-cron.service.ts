@@ -71,7 +71,6 @@ export class AdminCronService {
               slug: 'admin_daily_revenue_reconciliation',
               defaultSubject: `HealNari Daily Settlement Report ({{date}})`,
               defaultHtml: `
-                <div style="font-family:sans-serif;max-width:550px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;">
                   <h2 style="color:#0f172a;margin-top:0;">📊 HealNari 24h Revenue Settlement Report</h2>
                   <p>Hello {{adminName}},</p>
                   <p>Here is the 24-hour financial reconciliation summary for <strong>{{date}}</strong>:</p>
@@ -85,8 +84,7 @@ export class AdminCronService {
                     <a href="{{analyticsUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">View Revenue Analytics</a>
                   </div>
                   <p style="color:#94a3b8;font-size:11px;margin-top:20px;">HealNari Financial Operations • Automated Midnight Reconciliation</p>
-                </div>
-              `,
+            `,
               variables: {
                 adminName: admin.full_name || 'Admin',
                 date: yesterday.slice(0, 10),
@@ -152,18 +150,16 @@ export class AdminCronService {
             slug: 'admin_doctor_kyc_escalation',
             defaultSubject: `⚠️ [Escalation] {{pendingCount}} Doctor KYC Verifications Overdue (>48h)`,
             defaultHtml: `
-              <div style="font-family:sans-serif;max-width:550px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;">
-                <h2 style="color:#e11d48;margin-top:0;">⚠️ Action Required: Doctor KYC Review Escalation</h2>
-                <p>Hello {{adminName}},</p>
-                <p>There are <strong>{{pendingCount}} doctor verification(s)</strong> that have been pending review for over 48 hours:</p>
-                <ul style="color:#334155;font-size:13px;line-height:1.6;">
-                  {{doctorListHtml}}
-                </ul>
-                <div style="margin-top:20px;">
-                  <a href="{{verificationsUrl}}" style="background:#e11d48;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">Review Pending Doctor KYCs</a>
-                </div>
+              <h2 style="color:#e11d48;margin-top:0;">⚠️ Action Required: Doctor KYC Review Escalation</h2>
+              <p>Hello {{adminName}},</p>
+              <p>There are <strong>{{pendingCount}} doctor verification(s)</strong> that have been pending review for over 48 hours:</p>
+              <ul style="color:#334155;font-size:13px;line-height:1.6;">
+                {{doctorListHtml}}
+              </ul>
+              <div style="margin-top:20px;">
+                <a href="{{verificationsUrl}}" style="background:#e11d48;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">Review Pending Doctor KYCs</a>
               </div>
-            `,
+          `,
             variables: {
               adminName: admin.full_name || 'Admin',
               pendingCount: pendingDoctors.length,

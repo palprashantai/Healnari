@@ -261,12 +261,12 @@ export class AppointmentsService {
 
     if (!appointment) return null;
 
-    if (appointment.status === AppointmentStatus.REQUESTED) {
+    if (appointment.status === AppointmentStatus.REQUESTED || appointment.status === AppointmentStatus.APPROVED) {
       const { data: updated } = await this.supabase.admin
         .from('appointments')
         .update({ status: AppointmentStatus.UPCOMING })
         .eq('id', id)
-        .select('*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)')
+        .select('*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url, email), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)')
         .maybeSingle();
 
       const [withNames] = await this.withNames([updated]);
@@ -278,6 +278,36 @@ export class AppointmentsService {
         message: `${withNames.patientName} booked a ${this.typeLabel(withNames.type)} on ${this.appointmentWhen(withNames)}.`,
         data: { appointmentId: withNames.id },
       });
+
+      // Notify patient
+      if (updated.patient?.email) {
+        this.email.sendTemplatedMail({
+          to: updated.patient.email,
+          slug: 'appointment_confirmed',
+          defaultSubject: `✅ Confirmed: Consultation with Dr. {{doctorName}} on {{when}}`,
+          defaultHtml: `
+              <h2 style="color:#10b981;margin-top:0;">✅ Appointment Confirmed</h2>
+              <p>Hello {{patientName}},</p>
+              <p>Your {{label}} with <strong>Dr. {{doctorName}}</strong> has been fully confirmed after successful payment.</p>
+              <div style="background:#f8fafc;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin:16px 0;">
+                <p style="margin:4px 0;font-size:13px;color:#64748b;">Consultation Date & Time:</p>
+                <h3 style="margin:4px 0;color:#0f172a;">{{when}}</h3>
+                <p style="margin:8px 0 0 0;font-size:12px;color:#64748b;">Type: <strong>{{label}}</strong></p>
+              </div>
+              <div style="margin:20px 0;">
+                <a href="{{dashboardUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">View Appointment Details</a>
+              </div>
+              <p style="color:#94a3b8;font-size:11px;">Please log in 5 minutes early to test your camera and audio.</p>
+          `,
+          variables: {
+            patientName: withNames.patientName,
+            doctorName: withNames.doctorName,
+            when: this.appointmentWhen(withNames),
+            label: this.typeLabel(withNames.type),
+            dashboardUrl: 'https://app.healnari.com/patient/appointments',
+          },
+        }).catch(() => { });
+      }
 
       return withNames;
     }
@@ -326,46 +356,52 @@ export class AppointmentsService {
     const when = this.appointmentWhen(appointment);
     const label = this.typeLabel(appointment.type);
 
-    if (isDoctorActing && appointment.status === AppointmentStatus.UPCOMING) {
+    if (isDoctorActing && appointment.status === AppointmentStatus.APPROVED) {
       await this.notifications.create(appointment.patient_id, {
         type: 'appointment_approved',
-        title: 'Appointment Confirmed',
-        message: `Dr. ${appointment.doctorName} confirmed your ${label} on ${when}.`,
+        title: 'Action Required: Pay to Confirm',
+        message: `Dr. ${appointment.doctorName} approved your ${label} request for ${when}. Please complete the payment to confirm.`,
         data: { appointmentId: appointment.id },
       });
 
-      // Send confirmation email to patient via database-managed template
+      // Send approval/payment request email to patient
       const { data: patientProfile } = await this.supabase.admin.from('profiles').select('email, full_name').eq('id', appointment.patient_id).maybeSingle();
       if (patientProfile?.email) {
         this.email.sendTemplatedMail({
           to: patientProfile.email,
-          slug: 'appointment_confirmed',
-          defaultSubject: `✅ Confirmed: Consultation with Dr. {{doctorName}} on {{when}}`,
+          slug: 'appointment_approved',
+          defaultSubject: `Action Required: Pay to Confirm your Consultation with Dr. {{doctorName}}`,
           defaultHtml: `
-            <div style="font-family:sans-serif;max-width:550px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;">
-              <h2 style="color:#10b981;margin-top:0;">✅ Appointment Confirmed</h2>
+              <h2 style="color:#f59e0b;margin-top:0;">Action Required</h2>
               <p>Hello {{patientName}},</p>
-              <p>Your {{label}} with <strong>Dr. {{doctorName}}</strong> has been confirmed.</p>
-              <div style="background:#f8fafc;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin:16px 0;">
-                <p style="margin:4px 0;font-size:13px;color:#64748b;">Consultation Date & Time:</p>
-                <h3 style="margin:4px 0;color:#0f172a;">{{when}}</h3>
-                <p style="margin:8px 0 0 0;font-size:12px;color:#64748b;">Type: <strong>{{label}}</strong></p>
+              <p>Your {{label}} request with <strong>Dr. {{doctorName}}</strong> has been approved.</p>
+              <div style="background:#fffbeb;padding:16px;border-radius:8px;border:1px solid #fde68a;margin:16px 0;">
+                <p style="margin:4px 0;font-size:13px;color:#92400e;">Approved Date & Time:</p>
+                <h3 style="margin:4px 0;color:#92400e;">{{when}}</h3>
+                <p style="margin:8px 0 0 0;font-size:12px;color:#92400e;">Type: <strong>{{label}}</strong></p>
               </div>
+              <p style="font-size: 14px;"><strong>Your appointment is not yet confirmed.</strong> You must complete the payment to secure this time slot.</p>
               <div style="margin:20px 0;">
-                <a href="{{dashboardUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">View Appointment Details</a>
+                <a href="{{dashboardUrl}}" style="background:#f59e0b;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">Pay Now to Confirm</a>
               </div>
-              <p style="color:#94a3b8;font-size:11px;">Please log in 5 minutes early to test your camera and audio.</p>
-            </div>
           `,
           variables: {
             patientName: patientProfile.full_name || 'Patient',
             doctorName: appointment.doctorName,
             when,
             label,
-            dashboardUrl: 'https://healnari.vercel.app/patient/appointments',
+            dashboardUrl: 'https://app.healnari.com/patient/appointments',
           },
         }).catch(() => { });
       }
+    } else if (isDoctorActing && appointment.status === AppointmentStatus.UPCOMING) {
+      // Manual confirmation by doctor (without payment webhook)
+      await this.notifications.create(appointment.patient_id, {
+        type: 'appointment_confirmed',
+        title: 'Appointment Confirmed',
+        message: `Dr. ${appointment.doctorName} confirmed your ${label} on ${when}.`,
+        data: { appointmentId: appointment.id },
+      });
     } else if (isDoctorActing && appointment.status === AppointmentStatus.CANCELLED) {
       await this.notifications.create(appointment.patient_id, {
         type: 'appointment_cancelled',
@@ -382,7 +418,6 @@ export class AppointmentsService {
           slug: 'appointment_cancelled',
           defaultSubject: `Cancelled: Consultation on {{when}}`,
           defaultHtml: `
-            <div style="font-family:sans-serif;max-width:550px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;">
               <h2 style="color:#e11d48;margin-top:0;">Appointment Cancelled</h2>
               <p>Hello {{patientName}},</p>
               <p>Your {{label}} scheduled for <strong>{{when}}</strong> with Dr. {{doctorName}} has been cancelled.</p>
@@ -390,7 +425,6 @@ export class AppointmentsService {
               <div style="margin:20px 0;">
                 <a href="{{dashboardUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">Book Another Slot</a>
               </div>
-            </div>
           `,
           variables: {
             patientName: patientProfile.full_name || 'Patient',

@@ -92,7 +92,6 @@ export class DoctorsCronService {
             slug: 'doctor_daily_agenda',
             defaultSubject: `Daily Patient Agenda ({{totalPatients}} appointments) - Dr. {{doctorName}}`,
             defaultHtml: `
-              <div style="font-family:sans-serif;max-width:560px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;">
                 <h2 style="color:#0f172a;margin-top:0;">🌅 Good morning, Dr. {{doctorName}}</h2>
                 <p style="color:#475569;font-size:14px;margin-bottom:16px;">Here is your scheduled consultation agenda for <strong>{{formattedDate}}</strong>:</p>
                 
@@ -128,7 +127,6 @@ export class DoctorsCronService {
                   <a href="{{dashboardUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">Open Doctor Dashboard</a>
                 </div>
                 <p style="color:#94a3b8;font-size:11px;margin-top:20px;">HealNari Practice Management • Auto-generated daily at 7:45 AM</p>
-              </div>
             `,
             variables: {
               doctorName: docName,

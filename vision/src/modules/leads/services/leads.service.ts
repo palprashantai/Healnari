@@ -15,7 +15,7 @@ export class LeadsService {
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
     private readonly email: EmailService,
-  ) {}
+  ) { }
 
   private requireVerifiedDoctor(user: AuthUser) {
     if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
@@ -38,17 +38,17 @@ export class LeadsService {
 
   private async findExistingPatient(email?: string, mobile?: string) {
     if (!email && !mobile) return null;
-    
+
     let query = this.supabase.admin.from('profiles').select().eq('role', ProfileRole.PATIENT);
-    
+
     const conditions: string[] = [];
     if (email) conditions.push(`email.eq.${email}`);
     if (mobile) conditions.push(`phone.eq.${mobile}`);
-    
+
     if (conditions.length > 0) {
       query = query.or(conditions.join(','));
     }
-    
+
     const { data } = await query;
     return data && data.length > 0 ? data[0] : null;
   }
@@ -91,7 +91,7 @@ export class LeadsService {
           title: 'Patient booking request',
           message: `${existingProfile.full_name} wants to book a consultation${body.concern ? ` for ${body.concern}` : ''}. Review and approve to confirm.`,
           data: { appointmentId: appointment?.id },
-        }).catch(() => {});
+        }).catch(() => { });
 
         return { ...appointment, isDirectAppointment: true };
       }
@@ -124,7 +124,7 @@ export class LeadsService {
           title: 'New patient request',
           message: `${body.name} wants to book a consultation${body.concern ? ` for ${body.concern}` : ''}. Review and approve to confirm.`,
           data: { consultationRequestId: data.id },
-        }).catch(() => {});
+        }).catch(() => { });
       }
 
       return data;
@@ -202,7 +202,7 @@ export class LeadsService {
         scheduled_date: scheduledDate,
         scheduled_time: scheduledTime,
         reason: request.concern || 'Consultation request',
-        status: AppointmentStatus.UPCOMING,
+        status: AppointmentStatus.APPROVED,
         country: request.country || 'US',
         currency: request.currency || doctor?.currency || 'USD',
       }).select().maybeSingle();
@@ -221,26 +221,30 @@ export class LeadsService {
           type: 'recovery',
           email: request.email,
         });
-        const setupLink = linkData?.properties?.action_link || 'https://healnari.vercel.app/reset-password';
+        const setupLink = linkData?.properties?.action_link || 'https://app.healnari.com/reset-password';
 
         await this.email.sendMail({
           to: request.email,
-          subject: 'Your HealNari account is ready',
+          subject: 'Your HealNari account is ready - Action Required',
           html: `
             <p>Hi ${request.name},</p>
-            <p>Dr. ${doctor?.full_name || ''} has approved your consultation request. We've created your HealNari account so you can manage it:</p>
-            <p><strong>Email:</strong> ${request.email}</p>
+            <p>Dr. ${doctor?.full_name || ''} has approved your consultation request.</p>
+            <p>We've created your HealNari account. <strong>Email:</strong> ${request.email}</p>
             <p>Please <a href="${setupLink}">click here to set your password</a> and log in.</p>
-            ${appointmentLine}
+            <p><strong>Next Step:</strong> Once logged in, please complete the payment to confirm your booking for <strong>${scheduledDate} at ${scheduledTime}</strong>.</p>
           `,
-          text: `Hi ${request.name}, your HealNari account has been created.\nEmail: ${request.email}\nPlease use this link to set your password: ${setupLink}\nYour appointment with Dr. ${doctor?.full_name || ''} is confirmed for ${scheduledDate} at ${scheduledTime}.`,
+          text: `Hi ${request.name}, Dr. ${doctor?.full_name || ''} has approved your consultation request. Please set your password using this link: ${setupLink}. Once logged in, complete the payment to confirm your booking for ${scheduledDate} at ${scheduledTime}.`,
         });
       } else {
         await this.email.sendMail({
           to: request.email,
-          subject: 'Your consultation request was approved',
-          html: `<p>Hi ${request.name},</p>${appointmentLine}<p>Log in to your existing HealNari account to view details.</p>`,
-          text: `Hi ${request.name}, your appointment with Dr. ${doctor?.full_name || ''} is confirmed for ${scheduledDate} at ${scheduledTime}. Log in to your existing HealNari account to view details.`,
+          subject: 'Your consultation request was approved - Action Required',
+          html: `
+            <p>Hi ${request.name},</p>
+            <p>Dr. ${doctor?.full_name || ''} has approved your consultation request.</p>
+            <p><strong>Next Step:</strong> Please log in to your HealNari account and complete the payment to confirm your booking for <strong>${scheduledDate} at ${scheduledTime}</strong>.</p>
+          `,
+          text: `Hi ${request.name}, Dr. ${doctor?.full_name || ''} has approved your consultation request. Please log in to your HealNari account and complete the payment to confirm your booking for ${scheduledDate} at ${scheduledTime}.`,
         });
       }
 

@@ -559,6 +559,7 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
 /* ─── Main Component ─────────────────────────── */
 const STATUS_LABEL = {
   Requested: 'Pending',
+  Approved: 'Approved (Pending Payment)',
   Upcoming: 'Confirmed',
   Waiting: 'Confirmed',
   'In Progress': 'Confirmed',
@@ -905,7 +906,7 @@ function PatientAppointments() {
                             <i className="fas fa-video mr-1"></i> Join Call
                           </button>
                         )}
-                        {!apt.isPaid && apt.status === 'Confirmed' && (
+                        {!apt.isPaid && (apt.status === 'Confirmed' || apt.status === 'Approved (Pending Payment)') && (
                           <button onClick={() => openPayFor(apt)}
                             className="crm-btn-primary bg-amber-500 hover:bg-amber-600 border-none text-[11px] h-8 px-3">
                             <i className="fas fa-credit-card mr-1"></i> Pay Now

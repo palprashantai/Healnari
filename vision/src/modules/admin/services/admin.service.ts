@@ -561,14 +561,12 @@ export class AdminService {
             slug: 'doctor_kyc_approved',
             defaultSubject: '🎉 Your HealNari Doctor Account is Verified!',
             defaultHtml: `
-              <div style="font-family:sans-serif;max-width:550px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;">
                 <h2 style="color:#10b981;">🎉 Welcome to HealNari Practice Network</h2>
                 <p>Dear Dr. {{doctorName}},</p>
                 <p>We are delighted to inform you that your medical license and practice credentials have been <strong>verified and approved</strong>.</p>
                 <p>You can now log in to your provider dashboard, set your consultation hours, and start receiving patient appointments.</p>
                 <div style="margin:24px 0;"><a href="{{dashboardUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;">Go to Doctor Dashboard</a></div>
                 <p style="color:#64748b;font-size:12px;">Best regards,<br/>HealNari Clinical Governance Team</p>
-              </div>
             `,
             variables: {
               doctorName: doctor.full_name || 'Doctor',
@@ -581,13 +579,11 @@ export class AdminService {
             slug: 'doctor_kyc_rejected',
             defaultSubject: 'Update regarding your HealNari KYC Verification',
             defaultHtml: `
-              <div style="font-family:sans-serif;max-width:550px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;">
                 <h2 style="color:#e11d48;">HealNari KYC Verification Update</h2>
                 <p>Dear Dr. {{doctorName}},</p>
                 <p>Thank you for submitting your verification details. Our medical compliance team has reviewed your documents and identified items requiring clarification.</p>
                 <p>Please log in to your dashboard to review the feedback and re-upload your medical registration certificate.</p>
                 <p style="color:#64748b;font-size:12px;">Best regards,<br/>HealNari Verification Desk</p>
-              </div>
             `,
             variables: {
               doctorName: doctor.full_name || 'Doctor',
@@ -943,7 +939,6 @@ export class AdminService {
           slug: 'doctor_payout_settlement',
           defaultSubject: `HealNari Payout Settlement Confirmed (${formattedAmount})`,
           defaultHtml: `
-            <div style="font-family:sans-serif;max-width:550px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;">
               <h2 style="color:#0f172a;margin-top:0;">Payment Settlement Advice</h2>
               <p>Dear Dr. {{doctorName}},</p>
               <p>Your net earnings payout has been successfully processed and transferred to your registered bank account.</p>
@@ -954,7 +949,6 @@ export class AdminService {
                 <p style="margin:4px 0 0 0;font-size:12px;color:#64748b;">Settlement Date: <strong>{{settlementDate}}</strong></p>
               </div>
               <p style="color:#64748b;font-size:12px;">For any billing queries, please contact finance@healnari.com.</p>
-            </div>
           `,
           variables: {
             doctorName: doc.full_name || 'Doctor',

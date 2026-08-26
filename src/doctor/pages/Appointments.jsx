@@ -190,16 +190,16 @@ function DoctorAppointments() {
   });
 
   const queue = useMemo(() => appointments
-    .filter(a => a.date === todayStr && a.status !== 'Requested' && a.status !== 'Cancelled')
+    .filter(a => a.date === todayStr && a.status !== 'Requested' && a.status !== 'Approved' && a.status !== 'Cancelled')
     .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
     .map(toRow)
     .map((r, i) => ({ ...r, token: `T-${String(i + 1).padStart(2, '0')}` })),
     [appointments, todayStr, ageByPatientId]);
 
-  const requests = useMemo(() => appointments.filter(a => a.status === 'Requested').map(toRow), [appointments, ageByPatientId]);
+  const requests = useMemo(() => appointments.filter(a => a.status === 'Requested' || a.status === 'Approved').map(toRow), [appointments, ageByPatientId]);
 
   const past = useMemo(() => appointments
-    .filter(a => a.date < todayStr && a.status !== 'Requested')
+    .filter(a => a.date < todayStr && a.status !== 'Requested' && a.status !== 'Approved')
     .map(toRow),
     [appointments, todayStr, ageByPatientId]);
 
@@ -690,10 +690,18 @@ function DoctorAppointments() {
                   </td>
                   <td className="px-4 py-3 rounded-r-2xl align-middle text-right">
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => rejectRequest(r)} className="text-rose-500 font-bold text-[11px] px-4 py-1.5 rounded-lg hover:bg-rose-50 transition-colors border border-rose-200 shadow-sm">Reject</button>
-                      <button onClick={() => approveRequest(r)} className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold text-[11px] px-4 py-1.5 rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-colors shadow-sm shadow-emerald-500/20 flex items-center gap-1.5">
-                        <i className="fas fa-check"></i> Approve
-                      </button>
+                      {r.status === 'Approved' ? (
+                        <span className="text-amber-600 font-bold text-[11px] px-4 py-1.5 bg-amber-50 rounded-lg border border-amber-200 shadow-sm">
+                          <i className="fas fa-hourglass-half mr-1"></i> Awaiting Payment
+                        </span>
+                      ) : (
+                        <>
+                          <button onClick={() => rejectRequest(r)} className="text-rose-500 font-bold text-[11px] px-4 py-1.5 rounded-lg hover:bg-rose-50 transition-colors border border-rose-200 shadow-sm">Reject</button>
+                          <button onClick={() => approveRequest(r)} className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold text-[11px] px-4 py-1.5 rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-colors shadow-sm shadow-emerald-500/20 flex items-center gap-1.5">
+                            <i className="fas fa-check"></i> Approve
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

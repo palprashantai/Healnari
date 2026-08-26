@@ -536,7 +536,7 @@ export function ClinicDataProvider({ children }) {
   };
 
   const cancelAppointment = (id) => updateAppointmentStatus(id, 'Cancelled');
-  const approveRequest = (id) => updateAppointmentStatus(id, 'Upcoming');
+  const approveRequest = (id) => updateAppointmentStatus(id, 'Approved');
   const rejectRequest = (id) => updateAppointmentStatus(id, 'Cancelled');
 
   const callNextForDoctor = async (doctorName) => {

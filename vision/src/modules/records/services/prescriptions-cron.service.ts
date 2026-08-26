@@ -101,7 +101,6 @@ export class PrescriptionsCronService {
             slug: 'prescription_refill_reminder',
             defaultSubject: `Refill Reminder: {{medName}} expiring soon`,
             defaultHtml: `
-              <div style="font-family:sans-serif;max-width:550px;margin:auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;">
                 <h2 style="color:#7e22ce;margin-top:0;">💊 Prescription Refill Reminder</h2>
                 <p>Hello {{patientName}},</p>
                 <p>This is a friendly reminder that your current course of <strong>{{medName}}</strong> ({{duration}}) is nearing completion within the next 5 days.</p>
@@ -109,8 +108,6 @@ export class PrescriptionsCronService {
                 <div style="margin:20px 0;">
                   <a href="{{recordsUrl}}" style="background:#7e22ce;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">View Prescriptions & Refill</a>
                 </div>
-                <p style="color:#94a3b8;font-size:11px;">HealNari Patient Care Team</p>
-              </div>
             `,
             variables: {
               patientName: patient.full_name || 'there',
