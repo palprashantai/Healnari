@@ -50,7 +50,7 @@ export class CommunicationsService {
       channels: body.channels,
       status: scheduled ? 'Scheduled' : 'Sent',
       scheduled_for: scheduled ? body.scheduledFor : null,
-    }).select().single();
+    }).select().maybeSingle();
 
     // "Push Notification" is the one channel we can actually deliver
     // ourselves (no email/SMS/WhatsApp provider is wired up) — fan it out

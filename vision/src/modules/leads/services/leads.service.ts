@@ -56,7 +56,7 @@ export class LeadsService {
           fee: body.fee || null,
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (body.doctorId) {
         this.notifications.create(body.doctorId, {
@@ -97,7 +97,7 @@ export class LeadsService {
   async approveConsultationRequest(user: AuthUser, id: string) {
     this.requireVerifiedDoctor(user);
     try {
-      const { data: request } = await this.supabase.admin.from('consultation_requests').select().eq('id', id).single();
+      const { data: request } = await this.supabase.admin.from('consultation_requests').select().eq('id', id).maybeSingle();
       if (!request) throw new NotFoundException('Consultation request not found');
       if (request.doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
       if (request.status === 'Converted') return request; // idempotent — already approved
@@ -132,7 +132,7 @@ export class LeadsService {
         }
       }
 
-      const { data: doctor } = await this.supabase.admin.from('profiles').select('full_name, specialty, currency').eq('id', user.id).single();
+      const { data: doctor } = await this.supabase.admin.from('profiles').select('full_name, specialty, currency').eq('id', user.id).maybeSingle();
 
       const scheduledDate = request.preferred_date || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const scheduledTime = request.preferred_time || '10:00 AM';
@@ -148,14 +148,14 @@ export class LeadsService {
         status: AppointmentStatus.UPCOMING,
         country: request.country || 'US',
         currency: request.currency || doctor?.currency || 'USD',
-      }).select().single();
+      }).select().maybeSingle();
 
       const { data: updated } = await this.supabase.admin
         .from('consultation_requests')
         .update({ status: 'Converted', patient_id: patientId })
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
 
       const appointmentLine = `<p>Your appointment with Dr. ${doctor?.full_name || ''} is confirmed for <strong>${scheduledDate} at ${scheduledTime}</strong>.</p>`;
 
@@ -197,7 +197,7 @@ export class LeadsService {
   async declineConsultationRequest(user: AuthUser, id: string) {
     this.requireVerifiedDoctor(user);
     try {
-      const { data: request } = await this.supabase.admin.from('consultation_requests').select().eq('id', id).single();
+      const { data: request } = await this.supabase.admin.from('consultation_requests').select().eq('id', id).maybeSingle();
       if (!request) throw new NotFoundException('Consultation request not found');
       if (request.doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
@@ -206,7 +206,7 @@ export class LeadsService {
         .update({ status: 'Closed' })
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
       return updated;
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof ForbiddenException) throw error;

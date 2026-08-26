@@ -80,7 +80,7 @@ export class RecordsService {
     this.requireVerifiedDoctor(user);
     if (!(await this.hasCareRelationship(user.id, body.patientId))) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
-    const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
+    const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).maybeSingle();
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
 
     if (body.idempotencyKey) {
@@ -127,10 +127,10 @@ export class RecordsService {
   }
 
   async requestRefill(user: AuthUser, id: string) {
-    const { data: rx } = await this.supabase.admin.from('prescriptions').select().is('deleted_at', null).eq('id', id).eq('patient_id', user.id).single();
+    const { data: rx } = await this.supabase.admin.from('prescriptions').select().is('deleted_at', null).eq('id', id).eq('patient_id', user.id).maybeSingle();
     if (!rx) throw new NotFoundException(ERROR_MESSAGES.PRESCRIPTION_NOT_FOUND);
     
-    const { data: updated } = await this.supabase.admin.from('prescriptions').update({ refill_requested: true }).eq('id', id).select().is('deleted_at', null).single();
+    const { data: updated } = await this.supabase.admin.from('prescriptions').update({ refill_requested: true }).eq('id', id).select().is('deleted_at', null).maybeSingle();
     
     if (rx.doctor_id) {
       this.notifications.create(rx.doctor_id, {
@@ -148,7 +148,7 @@ export class RecordsService {
   async handleRefill(user: AuthUser, id: string, action: 'approve' | 'reject') {
     this.requireVerifiedDoctor(user);
 
-    const { data: rx } = await this.supabase.admin.from('prescriptions').select().is('deleted_at', null).eq('id', id).single();
+    const { data: rx } = await this.supabase.admin.from('prescriptions').select().is('deleted_at', null).eq('id', id).maybeSingle();
     if (!rx) throw new NotFoundException(ERROR_MESSAGES.PRESCRIPTION_NOT_FOUND);
     // Only the prescribing doctor may action a refill on their own line —
     // unassigned (legacy) prescriptions with no doctor_id remain open to any
@@ -163,7 +163,7 @@ export class RecordsService {
       patch.valid_till = validTill.toISOString().slice(0, 10);
     }
 
-    const { data: updated } = await this.supabase.admin.from('prescriptions').update(patch).eq('id', id).select().is('deleted_at', null).single();
+    const { data: updated } = await this.supabase.admin.from('prescriptions').update(patch).eq('id', id).select().is('deleted_at', null).maybeSingle();
     return updated;
   }
 
@@ -201,7 +201,7 @@ export class RecordsService {
 
     let request: any = null;
     if (body.requestId) {
-      const { data } = await this.supabase.admin.from('lab_report_requests').select().eq('id', body.requestId).single();
+      const { data } = await this.supabase.admin.from('lab_report_requests').select().eq('id', body.requestId).maybeSingle();
       if (!data || data.patient_id !== body.patientId) throw new NotFoundException(ERROR_MESSAGES.LAB_REPORT_REQUEST_NOT_FOUND);
       request = data;
     }
@@ -233,7 +233,7 @@ export class RecordsService {
       report_date: body.reportDate || null,
       notes: body.notes || null,
       request_id: body.requestId || null,
-    }).select().single();
+    }).select().maybeSingle();
 
     if (request) {
       await this.supabase.admin.from('lab_report_requests').update({ status: 'Fulfilled' }).eq('id', request.id);
@@ -252,7 +252,7 @@ export class RecordsService {
         .eq('patient_id', body.patientId)
         .order('created_at', { ascending: false})
         .limit(1)
-        .single();
+        .maybeSingle();
       
       if (recentAppt?.doctor_id) {
         this.notifications.create(recentAppt.doctor_id, {
@@ -269,7 +269,7 @@ export class RecordsService {
   }
 
   async getSignedUrl(user: AuthUser, id: string) {
-    const { data: report } = await this.supabase.admin.from('lab_reports').select().is('deleted_at', null).eq('id', id).single();
+    const { data: report } = await this.supabase.admin.from('lab_reports').select().is('deleted_at', null).eq('id', id).maybeSingle();
     if (!report) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
     await this.guardPatientAccess(user, report.patient_id);
     if (!report.file_path) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
@@ -280,7 +280,7 @@ export class RecordsService {
   }
 
   async deleteLabReport(user: AuthUser, id: string) {
-    const { data: report } = await this.supabase.admin.from('lab_reports').select().is('deleted_at', null).eq('id', id).single();
+    const { data: report } = await this.supabase.admin.from('lab_reports').select().is('deleted_at', null).eq('id', id).maybeSingle();
     if (!report) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
     if (user.profile.role !== ProfileRole.PATIENT || report.patient_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     if (report.status !== 'Uploaded') throw new ForbiddenException(ERROR_MESSAGES.LAB_REPORT_ALREADY_REVIEWED);
@@ -298,7 +298,7 @@ export class RecordsService {
     this.requireVerifiedDoctor(user);
     if (!(await this.hasCareRelationship(user.id, body.patientId))) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
-    const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
+    const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).maybeSingle();
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
 
     const { data: request } = await this.supabase.admin.from('lab_report_requests').insert({
@@ -308,7 +308,7 @@ export class RecordsService {
       due_date: body.dueDate || null,
       notes: body.notes || null,
       status: 'Pending',
-    }).select().single();
+    }).select().maybeSingle();
 
     this.notifications.create(body.patientId, {
       type: 'lab_report_requested',
@@ -347,11 +347,11 @@ export class RecordsService {
 
   async cancelLabReportRequest(user: AuthUser, id: string) {
     this.requireVerifiedDoctor(user);
-    const { data: request } = await this.supabase.admin.from('lab_report_requests').select().eq('id', id).single();
+    const { data: request } = await this.supabase.admin.from('lab_report_requests').select().eq('id', id).maybeSingle();
     if (!request) throw new NotFoundException(ERROR_MESSAGES.LAB_REPORT_REQUEST_NOT_FOUND);
     if (request.doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
-    const { data: updated } = await this.supabase.admin.from('lab_report_requests').update({ status: 'Cancelled' }).eq('id', id).select().single();
+    const { data: updated } = await this.supabase.admin.from('lab_report_requests').update({ status: 'Cancelled' }).eq('id', id).select().maybeSingle();
     return updated;
   }
 
@@ -359,14 +359,14 @@ export class RecordsService {
     this.requireVerifiedDoctor(user);
     if (!(await this.hasCareRelationship(user.id, body.patientId))) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
-    const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
+    const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).maybeSingle();
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
 
     const { data } = await this.supabase.admin.from('clinical_notes').insert({
       patient_id: body.patientId,
       doctor_id: user.id,
       note: body.note,
-    }).select().single();
+    }).select().maybeSingle();
     return data;
   }
 
@@ -377,7 +377,7 @@ export class RecordsService {
     // patient may review it.
     this.requireVerifiedDoctor(user);
 
-    const { data: report } = await this.supabase.admin.from('lab_reports').select().is('deleted_at', null).eq('id', id).single();
+    const { data: report } = await this.supabase.admin.from('lab_reports').select().is('deleted_at', null).eq('id', id).maybeSingle();
     if (!report) throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
     if (!(await this.hasCareRelationship(user.id, report.patient_id))) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
@@ -386,7 +386,7 @@ export class RecordsService {
       doctor_action: body.doctorAction ?? report.doctor_action,
       status: 'Reviewed',
       reviewed_at: new Date().toISOString(),
-    }).eq('id', id).select().single();
+    }).eq('id', id).select().maybeSingle();
 
     this.notifications.create(report.patient_id, {
       type: 'lab_report_reviewed',
@@ -427,12 +427,12 @@ export class RecordsService {
       size_bytes: body.sizeBytes || 0,
       lab_name: body.labName,
       file_url: body.fileUrl,
-    }).select().single();
+    }).select().maybeSingle();
     return data;
   }
 
   async deleteDocument(user: AuthUser, id: string) {
-    const { data: doc } = await this.supabase.admin.from('patient_documents').select().eq('id', id).single();
+    const { data: doc } = await this.supabase.admin.from('patient_documents').select().eq('id', id).maybeSingle();
     if (!doc) throw new NotFoundException(ERROR_MESSAGES.DOCUMENT_NOT_FOUND);
     await this.guardPatientAccess(user, doc.patient_id);
 
@@ -453,7 +453,7 @@ export class RecordsService {
       name: body.name,
       doses: body.doses,
       completed: body.completed ?? false,
-    }).select().single();
+    }).select().maybeSingle();
     return data;
   }
 
@@ -470,12 +470,12 @@ export class RecordsService {
       name: body.name,
       relation: body.relation,
       phone: body.phone,
-    }).select().single();
+    }).select().maybeSingle();
     return data;
   }
 
   async deleteEmergencyContact(user: AuthUser, id: string) {
-    const { data: contact } = await this.supabase.admin.from('emergency_contacts').select().eq('id', id).single();
+    const { data: contact } = await this.supabase.admin.from('emergency_contacts').select().eq('id', id).maybeSingle();
     if (!contact) throw new NotFoundException(ERROR_MESSAGES.CONTACT_NOT_FOUND);
     await this.guardPatientAccess(user, contact.patient_id);
 
@@ -536,7 +536,7 @@ export class RecordsService {
       .from('clinical_catalog')
       .insert(row)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
       throw new BadRequestException(error?.message || 'Failed to create catalog item');
@@ -551,7 +551,7 @@ export class RecordsService {
       .select()
       .is('deleted_at', null)
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (!item) throw new NotFoundException('Catalog item not found');
 
@@ -634,7 +634,7 @@ export class RecordsService {
         clinical_notes: body.clinicalNotes,
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw new BadRequestException(error.message || 'Failed to create protocol');
     return data;

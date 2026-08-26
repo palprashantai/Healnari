@@ -46,7 +46,7 @@ export class PushSubscriptionsService {
         { onConflict: 'user_id,endpoint' },
       )
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
     this.logger.log(`Registered push subscription for user ${user.id} (${dto.platform || 'web'})`);

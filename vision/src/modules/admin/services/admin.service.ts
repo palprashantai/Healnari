@@ -306,7 +306,7 @@ export class AdminService {
 
   async getUserById(id: string) {
     try {
-      const { data: profile } = await this.supabase.admin.from('profiles').select('*').eq('id', id).single();
+      const { data: profile } = await this.supabase.admin.from('profiles').select('*').eq('id', id).maybeSingle();
       if (!profile) throw new NotFoundException('User not found');
 
       const [{ data: appointments }, { data: payments }] = await Promise.all([
@@ -376,7 +376,7 @@ export class AdminService {
 
   async updateUserStatus(id: string, status: string) {
     try {
-      const { data: updated, error } = await this.supabase.admin.from('profiles').update({ status }).eq('id', id).select('id, status').single();
+      const { data: updated, error } = await this.supabase.admin.from('profiles').update({ status }).eq('id', id).select('id, status').maybeSingle();
       if (error || !updated) throw new NotFoundException(ERROR_MESSAGES.USER_NOT_FOUND);
       return { userId: updated.id, status: updated.status, updatedAt: new Date().toISOString() };
     } catch (error) {
@@ -435,7 +435,7 @@ export class AdminService {
 
   async getDoctorDetail(id: string) {
     try {
-      const { data: doctor } = await this.supabase.admin.from('profiles').select('*').eq('id', id).eq('role', ProfileRole.DOCTOR).single();
+      const { data: doctor } = await this.supabase.admin.from('profiles').select('*').eq('id', id).eq('role', ProfileRole.DOCTOR).maybeSingle();
       if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
 
       const [{ data: appointments }, { data: payments }] = await Promise.all([
@@ -506,7 +506,7 @@ export class AdminService {
         .eq('id', id)
         .eq('role', ProfileRole.DOCTOR)
         .select('id, commission_rate')
-        .single();
+        .maybeSingle();
       if (error || !updated) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
       return { doctorId: updated.id, commissionRate: Number(updated.commission_rate), updatedAt: new Date().toISOString() };
     } catch (error) {
@@ -538,10 +538,10 @@ export class AdminService {
 
   async updateDoctorVerification(admin: AuthUser, id: string, status: string) {
     try {
-      const { data: doctor } = await this.supabase.admin.from('profiles').select().eq('id', id).eq('role', ProfileRole.DOCTOR).single();
+      const { data: doctor } = await this.supabase.admin.from('profiles').select().eq('id', id).eq('role', ProfileRole.DOCTOR).maybeSingle();
       if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
       const isApproved = status === 'approved';
-      const { data: updated } = await this.supabase.admin.from('profiles').update({ kyc_verified: isApproved }).eq('id', id).select().single();
+      const { data: updated } = await this.supabase.admin.from('profiles').update({ kyc_verified: isApproved }).eq('id', id).select().maybeSingle();
       this.writeAudit(admin, 'verification.update', 'profiles', id, { kyc_verified: doctor.kyc_verified }, { kyc_verified: updated.kyc_verified });
 
       // 1. In-App & Web Push Notification
@@ -616,9 +616,9 @@ export class AdminService {
 
   async resolveTicket(admin: AuthUser, ticketId: number) {
     try {
-      const { data: ticket } = await this.supabase.admin.from('support_tickets').select().eq('id', ticketId).single();
+      const { data: ticket } = await this.supabase.admin.from('support_tickets').select().eq('id', ticketId).maybeSingle();
       if (!ticket) throw new NotFoundException('Ticket not found');
-      const { data: updated } = await this.supabase.admin.from('support_tickets').update({ status: 'Resolved' }).eq('id', ticketId).select().single();
+      const { data: updated } = await this.supabase.admin.from('support_tickets').update({ status: 'Resolved' }).eq('id', ticketId).select().maybeSingle();
       this.writeAudit(admin, 'ticket.resolve', 'support_tickets', String(ticketId), { status: ticket.status }, { status: updated.status });
       return updated;
     } catch (error) {
@@ -644,12 +644,12 @@ export class AdminService {
    * admin-confirms-it-happened-manually behavior, since there's no gateway
    * transaction to call a refund API against. */
   async processRefund(admin: AuthUser, refundId: number) {
-    const { data: refund } = await this.supabase.admin.from('refund_requests').select().eq('id', refundId).single();
+    const { data: refund } = await this.supabase.admin.from('refund_requests').select().eq('id', refundId).maybeSingle();
     if (!refund) throw new NotFoundException('Refund not found');
     if (refund.status === 'Processed') return refund; // idempotent — don't double-refund on a retried click
 
     const payment = refund.payment_id
-      ? (await this.supabase.admin.from('payments').select().eq('id', refund.payment_id).single()).data
+      ? (await this.supabase.admin.from('payments').select().eq('id', refund.payment_id).maybeSingle()).data
       : null;
 
     let cfRefundId: string | null = null;
@@ -670,7 +670,7 @@ export class AdminService {
     const { data: updated } = await this.supabase.admin.from('refund_requests').update({
       status: 'Processed',
       cf_refund_id: cfRefundId,
-    }).eq('id', refundId).select().single();
+    }).eq('id', refundId).select().maybeSingle();
 
     this.writeAudit(admin, 'refund.process', 'refund_requests', String(refundId), { status: refund.status }, { status: updated.status, cf_refund_id: cfRefundId });
 
@@ -921,7 +921,7 @@ export class AdminService {
         .update({ status: 'Paid', reference_id: referenceId, processed_at: new Date().toISOString() })
         .eq('id', id)
         .select('id, doctor_id, amount')
-        .single();
+        .maybeSingle();
       if (error || !updated) throw new NotFoundException('Payout not found');
 
       this.writeAudit(admin, 'payout.process', 'payouts', id, null, { status: 'Paid', reference_id: referenceId });
@@ -934,7 +934,7 @@ export class AdminService {
       });
 
       // 2. Transactional Email to Doctor via database-managed template
-      const { data: doc } = await this.supabase.admin.from('profiles').select('email, full_name').eq('id', updated.doctor_id).single();
+      const { data: doc } = await this.supabase.admin.from('profiles').select('email, full_name').eq('id', updated.doctor_id).maybeSingle();
       if (doc?.email) {
         const formattedAmount = `₹${Number(updated.amount).toLocaleString('en-IN')}`;
         const settlementDate = new Date().toLocaleDateString('en-IN');
@@ -1014,7 +1014,7 @@ export class AdminService {
         .from('reports_history')
         .insert({ report_id: reportId, name, type, size: `${Math.floor(Math.random() * 900) + 100} KB`, status: 'Generated' })
         .select()
-        .single();
+        .maybeSingle();
       return record;
     } catch (error) {
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
@@ -1037,7 +1037,7 @@ export class AdminService {
   async createCmsArticle(body: { title: string; author: string; category: string; status?: string }) {
     try {
       const displayId = `C-${Math.floor(Math.random() * 9000) + 100}`;
-      const { data } = await this.supabase.admin.from('cms_articles').insert({ ...body, display_id: displayId, status: body.status || 'Draft' }).select().single();
+      const { data } = await this.supabase.admin.from('cms_articles').insert({ ...body, display_id: displayId, status: body.status || 'Draft' }).select().maybeSingle();
       return data;
     } catch (error) {
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
@@ -1046,7 +1046,7 @@ export class AdminService {
 
   async updateCmsArticleStatus(id: string, status: string) {
     try {
-      const { data } = await this.supabase.admin.from('cms_articles').update({ status }).eq('id', id).select().single();
+      const { data } = await this.supabase.admin.from('cms_articles').update({ status }).eq('id', id).select().maybeSingle();
       return data;
     } catch (error) {
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
@@ -1062,7 +1062,7 @@ export class AdminService {
         summary: body.summary,
         content: body.content,
         status: body.status
-      }).eq('id', id).select().single();
+      }).eq('id', id).select().maybeSingle();
       return data;
     } catch (error) {
       throw new InternalServerErrorException(ERROR_MESSAGES.INTERNAL_SERVER_ERROR);
@@ -1081,7 +1081,7 @@ export class AdminService {
   
   async getLandingSettings() {
     try {
-      const { data, error } = await this.supabase.admin.from('landing_settings').select('*').eq('id', 1).single();
+      const { data, error } = await this.supabase.admin.from('landing_settings').select('*').eq('id', 1).maybeSingle();
       if (error || !data) {
         return {
           heroTitle: 'Your Premier Partner in Women\'s Health',
@@ -1136,7 +1136,7 @@ export class AdminService {
         .from('landing_settings')
         .upsert({ id: 1, ...updatedSettings })
         .select()
-        .single();
+        .maybeSingle();
         
       if (error) {
         console.error('Failed to update landing settings:', error);
@@ -1178,7 +1178,7 @@ export class AdminService {
         description: body.description || null,
         type: body.type || 'email',
         audience: body.audience || 'General',
-      }).select().single();
+      }).select().maybeSingle();
       this.email.invalidateTemplateCache(body.slug);
       return data;
     } catch (error) {
@@ -1195,7 +1195,7 @@ export class AdminService {
       if (body.slug !== undefined) patch.slug = body.slug;
       if (body.description !== undefined) patch.description = body.description;
 
-      const { data } = await this.supabase.admin.from('message_templates').update(patch).eq('id', id).select().single();
+      const { data } = await this.supabase.admin.from('message_templates').update(patch).eq('id', id).select().maybeSingle();
       this.email.invalidateTemplateCache(body.slug || data?.slug);
       return data;
     } catch (error) {
@@ -1205,7 +1205,7 @@ export class AdminService {
 
   async deleteMessageTemplate(id: string) {
     try {
-      const { data } = await this.supabase.admin.from('message_templates').select('slug').eq('id', id).single();
+      const { data } = await this.supabase.admin.from('message_templates').select('slug').eq('id', id).maybeSingle();
       await this.supabase.admin.from('message_templates').delete().eq('id', id);
       if (data?.slug) this.email.invalidateTemplateCache(data.slug);
     } catch (error) {
@@ -1291,7 +1291,7 @@ export class AdminService {
           clicks: '-',
         })
         .select()
-        .single();
+        .maybeSingle();
       this.writeAudit(admin, 'broadcast.send', 'broadcast_history', data.id, null, { subject: body.subject, audience: body.audience, recipientCount: recipientIds.length, channels });
       return data;
     } catch (error) {
@@ -1303,7 +1303,7 @@ export class AdminService {
    * "Message" action instead of the toast-only simulation they used to have. */
   async notifyUser(userId: string, title: string, message: string) {
     try {
-      const { data: profile } = await this.supabase.admin.from('profiles').select('id').eq('id', userId).single();
+      const { data: profile } = await this.supabase.admin.from('profiles').select('id').eq('id', userId).maybeSingle();
       if (!profile) throw new NotFoundException('User not found');
       const data = await this.notifications.create(userId, { type: 'admin_message', title, message });
       return data;
@@ -1342,7 +1342,7 @@ export class AdminService {
 
   async updateConsultationRequestStatus(id: string, status: string) {
     try {
-      const { data, error } = await this.supabase.admin.from('consultation_requests').update({ status }).eq('id', id).select().single();
+      const { data, error } = await this.supabase.admin.from('consultation_requests').update({ status }).eq('id', id).select().maybeSingle();
       if (error || !data) throw new NotFoundException('Consultation request not found');
       return data;
     } catch (error) {
@@ -1371,7 +1371,7 @@ export class AdminService {
         .from('specialties')
         .insert({ name })
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw new InternalServerErrorException(error.message);
       return data;
     } catch (error) {
@@ -1386,7 +1386,7 @@ export class AdminService {
         .update({ name })
         .eq('id', id)
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw new InternalServerErrorException(error.message);
       return data;
     } catch (error) {

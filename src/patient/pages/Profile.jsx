@@ -331,19 +331,19 @@ function PatientProfile() {
             <div className="space-y-5">
               <div className="grid md:grid-cols-3 gap-5">
                 <div>
-                  <label htmlFor="profile-bloodGroup" className="text-xs font-bold text-slate-500 mb-1.5 block">Blood Group</label>
+                  <label htmlFor="profile-bloodGroup" className="text-xs font-bold text-slate-500 mb-1.5 block">Blood Group <span className="font-normal text-slate-400 ml-1">(Optional)</span></label>
                   <select id="profile-bloodGroup" value={form.bloodGroup} onChange={e => setForm(p => ({ ...p, bloodGroup: e.target.value }))}
                     className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300">
                     {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(o => <option key={o}>{o}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="profile-height" className="text-xs font-bold text-slate-500 mb-1.5 block">Height (cm)</label>
+                  <label htmlFor="profile-height" className="text-xs font-bold text-slate-500 mb-1.5 block">Height (cm) <span className="font-normal text-slate-400 ml-1">(Optional)</span></label>
                   <input id="profile-height" type="number" value={form.height} onChange={e => setForm(p => ({ ...p, height: e.target.value }))}
                     className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
                 </div>
                 <div>
-                  <label htmlFor="profile-weight" className="text-xs font-bold text-slate-500 mb-1.5 block">Weight (kg)</label>
+                  <label htmlFor="profile-weight" className="text-xs font-bold text-slate-500 mb-1.5 block">Weight (kg) <span className="font-normal text-slate-400 ml-1">(Optional)</span></label>
                   <input id="profile-weight" type="number" value={form.weight} onChange={e => setForm(p => ({ ...p, weight: e.target.value }))}
                     className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
                 </div>

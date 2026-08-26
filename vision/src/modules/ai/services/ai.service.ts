@@ -548,7 +548,7 @@ Return your final answer ONLY as valid JSON matching this schema:
             .from('profiles')
             .select('allergies, medical_history')
             .eq('id', facts.patientId)
-            .single();
+            .maybeSingle();
           toolResult = patientProfile || { status: 'No record on file' };
         } else if (call.name === 'checkDrugSafety') {
           const args = call.args as { drugName: string; patientAllergies?: string[] };

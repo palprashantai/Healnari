@@ -53,7 +53,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const identity = await resolveSupabaseToken(this.supabase.anon, token);
     if (!identity) return null;
 
-    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', identity.id).single();
+    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', identity.id).maybeSingle();
     if (!profile) return null;
 
     return { id: profile.id, email: identity.email as string, profile };

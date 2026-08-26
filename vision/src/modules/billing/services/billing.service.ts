@@ -56,7 +56,7 @@ export class BillingService {
   }
 
   async getTransaction(user: AuthUser, id: string) {
-    const { data: payment } = await this.supabase.admin.from('payments').select().eq('id', id).single();
+    const { data: payment } = await this.supabase.admin.from('payments').select().eq('id', id).maybeSingle();
     if (!payment) throw new NotFoundException(ERROR_MESSAGES.PAYMENT_NOT_FOUND);
     if (payment.patient_id !== user.id && payment.doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     return (await this.withNames([payment]))[0];
@@ -126,20 +126,20 @@ export class BillingService {
   async createPaymentOrder(user: AuthUser, appointmentId: string) {
     if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
-    const { data: appointment } = await this.supabase.admin.from('appointments').select().is('deleted_at', null).eq('id', appointmentId).eq('patient_id', user.id).single();
+    const { data: appointment } = await this.supabase.admin.from('appointments').select().is('deleted_at', null).eq('id', appointmentId).eq('patient_id', user.id).maybeSingle();
     if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
 
-    const { data: doctor } = await this.supabase.admin.from('profiles').select('consultation_fee, currency, commission_rate').eq('id', appointment.doctor_id).single();
+    const { data: doctor } = await this.supabase.admin.from('profiles').select('consultation_fee, currency, commission_rate').eq('id', appointment.doctor_id).maybeSingle();
     const amount = Number(doctor?.consultation_fee || 0);
     if (amount <= 0) throw new BadRequestException(ERROR_MESSAGES.NOTHING_TO_CHARGE);
     const currency = (doctor?.currency || 'INR').toUpperCase();
     const commissionRate = Number(doctor?.commission_rate || 10); // 10% platform fee default
 
     // Idempotency guard: prevent duplicate orders for already-settled appointment
-    const { data: alreadyPaid } = await this.supabase.admin.from('payments').select().eq('appointment_id', appointment.id).eq('status', 'Paid').single();
+    const { data: alreadyPaid } = await this.supabase.admin.from('payments').select().eq('appointment_id', appointment.id).eq('status', 'Paid').maybeSingle();
     if (alreadyPaid) return { alreadyPaid: true, payment: (await this.withNames([alreadyPaid]))[0] };
 
-    const { data: pending } = await this.supabase.admin.from('payments').select().eq('appointment_id', appointment.id).eq('status', 'Pending').single();
+    const { data: pending } = await this.supabase.admin.from('payments').select().eq('appointment_id', appointment.id).eq('status', 'Pending').maybeSingle();
 
     // Financial revenue segregation (Fixed Decimal Math)
     const platformFee = DecimalMath.percentage(amount, commissionRate);
@@ -196,8 +196,8 @@ export class BillingService {
     };
 
     const { data: saved, error } = pending
-      ? await this.supabase.admin.from('payments').update(row).eq('id', pending.id).select().single()
-      : await this.supabase.admin.from('payments').insert(row).select().single();
+      ? await this.supabase.admin.from('payments').update(row).eq('id', pending.id).select().maybeSingle()
+      : await this.supabase.admin.from('payments').insert(row).select().maybeSingle();
 
     if (error || !saved) {
       throw new InternalServerErrorException(
@@ -209,7 +209,7 @@ export class BillingService {
   }
 
   async getStatusForUser(user: AuthUser, cfOrderId: string) {
-    const { data: payment } = await this.supabase.admin.from('payments').select('patient_id').eq('cf_order_id', cfOrderId).single();
+    const { data: payment } = await this.supabase.admin.from('payments').select('patient_id').eq('cf_order_id', cfOrderId).maybeSingle();
     if (!payment) throw new NotFoundException(ERROR_MESSAGES.PAYMENT_NOT_FOUND);
     if (payment.patient_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     return this.reconcileCashfreeOrder(cfOrderId);
@@ -219,7 +219,7 @@ export class BillingService {
    * Reconciles payment status against gateway with amount and currency consistency checks
    */
   async reconcileCashfreeOrder(cfOrderId: string) {
-    const { data: payment } = await this.supabase.admin.from('payments').select().eq('cf_order_id', cfOrderId).single();
+    const { data: payment } = await this.supabase.admin.from('payments').select().eq('cf_order_id', cfOrderId).maybeSingle();
     if (!payment) return null;
 
     if (payment.status === 'Paid') return (await this.withNames([payment]))[0];
@@ -248,12 +248,12 @@ export class BillingService {
         txn_ref: successful?.cf_payment_id ? String(successful.cf_payment_id) : cfOrderId,
         cf_payment_id: successful?.cf_payment_id ? String(successful.cf_payment_id) : null,
         fx_rate_timestamp: new Date().toISOString(),
-      }).eq('id', payment.id).select().single();
+      }).eq('id', payment.id).select().maybeSingle();
 
       const named = (await this.withNames([updated]))[0];
 
       // Appointment synchronization
-      const { data: appointment } = await this.supabase.admin.from('appointments').select().eq('id', payment.appointment_id).single();
+      const { data: appointment } = await this.supabase.admin.from('appointments').select().eq('id', payment.appointment_id).maybeSingle();
       if (appointment) {
         await this.supabase.admin.from('appointments').update({ payment_id: payment.id }).eq('id', payment.appointment_id);
       }
@@ -270,7 +270,7 @@ export class BillingService {
     }
 
     if (order.order_status === 'EXPIRED' || order.order_status === 'TERMINATED') {
-      const { data: updated } = await this.supabase.admin.from('payments').update({ status: 'Failed' }).eq('id', payment.id).select().single();
+      const { data: updated } = await this.supabase.admin.from('payments').update({ status: 'Failed' }).eq('id', payment.id).select().maybeSingle();
       return (await this.withNames([updated]))[0];
     }
 
@@ -309,7 +309,7 @@ export class BillingService {
     }
 
     if (!this.email.isConfigured) return;
-    const { data: patient } = await this.supabase.admin.from('profiles').select('email').eq('id', payment.patient_id).single();
+    const { data: patient } = await this.supabase.admin.from('profiles').select('email').eq('id', payment.patient_id).maybeSingle();
     if (!patient?.email) return;
 
     const pdf = await this.invoices.generatePdf(payment);
@@ -326,7 +326,7 @@ export class BillingService {
     if (user.profile.role !== ProfileRole.DOCTOR) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     if (!user.profile.kyc_verified) throw new ForbiddenException(ERROR_MESSAGES.DOCTOR_NOT_VERIFIED);
 
-    const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).single();
+    const { data: patient } = await this.supabase.admin.from('profiles').select().eq('id', body.patientId).eq('role', ProfileRole.PATIENT).maybeSingle();
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
 
     const amount = Number(body.amount);
@@ -363,7 +363,7 @@ export class BillingService {
       status: body.status,
       method: body.method,
       txn_ref: txnRef,
-    }).select().single();
+    }).select().maybeSingle();
 
     return (await this.withNames([created]))[0];
   }
@@ -392,7 +392,7 @@ export class BillingService {
       original_currency: currency,
       method: body.method,
       status: 'Processing',
-    }).select().single();
+    }).select().maybeSingle();
     return data;
   }
 }

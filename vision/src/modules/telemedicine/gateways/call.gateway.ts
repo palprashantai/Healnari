@@ -72,7 +72,7 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
       .from('appointments')
       .select('id, patient_id, doctor_id, status, type')
       .eq('id', appointmentId)
-      .single();
+      .maybeSingle();
 
     if (!appointment || (appointment.patient_id !== userId && appointment.doctor_id !== userId)) {
       client.emit('call:error', { message: 'Not authorized for this appointment' });

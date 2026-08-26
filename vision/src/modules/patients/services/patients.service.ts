@@ -166,15 +166,15 @@ export class PatientsService {
       created_by_doctor_id: user.id,
     }).eq('patient_id', data.user.id);
 
-    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', data.user.id).single();
-    const { data: record } = await this.supabase.admin.from('patient_records').select().eq('patient_id', data.user.id).is('deleted_at', null).single();
+    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', data.user.id).maybeSingle();
+    const { data: record } = await this.supabase.admin.from('patient_records').select().eq('patient_id', data.user.id).is('deleted_at', null).maybeSingle();
 
     return this.assemble(profile, record || null);
   }
 
   async getOwn(user: AuthUser) {
     if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
-    const { data: record } = await this.supabase.admin.from('patient_records').select().eq('patient_id', user.id).is('deleted_at', null).single();
+    const { data: record } = await this.supabase.admin.from('patient_records').select().eq('patient_id', user.id).is('deleted_at', null).maybeSingle();
     return this.assemble(user.profile, record || null);
   }
 
@@ -201,7 +201,7 @@ export class PatientsService {
       if (!(await this.hasCareRelationship(user.id, patientId))) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     }
 
-    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', patientId).eq('role', ProfileRole.PATIENT).single();
+    const { data: profile } = await this.supabase.admin.from('profiles').select().eq('id', patientId).eq('role', ProfileRole.PATIENT).maybeSingle();
     if (!profile) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
 
     if (body.name !== undefined) await this.supabase.admin.from('profiles').update({ full_name: body.name }).eq('id', patientId);
@@ -222,8 +222,8 @@ export class PatientsService {
       await this.supabase.admin.from('patient_records').update(recordPatch).eq('patient_id', patientId);
     }
 
-    const { data: updatedProfile } = await this.supabase.admin.from('profiles').select().eq('id', patientId).single();
-    const { data: record } = await this.supabase.admin.from('patient_records').select().eq('patient_id', patientId).is('deleted_at', null).single();
+    const { data: updatedProfile } = await this.supabase.admin.from('profiles').select().eq('id', patientId).maybeSingle();
+    const { data: record } = await this.supabase.admin.from('patient_records').select().eq('patient_id', patientId).is('deleted_at', null).maybeSingle();
 
     return this.assemble(updatedProfile, record || null);
   }
@@ -239,7 +239,7 @@ export class PatientsService {
 
     const [{ data: logs }, { data: record }] = await Promise.all([
       this.supabase.admin.from('cycle_logs').select('log_date, flow, bbt, lh_ratio, cervical_mucus').eq('patient_id', user.id).is('deleted_at', null).order('log_date', { ascending: true }),
-      this.supabase.admin.from('patient_records').select('chronic_conditions, luteal_phase_days').eq('patient_id', user.id).is('deleted_at', null).single(),
+      this.supabase.admin.from('patient_records').select('chronic_conditions, luteal_phase_days').eq('patient_id', user.id).is('deleted_at', null).maybeSingle(),
     ]);
 
     const pcosFlag = (record?.chronic_conditions || []).some((c: string) => /pcos|pcod/i.test(c));
@@ -275,7 +275,7 @@ export class PatientsService {
     }));
     await this.supabase.admin.from('cycle_logs').upsert(rows, { onConflict: 'patient_id,log_date', ignoreDuplicates: true });
 
-    const { data: record } = await this.supabase.admin.from('patient_records').select('chronic_conditions, luteal_phase_days').eq('patient_id', user.id).is('deleted_at', null).single();
+    const { data: record } = await this.supabase.admin.from('patient_records').select('chronic_conditions, luteal_phase_days').eq('patient_id', user.id).is('deleted_at', null).maybeSingle();
     const pcosFlag = (record?.chronic_conditions || []).some((c: string) => /pcos|pcod/i.test(c));
 
     return computeQuickEstimate(
@@ -290,12 +290,12 @@ export class PatientsService {
   async logCycle(user: AuthUser, date: string, body: LogCycleDto) {
     if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
-    let { data: log } = await this.supabase.admin.from('cycle_logs').select().is('deleted_at', null).eq('patient_id', user.id).eq('log_date', date).single();
+    let { data: log } = await this.supabase.admin.from('cycle_logs').select().is('deleted_at', null).eq('patient_id', user.id).eq('log_date', date).maybeSingle();
     if (!log) {
-      const { data: newLog } = await this.supabase.admin.from('cycle_logs').insert({ patient_id: user.id, log_date: date, symptoms: [], ...body }).select().is('deleted_at', null).single();
+      const { data: newLog } = await this.supabase.admin.from('cycle_logs').insert({ patient_id: user.id, log_date: date, symptoms: [], ...body }).select().is('deleted_at', null).maybeSingle();
       return newLog;
     } else {
-      const { data: updatedLog } = await this.supabase.admin.from('cycle_logs').update(body).eq('id', log.id).select().is('deleted_at', null).single();
+      const { data: updatedLog } = await this.supabase.admin.from('cycle_logs').update(body).eq('id', log.id).select().is('deleted_at', null).maybeSingle();
       return updatedLog;
     }
   }
@@ -330,13 +330,13 @@ export class PatientsService {
       .eq('vital_key', key)
       .order('logged_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     const { data: created } = await this.supabase.admin
       .from('vitals_logs')
       .insert({ patient_id: user.id, vital_key: key, value: body.value, unit: body.unit || '' })
       .select()
-      .single();
+      .maybeSingle();
 
     return { value: created.value, unit: created.unit, loggedAt: created.logged_at, previousValue: previous?.value ?? null };
   }
@@ -351,13 +351,13 @@ export class PatientsService {
     if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     const completedCount = Object.values(body.items).filter(Boolean).length;
 
-    let { data: log } = await this.supabase.admin.from('lifestyle_logs').select().eq('patient_id', user.id).eq('log_date', date).single();
+    let { data: log } = await this.supabase.admin.from('lifestyle_logs').select().eq('patient_id', user.id).eq('log_date', date).maybeSingle();
     if (!log) {
       const { data: newLog } = await this.supabase.admin
         .from('lifestyle_logs')
         .insert({ patient_id: user.id, log_date: date, items: body.items, completed_count: completedCount })
         .select()
-        .single();
+        .maybeSingle();
       return newLog;
     } else {
       const { data: updatedLog } = await this.supabase.admin
@@ -365,7 +365,7 @@ export class PatientsService {
         .update({ items: body.items, completed_count: completedCount })
         .eq('id', log.id)
         .select()
-        .single();
+        .maybeSingle();
       return updatedLog;
     }
   }
@@ -406,13 +406,13 @@ export class PatientsService {
         permissions: { cycleWindow: true, appointments: false, detailedRx: false },
       })
       .select()
-      .single();
+      .maybeSingle();
 
     return created;
   }
 
   private async findOwnConnection(user: AuthUser, id: string) {
-    const { data: connection } = await this.supabase.admin.from('care_connections').select().eq('id', id).eq('patient_id', user.id).single();
+    const { data: connection } = await this.supabase.admin.from('care_connections').select().eq('id', id).eq('patient_id', user.id).maybeSingle();
     if (!connection) throw new NotFoundException(ERROR_MESSAGES.CONNECTION_NOT_FOUND);
     return connection;
   }
@@ -426,7 +426,7 @@ export class PatientsService {
       .update({ permissions: body.permissions })
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
     return updated;
   }
 
@@ -459,20 +459,20 @@ export class PatientsService {
       .maybeSingle();
     if (existing) throw new BadRequestException(ERROR_MESSAGES.FAVORITE_ALREADY_EXISTS);
 
-    const { data: doctor } = await this.supabase.admin.from('profiles').select().eq('id', doctorId).eq('role', ProfileRole.DOCTOR).single();
+    const { data: doctor } = await this.supabase.admin.from('profiles').select().eq('id', doctorId).eq('role', ProfileRole.DOCTOR).maybeSingle();
     if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
 
     const { data: created } = await this.supabase.admin
       .from('doctor_favorites')
       .insert({ patient_id: user.id, doctor_id: doctorId })
       .select()
-      .single();
+      .maybeSingle();
     return created;
   }
 
   async removeFavorite(user: AuthUser, doctorId: string) {
     if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
-    const { data: existing } = await this.supabase.admin.from('doctor_favorites').select().eq('patient_id', user.id).eq('doctor_id', doctorId).single();
+    const { data: existing } = await this.supabase.admin.from('doctor_favorites').select().eq('patient_id', user.id).eq('doctor_id', doctorId).maybeSingle();
     if (!existing) throw new NotFoundException(ERROR_MESSAGES.FAVORITE_NOT_FOUND);
 
     await this.supabase.admin.from('doctor_favorites').delete().eq('id', existing.id);
@@ -504,20 +504,20 @@ export class PatientsService {
   async joinWaitlist(user: AuthUser, body: JoinWaitlistDto) {
     if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
-    const { data: doctor } = await this.supabase.admin.from('profiles').select().eq('id', body.doctorId).eq('role', ProfileRole.DOCTOR).single();
+    const { data: doctor } = await this.supabase.admin.from('profiles').select().eq('id', body.doctorId).eq('role', ProfileRole.DOCTOR).maybeSingle();
     if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
 
     const { data: created } = await this.supabase.admin
       .from('appointment_waitlist')
       .insert({ patient_id: user.id, doctor_id: body.doctorId, preferred_window: body.preferredWindow })
       .select()
-      .single();
+      .maybeSingle();
     return created;
   }
 
   async leaveWaitlist(user: AuthUser, id: string) {
     if (user.profile.role !== ProfileRole.PATIENT) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
-    const { data: entry } = await this.supabase.admin.from('appointment_waitlist').select().eq('id', id).eq('patient_id', user.id).single();
+    const { data: entry } = await this.supabase.admin.from('appointment_waitlist').select().eq('id', id).eq('patient_id', user.id).maybeSingle();
     if (!entry) throw new NotFoundException(ERROR_MESSAGES.WAITLIST_ENTRY_NOT_FOUND);
 
     await this.supabase.admin.from('appointment_waitlist').delete().eq('id', id);

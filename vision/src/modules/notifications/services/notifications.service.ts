@@ -259,7 +259,7 @@ export class NotificationsService {
         { onConflict: 'user_id' },
       )
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
     return data;
@@ -310,7 +310,7 @@ export class NotificationsService {
             data: input.data || {},
           })
           .select()
-          .single();
+          .maybeSingle();
 
         return mutedData;
       }
@@ -331,7 +331,7 @@ export class NotificationsService {
           data: input.data || {},
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
@@ -400,7 +400,7 @@ export class NotificationsService {
   }
 
   async markRead(user: AuthUser, id: string) {
-    const { data: existing } = await this.supabase.admin.from('notifications').select().eq('id', id).single();
+    const { data: existing } = await this.supabase.admin.from('notifications').select().eq('id', id).maybeSingle();
     if (!existing) throw new NotFoundException(ERROR_MESSAGES.NOTIFICATION_NOT_FOUND);
     if (existing.user_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
@@ -409,7 +409,7 @@ export class NotificationsService {
       .update({ read: true, opened_at: new Date().toISOString() })
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
     return data;
   }
 

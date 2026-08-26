@@ -45,7 +45,7 @@ export class DoctorsService {
 
     const { data: updated } = await this.supabase.admin.from('profiles').update({
       kyc_submitted_at: new Date().toISOString(),
-    }).eq('id', user.id).select().single();
+    }).eq('id', user.id).select().maybeSingle();
 
     if (!updated) throw new NotFoundException();
     return updated;
@@ -80,7 +80,7 @@ export class DoctorsService {
   }
 
   async getAvailableSlots(doctorId: string, date: string) {
-    const { data: doctor } = await this.supabase.admin.from('profiles').select().eq('id', doctorId).eq('role', ProfileRole.DOCTOR).single();
+    const { data: doctor } = await this.supabase.admin.from('profiles').select().eq('id', doctorId).eq('role', ProfileRole.DOCTOR).maybeSingle();
     if (!doctor || !doctor.kyc_verified) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
 
     // If doctor is on approved leave on this date, no slots are available

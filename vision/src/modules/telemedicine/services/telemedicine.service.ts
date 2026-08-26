@@ -52,7 +52,7 @@ export class TelemedicineService {
   }
 
   private async guardAppointmentAccess(user: AuthUser, appointmentId: string) {
-    const { data: appointment } = await this.supabase.admin.from('appointments').select().is('deleted_at', null).eq('id', appointmentId).single();
+    const { data: appointment } = await this.supabase.admin.from('appointments').select().is('deleted_at', null).eq('id', appointmentId).maybeSingle();
     if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
     if (appointment.patient_id !== user.id && appointment.doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     return appointment;
@@ -77,7 +77,7 @@ export class TelemedicineService {
       patient_id: appointment.patient_id,
       doctor_id: user.id,
       note,
-    }).select().single();
+    }).select().maybeSingle();
     return data;
   }
 

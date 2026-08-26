@@ -29,12 +29,12 @@ export class StaffService {
       role: body.role,
       shift: body.shift,
       phone: body.phone,
-    }).select().single();
+    }).select().maybeSingle();
     return data;
   }
 
   private async ownStaff(user: AuthUser, id: string) {
-    const { data: staff } = await this.supabase.admin.from('staff_members').select().eq('id', id).single();
+    const { data: staff } = await this.supabase.admin.from('staff_members').select().eq('id', id).maybeSingle();
     if (!staff) throw new NotFoundException(ERROR_MESSAGES.STAFF_NOT_FOUND);
     if (staff.doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     return staff;
@@ -43,7 +43,7 @@ export class StaffService {
   async update(user: AuthUser, id: string, body: UpdateStaffDto) {
     this.requireDoctor(user);
     await this.ownStaff(user, id);
-    const { data } = await this.supabase.admin.from('staff_members').update(body).eq('id', id).select().single();
+    const { data } = await this.supabase.admin.from('staff_members').update(body).eq('id', id).select().maybeSingle();
     return data;
   }
 
@@ -69,17 +69,17 @@ export class StaffService {
       leave_type: body.leaveType,
       from_date: body.fromDate,
       to_date: body.toDate,
-    }).select().single();
+    }).select().maybeSingle();
     return data;
   }
 
   async updateLeave(user: AuthUser, id: string, status: string) {
     this.requireDoctor(user);
-    const { data: leave } = await this.supabase.admin.from('leave_requests').select().eq('id', id).single();
+    const { data: leave } = await this.supabase.admin.from('leave_requests').select().eq('id', id).maybeSingle();
     if (!leave) throw new NotFoundException(ERROR_MESSAGES.LEAVE_NOT_FOUND);
     if (leave.doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
-    const { data } = await this.supabase.admin.from('leave_requests').update({ status }).eq('id', id).select().single();
+    const { data } = await this.supabase.admin.from('leave_requests').update({ status }).eq('id', id).select().maybeSingle();
     return data;
   }
 }
