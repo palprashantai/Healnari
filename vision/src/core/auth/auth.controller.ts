@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, Post, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -56,7 +56,7 @@ export class UpdatePasswordDto {
 @ApiTags('Auth')
 @Controller('api/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   // AUDIT_REPORT.md SEC-3 — the only other rate limit anywhere is a flat
   // 100 req/min/IP applied to every route; that's far too permissive for
@@ -85,6 +85,18 @@ export class AuthController {
   async refresh(@Body() body: RefreshDto) {
     const result = await this.authService.refresh(body.refreshToken);
     return ResponseHelper.success(result, SUCCESS_MESSAGES.LOGIN_SUCCESS);
+  }
+
+  @ApiOperation({ summary: 'Log out and invalidate session' })
+  @Post('logout')
+  async logout(@Headers('authorization') authHeader?: string) {
+    if (authHeader) {
+      const token = authHeader.replace(/^Bearer\s+/i, '');
+      if (token) {
+        await this.authService.logout(token);
+      }
+    }
+    return ResponseHelper.success(null, 'Logged out successfully');
   }
 
   @ApiOperation({ summary: "Get the caller's own profile" })

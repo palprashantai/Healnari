@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiFetch, getTokens, setTokens, clearTokens, API_URL } from '../lib/apiClient.js';
+import { useQueryClient } from '@tanstack/react-query';
 import { usePushSubscription } from '../hooks/usePushSubscription.js';
 
 const AuthContext = createContext();
@@ -26,6 +27,8 @@ export function AuthProvider({ children }) {
       return false;
     }
   });
+
+  const queryClient = useQueryClient();
 
   const setAndCacheUser = useCallback((updater) => {
     setUser((prev) => {
@@ -145,6 +148,7 @@ export function AuthProvider({ children }) {
     } finally {
       clearTokens();
       setAndCacheUser(null);
+      queryClient.clear(); // Abort active queries and wipe cache to prevent 401s after token is gone
     }
   };
 

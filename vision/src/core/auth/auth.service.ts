@@ -84,6 +84,12 @@ export class AuthService {
     return { accessToken: data.session.access_token, refreshToken: data.session.refresh_token };
   }
 
+  async logout(token: string) {
+    // Invalidate the session on Supabase so the refresh token is actually revoked.
+    // 'global' logs them out of all active sessions across devices.
+    await this.supabase.admin.auth.admin.signOut(token, 'global');
+  }
+
   async updateMe(userId: string, body: UpdateMeDto) {
     const patch: Partial<Profile> = {};
     if (body.fullName !== undefined) patch.full_name = body.fullName;
