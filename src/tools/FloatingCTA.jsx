@@ -12,7 +12,7 @@ function FloatingCTA({ onBook }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const whatsappNumber = '919999999999'; // Placeholder
+  const whatsappNumber = '919258210347';
   const whatsappMsg = encodeURIComponent('Hi, I would like to book a consultation for my health concern.');
 
   return (
@@ -37,7 +37,7 @@ function FloatingCTA({ onBook }) {
 
           {/* Call */}
           <a
-            href="tel:+919999999999"
+            href="tel:+919258210347"
             className="flex items-center gap-2.5 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold text-sm px-4 py-2.5 rounded-2xl shadow-lg shadow-aubergine-500/20 transition-all btn-interactive"
           >
             <i className="fas fa-phone text-sm"></i>
