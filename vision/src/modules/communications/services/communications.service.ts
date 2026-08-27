@@ -5,12 +5,14 @@ import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
 import { CreateBroadcastDto } from '@/modules/communications/controllers/communications.controller';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { EmailService } from '@/core/email/email.service';
 
 @Injectable()
 export class CommunicationsService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
+    private readonly email: EmailService,
   ) {}
 
   async list(user: AuthUser) {
@@ -71,11 +73,9 @@ export class CommunicationsService {
       .select()
       .maybeSingle();
 
-    // "Push Notification" is the one channel we can actually deliver
-    // ourselves (no email/SMS/WhatsApp provider is wired up) — fan it out
-    // as a real in-app + socket notification, scoped to patients who
-    // actually have an appointment with this doctor.
-    if (!scheduled && body.channels.includes('Push Notification')) {
+    // Fan out messages depending on requested channels.
+    // Push notifications create in-app and socket alerts, and Email sends a branded email message.
+    if (!scheduled && (body.channels.includes('Push Notification') || body.channels.includes('Email'))) {
       const recipientIds = body.patientIds?.length
         ? [
             ...new Set(
@@ -90,16 +90,51 @@ export class CommunicationsService {
           ]
         : await this.resolveDoctorAudience(user.id, body.audience);
 
-      await Promise.all(
-        recipientIds.map((patientId) =>
-          this.notifications.create(patientId, {
-            type: 'broadcast',
-            title: body.subject,
-            message: body.body,
-            data: { broadcastId: data.id },
-          }),
-        ),
-      );
+      if (recipientIds.length > 0) {
+        const promises: Promise<any>[] = [];
+
+        if (body.channels.includes('Push Notification')) {
+          promises.push(
+            ...recipientIds.map((patientId) =>
+              this.notifications.create(patientId, {
+                type: 'broadcast',
+                title: body.subject,
+                message: body.body,
+                data: { broadcastId: data.id },
+              }),
+            ),
+          );
+        }
+
+        if (body.channels.includes('Email')) {
+          const { data: profiles } = await this.supabase.admin
+            .from('profiles')
+            .select('email')
+            .in('id', recipientIds)
+            .not('email', 'is', null);
+
+          const emails = [...new Set((profiles || []).map((p) => p.email).filter(Boolean))];
+
+          if (emails.length > 0) {
+            promises.push(
+              ...emails.map((email) =>
+                this.email
+                  .sendMail({
+                    to: email,
+                    subject: body.subject,
+                    text: body.body,
+                    html: `<p>${body.body.replace(/\n/g, '<br>')}</p>`,
+                  })
+                  .catch((err) =>
+                    console.error('Failed to send broadcast email to', email, err),
+                  ),
+              ),
+            );
+          }
+        }
+
+        await Promise.all(promises);
+      }
     }
 
     return data;

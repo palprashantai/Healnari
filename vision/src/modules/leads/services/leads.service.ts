@@ -315,7 +315,7 @@ export class LeadsService {
       }
 
       if (generatedPassword) {
-        this.email.sendMail({
+        await this.email.sendMail({
           to: request.email,
           subject: 'Your HealNari account is ready - Action Required',
           html: `
@@ -346,9 +346,9 @@ export class LeadsService {
             </div>
           `,
           text: `Hi ${request.name}, Dr. ${doctor?.full_name || ''} has approved your consultation request. Your HealNari account is ready. Email: ${request.email}, Password: ${generatedPassword}. Please log in at https://app.healnari.com/login and complete the payment to confirm your booking for ${scheduledDate} at ${scheduledTime}.`,
-        }).catch(err => console.error('Failed to send approval email async', err));
+        }).catch(err => console.error('Failed to send approval email', err));
       } else {
-        this.email.sendMail({
+        await this.email.sendMail({
           to: request.email,
           subject: 'Your consultation request was approved - Action Required',
           html: `
@@ -370,7 +370,7 @@ export class LeadsService {
             </div>
           `,
           text: `Hi ${request.name}, Dr. ${doctor?.full_name || ''} has approved your consultation request. Please log in to your HealNari account and complete the payment to confirm your booking for ${scheduledDate} at ${scheduledTime}.`,
-        });
+        }).catch(err => console.error('Failed to send approval email', err));
       }
 
       return { ...updated, appointment, emailSent: this.email.isConfigured };

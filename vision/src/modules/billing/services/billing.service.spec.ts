@@ -55,6 +55,7 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
       notifications as any,
       email as any,
       appointments as any,
+      mockFXRateService as any,
     );
 
     const result = await service.reconcileCashfreeOrder('cf-order-1');
@@ -93,6 +94,7 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
       notifications as any,
       email as any,
       appointments as any,
+      mockFXRateService as any,
     );
 
     const first = await service.reconcileCashfreeOrder('cf-order-1');
@@ -119,6 +121,7 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
       notifications as any,
       email as any,
       appointments as any,
+      mockFXRateService as any,
     );
 
     const result = await service.reconcileCashfreeOrder('unknown-order');
