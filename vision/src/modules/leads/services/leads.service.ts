@@ -335,22 +335,22 @@ export class LeadsService {
                 <p style="margin: 8px 0 0 0; font-size: 16px;"><strong>Password:</strong> ${generatedPassword}</p>
               </div>
               
-              <p style="font-size: 16px;">Please log in to your account to complete your booking.</p>
+              <p style="font-size: 16px;">Please log in to your account and <strong>complete the payment</strong> to confirm your booking.</p>
               
               <div style="text-align: center; margin: 32px 0;">
-                <a href="https://app.healnari.com/login" style="background-color: #0ea5e9; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Log In to HealNari</a>
+                <a href="https://app.healnari.com/patient-dashboard/billing" style="background-color: #0ea5e9; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Pay Now & Confirm Booking</a>
               </div>
 
-              <p style="font-size: 16px; margin-top: 32px;"><strong>Next Step:</strong> Once logged in, please complete the payment to confirm your booking.</p>
+              <p style="font-size: 16px; margin-top: 32px;"><strong>Important:</strong> Your appointment is currently on hold and will only be confirmed once payment is received. Unpaid requests will be automatically cancelled after 24 hours.</p>
               <p style="font-size: 14px; color: #64748b; margin-top: 24px;">For security reasons, we recommend changing your password after your first login.</p>
             </div>
           `,
-          text: `Hi ${request.name}, Dr. ${doctor?.full_name || ''} has approved your consultation request. Your HealNari account is ready. Email: ${request.email}, Password: ${generatedPassword}. Please log in at https://app.healnari.com/login and complete the payment to confirm your booking for ${scheduledDate} at ${scheduledTime}.`,
+          text: `Hi ${request.name}, Dr. ${doctor?.full_name || ''} has approved your consultation request. Your HealNari account is ready. Email: ${request.email}, Password: ${generatedPassword}. Please log in at https://app.healnari.com/patient-dashboard/billing and complete the payment to confirm your booking for ${scheduledDate} at ${scheduledTime}. Unpaid requests will be automatically cancelled after 24 hours.`,
         }).catch(err => console.error('Failed to send approval email', err));
       } else {
         await this.email.sendMail({
           to: request.email,
-          subject: 'Your consultation request was approved - Action Required',
+          subject: 'Payment Required: Consultation request approved',
           html: `
             <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #334155; line-height: 1.6;">
               <h2 style="color: #0f172a; margin-top: 0;">Consultation Approved!</h2>
@@ -362,14 +362,15 @@ export class LeadsService {
                 <p style="margin: 8px 0 0 0;">📅 <strong>Date:</strong> ${scheduledDate}<br>⏰ <strong>Time:</strong> ${scheduledTime}</p>
               </div>
               
-              <p style="font-size: 16px;"><strong>Next Step:</strong> Please log in to your HealNari account to complete the payment and confirm your booking.</p>
+              <p style="font-size: 16px;"><strong>Next Step:</strong> Please log in to your HealNari account and <strong>complete the payment</strong> to confirm your booking.</p>
               
               <div style="text-align: center; margin: 32px 0;">
-                <a href="https://app.healnari.com/login" style="background-color: #0ea5e9; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Log In to HealNari</a>
+                <a href="https://app.healnari.com/patient-dashboard/billing" style="background-color: #0ea5e9; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Pay Now & Confirm Booking</a>
               </div>
+              <p style="font-size: 16px; margin-top: 32px;"><strong>Important:</strong> Your appointment is currently on hold and will only be confirmed once payment is received. Unpaid requests will be automatically cancelled after 24 hours.</p>
             </div>
           `,
-          text: `Hi ${request.name}, Dr. ${doctor?.full_name || ''} has approved your consultation request. Please log in to your HealNari account and complete the payment to confirm your booking for ${scheduledDate} at ${scheduledTime}.`,
+          text: `Hi ${request.name}, Dr. ${doctor?.full_name || ''} has approved your consultation request. Please log in at https://app.healnari.com/patient-dashboard/billing and complete the payment to confirm your booking for ${scheduledDate} at ${scheduledTime}. Unpaid requests will be automatically cancelled after 24 hours.`,
         }).catch(err => console.error('Failed to send approval email', err));
       }
 

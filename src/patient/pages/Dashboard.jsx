@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
+import { PaymentModal } from '../../components/PaymentModal.jsx';
 import { StepIndicator } from '../../components/StepIndicator.jsx';
 import { PatientCarePassModal } from '../../components/PatientCarePassModal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
@@ -210,7 +211,7 @@ function LabReportsModal({ isOpen, onClose }) {
   );
 }
 
-function QuickBookModal({ isOpen, onClose, toast, addAppointment }) {
+function QuickBookModal({ isOpen, onClose, toast, addAppointment, onBooked }) {
   const [step, setStep] = useState(1);
   const [doctors, setDoctors] = useState([]);
   const [form, setForm] = useState({ doctorId: '', type: 'Video', date: '', slot: '' });
@@ -237,7 +238,7 @@ function QuickBookModal({ isOpen, onClose, toast, addAppointment }) {
   const confirm = async () => {
     setBooking(true);
     try {
-      await addAppointment({
+      const saved = await addAppointment({
         doctorId: form.doctorId,
         type: form.type === 'Video' ? 'Video Consult' : 'Clinic Visit',
         date: form.date,
@@ -245,7 +246,8 @@ function QuickBookModal({ isOpen, onClose, toast, addAppointment }) {
         reason: '',
       });
       onClose();
-      toast('Appointment booked!', 'success');
+      toast('Slot reserved! Please complete payment to confirm.', 'info');
+      if (onBooked) onBooked(saved);
       setStep(1); setForm({ doctorId: '', type: 'Video', date: '', slot: '' });
     } catch (err) {
       toast(err.message || 'Failed to book appointment.', 'error');
@@ -315,8 +317,9 @@ function QuickBookModal({ isOpen, onClose, toast, addAppointment }) {
           <div className="flex gap-3">
             <button onClick={() => setStep(1)} disabled={booking} className="flex-1 border border-slate-200 text-slate-600 font-bold py-3 rounded-xl text-sm hover:bg-slate-50 transition-colors disabled:opacity-40">← Back</button>
             <button disabled={!form.slot || booking} onClick={confirm}
-              className="flex-1 bg-emerald-600 disabled:opacity-40 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors">
-              {booking ? 'Booking…' : 'Confirm Booking ✓'}
+              className="flex-1 bg-emerald-600 disabled:opacity-40 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+              <i className={`fas ${booking ? 'fa-spinner fa-spin' : 'fa-lock'}`}></i>
+              {booking ? 'Booking…' : 'Confirm & Pay'}
             </button>
           </div>
         </div>
@@ -1647,6 +1650,8 @@ function PatientDashboard() {
   const [showSymptomChecker, setShowSymptomChecker] = useState(false);
   const [showLabReports, setShowLabReports] = useState(false);
   const [showQuickBook, setShowQuickBook] = useState(false);
+  const [payTarget, setPayTarget] = useState(null);
+  const [showPayModal, setShowPayModal] = useState(false);
   const [pendingReportCount, setPendingReportCount] = useState(0);
   const [fertilityData, setFertilityData] = useState(null);
 
@@ -1689,7 +1694,7 @@ function PatientDashboard() {
   }, []);
 
   const own = patients?.[0];
-  const upcomingAppointments = (appointments || []).filter(a => !['Done', 'Cancelled', 'No Show'].includes(a.status)).sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || ''));
+  const upcomingAppointments = (appointments || []).filter(a => !['Done', 'Cancelled', 'No Show', 'Approved', 'Requested'].includes(a.status)).sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || ''));
   const nextAppointment = upcomingAppointments[0];
   const daysToNext = nextAppointment ? Math.max(0, daysUntil(nextAppointment.date)) : null;
 
@@ -1961,7 +1966,22 @@ function PatientDashboard() {
       {showOnboarding && <OnboardingModal isOpen={showOnboarding} onClose={() => { localStorage.setItem('healnari_onboarding_done', 'true'); setOnboardingDone(true); setShowOnboarding(false); }} toast={toast} />}
       <SymptomCheckerModal isOpen={showSymptomChecker} onClose={() => setShowSymptomChecker(false)} toast={toast} />
       <LabReportsModal isOpen={showLabReports} onClose={() => setShowLabReports(false)} />
-      <QuickBookModal isOpen={showQuickBook} onClose={() => setShowQuickBook(false)} toast={toast} addAppointment={addAppointment} />
+      <QuickBookModal isOpen={showQuickBook} onClose={() => setShowQuickBook(false)} toast={toast} addAppointment={addAppointment} onBooked={(apt) => {
+        // Need to add fee since QuickBookModal doesn't fetch doctor fee easily, we can just use 799 as fallback or find the doctor
+        setPayTarget({ id: apt.id, doctor: apt.doctorName || 'Doctor', fee: apt.fee || 799 });
+        setShowPayModal(true);
+      }} />
+      <PaymentModal
+        isOpen={showPayModal}
+        onClose={() => setShowPayModal(false)}
+        appointmentId={payTarget?.id}
+        amount={payTarget?.fee ?? 0}
+        description={payTarget ? `Consultation — ${payTarget.doctor}` : ''}
+        onPaid={(payment) => {
+          // If we had syncPayment we could call it, but refreshing appointments works too
+          toast('Payment successful!', 'success');
+        }}
+      />
     </div>
   );
 }

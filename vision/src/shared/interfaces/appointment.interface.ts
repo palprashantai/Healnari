@@ -26,6 +26,8 @@ export interface Appointment {
   scheduled_time: string;
   reason: string | null;
   status: AppointmentStatus;
+  country?: string;
+  currency?: string;
   created_at: Date;
   updated_at: Date;
 }

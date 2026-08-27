@@ -156,7 +156,7 @@ export class AppointmentsService {
     }
     const { data: doctor } = await this.supabase.admin
       .from('profiles')
-      .select('specialty, kyc_verified, timezone, email, full_name')
+      .select('specialty, kyc_verified, timezone, email, full_name, currency')
       .eq('id', body.doctorId)
       .eq('role', ProfileRole.DOCTOR)
       .maybeSingle();
@@ -229,6 +229,8 @@ export class AppointmentsService {
         scheduled_time: body.scheduledTime,
         reason: body.reason,
         status: AppointmentStatus.REQUESTED,
+        country: body.country || 'US',
+        currency: body.currency || doctor.currency || 'USD',
       })
       .select(
         '*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)',
@@ -536,6 +538,31 @@ export class AppointmentsService {
             'Appointments must be cancelled at least 8 hours in advance.',
           );
         }
+      }
+    }
+
+    // Payment validation for UPCOMING status
+    if (status === AppointmentStatus.UPCOMING) {
+      const { data: payment } = await this.supabase.admin
+        .from('payments')
+        .select('id')
+        .eq('appointment_id', id)
+        .eq('status', 'Paid')
+        .maybeSingle();
+
+      if (!payment) {
+        throw new BadRequestException('Appointment cannot be confirmed without a successful payment.');
+      }
+    }
+
+    // Prevent joining call (IN_PROGRESS) if not confirmed
+    if (status === AppointmentStatus.IN_PROGRESS) {
+      if (
+        appointment.status !== AppointmentStatus.UPCOMING &&
+        appointment.status !== AppointmentStatus.WAITING &&
+        appointment.status !== AppointmentStatus.IN_PROGRESS
+      ) {
+        throw new BadRequestException('Cannot join a call for an appointment that is not confirmed.');
       }
     }
 
@@ -1256,6 +1283,55 @@ export class AppointmentsService {
     } else {
       this.logger.log(
         `Marked ${ids.length} overdue appointment(s) as NO_SHOW.`,
+      );
+    }
+  }
+
+  @Cron('0,30 * * * *', { name: 'appointments_unpaid_cancellation_sweep' })
+  async processUnpaidApprovals() {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+
+    const { data: unpaid, error } = await this.supabase.admin
+      .from('appointments')
+      .select('id, patient_id, doctor_id, patient:profiles!appointments_patient_id_fkey(full_name, email)')
+      .eq('status', AppointmentStatus.APPROVED)
+      .lte('created_at', cutoff.toISOString());
+
+    if (error || !unpaid?.length) return;
+
+    const ids = unpaid.map((a) => a.id);
+    const { error: updateError } = await this.supabase.admin
+      .from('appointments')
+      .update({ status: AppointmentStatus.CANCELLED })
+      .in('id', ids);
+
+    if (updateError) {
+      this.logger.error(
+        `Failed to cancel unpaid appointments: ${updateError.message}`,
+      );
+    } else {
+      this.logger.log(
+        `Cancelled ${ids.length} unpaid approved appointment(s).`,
+      );
+
+      await Promise.all(
+        unpaid.map(async (a: any) => {
+          this.notifications.create(a.patient_id, {
+            type: 'appointment_cancelled',
+            title: 'Appointment Cancelled',
+            message: 'Your appointment was cancelled due to non-payment.',
+            data: { appointmentId: a.id },
+          });
+
+          if (this.email.isConfigured && a.patient?.email) {
+            await this.email.sendMail({
+              to: a.patient.email,
+              subject: 'HealNari — Appointment Cancelled',
+              html: `<p>Hi ${a.patient.full_name || 'there'},</p><p>Your consultation request was cancelled because the payment was not completed within 24 hours of approval.</p><p>You can submit a new request if you'd still like to see the doctor.</p>`,
+              text: `Your consultation request was cancelled because the payment was not completed within 24 hours.`,
+            }).catch(e => this.logger.error(`Failed to send unpaid cancellation email to ${a.patient.email}`, e.stack));
+          }
+        })
       );
     }
   }

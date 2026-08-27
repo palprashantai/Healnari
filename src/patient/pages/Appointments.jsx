@@ -443,7 +443,7 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
             <button onClick={() => setStep(1)} disabled={booking} className="crm-btn-secondary flex-1 disabled:opacity-40">← Back</button>
             <button disabled={!form.slot || booking} onClick={confirm}
               className="crm-btn-primary flex-1 disabled:opacity-40 border-none bg-emerald-600 hover:bg-emerald-700">
-              <i className={`fas ${booking ? 'fa-spinner fa-spin' : 'fa-circle-check'} mr-2`}></i> {booking ? 'Booking…' : 'Confirm'}
+              <i className={`fas ${booking ? 'fa-spinner fa-spin' : 'fa-lock'} mr-2`}></i> {booking ? 'Booking…' : 'Confirm & Pay'}
             </button>
           </div>
         </div>
@@ -743,7 +743,7 @@ function PatientAppointments() {
   };
 
   const upcoming = useMemo(() => appointments
-    .filter(a => !['Done', 'Cancelled', 'No Show'].includes(a.status))
+    .filter(a => !['Done', 'Cancelled', 'No Show', 'Approved', 'Requested'].includes(a.status))
     .map(toRow)
     .sort((a, b) => (a.date || '').localeCompare(b.date || '')),
     [appointments, doctorById, paidAppointmentIds]);
@@ -821,6 +821,8 @@ function PatientAppointments() {
   };
   const filteredData = getFilteredData();
 
+
+
   const handleBook = async (form) => {
     try {
       const saved = await addAppointment({
@@ -830,8 +832,10 @@ function PatientAppointments() {
         time: form.slot,
         reason: form.notes,
       });
-      setSuccessApt(toRow(saved));
-      toast('Your request has been sent! You will be asked to pay once the doctor confirms.', 'success');
+      const apt = toRow(saved);
+      setSuccessApt(apt);
+      setPayTarget(apt);
+      setShowPayModal(true);
     } catch (err) {
       toast(err.message || 'Failed to book appointment', 'error');
       throw err; // let BookingModal know booking failed so it doesn't reset/close

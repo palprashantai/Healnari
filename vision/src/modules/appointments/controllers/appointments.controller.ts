@@ -23,6 +23,8 @@ export class CreateAppointmentDto {
   @ApiProperty({ example: '2026-08-20' }) @IsString() scheduledDate: string;
   @ApiProperty({ example: '10:30 AM' }) @IsString() scheduledTime: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() reason?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() country?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() currency?: string;
 }
 
 export class UpdateStatusDto {
