@@ -53,16 +53,28 @@ export class EmailService {
     private readonly supabase: SupabaseService,
     private readonly configService: ConfigService,
   ) {
-    this.from = this.configService.get<string>('EMAIL_FROM') || process.env.EMAIL_FROM || 'HealNari <no-reply@healnari.app>';
-    const host = this.configService.get<string>('SMTP_HOST') || process.env.SMTP_HOST;
-    const user = this.configService.get<string>('SMTP_USER') || process.env.SMTP_USER;
-    const pass = this.configService.get<string>('SMTP_PASS') || process.env.SMTP_PASS;
+    this.from =
+      this.configService.get<string>('EMAIL_FROM') ||
+      process.env.EMAIL_FROM ||
+      'HealNari <no-reply@healnari.app>';
+    const host =
+      this.configService.get<string>('SMTP_HOST') || process.env.SMTP_HOST;
+    const user =
+      this.configService.get<string>('SMTP_USER') || process.env.SMTP_USER;
+    const pass =
+      this.configService.get<string>('SMTP_PASS') || process.env.SMTP_PASS;
 
     if (host && user && pass) {
       this.transporter = nodemailer.createTransport({
         host,
-        port: Number(this.configService.get<string>('SMTP_PORT') || process.env.SMTP_PORT || 587),
-        secure: (this.configService.get<string>('SMTP_SECURE') || process.env.SMTP_SECURE) === 'true',
+        port: Number(
+          this.configService.get<string>('SMTP_PORT') ||
+            process.env.SMTP_PORT ||
+            587,
+        ),
+        secure:
+          (this.configService.get<string>('SMTP_SECURE') ||
+            process.env.SMTP_SECURE) === 'true',
         auth: { user, pass },
         pool: true,
         maxConnections: 5,

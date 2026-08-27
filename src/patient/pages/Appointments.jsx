@@ -715,35 +715,59 @@ function PatientAppointments() {
   }, []);
 
   const doctorById = useMemo(() => new Map(doctors.map(d => [d.id, d])), [doctors]);
-  const todayStr = todayLocalStr();
 
-  // Appointment status and payment status are tracked independently on the
-  // backend (booking never implies paid) — this is the only way the UI can
-  // tell whether a given appointment still needs payment.
-  const paidAppointmentIds = useMemo(
-    () => new Set(transactions.filter(t => t.status === 'Paid').map(t => t.appointment_id)),
-    [transactions]
-  );
+  const STATUS_LABEL = {
+    Requested: 'Pending Doctor Acceptance',
+    Approved: 'Action Required: Pay to Confirm',
+    HOLD: 'Slot Reserved',
+    Upcoming: 'Confirmed',
+    Waiting: 'In Waiting Room',
+    'In Progress': 'Consultation Live',
+    Done: 'Completed',
+    'No Show': 'Missed',
+    Cancelled: 'Cancelled',
+  };
+
+  const STATUS_BADGE = {
+    'Pending Doctor Acceptance': 'bg-aubergine-50 text-aubergine-700 border border-aubergine-200',
+    'Action Required: Pay to Confirm': 'bg-amber-50 text-amber-800 border border-amber-300 font-black',
+    'Slot Reserved': 'bg-purple-50 text-purple-700 border border-purple-200',
+    Confirmed: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    'In Waiting Room': 'bg-blue-50 text-blue-700 border border-blue-200',
+    'Consultation Live': 'bg-rose-50 text-rose-700 border border-rose-200 font-black',
+    Completed: 'bg-slate-100 text-slate-600 border border-slate-200',
+    Cancelled: 'bg-rose-50 text-rose-600 border border-rose-200',
+    Missed: 'bg-slate-100 text-slate-500 border border-slate-200',
+  };
 
   const toRow = (a) => {
     const doc = doctorById.get(a.doctorId);
+    const rawStatus = a.status || 'Requested';
+    const displayStatus = STATUS_LABEL[rawStatus] || rawStatus;
     return {
       id: a.id,
       doctorId: a.doctorId,
-      doctor: `Dr. ${a.doctorName}`,
-      specialty: doc?.specialty || 'Specialist',
+      doctor: `Dr. ${a.doctorName || doc?.full_name || 'Specialist'}`,
+      specialty: doc?.specialty || a.specialty || 'Specialist',
       date: a.date,
       dateLabel: a.date ? new Date(a.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
       time: a.time,
-      status: STATUS_LABEL[a.status] || a.status,
+      rawStatus,
+      status: displayStatus,
       type: a.type,
       fee: doc?.consultation_fee ?? 799,
       isPaid: paidAppointmentIds.has(a.id),
     };
   };
 
+  const pendingRequests = useMemo(() => appointments
+    .filter(a => ['Requested', 'Approved', 'HOLD'].includes(a.status))
+    .map(toRow)
+    .sort((a, b) => (a.date || '').localeCompare(b.date || '')),
+    [appointments, doctorById, paidAppointmentIds]);
+
   const upcoming = useMemo(() => appointments
-    .filter(a => !['Done', 'Cancelled', 'No Show', 'Approved', 'Requested'].includes(a.status))
+    .filter(a => ['Upcoming', 'Waiting', 'In Progress'].includes(a.status))
     .map(toRow)
     .sort((a, b) => (a.date || '').localeCompare(b.date || '')),
     [appointments, doctorById, paidAppointmentIds]);
@@ -773,16 +797,12 @@ function PatientAppointments() {
   const openCallFor = useCallback(async (appointmentId) => {
     let match = upcoming.find(a => a.id === appointmentId);
     if (!match) {
-      // Not in this session's cached appointments — likely a call that
-      // started after the initial fetch (e.g. the doctor's instant-call
-      // feature creates a brand-new appointment). Pull fresh data instead
-      // of waiting on a re-render that may never come.
       try {
         const fresh = await refreshAppointments();
-        const raw = fresh.find(a => a.id === appointmentId && !['Done', 'Cancelled', 'No Show'].includes(a.status));
+        const raw = fresh.find(a => a.id === appointmentId && ['Upcoming', 'Waiting', 'In Progress'].includes(a.status));
         match = raw ? toRow(raw) : null;
       } catch {
-        match = null; // network hiccup — fall through to the "couldn't open" toast below rather than failing silently
+        match = null;
       }
     }
     if (!match) return false;
@@ -797,9 +817,6 @@ function PatientAppointments() {
     let cancelled = false;
     openCallFor(joinCallId).then((opened) => {
       if (cancelled) return;
-      // Clear the param either way — openCallFor already did its own
-      // fetch-fresh fallback, so a miss here means the call genuinely isn't
-      // reachable (already ended, wrong id), not that we should keep retrying.
       setSearchParams(prev => {
         const next = new URLSearchParams(prev);
         next.delete('joinCall');
@@ -811,7 +828,7 @@ function PatientAppointments() {
   }, [searchParams, openCallFor, setSearchParams, toast]);
 
   const getFilteredData = () => {
-    let data = tab === 'upcoming' ? upcoming : past;
+    let data = tab === 'action_required' ? pendingRequests : tab === 'upcoming' ? upcoming : past;
     return data.filter(item => {
       const matchesSearch = !search || item.doctor.toLowerCase().includes(search.toLowerCase()) || item.specialty.toLowerCase().includes(search.toLowerCase()) || item.id.toLowerCase().includes(search.toLowerCase());
       const matchesType = typeFilter === 'All Types' || item.type === typeFilter;
@@ -820,8 +837,6 @@ function PatientAppointments() {
     });
   };
   const filteredData = getFilteredData();
-
-
 
   const handleBook = async (form) => {
     try {
@@ -834,11 +849,11 @@ function PatientAppointments() {
       });
       const apt = toRow(saved);
       setSuccessApt(apt);
-      setPayTarget(apt);
-      setShowPayModal(true);
+      toast(`Consultation request sent to ${apt.doctor}! You will be notified once the doctor accepts.`, 'success');
+      setTab('action_required');
     } catch (err) {
       toast(err.message || 'Failed to book appointment', 'error');
-      throw err; // let BookingModal know booking failed so it doesn't reset/close
+      throw err;
     }
   };
 
@@ -846,7 +861,7 @@ function PatientAppointments() {
     const { id, doctor: doctorName } = cancelTarget;
     try {
       await cancelAppointment(id, reason);
-      toast(`Appointment with ${doctorName} cancelled. Refund initiated.`, 'info');
+      toast(`Appointment with ${doctorName} cancelled.`, 'info');
       setCancelTarget(null);
     } catch (err) {
       toast(err.message || 'Failed to cancel appointment. Please try again.', 'error');
@@ -871,12 +886,10 @@ function PatientAppointments() {
       toast('Added to the waitlist. We\'ll notify you when a slot opens.', 'success');
     } catch (err) {
       toast(err.message || 'Failed to join waitlist.', 'error');
-      throw err; // let JoinWaitlistModal know it failed so it doesn't reset/close
+      throw err;
     }
   };
 
-  // "Pay Now" opens the same real Cashfree payment modal Billing.jsx uses,
-  // instead of silently charging a hardcoded UPI payment on a single click.
   const [payTarget, setPayTarget] = useState(null);
   const [showPayModal, setShowPayModal] = useState(false);
 
@@ -887,7 +900,9 @@ function PatientAppointments() {
 
   const handlePaid = (payment) => {
     syncPayment(payment);
-    toast('Payment successful!', 'success');
+    toast('Payment successful! Your appointment is confirmed.', 'success');
+    setTab('upcoming');
+    refreshAppointments();
   };
 
   const handleWaitlistCancel = async (entry) => {
@@ -899,54 +914,70 @@ function PatientAppointments() {
     }
   };
 
-  const STATUS_BADGE = {
-    Confirmed: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-    Pending: 'bg-amber-50 text-amber-700 border border-amber-100',
-    Completed: 'bg-slate-100 text-slate-600 border border-slate-200',
-  };
-
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800">My Appointments</h1>
-          <p className="text-sm text-slate-500">Manage your upcoming and past consultations.</p>
+          <p className="text-sm text-slate-500">Manage your appointment requests, payments, and consultations.</p>
         </div>
         <button onClick={() => { setBookPrefill({}); setShowBook(true); }}
           className="crm-btn-primary flex items-center gap-2">
-          <i className="fas fa-plus"></i> Book New
+          <i className="fas fa-plus"></i> Request Consultation
         </button>
       </div>
 
       {/* Success Banner */}
       {successApt && (
-        <div className={`border rounded-2xl p-5 flex items-center justify-between gap-4 animate-fade-in ${successApt.status === 'Pending' ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
+        <div className={`border rounded-2xl p-5 flex items-center justify-between gap-4 animate-fade-in bg-aubergine-50 border-aubergine-200`}>
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${successApt.status === 'Pending' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
-              <i className={`fas ${successApt.status === 'Pending' ? 'fa-clock' : 'fa-circle-check'}`}></i>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-aubergine-100 text-aubergine-700`}>
+              <i className="fas fa-clock"></i>
             </div>
             <div>
-              <p className={`font-bold ${successApt.status === 'Pending' ? 'text-amber-800' : 'text-emerald-800'}`}>
-                {successApt.status === 'Pending' ? 'Booking Request Sent!' : 'Appointment Confirmed!'}
+              <p className="font-bold text-aubergine-900">
+                Consultation Request Submitted!
               </p>
-              <p className={`text-xs ${successApt.status === 'Pending' ? 'text-amber-700' : 'text-emerald-700'}`}>
-                {successApt.doctor} • {successApt.dateLabel} • {successApt.time}
+              <p className="text-xs text-aubergine-700">
+                {successApt.doctor} • {successApt.dateLabel} • {successApt.time} — The doctor will review your request. You will receive a notification to pay and confirm once accepted.
               </p>
             </div>
           </div>
-          <button onClick={() => setSuccessApt(null)} className={`${successApt.status === 'Pending' ? 'text-amber-600 hover:text-amber-800' : 'text-emerald-600 hover:text-emerald-800'}`}><i className="fas fa-xmark"></i></button>
+          <button onClick={() => setSuccessApt(null)} className="text-aubergine-600 hover:text-aubergine-900"><i className="fas fa-xmark"></i></button>
+        </div>
+      )}
+
+      {/* Action Required Banner if any Approved appointments */}
+      {pendingRequests.some(r => r.rawStatus === 'Approved') && tab !== 'action_required' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold">
+              <i className="fas fa-bell"></i>
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-amber-900">Action Required: Doctor Accepted Your Request</h4>
+              <p className="text-xs text-amber-700">You have appointment(s) awaiting payment confirmation.</p>
+            </div>
+          </div>
+          <button onClick={() => setTab('action_required')} className="crm-btn-primary bg-amber-600 hover:bg-amber-700 text-xs py-2 px-3">
+            Pay Now to Confirm →
+          </button>
         </div>
       )}
 
       {/* Tabs + Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="flex border-b border-slate-200 bg-slate-50">
-          {[['upcoming', 'Upcoming', upcoming.length], ['past', 'Past History', past.length]].map(([key, label, count]) => (
+        <div className="flex border-b border-slate-200 bg-slate-50 overflow-x-auto">
+          {[
+            ['action_required', 'Action Required & Requests', pendingRequests.length, pendingRequests.some(r => r.rawStatus === 'Approved')],
+            ['upcoming', 'Confirmed Upcoming', upcoming.length, false],
+            ['past', 'Past History', past.length, false]
+          ].map(([key, label, count, hasAlert]) => (
             <button key={key} onClick={() => setTab(key)}
-              className={`px-6 py-4 text-sm font-bold transition-all flex items-center gap-2 ${tab === key ? 'bg-white text-aubergine-700 border-t-2 border-t-aubergine-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+              className={`px-5 py-4 text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${tab === key ? 'bg-white text-aubergine-700 border-t-2 border-t-aubergine-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
               {label}
-              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === key ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-200 text-slate-500'}`}>{count}</span>
+              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${hasAlert ? 'bg-amber-500 text-white animate-pulse' : tab === key ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-200 text-slate-500'}`}>{count}</span>
             </button>
           ))}
         </div>
@@ -969,8 +1000,9 @@ function PatientAppointments() {
           <div className="relative min-w-[140px] sm:max-w-[150px] w-full group">
             <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="crm-input w-full appearance-none cursor-pointer pr-8 focus:ring-aubergine-300">
               <option value="All Status">All Status</option>
+              <option value="Action Required: Pay to Confirm">Action Required</option>
+              <option value="Pending Doctor Acceptance">Pending Review</option>
               <option value="Confirmed">Confirmed</option>
-              <option value="Pending">Pending</option>
               <option value="Completed">Completed</option>
             </select>
             <i className="fas fa-chevron-down absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-xs group-focus-within:text-aubergine-500 transition-colors"></i>
@@ -1012,7 +1044,23 @@ function PatientAppointments() {
                     </span>
                   </td>
                   <td className="text-right">
-                    {tab === 'upcoming' ? (
+                    {tab === 'action_required' ? (
+                      <div className="flex justify-end items-center gap-2">
+                        {apt.rawStatus === 'Approved' && (
+                          <button onClick={() => openPayFor(apt)}
+                            className="crm-btn-primary bg-amber-500 hover:bg-amber-600 border-none text-xs font-bold py-2 px-3 flex items-center gap-1.5 shadow-sm animate-pulse-subtle">
+                            <i className="fas fa-credit-card"></i> Pay Now
+                          </button>
+                        )}
+                        {apt.rawStatus === 'Requested' && (
+                          <span className="text-xs text-slate-400 italic px-2">Awaiting doctor acceptance</span>
+                        )}
+                        <button onClick={() => setCancelTarget(apt)}
+                          className="crm-btn-secondary text-xs text-rose-600 hover:bg-rose-50 py-1.5 px-2.5">
+                          Cancel
+                        </button>
+                      </div>
+                    ) : tab === 'upcoming' ? (
                       <div className="flex justify-end items-center gap-2">
                         <AIButton
                           variant="gradient"
@@ -1029,30 +1077,20 @@ function PatientAppointments() {
                             <i className="fas fa-ellipsis-v"></i>
                           </button>
                           <div className="absolute right-0 mt-1 w-36 bg-white border border-slate-200 shadow-xl rounded-xl py-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all z-20">
-                            {(apt.status === 'Requested' || apt.status === 'Approved (Pending Payment)' || apt.status === 'Confirmed') && (
-                              <>
-                                <button onClick={() => setRescheduleTarget(apt)}
-                                  className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
-                                  Reschedule
-                                </button>
-                                <button onClick={() => setCancelTarget(apt)}
-                                  className="w-full text-left px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50">
-                                  Cancel 
-                                </button>
-                              </>
-                            )}
+                            <button onClick={() => setRescheduleTarget(apt)}
+                              className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                              Reschedule
+                            </button>
+                            <button onClick={() => setCancelTarget(apt)}
+                              className="w-full text-left px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50">
+                              Cancel 
+                            </button>
                           </div>
                         </div>
-                        {apt.type === 'Video Consult' && apt.status === 'Confirmed' && (
+                        {apt.type === 'Video Consult' && (
                           <button onClick={() => setVideoTarget(apt)}
                             className="crm-btn-primary bg-emerald-500 hover:bg-emerald-600 border-none text-[11px] h-8 px-3">
                             <i className="fas fa-video mr-1"></i> Join Call
-                          </button>
-                        )}
-                        {!apt.isPaid && (apt.status === 'Confirmed' || apt.status === 'Approved (Pending Payment)') && (
-                          <button onClick={() => openPayFor(apt)}
-                            className="crm-btn-primary bg-amber-500 hover:bg-amber-600 border-none text-[11px] h-8 px-3">
-                            <i className="fas fa-credit-card mr-1"></i> Pay Now
                           </button>
                         )}
                       </div>
@@ -1072,10 +1110,6 @@ function PatientAppointments() {
                         >
                           <i className="fab fa-whatsapp text-emerald-600 text-xs sm:mr-1"></i>
                           <span className="hidden sm:inline">Recommend</span>
-                        </button>
-                        <button onClick={() => toast('Appointment summaries are coming soon.', 'info')}
-                          className="crm-btn-secondary text-[11px] h-8 px-3">
-                          <i className="fas fa-download mr-1"></i> Summary
                         </button>
                         <button onClick={() => { setBookPrefill({ doctorId: apt.doctorId, followUp: true }); setShowBook(true); }}
                           className="crm-btn-primary text-[11px] h-8 px-3">

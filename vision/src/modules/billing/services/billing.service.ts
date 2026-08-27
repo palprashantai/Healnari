@@ -13,6 +13,10 @@ import { InvoiceService } from '@/modules/billing/services/invoice.service';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { EmailService } from '@/core/email/email.service';
 import { AppointmentsService } from '@/modules/appointments/services/appointments.service';
+import {
+  Appointment,
+  AppointmentStatus,
+} from '@/shared/interfaces/appointment.interface';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
@@ -214,6 +218,21 @@ export class BillingService {
       .maybeSingle();
     if (!appointment)
       throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
+
+    // Business Rule: Appointment must be accepted by doctor (Approved) before payment
+    if (appointment.status === AppointmentStatus.REQUESTED) {
+      throw new BadRequestException(
+        'Please wait for the doctor to review and accept your appointment request before completing payment.',
+      );
+    }
+    if (
+      appointment.status !== AppointmentStatus.APPROVED &&
+      appointment.status !== AppointmentStatus.HOLD
+    ) {
+      throw new BadRequestException(
+        `Cannot initiate payment for an appointment that is already ${appointment.status.toLowerCase()}.`,
+      );
+    }
 
     const { data: doctor } = await this.supabase.admin
       .from('profiles')

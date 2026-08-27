@@ -75,7 +75,11 @@ export class CommunicationsService {
 
     // Fan out messages depending on requested channels.
     // Push notifications create in-app and socket alerts, and Email sends a branded email message.
-    if (!scheduled && (body.channels.includes('Push Notification') || body.channels.includes('Email'))) {
+    if (
+      !scheduled &&
+      (body.channels.includes('Push Notification') ||
+        body.channels.includes('Email'))
+    ) {
       const recipientIds = body.patientIds?.length
         ? [
             ...new Set(
@@ -113,7 +117,9 @@ export class CommunicationsService {
             .in('id', recipientIds)
             .not('email', 'is', null);
 
-          const emails = [...new Set((profiles || []).map((p) => p.email).filter(Boolean))];
+          const emails = [
+            ...new Set((profiles || []).map((p) => p.email).filter(Boolean)),
+          ];
 
           if (emails.length > 0) {
             promises.push(
@@ -126,7 +132,11 @@ export class CommunicationsService {
                     html: `<p>${body.body.replace(/\n/g, '<br>')}</p>`,
                   })
                   .catch((err) =>
-                    console.error('Failed to send broadcast email to', email, err),
+                    console.error(
+                      'Failed to send broadcast email to',
+                      email,
+                      err,
+                    ),
                   ),
               ),
             );

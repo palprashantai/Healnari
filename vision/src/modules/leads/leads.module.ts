@@ -8,7 +8,13 @@ import { DoctorsModule } from '@/modules/doctors/doctors.module';
 import { AppointmentsModule } from '@/modules/appointments/appointments.module';
 
 @Module({
-  imports: [SupabaseModule, NotificationsModule, EmailModule, DoctorsModule, AppointmentsModule],
+  imports: [
+    SupabaseModule,
+    NotificationsModule,
+    EmailModule,
+    DoctorsModule,
+    AppointmentsModule,
+  ],
   controllers: [LeadsController],
   providers: [LeadsService],
 })

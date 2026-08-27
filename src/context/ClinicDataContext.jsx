@@ -481,8 +481,10 @@ export function ClinicDataProvider({ children }) {
     const prev = appointments;
     setAppointments(cur => cur.map(a => (a.id === id ? { ...a, status } : a)));
     try {
-      await apiFetch(`/appointments/${id}/status`, { method: 'PUT', body: { status } });
-      
+      const res = await apiFetch(`/appointments/${id}/status`, { method: 'PUT', body: { status } });
+      const newApt = adaptAppointment(res);
+      setAppointments(cur => cur.map(a => (a.id === id ? newApt : a)));
+      return newApt;
     } catch (err) {
       console.error(err);
       setAppointments(prev); // Rollback

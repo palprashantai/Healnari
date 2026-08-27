@@ -30,7 +30,7 @@ export class AppointmentsService {
     private readonly notifications: NotificationsService,
     private readonly ai: AiService,
     private readonly email: EmailService,
-  ) { }
+  ) {}
 
   private appointmentWhen(a: Appointment) {
     return `${a.scheduled_date} at ${a.scheduled_time}`;
@@ -278,10 +278,11 @@ export class AppointmentsService {
             when: this.appointmentWhen(withNames),
             label: this.typeLabel(withNames.type),
             reason: withNames.reason || 'None provided',
-            dashboardUrl: 'https://app.healnari.com/doctor-dashboard/appointments',
+            dashboardUrl:
+              'https://app.healnari.com/doctor-dashboard/appointments',
           },
         })
-        .catch(() => { });
+        .catch(() => {});
     }
 
     const { data: patientProfile } = await this.supabase.admin
@@ -308,7 +309,7 @@ export class AppointmentsService {
           variables: {
             patientName: withNames.patientName,
             doctorName: withNames.doctorName,
-            when: this.appointmentWhen(withNames)
+            when: this.appointmentWhen(withNames),
           },
         })
         .catch(() => {});
@@ -583,7 +584,9 @@ export class AppointmentsService {
         .maybeSingle();
 
       if (!payment) {
-        throw new BadRequestException('Appointment cannot be confirmed without a successful payment.');
+        throw new BadRequestException(
+          'Appointment cannot be confirmed without a successful payment.',
+        );
       }
     }
 
@@ -594,7 +597,9 @@ export class AppointmentsService {
         appointment.status !== AppointmentStatus.WAITING &&
         appointment.status !== AppointmentStatus.IN_PROGRESS
       ) {
-        throw new BadRequestException('Cannot join a call for an appointment that is not confirmed.');
+        throw new BadRequestException(
+          'Cannot join a call for an appointment that is not confirmed.',
+        );
       }
     }
 
@@ -647,7 +652,11 @@ export class AppointmentsService {
       const { data: updated } = await this.supabase.admin
         .from('appointments')
         .update({ status: AppointmentStatus.UPCOMING })
-        .in('status', [AppointmentStatus.REQUESTED, AppointmentStatus.APPROVED, 'HOLD'])
+        .in('status', [
+          AppointmentStatus.REQUESTED,
+          AppointmentStatus.APPROVED,
+          'HOLD',
+        ])
         .eq('id', id)
         .select(
           '*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url, email), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)',
@@ -695,7 +704,7 @@ export class AppointmentsService {
               dashboardUrl: 'https://app.healnari.com/patient/appointments',
             },
           })
-          .catch(() => { });
+          .catch(() => {});
       }
 
       return withNames;
@@ -815,7 +824,7 @@ export class AppointmentsService {
               dashboardUrl: 'https://app.healnari.com/patient/appointments',
             },
           })
-          .catch(() => { });
+          .catch(() => {});
       }
     } else if (
       isDoctorActing &&
@@ -863,7 +872,7 @@ export class AppointmentsService {
               dashboardUrl: 'https://app.healnari.com/patient/appointments',
             },
           })
-          .catch(() => { });
+          .catch(() => {});
       }
     } else if (
       isDoctorActing &&
@@ -905,7 +914,7 @@ export class AppointmentsService {
               dashboardUrl: 'https://healnari.vercel.app/patient/appointments',
             },
           })
-          .catch(() => { });
+          .catch(() => {});
       }
     } else if (
       !isDoctorActing &&
@@ -1166,7 +1175,7 @@ export class AppointmentsService {
     const peopleAhead = index;
     const avgMinutes =
       AppointmentsService.AVG_CONSULT_MINUTES[
-      appointment.type as AppointmentType
+        appointment.type as AppointmentType
       ] ?? 15;
 
     return {
@@ -1286,7 +1295,7 @@ export class AppointmentsService {
           message: `You have a ${apt.type} appointment tomorrow at ${apt.scheduled_time}.`,
           data: { appointmentId: apt.id },
         })
-        .catch(() => { });
+        .catch(() => {});
     }
   }
 
@@ -1325,7 +1334,9 @@ export class AppointmentsService {
 
     const { data: unpaid, error } = await this.supabase.admin
       .from('appointments')
-      .select('id, patient_id, doctor_id, patient:profiles!appointments_patient_id_fkey(full_name, email)')
+      .select(
+        'id, patient_id, doctor_id, patient:profiles!appointments_patient_id_fkey(full_name, email)',
+      )
       .eq('status', AppointmentStatus.APPROVED)
       .lte('created_at', cutoff.toISOString());
 
@@ -1356,14 +1367,21 @@ export class AppointmentsService {
           });
 
           if (this.email.isConfigured && a.patient?.email) {
-            await this.email.sendMail({
-              to: a.patient.email,
-              subject: 'HealNari — Appointment Cancelled',
-              html: `<p>Hi ${a.patient.full_name || 'there'},</p><p>Your consultation request was cancelled because the payment was not completed within 24 hours of approval.</p><p>You can submit a new request if you'd still like to see the doctor.</p>`,
-              text: `Your consultation request was cancelled because the payment was not completed within 24 hours.`,
-            }).catch(e => this.logger.error(`Failed to send unpaid cancellation email to ${a.patient.email}`, e.stack));
+            await this.email
+              .sendMail({
+                to: a.patient.email,
+                subject: 'HealNari — Appointment Cancelled',
+                html: `<p>Hi ${a.patient.full_name || 'there'},</p><p>Your consultation request was cancelled because the payment was not completed within 24 hours of approval.</p><p>You can submit a new request if you'd still like to see the doctor.</p>`,
+                text: `Your consultation request was cancelled because the payment was not completed within 24 hours.`,
+              })
+              .catch((e) =>
+                this.logger.error(
+                  `Failed to send unpaid cancellation email to ${a.patient.email}`,
+                  e.stack,
+                ),
+              );
           }
-        })
+        }),
       );
     }
   }
@@ -1435,7 +1453,7 @@ export class AppointmentsService {
               path: '/patient-dashboard/appointments',
             },
           })
-          .catch(() => { }),
+          .catch(() => {}),
       ),
     );
 
@@ -1506,7 +1524,7 @@ export class AppointmentsService {
 
         const avgMinutes =
           AppointmentsService.AVG_CONSULT_MINUTES[
-          apt.type as AppointmentType
+            apt.type as AppointmentType
           ] ?? 15;
         const projectedStartMs = now + index * avgMinutes * 60 * 1000;
         const delayMinutes =
@@ -1552,7 +1570,7 @@ export class AppointmentsService {
             path: '/patient-dashboard/appointments',
           },
         })
-        .catch(() => { });
+        .catch(() => {});
     }
 
     if (claimed?.length)
@@ -1561,24 +1579,6 @@ export class AppointmentsService {
 
   @Cron(CronExpression.EVERY_5_MINUTES, { name: 'appointments_unpaid_release' })
   async releaseUnpaidSlots() {
-    // Free any slot where the payment wasn't completed within 5 minutes (legacy)
-    const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-
-    const { data: expired, error } = await this.supabase.admin
-      .from('appointments')
-      .update({ status: AppointmentStatus.CANCELLED })
-      .eq('status', AppointmentStatus.REQUESTED)
-      .lt('created_at', fiveMinsAgo)
-      .select('id');
-
-    if (error) {
-      this.logger.error('Failed to release unpaid requested slots:', error);
-    } else if (expired?.length) {
-      this.logger.log(
-        `Released ${expired.length} unpaid slots due to payment timeout.`,
-      );
-    }
-
     // Free explicitly HELD slots that have expired (10 minutes)
     const nowStr = new Date().toISOString();
     const { data: expiredHolds, error: holdError } = await this.supabase.admin

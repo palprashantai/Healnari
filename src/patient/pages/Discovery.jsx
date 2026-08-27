@@ -75,8 +75,7 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow })
     try {
       const apt = await addAppointment({ doctorId: doc.id, type, date, time: slot, reason: notes });
       setBookedApt(apt);
-      toast(`Slot reserved for 5 minutes! Please complete payment to confirm.`, 'info');
-      onPayNow({ id: apt.id, fee: doc.fee, currency: doc.currency, doctorName: doc.name });
+      toast(`Consultation request submitted! Dr. ${doc.name} will review and accept your request. You can pay to confirm once approved.`, 'success');
       reset();
     } catch (err) {
       toast(err.message || 'Failed to book appointment. Please try again.', 'error');

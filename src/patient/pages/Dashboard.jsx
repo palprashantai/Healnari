@@ -246,7 +246,7 @@ function QuickBookModal({ isOpen, onClose, toast, addAppointment, onBooked }) {
         reason: '',
       });
       onClose();
-      toast('Slot reserved! Please complete payment to confirm.', 'info');
+      toast('Consultation request submitted! The doctor will review your request and you will receive a notification to pay once approved.', 'success');
       if (onBooked) onBooked(saved);
       setStep(1); setForm({ doctorId: '', type: 'Video', date: '', slot: '' });
     } catch (err) {
@@ -1966,11 +1966,7 @@ function PatientDashboard() {
       {showOnboarding && <OnboardingModal isOpen={showOnboarding} onClose={() => { localStorage.setItem('healnari_onboarding_done', 'true'); setOnboardingDone(true); setShowOnboarding(false); }} toast={toast} />}
       <SymptomCheckerModal isOpen={showSymptomChecker} onClose={() => setShowSymptomChecker(false)} toast={toast} />
       <LabReportsModal isOpen={showLabReports} onClose={() => setShowLabReports(false)} />
-      <QuickBookModal isOpen={showQuickBook} onClose={() => setShowQuickBook(false)} toast={toast} addAppointment={addAppointment} onBooked={(apt) => {
-        // Need to add fee since QuickBookModal doesn't fetch doctor fee easily, we can just use 799 as fallback or find the doctor
-        setPayTarget({ id: apt.id, doctor: apt.doctorName || 'Doctor', fee: apt.fee || 799 });
-        setShowPayModal(true);
-      }} />
+      <QuickBookModal isOpen={showQuickBook} onClose={() => setShowQuickBook(false)} toast={toast} addAppointment={addAppointment} onBooked={() => {}} />
       <PaymentModal
         isOpen={showPayModal}
         onClose={() => setShowPayModal(false)}
