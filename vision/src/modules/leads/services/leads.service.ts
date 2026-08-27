@@ -258,12 +258,15 @@ export class LeadsService {
       ]);
 
       let patientId: string;
-      let generatedPassword: string | null = null;
+      const generatedPassword = randomBytes(9).toString('base64url') + 'A1!';
 
       if (existingProfile) {
         patientId = existingProfile.id;
+        // Ensure user has this password set so credentials email is accurate
+        await this.supabase.admin.auth.admin.updateUserById(patientId, {
+          password: generatedPassword,
+        });
       } else {
-        generatedPassword = randomBytes(9).toString('base64url') + 'A1!';
         const { data: created, error } =
           await this.supabase.admin.auth.admin.createUser({
             email: request.email,
@@ -279,16 +282,17 @@ export class LeadsService {
             error?.message || 'Failed to create patient account',
           );
         patientId = created.user.id;
-        const profileUpdates: any = {};
-        if (request.mobile) profileUpdates.phone = request.mobile;
-        if (request.country) profileUpdates.country = request.country;
-        if (request.currency) profileUpdates.currency = request.currency;
-        if (Object.keys(profileUpdates).length > 0) {
-          await this.supabase.admin
-            .from('profiles')
-            .update(profileUpdates)
-            .eq('id', patientId);
-        }
+      }
+
+      const profileUpdates: any = {};
+      if (request.mobile) profileUpdates.phone = request.mobile;
+      if (request.country) profileUpdates.country = request.country;
+      if (request.currency) profileUpdates.currency = request.currency;
+      if (Object.keys(profileUpdates).length > 0) {
+        await this.supabase.admin
+          .from('profiles')
+          .update(profileUpdates)
+          .eq('id', patientId);
       }
 
       let appointment: any = null;
