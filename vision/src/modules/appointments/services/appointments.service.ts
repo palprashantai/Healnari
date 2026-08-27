@@ -263,23 +263,55 @@ export class AppointmentsService {
             <h2 style="color:#3b82f6;margin-top:0;">New Appointment Request</h2>
             <p>Hello Dr. ${doctor.full_name || 'Doctor'},</p>
             <p><strong>${withNames.patientName}</strong> has requested a ${this.typeLabel(withNames.type)}.</p>
-            <div style="background:#eff6ff;padding:16px;border-radius:8px;border:1px solid #bfdbfe;margin:16px 0;">
-              <p style="margin:4px 0;font-size:13px;color:#1e3a8a;">Requested Date & Time:</p>
-              <h3 style="margin:4px 0;color:#1e40af;">${this.appointmentWhen(withNames)}</h3>
-              <p style="margin:8px 0 0 0;font-size:12px;color:#1e3a8a;">Reason: <strong>${body.reason || 'Not provided'}</strong></p>
+            <div style="background:#f1f5f9;padding:16px;border-radius:8px;margin:20px 0;">
+              <p style="margin:0 0 8px 0;font-size:12px;color:#64748b;text-transform:uppercase;font-weight:bold;letter-spacing:0.5px;">Requested Time</p>
+              <h3 style="margin:4px 0;color:#0f172a;">${this.appointmentWhen(withNames)}</h3>
+              ${withNames.reason ? `<p style="margin:12px 0 0 0;font-size:13px;color:#334155;"><strong>Reason:</strong> ${withNames.reason}</p>` : ''}
             </div>
             <div style="margin:20px 0;">
-              <a href="https://healnari.vercel.app/doctor/telemedicine" style="background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">Review Request</a>
+              <a href="https://app.healnari.com/doctor-dashboard/appointments" style="background:#3b82f6;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">Review Request</a>
             </div>
-        `,
+          `,
           variables: {
-            doctorName: doctor.full_name || 'Doctor',
             patientName: withNames.patientName,
+            doctorName: doctor.full_name || 'Doctor',
             when: this.appointmentWhen(withNames),
             label: this.typeLabel(withNames.type),
+            reason: withNames.reason || 'None provided',
+            dashboardUrl: 'https://app.healnari.com/doctor-dashboard/appointments',
           },
         })
         .catch(() => { });
+    }
+
+    const { data: patientProfile } = await this.supabase.admin
+      .from('profiles')
+      .select('email')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (patientProfile?.email) {
+      this.email
+        .sendTemplatedMail({
+          to: patientProfile.email,
+          slug: 'appointment_requested_patient',
+          defaultSubject: 'Appointment Requested — HealNari',
+          defaultHtml: `
+            <h2 style="color:#3b82f6;margin-top:0;">Appointment Requested</h2>
+            <p>Dear ${withNames.patientName},</p>
+            <p>Your appointment request with <strong>Dr. ${withNames.doctorName}</strong> on <strong>${this.appointmentWhen(withNames)}</strong> has been submitted successfully.</p>
+            <p>You will be notified once the doctor approves the request.</p>
+            <div style="margin:20px 0;">
+              <a href="https://app.healnari.com/patient/appointments" style="background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">View Details</a>
+            </div>
+          `,
+          variables: {
+            patientName: withNames.patientName,
+            doctorName: withNames.doctorName,
+            when: this.appointmentWhen(withNames)
+          },
+        })
+        .catch(() => {});
     }
 
     return withNames;

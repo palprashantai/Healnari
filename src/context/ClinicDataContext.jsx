@@ -470,17 +470,6 @@ export function ClinicDataProvider({ children }) {
       const newApt = adaptAppointment(res);
       setAppointments(prev => [...prev, newApt]);
 
-      apiFetch('/communications/broadcasts', {
-        method: 'POST',
-        body: {
-          subject: 'Appointment Booked — HealNari',
-          body: `Dear ${user.name},\n\nYour appointment is confirmed for ${partial.date} at ${partial.time}.\n\nLog in to view details:\nhttps://app.healnari.com/patient-dashboard/appointments`,
-          channels: ['Push Notification', 'Email'],
-          scheduleType: 'immediate',
-          patientIds: [user.id],
-        },
-      }).catch(() => {});
-
       return newApt;
     } catch (err) {
       console.error(err);
@@ -494,22 +483,6 @@ export function ClinicDataProvider({ children }) {
     try {
       await apiFetch(`/appointments/${id}/status`, { method: 'PUT', body: { status } });
       
-      const apt = prev.find(a => a.id === id);
-      if (apt && user?.role === 'doctor' && (status === 'Upcoming' || status === 'Cancelled')) {
-        apiFetch('/communications/broadcasts', {
-          method: 'POST',
-          body: {
-            subject: status === 'Upcoming' ? 'Appointment Confirmed' : 'Appointment Cancelled',
-            body: status === 'Upcoming'
-              ? `Your appointment with ${user.name} on ${apt.date} at ${apt.time} has been confirmed.`
-              : `Your appointment with ${user.name} on ${apt.date} at ${apt.time} has been cancelled. Please check your portal for details or to reschedule.`,
-            channels: ['Push Notification', 'Email'],
-            scheduleType: 'immediate',
-            patientIds: [apt.patientId],
-          },
-        }).catch(() => {});
-      }
-
     } catch (err) {
       console.error(err);
       setAppointments(prev); // Rollback
