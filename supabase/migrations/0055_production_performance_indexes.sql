@@ -33,7 +33,7 @@ CREATE INDEX IF NOT EXISTS idx_lifestyle_logs_patient_date
 
 -- Used in vitals charts & trends
 CREATE INDEX IF NOT EXISTS idx_vitals_logs_patient_date 
-  ON public.vitals_logs (patient_id, recorded_at DESC);
+  ON public.vitals_logs (patient_id, logged_at DESC);
 
 -- 4. Clinical & EMR Records
 -- Used in prescription vaults and patient detail modals

@@ -49,8 +49,8 @@ function LandingPage() {
 
     // Dynamic SEO, OpenGraph & Structured Data Schema Injection
     const originalTitle = document.title;
-    const docTitle = "Multi-Specialty Healthcare Platform | Doctors, Hormones, Skin & Nutrition | HealNari";
-    const docDesc = "Holistic digital healthcare platform connecting you with qualified specialists across Gynaecology, PCOS, Menstrual Health, Endocrinology, Dermatology, Hair & Scalp, Clinical Nutrition, and Yoga Therapy. Smart health tracking & 45-min video consults.";
+    const docTitle = "Consult Gynecologists, PCOS Specialists & Women's Health Doctors Online | HealNari";
+    const docDesc = "Book 45-min video consultations with verified Gynecologists, PCOS Specialists, Endocrinologists, Dermatologists & Dietitians. Personalized root-cause care, lab roadmap, custom diet/yoga & 14-day free chat follow-up.";
     const docUrl = "https://healnari.care";
 
     document.title = docTitle;

@@ -30,8 +30,8 @@ function DoctorLandingPage() {
     });
 
     const originalTitle = document.title;
-    const docTitle = "Telemedicine Platform for Women's Health Specialists | EMR Software | HealNari";
-    const docDesc = "Expand your practice with zero clinic overhead. Join HealNari's verified network of Gynaecologists, Endocrinologists, Dermatologists, Trichologists, Dietitians & Yoga Therapists. AI-assisted EMR, tokenized live queues, and 90% net weekly payouts.";
+    const docTitle = "Telemedicine Platform for Gynecologists & Doctors | 90% Net Payout + AI EMR | HealNari";
+    const docDesc = "Grow your clinical practice with zero clinic overhead. HealNari connects verified Gynecologists, Endocrinologists, Dermatologists, Dietitians & Yoga Therapists with high-intent patients. Built-in AI EMR, digital Rx & weekly 90% payouts.";
     const docUrl = "https://healnari.care/for-doctors";
 
     document.title = docTitle;
