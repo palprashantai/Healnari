@@ -10,6 +10,7 @@ import { NotificationsService } from '@/modules/notifications/services/notificat
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
+import { EmailService } from '@/core/email/email.service';
 import {
   AddDocumentDto,
   AddEmergencyContactDto,
@@ -30,6 +31,7 @@ export class RecordsService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
+    private readonly email: EmailService,
   ) {}
 
   /** Doctor role alone isn't enough to read/write other people's PHI — the
@@ -175,6 +177,30 @@ export class RecordsService {
         data: { groupId, path: '/patient-dashboard/prescriptions' },
       })
       .catch(() => {});
+
+    // Fetch patient email and send email notification
+    this.supabase.admin
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', body.patientId)
+      .maybeSingle()
+      .then(
+        ({ data: patient }) => {
+          if (patient?.email) {
+            this.email.sendTemplatedMail({
+              to: patient.email,
+              slug: 'prescription-issued',
+              defaultSubject: `New Prescription from Dr. ${user.profile.full_name}`,
+              defaultHtml: `<p>Hi {{patientName}},</p><p>Dr. {{doctorName}} has issued a new prescription for you.</p><p>Please log in to your HealNari account to view the details securely.</p>`,
+              variables: {
+                patientName: patient.full_name || 'Patient',
+                doctorName: user.profile.full_name || 'Doctor',
+              }
+            });
+          }
+        },
+        (err) => console.error('Failed to notify patient of prescription:', err)
+      );
 
     return prescriptions;
   }

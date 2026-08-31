@@ -98,47 +98,63 @@ export class CommunicationsService {
         const promises: Promise<any>[] = [];
 
         if (body.channels.includes('Push Notification')) {
+          const { data: profiles } = await this.supabase.admin
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', recipientIds);
+            
+          const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name || 'Patient']));
+
           promises.push(
-            ...recipientIds.map((patientId) =>
-              this.notifications.create(patientId, {
+            ...recipientIds.map((patientId) => {
+              const patientName = profileMap.get(patientId) || 'Patient';
+              let personalizedBody = body.body.replace(/\[Name\]/gi, patientName);
+              const doctorName = user.profile.full_name || 'Doctor';
+              const doctorTitleName = doctorName.toLowerCase().startsWith('dr.') ? doctorName : `Dr. ${doctorName}`;
+              personalizedBody = personalizedBody.replace(/Dr\. Sarah/gi, doctorTitleName);
+              
+              return this.notifications.create(patientId, {
                 type: 'broadcast',
                 title: body.subject,
-                message: body.body,
+                message: personalizedBody,
                 data: { broadcastId: data.id },
-              }),
-            ),
+              });
+            }),
           );
         }
 
         if (body.channels.includes('Email')) {
           const { data: profiles } = await this.supabase.admin
             .from('profiles')
-            .select('email')
+            .select('email, full_name')
             .in('id', recipientIds)
             .not('email', 'is', null);
 
-          const emails = [
-            ...new Set((profiles || []).map((p) => p.email).filter(Boolean)),
-          ];
-
-          if (emails.length > 0) {
+          // We map over profiles directly so we have access to full_name
+          if (profiles && profiles.length > 0) {
             promises.push(
-              ...emails.map((email) =>
-                this.email
+              ...profiles.map((p) => {
+                const patientName = p.full_name || 'Patient';
+                let personalizedBody = body.body.replace(/\[Name\]/gi, patientName);
+                const doctorName = user.profile.full_name || 'Doctor';
+                const doctorTitleName = doctorName.toLowerCase().startsWith('dr.') ? doctorName : `Dr. ${doctorName}`;
+                personalizedBody = personalizedBody.replace(/Dr\. Sarah/gi, doctorTitleName);
+
+                return this.email
                   .sendMail({
-                    to: email,
+                    to: p.email,
                     subject: body.subject,
-                    text: body.body,
-                    html: `<p>${body.body.replace(/\n/g, '<br>')}</p>`,
+                    text: personalizedBody,
+                    html: `<p>${personalizedBody.replace(/\n/g, '<br>')}</p>`,
                   })
                   .catch((err) =>
                     console.error(
                       'Failed to send broadcast email to',
-                      email,
+                      p.email,
                       err,
                     ),
-                  ),
-              ),
+                  );
+              }),
             );
           }
         }

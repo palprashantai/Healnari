@@ -30,7 +30,7 @@ export class TelemedicineService {
       .eq('doctor_id', user.id)
       .eq('type', 'video')
       .gte('scheduled_date', today)
-      .in('status', ['Requested', 'Upcoming', 'Waiting', 'In Progress'])
+      .in('status', ['Upcoming', 'Waiting', 'In Progress'])
       .order('scheduled_date', { ascending: true })
       .order('scheduled_time', { ascending: true });
 

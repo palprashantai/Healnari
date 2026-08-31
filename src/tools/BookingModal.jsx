@@ -647,7 +647,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                   disabled={submitting}
                   className="flex-[2] bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:opacity-95 disabled:opacity-60 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-aubergine-500/20 transition-all btn-interactive flex items-center justify-center gap-2 text-base"
                 >
-                  <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-lock'} text-sm`}></i> {submitting ? 'Connecting...' : `Confirm & Pay ${formatCurrency(currentCountry.defaultPatientFee, currentCountry.currency)}`}
+                  <i className={`fas ${submitting ? 'fa-spinner fa-spin' : 'fa-calendar-plus'} text-sm`}></i> {submitting ? 'Requesting...' : `Request Consultation`}
                 </button>
               </div>
             </>

@@ -427,45 +427,47 @@ export class BillingService {
         .select()
         .maybeSingle();
 
-      if (!updated) return (await this.withNames([payment]))[0];
+      const currentPayment = updated || payment;
+      const named = (await this.withNames([currentPayment]))[0];
 
-      const named = (await this.withNames([updated]))[0];
-
-      // Appointment synchronization
+      // Appointment synchronization (safe to run idempotently on webhook retry)
       const { data: appointment } = await this.supabase.admin
         .from('appointments')
         .select()
-        .eq('id', payment.appointment_id)
+        .eq('id', currentPayment.appointment_id)
         .maybeSingle();
       if (appointment) {
         await this.supabase.admin
           .from('appointments')
-          .update({ payment_id: payment.id })
-          .eq('id', payment.appointment_id);
+          .update({ payment_id: currentPayment.id })
+          .eq('id', currentPayment.appointment_id);
+
+        if (
+          appointment.status === 'Cancelled' ||
+          appointment.status === 'No Show'
+        ) {
+          await this.appointmentsService.initiateRefundIfPaid({
+            ...appointment,
+            patientName: named.patientName,
+          });
+          this.logger.warn(
+            `Payment settled for cancelled appointment ${appointment.id}. Automatic refund initiated.`,
+          );
+        } else {
+          await this.appointmentsService.confirmPaidAppointment(
+            currentPayment.appointment_id,
+          );
+        }
       }
 
-      if (
-        appointment?.status === 'Cancelled' ||
-        appointment?.status === 'No Show'
-      ) {
-        await this.appointmentsService.initiateRefundIfPaid({
-          ...appointment,
-          patientName: named.patientName,
-        });
-        this.logger.warn(
-          `Payment settled for cancelled appointment ${appointment.id}. Automatic refund initiated.`,
-        );
-      } else {
-        await this.appointmentsService.confirmPaidAppointment(
-          payment.appointment_id,
+      // Non-idempotent side effects (e.g. email receipts) should only run the first time
+      if (updated) {
+        this.onPaymentSettled(named).catch((err) =>
+          this.logger.warn(
+            `Post-payment side effects failed for ${updated.id}: ${err.message}`,
+          ),
         );
       }
-
-      this.onPaymentSettled(named).catch((err) =>
-        this.logger.warn(
-          `Post-payment side effects failed for ${updated.id}: ${err.message}`,
-        ),
-      );
       return named;
     }
 
@@ -537,11 +539,17 @@ export class BillingService {
     if (!patient?.email) return;
 
     const pdf = await this.invoices.generatePdf(payment);
-    await this.email.sendMail({
+    await this.email.sendTemplatedMail({
       to: patient.email,
-      subject: `HealNari — Payment Receipt (${formattedAmount})`,
-      html: `<p>Hi ${payment.patientName || 'there'},</p><p>We've received your payment of <strong>${formattedAmount}</strong> for <strong>${payment.service}</strong>${payment.doctorName ? ` with Dr. ${payment.doctorName}` : ''}.</p><p>Your invoice is attached as a PDF for your records.</p><p>— Team HealNari</p>`,
-      text: `Hi ${payment.patientName || 'there'}, we've received your payment of ${formattedAmount} for ${payment.service}. Your invoice is attached.`,
+      slug: 'payment-receipt',
+      defaultSubject: `HealNari — Payment Receipt (${formattedAmount})`,
+      defaultHtml: `<p>Hi {{patientName}},</p><p>We've received your payment of <strong>{{amount}}</strong> for <strong>{{service}}</strong>{{doctorInfo}}.</p><p>Your invoice is attached as a PDF for your records.</p><p>— Team HealNari</p>`,
+      variables: {
+        patientName: payment.patientName || 'there',
+        amount: formattedAmount,
+        service: payment.service,
+        doctorInfo: payment.doctorName ? ` with Dr. ${payment.doctorName}` : '',
+      },
       attachments: [
         {
           filename: `invoice-${payment.txn_ref || String(payment.id).slice(0, 8)}.pdf`,

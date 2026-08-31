@@ -119,60 +119,7 @@ export class LeadsService {
         body.mobile,
       );
 
-      let patientId: string;
-      if (patientProfile) {
-        patientId = patientProfile.id;
-      } else {
-        const generatedPassword =
-          randomBytes(9).toString('base64url') + 'A1!';
-        const { data: created, error } =
-          await this.supabase.admin.auth.admin.createUser({
-            email: body.email,
-            password: generatedPassword,
-            email_confirm: true,
-            user_metadata: {
-              role: ProfileRole.PATIENT,
-              full_name: body.name,
-            },
-          });
-        if (error || !created?.user) {
-          throw new ForbiddenException(
-            error?.message || 'Failed to create patient account for booking',
-          );
-        }
-        patientId = created.user.id;
-
-        const profileUpdates: any = {};
-        if (body.mobile) profileUpdates.phone = body.mobile;
-        if (body.country) profileUpdates.country = body.country;
-        if (body.currency) profileUpdates.currency = body.currency;
-        if (Object.keys(profileUpdates).length > 0) {
-          await this.supabase.admin
-            .from('profiles')
-            .update(profileUpdates)
-            .eq('id', patientId);
-        }
-      }
-
-      const mockUser = {
-        id: patientId,
-        email: body.email,
-        profile: { role: ProfileRole.PATIENT },
-      } as AuthUser;
-
-      const createdAppointment = await this.appointmentsService.create(
-        mockUser,
-        {
-          doctorId: body.doctorId,
-          specialty: body.specialtyRecommendation || doctor?.specialty,
-          type: AppointmentType.VIDEO,
-          scheduledDate: scheduledDate,
-          scheduledTime: scheduledTime,
-          reason: body.concern || 'Consultation request',
-          country: body.country,
-          currency: body.currency,
-        },
-      );
+      const patientId = patientProfile ? patientProfile.id : null;
 
       // Also record in consultation_requests for lead telemetry / doctor requests table
       const { data: requestRow } = await this.supabase.admin
@@ -197,10 +144,7 @@ export class LeadsService {
         .select()
         .maybeSingle();
 
-      return {
-        ...requestRow,
-        appointmentId: createdAppointment.id,
-      };
+      return requestRow;
     } catch (error) {
       if (error instanceof ForbiddenException) throw error;
       throw new InternalServerErrorException(
@@ -258,15 +202,13 @@ export class LeadsService {
       ]);
 
       let patientId: string;
-      const generatedPassword = randomBytes(9).toString('base64url') + 'A1!';
+      let generatedPassword: string | null = null;
 
       if (existingProfile) {
         patientId = existingProfile.id;
-        // Ensure user has this password set so credentials email is accurate
-        await this.supabase.admin.auth.admin.updateUserById(patientId, {
-          password: generatedPassword,
-        });
+        // We reuse the existing account without resetting their password.
       } else {
+        generatedPassword = randomBytes(9).toString('base64url') + 'A1!';
         const { data: created, error } =
           await this.supabase.admin.auth.admin.createUser({
             email: request.email,
@@ -297,25 +239,29 @@ export class LeadsService {
 
       let appointment: any = null;
 
-      // Find the appointment created for this consultation request
+      // Find the appointment created for this consultation request or an existing one
       const { data: existingAppt } = await this.supabase.admin
         .from('appointments')
         .select('id, status')
         .eq('patient_id', request.patient_id || patientId)
         .eq('doctor_id', user.id)
         .eq('scheduled_date', request.preferred_date || new Date().toISOString().slice(0, 10))
-        .eq('status', AppointmentStatus.REQUESTED)
+        .in('status', [AppointmentStatus.REQUESTED, AppointmentStatus.APPROVED, 'Upcoming', 'Hold'])
         .maybeSingle();
 
       if (existingAppt) {
-        appointment = await this.appointmentsService.updateStatus(
-          user,
-          existingAppt.id,
-          AppointmentStatus.APPROVED,
-        );
+        if (existingAppt.status === AppointmentStatus.REQUESTED) {
+          appointment = await this.appointmentsService.updateStatus(
+            user,
+            existingAppt.id,
+            AppointmentStatus.APPROVED,
+          );
+        } else {
+          appointment = existingAppt; // Already approved or paid
+        }
       } else {
-        // Fallback: create as Approved if no matching requested appointment exists
-        const { data: createdAppt } = await this.supabase.admin
+        // Fallback: create as Approved if no matching active appointment exists
+        const { data: createdAppt, error: insertError } = await this.supabase.admin
           .from('appointments')
           .insert({
             patient_id: request.patient_id || patientId,
@@ -331,12 +277,17 @@ export class LeadsService {
           })
           .select()
           .maybeSingle();
+        
+        if (insertError) {
+          if (insertError.code === '23505') throw new ForbiddenException('An appointment already exists for this time slot.');
+          throw insertError;
+        }
         appointment = createdAppt;
       }
 
       const { data: updated } = await this.supabase.admin
         .from('consultation_requests')
-        .update({ status: 'Converted' })
+        .update({ status: 'Converted', patient_id: patientId })
         .eq('id', id)
         .select()
         .maybeSingle();
@@ -345,69 +296,70 @@ export class LeadsService {
         request.preferred_date ||
         new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const scheduledTime = request.preferred_time || '10:00 AM';
+
       if (generatedPassword) {
+        // Send a dedicated credentials email so they can log in
         await this.email
-          .sendMail({
+          .sendTemplatedMail({
             to: request.email,
-            subject: 'Your HealNari account is ready - Action Required',
-            html: `
+            slug: 'patient-welcome',
+            defaultSubject: 'Welcome to HealNari - Your Login Credentials',
+            defaultHtml: `
             <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #334155; line-height: 1.6;">
               <h2 style="color: #0f172a; margin-top: 0;">Welcome to HealNari!</h2>
-              <p style="font-size: 16px;">Hi <strong>${request.name}</strong>,</p>
-              <p style="font-size: 16px;">Great news! <strong>Dr. ${doctor?.full_name || ''}</strong> has approved your consultation request.</p>
+              <p style="font-size: 16px;">Hi <strong>{{name}}</strong>,</p>
+              <p style="font-size: 16px;">An account has been created for you to manage your appointments.</p>
               
-              <div style="background-color: #f1f5f9; border-left: 4px solid #0ea5e9; padding: 16px; margin: 24px 0; border-radius: 4px;">
-                <p style="margin: 0; font-size: 16px; color: #0f172a;"><strong>Appointment Details</strong></p>
-                <p style="margin: 8px 0 0 0;">📅 <strong>Date:</strong> ${scheduledDate}<br>⏰ <strong>Time:</strong> ${scheduledTime}</p>
-              </div>
-              
-              <p style="font-size: 16px;">We have set up your secure HealNari account with the following login details:</p>
               <div style="background-color: #f8fafc; padding: 16px; margin: 16px 0; border: 1px dashed #cbd5e1; border-radius: 4px;">
-                <p style="margin: 0; font-size: 16px;"><strong>Email:</strong> ${request.email}</p>
-                <p style="margin: 8px 0 0 0; font-size: 16px;"><strong>Password:</strong> ${generatedPassword}</p>
+                <p style="margin: 0; font-size: 16px;"><strong>Email:</strong> {{email}}</p>
+                <p style="margin: 8px 0 0 0; font-size: 16px;"><strong>Password:</strong> {{password}}</p>
               </div>
-              
-              <p style="font-size: 16px;">Please log in to your account and <strong>complete the payment</strong> to confirm your booking.</p>
-              
-              <div style="text-align: center; margin: 32px 0;">
-                <a href="https://app.healnari.com/patient-dashboard/billing" style="background-color: #0ea5e9; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Pay Now & Confirm Booking</a>
-              </div>
-
-              <p style="font-size: 16px; margin-top: 32px;"><strong>Important:</strong> Your appointment is currently on hold and will only be confirmed once payment is received. Unpaid requests will be automatically cancelled after 24 hours.</p>
               <p style="font-size: 14px; color: #64748b; margin-top: 24px;">For security reasons, we recommend changing your password after your first login.</p>
             </div>
-          `,
-            text: `Hi ${request.name}, Dr. ${doctor?.full_name || ''} has approved your consultation request. Your HealNari account is ready. Email: ${request.email}, Password: ${generatedPassword}. Please log in at https://app.healnari.com/patient-dashboard/billing and complete the payment to confirm your booking for ${scheduledDate} at ${scheduledTime}. Unpaid requests will be automatically cancelled after 24 hours.`,
+            `,
+            variables: {
+              name: request.name,
+              email: request.email,
+              password: generatedPassword,
+            },
           })
-          .catch((err) => console.error('Failed to send approval email', err));
-      } else {
-        await this.email
-          .sendMail({
-            to: request.email,
-            subject: 'Payment Required: Consultation request approved',
-            html: `
-            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #334155; line-height: 1.6;">
-              <h2 style="color: #0f172a; margin-top: 0;">Consultation Approved!</h2>
-              <p style="font-size: 16px;">Hi <strong>${request.name}</strong>,</p>
-              <p style="font-size: 16px;">Great news! <strong>Dr. ${doctor?.full_name || ''}</strong> has approved your consultation request.</p>
-              
-              <div style="background-color: #f1f5f9; border-left: 4px solid #0ea5e9; padding: 16px; margin: 24px 0; border-radius: 4px;">
-                <p style="margin: 0; font-size: 16px; color: #0f172a;"><strong>Appointment Details</strong></p>
-                <p style="margin: 8px 0 0 0;">📅 <strong>Date:</strong> ${scheduledDate}<br>⏰ <strong>Time:</strong> ${scheduledTime}</p>
-              </div>
-              
-              <p style="font-size: 16px;"><strong>Next Step:</strong> Please log in to your HealNari account and <strong>complete the payment</strong> to confirm your booking.</p>
-              
-              <div style="text-align: center; margin: 32px 0;">
-                <a href="https://app.healnari.com/patient-dashboard/billing" style="background-color: #0ea5e9; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Pay Now & Confirm Booking</a>
-              </div>
-              <p style="font-size: 16px; margin-top: 32px;"><strong>Important:</strong> Your appointment is currently on hold and will only be confirmed once payment is received. Unpaid requests will be automatically cancelled after 24 hours.</p>
-            </div>
-          `,
-            text: `Hi ${request.name}, Dr. ${doctor?.full_name || ''} has approved your consultation request. Please log in at https://app.healnari.com/patient-dashboard/billing and complete the payment to confirm your booking for ${scheduledDate} at ${scheduledTime}. Unpaid requests will be automatically cancelled after 24 hours.`,
-          })
-          .catch((err) => console.error('Failed to send approval email', err));
+          .catch((err) => console.error('Failed to send credentials email', err));
       }
+
+      // Send the payment request email to confirm the appointment
+      await this.email
+        .sendTemplatedMail({
+          to: request.email,
+          slug: 'consultation-approved-payment-required',
+          defaultSubject: 'Payment Required: Consultation request approved',
+          defaultHtml: `
+          <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #334155; line-height: 1.6;">
+            <h2 style="color: #0f172a; margin-top: 0;">Consultation Approved!</h2>
+            <p style="font-size: 16px;">Hi <strong>{{name}}</strong>,</p>
+            <p style="font-size: 16px;">Great news! <strong>Dr. {{doctorName}}</strong> has approved your consultation request.</p>
+            
+            <div style="background-color: #f1f5f9; border-left: 4px solid #0ea5e9; padding: 16px; margin: 24px 0; border-radius: 4px;">
+              <p style="margin: 0; font-size: 16px; color: #0f172a;"><strong>Appointment Details</strong></p>
+              <p style="margin: 8px 0 0 0;">📅 <strong>Date:</strong> {{scheduledDate}}<br>⏰ <strong>Time:</strong> {{scheduledTime}}</p>
+            </div>
+            
+            <p style="font-size: 16px;"><strong>Next Step:</strong> Please log in to your HealNari account and <strong>complete the payment</strong> to confirm your booking.</p>
+            
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="{{paymentUrl}}" style="background-color: #0ea5e9; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Pay Now & Confirm Booking</a>
+            </div>
+            <p style="font-size: 16px; margin-top: 32px;"><strong>Important:</strong> Your appointment is currently on hold and will only be confirmed once payment is received. Unpaid requests will be automatically cancelled after 24 hours.</p>
+          </div>
+          `,
+          variables: {
+            name: request.name,
+            doctorName: doctor?.full_name || '',
+            scheduledDate,
+            scheduledTime,
+            paymentUrl: 'https://app.healnari.com/patient-dashboard/billing',
+          },
+        })
+        .catch((err) => console.error('Failed to send approval email', err));
 
       return { ...updated, appointment, emailSent: this.email.isConfigured };
     } catch (error) {

@@ -38,7 +38,7 @@ describe('RecordsService — doctor/patient access boundary', () => {
         { data: { created_by_doctor_id: 'some-other-doctor' } },
       ],
     });
-    const service = new RecordsService(supabase as any, notifications as any);
+    const service = new RecordsService(supabase as any, notifications as any, {} as any);
 
     await expect(
       service.getDocuments(verifiedDoctor, 'patient-1'),
@@ -51,7 +51,7 @@ describe('RecordsService — doctor/patient access boundary', () => {
       patient_records: [{ data: null }],
       patient_documents: [{ data: [{ id: 'doc-1', patient_id: 'patient-1' }] }],
     });
-    const service = new RecordsService(supabase as any, notifications as any);
+    const service = new RecordsService(supabase as any, notifications as any, {} as any);
 
     const docs = await service.getDocuments(verifiedDoctor, 'patient-1');
     expect(docs).toEqual([{ id: 'doc-1', patient_id: 'patient-1' }]);
@@ -63,7 +63,7 @@ describe('RecordsService — doctor/patient access boundary', () => {
       patient_records: [{ data: { created_by_doctor_id: 'doctor-1' } }],
       patient_documents: [{ data: [] }],
     });
-    const service = new RecordsService(supabase as any, notifications as any);
+    const service = new RecordsService(supabase as any, notifications as any, {} as any);
 
     await expect(
       service.getDocuments(verifiedDoctor, 'patient-1'),
@@ -72,7 +72,7 @@ describe('RecordsService — doctor/patient access boundary', () => {
 
   it('rejects an unverified doctor outright, before any relationship check', async () => {
     const { supabase, from } = createSupabaseMock({});
-    const service = new RecordsService(supabase as any, notifications as any);
+    const service = new RecordsService(supabase as any, notifications as any, {} as any);
 
     await expect(
       service.getDocuments(unverifiedDoctor, 'patient-1'),
@@ -84,7 +84,7 @@ describe('RecordsService — doctor/patient access boundary', () => {
     const { supabase, from } = createSupabaseMock({
       patient_documents: [{ data: [{ id: 'doc-1' }] }],
     });
-    const service = new RecordsService(supabase as any, notifications as any);
+    const service = new RecordsService(supabase as any, notifications as any, {} as any);
 
     const docs = await service.getDocuments(patient, 'patient-1');
     expect(docs).toEqual([{ id: 'doc-1' }]);
@@ -96,7 +96,7 @@ describe('RecordsService — doctor/patient access boundary', () => {
 
   it("blocks a patient from reaching another patient's records", async () => {
     const { supabase } = createSupabaseMock({});
-    const service = new RecordsService(supabase as any, notifications as any);
+    const service = new RecordsService(supabase as any, notifications as any, {} as any);
 
     await expect(
       service.getDocuments(patient, 'someone-elses-id'),

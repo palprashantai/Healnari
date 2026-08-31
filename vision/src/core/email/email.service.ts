@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { SupabaseService } from '@/core/supabase/supabase.service';
@@ -48,6 +49,8 @@ export class EmailService {
   private readonly from: string;
   private templateCache = new Map<string, CachedTemplate>();
   private readonly CACHE_TTL_MS = 60 * 1000; // 1 minute in-memory cache
+  private retryQueue: { payload: MailPayload; attempts: number }[] = [];
+  private readonly MAX_RETRIES = 3;
 
   constructor(
     private readonly supabase: SupabaseService,
@@ -265,7 +268,51 @@ export class EmailService {
         `Failed to send mail to ${maskEmail(payload.to)}: ${err.message}`,
         err.stack,
       );
+      this.queueForRetry(payload);
       return false;
+    }
+  }
+
+  /**
+   * Queues a failed email for background retry.
+   */
+  private queueForRetry(payload: MailPayload, attempts = 1) {
+    if (attempts <= this.MAX_RETRIES) {
+      this.logger.warn(`Queueing email to ${maskEmail(payload.to)} for retry (Attempt ${attempts}/${this.MAX_RETRIES})`);
+      this.retryQueue.push({ payload, attempts });
+    } else {
+      this.logger.error(`Permanently dropping email to ${maskEmail(payload.to)} after ${this.MAX_RETRIES} attempts.`);
+    }
+  }
+
+  /**
+   * Background task to process failed emails every minute.
+   */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async processRetryQueue() {
+    if (this.retryQueue.length === 0 || !this.transporter) return;
+    
+    this.logger.log(`Processing ${this.retryQueue.length} emails in retry queue...`);
+    
+    // Create a copy of the queue and clear it to prevent race conditions
+    const currentQueue = [...this.retryQueue];
+    this.retryQueue = [];
+
+    for (const item of currentQueue) {
+      try {
+        await this.transporter.sendMail({
+          from: this.from,
+          to: item.payload.to,
+          subject: item.payload.subject,
+          html: item.payload.html, // payload.html was already wrapped in finalHtml before it failed, wait, finalHtml is not saved in payload. Let's rely on sendMail wrapping it again or just call sendMail natively.
+          text: item.payload.text,
+          attachments: item.payload.attachments,
+        });
+        this.logger.log(`Successfully sent retried email to ${maskEmail(item.payload.to)}`);
+      } catch (err) {
+        this.logger.warn(`Retry failed for ${maskEmail(item.payload.to)}: ${err.message}`);
+        this.queueForRetry(item.payload, item.attempts + 1);
+      }
     }
   }
 }

@@ -272,7 +272,7 @@ export default function Schedule() {
       </div>
 
       {/* ── Stats Cards ── */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-aubergine-100 flex items-center justify-center text-aubergine-600">
@@ -317,8 +317,8 @@ export default function Schedule() {
              `${schedule.filter(d => d.isActive).map(d => d.short).join(', ')}`}
           </span>
         </div>
-        <div className="p-4 sm:p-5">
-          <div className="grid grid-cols-7 gap-2">
+        <div className="p-4 sm:p-5 overflow-x-auto">
+          <div className="grid grid-cols-7 gap-2 min-w-[500px] sm:min-w-0">
             {schedule.map(day => {
               const hours = day.isActive ? hoursFromRange(day.startTime, day.endTime) : 0;
               const slots = day.isActive ? slotsFromRange(day.startTime, day.endTime) : 0;
@@ -375,18 +375,18 @@ export default function Schedule() {
               <h2 className="font-bold text-slate-800 flex items-center gap-2 text-sm sm:text-base">
                 <i className="fas fa-calendar-week text-aubergine-600"></i> Weekly Availability
               </h2>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 {/* Quick Presets */}
-                <div className="relative" ref={presetsRef}>
+                <div className="relative w-full sm:w-auto" ref={presetsRef}>
                   <button
                     onClick={() => setShowPresets(!showPresets)}
-                    className="text-xs font-bold text-slate-500 hover:text-aubergine-600 bg-white border border-slate-200 hover:border-aubergine-300 px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+                    className="w-full sm:w-auto justify-center text-xs font-bold text-slate-500 hover:text-aubergine-600 bg-white border border-slate-200 hover:border-aubergine-300 px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5"
                   >
                     <i className="fas fa-wand-magic-sparkles text-[10px]"></i> Quick Presets
                     <i className={`fas fa-chevron-down text-[8px] transition-transform ${showPresets ? 'rotate-180' : ''}`}></i>
                   </button>
                   {showPresets && (
-                    <div className="absolute right-0 mt-2 bg-white rounded-xl border border-slate-200 shadow-xl z-20 w-64 overflow-hidden animate-slide-up">
+                    <div className="absolute left-0 right-0 sm:left-auto sm:right-0 mt-2 bg-white rounded-xl border border-slate-200 shadow-xl z-20 w-full sm:w-64 overflow-hidden animate-slide-up">
                       <div className="px-3 py-2 bg-slate-50 border-b border-slate-100">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Apply a Preset</p>
                       </div>
@@ -446,22 +446,22 @@ export default function Schedule() {
                     </div>
 
                     {day.isActive ? (
-                      <div className="flex-1 ml-14 sm:ml-0 space-y-2">
+                      <div className="flex-1 w-full space-y-2">
                         {/* Working hours row */}
                         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 w-full sm:w-auto">
                             <input 
                               type="time" 
                               value={day.startTime}
                               onChange={(e) => handleScheduleChange(day.dayOfWeek, 'startTime', e.target.value)}
-                              className={`px-3 py-2 border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white ${timeError ? 'border-rose-300 bg-rose-50' : 'border-slate-200'}`}
+                              className={`flex-1 sm:flex-none px-3 py-2 border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white ${timeError ? 'border-rose-300 bg-rose-50' : 'border-slate-200'}`}
                             />
-                            <span className="text-slate-400 text-xs font-bold">→</span>
+                            <span className="text-slate-400 text-xs font-bold flex-shrink-0">→</span>
                             <input 
                               type="time" 
                               value={day.endTime}
                               onChange={(e) => handleScheduleChange(day.dayOfWeek, 'endTime', e.target.value)}
-                              className={`px-3 py-2 border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white ${timeError ? 'border-rose-300 bg-rose-50' : 'border-slate-200'}`}
+                              className={`flex-1 sm:flex-none px-3 py-2 border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white ${timeError ? 'border-rose-300 bg-rose-50' : 'border-slate-200'}`}
                             />
                           </div>
 
@@ -478,7 +478,7 @@ export default function Schedule() {
 
                           <button
                             onClick={() => copyToAll(day.dayOfWeek)}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-aubergine-600 hover:bg-aubergine-50 transition-colors opacity-0 group-hover:opacity-100"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-300 hover:text-aubergine-600 hover:bg-aubergine-50 transition-colors sm:opacity-0 sm:group-hover:opacity-100 flex-shrink-0"
                             title={`Copy ${day.short}'s settings to all days`}
                           >
                             <i className="fas fa-copy text-xs"></i>
@@ -508,19 +508,19 @@ export default function Schedule() {
                                 Lunch
                               </button>
                               {day.hasLunch && (
-                                <div className="flex items-center gap-1.5 animate-slide-up">
+                                <div className="flex items-center gap-1.5 animate-slide-up flex-wrap sm:flex-nowrap w-full sm:w-auto mt-2 sm:mt-0">
                                   <input
                                     type="time"
                                     value={day.lunchStart}
                                     onChange={(e) => handleScheduleChange(day.dayOfWeek, 'lunchStart', e.target.value)}
-                                    className="px-2.5 py-1.5 border border-amber-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50/50 w-[5.5rem]"
+                                    className="px-2.5 py-1.5 border border-amber-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50/50 flex-1 sm:w-[6.5rem]"
                                   />
                                   <span className="text-slate-300 text-[10px] font-bold">→</span>
                                   <input
                                     type="time"
                                     value={day.lunchEnd}
                                     onChange={(e) => handleScheduleChange(day.dayOfWeek, 'lunchEnd', e.target.value)}
-                                    className="px-2.5 py-1.5 border border-amber-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50/50 w-[5.5rem]"
+                                    className="px-2.5 py-1.5 border border-amber-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50/50 flex-1 sm:w-[6.5rem]"
                                   />
                                 </div>
                               )}
@@ -583,7 +583,7 @@ export default function Schedule() {
                         </details>
                       </div>
                     ) : (
-                      <div className="text-sm text-slate-400 font-medium italic ml-14 sm:ml-0 flex items-center gap-2">
+                      <div className="text-sm text-slate-400 font-medium italic sm:ml-0 flex items-center gap-2">
                         <i className="fas fa-moon text-slate-300 text-xs"></i> Day off
                       </div>
                     )}

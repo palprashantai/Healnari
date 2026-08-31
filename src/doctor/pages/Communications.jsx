@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 const TEMPLATES = [
   { id: 'T1', name: 'Appointment Reminder', content: 'Hi [Name],\n\nThis is a friendly reminder for your upcoming consultation on [Date] at [Time]. Please try to join 5 minutes early.\n\nThanks,\nDr. Sarah' },
@@ -12,6 +13,7 @@ const TEMPLATES = [
 
 function DoctorCommunications() {
   const toast = useToast();
+  const { user } = useAuth();
   
   const [audience, setAudience] = useState('upcoming');
   const [selectedTemplate, setSelectedTemplate] = useState('');
@@ -49,14 +51,17 @@ function DoctorCommunications() {
     if (selectedTemplate) {
       const tmpl = TEMPLATES.find(t => t.id === selectedTemplate);
       if (tmpl) {
+        const doctorName = user?.name || user?.fullName || user?.full_name || 'Doctor';
+        const titleName = doctorName.toLowerCase().startsWith('dr.') ? doctorName : `Dr. ${doctorName}`;
+        
         setMessageSubject(tmpl.name);
-        setMessageBody(tmpl.content);
+        setMessageBody(tmpl.content.replace(/Dr\. Sarah/g, titleName));
       }
     } else {
       setMessageSubject('');
       setMessageBody('');
     }
-  }, [selectedTemplate]);
+  }, [selectedTemplate, user]);
 
   const handleSend = async () => {
     if (!messageSubject || !messageBody) {
