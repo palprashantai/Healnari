@@ -707,14 +707,32 @@ function PatientAppointments() {
   // either page is immediately reflected on both.
   const { appointments, addAppointment, cancelAppointment, rescheduleAppointment, transactions, syncPayment, waitlist, joinWaitlist, leaveWaitlist, refreshAppointments } = useClinicData();
   const [doctors, setDoctors] = useState([]);
-  const [tab, setTab] = useState('upcoming');
+  const [tab, setTab] = useState(() => searchParams.get('tab') || 'upcoming');
   const [showJoinWaitlist, setShowJoinWaitlist] = useState(false);
+
+  // Sync tab with URL search parameter if changed via navigation or deep-link
+  useEffect(() => {
+    const urlTab = searchParams.get('tab');
+    if (urlTab && ['action_required', 'upcoming', 'past'].includes(urlTab)) {
+      setTab(urlTab);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     apiFetch('/doctors/search').then(setDoctors).catch(() => setDoctors([]));
   }, []);
 
   const doctorById = useMemo(() => new Map(doctors.map(d => [d.id, d])), [doctors]);
+
+  // Track paid appointments from billing transactions
+  const paidAppointmentIds = useMemo(() => {
+    return new Set(
+      (transactions || [])
+        .filter(t => t.status === 'success' || t.status === 'Paid' || t.status === 'COMPLETED')
+        .map(t => t.appointment_id || t.appointmentId)
+        .filter(Boolean)
+    );
+  }, [transactions]);
 
   const STATUS_LABEL = {
     Requested: 'Pending Doctor Acceptance',
@@ -1211,6 +1229,10 @@ function PatientAppointments() {
         amount={payTarget?.fee ?? 0}
         description={payTarget ? `Consultation — ${payTarget.doctor}` : ''}
         onPaid={handlePaid}
+        onViewAppointment={() => {
+          setTab('upcoming');
+          refreshAppointments();
+        }}
       />
       <AiConsultPrepModal
         isOpen={!!aiPrepTarget}

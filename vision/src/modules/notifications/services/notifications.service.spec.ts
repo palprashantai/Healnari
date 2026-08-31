@@ -28,7 +28,10 @@ describe('NotificationsService', () => {
       eq: jest.fn().mockReturnThis(),
       order: jest.fn().mockReturnThis(),
       range: jest.fn().mockReturnThis(),
-      maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+      maybeSingle: jest.fn().mockResolvedValue({
+        data: { id: 'notif-1', title: 'Test' },
+        error: null,
+      }),
       single: jest.fn().mockResolvedValue({
         data: { id: 'notif-1', title: 'Test' },
         error: null,

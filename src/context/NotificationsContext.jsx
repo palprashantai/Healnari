@@ -125,6 +125,20 @@ export function NotificationsProvider({ children }) {
       const isNegative = notif.type === 'appointment_cancelled' || notif.type === 'call_cancelled';
       toast(notif.title, isNegative ? 'warning' : 'success');
 
+      // Broadcast event so ClinicDataContext and active views refresh appointments in real-time
+      if ([
+        'appointment_approved',
+        'appointment_requested',
+        'appointment_cancelled',
+        'appointment_rescheduled',
+        'appointment_confirmed',
+        'payment_success',
+        'payment_confirmed',
+        'refund_processed'
+      ].includes(notif.type) || appointmentId) {
+        window.dispatchEvent(new CustomEvent('healnari_appointments_updated', { detail: notif }));
+      }
+
       // Play calm healthcare notification chime
       if (notif.type !== 'call_cancelled') {
         playNotificationSoundForType(notif.type);

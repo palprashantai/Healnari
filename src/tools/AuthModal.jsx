@@ -25,19 +25,17 @@ function AuthModal({ onClose }) {
 
     try {
       if (mode === 'login') {
-        const { user, error } = await signIn(email, password);
-        if (error) { toast(error.message, 'error'); return; }
+        const { user } = await signIn(email, password);
         onClose();
-        navigate(user.role === 'admin' ? '/admin-dashboard' : (user.role === 'doctor' ? '/doctor-dashboard' : '/patient-dashboard'));
+        navigate(user?.role === 'admin' ? '/admin-dashboard' : (user?.role === 'doctor' ? '/doctor-dashboard' : '/patient-dashboard'));
       } else if (mode === 'register') {
-        const { user, error } = await signUp(email, password, role, {
+        const { user } = await signUp(email, password, role, {
           fullName,
           specialty: role === 'doctor' ? 'General' : undefined,
           registrationNo: role === 'doctor' ? regNo : undefined,
         });
-        if (error) { toast(error.message, 'error'); return; }
         onClose();
-        navigate(user.role === 'admin' ? '/admin-dashboard' : (user.role === 'doctor' ? '/doctor-dashboard' : '/patient-dashboard'));
+        navigate(user?.role === 'admin' ? '/admin-dashboard' : (user?.role === 'doctor' ? '/doctor-dashboard' : '/patient-dashboard'));
       } else if (mode === 'forgot') {
         try {
           await apiFetch('/auth/forgot-password', {

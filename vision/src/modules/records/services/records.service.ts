@@ -187,15 +187,19 @@ export class RecordsService {
       .then(
         ({ data: patient }) => {
           if (patient?.email) {
-            this.email.sendTemplatedMail({
+            this.email.sendTemplateEmail({
+              templateKey: 'prescription_issued',
               to: patient.email,
-              slug: 'prescription-issued',
-              defaultSubject: `New Prescription from Dr. ${user.profile.full_name}`,
-              defaultHtml: `<p>Hi {{patientName}},</p><p>Dr. {{doctorName}} has issued a new prescription for you.</p><p>Please log in to your HealNari account to view the details securely.</p>`,
               variables: {
                 patientName: patient.full_name || 'Patient',
                 doctorName: user.profile.full_name || 'Doctor',
-              }
+                diagnosis: body.diagnosis || 'General Consultation Plan',
+                medicineCount: body.medicines?.length || 1,
+                recordsUrl: this.email.getUrl('/patient-dashboard/prescriptions'),
+              },
+              entityType: 'prescription_group',
+              entityId: groupId,
+              event: 'prescription_issued',
             });
           }
         },

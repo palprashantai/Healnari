@@ -117,25 +117,18 @@ export class PrescriptionsCronService {
         // 2. Transactional Email Reminder via database-managed template
         if (patient?.email) {
           this.email
-            .sendTemplatedMail({
+            .sendTemplateEmail({
+              templateKey: 'prescription_refill_reminder',
               to: patient.email,
-              slug: 'prescription_refill_reminder',
-              defaultSubject: `Refill Reminder: {{medName}} expiring soon`,
-              defaultHtml: `
-                <h2 style="color:#7e22ce;margin-top:0;">💊 Prescription Refill Reminder</h2>
-                <p>Hello {{patientName}},</p>
-                <p>This is a friendly reminder that your current course of <strong>{{medName}}</strong> ({{duration}}) is nearing completion within the next 5 days.</p>
-                <p>To avoid any disruption in your care plan, please re-order your medication or schedule a brief review with your doctor.</p>
-                <div style="margin:20px 0;">
-                  <a href="{{recordsUrl}}" style="background:#7e22ce;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">View Prescriptions & Refill</a>
-                </div>
-            `,
               variables: {
-                patientName: patient.full_name || 'there',
+                patientName: patient.full_name || 'Patient',
                 medName,
                 duration: rx.duration || 'current course',
-                recordsUrl: 'https://healnari.vercel.app/patient/records',
+                recordsUrl: this.email.getUrl('/patient-dashboard/prescriptions'),
               },
+              entityType: 'prescription',
+              entityId: rx.id,
+              event: 'prescription_refill_reminder',
             })
             .catch(() => {});
         }
@@ -234,7 +227,7 @@ export class PrescriptionsCronService {
         completedApts.map((a) => a.id),
       )
       .is('follow_up_reminder_sent_at', null)
-      .select('id, patient_id, doctor_id');
+      .select('id, patient_id, doctor_id, patient:profiles!appointments_patient_id_fkey(full_name, email)');
 
     if (!claimed?.length) return;
 
@@ -249,8 +242,8 @@ export class PrescriptionsCronService {
 
     const todayTag = new Date().toISOString().slice(0, 10);
     await Promise.all(
-      claimed.map((apt) =>
-        this.notifications
+      claimed.map(async (apt: any) => {
+        await this.notifications
           .create(apt.patient_id, {
             type: 'follow_up_recommended',
             title: 'Time for Your Follow-Up Review',
@@ -262,8 +255,25 @@ export class PrescriptionsCronService {
               path: '/patient-dashboard/appointments',
             },
           })
-          .catch(() => {}),
-      ),
+          .catch(() => {});
+
+        if (apt.patient?.email) {
+          this.email
+            .sendTemplateEmail({
+              templateKey: 'patient_followup_reminder',
+              to: apt.patient.email,
+              variables: {
+                patientName: apt.patient.full_name || 'Patient',
+                doctorName: doctorNameById.get(apt.doctor_id) || 'Specialist',
+                dashboardUrl: this.email.getUrl('/patient-dashboard/appointments'),
+              },
+              entityType: 'appointment',
+              entityId: apt.id,
+              event: 'patient_followup_reminder',
+            })
+            .catch(() => {});
+        }
+      }),
     );
 
     this.logger.log(`Sent ${claimed.length} follow-up reminder(s).`);

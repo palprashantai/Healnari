@@ -108,47 +108,9 @@ export class DoctorsCronService {
             .join('');
 
           this.email
-            .sendTemplatedMail({
+            .sendTemplateEmail({
+              templateKey: 'doctor_daily_agenda',
               to: doc.email,
-              slug: 'doctor_daily_agenda',
-              defaultSubject: `Daily Patient Agenda ({{totalPatients}} appointments) - Dr. {{doctorName}}`,
-              defaultHtml: `
-                <h2 style="color:#0f172a;margin-top:0;">🌅 Good morning, Dr. {{doctorName}}</h2>
-                <p style="color:#475569;font-size:14px;margin-bottom:16px;">Here is your scheduled consultation agenda for <strong>{{formattedDate}}</strong>:</p>
-                
-                <div style="display:flex;gap:12px;margin-bottom:16px;">
-                  <div style="background:#f8fafc;padding:12px 16px;border-radius:8px;border:1px solid #e2e8f0;flex:1;">
-                    <span style="font-size:11px;color:#64748b;display:block;">Total Patients</span>
-                    <strong style="font-size:18px;color:#0f172a;">{{totalPatients}}</strong>
-                  </div>
-                  <div style="background:#f0fdf4;padding:12px 16px;border-radius:8px;border:1px solid #bbf7d0;flex:1;">
-                    <span style="font-size:11px;color:#166534;display:block;">Video Consults</span>
-                    <strong style="font-size:18px;color:#15803d;">{{videoCount}}</strong>
-                  </div>
-                  <div style="background:#faf5ff;padding:12px 16px;border-radius:8px;border:1px solid #f3e8ff;flex:1;">
-                    <span style="font-size:11px;color:#7e22ce;display:block;">First Appointment</span>
-                    <strong style="font-size:18px;color:#6b21a8;">{{firstTime}}</strong>
-                  </div>
-                </div>
-
-                <table style="width:100%;text-align:left;border-collapse:collapse;margin:16px 0;font-size:13px;">
-                  <thead>
-                    <tr style="background:#f8fafc;color:#64748b;font-size:11px;text-transform:uppercase;">
-                      <th style="padding:8px 12px;border-bottom:2px solid #e2e8f0;">Time</th>
-                      <th style="padding:8px 12px;border-bottom:2px solid #e2e8f0;">Type</th>
-                      <th style="padding:8px 12px;border-bottom:2px solid #e2e8f0;">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {{appointmentsTable}}
-                  </tbody>
-                </table>
-
-                <div style="margin:24px 0 12px 0;">
-                  <a href="{{dashboardUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">Open Doctor Dashboard</a>
-                </div>
-                <p style="color:#94a3b8;font-size:11px;margin-top:20px;">HealNari Practice Management • Auto-generated daily at 7:45 AM</p>
-            `,
               variables: {
                 doctorName: docName,
                 formattedDate,
@@ -156,8 +118,11 @@ export class DoctorsCronService {
                 videoCount,
                 firstTime,
                 appointmentsTable: appointmentRows,
-                dashboardUrl: 'https://healnari.vercel.app/doctor/dashboard',
+                dashboardUrl: this.email.getUrl('/doctor-dashboard/appointments'),
               },
+              entityType: 'doctor_daily_agenda',
+              entityId: doc.id,
+              event: 'doctor_daily_agenda',
             })
             .catch(() => {});
         }

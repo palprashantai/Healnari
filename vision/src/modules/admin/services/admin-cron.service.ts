@@ -81,25 +81,9 @@ export class AdminCronService {
           // 2. Email Summary via database-managed template
           if (admin.email) {
             this.email
-              .sendTemplatedMail({
+              .sendTemplateEmail({
+                templateKey: 'admin_daily_revenue_reconciliation',
                 to: admin.email,
-                slug: 'admin_daily_revenue_reconciliation',
-                defaultSubject: `HealNari Daily Settlement Report ({{date}})`,
-                defaultHtml: `
-                  <h2 style="color:#0f172a;margin-top:0;">📊 HealNari 24h Revenue Settlement Report</h2>
-                  <p>Hello {{adminName}},</p>
-                  <p>Here is the 24-hour financial reconciliation summary for <strong>{{date}}</strong>:</p>
-                  <div style="background:#f8fafc;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin:16px 0;">
-                    <p style="margin:4px 0;font-size:13px;color:#64748b;">Gross Consultation Volume: <strong style="color:#0f172a;">{{totalGross}}</strong></p>
-                    <p style="margin:4px 0;font-size:13px;color:#64748b;">Platform Net Commission (15%): <strong style="color:#10b981;">{{platformCommission}}</strong></p>
-                    <p style="margin:4px 0;font-size:13px;color:#64748b;">Doctor Payout Liabilities: <strong style="color:#0284c7;">{{doctorNetPayouts}}</strong></p>
-                    <p style="margin:4px 0;font-size:13px;color:#64748b;">Total Paid Consultations: <strong style="color:#0f172a;">{{paidCount}}</strong></p>
-                  </div>
-                  <div style="margin-top:20px;">
-                    <a href="{{analyticsUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">View Revenue Analytics</a>
-                  </div>
-                  <p style="color:#94a3b8;font-size:11px;margin-top:20px;">HealNari Financial Operations • Automated Midnight Reconciliation</p>
-            `,
                 variables: {
                   adminName: admin.full_name || 'Admin',
                   date: yesterday.slice(0, 10),
@@ -107,8 +91,11 @@ export class AdminCronService {
                   platformCommission: `₹${platformCommission.toLocaleString('en-IN')}`,
                   doctorNetPayouts: `₹${doctorNetPayouts.toLocaleString('en-IN')}`,
                   paidCount: payments?.length || 0,
-                  analyticsUrl: 'https://healnari.vercel.app/admin/revenue',
+                  analyticsUrl: this.email.getUrl('/admin-dashboard/revenue'),
                 },
+                entityType: 'daily_revenue',
+                entityId: yesterday.slice(0, 10),
+                event: 'admin_daily_revenue_reconciliation',
               })
               .catch(() => {});
           }
@@ -171,28 +158,18 @@ export class AdminCronService {
             )
             .join('');
           this.email
-            .sendTemplatedMail({
+            .sendTemplateEmail({
+              templateKey: 'admin_doctor_kyc_escalation',
               to: admin.email,
-              slug: 'admin_doctor_kyc_escalation',
-              defaultSubject: `⚠️ [Escalation] {{pendingCount}} Doctor KYC Verifications Overdue (>48h)`,
-              defaultHtml: `
-              <h2 style="color:#e11d48;margin-top:0;">⚠️ Action Required: Doctor KYC Review Escalation</h2>
-              <p>Hello {{adminName}},</p>
-              <p>There are <strong>{{pendingCount}} doctor verification(s)</strong> that have been pending review for over 48 hours:</p>
-              <ul style="color:#334155;font-size:13px;line-height:1.6;">
-                {{doctorListHtml}}
-              </ul>
-              <div style="margin-top:20px;">
-                <a href="{{verificationsUrl}}" style="background:#e11d48;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">Review Pending Doctor KYCs</a>
-              </div>
-          `,
               variables: {
                 adminName: admin.full_name || 'Admin',
                 pendingCount: pendingDoctors.length,
                 doctorListHtml,
-                verificationsUrl:
-                  'https://healnari.vercel.app/admin/verifications',
+                verificationsUrl: this.email.getUrl('/admin-dashboard/verification'),
               },
+              entityType: 'doctor_kyc_escalation',
+              entityId: new Date().toISOString().slice(0, 10),
+              event: 'admin_doctor_kyc_escalation',
             })
             .catch(() => {});
         }

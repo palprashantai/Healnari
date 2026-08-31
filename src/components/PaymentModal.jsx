@@ -20,12 +20,13 @@ function getCashfree() {
  * with Cashfree before ever showing "Payment Successful". Used anywhere a
  * patient can pay for an appointment (Billing, Appointments) so there is
  * exactly one real payment path instead of a per-page fake one. */
-export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency: initialCurrency = 'INR', description, onPaid, onSuccess }) {
+export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency: initialCurrency = 'INR', description, onPaid, onSuccess, onViewAppointment }) {
   // idle -> creating-order -> checkout -> verifying -> paid | failed
   const [phase, setPhase] = useState('idle');
   const [error, setError] = useState(null);
   const [settledAmount, setSettledAmount] = useState(amount);
   const [currency, setCurrency] = useState(initialCurrency);
+  const [completedResult, setCompletedResult] = useState(null);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -34,11 +35,13 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency:
       setError(null);
       setSettledAmount(amount);
       setCurrency(initialCurrency);
+      setCompletedResult(null);
       startedRef.current = false;
     }
   }, [isOpen, amount, initialCurrency]);
 
   const handleSuccess = (result) => {
+    setCompletedResult(result);
     onPaid?.(result);
     onSuccess?.(result);
   };
@@ -105,6 +108,9 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency:
   };
 
   const done = () => {
+    if (onViewAppointment) {
+      onViewAppointment(completedResult);
+    }
     onClose();
     setPhase('idle');
     setError(null);

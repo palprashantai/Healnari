@@ -231,11 +231,25 @@ export function ClinicDataProvider({ children }) {
   // stale closure over `appointments`.
   const refreshAppointments = useCallback(async () => {
     if (!user || (user.role !== 'doctor' && user.role !== 'patient')) return appointments;
-    const apts = await apiFetch('/appointments');
-    const adapted = apts.map(adaptAppointment);
-    setAppointments(adapted);
-    return adapted;
+    try {
+      const apts = await apiFetch('/appointments');
+      const adapted = apts.map(adaptAppointment);
+      setAppointments(adapted);
+      return adapted;
+    } catch (err) {
+      console.warn('Failed to refresh appointments in background:', err);
+      return appointments;
+    }
   }, [user]);
+
+  // Real-time reactive sync: automatically reload appointments when socket notifications arrive
+  useEffect(() => {
+    const handleUpdate = () => {
+      refreshAppointments();
+    };
+    window.addEventListener('healnari_appointments_updated', handleUpdate);
+    return () => window.removeEventListener('healnari_appointments_updated', handleUpdate);
+  }, [refreshAppointments]);
 
   /* ── Patients ──────────────────────────────────────────────── */
   const updatePatient = async (updated) => {
@@ -709,5 +723,19 @@ export function ClinicDataProvider({ children }) {
     loading, loadError, retryLoad: fetchData,
   };
 
-  return <ClinicDataContext.Provider value={value}>{loading ? null : children}</ClinicDataContext.Provider>;
+  return (
+    <ClinicDataContext.Provider value={value}>
+      {loading && user ? (
+        <div className="fixed inset-0 bg-slate-900/10 backdrop-blur-xs flex flex-col items-center justify-center z-50 animate-fade-in">
+          <div className="w-12 h-12 rounded-2xl bg-white shadow-xl border border-slate-100 flex items-center justify-center p-2 mb-3 animate-pulse">
+            <img src="/brand/logo-icon.svg" alt="HealNari" className="w-full h-full object-contain" onError={(e) => { e.target.src = "/favicon.svg"; }} />
+          </div>
+          <div className="flex items-center gap-2 text-aubergine-700 font-bold text-xs tracking-wide">
+            <div className="w-2 h-2 rounded-full bg-aubergine-600 animate-ping"></div>
+            <span>Loading HealNari Workspace…</span>
+          </div>
+        </div>
+      ) : children}
+    </ClinicDataContext.Provider>
+  );
 }

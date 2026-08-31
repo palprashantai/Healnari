@@ -76,10 +76,30 @@ function timeAgo(iso) {
 /* ─── Notification Panel ─────────────────────── */
 // System / informational feed only — urgent clinical items (labs needing a decision)
 // live exclusively in the Clinical Alerts drawer so the same event isn't triaged twice.
-function NotificationPanel({ isOpen, onClose, notifications, onMarkAll, onMarkOne, hasMore, loadMore }) {
+function NotificationPanel({ isOpen, onClose, notifications, onMarkAll, onMarkOne, hasMore, loadMore, navigate }) {
   const unread = notifications.filter(n => !n.read).length;
 
   if (!isOpen) return null;
+
+  const handleNotificationClick = (n) => {
+    if (!n.read) onMarkOne(n.id);
+    onClose();
+
+    if (navigate) {
+      if (n.type === 'appointment_requested' || n.type === 'new_lead') {
+        navigate('/doctor-dashboard/requests');
+      } else if (['appointment_approved', 'appointment_rescheduled', 'appointment_cancelled', 'payment_success'].includes(n.type)) {
+        navigate('/doctor-dashboard/appointments');
+      } else if (n.type === 'telemedicine_ready' || n.type === 'incoming_call') {
+        navigate('/doctor-dashboard/telemedicine');
+      } else if (n.type === 'lab_report_uploaded' || n.type === 'lab_alert') {
+        navigate('/doctor-dashboard/reports');
+      } else {
+        navigate('/doctor-dashboard/appointments');
+      }
+    }
+  };
+
   return (
     <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/90 shadow-[0_20px_50px_rgba(42,22,71,0.25)] z-[100] animate-fade-in overflow-hidden">
       <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white/90">
@@ -93,7 +113,12 @@ function NotificationPanel({ isOpen, onClose, notifications, onMarkAll, onMarkOn
         {notifications.map(n => {
           const style = NOTIFICATION_STYLE[n.type] || DEFAULT_NOTIFICATION_STYLE;
           return (
-            <div key={n.id} onClick={() => !n.read && onMarkOne(n.id)} className={`px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors ${!n.read ? 'bg-aubergine-50/30' : ''}`}>
+            <button
+              key={n.id}
+              type="button"
+              onClick={() => handleNotificationClick(n)}
+              className={`w-full text-left px-5 py-4 hover:bg-slate-50 transition-colors ${!n.read ? 'bg-aubergine-50/30' : ''}`}
+            >
               <div className="flex gap-3">
                 <div className={`w-8 h-8 rounded-full ${style.color} flex items-center justify-center flex-shrink-0`}>
                   <i className={`fas ${style.icon} text-xs`}></i>
@@ -107,7 +132,7 @@ function NotificationPanel({ isOpen, onClose, notifications, onMarkAll, onMarkOn
                   <p className="text-[10px] text-slate-500 mt-1">{timeAgo(n.created_at)}</p>
                 </div>
               </div>
-            </div>
+            </button>
           );
         })}
         {hasMore && (
@@ -403,7 +428,7 @@ function DoctorLayout() {
               {notifOpen && (
                 <div className="fixed inset-0 z-[90]" onClick={() => setNotifOpen(false)} />
               )}
-              <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} notifications={notifications} onMarkAll={markAllRead} onMarkOne={markRead} hasMore={hasMore} loadMore={loadMore} />
+              <NotificationPanel isOpen={notifOpen} onClose={() => setNotifOpen(false)} notifications={notifications} onMarkAll={markAllRead} onMarkOne={markRead} hasMore={hasMore} loadMore={loadMore} navigate={navigate} />
             </div>
 
             {/* Share Profile & Booking Link Button */}

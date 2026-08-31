@@ -911,41 +911,31 @@ export class AdminService {
       if (doctor.email) {
         if (isApproved) {
           this.email
-            .sendTemplatedMail({
+            .sendTemplateEmail({
+              templateKey: 'doctor_kyc_approved',
               to: doctor.email,
-              slug: 'doctor_kyc_approved',
-              defaultSubject: '🎉 Your HealNari Doctor Account is Verified!',
-              defaultHtml: `
-                <h2 style="color:#10b981;">🎉 Welcome to HealNari Practice Network</h2>
-                <p>Dear Dr. {{doctorName}},</p>
-                <p>We are delighted to inform you that your medical license and practice credentials have been <strong>verified and approved</strong>.</p>
-                <p>You can now log in to your provider dashboard, set your consultation hours, and start receiving patient appointments.</p>
-                <div style="margin:24px 0;"><a href="{{dashboardUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;">Go to Doctor Dashboard</a></div>
-                <p style="color:#64748b;font-size:12px;">Best regards,<br/>HealNari Clinical Governance Team</p>
-            `,
               variables: {
                 doctorName: doctor.full_name || 'Doctor',
-                dashboardUrl: 'https://healnari.vercel.app/doctor/dashboard',
+                dashboardUrl: this.email.getUrl('/doctor-dashboard'),
               },
+              entityType: 'doctor_kyc',
+              entityId: updated.id,
+              event: 'doctor_kyc_approved',
             })
             .catch(() => {});
         } else {
           this.email
-            .sendTemplatedMail({
+            .sendTemplateEmail({
+              templateKey: 'doctor_kyc_rejected',
               to: doctor.email,
-              slug: 'doctor_kyc_rejected',
-              defaultSubject: 'Update regarding your HealNari KYC Verification',
-              defaultHtml: `
-                <h2 style="color:#e11d48;">HealNari KYC Verification Update</h2>
-                <p>Dear Dr. {{doctorName}},</p>
-                <p>Thank you for submitting your verification details. Our medical compliance team has reviewed your documents and identified items requiring clarification.</p>
-                <p>Please log in to your dashboard to review the feedback and re-upload your medical registration certificate.</p>
-                <p style="color:#64748b;font-size:12px;">Best regards,<br/>HealNari Verification Desk</p>
-            `,
               variables: {
                 doctorName: doctor.full_name || 'Doctor',
-                dashboardUrl: 'https://healnari.vercel.app/doctor/dashboard',
+                reason: 'Please review and re-upload your valid state medical council registration certificate.',
+                dashboardUrl: this.email.getUrl('/doctor-dashboard/profile'),
               },
+              entityType: 'doctor_kyc',
+              entityId: updated.id,
+              event: 'doctor_kyc_rejected',
             })
             .catch(() => {});
         }
@@ -1500,28 +1490,19 @@ export class AdminService {
         const formattedAmount = `₹${Number(updated.amount).toLocaleString('en-IN')}`;
         const settlementDate = new Date().toLocaleDateString('en-IN');
         this.email
-          .sendTemplatedMail({
+          .sendTemplateEmail({
+            templateKey: 'doctor_payout_settlement',
             to: doc.email,
-            slug: 'doctor_payout_settlement',
-            defaultSubject: `HealNari Payout Settlement Confirmed (${formattedAmount})`,
-            defaultHtml: `
-              <h2 style="color:#0f172a;margin-top:0;">Payment Settlement Advice</h2>
-              <p>Dear Dr. {{doctorName}},</p>
-              <p>Your net earnings payout has been successfully processed and transferred to your registered bank account.</p>
-              <div style="background:#f8fafc;padding:16px;border-radius:8px;margin:16px 0;border:1px solid #e2e8f0;">
-                <p style="margin:4px 0;font-size:13px;color:#64748b;">Payout Amount:</p>
-                <h3 style="margin:4px 0;color:#10b981;font-size:22px;">{{amount}}</h3>
-                <p style="margin:8px 0 0 0;font-size:12px;color:#64748b;">Bank Reference (UTR): <strong>{{referenceId}}</strong></p>
-                <p style="margin:4px 0 0 0;font-size:12px;color:#64748b;">Settlement Date: <strong>{{settlementDate}}</strong></p>
-              </div>
-              <p style="color:#64748b;font-size:12px;">For any billing queries, please contact finance@healnari.com.</p>
-          `,
             variables: {
               doctorName: doc.full_name || 'Doctor',
               amount: formattedAmount,
               referenceId,
               settlementDate,
+              dashboardUrl: this.email.getUrl('/doctor-dashboard/revenue'),
             },
+            entityType: 'payout',
+            entityId: updated.id,
+            event: 'doctor_payout_settlement',
           })
           .catch(() => {});
       }

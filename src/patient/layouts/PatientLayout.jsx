@@ -180,9 +180,33 @@ function Sidebar({ onClose, onItemHover }) {
   );
 }
 
-        {/* Notification panel: constrained width on mobile */}
-function NotificationsPanel({ notifications, onMarkAllRead, onMarkRead, onClose, panelRef }) {
+function NotificationsPanel({ notifications, onMarkAllRead, onMarkRead, onClose, panelRef, navigate }) {
   const unread = notifications.filter(n => !n.read).length;
+
+  const handleNotificationClick = (n) => {
+    if (!n.read) onMarkRead(n.id);
+    onClose();
+
+    // Deep-link to appropriate patient screen based on notification type and data
+    const appointmentId = n.data?.appointmentId;
+    if (n.type === 'appointment_approved' || n.type === 'payment_due') {
+      navigate('/patient-dashboard/appointments?tab=action_required');
+    } else if (n.type === 'payment_success' || n.type === 'payment_confirmed') {
+      navigate('/patient-dashboard/appointments?tab=upcoming');
+    } else if (n.type === 'appointment_cancelled' || n.type === 'call_cancelled') {
+      navigate('/patient-dashboard/appointments?tab=past');
+    } else if (n.type === 'appointment_rescheduled' || n.type === 'appointment_reminder') {
+      navigate('/patient-dashboard/appointments?tab=upcoming');
+    } else if (n.type === 'refund_processed' || n.type === 'charge_recorded') {
+      navigate('/patient-dashboard/billing');
+    } else if (n.type === 'prescription_added' || n.type === 'refill_approved') {
+      navigate('/patient-dashboard/prescriptions');
+    } else if (n.type === 'lab_report_ready' || n.type === 'lab_report_request') {
+      navigate('/patient-dashboard/records');
+    } else {
+      navigate('/patient-dashboard/appointments');
+    }
+  };
 
   return (
     <div ref={panelRef}
@@ -194,8 +218,8 @@ function NotificationsPanel({ notifications, onMarkAllRead, onMarkRead, onClose,
           {unread > 0 && <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{unread}</span>}
         </h3>
         <div className="flex items-center gap-2">
-          <button onClick={onMarkAllRead} className="text-xs text-aubergine-600 font-bold hover:underline">Mark all read</button>
-          <button onClick={onClose} className="text-slate-500 hover:text-slate-600 ml-1"><i className="fas fa-xmark"></i></button>
+          {unread > 0 && <button onClick={onMarkAllRead} className="text-xs text-aubergine-600 font-bold hover:underline">Mark all read</button>}
+          <button onClick={onClose} aria-label="Close notifications panel" className="text-slate-500 hover:text-slate-600 ml-1"><i className="fas fa-xmark"></i></button>
         </div>
       </div>
       <div className="max-h-80 overflow-y-auto divide-y divide-slate-50">
@@ -205,8 +229,12 @@ function NotificationsPanel({ notifications, onMarkAllRead, onMarkRead, onClose,
         {notifications.map(n => {
           const style = NOTIFICATION_STYLE[n.type] || DEFAULT_NOTIFICATION_STYLE;
           return (
-            <div key={n.id} onClick={() => !n.read && onMarkRead(n.id)}
-              className={`flex gap-3 p-4 hover:bg-slate-50 transition-colors cursor-pointer ${!n.read ? 'bg-aubergine-50/30' : ''}`}>
+            <button
+              key={n.id}
+              type="button"
+              onClick={() => handleNotificationClick(n)}
+              className={`w-full text-left flex gap-3 p-4 hover:bg-slate-50 transition-colors ${!n.read ? 'bg-aubergine-50/30' : ''}`}
+            >
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm flex-shrink-0 ${style.color}`}>
                 <i className={`fas ${style.icon}`}></i>
               </div>
@@ -216,7 +244,7 @@ function NotificationsPanel({ notifications, onMarkAllRead, onMarkRead, onClose,
                 <p className="text-[10px] text-slate-500 mt-0.5">{timeAgo(n.created_at)}</p>
               </div>
               {!n.read && <div className="w-2 h-2 bg-aubergine-500 rounded-full mt-2 flex-shrink-0"></div>}
-            </div>
+            </button>
           );
         })}
       </div>
@@ -349,6 +377,7 @@ function PatientLayout() {
                   onMarkRead={markRead}
                   onClose={() => setNotifOpen(false)}
                   panelRef={notifRef}
+                  navigate={navigate}
                 />
               )}
             </div>

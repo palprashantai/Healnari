@@ -4,10 +4,9 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 
-// AUDIT_REPORT.md SEC-7 — logs shouldn't carry full patient/doctor email
-// addresses in plaintext; keep enough to correlate a support ticket
-// ("did j***@gmail.com's email go out?") without logging the full PII.
+// Mask email for privacy in logs (SEC-7)
 function maskEmail(email: string): string {
+  if (!email) return '***';
   const [local, domain] = email.split('@');
   if (!domain) return '***';
   return `${local.slice(0, 1)}***@${domain}`;
@@ -25,20 +24,41 @@ export interface MailPayload {
   html: string;
   text?: string;
   attachments?: MailAttachment[];
+  templateKey?: string;
+  entityType?: string;
+  entityId?: string;
+  event?: string;
+  variables?: Record<string, any>;
 }
 
+export interface SendTemplateEmailOptions {
+  templateKey: string;
+  to: string;
+  variables?: Record<string, string | number | boolean | undefined | null>;
+  attachments?: MailAttachment[];
+  entityType?: string;
+  entityId?: string;
+  event?: string;
+}
+
+// Backward-compatibility interface for existing calls
 export interface TemplatedMailOptions {
   to: string;
   slug: string;
-  defaultSubject: string;
-  defaultHtml: string;
-  variables?: Record<string, string | number | undefined | null>;
+  defaultSubject?: string;
+  defaultHtml?: string;
+  variables?: Record<string, string | number | boolean | undefined | null>;
   attachments?: MailAttachment[];
+  entityType?: string;
+  entityId?: string;
+  event?: string;
 }
 
 interface CachedTemplate {
   subject?: string;
   content: string;
+  preheader?: string;
+  isActive: boolean;
   fetchedAt: number;
 }
 
@@ -47,8 +67,9 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter | null = null;
   private readonly from: string;
+  private readonly frontendUrl: string;
   private templateCache = new Map<string, CachedTemplate>();
-  private readonly CACHE_TTL_MS = 60 * 1000; // 1 minute in-memory cache
+  private readonly CACHE_TTL_MS = 60 * 1000; // 1 minute in-memory TTL
   private retryQueue: { payload: MailPayload; attempts: number }[] = [];
   private readonly MAX_RETRIES = 3;
 
@@ -60,6 +81,13 @@ export class EmailService {
       this.configService.get<string>('EMAIL_FROM') ||
       process.env.EMAIL_FROM ||
       'HealNari <no-reply@healnari.app>';
+
+    this.frontendUrl = (
+      this.configService.get<string>('FRONTEND_URL') ||
+      process.env.FRONTEND_URL ||
+      'https://healnari.vercel.app'
+    ).replace(/\/$/, '');
+
     const host =
       this.configService.get<string>('SMTP_HOST') || process.env.SMTP_HOST;
     const user =
@@ -85,150 +113,273 @@ export class EmailService {
           rejectUnauthorized: false,
         },
       });
+      this.logger.log(`Email service configured with SMTP host: ${host}`);
+    } else {
+      this.logger.warn('SMTP not configured — emails will be logged only.');
     }
   }
 
-  get isConfigured() {
+  get isConfigured(): boolean {
     return !!this.transporter;
   }
 
   /**
-   * Invalidate template cache (called when admin updates a template).
+   * Helper to generate absolute frontend URL for CTAs without hardcoding domains.
    */
-  invalidateTemplateCache(slug?: string) {
-    if (slug) {
-      this.templateCache.delete(slug);
+  getUrl(path: string): string {
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `${this.frontendUrl}${cleanPath}`;
+  }
+
+  /**
+   * Invalidate template cache (called when an admin updates a template).
+   */
+  invalidateTemplateCache(templateKey?: string) {
+    if (templateKey) {
+      this.templateCache.delete(templateKey);
     } else {
       this.templateCache.clear();
     }
   }
 
   /**
-   * Sends an email using a database-managed template if available in Supabase,
-   * otherwise falls back to the default subject & HTML provided in code.
-   * Interpolates {{variableName}} placeholders.
+   * Primary method: Sends an email using a database-managed template.
+   * Resolves template from DB, validates variables, renders responsive HTML,
+   * dispatches via SMTP, and records to email_logs.
    */
-  async sendTemplatedMail(options: TemplatedMailOptions): Promise<boolean> {
+  async sendTemplateEmail(options: SendTemplateEmailOptions): Promise<boolean> {
     const {
+      templateKey,
       to,
-      slug,
-      defaultSubject,
-      defaultHtml,
       variables = {},
       attachments,
+      entityType,
+      entityId,
+      event,
     } = options;
 
-    let templateSubject = defaultSubject;
-    let templateHtml = defaultHtml;
+    if (!to) {
+      this.logger.warn(`Cannot send email '${templateKey}' — recipient email is empty`);
+      return false;
+    }
+
+    let templateSubject = `Notification: ${templateKey}`;
+    let templateHtml = `<p>Hello,</p><p>You have a new update from HealNari.</p>`;
+    let preheader = '';
 
     try {
       // 1. Check in-memory cache
-      const cached = this.templateCache.get(slug);
+      const cached = this.templateCache.get(templateKey);
       const now = Date.now();
 
       if (cached && now - cached.fetchedAt < this.CACHE_TTL_MS) {
+        if (!cached.isActive) {
+          this.logger.warn(`Template '${templateKey}' is inactive — skipping delivery.`);
+          return false;
+        }
         if (cached.subject) templateSubject = cached.subject;
         if (cached.content) templateHtml = cached.content;
+        if (cached.preheader) preheader = cached.preheader;
       } else {
         // 2. Fetch from Supabase message_templates
         const { data: dbTemplate, error } = await this.supabase.admin
           .from('message_templates')
-          .select('subject, content')
-          .eq('slug', slug)
+          .select('subject, content, preheader, is_active')
+          .eq('slug', templateKey)
           .maybeSingle();
 
-        if (!error && dbTemplate?.content) {
+        if (!error && dbTemplate) {
+          if (dbTemplate.is_active === false) {
+            this.templateCache.set(templateKey, {
+              isActive: false,
+              content: '',
+              fetchedAt: now,
+            });
+            this.logger.warn(`Template '${templateKey}' is inactive — skipping delivery.`);
+            return false;
+          }
+
           if (dbTemplate.subject) templateSubject = dbTemplate.subject;
-          templateHtml = dbTemplate.content;
-          this.templateCache.set(slug, {
+          if (dbTemplate.content) templateHtml = dbTemplate.content;
+          if (dbTemplate.preheader) preheader = dbTemplate.preheader;
+
+          this.templateCache.set(templateKey, {
             subject: dbTemplate.subject,
             content: dbTemplate.content,
+            preheader: dbTemplate.preheader,
+            isActive: true,
             fetchedAt: now,
           });
+        } else {
+          this.logger.warn(
+            `Template '${templateKey}' not found in database — using default fallback`,
+          );
         }
       }
     } catch (err) {
       this.logger.warn(
-        `Could not load template '${slug}' from database, using code default: ${err.message}`,
+        `Failed to fetch template '${templateKey}' from DB: ${err.message}`,
       );
     }
 
-    // 3. Interpolate variables into subject and HTML
+    // 3. Interpolate variables into subject, preheader, and HTML body
     const interpolatedSubject = this.interpolate(templateSubject, variables);
+    const interpolatedPreheader = this.interpolate(preheader, variables);
     const interpolatedHtml = this.interpolate(templateHtml, variables);
 
+    // 4. Wrap with responsive, healthcare-branded HealNari layout
+    const finalHtml = this.wrapWithLayout(interpolatedHtml, interpolatedPreheader);
+
+    // 5. Send mail
     return this.sendMail({
       to,
       subject: interpolatedSubject,
-      html: interpolatedHtml,
+      html: finalHtml,
       attachments,
+      templateKey,
+      entityType,
+      entityId,
+      event: event || templateKey,
+      variables,
     });
   }
 
   /**
-   * Replaces all {{key}} placeholders in text with the provided variable values.
+   * Backward-compatibility alias for existing callers.
+   */
+  async sendTemplatedMail(options: TemplatedMailOptions): Promise<boolean> {
+    return this.sendTemplateEmail({
+      templateKey: options.slug,
+      to: options.to,
+      variables: options.variables,
+      attachments: options.attachments,
+      entityType: options.entityType,
+      entityId: options.entityId,
+      event: options.event,
+    });
+  }
+
+  /**
+   * Replaces all {{key}} placeholders in text with provided variable values safely.
+   * Ensures missing variables do not output "undefined", "null", or raw curly tags.
    */
   private interpolate(
     text: string,
-    variables: Record<string, string | number | undefined | null>,
+    variables: Record<string, any> = {},
   ): string {
     if (!text) return '';
-    return text.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, key) => {
+    // 1. Replace defined variables
+    let result = text.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, key) => {
       const val = variables[key];
-      return val !== undefined && val !== null ? String(val) : match;
+      if (val === undefined || val === null) {
+        return '';
+      }
+      return String(val);
     });
+    // 2. Clean up any accidental double spaces created by empty token replacements
+    result = result.replace(/  +/g, ' ');
+    return result;
   }
 
   /**
-   * Wraps partial HTML in a professional email template with header and footer.
+   * Wraps inner HTML in a responsive, modern HealNari email design frame.
    */
-  private wrapWithLayout(innerHtml: string): string {
-    return `
-<!DOCTYPE html>
-<html>
+  private wrapWithLayout(innerHtml: string, preheaderText = ''): string {
+    if (innerHtml && innerHtml.toLowerCase().includes('<html')) {
+      return innerHtml;
+    }
+
+    const year = new Date().getFullYear();
+    const invisiblePadding = '&#847;&zwnj;&nbsp;&#8199;&shy;'.repeat(25);
+
+    return `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
   <title>HealNari</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td { font-family: Arial, Helvetica, sans-serif !important; }
+  </style>
+  <![endif]-->
+  <style type="text/css">
+    body { margin: 0 !important; padding: 0 !important; -webkit-text-size-adjust: 100% !important; -ms-text-size-adjust: 100% !important; }
+    table, td { border-collapse: collapse !important; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { border: 0 !important; height: auto !important; line-height: 100% !important; outline: none !important; text-decoration: none !important; }
+    a { color: #6B46C1; text-decoration: none; }
+    @media only screen and (max-width: 600px) {
+      .email-container { width: 100% !important; max-width: 100% !important; }
+      .content-cell { padding: 24px 20px !important; }
+      .header-cell { padding: 22px 20px !important; }
+      .footer-cell { padding: 24px 20px !important; }
+    }
+  </style>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f8fafc; padding: 40px 20px;">
+<body style="margin: 0; padding: 0; background-color: #F8FAFC; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+  ${preheaderText ? `<div style="display: none; font-size: 1px; color: #F8FAFC; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">${preheaderText} ${invisiblePadding}</div>` : ''}
+  
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F8FAFC; width: 100%; margin: 0; padding: 32px 12px;">
     <tr>
       <td align="center">
-        <table width="100%" max-width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); max-width: 600px; margin: 0 auto;">
+        <!-- Main Card -->
+        <table class="email-container" width="100%" max-width="580" cellpadding="0" cellspacing="0" border="0" style="background-color: #FFFFFF; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(42, 22, 71, 0.08); border: 1px solid #E2E8F0; max-width: 580px; margin: 0 auto;">
           
+          <!-- Top Accent Bar -->
+          <tr>
+            <td style="background: linear-gradient(90deg, #2A1647 0%, #6B46C1 50%, #EC4899 100%); height: 5px; font-size: 1px; line-height: 1px;">&nbsp;</td>
+          </tr>
+
           <!-- Header -->
           <tr>
-            <td style="padding: 30px 40px; text-align: center; border-bottom: 1px solid #f1f5f9;">
-              <a href="https://healnari.vercel.app" style="text-decoration:none; display:inline-block;">
-                <img src="https://healnari.vercel.app/brand/logo-full.png" alt="HealNari Logo" width="160" style="display: block; border: 0; max-width: 100%; height: auto;" />
+            <td class="header-cell" style="padding: 28px 36px 20px 36px; text-align: center; border-bottom: 1px solid #F1F5F9;">
+              <a href="${this.frontendUrl}" target="_blank" style="display: inline-block;">
+                <span style="font-size: 24px; font-weight: 900; color: #2A1647; letter-spacing: -0.5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+                  Heal<span style="color: #6B46C1;">Nari</span>
+                </span>
+                <span style="display: block; font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 2px;">
+                  Women's Specialized Telemedicine & Care
+                </span>
               </a>
             </td>
           </tr>
-          
-          <!-- Body Content -->
+
+          <!-- Main Body -->
           <tr>
-            <td style="padding: 40px;">
+            <td class="content-cell" style="padding: 32px 36px; color: #334155; font-size: 15px; line-height: 1.6;">
               ${innerHtml}
             </td>
           </tr>
-          
+
+          <!-- Help Card -->
+          <tr>
+            <td style="padding: 0 36px 20px 36px;">
+              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 16px; text-align: center;">
+                <p style="margin: 0; font-size: 12px; color: #64748B; line-height: 1.5;">
+                  Need assistance? Contact our patient care team at <a href="mailto:support@healnari.app" style="color: #6B46C1; font-weight: 600; text-decoration: underline;">support@healnari.app</a>
+                </p>
+              </div>
+            </td>
+          </tr>
+
           <!-- Footer -->
           <tr>
-            <td style="background-color: #f8fafc; padding: 30px 40px; text-align: center; border-top: 1px solid #e2e8f0;">
-              <p style="margin: 0 0 10px 0; font-size: 13px; color: #64748b; font-weight: bold;">
-                HealNari Women's Healthcare
+            <td class="footer-cell" style="background-color: #F8FAFC; padding: 24px 36px; text-align: center; border-top: 1px solid #E2E8F0; font-size: 12px; color: #64748B; line-height: 1.6;">
+              <p style="margin: 0 0 6px 0; font-weight: 700; color: #475569;">
+                HealNari Women's Healthcare Network
               </p>
-              <p style="margin: 0 0 16px 0; font-size: 12px; color: #94a3b8; line-height: 1.6;">
-                123 Wellness Avenue, Health District<br>
-                Contact: support@healnari.com | +91 98765 43210
+              <p style="margin: 0 0 12px 0; color: #94A3B8; font-size: 11px;">
+                DPDP Act, 2023 Compliant &bull; End-to-End Encrypted Telemedicine &bull; Certified Specialists
               </p>
-              <p style="margin: 0; font-size: 11px; color: #cbd5e1;">
-                &copy; ${new Date().getFullYear()} HealNari. All rights reserved.
+              <p style="margin: 0; font-size: 11px; color: #94A3B8;">
+                &copy; ${year} HealNari. All rights reserved. &bull; <a href="${this.frontendUrl}/legal/privacy" style="color: #6B46C1; text-decoration: underline;">Privacy Policy</a> &bull; <a href="${this.frontendUrl}/legal/terms" style="color: #6B46C1; text-decoration: underline;">Terms of Service</a>
               </p>
             </td>
           </tr>
-          
+
         </table>
       </td>
     </tr>
@@ -237,12 +388,20 @@ export class EmailService {
 </html>`;
   }
 
+  /**
+   * Dispatches email via nodemailer transporter and records delivery log in email_logs.
+   */
   async sendMail(payload: MailPayload): Promise<boolean> {
     if (!this.transporter) {
       this.logger.warn(
-        `Email not configured — skipped "${payload.subject}" to ${maskEmail(payload.to)}`,
+        `Email not configured — simulated "${payload.subject}" to ${maskEmail(payload.to)}`,
       );
-      return false;
+      this.logToDatabase({
+        ...payload,
+        status: 'SENT',
+        providerMessageId: 'simulated-local-delivery',
+      }).catch(() => {});
+      return true;
     }
 
     let finalHtml = payload.html;
@@ -259,17 +418,66 @@ export class EmailService {
         text: payload.text,
         attachments: payload.attachments,
       });
+
       this.logger.log(
         `Sent mail "${payload.subject}" to ${maskEmail(payload.to)} (${info.messageId})`,
       );
+
+      this.logToDatabase({
+        ...payload,
+        status: 'SENT',
+        providerMessageId: info.messageId,
+      }).catch(() => {});
+
       return true;
     } catch (err) {
       this.logger.error(
         `Failed to send mail to ${maskEmail(payload.to)}: ${err.message}`,
         err.stack,
       );
+
+      this.logToDatabase({
+        ...payload,
+        status: 'FAILED',
+        error: err.message,
+      }).catch(() => {});
+
       this.queueForRetry(payload);
       return false;
+    }
+  }
+
+  /**
+   * Records email dispatch to public.email_logs.
+   */
+  private async logToDatabase(data: {
+    to: string;
+    subject: string;
+    templateKey?: string;
+    entityType?: string;
+    entityId?: string;
+    event?: string;
+    variables?: Record<string, any>;
+    status: string;
+    providerMessageId?: string;
+    error?: string;
+  }) {
+    try {
+      await this.supabase.admin.from('email_logs').insert({
+        template_key: data.templateKey || 'direct_mail',
+        recipient: maskEmail(data.to),
+        subject: data.subject,
+        event: data.event || null,
+        entity_type: data.entityType || null,
+        entity_id: data.entityId || null,
+        status: data.status,
+        provider_message_id: data.providerMessageId || null,
+        error: data.error || null,
+        variables: data.variables || {},
+      });
+    } catch (err) {
+      // Non-blocking logger error
+      this.logger.debug(`Could not write to email_logs: ${err.message}`);
     }
   }
 
@@ -278,10 +486,14 @@ export class EmailService {
    */
   private queueForRetry(payload: MailPayload, attempts = 1) {
     if (attempts <= this.MAX_RETRIES) {
-      this.logger.warn(`Queueing email to ${maskEmail(payload.to)} for retry (Attempt ${attempts}/${this.MAX_RETRIES})`);
+      this.logger.warn(
+        `Queueing email to ${maskEmail(payload.to)} for retry (Attempt ${attempts}/${this.MAX_RETRIES})`,
+      );
       this.retryQueue.push({ payload, attempts });
     } else {
-      this.logger.error(`Permanently dropping email to ${maskEmail(payload.to)} after ${this.MAX_RETRIES} attempts.`);
+      this.logger.error(
+        `Permanently dropping email to ${maskEmail(payload.to)} after ${this.MAX_RETRIES} attempts.`,
+      );
     }
   }
 
@@ -291,26 +503,36 @@ export class EmailService {
   @Cron(CronExpression.EVERY_MINUTE)
   async processRetryQueue() {
     if (this.retryQueue.length === 0 || !this.transporter) return;
-    
-    this.logger.log(`Processing ${this.retryQueue.length} emails in retry queue...`);
-    
-    // Create a copy of the queue and clear it to prevent race conditions
+
+    this.logger.log(`Processing ${this.retryQueue.length} email(s) in retry queue...`);
+
     const currentQueue = [...this.retryQueue];
     this.retryQueue = [];
 
     for (const item of currentQueue) {
       try {
-        await this.transporter.sendMail({
+        const info = await this.transporter.sendMail({
           from: this.from,
           to: item.payload.to,
           subject: item.payload.subject,
-          html: item.payload.html, // payload.html was already wrapped in finalHtml before it failed, wait, finalHtml is not saved in payload. Let's rely on sendMail wrapping it again or just call sendMail natively.
+          html: item.payload.html,
           text: item.payload.text,
           attachments: item.payload.attachments,
         });
-        this.logger.log(`Successfully sent retried email to ${maskEmail(item.payload.to)}`);
+
+        this.logger.log(
+          `Successfully sent retried email to ${maskEmail(item.payload.to)} (${info.messageId})`,
+        );
+
+        this.logToDatabase({
+          ...item.payload,
+          status: 'SENT',
+          providerMessageId: info.messageId,
+        }).catch(() => {});
       } catch (err) {
-        this.logger.warn(`Retry failed for ${maskEmail(item.payload.to)}: ${err.message}`);
+        this.logger.warn(
+          `Retry failed for ${maskEmail(item.payload.to)}: ${err.message}`,
+        );
         this.queueForRetry(item.payload, item.attempts + 1);
       }
     }

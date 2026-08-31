@@ -539,16 +539,16 @@ export class BillingService {
     if (!patient?.email) return;
 
     const pdf = await this.invoices.generatePdf(payment);
-    await this.email.sendTemplatedMail({
+    await this.email.sendTemplateEmail({
+      templateKey: 'payment_receipt',
       to: patient.email,
-      slug: 'payment-receipt',
-      defaultSubject: `HealNari — Payment Receipt (${formattedAmount})`,
-      defaultHtml: `<p>Hi {{patientName}},</p><p>We've received your payment of <strong>{{amount}}</strong> for <strong>{{service}}</strong>{{doctorInfo}}.</p><p>Your invoice is attached as a PDF for your records.</p><p>— Team HealNari</p>`,
       variables: {
         patientName: payment.patientName || 'there',
         amount: formattedAmount,
         service: payment.service,
+        doctorName: payment.doctorName || 'Specialist',
         doctorInfo: payment.doctorName ? ` with Dr. ${payment.doctorName}` : '',
+        invoiceUrl: this.email.getUrl('/patient-dashboard/billing'),
       },
       attachments: [
         {
@@ -557,6 +557,9 @@ export class BillingService {
           contentType: 'application/pdf',
         },
       ],
+      entityType: 'payment',
+      entityId: payment.id,
+      event: 'payment_receipt_generated',
     });
   }
 

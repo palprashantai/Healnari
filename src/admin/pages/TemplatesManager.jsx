@@ -8,15 +8,33 @@ const AVAILABLE_VARIABLES = [
   { key: 'patientName', label: 'Patient Name', sample: 'Priya Sharma' },
   { key: 'doctorName', label: 'Doctor Name', sample: 'Dr. Ananya Sen' },
   { key: 'when', label: 'Date & Time', sample: 'Tomorrow at 10:30 AM' },
+  { key: 'oldWhen', label: 'Old Schedule', sample: 'Friday, Sep 4 at 11:00 AM' },
+  { key: 'newWhen', label: 'New Schedule', sample: 'Monday, Sep 7 at 02:30 PM' },
   { key: 'label', label: 'Consultation Type', sample: 'Video Consultation' },
-  { key: 'amount', label: 'Amount (₹)', sample: '₹1,250' },
+  { key: 'scheduledDate', label: 'Date', sample: '2026-09-07' },
+  { key: 'scheduledTime', label: 'Time', sample: '02:30 PM' },
+  { key: 'timeRemaining', label: 'Time Remaining', sample: '30 minutes' },
+  { key: 'concern', label: 'Chief Concern', sample: 'PCOS management & irregular cycle' },
+  { key: 'diagnosis', label: 'Diagnosis / Plan', sample: 'PCOS Grade II with hyperandrogenism' },
+  { key: 'medicineCount', label: 'Medicine Count', sample: '3' },
+  { key: 'amount', label: 'Amount (₹)', sample: '1,250' },
+  { key: 'service', label: 'Service Name', sample: 'Video Consultation (30 mins)' },
   { key: 'referenceId', label: 'Reference / UTR', sample: 'PAY-REF-98421' },
-  { key: 'settlementDate', label: 'Settlement Date', sample: 'Aug 14, 2026' },
-  { key: 'medName', label: 'Medicine Name', sample: 'Folic Acid 5mg' },
+  { key: 'settlementDate', label: 'Settlement Date', sample: 'Sep 01, 2026' },
+  { key: 'medName', label: 'Medicine Name', sample: 'Metformin 500mg' },
   { key: 'duration', label: 'Course Duration', sample: '30 Days' },
-  { key: 'dashboardUrl', label: 'Dashboard URL', sample: 'https://healnari.app/dashboard' },
-  { key: 'recordsUrl', label: 'Records URL', sample: 'https://healnari.app/records' },
-  { key: 'date', label: 'Date', sample: '2026-08-14' },
+  { key: 'totalPatients', label: 'Total Patients', sample: '6' },
+  { key: 'videoCount', label: 'Video Sessions', sample: '4' },
+  { key: 'firstTime', label: 'First Slot Time', sample: '09:30 AM' },
+  { key: 'date', label: 'Report Date', sample: '2026-09-01' },
+  { key: 'email', label: 'User Email', sample: 'patient@example.com' },
+  { key: 'password', label: 'Auto Password', sample: 'SecureNari#2026' },
+  { key: 'loginUrl', label: 'Login URL', sample: 'https://healnari.app/?auth=login' },
+  { key: 'paymentUrl', label: 'Payment URL', sample: 'https://healnari.app/patient-dashboard/appointments?tab=action_required' },
+  { key: 'dashboardUrl', label: 'Dashboard URL', sample: 'https://healnari.app/patient-dashboard' },
+  { key: 'recordsUrl', label: 'Records URL', sample: 'https://healnari.app/patient-dashboard/prescriptions' },
+  { key: 'findDoctorUrl', label: 'Find Doctor URL', sample: 'https://healnari.app/doctors' },
+  { key: 'invoiceUrl', label: 'Invoice URL', sample: 'https://healnari.app/patient-dashboard/billing' },
 ];
 
 function AdminTemplates() {
@@ -417,18 +435,61 @@ function AdminTemplates() {
                   </div>
                 ) : (
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-widest">Live Visual Inbox Preview</label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-[10px] font-bold text-slate-400 block uppercase tracking-widest">Live Visual Inbox Preview</label>
+                      <span className="text-[11px] text-slate-400 font-mono"><i className="fas fa-mobile-screen-button mr-1"></i> Desktop & Mobile Frame</span>
+                    </div>
                     
-                    {formData.type === 'email' && (
-                      <div className="bg-slate-100 p-3 rounded-t-xl border border-b-0 border-slate-200 text-xs">
-                        <span className="text-slate-400 font-bold uppercase text-[10px] block">Subject Preview:</span>
-                        <strong className="text-slate-800 font-sans text-sm">{getRenderedSubjectPreview()}</strong>
+                    {formData.type === 'email' ? (
+                      <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-sm bg-slate-100 p-3 sm:p-6">
+                        {/* Subject Header */}
+                        <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs mb-4 shadow-xs">
+                          <span className="text-slate-400 font-bold uppercase text-[10px] block mb-0.5">Subject Line Preview:</span>
+                          <strong className="text-slate-800 font-sans text-sm">{getRenderedSubjectPreview()}</strong>
+                        </div>
+
+                        {/* Master Email Mockup Container */}
+                        <div className="max-w-[580px] mx-auto bg-white rounded-2xl overflow-hidden shadow-lg border border-slate-200">
+                          {/* Top Accent Gradient Bar */}
+                          <div className="h-1.5 bg-gradient-to-r from-[#2A1647] via-[#6B46C1] to-[#EC4899]"></div>
+                          
+                          {/* Master Header */}
+                          <div className="p-6 text-center border-b border-slate-100">
+                            <span className="text-2xl font-black text-[#2A1647] tracking-tight">
+                              Heal<span className="text-[#6B46C1]">Nari</span>
+                            </span>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                              Women's Specialized Telemedicine & Care
+                            </span>
+                          </div>
+
+                          {/* Inner Email Body Content */}
+                          <div className="p-6 sm:p-8 text-slate-700 text-sm leading-relaxed">
+                            <div dangerouslySetInnerHTML={{ __html: getRenderedPreview() }} />
+                          </div>
+
+                          {/* Help / Concierge Card */}
+                          <div className="px-6 sm:px-8 pb-5">
+                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-center">
+                              <p className="text-xs text-slate-500 m-0">
+                                Need assistance? Contact our care concierge at <span className="text-[#6B46C1] font-bold underline">support@healnari.app</span>
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Master Footer */}
+                          <div className="bg-slate-50 p-6 text-center border-t border-slate-200 text-xs text-slate-500 space-y-1.5">
+                            <p className="font-bold text-slate-700 m-0">HealNari Women's Healthcare Network</p>
+                            <p className="text-[11px] text-slate-400 m-0">DPDP Act, 2023 Compliant &bull; End-to-End Encrypted Telemedicine &bull; Certified Specialists</p>
+                            <p className="text-[11px] text-slate-400 m-0">&copy; {new Date().getFullYear()} HealNari. All rights reserved.</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="border border-slate-200 rounded-xl p-6 bg-slate-50/50 min-h-[300px] overflow-y-auto">
+                        <div dangerouslySetInnerHTML={{ __html: getRenderedPreview() }} />
                       </div>
                     )}
-
-                    <div className="border border-slate-200 rounded-xl p-6 bg-slate-50/50 min-h-[300px] overflow-y-auto">
-                      <div dangerouslySetInnerHTML={{ __html: getRenderedPreview() }} />
-                    </div>
                     <p className="text-[10px] text-slate-400 mt-2 text-center">Highlighted blue badges indicate dynamic runtime data injected into sample preview.</p>
                   </div>
                 )}

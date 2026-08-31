@@ -94,7 +94,7 @@ export class LeadsService {
     try {
       const { data: doctor } = await this.supabase.admin
         .from('profiles')
-        .select('full_name, specialty, currency')
+        .select('full_name, email, specialty, currency')
         .eq('id', body.doctorId)
         .maybeSingle();
 
@@ -143,6 +143,46 @@ export class LeadsService {
         })
         .select()
         .maybeSingle();
+
+      // Send database-driven notification emails to patient & doctor
+      if (body.email) {
+        this.email
+          .sendTemplateEmail({
+            templateKey: 'consultation_request_received',
+            to: body.email,
+            variables: {
+              patientName: body.name,
+              doctorName: doctor?.full_name || 'Specialist',
+              scheduledDate,
+              scheduledTime,
+              dashboardUrl: this.email.getUrl('/?auth=login'),
+            },
+            entityType: 'consultation_request',
+            entityId: requestRow?.id,
+            event: 'consultation_request_submitted',
+          })
+          .catch(() => {});
+      }
+
+      if (doctor?.email) {
+        this.email
+          .sendTemplateEmail({
+            templateKey: 'consultation_request_doctor',
+            to: doctor.email,
+            variables: {
+              doctorName: doctor.full_name || 'Doctor',
+              patientName: body.name,
+              scheduledDate,
+              scheduledTime,
+              concern: body.concern || 'General Consultation Request',
+              dashboardUrl: this.email.getUrl('/doctor-dashboard/appointments?tab=requests'),
+            },
+            entityType: 'consultation_request',
+            entityId: requestRow?.id,
+            event: 'consultation_request_received_doctor',
+          })
+          .catch(() => {});
+      }
 
       return requestRow;
     } catch (error) {
@@ -196,7 +236,7 @@ export class LeadsService {
         this.findExistingPatient(request.email, request.mobile),
         this.supabase.admin
           .from('profiles')
-          .select('full_name, specialty, currency')
+          .select('full_name, specialty, currency, consultation_fee')
           .eq('id', user.id)
           .maybeSingle(),
       ]);
@@ -297,69 +337,45 @@ export class LeadsService {
         new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const scheduledTime = request.preferred_time || '10:00 AM';
 
-      if (generatedPassword) {
-        // Send a dedicated credentials email so they can log in
+      if (generatedPassword && request.email) {
+        // Send credentials email via database-driven template
         await this.email
-          .sendTemplatedMail({
+          .sendTemplateEmail({
+            templateKey: 'patient_welcome',
             to: request.email,
-            slug: 'patient-welcome',
-            defaultSubject: 'Welcome to HealNari - Your Login Credentials',
-            defaultHtml: `
-            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #334155; line-height: 1.6;">
-              <h2 style="color: #0f172a; margin-top: 0;">Welcome to HealNari!</h2>
-              <p style="font-size: 16px;">Hi <strong>{{name}}</strong>,</p>
-              <p style="font-size: 16px;">An account has been created for you to manage your appointments.</p>
-              
-              <div style="background-color: #f8fafc; padding: 16px; margin: 16px 0; border: 1px dashed #cbd5e1; border-radius: 4px;">
-                <p style="margin: 0; font-size: 16px;"><strong>Email:</strong> {{email}}</p>
-                <p style="margin: 8px 0 0 0; font-size: 16px;"><strong>Password:</strong> {{password}}</p>
-              </div>
-              <p style="font-size: 14px; color: #64748b; margin-top: 24px;">For security reasons, we recommend changing your password after your first login.</p>
-            </div>
-            `,
             variables: {
-              name: request.name,
+              patientName: request.name,
               email: request.email,
               password: generatedPassword,
+              loginUrl: this.email.getUrl('/?auth=login'),
             },
+            entityType: 'consultation_request',
+            entityId: id,
+            event: 'patient_account_provisioned',
           })
           .catch((err) => console.error('Failed to send credentials email', err));
       }
 
-      // Send the payment request email to confirm the appointment
-      await this.email
-        .sendTemplatedMail({
-          to: request.email,
-          slug: 'consultation-approved-payment-required',
-          defaultSubject: 'Payment Required: Consultation request approved',
-          defaultHtml: `
-          <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #334155; line-height: 1.6;">
-            <h2 style="color: #0f172a; margin-top: 0;">Consultation Approved!</h2>
-            <p style="font-size: 16px;">Hi <strong>{{name}}</strong>,</p>
-            <p style="font-size: 16px;">Great news! <strong>Dr. {{doctorName}}</strong> has approved your consultation request.</p>
-            
-            <div style="background-color: #f1f5f9; border-left: 4px solid #0ea5e9; padding: 16px; margin: 24px 0; border-radius: 4px;">
-              <p style="margin: 0; font-size: 16px; color: #0f172a;"><strong>Appointment Details</strong></p>
-              <p style="margin: 8px 0 0 0;">📅 <strong>Date:</strong> {{scheduledDate}}<br>⏰ <strong>Time:</strong> {{scheduledTime}}</p>
-            </div>
-            
-            <p style="font-size: 16px;"><strong>Next Step:</strong> Please log in to your HealNari account and <strong>complete the payment</strong> to confirm your booking.</p>
-            
-            <div style="text-align: center; margin: 32px 0;">
-              <a href="{{paymentUrl}}" style="background-color: #0ea5e9; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: bold; font-size: 16px; display: inline-block;">Pay Now & Confirm Booking</a>
-            </div>
-            <p style="font-size: 16px; margin-top: 32px;"><strong>Important:</strong> Your appointment is currently on hold and will only be confirmed once payment is received. Unpaid requests will be automatically cancelled after 24 hours.</p>
-          </div>
-          `,
-          variables: {
-            name: request.name,
-            doctorName: doctor?.full_name || '',
-            scheduledDate,
-            scheduledTime,
-            paymentUrl: 'https://app.healnari.com/patient-dashboard/billing',
-          },
-        })
-        .catch((err) => console.error('Failed to send approval email', err));
+      if (request.email) {
+        // Send approval & payment request email via database-driven template
+        await this.email
+          .sendTemplateEmail({
+            templateKey: 'consultation_request_accepted',
+            to: request.email,
+            variables: {
+              patientName: request.name,
+              doctorName: doctor?.full_name || 'Specialist',
+              scheduledDate,
+              scheduledTime,
+              paymentUrl: this.email.getUrl('/patient-dashboard/appointments?tab=action_required'),
+              amount: doctor?.consultation_fee || 799,
+            },
+            entityType: 'appointment',
+            entityId: appointment?.id,
+            event: 'consultation_approved',
+          })
+          .catch((err) => console.error('Failed to send approval email', err));
+      }
 
       return { ...updated, appointment, emailSent: this.email.isConfigured };
     } catch (error) {
@@ -398,6 +414,25 @@ export class LeadsService {
         .maybeSingle();
 
       if (!updated) return request;
+
+      // Dispatch polite rejection notification via DB template
+      if (request.email) {
+        this.email
+          .sendTemplateEmail({
+            templateKey: 'consultation_request_rejected',
+            to: request.email,
+            variables: {
+              patientName: request.name,
+              doctorName: user.profile.full_name || 'Specialist',
+              preferredDate: request.preferred_date || 'your requested time',
+              findDoctorUrl: this.email.getUrl('/doctors'),
+            },
+            entityType: 'consultation_request',
+            entityId: id,
+            event: 'consultation_declined',
+          })
+          .catch((err) => console.error('Failed to send decline email', err));
+      }
 
       return updated;
     } catch (error) {

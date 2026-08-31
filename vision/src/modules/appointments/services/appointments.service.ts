@@ -255,32 +255,20 @@ export class AppointmentsService {
     // Notify doctor via email
     if (doctor?.email) {
       this.email
-        .sendTemplatedMail({
+        .sendTemplateEmail({
+          templateKey: 'appointment_requested',
           to: doctor.email,
-          slug: 'appointment_requested',
-          defaultSubject: `New Appointment Request from ${withNames.patientName}`,
-          defaultHtml: `
-            <h2 style="color:#3b82f6;margin-top:0;">New Appointment Request</h2>
-            <p>Hello Dr. ${doctor.full_name || 'Doctor'},</p>
-            <p><strong>${withNames.patientName}</strong> has requested a ${this.typeLabel(withNames.type)}.</p>
-            <div style="background:#f1f5f9;padding:16px;border-radius:8px;margin:20px 0;">
-              <p style="margin:0 0 8px 0;font-size:12px;color:#64748b;text-transform:uppercase;font-weight:bold;letter-spacing:0.5px;">Requested Time</p>
-              <h3 style="margin:4px 0;color:#0f172a;">${this.appointmentWhen(withNames)}</h3>
-              ${withNames.reason ? `<p style="margin:12px 0 0 0;font-size:13px;color:#334155;"><strong>Reason:</strong> ${withNames.reason}</p>` : ''}
-            </div>
-            <div style="margin:20px 0;">
-              <a href="https://app.healnari.com/doctor-dashboard/appointments" style="background:#3b82f6;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">Review Request</a>
-            </div>
-          `,
           variables: {
             patientName: withNames.patientName,
             doctorName: doctor.full_name || 'Doctor',
             when: this.appointmentWhen(withNames),
             label: this.typeLabel(withNames.type),
             reason: withNames.reason || 'None provided',
-            dashboardUrl:
-              'https://app.healnari.com/doctor-dashboard/appointments',
+            dashboardUrl: this.email.getUrl('/doctor-dashboard/appointments'),
           },
+          entityType: 'appointment',
+          entityId: withNames.id,
+          event: 'appointment_requested',
         })
         .catch(() => {});
     }
@@ -293,24 +281,18 @@ export class AppointmentsService {
 
     if (patientProfile?.email) {
       this.email
-        .sendTemplatedMail({
+        .sendTemplateEmail({
+          templateKey: 'appointment_requested_patient',
           to: patientProfile.email,
-          slug: 'appointment_requested_patient',
-          defaultSubject: 'Appointment Requested — HealNari',
-          defaultHtml: `
-            <h2 style="color:#3b82f6;margin-top:0;">Appointment Requested</h2>
-            <p>Dear ${withNames.patientName},</p>
-            <p>Your appointment request with <strong>Dr. ${withNames.doctorName}</strong> on <strong>${this.appointmentWhen(withNames)}</strong> has been submitted successfully.</p>
-            <p>You will be notified once the doctor approves the request.</p>
-            <div style="margin:20px 0;">
-              <a href="https://app.healnari.com/patient/appointments" style="background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">View Details</a>
-            </div>
-          `,
           variables: {
             patientName: withNames.patientName,
             doctorName: withNames.doctorName,
             when: this.appointmentWhen(withNames),
+            dashboardUrl: this.email.getUrl('/patient-dashboard/appointments'),
           },
+          entityType: 'appointment',
+          entityId: withNames.id,
+          event: 'appointment_requested_patient',
         })
         .catch(() => {});
     }
@@ -474,6 +456,32 @@ export class AppointmentsService {
       message: `${actorLabel} rescheduled the ${this.typeLabel(withNames.type)} from ${oldWhen} to ${newWhen}.`,
       data: { appointmentId: withNames.id },
     });
+
+    // Send database-driven reschedule email
+    const recipientEmail = isDoctorActing
+      ? withNames.patient?.email
+      : withNames.doctor?.email;
+    if (recipientEmail) {
+      this.email
+        .sendTemplateEmail({
+          templateKey: 'appointment_rescheduled',
+          to: recipientEmail,
+          variables: {
+            patientName: withNames.patientName,
+            doctorName: withNames.doctorName,
+            oldWhen,
+            newWhen,
+            label: this.typeLabel(withNames.type),
+            dashboardUrl: isDoctorActing
+              ? this.email.getUrl('/patient-dashboard/appointments')
+              : this.email.getUrl('/doctor-dashboard/appointments'),
+          },
+          entityType: 'appointment',
+          entityId: withNames.id,
+          event: 'appointment_rescheduled',
+        })
+        .catch(() => {});
+    }
 
     return withNames;
   }
@@ -678,31 +686,19 @@ export class AppointmentsService {
       // Notify patient
       if (updated.patient?.email) {
         this.email
-          .sendTemplatedMail({
+          .sendTemplateEmail({
+            templateKey: 'appointment_confirmed',
             to: updated.patient.email,
-            slug: 'appointment_confirmed',
-            defaultSubject: `✅ Confirmed: Consultation with Dr. {{doctorName}} on {{when}}`,
-            defaultHtml: `
-              <h2 style="color:#10b981;margin-top:0;">✅ Appointment Confirmed</h2>
-              <p>Hello {{patientName}},</p>
-              <p>Your {{label}} with <strong>Dr. {{doctorName}}</strong> has been fully confirmed after successful payment.</p>
-              <div style="background:#f8fafc;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin:16px 0;">
-                <p style="margin:4px 0;font-size:13px;color:#64748b;">Consultation Date & Time:</p>
-                <h3 style="margin:4px 0;color:#0f172a;">{{when}}</h3>
-                <p style="margin:8px 0 0 0;font-size:12px;color:#64748b;">Type: <strong>{{label}}</strong></p>
-              </div>
-              <div style="margin:20px 0;">
-                <a href="{{dashboardUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">View Appointment Details</a>
-              </div>
-              <p style="color:#94a3b8;font-size:11px;">Please log in 5 minutes early to test your camera and audio.</p>
-          `,
             variables: {
               patientName: withNames.patientName,
               doctorName: withNames.doctorName,
               when: this.appointmentWhen(withNames),
               label: this.typeLabel(withNames.type),
-              dashboardUrl: 'https://app.healnari.com/patient/appointments',
+              dashboardUrl: this.email.getUrl('/patient-dashboard/appointments'),
             },
+            entityType: 'appointment',
+            entityId: withNames.id,
+            event: 'appointment_confirmed',
           })
           .catch(() => {});
       }
@@ -798,31 +794,20 @@ export class AppointmentsService {
         .maybeSingle();
       if (patientProfile?.email) {
         this.email
-          .sendTemplatedMail({
+          .sendTemplateEmail({
+            templateKey: 'appointment_approved',
             to: patientProfile.email,
-            slug: 'appointment_approved',
-            defaultSubject: `Action Required: Pay to Confirm your Consultation with Dr. {{doctorName}}`,
-            defaultHtml: `
-              <h2 style="color:#f59e0b;margin-top:0;">Action Required</h2>
-              <p>Hello {{patientName}},</p>
-              <p>Your {{label}} request with <strong>Dr. {{doctorName}}</strong> has been approved.</p>
-              <div style="background:#fffbeb;padding:16px;border-radius:8px;border:1px solid #fde68a;margin:16px 0;">
-                <p style="margin:4px 0;font-size:13px;color:#92400e;">Approved Date & Time:</p>
-                <h3 style="margin:4px 0;color:#92400e;">{{when}}</h3>
-                <p style="margin:8px 0 0 0;font-size:12px;color:#92400e;">Type: <strong>{{label}}</strong></p>
-              </div>
-              <p style="font-size: 14px;"><strong>Your appointment is not yet confirmed.</strong> You must complete the payment to secure this time slot.</p>
-              <div style="margin:20px 0;">
-                <a href="{{dashboardUrl}}" style="background:#f59e0b;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">Pay Now to Confirm</a>
-              </div>
-          `,
             variables: {
               patientName: patientProfile.full_name || 'Patient',
               doctorName: appointment.doctorName,
               when,
               label,
-              dashboardUrl: 'https://app.healnari.com/patient/appointments',
+              dashboardUrl: this.email.getUrl('/patient-dashboard/appointments?tab=action_required'),
+              paymentUrl: this.email.getUrl('/patient-dashboard/appointments?tab=action_required'),
             },
+            entityType: 'appointment',
+            entityId: appointment.id,
+            event: 'appointment_approved',
           })
           .catch(() => {});
       }
@@ -846,31 +831,19 @@ export class AppointmentsService {
 
       if (patientProfile?.email) {
         this.email
-          .sendTemplatedMail({
+          .sendTemplateEmail({
+            templateKey: 'appointment_confirmed',
             to: patientProfile.email,
-            slug: 'appointment_confirmed',
-            defaultSubject: `✅ Confirmed: Consultation with Dr. {{doctorName}} on {{when}}`,
-            defaultHtml: `
-              <h2 style="color:#10b981;margin-top:0;">✅ Appointment Confirmed</h2>
-              <p>Hello {{patientName}},</p>
-              <p>Your {{label}} with <strong>Dr. {{doctorName}}</strong> has been fully confirmed.</p>
-              <div style="background:#f8fafc;padding:16px;border-radius:8px;border:1px solid #e2e8f0;margin:16px 0;">
-                <p style="margin:4px 0;font-size:13px;color:#64748b;">Consultation Date & Time:</p>
-                <h3 style="margin:4px 0;color:#0f172a;">{{when}}</h3>
-                <p style="margin:8px 0 0 0;font-size:12px;color:#64748b;">Type: <strong>{{label}}</strong></p>
-              </div>
-              <div style="margin:20px 0;">
-                <a href="{{dashboardUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">View Appointment Details</a>
-              </div>
-              <p style="color:#94a3b8;font-size:11px;">Please log in 5 minutes early to test your camera and audio.</p>
-          `,
             variables: {
               patientName: patientProfile.full_name || 'Patient',
               doctorName: appointment.doctorName,
               when,
               label,
-              dashboardUrl: 'https://app.healnari.com/patient/appointments',
+              dashboardUrl: this.email.getUrl('/patient-dashboard/appointments?tab=upcoming'),
             },
+            entityType: 'appointment',
+            entityId: appointment.id,
+            event: 'appointment_confirmed',
           })
           .catch(() => {});
       }
@@ -893,26 +866,20 @@ export class AppointmentsService {
         .maybeSingle();
       if (patientProfile?.email) {
         this.email
-          .sendTemplatedMail({
+          .sendTemplateEmail({
+            templateKey: 'appointment_cancelled',
             to: patientProfile.email,
-            slug: 'appointment_cancelled',
-            defaultSubject: `Cancelled: Consultation on {{when}}`,
-            defaultHtml: `
-              <h2 style="color:#e11d48;margin-top:0;">Appointment Cancelled</h2>
-              <p>Hello {{patientName}},</p>
-              <p>Your {{label}} scheduled for <strong>{{when}}</strong> with Dr. {{doctorName}} has been cancelled.</p>
-              <p style="font-size:13px;color:#475569;">If you had already paid for this session, a refund has been initiated to your original payment method.</p>
-              <div style="margin:20px 0;">
-                <a href="{{dashboardUrl}}" style="background:#0f172a;color:#fff;padding:10px 20px;text-decoration:none;border-radius:8px;font-weight:bold;font-size:13px;">Book Another Slot</a>
-              </div>
-          `,
             variables: {
               patientName: patientProfile.full_name || 'Patient',
               doctorName: appointment.doctorName,
               when,
               label,
-              dashboardUrl: 'https://healnari.vercel.app/patient/appointments',
+              cancellationReason: 'Cancelled by specialist due to schedule adjustment.',
+              dashboardUrl: this.email.getUrl('/patient-dashboard/appointments?tab=past'),
             },
+            entityType: 'appointment',
+            entityId: appointment.id,
+            event: 'appointment_cancelled',
           })
           .catch(() => {});
       }
@@ -1335,7 +1302,7 @@ export class AppointmentsService {
     const { data: unpaid, error } = await this.supabase.admin
       .from('appointments')
       .select(
-        'id, patient_id, doctor_id, patient:profiles!appointments_patient_id_fkey(full_name, email)',
+        'id, patient_id, doctor_id, scheduled_date, scheduled_time, patient:profiles!appointments_patient_id_fkey(full_name, email), doctor:profiles!appointments_doctor_id_fkey(full_name)',
       )
       .eq('status', AppointmentStatus.APPROVED)
       .lte('created_at', cutoff.toISOString());
@@ -1367,12 +1334,20 @@ export class AppointmentsService {
           });
 
           if (this.email.isConfigured && a.patient?.email) {
+            const when = a.scheduled_date ? `${a.scheduled_date} at ${a.scheduled_time}` : 'your requested time';
             await this.email
-              .sendMail({
+              .sendTemplateEmail({
+                templateKey: 'appointment_unpaid_cancelled',
                 to: a.patient.email,
-                subject: 'HealNari — Appointment Cancelled',
-                html: `<p>Hi ${a.patient.full_name || 'there'},</p><p>Your consultation request was cancelled because the payment was not completed within 24 hours of approval.</p><p>You can submit a new request if you'd still like to see the doctor.</p>`,
-                text: `Your consultation request was cancelled because the payment was not completed within 24 hours.`,
+                variables: {
+                  patientName: a.patient.full_name || 'Patient',
+                  doctorName: a.doctor?.full_name || 'Specialist',
+                  when,
+                  dashboardUrl: this.email.getUrl('/doctors'),
+                },
+                entityType: 'appointment',
+                entityId: a.id,
+                event: 'appointment_unpaid_cancelled',
               })
               .catch((e) =>
                 this.logger.error(
@@ -1410,13 +1385,7 @@ export class AppointmentsService {
     }
     if (!due?.length) return;
 
-    // AUDIT_REPORT.md OPS-4 — claim first, notify second. The previous
-    // notify-then-mark order left a window where two backend instances (once
-    // horizontally scaled) could both read the same "due" appointment before
-    // either wrote reminder_sent_at, double-sending the reminder. This
-    // single UPDATE...WHERE reminder_sent_at IS NULL is atomic per row — a
-    // row already claimed by another instance simply won't be in the
-    // returned set, so only genuinely-unclaimed rows get notified.
+    // AUDIT_REPORT.md OPS-4 — claim first, notify second.
     const { data: claimed, error: claimError } = await this.supabase.admin
       .from('appointments')
       .update({ reminder_sent_at: new Date().toISOString() })
@@ -1425,7 +1394,7 @@ export class AppointmentsService {
         due.map((a) => a.id),
       )
       .is('reminder_sent_at', null)
-      .select('id, patient_id, doctor_id, scheduled_time, type');
+      .select('id, patient_id, doctor_id, scheduled_time, type, patient:profiles!appointments_patient_id_fkey(full_name, email)');
 
     if (claimError || !claimed?.length) return;
 
@@ -1438,11 +1407,9 @@ export class AppointmentsService {
       (doctors || []).map((d) => [d.id, d.full_name]),
     );
 
-    // Each create() is independent and already swallows its own errors —
-    // fire them concurrently instead of one insert+push round trip at a time.
     await Promise.all(
-      claimed.map((apt) =>
-        this.notifications
+      claimed.map(async (apt: any) => {
+        await this.notifications
           .create(apt.patient_id, {
             type: 'appointment_reminder',
             title: 'Upcoming appointment',
@@ -1453,8 +1420,28 @@ export class AppointmentsService {
               path: '/patient-dashboard/appointments',
             },
           })
-          .catch(() => {}),
-      ),
+          .catch(() => {});
+
+        if (apt.patient?.email) {
+          this.email
+            .sendTemplateEmail({
+              templateKey: 'appointment_reminder_upcoming',
+              to: apt.patient.email,
+              variables: {
+                patientName: apt.patient.full_name || 'Patient',
+                doctorName: doctorNameById.get(apt.doctor_id) || 'Doctor',
+                when: `${apt.scheduled_time} today`,
+                label: apt.type === AppointmentType.VIDEO ? 'Video Consultation' : 'Clinic Visit',
+                timeRemaining: '30 minutes',
+                dashboardUrl: this.email.getUrl('/patient-dashboard/appointments'),
+              },
+              entityType: 'appointment',
+              entityId: apt.id,
+              event: 'appointment_reminder_upcoming',
+            })
+            .catch(() => {});
+        }
+      }),
     );
 
     this.logger.log(`Sent ${claimed.length} appointment reminder(s).`);
