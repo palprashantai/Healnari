@@ -202,7 +202,8 @@ export class DoctorsService {
       'Friday',
       'Saturday',
     ];
-    const dayOfWeek = new Date(date).getDay();
+    const [y, m, d] = date.split('-').map(Number);
+    const dayOfWeek = new Date(Date.UTC(y, m - 1, d, 12, 0, 0)).getUTCDay();
     const dayName = dayNames[dayOfWeek];
 
     // Check approved leave
@@ -410,12 +411,13 @@ export class DoctorsService {
     doctorTz = 'Asia/Kolkata',
   ): Promise<string[]> {
     const results: string[] = [];
-    const start = new Date(fromDate);
+    const [y, m, d] = fromDate.split('-').map(Number);
+    const startUtc = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
 
     for (let i = 1; i <= 14 && results.length < count; i++) {
-      const d = new Date(start);
-      d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().slice(0, 10);
+      const cur = new Date(startUtc);
+      cur.setUTCDate(cur.getUTCDate() + i);
+      const dateStr = cur.toISOString().slice(0, 10);
 
       const { availableSlots } = await this._getSlotsForDate(
         doctorId,

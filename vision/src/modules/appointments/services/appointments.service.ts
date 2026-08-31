@@ -425,7 +425,7 @@ export class AppointmentsService {
       })
       .eq('id', id)
       .select(
-        '*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)',
+        '*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url, email), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url, email)',
       )
       .maybeSingle();
 
@@ -438,8 +438,12 @@ export class AppointmentsService {
       throw updateError;
     }
 
-    const [withNames] = await this.withNames([updated]);
     const isDoctorActing = user.id === appointment.doctor_id;
+    const recipientEmail = isDoctorActing
+      ? updated.patient?.email
+      : updated.doctor?.email;
+
+    const [withNames] = await this.withNames([updated]);
     const oldWhen = `${appointment.scheduled_date} at ${appointment.scheduled_time}`;
     const newWhen = this.appointmentWhen(withNames);
 
@@ -458,9 +462,6 @@ export class AppointmentsService {
     });
 
     // Send database-driven reschedule email
-    const recipientEmail = isDoctorActing
-      ? withNames.patient?.email
-      : withNames.doctor?.email;
     if (recipientEmail) {
       this.email
         .sendTemplateEmail({
@@ -894,6 +895,60 @@ export class AppointmentsService {
         data: { appointmentId: appointment.id },
       });
       await this.initiateRefundIfPaid(appointment);
+
+      const [{ data: patientProfile }, { data: doctorProfile }] =
+        await Promise.all([
+          this.supabase.admin
+            .from('profiles')
+            .select('email, full_name')
+            .eq('id', appointment.patient_id)
+            .maybeSingle(),
+          this.supabase.admin
+            .from('profiles')
+            .select('email, full_name')
+            .eq('id', appointment.doctor_id)
+            .maybeSingle(),
+        ]);
+
+      if (patientProfile?.email) {
+        this.email
+          .sendTemplateEmail({
+            templateKey: 'appointment_cancelled',
+            to: patientProfile.email,
+            variables: {
+              patientName: patientProfile.full_name || 'Patient',
+              doctorName: appointment.doctorName,
+              when,
+              label,
+              cancellationReason: 'Cancelled by patient.',
+              dashboardUrl: this.email.getUrl('/patient-dashboard/appointments?tab=past'),
+            },
+            entityType: 'appointment',
+            entityId: appointment.id,
+            event: 'appointment_cancelled',
+          })
+          .catch(() => {});
+      }
+
+      if (doctorProfile?.email) {
+        this.email
+          .sendTemplateEmail({
+            templateKey: 'appointment_cancelled',
+            to: doctorProfile.email,
+            variables: {
+              patientName: appointment.patientName,
+              doctorName: doctorProfile.full_name || 'Doctor',
+              when,
+              label,
+              cancellationReason: 'Cancelled by patient.',
+              dashboardUrl: this.email.getUrl('/doctor-dashboard/appointments'),
+            },
+            entityType: 'appointment',
+            entityId: appointment.id,
+            event: 'appointment_cancelled_doctor',
+          })
+          .catch(() => {});
+      }
     } else if (
       appointment.status === AppointmentStatus.IN_PROGRESS &&
       previousStatus !== AppointmentStatus.IN_PROGRESS &&

@@ -124,4 +124,83 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
       expect.objectContaining({ type: 'appointment_requested' }),
     );
   });
+
+  it('rejects patient reschedule when less than 8 hours before scheduled appointment', async () => {
+    const tomorrow = new Date();
+    tomorrow.setHours(tomorrow.getHours() + 2); // only 2 hours from now
+    const appointmentDate = tomorrow.toISOString().slice(0, 10);
+    const appointmentTime = tomorrow.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    const activeAppointment = {
+      id: 'apt-resched-1',
+      patient_id: 'patient-1',
+      doctor_id: 'doctor-1',
+      type: 'video',
+      scheduled_date: appointmentDate,
+      scheduled_time: appointmentTime,
+      status: 'Upcoming',
+    };
+
+    const { supabase } = createSupabaseMock({
+      appointments: [{ data: activeAppointment }],
+      profiles: [{ data: doctorProfile }],
+    });
+    const service = new AppointmentsService(
+      supabase as any,
+      notifications as any,
+      ai as any,
+      email as any,
+    );
+
+    await expect(
+      service.reschedule(patient, 'apt-resched-1', {
+        newDate: '2099-02-01',
+        newTime: '11:00 AM',
+      }),
+    ).rejects.toThrow('Appointments must be rescheduled at least 8 hours in advance.');
+  });
+
+  it('translates reschedule slot collision (23505) to ConflictException', async () => {
+    const activeAppointment = {
+      id: 'apt-resched-2',
+      patient_id: 'patient-1',
+      doctor_id: 'doctor-1',
+      type: 'video',
+      scheduled_date: '2099-01-01',
+      scheduled_time: '10:00 AM',
+      status: 'Upcoming',
+    };
+
+    const { supabase } = createSupabaseMock({
+      appointments: [
+        { data: activeAppointment },
+        {
+          data: null,
+          error: {
+            code: '23505',
+            message: 'duplicate key value violates unique constraint',
+          },
+        },
+      ],
+      profiles: [{ data: doctorProfile }],
+      leave_requests: [{ data: [] }],
+    });
+    const service = new AppointmentsService(
+      supabase as any,
+      notifications as any,
+      ai as any,
+      email as any,
+    );
+
+    await expect(
+      service.reschedule(patient, 'apt-resched-2', {
+        newDate: '2099-02-01',
+        newTime: '11:00 AM',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
 });

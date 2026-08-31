@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
@@ -319,7 +320,10 @@ export class LeadsService {
           .maybeSingle();
         
         if (insertError) {
-          if (insertError.code === '23505') throw new ForbiddenException('An appointment already exists for this time slot.');
+          if (insertError.code === '23505')
+            throw new ConflictException(
+              'An appointment already exists for this time slot.',
+            );
           throw insertError;
         }
         appointment = createdAppt;
@@ -381,7 +385,9 @@ export class LeadsService {
     } catch (error) {
       if (
         error instanceof NotFoundException ||
-        error instanceof ForbiddenException
+        error instanceof ForbiddenException ||
+        error instanceof ConflictException ||
+        error instanceof BadRequestException
       )
         throw error;
       throw new InternalServerErrorException(

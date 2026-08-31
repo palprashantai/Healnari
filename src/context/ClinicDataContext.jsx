@@ -142,10 +142,21 @@ export function ClinicDataProvider({ children }) {
     patientId: a.patient_id,
     doctorId: a.doctor_id,
     type: a.type === 'video' ? 'Video Consult' : 'Clinic Visit',
+    specialty: a.specialty || '',
+    country: a.country || 'US',
+    currency: a.currency || 'INR',
+    fee: a.fee || null,
+    paymentId: a.payment_id || null,
     date: a.scheduled_date,
     time: a.scheduled_time,
-    status: a.status, // Requested, Upcoming, Waiting, In Progress, Done, Cancelled
-    reason: a.reason || 'Follow-up'
+    status: a.status, // Requested, Approved, HOLD, Upcoming, Waiting, In Progress, Done, Cancelled, No Show
+    reason: a.reason || 'Follow-up',
+    rescheduledAt: a.rescheduled_at || null,
+    rescheduledFromDate: a.rescheduled_from_date || null,
+    rescheduledFromTime: a.rescheduled_from_time || null,
+    rescheduleReason: a.reschedule_reason || null,
+    cancellationReason: a.cancellation_reason || null,
+    cancelledAt: a.cancelled_at || null,
   });
 
   const fetchData = useCallback(async () => {
