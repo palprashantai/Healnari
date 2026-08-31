@@ -151,6 +151,16 @@ export class LeadsService {
           throw new Error('Appointment insert failed: ' + error.message);
         }
         appointmentRow = apt;
+
+        await this.notifications.create(body.doctorId, {
+          type: 'appointment_requested',
+          title: 'New Appointment Request',
+          message: `${body.name} requested a new Consultation for ${new Date(scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${scheduledTime}.`,
+          data: {
+            entity_type: 'appointment',
+            entity_id: apt.id,
+          },
+        }).catch(err => console.error('Failed to send appointment notification:', err));
       }
 
       // Also record in consultation_requests for lead telemetry / doctor requests table
