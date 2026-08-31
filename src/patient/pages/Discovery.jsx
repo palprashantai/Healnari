@@ -240,19 +240,33 @@ function DoctorCard({ doc, onBook, onFavorite, favorites }) {
   );
 }
 
+import { useQuery } from '@tanstack/react-query';
+
 /* ─── Main Component ─────────────────────────── */
 function PatientDiscovery() {
   const toast = useToast();
   const { addAppointment, favorites, toggleFavorite, syncPayment } = useClinicData();
-  const [rawDoctors, setRawDoctors] = useState([]);
-  const [dbSpecialties, setDbSpecialties] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [search, setSearch] = useState('');
   const [specialty, setSpecialty] = useState('All');
   const [showConcernPicker, setShowConcernPicker] = useState(false);
   const [payTarget, setPayTarget] = useState(null);
   const [showPayModal, setShowPayModal] = useState(false);
+
+  const { data: rawDoctors = [], isLoading: loading } = useQuery({
+    queryKey: ['doctors', 'search'],
+    queryFn: () => apiFetch('/doctors/search'),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: dbSpecialties = [] } = useQuery({
+    queryKey: ['public', 'specialties'],
+    queryFn: async () => {
+      const res = await apiFetch('/admin/public/specialties');
+      return res || [];
+    },
+    staleTime: 10 * 60 * 1000,
+  });
 
   const handlePayNow = (apt) => {
     setPayTarget(apt);
@@ -264,18 +278,7 @@ function PatientDiscovery() {
     toast('Payment successful!', 'success');
   };
 
-  useEffect(() => {
-    apiFetch('/doctors/search')
-      .then(setRawDoctors)
-      .catch(() => setRawDoctors([]))
-      .finally(() => setLoading(false));
-
-    apiFetch('/admin/public/specialties')
-      .then(res => setDbSpecialties(res || []))
-      .catch(console.error);
-  }, []);
-
-  const doctors = useMemo(() => rawDoctors.map(d => ({
+  const doctors = useMemo(() => (Array.isArray(rawDoctors) ? rawDoctors : []).map(d => ({
     id: d.id,
     name: d.full_name,
     specialty: d.specialty,
@@ -284,7 +287,7 @@ function PatientDiscovery() {
     verified: !!d.kyc_verified,
   })), [rawDoctors]);
 
-  const specialties = useMemo(() => ['All', ...dbSpecialties.map(s => s.name)], [dbSpecialties]);
+  const specialties = useMemo(() => ['All', ...(Array.isArray(dbSpecialties) ? dbSpecialties : []).map(s => s.name)], [dbSpecialties]);
 
 
   const handleFavorite = async (id) => {

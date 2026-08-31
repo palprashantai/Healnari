@@ -20,7 +20,17 @@ import {
 export class DoctorsService {
   private readonly logger = new Logger(DoctorsService.name);
 
+  private readonly searchCache = new Map<
+    string,
+    { timestamp: number; data: any[] }
+  >();
+  private readonly CACHE_TTL_MS = 60_000; // 60 seconds
+
   constructor(private readonly supabase: SupabaseService) {}
+
+  public invalidateSearchCache() {
+    this.searchCache.clear();
+  }
 
   private requireDoctor(user: AuthUser) {
     if (user.profile.role !== ProfileRole.DOCTOR)
@@ -35,6 +45,12 @@ export class DoctorsService {
   }
 
   async search(q?: string, specialty?: string) {
+    const cacheKey = `${(q || '').trim().toLowerCase()}:${(specialty || '').trim().toLowerCase()}`;
+    const cached = this.searchCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL_MS) {
+      return cached.data;
+    }
+
     // Public directory — only ever surface admin-verified doctors, matching
     // what patients are told they're browsing.
     let query = this.supabase.admin
@@ -52,7 +68,9 @@ export class DoctorsService {
 
     query = query.order('full_name', { ascending: true });
     const { data } = await query;
-    return data || [];
+    const result = data || [];
+    this.searchCache.set(cacheKey, { timestamp: Date.now(), data: result });
+    return result;
   }
 
   /** Records that the doctor has submitted KYC for admin review. Does NOT
@@ -402,7 +420,7 @@ export class DoctorsService {
     };
   }
 
-  /** Scan ahead up to 14 days to find the next N dates with open slots */
+  /** Scan ahead up to 14 days to find the next N dates with open slots in a single batch of 4 parallel queries */
   private async _findNextAvailableDates(
     doctorId: string,
     fromDate: string,
@@ -410,21 +428,178 @@ export class DoctorsService {
     minAdvanceMinutes = 30,
     doctorTz = 'Asia/Kolkata',
   ): Promise<string[]> {
-    const results: string[] = [];
     const [y, m, d] = fromDate.split('-').map(Number);
     const startUtc = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+
+    // Compute startDate (+1 day) and endDate (+14 days)
+    const d1 = new Date(startUtc);
+    d1.setUTCDate(d1.getUTCDate() + 1);
+    const startDateStr = d1.toISOString().slice(0, 10);
+
+    const d14 = new Date(startUtc);
+    d14.setUTCDate(d14.getUTCDate() + 14);
+    const endDateStr = d14.toISOString().slice(0, 10);
+
+    // 4 Parallel Batch Queries instead of up to 56 sequential round-trips
+    const [
+      { data: schedules },
+      { data: leaves },
+      { data: exceptions },
+      { data: appointments },
+    ] = await Promise.all([
+      this.supabase.admin
+        .from('doctor_schedules')
+        .select('*')
+        .eq('doctor_id', doctorId),
+      this.supabase.admin
+        .from('leave_requests')
+        .select('from_date, to_date')
+        .eq('doctor_id', doctorId)
+        .eq('status', 'Approved')
+        .lte('from_date', endDateStr)
+        .gte('to_date', startDateStr),
+      this.supabase.admin
+        .from('doctor_exceptions')
+        .select('exception_date, is_available')
+        .eq('doctor_id', doctorId)
+        .gte('exception_date', startDateStr)
+        .lte('exception_date', endDateStr),
+      this.supabase.admin
+        .from('appointments')
+        .select('scheduled_date, scheduled_time')
+        .eq('doctor_id', doctorId)
+        .gte('scheduled_date', startDateStr)
+        .lte('scheduled_date', endDateStr)
+        .is('deleted_at', null)
+        .not('status', 'in', '("Cancelled","No Show")'),
+    ]);
+
+    const scheduleByDow = new Map<number, any>();
+    (schedules || []).forEach((s) => scheduleByDow.set(s.day_of_week, s));
+
+    const exceptionByDate = new Map<string, boolean>();
+    (exceptions || []).forEach((e) =>
+      exceptionByDate.set(e.exception_date, e.is_available),
+    );
+
+    const bookedByDate = new Map<string, Set<string>>();
+    (appointments || []).forEach((a) => {
+      if (!bookedByDate.has(a.scheduled_date)) {
+        bookedByDate.set(a.scheduled_date, new Set());
+      }
+      bookedByDate.get(a.scheduled_date)!.add(a.scheduled_time);
+    });
+
+    const nowInDoctorTz = new Date(
+      new Date().toLocaleString('en-US', { timeZone: doctorTz }),
+    );
+    const todayStr = `${nowInDoctorTz.getFullYear()}-${String(nowInDoctorTz.getMonth() + 1).padStart(2, '0')}-${String(nowInDoctorTz.getDate()).padStart(2, '0')}`;
+
+    const slotTo24h = (slot: string) => {
+      const isPM = slot.toLowerCase().includes('pm');
+      const match = slot.match(/(\d+):(\d+)/);
+      if (!match) return 0;
+      let hour = parseInt(match[1], 10);
+      const min = parseInt(match[2], 10);
+      if (isPM && hour < 12) hour += 12;
+      if (!isPM && hour === 12) hour = 0;
+      return hour * 60 + min;
+    };
+
+    const results: string[] = [];
 
     for (let i = 1; i <= 14 && results.length < count; i++) {
       const cur = new Date(startUtc);
       cur.setUTCDate(cur.getUTCDate() + i);
       const dateStr = cur.toISOString().slice(0, 10);
+      const dayOfWeek = cur.getUTCDay();
 
-      const { availableSlots } = await this._getSlotsForDate(
-        doctorId,
-        dateStr,
-        minAdvanceMinutes,
-        doctorTz,
+      // Check leave
+      const isOnLeave = (leaves || []).some(
+        (l) => l.from_date <= dateStr && l.to_date >= dateStr,
       );
+      if (isOnLeave) continue;
+
+      // Check exception
+      if (exceptionByDate.has(dateStr) && !exceptionByDate.get(dateStr)) {
+        continue;
+      }
+
+      const schedule = scheduleByDow.get(dayOfWeek);
+      if (!schedule && !exceptionByDate.get(dateStr)) {
+        continue;
+      }
+
+      const startStr = schedule?.start_time || '09:00:00';
+      const endStr = schedule?.end_time || '17:00:00';
+      const lunchStartStr = schedule?.lunch_start || null;
+      const lunchEndStr = schedule?.lunch_end || null;
+      const maxBookings = schedule?.max_bookings_per_day || null;
+      const slotDuration = schedule?.slot_duration_minutes ?? 30;
+      const bufferMinutes = schedule?.buffer_minutes ?? 0;
+      const step = slotDuration + bufferMinutes;
+
+      const dynamicSlots: string[] = [];
+      let [sh, sm] = startStr.split(':').map(Number);
+      const [eh, em] = endStr.split(':').map(Number);
+
+      while (true) {
+        const slotEndMin = sh * 60 + sm + slotDuration;
+        const workEndMin = eh * 60 + em;
+        if (slotEndMin > workEndMin) break;
+
+        const ampm = sh >= 12 ? 'PM' : 'AM';
+        const displayHour = sh % 12 === 0 ? 12 : sh % 12;
+        const displayMin = sm.toString().padStart(2, '0');
+        dynamicSlots.push(`${displayHour}:${displayMin} ${ampm}`);
+
+        sm += step;
+        while (sm >= 60) {
+          sm -= 60;
+          sh += 1;
+        }
+      }
+
+      const slotsAfterLunch =
+        lunchStartStr && lunchEndStr
+          ? dynamicSlots.filter((slot) => {
+              const slotMin = slotTo24h(slot);
+              const [lh1, lm1] = lunchStartStr.split(':').map(Number);
+              const [lh2, lm2] = lunchEndStr.split(':').map(Number);
+              const lunchStart = lh1 * 60 + lm1;
+              const lunchEnd = lh2 * 60 + lm2;
+              return slotMin < lunchStart || slotMin >= lunchEnd;
+            })
+          : dynamicSlots;
+
+      const bookedTimes = bookedByDate.get(dateStr) || new Set();
+      const bookedCount = bookedTimes.size;
+
+      if (maxBookings && bookedCount >= maxBookings) continue;
+
+      const isToday = todayStr === dateStr;
+      const availableSlots = slotsAfterLunch.filter((slot) => {
+        if (bookedTimes.has(slot)) return false;
+        if (isToday) {
+          const isPM = slot.toLowerCase().includes('pm');
+          const timeMatches = slot.match(/(\d+):(\d+)/);
+          if (timeMatches) {
+            let hour = parseInt(timeMatches[1], 10);
+            const min = parseInt(timeMatches[2], 10);
+            if (isPM && hour < 12) hour += 12;
+            if (!isPM && hour === 12) hour = 0;
+            const slotTime = new Date(
+              `${dateStr}T${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}:00`,
+            );
+            const cutoff = new Date(
+              nowInDoctorTz.getTime() + minAdvanceMinutes * 60 * 1000,
+            );
+            if (slotTime < cutoff) return false;
+          }
+        }
+        return true;
+      });
+
       if (availableSlots.length > 0) {
         results.push(dateStr);
       }

@@ -144,6 +144,7 @@ export class AppointmentsService {
         '*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)',
       )
       .eq(col, user.id)
+      .is('deleted_at', null)
       .order('scheduled_date', { ascending: false })
       .limit(1000);
 

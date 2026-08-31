@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { formatCurrency, getCurrencySymbol } from '../../lib/currency.js';
 import { useParams, NavLink, Link, useNavigate } from 'react-router-dom';
 import { HealNariLogo } from '../../components/HealNariLogo.jsx';
@@ -69,8 +70,27 @@ function DoctorPublicProfile() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [doctor, setDoctor] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { data: searchList = [], isLoading: queryLoading } = useQuery({
+    queryKey: ['doctors', 'search'],
+    queryFn: () => apiFetch('/doctors/search', { skipAuth: true }),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const doctor = useMemo(() => {
+    const list = Array.isArray(searchList) ? searchList : [];
+    let found = list.find(d => 
+      String(d.id) === String(doctorId) || 
+      (d.full_name || d.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-') === String(doctorId).toLowerCase() ||
+      (d.full_name || d.name || '').toLowerCase().includes(String(doctorId).toLowerCase().replace(/-/g, ' '))
+    );
+    if (!found) {
+      found = FALLBACK_DOCTORS[doctorId] || Object.values(FALLBACK_DOCTORS)[0];
+    }
+    return found;
+  }, [searchList, doctorId]);
+
+  const loading = queryLoading && !doctor;
+
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState(null);
@@ -112,37 +132,6 @@ function DoctorPublicProfile() {
       return `${sel.phonePrefix} ${rest}`;
     });
   };
-
-  useEffect(() => {
-    const fetchDoc = async () => {
-      setLoading(true);
-      try {
-        const searchList = await apiFetch('/doctors/search', { skipAuth: true });
-        const list = Array.isArray(searchList) ? searchList : [];
-        
-        // Match by ID, slug, or name
-        let found = list.find(d => 
-          String(d.id) === String(doctorId) || 
-          (d.full_name || d.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-') === String(doctorId).toLowerCase() ||
-          (d.full_name || d.name || '').toLowerCase().includes(String(doctorId).toLowerCase().replace(/-/g, ' '))
-        );
-
-        if (!found) {
-          // Check fallback dictionary
-          found = FALLBACK_DOCTORS[doctorId] || Object.values(FALLBACK_DOCTORS)[0];
-        }
-
-        setDoctor(found);
-      } catch (err) {
-        const fb = FALLBACK_DOCTORS[doctorId] || Object.values(FALLBACK_DOCTORS)[0];
-        setDoctor(fb);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDoc();
-  }, [doctorId]);
 
   // Dynamic SEO, Canonical, OpenGraph, Twitter and Physician Schema Injection
   useEffect(() => {

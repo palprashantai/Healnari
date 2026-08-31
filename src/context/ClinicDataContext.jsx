@@ -262,8 +262,23 @@ export function ClinicDataProvider({ children }) {
     return () => window.removeEventListener('healnari_appointments_updated', handleUpdate);
   }, [refreshAppointments]);
 
+  const refreshPatientsOnly = useCallback(async () => {
+    if (!user) return;
+    try {
+      if (user.role === 'doctor') {
+        const pts = await apiFetch('/patients');
+        setPatients(pts.map(adaptPatient).filter(Boolean));
+      } else if (user.role === 'patient') {
+        const me = await apiFetch('/patients/me');
+        if (me) setPatients([adaptPatient(me)]);
+      }
+    } catch (err) {
+      console.warn('Failed to refresh patients:', err);
+    }
+  }, [user]);
+
   /* ── Patients ──────────────────────────────────────────────── */
-  const updatePatient = async (updated) => {
+  const updatePatient = useCallback(async (updated) => {
     // Optimistic
     setPatients(prev => prev.map(p => (p.id === updated.id ? updated : p)));
     try {
@@ -282,9 +297,9 @@ export function ClinicDataProvider({ children }) {
       fetchData(); // rollback on error
       throw err;
     }
-  };
+  }, [fetchData]);
 
-  const addPatient = async ({ name, phone = '', email = '', blood = '—' }) => {
+  const addPatient = useCallback(async ({ name, phone = '', email = '', blood = '—' }) => {
     try {
       const res = await apiFetch('/patients', {
         method: 'POST',
@@ -297,11 +312,11 @@ export function ClinicDataProvider({ children }) {
       console.error(err);
       throw err;
     }
-  };
+  }, []);
 
   /** Issues one prescription with all its medicines saved together (shared
    * group_id server-side) — rx: { diagnosis, instructions, medicines: [{ name, dosage, frequency, duration }] } */
-  const addRx = async (patientId, rx) => {
+  const addRx = useCallback(async (patientId, rx) => {
     try {
       const res = await apiFetch('/records/prescriptions', {
         method: 'POST',
@@ -318,15 +333,15 @@ export function ClinicDataProvider({ children }) {
           })),
         }
       });
-      fetchData(); // Reload patients to get the new prescription
+      refreshPatientsOnly(); // Scoped reload instead of 8-endpoint full platform fetch
       return res;
     } catch (err) {
       console.error(err);
       throw err;
     }
-  };
+  }, [refreshPatientsOnly]);
 
-  const uploadLabReport = async (patientId, file, meta = {}) => {
+  const uploadLabReport = useCallback(async (patientId, file, meta = {}) => {
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -340,28 +355,28 @@ export function ClinicDataProvider({ children }) {
       if (meta.requestId) formData.append('requestId', meta.requestId);
 
       const res = await apiFetch('/records/lab-reports/upload', { method: 'POST', body: formData });
-      fetchData();
+      refreshPatientsOnly();
       return res;
     } catch (err) {
       console.error(err);
       throw err;
     }
-  };
+  }, [refreshPatientsOnly]);
 
-  const deleteLabReport = async (id) => {
+  const deleteLabReport = useCallback(async (id) => {
     try {
       const res = await apiFetch(`/records/lab-reports/${id}`, { method: 'DELETE' });
-      fetchData();
+      refreshPatientsOnly();
       return res;
     } catch (err) {
       console.error(err);
       throw err;
     }
-  };
+  }, [refreshPatientsOnly]);
 
-  const getLabReportUrl = (id) => apiFetch(`/records/lab-reports/${id}/url`);
+  const getLabReportUrl = useCallback((id) => apiFetch(`/records/lab-reports/${id}/url`), []);
 
-  const requestLabReport = async (patientId, { requestedTests, dueDate, notes } = {}) => {
+  const requestLabReport = useCallback(async (patientId, { requestedTests, dueDate, notes } = {}) => {
     try {
       const res = await apiFetch('/records/lab-report-requests', {
         method: 'POST',
@@ -372,27 +387,27 @@ export function ClinicDataProvider({ children }) {
       console.error(err);
       throw err;
     }
-  };
+  }, []);
 
-  const listLabReportRequests = (patientId) => {
+  const listLabReportRequests = useCallback((patientId) => {
     const query = patientId ? `?patientId=${encodeURIComponent(patientId)}` : '';
     return apiFetch(`/records/lab-report-requests${query}`);
-  };
+  }, []);
 
-  const cancelLabReportRequest = (id) => apiFetch(`/records/lab-report-requests/${id}/cancel`, { method: 'PUT' });
+  const cancelLabReportRequest = useCallback((id) => apiFetch(`/records/lab-report-requests/${id}/cancel`, { method: 'PUT' }), []);
 
-  const addClinicalNote = async (patientId, note) => {
+  const addClinicalNote = useCallback(async (patientId, note) => {
     try {
       const res = await apiFetch('/records/notes', { method: 'POST', body: { patientId, note } });
-      fetchData(); // Reload patients to get the new note
+      refreshPatientsOnly();
       return res;
     } catch (err) {
       console.error(err);
       throw err;
     }
-  };
+  }, [refreshPatientsOnly]);
 
-  const recordCharge = async (patientId, charge) => {
+  const recordCharge = useCallback(async (patientId, charge) => {
     try {
       const res = await apiFetch('/billing/charges', {
         method: 'POST',
@@ -406,15 +421,15 @@ export function ClinicDataProvider({ children }) {
         }
       });
       setTransactions(prev => [res, ...prev]);
-      fetchData(); // Reload patients so their EMR payment history reflects the new charge
+      refreshPatientsOnly();
       return res;
     } catch (err) {
       console.error(err);
       throw err;
     }
-  };
+  }, [refreshPatientsOnly]);
 
-  const handleRefillAction = async (patientId, medId, action) => {
+  const handleRefillAction = useCallback(async (patientId, medId, action) => {
     // Optimistic update
     setPatients(prev => prev.map(p => {
       if (p.id !== patientId) return p;
@@ -452,13 +467,13 @@ export function ClinicDataProvider({ children }) {
       fetchData(); // Rollback on error
       throw err;
     }
-  };
+  }, [fetchData]);
 
-  const approveRefill = (patientId, medId) => handleRefillAction(patientId, medId, 'approve');
-  const rejectRefill = (patientId, medId) => handleRefillAction(patientId, medId, 'reject');
+  const approveRefill = useCallback((patientId, medId) => handleRefillAction(patientId, medId, 'approve'), [handleRefillAction]);
+  const rejectRefill = useCallback((patientId, medId) => handleRefillAction(patientId, medId, 'reject'), [handleRefillAction]);
 
   /** Patient-initiated: flags their own prescription line as needing a refill. */
-  const requestRefill = async (medId) => {
+  const requestRefill = useCallback(async (medId) => {
     setPatients(prev => prev.map(p => ({
       ...p,
       meds: p.meds.map(m => (m.id === medId ? { ...m, refillRequested: true } : m)),
@@ -469,7 +484,7 @@ export function ClinicDataProvider({ children }) {
       console.error(err);
       fetchData(); // rollback
     }
-  };
+  }, [fetchData]);
 
   const refillRequests = useMemo(() => {
     const out = [];
@@ -482,7 +497,7 @@ export function ClinicDataProvider({ children }) {
   }, [patients]);
 
   /* ── Appointments ──────────────────────────────────────────── */
-  const addAppointment = async (partial) => {
+  const addAppointment = useCallback(async (partial) => {
     try {
       const aptParams = {
         doctorId: partial.doctorId || user.id,
@@ -500,9 +515,9 @@ export function ClinicDataProvider({ children }) {
       console.error(err);
       throw err;
     }
-  };
+  }, [user]);
 
-  const updateAppointmentStatus = async (id, status) => {
+  const updateAppointmentStatus = useCallback(async (id, status) => {
     const prev = appointments;
     setAppointments(cur => cur.map(a => (a.id === id ? { ...a, status } : a)));
     try {
@@ -515,16 +530,13 @@ export function ClinicDataProvider({ children }) {
       setAppointments(prev); // Rollback
       throw err;
     }
-  };
+  }, [appointments]);
 
   /** Single source of truth for "is this appointment paid" — both Billing.jsx
    * and Appointments.jsx read `transactions` from here instead of each
    * fetching their own copy, so a payment made on one page is immediately
-   * reflected on the other. PaymentModal owns the actual Cashfree order
-   * creation/checkout/verification calls itself (it needs fine-grained
-   * control over that multi-step flow); this just merges whatever payment
-   * record it settles on back into the shared list. */
-  const syncPayment = (payment) => {
+   * reflected on the other. */
+  const syncPayment = useCallback((payment) => {
     if (!payment?.id) return;
     setTransactions(prev => {
       const idx = prev.findIndex(t => t.id === payment.id);
@@ -533,9 +545,9 @@ export function ClinicDataProvider({ children }) {
       next[idx] = payment;
       return next;
     });
-  };
+  }, []);
 
-  const cancelAppointment = async (id, reason) => {
+  const cancelAppointment = useCallback(async (id, reason) => {
     try {
       const res = await apiFetch(`/appointments/${id}/status`, { 
         method: 'PUT', 
@@ -548,9 +560,9 @@ export function ClinicDataProvider({ children }) {
       console.error(err);
       throw err;
     }
-  };
+  }, []);
 
-  const rescheduleAppointment = async (id, newDate, newTime, reason) => {
+  const rescheduleAppointment = useCallback(async (id, newDate, newTime, reason) => {
     try {
       const res = await apiFetch(`/appointments/${id}/reschedule`, {
         method: 'POST',
@@ -563,12 +575,12 @@ export function ClinicDataProvider({ children }) {
       console.error(err);
       throw err;
     }
-  };
+  }, []);
 
-  const approveRequest = (id) => updateAppointmentStatus(id, 'Approved');
-  const rejectRequest = (id) => cancelAppointment(id, 'Request rejected by doctor');
+  const approveRequest = useCallback((id) => updateAppointmentStatus(id, 'Approved'), [updateAppointmentStatus]);
+  const rejectRequest = useCallback((id) => cancelAppointment(id, 'Request rejected by doctor'), [cancelAppointment]);
 
-  const callNextForDoctor = async (doctorName) => {
+  const callNextForDoctor = useCallback(async (doctorName) => {
     try {
       const res = await apiFetch('/appointments/call-next', { method: 'POST' });
       setAppointments(res.map(adaptAppointment));
@@ -576,10 +588,10 @@ export function ClinicDataProvider({ children }) {
       console.error(err);
       throw err;
     }
-  };
+  }, []);
 
   /* ── Cycle logs ────────────────────────────────────────────── */
-  const logCycle = async (dateKey, fields) => {
+  const logCycle = useCallback(async (dateKey, fields) => {
     const prev = cycleLogs[dateKey];
     setCycleLogs(p => ({ ...p, [dateKey]: { ...p[dateKey], ...fields } }));
     try {
@@ -593,10 +605,10 @@ export function ClinicDataProvider({ children }) {
       });
       throw err;
     }
-  };
+  }, [cycleLogs]);
 
   /* ── Vitals ────────────────────────────────────────────────── */
-  const logVital = async (key, value, unit) => {
+  const logVital = useCallback(async (key, value, unit) => {
     const prev = vitals[key];
     try {
       const res = await apiFetch(`/patients/me/vitals/${key}`, { method: 'PUT', body: { value, unit } });
@@ -607,10 +619,10 @@ export function ClinicDataProvider({ children }) {
       setVitals(p => ({ ...p, [key]: prev }));
       throw err;
     }
-  };
+  }, [vitals]);
 
   /* ── Lifestyle logs ────────────────────────────────────────── */
-  const logLifestyle = async (dateKey, items) => {
+  const logLifestyle = useCallback(async (dateKey, items) => {
     const prev = lifestyleLogs[dateKey];
     const completedCount = Object.values(items).filter(Boolean).length;
     setLifestyleLogs(p => ({ ...p, [dateKey]: { items, completedCount } }));
@@ -627,10 +639,10 @@ export function ClinicDataProvider({ children }) {
       });
       throw err;
     }
-  };
+  }, [lifestyleLogs]);
 
   /* ── Care circle connections ──────────────────────────────── */
-  const inviteConnection = async (email, relation) => {
+  const inviteConnection = useCallback(async (email, relation) => {
     try {
       const res = await apiFetch('/patients/me/care-connections', { method: 'POST', body: { email, relation } });
       const newConn = adaptCareConnection(res);
@@ -640,9 +652,9 @@ export function ClinicDataProvider({ children }) {
       console.error(err);
       throw err;
     }
-  };
+  }, []);
 
-  const updateConnectionPermissions = async (id, permissions) => {
+  const updateConnectionPermissions = useCallback(async (id, permissions) => {
     setCareConnections(prev => prev.map(c => (c.id === id ? { ...c, permissions } : c)));
     try {
       await apiFetch(`/patients/me/care-connections/${id}/permissions`, { method: 'PUT', body: { permissions } });
@@ -651,9 +663,9 @@ export function ClinicDataProvider({ children }) {
       fetchData(); // rollback
       throw err;
     }
-  };
+  }, [fetchData]);
 
-  const removeConnection = async (id) => {
+  const removeConnection = useCallback(async (id) => {
     const prev = careConnections;
     setCareConnections(cur => cur.filter(c => c.id !== id));
     try {
@@ -663,10 +675,10 @@ export function ClinicDataProvider({ children }) {
       setCareConnections(prev); // rollback
       throw err;
     }
-  };
+  }, [careConnections]);
 
   /* ── Discovery favourites ─────────────────────────────────── */
-  const toggleFavorite = async (doctorId) => {
+  const toggleFavorite = useCallback(async (doctorId) => {
     const isFav = favorites.includes(doctorId);
     setFavorites(prev => (isFav ? prev.filter(id => id !== doctorId) : [...prev, doctorId]));
     try {
@@ -677,14 +689,12 @@ export function ClinicDataProvider({ children }) {
       setFavorites(prev => (isFav ? [...prev, doctorId] : prev.filter(id => id !== doctorId))); // rollback
       throw err;
     }
-  };
+  }, [favorites]);
 
   /* ── Appointment waitlist ─────────────────────────────────── */
-  const joinWaitlist = async (doctorId, preferredWindow) => {
+  const joinWaitlist = useCallback(async (doctorId, preferredWindow) => {
     try {
       await apiFetch('/patients/me/waitlist', { method: 'POST', body: { doctorId, preferredWindow } });
-      // Re-fetch rather than fabricate a position client-side — the backend
-      // computes real queue position across all patients waiting for this doctor.
       const refreshed = await apiFetch('/patients/me/waitlist');
       setWaitlist(refreshed);
       return refreshed[0];
@@ -692,9 +702,9 @@ export function ClinicDataProvider({ children }) {
       console.error(err);
       throw err;
     }
-  };
+  }, []);
 
-  const leaveWaitlist = async (id) => {
+  const leaveWaitlist = useCallback(async (id) => {
     const prev = waitlist;
     setWaitlist(cur => cur.filter(w => w.id !== id));
     try {
@@ -704,21 +714,19 @@ export function ClinicDataProvider({ children }) {
       setWaitlist(prev); // rollback
       throw err;
     }
-  };
+  }, [waitlist]);
 
-  const verifyKyc = async () => {
+  const verifyKyc = useCallback(async () => {
     try {
       await apiFetch('/doctors/me/kyc', { method: 'PUT' });
-      // Submitting only queues the doctor for admin review — it does NOT
-      // grant kyc_verified. See DoctorsService.verifyKyc on the backend.
       setKycSubmitted(true);
     } catch (err) {
       console.error('Failed to submit KYC', err);
       throw err;
     }
-  };
+  }, []);
 
-  const value = {
+  const value = useMemo(() => ({
     patients, updatePatient, addPatient, addRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
     uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, refreshPatients: fetchData,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment, rescheduleAppointment, refreshAppointments,
@@ -732,7 +740,21 @@ export function ClinicDataProvider({ children }) {
     waitlist, joinWaitlist, leaveWaitlist,
     kycVerified, kycSubmitted, verifyKyc,
     loading, loadError, retryLoad: fetchData,
-  };
+  }), [
+    patients, updatePatient, addPatient, addRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
+    uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, fetchData,
+    appointments, addAppointment, updateAppointmentStatus, cancelAppointment, rescheduleAppointment, refreshAppointments,
+    approveRequest, rejectRequest, callNextForDoctor,
+    transactions, syncPayment,
+    cycleLogs, logCycle,
+    vitals, logVital,
+    lifestyleLogs, logLifestyle,
+    careConnections, inviteConnection, updateConnectionPermissions, removeConnection,
+    favorites, toggleFavorite,
+    waitlist, joinWaitlist, leaveWaitlist,
+    kycVerified, kycSubmitted, verifyKyc,
+    loading, loadError
+  ]);
 
   return (
     <ClinicDataContext.Provider value={value}>

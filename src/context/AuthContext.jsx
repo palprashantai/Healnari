@@ -108,7 +108,7 @@ export function AuthProvider({ children }) {
   }, [loadMe, setAndCacheUser]);
 
   /** role: 'patient' | 'doctor'. extra: { fullName, specialty?, registrationNo? } */
-  const signUp = async (email, password, role, extra = {}) => {
+  const signUp = useCallback(async (email, password, role, extra = {}) => {
     try {
       const data = await apiFetch('/auth/register', {
         method: 'POST',
@@ -122,9 +122,9 @@ export function AuthProvider({ children }) {
       console.error('Registration failed', error);
       throw error;
     }
-  };
+  }, [setAndCacheUser]);
 
-  const signIn = async (email, password) => {
+  const signIn = useCallback(async (email, password) => {
     try {
       const data = await apiFetch('/auth/login', {
         method: 'POST',
@@ -138,9 +138,9 @@ export function AuthProvider({ children }) {
       console.error('Login failed', error);
       throw error;
     }
-  };
+  }, [setAndCacheUser]);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await apiFetch('/auth/logout', { method: 'POST' });
     } catch {
@@ -150,10 +150,10 @@ export function AuthProvider({ children }) {
       setAndCacheUser(null);
       queryClient.clear(); // Abort active queries and wipe cache to prevent 401s after token is gone
     }
-  };
+  }, [setAndCacheUser, queryClient]);
 
   /** Optimistic local merge + best-effort persist of the fields `vision` tracks on `profiles`. */
-  const updateUser = async (updates) => {
+  const updateUser = useCallback(async (updates) => {
     // Optimistically update local state so the UI reflects the edit instantly
     const nextUser = { ...user, ...updates };
     setAndCacheUser(nextUser);
@@ -164,8 +164,6 @@ export function AuthProvider({ children }) {
     if (updates.phone !== undefined) patch.phone = updates.phone;
     if (updates.dob !== undefined) patch.dob = updates.dob;
     if (updates.bloodGroup !== undefined) patch.bloodGroup = updates.bloodGroup;
-    // Temporarily disabled until the 'bio' column is added to the production DB
-    // if (updates.bio !== undefined) patch.bio = updates.bio;
     if (updates.specialty !== undefined) patch.specialty = updates.specialty;
     if (updates.qualifications !== undefined) patch.qualifications = updates.qualifications;
     if (updates.experienceYears !== undefined) patch.experienceYears = Number(updates.experienceYears);
@@ -189,27 +187,27 @@ export function AuthProvider({ children }) {
       console.error('Failed to save profile', error);
       throw error;
     }
-  };
+  }, [user, setAndCacheUser]);
 
-  const updatePassword = async (currentPassword, newPassword) => {
+  const updatePassword = useCallback(async (currentPassword, newPassword) => {
     await apiFetch('/auth/password', { method: 'PUT', body: { currentPassword, newPassword } });
-  };
+  }, []);
 
-  const uploadAvatar = async (file) => {
+  const uploadAvatar = useCallback(async (file) => {
     const formData = new FormData();
     formData.append('file', file);
     const data = await apiFetch('/auth/me/avatar', { method: 'POST', body: formData });
     setAndCacheUser(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
     return data;
-  };
+  }, [setAndCacheUser]);
 
-  const removeAvatar = async () => {
+  const removeAvatar = useCallback(async () => {
     const data = await apiFetch('/auth/me/avatar', { method: 'DELETE' });
     setAndCacheUser(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
     return data;
-  };
+  }, [setAndCacheUser]);
 
-  const value = {
+  const value = useMemo(() => ({
     user,
     signUp,
     signIn,
@@ -227,7 +225,25 @@ export function AuthProvider({ children }) {
     isIos,
     isPwaStandalone,
     pushLoading,
-  };
+  }), [
+    user,
+    signUp,
+    signIn,
+    logout,
+    updateUser,
+    updatePassword,
+    uploadAvatar,
+    removeAvatar,
+    loading,
+    subscribePush,
+    unsubscribePush,
+    pushPermissionState,
+    isPushSubscribed,
+    isPushSupported,
+    isIos,
+    isPwaStandalone,
+    pushLoading,
+  ]);
 
   return (
     <AuthContext.Provider value={value}>

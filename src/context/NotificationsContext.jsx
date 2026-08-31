@@ -184,6 +184,30 @@ export function NotificationsProvider({ children }) {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const value = { notifications, unreadCount, markAllRead, markRead, incomingCall, acceptCall, declineCall, callDeclinedId, clearCallDeclined, loadMore, hasMore };
+  const value = useMemo(() => ({
+    notifications,
+    unreadCount,
+    markAllRead,
+    markRead,
+    incomingCall,
+    acceptCall,
+    declineCall,
+    callDeclinedId,
+    clearCallDeclined,
+    loadMore,
+    hasMore,
+  }), [
+    notifications,
+    unreadCount,
+    markAllRead,
+    markRead,
+    incomingCall,
+    acceptCall,
+    declineCall,
+    callDeclinedId,
+    clearCallDeclined,
+    loadMore,
+    hasMore,
+  ]);
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;
 }

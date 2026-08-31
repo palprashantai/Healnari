@@ -20,6 +20,12 @@ import type { AuthUser } from '@/core/decorators/current-user.decorator';
 export class AdminService {
   private readonly logger = new Logger(AdminService.name);
 
+  private readonly statsCache = new Map<
+    string,
+    { timestamp: number; data: any }
+  >();
+  private readonly STATS_CACHE_TTL_MS = 30_000; // 30 seconds
+
   constructor(
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
@@ -27,6 +33,10 @@ export class AdminService {
     private readonly email: EmailService,
     private readonly fxRateService: FXRateService,
   ) {}
+
+  public invalidateStatsCache() {
+    this.statsCache.clear();
+  }
 
   /** AUDIT_REPORT.md SEC-6 — who did what, when, before → after, for the
    * admin actions that actually move money or change access. Best-effort:
@@ -59,6 +69,12 @@ export class AdminService {
   async getDashboardStats(reportingCurrency = 'USD') {
     try {
       const repCurr = (reportingCurrency || 'USD').toUpperCase();
+      const cacheKey = repCurr;
+      const cached = this.statsCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < this.STATS_CACHE_TTL_MS) {
+        return cached.data;
+      }
+
       const [
         { count: totalUsers },
         { count: totalDoctors },
@@ -151,7 +167,7 @@ export class AdminService {
         );
       });
 
-      return {
+      const result = {
         totalUsers: totalUsers || 0,
         activeDoctors: totalDoctors || 0,
         totalPatients: totalPatients || 0,
@@ -165,6 +181,9 @@ export class AdminService {
         openTickets: openTickets || 0,
         pendingRefunds: pendingRefunds || 0,
       };
+
+      this.statsCache.set(cacheKey, { timestamp: Date.now(), data: result });
+      return result;
     } catch (error) {
       console.error(error);
       throw new InternalServerErrorException(
