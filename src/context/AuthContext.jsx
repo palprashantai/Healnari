@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { apiFetch, getTokens, setTokens, clearTokens, API_URL } from '../lib/apiClient.js';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePushSubscription } from '../hooks/usePushSubscription.js';
