@@ -222,6 +222,7 @@ function DoctorAppointments() {
     type: a.reason || a.type,
     time: a.time,
     date: formatDate(a.date),
+    rawDate: a.date,
     mode: a.type === 'Video Consult' ? 'Video' : 'Clinic',
     status: a.status,
     notes: a.reason || '',
@@ -236,6 +237,12 @@ function DoctorAppointments() {
 
   const requests = useMemo(() => appointments.filter(a => a.status === 'Requested' || a.status === 'Approved').map(toRow), [appointments, ageByPatientId]);
 
+  const upcoming = useMemo(() => appointments
+    .filter(a => a.date > todayStr && a.status !== 'Requested' && a.status !== 'Approved' && a.status !== 'Cancelled')
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
+    .map(toRow),
+    [appointments, todayStr, ageByPatientId]);
+
   const past = useMemo(() => appointments
     .filter(a => a.date < todayStr && a.status !== 'Requested' && a.status !== 'Approved')
     .map(toRow),
@@ -245,9 +252,15 @@ function DoctorAppointments() {
   const [cancelTarget, setCancelTarget] = useState(null);
   const [search, setSearch] = useState('');
   const [modeFilter, setModeFilter] = useState('All Modes');
+  const [upcomingDateFilter, setUpcomingDateFilter] = useState('');
 
   const getFilteredData = () => {
-    const source = tab === 'queue' ? queue : tab === 'requests' ? requests : past;
+    let source = tab === 'queue' ? queue : tab === 'requests' ? requests : tab === 'upcoming' ? upcoming : past;
+    
+    if (tab === 'upcoming' && upcomingDateFilter) {
+      source = source.filter(p => p.rawDate === upcomingDateFilter);
+    }
+    
     return source.filter(p => {
       const matchesSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.token?.toLowerCase().includes(search.toLowerCase());
       const matchesMode = modeFilter === 'All Modes' || p.mode === modeFilter;
@@ -472,6 +485,7 @@ function DoctorAppointments() {
         <div className="p-2 border-b border-slate-200 bg-slate-50/50 flex flex-wrap gap-2">
           {[
             ['queue',    'Today\'s Queue', queue.length],
+            ['upcoming', 'Upcoming', upcoming.length],
             ['requests', 'New Requests', requests.length],
             ['past',     'Past Consults', past.length],
           ].map(([key, label, count]) => (
@@ -492,6 +506,12 @@ function DoctorAppointments() {
                 <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient name or token..."
                   className="w-full border border-slate-200 rounded-xl pl-11 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50 focus:bg-white transition-all shadow-inner" />
               </div>
+              {tab === 'upcoming' && (
+                <div className="relative group min-w-[160px]">
+                  <i className="fas fa-calendar absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-aubergine-500 transition-colors z-10"></i>
+                  <input type="date" value={upcomingDateFilter} onChange={e => setUpcomingDateFilter(e.target.value)} className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50 focus:bg-white transition-all shadow-inner" />
+                </div>
+              )}
               <div className="relative group min-w-[160px]">
                 <i className="fas fa-filter absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-aubergine-500 transition-colors z-10"></i>
                 <select value={modeFilter} onChange={e => setModeFilter(e.target.value)} className="w-full border border-slate-200 rounded-xl pl-10 pr-8 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50 focus:bg-white transition-all appearance-none cursor-pointer">
@@ -690,6 +710,57 @@ function DoctorAppointments() {
                       <i className="fas fa-mug-hot text-4xl mb-3 text-slate-300"></i>
                       <p className="text-sm font-bold">No patients in the queue right now.</p>
                       <p className="text-[11px]">Take a quick break or check your new requests.</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+
+              {tab === 'upcoming' && filteredData.map(p => (
+                <tr key={p.id} className={`group bg-white hover:bg-slate-50/80 transition-all duration-300 shadow-sm hover:shadow-md rounded-2xl overflow-hidden ${selectedIds.includes(p.id) ? 'ring-1 ring-aubergine-400 bg-aubergine-50/20' : 'ring-1 ring-slate-100'}`}>
+                  <td className="px-4 py-3 rounded-l-2xl align-middle">
+                    <label className="flex items-center justify-center cursor-pointer">
+                      <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${selectedIds.includes(p.id) ? 'bg-aubergine-600 shadow-sm text-white' : 'bg-slate-100/80 group-hover:bg-slate-200 ring-1 ring-slate-200/80 ring-inset group-hover:ring-aubergine-300'}`}>
+                        {selectedIds.includes(p.id) && <i className="fas fa-check text-[9px]"></i>}
+                      </div>
+                      <input type="checkbox" className="hidden" checked={selectedIds.includes(p.id)} onChange={() => toggleSelect(p.id)} />
+                    </label>
+                  </td>
+                  <td className="px-4 py-3 align-middle">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-500 font-bold text-sm shadow-inner shrink-0">
+                        {p.name.charAt(0)}
+                      </div>
+                      <div>
+                        <div className="font-bold text-slate-800 tracking-tight">{p.name}</div>
+                        <div className="text-[11px] text-slate-500 font-medium">{p.age}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 align-middle">
+                     <span className="text-[11px] font-bold text-slate-600 bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200/50 inline-block">{p.type}</span>
+                  </td>
+                  <td className="px-4 py-3 align-middle font-bold text-aubergine-700 text-[13px] whitespace-nowrap">{p.date} • {p.time}</td>
+                  <td className="px-4 py-3 align-middle">
+                    <span className={`flex items-center gap-1.5 text-[11px] font-bold w-max px-2.5 py-1 rounded-lg ${p.mode === 'Video' ? 'bg-aubergine-50 text-aubergine-700' : 'bg-slate-50 text-slate-600'}`}>
+                      <i className={`fas ${p.mode === 'Video' ? 'fa-video' : 'fa-hospital'} text-[10px]`}></i> {p.mode}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 rounded-r-2xl align-middle text-right">
+                    <div className="flex justify-end gap-2 items-center">
+                      <button onClick={() => setCancelTarget(p)} title="Cancel Appointment" className="text-rose-400 hover:text-rose-600 hover:bg-rose-50 w-8 h-8 rounded-full flex items-center justify-center transition-colors">
+                        <i className="fas fa-times"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {tab === 'upcoming' && filteredData.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-5 py-16 text-center">
+                    <div className="inline-flex flex-col items-center text-slate-400">
+                      <i className="fas fa-calendar-check text-4xl mb-3 text-slate-300"></i>
+                      <p className="text-sm font-bold">No upcoming appointments found.</p>
+                      <p className="text-[11px]">Check back later for new bookings.</p>
                     </div>
                   </td>
                 </tr>

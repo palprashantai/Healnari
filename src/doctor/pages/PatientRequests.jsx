@@ -33,7 +33,7 @@ function DoctorPatientRequests() {
   const approve = async (id) => {
     setApprovingId(id);
     try {
-      await apiFetch(`/leads/consultation-requests/${id}/approve`, { method: 'POST' });
+      await apiFetch(`/leads/consultation-requests/${id}/approve`, { method: 'PUT' });
       toast('Patient account created and welcome email dispatched.', 'success');
       load();
     } catch (err) {
@@ -47,7 +47,7 @@ function DoctorPatientRequests() {
     if (!declineTarget) return;
     setDeclining(true);
     try {
-      await apiFetch(`/leads/consultation-requests/${declineTarget.id}/decline`, { method: 'POST' });
+      await apiFetch(`/leads/consultation-requests/${declineTarget.id}/decline`, { method: 'PUT' });
       toast('Request declined.', 'info');
       setDeclineTarget(null);
       load();

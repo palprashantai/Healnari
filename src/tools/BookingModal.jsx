@@ -60,6 +60,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [isCheckingUser, setIsCheckingUser] = useState(false);
 
   const handleCountrySelect = (code) => {
     setCountryCode(code);
@@ -153,6 +154,7 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
 
   const handleBlurCheckUser = async () => {
     if (!formData.email && formData.mobile.replace(/[^0-9]/g, '').length < 7) return;
+    setIsCheckingUser(true);
     try {
       const data = await apiFetch('/leads/check-existing', {
         method: 'POST',
@@ -162,15 +164,21 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
           mobile: formData.mobile || undefined,
         },
       });
-      if (data && data.name) {
-        setFormData((prev) => ({
-          ...prev,
-          name: prev.name || data.name,
-          age: prev.age || data.age,
-        }));
+      if (data) {
+        setFormData((prev) => {
+          const isMobileEmpty = prev.mobile.replace(/[^0-9]/g, '').length < 7;
+          return {
+            ...prev,
+            name: prev.name || data.name || '',
+            age: prev.age || data.age || '',
+            mobile: (isMobileEmpty && data.mobile) ? data.mobile : prev.mobile,
+          };
+        });
       }
     } catch (e) {
       // Ignore errors if check fails
+    } finally {
+      setIsCheckingUser(false);
     }
   };
 
@@ -405,17 +413,23 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                 <label htmlFor="email" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
                   Email Address (For Prescription &amp; Link) *
                 </label>
-                <input
-                  type="email"
-                  id="email"
-                  required
-                  placeholder="jane@example.com"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  onBlur={handleBlurCheckUser}
-                  className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.email ? 'border-red-400' : 'border-slate-200'
-                    }`}
-                />
+                <div className="relative">
+                  <input
+                    type="email"
+                    id="email"
+                    required
+                    placeholder="jane@example.com"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    onBlur={handleBlurCheckUser}
+                    className={`w-full border rounded-xl p-3 text-base sm:text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none ${errors.email ? 'border-red-400' : 'border-slate-200'} ${isCheckingUser ? 'pr-10' : ''}`}
+                  />
+                  {isCheckingUser && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-500">
+                      <i className="fas fa-spinner fa-spin"></i>
+                    </div>
+                  )}
+                </div>
                 {errors.email && <p className="text-red-500 text-[10px] font-bold mt-1">{errors.email}</p>}
               </div>
 

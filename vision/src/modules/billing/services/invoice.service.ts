@@ -2,6 +2,9 @@ import { Injectable } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import * as path from 'path';
 import * as fs from 'fs';
+const SVGtoPDF = require('svg-to-pdfkit');
+
+import { SupabaseService } from '@/core/supabase/supabase.service';
 
 export interface InvoiceData {
   id: string;
@@ -22,6 +25,8 @@ export interface InvoiceData {
  * instead of caching a rendered copy. */
 @Injectable()
 export class InvoiceService {
+  constructor(private readonly supabase: SupabaseService) {}
+
   async generatePdf(payment: InvoiceData): Promise<Buffer> {
     const doc = new PDFDocument({ size: 'A4', margin: 0 });
     const chunks: Buffer[] = [];
@@ -30,7 +35,17 @@ export class InvoiceService {
       doc.on('end', () => resolve(Buffer.concat(chunks))),
     );
 
-    const invoiceNo = payment.txn_ref || payment.id.slice(0, 8).toUpperCase();
+    let invoiceNoNumber = 1;
+    try {
+      const { count } = await this.supabase.admin
+        .from('payments')
+        .select('*', { count: 'exact', head: true })
+        .lte('created_at', payment.created_at);
+      invoiceNoNumber = count || 1;
+    } catch (e) {
+      console.error('Failed to get invoice count:', e);
+    }
+    const invoiceNo = `HEAL-${String(invoiceNoNumber).padStart(5, '0')}`;
     const date = new Date(payment.created_at);
     const amount = Number(payment.amount).toFixed(2);
     const curr = payment.currency || 'USD';
@@ -46,14 +61,24 @@ export class InvoiceService {
       .stroke(); // Purple Accent
 
     // --- Clinic Details (Left) ---
-    const logoPath = path.join(process.cwd(), '../public/brand/logo-full.jpg');
-    if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, 50, 40, { width: 120 });
+    const logoIconPath = path.join(process.cwd(), '../public/brand/logo-icon.png');
+    let addressTop = 95;
+    if (fs.existsSync(logoIconPath)) {
+      doc.image(logoIconPath, 50, 30, { width: 45 });
+      doc
+        .fillColor('#6B46C1')
+        .fontSize(28)
+        .font('Times-Bold')
+        .text('Heal', 105, 42, { continued: true })
+        .fillColor('#E23E8C')
+        .text('Nari');
+      
       doc
         .fillColor('#475569')
         .fontSize(11)
         .font('Helvetica-Bold')
-        .text('Digital Health Clinic', 50, 78);
+        .text('Digital Health Clinic', 50, 95);
+      addressTop = 110;
     } else {
       doc
         .fillColor('#6B46C1')
@@ -70,8 +95,8 @@ export class InvoiceService {
       .fillColor('#64748b')
       .fontSize(9)
       .font('Helvetica')
-      .text('123 Wellness Avenue, Health City', 50, 95)
-      .text('support@healnari.app  |  +1 (800) 000-0000', 50, 110);
+      .text('123 Wellness Avenue, Health City', 50, addressTop)
+      .text('support@healnari.app  |  +1 (800) 000-0000', 50, addressTop + 15);
 
     // --- Invoice Info (Right) ---
     doc
@@ -84,15 +109,15 @@ export class InvoiceService {
       .fillColor('#64748b')
       .fontSize(10)
       .font('Helvetica')
-      .text('Invoice No:', 350, 78, { width: 90, align: 'right' })
+      .text('Invoice No:', 320, 78, { width: 90, align: 'right' })
       .fillColor('#0f172a')
       .font('Helvetica-Bold')
-      .text(invoiceNo, 450, 78, { width: 95, align: 'right' });
+      .text(invoiceNo, 420, 78, { width: 125, align: 'right' });
 
     doc
       .fillColor('#64748b')
       .font('Helvetica')
-      .text('Date of Issue:', 350, 95, { width: 90, align: 'right' })
+      .text('Date of Issue:', 320, 95, { width: 90, align: 'right' })
       .fillColor('#0f172a')
       .font('Helvetica-Bold')
       .text(
@@ -101,9 +126,9 @@ export class InvoiceService {
           month: 'short',
           year: 'numeric',
         }),
-        450,
+        420,
         95,
-        { width: 95, align: 'right' },
+        { width: 125, align: 'right' },
       );
 
     // --- Status Watermark ---
@@ -170,7 +195,11 @@ export class InvoiceService {
       .fontSize(13)
       .font('Helvetica-Bold')
       .text(
-        payment.doctorName ? `Dr. ${payment.doctorName}` : '—',
+        payment.doctorName
+          ? (payment.doctorName.startsWith('Dr. ')
+              ? payment.doctorName
+              : `Dr. ${payment.doctorName}`)
+          : '—',
         325,
         detailTop + 35,
       );

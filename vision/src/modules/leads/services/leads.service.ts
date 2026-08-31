@@ -63,14 +63,17 @@ export class LeadsService {
       .eq('role', ProfileRole.PATIENT);
 
     const conditions: string[] = [];
-    if (email) conditions.push(`email.eq.${email}`);
-    if (mobile) conditions.push(`phone.eq.${mobile}`);
+    if (email) conditions.push(`email.eq."${email}"`);
+    if (mobile) conditions.push(`phone.eq."${mobile}"`);
 
     if (conditions.length > 0) {
       query = query.or(conditions.join(','));
     }
 
-    const { data } = await query;
+    const { data, error } = await query;
+    if (error) {
+      console.error('findExistingPatient error:', error);
+    }
     return data && data.length > 0 ? data[0] : null;
   }
 
@@ -80,6 +83,8 @@ export class LeadsService {
       return {
         name: existing.full_name,
         age: existing.age,
+        mobile: existing.phone,
+        email: existing.email,
       };
     }
     return null;
@@ -122,6 +127,32 @@ export class LeadsService {
 
       const patientId = patientProfile ? patientProfile.id : null;
 
+      let appointmentRow = null;
+      if (patientId) {
+        const { data: apt, error } = await this.supabase.admin
+          .from('appointments')
+          .insert({
+            patient_id: patientId,
+            doctor_id: body.doctorId,
+            scheduled_date: scheduledDate,
+            scheduled_time: scheduledTime,
+            status: 'Requested',
+            type: 'video', // 'Consultation' violates check constraint ('video', 'clinic')
+            reason: body.concern,
+            country: body.country || 'US',
+            currency: body.currency || 'USD',
+            specialty: doctor?.specialty || 'General',
+          })
+          .select()
+          .maybeSingle();
+        
+        if (error) {
+          console.error('Failed to insert appointment:', error);
+          throw new Error('Appointment insert failed: ' + error.message);
+        }
+        appointmentRow = apt;
+      }
+
       // Also record in consultation_requests for lead telemetry / doctor requests table
       const { data: requestRow } = await this.supabase.admin
         .from('consultation_requests')
@@ -140,7 +171,7 @@ export class LeadsService {
           country: body.country || 'US',
           currency: body.currency || 'USD',
           fee: body.fee || null,
-          status: 'New', // Pending doctor approval
+          status: patientId ? 'Converted' : 'New', // Auto-convert if existing
         })
         .select()
         .maybeSingle();

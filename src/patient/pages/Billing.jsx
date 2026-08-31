@@ -29,7 +29,7 @@ function PatientBilling() {
   // transactions is shared via ClinicDataContext (not fetched locally) so a
   // payment made from the Appointments page shows up here immediately, and
   // vice versa, instead of each page tracking its own stale copy.
-  const { appointments, transactions: rawTransactions, syncPayment } = useClinicData();
+  const { appointments, transactions: rawTransactions, syncPayment, updateAppointmentStatus } = useClinicData();
   const [doctors, setDoctors] = useState([]);
   const [payTarget, setPayTarget] = useState(null);
   const [showPayModal, setShowPayModal] = useState(false);
@@ -105,8 +105,15 @@ function PatientBilling() {
     setShowPayModal(true);
   };
 
-  const handlePaid = (payment) => {
+  const handlePaid = async (payment) => {
     syncPayment(payment);
+    if (payTarget) {
+      try {
+        await updateAppointmentStatus(payTarget, 'Upcoming');
+      } catch (err) {
+        console.error('Failed to update status:', err);
+      }
+    }
     toast(`Payment of ${formatCurrency(payFor.amount, payFor.currency)} successful!`, 'success');
     apiFetch('/communications/broadcasts', {
       method: 'POST',
@@ -142,7 +149,7 @@ function PatientBilling() {
   const downloadReceipt = async (txn) => {
     try {
       const token = getTokens()?.accessToken;
-      const res = await fetch(`${API_URL}/billing/invoice/${txn.id}`, {
+      const res = await fetch(`${API_URL}/billing/transactions/${txn.id}/invoice`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error('Failed to generate invoice');

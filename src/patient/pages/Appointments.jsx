@@ -705,7 +705,7 @@ function PatientAppointments() {
   // transactions/syncPayment come from ClinicDataContext (not fetched
   // locally) — the same cache Billing.jsx reads, so a payment made on
   // either page is immediately reflected on both.
-  const { appointments, addAppointment, cancelAppointment, rescheduleAppointment, transactions, syncPayment, waitlist, joinWaitlist, leaveWaitlist, refreshAppointments } = useClinicData();
+  const { appointments, addAppointment, cancelAppointment, rescheduleAppointment, transactions, syncPayment, waitlist, joinWaitlist, leaveWaitlist, refreshAppointments, updateAppointmentStatus } = useClinicData();
   const [doctors, setDoctors] = useState([]);
   const [tab, setTab] = useState(() => searchParams.get('tab') || 'upcoming');
   const [showJoinWaitlist, setShowJoinWaitlist] = useState(false);
@@ -765,7 +765,7 @@ function PatientAppointments() {
     return {
       id: a.id,
       doctorId: a.doctorId,
-      doctor: `Dr. ${a.doctorName || doc?.full_name || 'Specialist'}`,
+      doctor: (a.doctorName || doc?.full_name || 'Specialist').startsWith('Dr.') ? (a.doctorName || doc?.full_name) : `Dr. ${a.doctorName || doc?.full_name || 'Specialist'}`,
       specialty: doc?.specialty || a.specialty || 'Specialist',
       date: a.date,
       dateLabel: a.date ? new Date(a.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
@@ -916,8 +916,15 @@ function PatientAppointments() {
     setShowPayModal(true);
   };
 
-  const handlePaid = (payment) => {
+  const handlePaid = async (payment) => {
     syncPayment(payment);
+    if (payTarget) {
+      try {
+        await updateAppointmentStatus(payTarget.id, 'Upcoming');
+      } catch (err) {
+        console.error('Failed to update status:', err);
+      }
+    }
     toast('Payment successful! Your appointment is confirmed.', 'success');
     setTab('upcoming');
     refreshAppointments();
@@ -929,6 +936,39 @@ function PatientAppointments() {
       toast(`Removed from waitlist for ${doctorById.get(entry.doctor_id)?.full_name || 'the doctor'}.`, 'info');
     } catch (err) {
       toast(err.message || 'Failed to leave waitlist.', 'error');
+    }
+  };
+
+  const [nowTime, setNowTime] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNowTime(new Date()), 30000); // 30s
+    return () => clearInterval(timer);
+  }, []);
+
+  const isVideoEnabled = (apt) => {
+    if (!apt.date || !apt.time) return true;
+    try {
+      let hours = 0;
+      let minutes = 0;
+      const ampmMatch = apt.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
+      if (ampmMatch) {
+         let h = parseInt(ampmMatch[1], 10);
+         const m = parseInt(ampmMatch[2], 10);
+         const ampm = ampmMatch[3].toUpperCase();
+         if (ampm === 'PM' && h < 12) h += 12;
+         if (ampm === 'AM' && h === 12) h = 0;
+         hours = h;
+         minutes = m;
+      } else {
+         const parts = apt.time.split(':');
+         hours = parseInt(parts[0] || '0', 10);
+         minutes = parseInt(parts[1] || '0', 10);
+      }
+      const aptTime = new Date(apt.date);
+      aptTime.setHours(hours, minutes, 0, 0);
+      return (aptTime.getTime() - nowTime.getTime()) <= 5 * 60 * 1000;
+    } catch (e) {
+      return true;
     }
   };
 
@@ -1044,7 +1084,6 @@ function PatientAppointments() {
                   <td className="px-6 py-4">
                     <div className="font-bold text-slate-800">{apt.doctor}</div>
                     <div className="text-xs text-slate-500">{apt.specialty}</div>
-                    <div className="text-xs text-slate-500 font-mono mt-0.5">{apt.id}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="font-bold text-aubergine-700">{apt.dateLabel}</div>
@@ -1090,24 +1129,24 @@ function PatientAppointments() {
                         >
                           <span className="hidden sm:inline">AI Prep</span>
                         </AIButton>
-                        <div className="relative group">
-                          <button className="crm-btn-secondary h-8 w-8 !p-0">
-                            <i className="fas fa-ellipsis-v"></i>
-                          </button>
-                          <div className="absolute right-0 mt-1 w-36 bg-white border border-slate-200 shadow-xl rounded-xl py-1 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all z-20">
-                            <button onClick={() => setRescheduleTarget(apt)}
-                              className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
-                              Reschedule
-                            </button>
-                            <button onClick={() => setCancelTarget(apt)}
-                              className="w-full text-left px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50">
-                              Cancel 
-                            </button>
-                          </div>
-                        </div>
+                        <button onClick={() => setRescheduleTarget(apt)}
+                          className="crm-btn-secondary h-8 px-3 text-[11px] font-bold text-slate-700 hover:bg-slate-100">
+                          Reschedule
+                        </button>
+                        <button onClick={() => setCancelTarget(apt)}
+                          className="crm-btn-secondary h-8 px-3 text-[11px] font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 border-rose-100">
+                          Cancel 
+                        </button>
                         {apt.type === 'Video Consult' && (
-                          <button onClick={() => setVideoTarget(apt)}
-                            className="crm-btn-primary bg-emerald-500 hover:bg-emerald-600 border-none text-[11px] h-8 px-3">
+                          <button 
+                            onClick={() => isVideoEnabled(apt) && setVideoTarget(apt)}
+                            disabled={!isVideoEnabled(apt)}
+                            title={!isVideoEnabled(apt) ? "Video call link will be active 5 mins before appointment time" : ""}
+                            className={`border-none text-[11px] h-8 px-3 rounded-xl font-bold flex items-center shadow-sm transition-all ${
+                              isVideoEnabled(apt) 
+                                ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20' 
+                                : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+                            }`}>
                             <i className="fas fa-video mr-1"></i> Join Call
                           </button>
                         )}
