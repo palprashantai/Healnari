@@ -1,17 +1,19 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Header from '../components/Header.jsx';
 import Hero from '../components/Hero.jsx';
-import BookingModal from '../../tools/BookingModal.jsx';
-import SuccessModal from '../../tools/SuccessModal.jsx';
-import AuthModal from '../../tools/AuthModal.jsx';
-import ExitIntentModal from '../components/ExitIntentModal.jsx';
-import AppInstallToast from '../components/AppInstallToast.jsx';
-import FloatingCTA from '../../tools/FloatingCTA.jsx';
 import Reveal from '../../components/Reveal.jsx';
 import ScrollProgressBar from '../../components/ScrollProgressBar.jsx';
 import PromoBanner from '../components/PromoBanner.jsx';
 import LazyRender from '../../components/LazyRender.jsx';
+import AppInstallToast from '../components/AppInstallToast.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+
+// Lazy load modals and heavy tools to drastically reduce main thread blocking (INP)
+const BookingModal = lazy(() => import('../../tools/BookingModal.jsx'));
+const SuccessModal = lazy(() => import('../../tools/SuccessModal.jsx'));
+const AuthModal = lazy(() => import('../../tools/AuthModal.jsx'));
+const ExitIntentModal = lazy(() => import('../components/ExitIntentModal.jsx'));
+const FloatingCTA = lazy(() => import('../../tools/FloatingCTA.jsx'));
 
 // Lazy load below-the-fold and modal components
 const Stats = lazy(() => import('../components/Stats.jsx'));
@@ -263,12 +265,14 @@ function LandingPage() {
         </Suspense>
       </main>
 
-      <Suspense fallback={<div className="h-32 bg-slate-50"></div>}>
+      <Suspense fallback={null}>
         <Footer />
       </Suspense>
 
       {/* Floating WhatsApp / Call CTA */}
-      <FloatingCTA onBook={openBooking} />
+      <Suspense fallback={null}>
+        <FloatingCTA onBook={openBooking} />
+      </Suspense>
 
       {/* Floating Bottom Sticky Bar on Mobile (Natural Thumb Zone for Patients) */}
       {showMobileBar && (
@@ -290,27 +294,37 @@ function LandingPage() {
 
       {/* Booking Form Overlay */}
       {isBookingOpen && (
-        <BookingModal 
-          selectedDoc={selectedDoctor} 
-          onClose={closeBooking} 
-          onSuccess={handleBookingSuccess} 
-        />
+        <Suspense fallback={
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+            <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+          </div>
+        }>
+          <BookingModal 
+            selectedDoc={selectedDoctor} 
+            onClose={closeBooking} 
+            onSuccess={handleBookingSuccess} 
+          />
+        </Suspense>
       )}
 
       {/* Success Booking Overlay */}
       {isSuccessOpen && confirmedDetails && (
-        <SuccessModal 
-          details={confirmedDetails} 
-          onClose={resetFlow} 
-        />
+        <Suspense fallback={null}>
+          <SuccessModal 
+            details={confirmedDetails} 
+            onClose={resetFlow} 
+          />
+        </Suspense>
       )}
 
       {/* Authentication Modal */}
       {isAuthOpen && (
-        <AuthModal 
-          onClose={() => setIsAuthOpen(false)} 
-          onSuccess={() => setIsAuthOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <AuthModal 
+            onClose={() => setIsAuthOpen(false)} 
+            onSuccess={() => setIsAuthOpen(false)}
+          />
+        </Suspense>
       )}
 
       {/* Dynamic Symptom Checker / Health Assessment Wizard */}
@@ -325,7 +339,9 @@ function LandingPage() {
 
       {/* Exit Intent Lead Capture */}
       {!isBookingOpen && !isSuccessOpen && !isAuthOpen && !isSymptomOpen && (
-        <ExitIntentModal />
+        <Suspense fallback={null}>
+          <ExitIntentModal />
+        </Suspense>
       )}
 
       {/* Install-the-app prompt */}
