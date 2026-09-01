@@ -51,7 +51,7 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
     const service = new BillingService(
       supabase as any,
       cashfree as any,
-      invoices,
+      invoices as any,
       notifications as any,
       email as any,
       appointments as any,
@@ -90,7 +90,7 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
     const service = new BillingService(
       supabase as any,
       cashfree as any,
-      invoices,
+      invoices as any,
       notifications as any,
       email as any,
       appointments as any,
@@ -117,7 +117,7 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
     const service = new BillingService(
       supabase as any,
       cashfree as any,
-      invoices,
+      invoices as any,
       notifications as any,
       email as any,
       appointments as any,

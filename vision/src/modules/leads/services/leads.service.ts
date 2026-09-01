@@ -158,7 +158,7 @@ export class LeadsService {
           message: `${body.name} requested a new Consultation for ${new Date(scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${scheduledTime}.`,
           data: {
             entity_type: 'appointment',
-            entity_id: apt.id,
+            entity_id: apt?.id,
           },
         }).catch(err => console.error('Failed to send appointment notification:', err));
       }
