@@ -215,6 +215,13 @@ function AdminLayout() {
   const [drawerOpen, setDrawerOpen]       = useState(false);
   const [notifOpen, setNotifOpen]         = useState(false);
   const [hoveredColor, setHoveredColor]   = useState(null);
+  const [dynamicCrumbs, setDynamicCrumbs] = useState({});
+
+  React.useEffect(() => {
+    const handler = (e) => setDynamicCrumbs(prev => ({...prev, [e.detail.id]: e.detail.label}));
+    window.addEventListener('set-breadcrumb', handler);
+    return () => window.removeEventListener('set-breadcrumb', handler);
+  }, []);
 
   const markAllRead = () => {
     markAllReadRemote();
@@ -268,12 +275,22 @@ function AdminLayout() {
             </button>
             {/* Breadcrumb */}
             <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-              {crumbs.map((c, i) => (
-                <React.Fragment key={i}>
-                  {i > 0 && <i className="fas fa-chevron-right text-[9px]"></i>}
-                  <span className={i === crumbs.length - 1 ? 'text-slate-800 font-bold capitalize' : 'capitalize'}>{c.replace('-', ' ')}</span>
-                </React.Fragment>
-              ))}
+              {crumbs.map((c, i) => {
+                const isLast = i === crumbs.length - 1;
+                let label = dynamicCrumbs[c] || c;
+                // If it's a UUID and we don't have a dynamic name yet, truncate it or hide it nicely
+                if (!dynamicCrumbs[c] && /^[0-9a-f]{8}-[0-9a-f]{4}/i.test(c)) {
+                  label = 'Detail';
+                } else if (label === c) {
+                  label = label.replace('-', ' ');
+                }
+                return (
+                  <React.Fragment key={i}>
+                    {i > 0 && <i className="fas fa-chevron-right text-[9px]"></i>}
+                    <span className={isLast ? 'text-slate-800 font-bold capitalize' : 'capitalize truncate max-w-[200px]'} title={dynamicCrumbs[c] || c}>{label}</span>
+                  </React.Fragment>
+                );
+              })}
             </div>
           </div>
 

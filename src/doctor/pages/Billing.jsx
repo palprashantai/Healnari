@@ -158,6 +158,7 @@ function DoctorBilling() {
   const toast = useToast();
   const { user } = useAuth();
   const [transactions, setTransactions] = useState([]);
+  const [payouts, setPayouts] = useState([]);
   const [summary, setSummary] = useState({ thisMonth: 0, thisMonthCount: 0, lastMonth: 0, lastMonthCount: 0, pending: 0, pendingCount: 0, totalYtd: 0, available: 0 });
   const [loading, setLoading] = useState(true);
   const [showPayout, setShowPayout] = useState(false);
@@ -169,8 +170,8 @@ function DoctorBilling() {
   const [dateRange, setDateRange] = useState('30D');
 
   const load = () => {
-    Promise.all([apiFetch('/billing/transactions'), apiFetch('/billing/summary')])
-      .then(([txns, sum]) => { setTransactions(txns || []); setSummary(sum || {}); })
+    Promise.all([apiFetch('/billing/transactions'), apiFetch('/billing/summary'), apiFetch('/billing/payouts')])
+      .then(([txns, sum, pyts]) => { setTransactions(txns || []); setSummary(sum || {}); setPayouts(pyts || []); })
       .catch(err => toast(err.message || 'Failed to load billing data', 'error'))
       .finally(() => setLoading(false));
   };
@@ -442,6 +443,68 @@ function DoctorBilling() {
                       icon="fa-receipt"
                       title="No Transactions Found"
                       description="No billing or payment records found in database."
+                    />
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Level 4: Payout History Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-slate-100 flex flex-wrap gap-4 items-center justify-between bg-slate-50/70">
+          <div>
+            <h3 className="font-black text-slate-900 text-sm">Payout &amp; Withdrawal History</h3>
+            <p className="text-xs text-slate-500">Record of all requested disbursements to your bank or wallet.</p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-[11px] text-slate-400 uppercase tracking-wider font-extrabold bg-slate-50/50">
+                <th className="px-6 py-3.5">Date Requested</th>
+                <th className="px-6 py-3.5">Disbursement Rail</th>
+                <th className="px-6 py-3.5">Destination Details</th>
+                <th className="px-6 py-3.5">Amount</th>
+                <th className="px-6 py-3.5">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {payouts.map(p => {
+                const date = p.requested_at || p.created_at;
+                const formattedDate = date ? new Date(date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+                return (
+                  <tr key={p.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-6 py-4 text-slate-500 text-xs font-medium whitespace-nowrap">{formattedDate}</td>
+                    <td className="px-6 py-4 text-slate-500 text-xs font-medium">{p.method || 'Bank Account'}</td>
+                    <td className="px-6 py-4 text-slate-500 text-xs font-medium truncate max-w-[200px]" title={JSON.stringify(p.destination_details)}>
+                      {p.destination_details?.account_holder || '—'}
+                    </td>
+                    <td className="px-6 py-4 font-black text-slate-900 font-sans">
+                      {formatCurrency(p.amount, p.currency || userCurrency)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border capitalize ${
+                        p.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                        p.status === 'Failed' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                        'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}>
+                        {p.status || 'Processing'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+              {payouts.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="p-4">
+                    <DashboardEmptyState
+                      icon="fa-money-bill-transfer"
+                      title="No Payouts Yet"
+                      description="Your withdrawal history will appear here once you request a payout."
                     />
                   </td>
                 </tr>

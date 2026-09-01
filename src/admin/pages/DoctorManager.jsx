@@ -87,7 +87,7 @@ function AdminDoctorManager() {
     }
     const headers = ['ID', 'Name', 'Email', 'Specialty', 'Status', 'Verified', 'Consultations', 'Commission Rate (%)', 'Platform Earnings', 'Total Gross Revenue'];
     const rows = filteredDoctors.map(d => {
-      const platformEarnings = d.totalPlatformFee ?? (Number(d.totalGross || 0) * 0.10);
+      const platformEarnings = d.totalPlatformFee || 0;
       return [
         d.id,
         `"${d.name || ''}"`,
@@ -184,7 +184,7 @@ function AdminDoctorManager() {
                 <tr><td colSpan="7" className="px-5 py-8 text-center text-slate-400">No doctors found.</td></tr>
               ) : (
                 filteredDoctors.map(d => {
-                  const platformEarnings = d.totalPlatformFee ?? (Number(d.totalGross || 0) * 0.10);
+                  const platformEarnings = d.totalPlatformFee || 0;
                   return (
                     <tr key={d.id} className={`hover:bg-slate-50/50 transition-colors group ${selectedIds.includes(d.id) ? 'bg-aubergine-50/40' : ''}`}>
                       <td className="px-5 py-4 w-10 text-center">

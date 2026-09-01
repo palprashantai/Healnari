@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -21,6 +21,7 @@ function EmptyChart({ label }) {
 
 function AdminPatientDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const toast = useToast();
 
   const [profile, setProfile] = useState(null);
@@ -58,6 +59,12 @@ function AdminPatientDetails() {
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (profile?.full_name) {
+      window.dispatchEvent(new CustomEvent('set-breadcrumb', { detail: { id, label: profile.full_name } }));
+    }
+  }, [id, profile?.full_name]);
 
   const TEMPLATES = [
     { id: 't1', type: 'email', label: 'System Maintenance Notice', text: 'Dear [Name], the platform will undergo maintenance on [Date].' },
@@ -259,11 +266,11 @@ function AdminPatientDetails() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
             <div className="px-6 py-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
               <h2 className="font-bold text-slate-800">Recent Consultations</h2>
-              <button onClick={() => setActiveModal('consultations')} className="text-xs font-bold text-aubergine-600 hover:underline">View All</button>
+              <Link to={`/admin-dashboard/users/${id}/consultations`} className="text-xs font-bold text-aubergine-600 hover:underline">View All</Link>
             </div>
             <div className="divide-y divide-slate-50 flex-1">
               {consultations.slice(0, 5).map(c => (
-                <div key={c.id} className="p-6 hover:bg-slate-50 transition-colors flex justify-between items-center">
+                <div key={c.id} onClick={() => navigate(`/admin-dashboard/users/${id}/consultations/${c.id}`)} className="p-6 hover:bg-slate-50 transition-colors flex justify-between items-center cursor-pointer">
                   <div className="flex items-start gap-4">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white shadow-sm ${c.type === 'Video' ? 'bg-aubergine-600' : 'bg-magenta-600'}`}>
                       <i className={`fas ${c.type === 'Video' ? 'fa-video' : 'fa-hospital'}`}></i>

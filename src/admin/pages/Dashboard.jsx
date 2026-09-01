@@ -379,8 +379,8 @@ function AdminDashboard() {
 
         <KPITrendCard
           title="Platform Take-Rate Margin"
-          value={formatCurrency(totalRevenueNumber * 0.1, 'INR')}
-          period="10% Effective Net Commission"
+          value={formatCurrency(stats?.platformRevenue || 0, stats?.platformRevenueCurrency || 'INR')}
+          period="Effective Net Commission"
           icon="fa-sack-dollar"
           colorScheme="magenta"
           drillDownLabel="View Settlements"

@@ -873,6 +873,77 @@ export class AdminService {
     }
   }
 
+  async getDoctorLedger(id: string) {
+    try {
+      const { data: payments } = await this.supabase.admin
+        .from('payments')
+        .select(
+          'id, patient_id, amount, status, service, created_at, commission_rate, platform_fee_amount, provider_payout_amount',
+        )
+        .eq('doctor_id', id)
+        .order('created_at', { ascending: false });
+
+      const pays = payments || [];
+      const patientIds = [
+        ...new Set(pays.map((p) => p.patient_id).filter(Boolean)),
+      ];
+
+      const { data: patientProfiles } = patientIds.length
+        ? await this.supabase.admin
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', patientIds)
+        : { data: [] as { id: string; full_name: string }[] };
+
+      const nameByPatientId = new Map(
+        (patientProfiles || []).map((p) => [p.id, p.full_name]),
+      );
+
+      return pays.map((p) => {
+        const breakdown = CommissionCalculator.fromStoredPayment(p);
+        return {
+          id: p.id,
+          patient: nameByPatientId.get(p.patient_id) || 'Patient',
+          date: new Date(p.created_at).toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+          }),
+          rawDate: p.created_at,
+          service: p.service,
+          amount: Number(p.amount),
+          status: p.status,
+          commissionRate: breakdown.commissionRate,
+          platformFee: breakdown.commissionAmount,
+          doctorNet: breakdown.providerPayoutAmount,
+        };
+      });
+    } catch (error) {
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getDoctorPayouts(id: string) {
+    try {
+      const { data: payouts } = await this.supabase.admin
+        .from('payouts')
+        .select('*')
+        .eq('doctor_id', id)
+        .order('requested_at', { ascending: false });
+
+      return (payouts || []).map((p) => ({
+        ...p,
+        amount: Number(p.amount),
+      }));
+    } catch (error) {
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   // ─── Global Platform Commission (Single Source of Truth) ─────────────
   async getGlobalCommission() {
     try {

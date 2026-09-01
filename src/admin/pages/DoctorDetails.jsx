@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -28,6 +28,7 @@ function EmptyChart({ label }) {
 
 function AdminDoctorDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const toast = useToast();
 
   const [doctor, setDoctor] = useState(null);
@@ -35,6 +36,7 @@ function AdminDoctorDetails() {
   const [revenueTrend, setRevenueTrend] = useState([]);
   const [statusBreakdown, setStatusBreakdown] = useState([]);
   const [ledger, setLedger] = useState([]);
+  const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -57,11 +59,18 @@ function AdminDoctorDetails() {
         setRevenueTrend(d.revenueTrend || []);
         setStatusBreakdown((d.appointmentStatusBreakdown || []).map(s => ({ ...s, name: s.status })));
         setLedger(d.ledger || []);
+        setPayouts(d.payouts || []);
         setCommission(10);
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (doctor?.full_name) {
+      window.dispatchEvent(new CustomEvent('set-breadcrumb', { detail: { id, label: `Dr. ${doctor.full_name}` } }));
+    }
+  }, [id, doctor?.full_name]);
 
   const TEMPLATES = [
     { id: 't1', type: 'email', label: 'System Maintenance Notice', text: 'Dear Dr. [Name], the platform will undergo maintenance on [Date].' },
@@ -149,8 +158,8 @@ function AdminDoctorDetails() {
   }
 
   const totalGross = Number(kpis?.totalGross || 0);
-  const adminCommission = Number(kpis?.totalPlatformFee ?? (totalGross * 0.10));
-  const doctorNet = Number(kpis?.totalDoctorNet ?? (totalGross - adminCommission));
+  const adminCommission = Number(kpis?.totalPlatformFee || 0);
+  const doctorNet = Number(kpis?.totalDoctorNet || (totalGross - adminCommission));
   const verified = !!doctor.kyc_verified;
   const joined = doctor.created_at ? new Date(doctor.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
@@ -325,9 +334,14 @@ function AdminDoctorDetails() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
             <div className="px-6 py-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
               <h2 className="font-bold text-slate-800">Commission Ledger</h2>
-              <button onClick={() => handleAction('Export Ledger')} className="text-xs font-bold text-aubergine-600 hover:underline">
-                <i className="fas fa-download mr-1"></i> Export CSV
-              </button>
+              <div className="flex items-center gap-3">
+                <button onClick={() => handleAction('Export Ledger')} className="text-xs font-bold text-aubergine-600 hover:underline">
+                  <i className="fas fa-download mr-1"></i> Export CSV
+                </button>
+                <Link to={`/admin-dashboard/doctors/${id}/ledger`} className="text-xs font-bold text-slate-700 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">
+                  View All <i className="fas fa-chevron-right ml-1 text-[10px]"></i>
+                </Link>
+              </div>
             </div>
             <div className="overflow-x-auto flex-1">
               {ledger.length === 0 ? (
@@ -345,11 +359,11 @@ function AdminDoctorDetails() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {ledger.map(b => {
-                      const cut = b.platformFee ?? (b.amount * (commission / 100));
-                      const docAmount = b.doctorNet ?? (b.amount - cut);
+                    {ledger.slice(0, 5).map(b => {
+                      const cut = b.platformFee || 0;
+                      const docAmount = b.doctorNet || b.amount;
                       return (
-                        <tr key={b.id} className="hover:bg-slate-50/50 transition-colors">
+                        <tr key={b.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => navigate(`/admin-dashboard/doctors/${id}/ledger/${b.id}`)}>
                           <td className="px-5 py-4">
                             <p className="font-bold text-slate-700">{b.patient}</p>
                             <p className="text-[10px] text-slate-500 mt-0.5">{b.date}</p>
@@ -371,6 +385,61 @@ function AdminDoctorDetails() {
               )}
             </div>
           </div>
+
+          {/* Payouts & Withdrawal History */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col mt-6">
+            <div className="px-6 py-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+              <h2 className="font-bold text-slate-800">Payout &amp; Withdrawal History</h2>
+              <Link to={`/admin-dashboard/doctors/${id}/payouts`} className="text-xs font-bold text-slate-700 bg-white border border-slate-200 px-3 py-1.5 rounded-lg hover:bg-slate-50 transition-colors shadow-sm">
+                View All <i className="fas fa-chevron-right ml-1 text-[10px]"></i>
+              </Link>
+            </div>
+            <div className="overflow-x-auto flex-1">
+              {payouts.length === 0 ? (
+                <div className="p-10 text-center text-slate-400 font-bold">No payouts requested yet.</div>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-[10px] text-slate-400 uppercase tracking-wider">
+                      <th className="px-5 py-3 font-semibold">Date Requested</th>
+                      <th className="px-5 py-3 font-semibold">Method</th>
+                      <th className="px-5 py-3 font-semibold">Destination Details</th>
+                      <th className="px-5 py-3 font-semibold text-right">Amount</th>
+                      <th className="px-5 py-3 font-semibold text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {payouts.slice(0, 5).map(p => {
+                      const date = p.requested_at || p.created_at;
+                      const formattedDate = date ? new Date(date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+                      return (
+                        <tr key={p.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => navigate(`/admin-dashboard/doctors/${id}/payouts/${p.id}`)}>
+                          <td className="px-5 py-4 text-slate-500 font-medium whitespace-nowrap">{formattedDate}</td>
+                          <td className="px-5 py-4 text-slate-600 font-medium">{p.method || 'Bank Account'}</td>
+                          <td className="px-5 py-4 text-slate-600 font-medium truncate max-w-[200px]" title={JSON.stringify(p.destination_details)}>
+                            {p.destination_details?.account_holder || '—'}
+                          </td>
+                          <td className="px-5 py-4 text-right font-black text-slate-900">
+                            {p.amount ? `₹${p.amount.toLocaleString()}` : '—'}
+                          </td>
+                          <td className="px-5 py-4 text-right">
+                            <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border capitalize ${
+                              p.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                              p.status === 'Failed' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                              'bg-amber-50 text-amber-700 border-amber-200'
+                            }`}>
+                              {p.status || 'Processing'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+
         </div>
 
       </div>

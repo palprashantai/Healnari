@@ -301,6 +301,28 @@ export class AdminController {
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
+  @Get('clinics/:id/ledger')
+  @ApiOperation({ summary: 'Single doctor/clinic complete payment ledger' })
+  async getDoctorLedger(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getDoctorLedger(id);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Get('clinics/:id/payouts')
+  @ApiOperation({ summary: 'Single doctor/clinic complete payout history' })
+  async getDoctorPayouts(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getDoctorPayouts(id);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
   // ─── Global Platform Commission (Single Source of Truth) ─────────
   @Get('commission')
   @ApiOperation({ summary: 'Get current global platform commission and audit history' })

@@ -51,6 +51,9 @@ const NotFound = lazy(() => import('./NotFound.jsx'));
 const AdminDashboard = lazy(() => import('./admin/pages/Dashboard.jsx'));
 const AdminAnalytics = lazy(() => import('./admin/pages/Analytics.jsx'));
 const AdminUsers = lazy(() => import('./admin/pages/Users.jsx'));
+const AdminPatientDetails = lazy(() => import('./admin/pages/PatientDetails.jsx'));
+const AdminPatientConsultations = lazy(() => import('./admin/pages/AdminPatientConsultations.jsx'));
+const AdminPatientConsultationDetail = lazy(() => import('./admin/pages/AdminPatientConsultationDetail.jsx'));
 const AdminVerification = lazy(() => import('./admin/pages/Verification.jsx'));
 const AdminRevenue = lazy(() => import('./admin/pages/Revenue.jsx'));
 const AdminCMS = lazy(() => import('./admin/pages/CMS.jsx'));
@@ -59,12 +62,15 @@ const AdminCommunications = lazy(() => import('./admin/pages/Communications.jsx'
 const AdminLandingManager = lazy(() => import('./admin/pages/LandingManager.jsx'));
 const AdminDoctorManager = lazy(() => import('./admin/pages/DoctorManager.jsx'));
 const AdminDoctorDetails = lazy(() => import('./admin/pages/DoctorDetails.jsx'));
-const AdminPatientDetails = lazy(() => import('./admin/pages/PatientDetails.jsx'));
 const AdminTemplates = lazy(() => import('./admin/pages/TemplatesManager.jsx'));
 const AdminLeads = lazy(() => import('./admin/pages/Leads.jsx'));
 const AdminCronManager = lazy(() => import('./admin/pages/CronManager.jsx'));
 const AdminAuditLogs = lazy(() => import('./admin/pages/AuditLogs.jsx'));
 const AdminSpecialties = lazy(() => import('./admin/pages/Specialties.jsx'));
+const AdminDoctorLedger = lazy(() => import('./admin/pages/AdminDoctorLedger.jsx'));
+const AdminDoctorPayouts = lazy(() => import('./admin/pages/AdminDoctorPayouts.jsx'));
+const AdminLedgerDetail = lazy(() => import('./admin/pages/AdminLedgerDetail.jsx'));
+const AdminPayoutDetail = lazy(() => import('./admin/pages/AdminPayoutDetail.jsx'));
 
 
 function dashboardPathFor(role) {
@@ -213,8 +219,14 @@ function App() {
                 <Route path="landing" element={<AdminLandingManager />} />
                 <Route path="doctors" element={<AdminDoctorManager />} />
                 <Route path="doctors/:id" element={<AdminDoctorDetails />} />
+                <Route path="doctors/:id/ledger" element={<AdminDoctorLedger />} />
+                <Route path="doctors/:id/ledger/:ledgerId" element={<AdminLedgerDetail />} />
+                <Route path="doctors/:id/payouts" element={<AdminDoctorPayouts />} />
+                <Route path="doctors/:id/payouts/:payoutId" element={<AdminPayoutDetail />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="users/:id" element={<AdminPatientDetails />} />
+                <Route path="users/:id/consultations" element={<AdminPatientConsultations />} />
+                <Route path="users/:id/consultations/:consultationId" element={<AdminPatientConsultationDetail />} />
                 <Route path="verification" element={<AdminVerification />} />
                 <Route path="revenue" element={<AdminRevenue />} />
                 <Route path="cms" element={<AdminCMS />} />
