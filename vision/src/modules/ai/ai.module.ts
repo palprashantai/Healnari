@@ -8,6 +8,9 @@ import { AiPromptService } from '@/modules/ai/services/ai-prompt.service';
 import { AiAnalyticsService } from '@/modules/ai/services/ai-analytics.service';
 import { AiContextBuilderService } from '@/modules/ai/services/ai-context-builder.service';
 import { AiOrchestrator } from '@/modules/ai/services/ai-orchestrator.service';
+import { AiPricingService } from '@/modules/ai/services/ai-pricing.service';
+import { AiCreditLedgerService } from '@/modules/ai/services/ai-credit-ledger.service';
+import { AiProfitabilityService } from '@/modules/ai/services/ai-profitability.service';
 import { GeminiProvider } from '@/modules/ai/providers/gemini.provider';
 import { OpenAiProvider } from '@/modules/ai/providers/openai.provider';
 import { AiProviderGateway } from '@/modules/ai/providers/ai-provider.gateway';
@@ -23,6 +26,7 @@ import { AppointmentsModule } from '@/modules/appointments/appointments.module';
 import { RecordsModule } from '@/modules/records/records.module';
 import { DoctorsModule } from '@/modules/doctors/doctors.module';
 import { CashfreeModule } from '@/core/cashfree/cashfree.module';
+import { FXModule } from '@/core/fx/fx.module';
 
 @Module({
   imports: [
@@ -32,6 +36,7 @@ import { CashfreeModule } from '@/core/cashfree/cashfree.module';
     RecordsModule,
     DoctorsModule,
     CashfreeModule,
+    FXModule,
   ],
   controllers: [AiController, AiSubscriptionController, AiAdminController],
   providers: [
@@ -41,6 +46,9 @@ import { CashfreeModule } from '@/core/cashfree/cashfree.module';
     AiToolRegistry,
     AiContextBuilderService,
     AiOrchestrator,
+    AiPricingService,
+    AiCreditLedgerService,
+    AiProfitabilityService,
     AiService,
     AiFeatureFlagService,
     AiUsageService,
@@ -53,6 +61,9 @@ import { CashfreeModule } from '@/core/cashfree/cashfree.module';
   ],
   exports: [
     AiOrchestrator,
+    AiPricingService,
+    AiCreditLedgerService,
+    AiProfitabilityService,
     AiService,
     AiFeatureFlagService,
     AiUsageService,

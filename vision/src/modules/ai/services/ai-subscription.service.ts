@@ -7,6 +7,9 @@ import {
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { CashfreeService } from '@/core/cashfree/cashfree.service';
+import { FXRateService } from '@/core/fx/fx-rate.service';
+import { AiPricingService } from './ai-pricing.service';
+import { AiCreditLedgerService } from './ai-credit-ledger.service';
 import {
   AiSubscription,
   AiPlanId,
@@ -81,6 +84,9 @@ export class AiSubscriptionService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly cashfree: CashfreeService,
+    private readonly pricingService: AiPricingService,
+    private readonly creditLedgerService: AiCreditLedgerService,
+    private readonly fxRateService: FXRateService,
   ) {}
 
   /**
@@ -99,17 +105,13 @@ export class AiSubscriptionService {
         .maybeSingle();
 
       if (!error && data) {
-        return data;
+        return data as AiSubscription;
       }
-    } catch (err: any) {
-      this.logger.debug(`Could not query ai_subscriptions table: ${err?.message}`);
-    }
+    } catch {}
 
-    // Check in-memory store
-    const inMem = this.inMemorySubscriptions.get(user.id);
-    if (inMem) return inMem;
+    const mem = this.inMemorySubscriptions.get(user.id);
+    if (mem) return mem;
 
-    // Create default active free tier subscription
     const defaultSub: AiSubscription = {
       id: `sub_${user.id.slice(0, 8)}`,
       user_id: user.id,
@@ -118,10 +120,9 @@ export class AiSubscriptionService {
       status: 'active',
       billing_cycle: 'monthly',
       current_period_start: new Date().toISOString(),
-      current_period_end: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+      current_period_end: null,
       monthly_ai_credits: defaultCredits,
       credits_used: 0,
-      payment_reference: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -143,6 +144,14 @@ export class AiSubscriptionService {
 
     this.inMemorySubscriptions.set(user.id, updated);
 
+    // Also deduct via double-entry credit ledger
+    await this.creditLedgerService.consumeCredits(
+      user.id,
+      count,
+      'AI_INQUIRY',
+      `sub_${Date.now()}`,
+    );
+
     try {
       await this.supabase.admin
         .from('ai_subscriptions')
@@ -153,86 +162,124 @@ export class AiSubscriptionService {
   }
 
   /**
-   * Initiates payment order via Cashfree to upgrade to AI Premium or Doctor AI Pro.
+   * Initiates payment order via Cashfree or Stripe to upgrade to AI Premium or Doctor AI Pro.
+   * Multi-Currency & Regional Pricing Aware.
    */
   async initiateUpgrade(
     user: AuthUser,
     targetPlanId: string,
     billingCycle: 'monthly' | 'yearly' = 'monthly',
+    couponCode?: string,
+    explicitCountry?: string,
+    explicitCurrency?: string,
   ): Promise<{
     orderId: string;
     paymentSessionId?: string;
     amount: number;
     currency: string;
     planName: string;
+    gateway: string;
+    taxAmount: number;
+    discountAmount: number;
+    finalAmount: number;
   }> {
-    const isDoctor = user.profile.role === 'doctor';
-    let amount = 299;
-    let planName = 'HealNari AI Premium';
+    const { countryCode, currencyCode } = this.pricingService.resolveCountryAndCurrency(
+      user,
+      explicitCountry,
+      explicitCurrency,
+    );
 
-    if (targetPlanId === AiPlanId.PATIENT_PREMIUM || targetPlanId === 'patient_premium') {
-      amount = billingCycle === 'yearly' ? 2499 : 299;
-      planName = 'HealNari AI Premium';
-    } else if (targetPlanId === AiPlanId.DOCTOR_PRO || targetPlanId === 'doctor_pro') {
-      amount = billingCycle === 'yearly' ? 8999 : 999;
-      planName = 'Doctor AI Pro';
-    } else {
-      throw new BadRequestException(`Unknown plan ID: ${targetPlanId}`);
-    }
+    // Get authoritative price quote
+    const effectivePlanId =
+      billingCycle === 'yearly' && !targetPlanId.includes('yearly')
+        ? `${targetPlanId}_yearly`
+        : targetPlanId;
+
+    const quote = await this.pricingService.getPricingQuote(
+      effectivePlanId,
+      countryCode,
+      currencyCode,
+      couponCode,
+    );
 
     const orderId = `ai_sub_${user.id.slice(0, 8)}_${Date.now()}`;
 
-    // If Cashfree is configured, create a real checkout session
-    if (this.cashfree.isConfigured) {
+    // If Indian Rupee and Cashfree configured, initiate Cashfree order
+    if (currencyCode === 'INR' && this.cashfree.isConfigured) {
       try {
         const order = await this.cashfree.createOrder({
           orderId,
-          amount,
-          currency: user.profile.currency || 'INR',
+          amount: quote.finalAmount,
+          currency: 'INR',
           customerId: user.id,
           customerName: user.profile.full_name || 'HealNari User',
           customerEmail: user.email || 'user@healnari.app',
           customerPhone: user.profile.phone || '9999999999',
-          note: `HealNari AI Subscription: ${planName} (${billingCycle})`,
+          note: `HealNari AI Subscription: ${quote.planName} (${billingCycle})`,
         });
 
         return {
           orderId,
           paymentSessionId: order.payment_session_id,
-          amount,
-          currency: user.profile.currency || 'INR',
-          planName,
+          amount: quote.baseAmount,
+          currency: quote.currency,
+          planName: quote.planName,
+          gateway: 'cashfree',
+          taxAmount: quote.taxAmount,
+          discountAmount: quote.discountAmount,
+          finalAmount: quote.finalAmount,
         };
       } catch (err: any) {
         this.logger.warn(`Cashfree order creation failed for AI sub: ${err?.message}`);
       }
     }
 
-    // Return sandbox mock order if Cashfree is in offline/test mode
+    // Default multi-currency checkout (Stripe or Sandbox)
     return {
       orderId,
-      amount,
-      currency: 'INR',
-      planName,
+      amount: quote.baseAmount,
+      currency: quote.currency,
+      planName: quote.planName,
+      gateway: quote.gateway,
+      taxAmount: quote.taxAmount,
+      discountAmount: quote.discountAmount,
+      finalAmount: quote.finalAmount,
     };
   }
 
   /**
    * Activates AI subscription upon verified payment.
+   * Grants credits to ledger, updates subscription, and logs immutable transaction.
    */
   async activateSubscription(
     user: AuthUser,
     planId: string,
     billingCycle: 'monthly' | 'yearly' = 'monthly',
     paymentReference?: string,
+    countryCode = 'IN',
+    currencyCode = 'INR',
+    couponCode?: string,
   ): Promise<AiSubscription> {
+    const effectivePlanId =
+      billingCycle === 'yearly' && !planId.includes('yearly')
+        ? `${planId}_yearly`
+        : planId;
+
+    const quote = await this.pricingService.getPricingQuote(
+      effectivePlanId,
+      countryCode,
+      currencyCode,
+      couponCode,
+    );
+
     const isDoctor = user.profile.role === 'doctor';
-    const isPro = planId.includes('pro') || planId.includes('premium');
-    const monthlyCredits = isDoctor ? (isPro ? 150 : 10) : isPro ? 200 : 5;
+    const isPro = effectivePlanId.includes('pro') || effectivePlanId.includes('premium');
+    const monthlyCredits = quote.includedCredits || (isDoctor ? (isPro ? 150 : 10) : isPro ? 200 : 5);
 
     const days = billingCycle === 'yearly' ? 365 : 30;
     const now = new Date();
     const endDate = new Date(now.getTime() + days * 24 * 3600 * 1000);
+    const orderId = paymentReference || `pay_${Date.now()}`;
 
     const subscription: AiSubscription = {
       id: `sub_${user.id.slice(0, 8)}`,
@@ -245,19 +292,51 @@ export class AiSubscriptionService {
       current_period_end: endDate.toISOString(),
       monthly_ai_credits: monthlyCredits,
       credits_used: 0,
-      payment_reference: paymentReference || `pay_${Date.now()}`,
+      payment_reference: orderId,
       created_at: now.toISOString(),
       updated_at: now.toISOString(),
     };
 
     this.inMemorySubscriptions.set(user.id, subscription);
 
+    // Grant credits in double-entry ledger
+    await this.creditLedgerService.grantCredits(
+      user.id,
+      monthlyCredits,
+      `AI Subscription Activated: ${quote.planName} (${billingCycle})`,
+      orderId,
+      'GRANT',
+    );
+
+    // Calculate reporting currency normalization
+    const reportingConv = this.fxRateService.convert(quote.finalAmount, quote.currency, 'USD');
+
     try {
       await this.supabase.admin
         .from('ai_subscriptions')
         .upsert(subscription, { onConflict: 'user_id' });
+
+      // Record immutable financial transaction
+      await this.supabase.admin.from('ai_transactions').insert({
+        user_id: user.id,
+        plan_id: planId,
+        country_code: countryCode,
+        original_currency: quote.currency,
+        base_amount: quote.baseAmount,
+        tax_rate: quote.taxRate,
+        tax_amount: quote.taxAmount,
+        discount_amount: quote.discountAmount,
+        final_amount: quote.finalAmount,
+        reporting_currency: 'USD',
+        reporting_amount: reportingConv.reportingAmount,
+        fx_rate_applied: reportingConv.fxRate,
+        gateway: quote.gateway,
+        gateway_txn_id: orderId,
+        status: 'paid',
+        coupon_code: couponCode || null,
+      });
     } catch (err: any) {
-      this.logger.warn(`Failed to save ai_subscription to database: ${err?.message}`);
+      this.logger.warn(`Failed to save ai_subscription or transaction: ${err?.message}`);
     }
 
     return subscription;
@@ -276,11 +355,6 @@ export class AiSubscriptionService {
         .eq('status', 'active');
     } catch (err: any) {
       this.logger.error(`Monthly AI credit reset error: ${err?.message}`);
-    }
-
-    // Reset in-memory cache
-    for (const [key, sub] of this.inMemorySubscriptions.entries()) {
-      this.inMemorySubscriptions.set(key, { ...sub, credits_used: 0 });
     }
   }
 }

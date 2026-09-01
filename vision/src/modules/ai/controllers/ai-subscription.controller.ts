@@ -11,9 +11,11 @@ import { IsString, IsOptional, IsIn } from 'class-validator';
 import { SupabaseAuthGuard } from '@/core/guards/supabase-auth.guard';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
-import { AiSubscriptionService, AI_PLANS } from '@/modules/ai/services/ai-subscription.service';
+import { AiSubscriptionService } from '@/modules/ai/services/ai-subscription.service';
 import { AiEntitlementService } from '@/modules/ai/services/ai-entitlement.service';
 import { AiAnalyticsService } from '@/modules/ai/services/ai-analytics.service';
+import { AiPricingService } from '@/modules/ai/services/ai-pricing.service';
+import { AiCreditLedgerService } from '@/modules/ai/services/ai-credit-ledger.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
 
@@ -24,6 +26,18 @@ export class UpgradeSubscriptionDto {
   @IsOptional()
   @IsIn(['monthly', 'yearly'])
   billingCycle?: 'monthly' | 'yearly';
+
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
+
+  @IsOptional()
+  @IsString()
+  countryCode?: string;
+
+  @IsOptional()
+  @IsString()
+  currencyCode?: string;
 }
 
 export class ActivateSubscriptionDto {
@@ -37,6 +51,34 @@ export class ActivateSubscriptionDto {
   @IsOptional()
   @IsString()
   paymentReference?: string;
+
+  @IsOptional()
+  @IsString()
+  countryCode?: string;
+
+  @IsOptional()
+  @IsString()
+  currencyCode?: string;
+
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
+}
+
+export class ValidateCouponDto {
+  @IsString()
+  code: string;
+
+  @IsString()
+  planId: string;
+
+  @IsOptional()
+  @IsString()
+  countryCode?: string;
+
+  @IsOptional()
+  @IsString()
+  currencyCode?: string;
 }
 
 export class TrackEventDto {
@@ -59,23 +101,31 @@ export class AiSubscriptionController {
     private readonly subscriptionService: AiSubscriptionService,
     private readonly entitlementService: AiEntitlementService,
     private readonly analyticsService: AiAnalyticsService,
+    private readonly pricingService: AiPricingService,
+    private readonly creditLedgerService: AiCreditLedgerService,
   ) {}
 
   @Get('subscription/status')
-  @ApiOperation({ summary: 'Get current user AI subscription plan and credits' })
+  @ApiOperation({ summary: 'Get current user AI subscription plan, credit ledger balance, and active perks' })
   async getSubscriptionStatus(@CurrentUser() user: AuthUser) {
     const subscription = await this.subscriptionService.getSubscription(user);
-    const planConfig = (AI_PLANS as any)[subscription.plan_id] || (AI_PLANS as any)['patient_free'];
-    const creditsRemaining = Math.max(
-      0,
-      (subscription.monthly_ai_credits || 5) - (subscription.credits_used || 0),
+    const account = await this.creditLedgerService.getAccount(user.id);
+    const creditsRemaining = account.balance;
+
+    const { countryCode, currencyCode } = this.pricingService.resolveCountryAndCurrency(user);
+    const currentPriceQuote = await this.pricingService.getPricingQuote(
+      subscription.plan_id,
+      countryCode,
+      currencyCode,
     );
 
     return ResponseHelper.success(
       {
         subscription,
-        planConfig,
+        planConfig: currentPriceQuote,
         creditsRemaining,
+        lifetimeGranted: account.lifetimeGranted,
+        lifetimeConsumed: account.lifetimeConsumed,
         isPremium:
           subscription.plan_id.includes('premium') ||
           subscription.plan_id.includes('pro'),
@@ -84,10 +134,62 @@ export class AiSubscriptionController {
     );
   }
 
-  @Get('subscription/plans')
-  @ApiOperation({ summary: 'List all available AI subscription tiers' })
-  async getPlans() {
-    return ResponseHelper.success(AI_PLANS, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  @Get('pricing')
+  @ApiOperation({ summary: 'Get localized multi-currency pricing quotes for all AI subscription plans' })
+  async getPricing(
+    @CurrentUser() user: AuthUser,
+    @Query('country') country?: string,
+    @Query('currency') currency?: string,
+  ) {
+    const { countryCode, currencyCode } = this.pricingService.resolveCountryAndCurrency(
+      user,
+      country,
+      currency,
+    );
+    const quotes = await this.pricingService.getAllPlansForMarket(
+      countryCode,
+      currencyCode,
+      user.profile.role as any,
+    );
+    return ResponseHelper.success(quotes, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Post('coupons/validate')
+  @ApiOperation({ summary: 'Validate discount coupon for country and plan' })
+  async validateCoupon(
+    @CurrentUser() user: AuthUser,
+    @Body() body: ValidateCouponDto,
+  ) {
+    const { countryCode, currencyCode } = this.pricingService.resolveCountryAndCurrency(
+      user,
+      body.countryCode,
+      body.currencyCode,
+    );
+    const coupon = await this.pricingService.validateCoupon(
+      body.code,
+      body.planId,
+      countryCode,
+      currencyCode,
+    );
+
+    if (!coupon) {
+      return ResponseHelper.error('Invalid or expired coupon code.');
+    }
+
+    const discountedQuote = await this.pricingService.getPricingQuote(
+      body.planId,
+      countryCode,
+      currencyCode,
+      body.code,
+    );
+
+    return ResponseHelper.success(
+      {
+        coupon,
+        discountedQuote,
+      },
+      'Coupon applied successfully.',
+    );
   }
 
   @Get('entitlements')
@@ -97,30 +199,52 @@ export class AiSubscriptionController {
     return ResponseHelper.success(entitlements, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
+  @Get('credit-ledger')
+  @ApiOperation({ summary: 'Get user auditable double-entry AI credit ledger history' })
+  async getCreditLedger(
+    @CurrentUser() user: AuthUser,
+    @Query('limit') limit?: string,
+  ) {
+    const history = await this.creditLedgerService.getLedgerHistory(
+      user.id,
+      Number(limit || 50),
+    );
+    return ResponseHelper.success(history, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
   @Post('subscription/upgrade')
-  @ApiOperation({ summary: 'Initiate Cashfree payment order for AI subscription upgrade' })
+  @ApiOperation({ summary: 'Initiate payment order for AI Premium plan in local currency' })
   async initiateUpgrade(
     @CurrentUser() user: AuthUser,
     @Body() body: UpgradeSubscriptionDto,
   ) {
+    const order = await this.subscriptionService.initiateUpgrade(
+      user,
+      body.planId,
+      body.billingCycle || 'monthly',
+      body.couponCode,
+      body.countryCode,
+      body.currencyCode,
+    );
+
     await this.analyticsService.track({
       event_type: 'AI_UPGRADE_STARTED',
       user_id: user.id,
       role: user.profile.role,
-      metadata: { targetPlanId: body.planId, billingCycle: body.billingCycle },
+      feature: body.planId,
+      metadata: {
+        planId: body.planId,
+        billingCycle: body.billingCycle,
+        currency: order.currency,
+        amount: order.finalAmount,
+      },
     });
 
-    const result = await this.subscriptionService.initiateUpgrade(
-      user,
-      body.planId,
-      body.billingCycle || 'monthly',
-    );
-
-    return ResponseHelper.success(result, 'Upgrade order initiated.');
+    return ResponseHelper.success(order, 'AI Upgrade checkout order initiated.');
   }
 
   @Post('subscription/activate')
-  @ApiOperation({ summary: 'Activate AI subscription upon payment confirmation' })
+  @ApiOperation({ summary: 'Activate AI subscription upon verified payment' })
   async activateSubscription(
     @CurrentUser() user: AuthUser,
     @Body() body: ActivateSubscriptionDto,
@@ -130,21 +254,32 @@ export class AiSubscriptionController {
       body.planId,
       body.billingCycle || 'monthly',
       body.paymentReference,
+      body.countryCode,
+      body.currencyCode,
+      body.couponCode,
     );
 
     await this.analyticsService.track({
       event_type: 'AI_UPGRADE_COMPLETED',
       user_id: user.id,
       role: user.profile.role,
-      metadata: { planId: body.planId, billingCycle: body.billingCycle },
+      feature: body.planId,
+      metadata: {
+        planId: body.planId,
+        billingCycle: body.billingCycle,
+        paymentReference: body.paymentReference,
+      },
     });
 
-    return ResponseHelper.success(subscription, 'AI Subscription activated successfully.');
+    return ResponseHelper.success(
+      subscription,
+      'Your HealNari AI subscription has been activated successfully.',
+    );
   }
 
-  @Post('analytics/event')
-  @ApiOperation({ summary: 'Track client-side AI product funnel event' })
-  async trackClientEvent(
+  @Post('analytics/track')
+  @ApiOperation({ summary: 'Track front-end AI funnel and paywall events' })
+  async trackAnalytics(
     @CurrentUser() user: AuthUser,
     @Body() body: TrackEventDto,
   ) {
@@ -155,6 +290,6 @@ export class AiSubscriptionController {
       feature: body.feature,
       metadata: body.metadata,
     });
-    return ResponseHelper.success({ tracked: true }, 'Event recorded.');
+    return ResponseHelper.success(null, 'Event tracked.');
   }
 }

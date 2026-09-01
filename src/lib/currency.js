@@ -7,7 +7,8 @@
 export const ISO_CURRENCIES = {
   USD: { code: 'USD', symbol: '$', name: 'US Dollar', locale: 'en-US', flag: '🇺🇸', minorDecimals: 2 },
   INR: { code: 'INR', symbol: '₹', name: 'Indian Rupee', locale: 'en-IN', flag: '🇮🇳', minorDecimals: 2 },
-  AED: { code: 'AED', symbol: 'AED ', name: 'UAE Dirham', locale: 'en-AE', flag: '🇦🇪', minorDecimals: 2 },
+  AED: { code: 'AED', symbol: 'AED ', name: 'UAE Dirham', locale: 'en-AE', flag: 'ar-AE', minorDecimals: 2 },
+  SAR: { code: 'SAR', symbol: 'SAR ', name: 'Saudi Riyal', locale: 'ar-SA', flag: '🇸🇦', minorDecimals: 2 },
   EUR: { code: 'EUR', symbol: '€', name: 'Euro', locale: 'de-DE', flag: '🇪🇺', minorDecimals: 2 },
   GBP: { code: 'GBP', symbol: '£', name: 'British Pound', locale: 'en-GB', flag: '🇬🇧', minorDecimals: 2 },
   CAD: { code: 'CAD', symbol: 'CA$', name: 'Canadian Dollar', locale: 'en-CA', flag: '🇨🇦', minorDecimals: 2 },
