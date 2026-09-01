@@ -7,6 +7,7 @@ import {
   IsPositive,
   IsString,
   IsUUID,
+  IsNotEmpty,
 } from 'class-validator';
 import type { Response } from 'express';
 import { BillingService } from '@/modules/billing/services/billing.service';
@@ -22,7 +23,13 @@ export class CreatePaymentOrderDto {
 
 export class RequestPayoutDto {
   @ApiProperty({ example: '5000' })
+  @IsNotEmpty()
   amount: string | number;
+
+  @ApiProperty({ required: false, example: 'INR' })
+  @IsOptional()
+  @IsString()
+  currency?: string;
 
   @ApiProperty({ enum: ['Bank Account', 'UPI', 'Wallet'], default: 'Bank Account' })
   @IsOptional()
