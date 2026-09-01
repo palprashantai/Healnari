@@ -16,8 +16,11 @@ export class AdminCronService {
 
   /**
    * Runs daily at Midnight (00:00).
-   * Aggregates completed payments from the past 24 hours, calculates gross volume,
-   * platform commission (e.g. 15%), and logs the financial settlement summary.
+   * Aggregates completed payments from the past 24 hours using STORED
+   * per-transaction commission snapshots (platform_fee_amount /
+   * provider_payout_amount). Never applies a hardcoded rate — each
+   * doctor's individual commission is already baked into the payment row
+   * at transaction time by BillingService + CommissionCalculator.
    */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
     name: 'admin_daily_revenue_reconciliation',
@@ -30,7 +33,7 @@ export class AdminCronService {
 
     const { data: payments, error } = await this.supabase.admin
       .from('payments')
-      .select('id, amount, status, created_at, doctor_id')
+      .select('id, amount, platform_fee_amount, provider_payout_amount, status, created_at, doctor_id')
       .eq('status', 'Paid')
       .gte('created_at', yesterday)
       .lte('created_at', now);
@@ -46,8 +49,15 @@ export class AdminCronService {
       (sum, p) => sum + (Number(p.amount) || 0),
       0,
     );
-    const platformCommission = Math.round(totalGross * 0.15); // 15% Platform fee
-    const doctorNetPayouts = totalGross - platformCommission;
+    // Use STORED per-transaction commission instead of a hardcoded rate
+    const platformCommission = (payments || []).reduce(
+      (sum, p) => sum + (Number(p.platform_fee_amount) || 0),
+      0,
+    );
+    const doctorNetPayouts = (payments || []).reduce(
+      (sum, p) => sum + (Number(p.provider_payout_amount) || Number(p.amount) || 0),
+      0,
+    );
 
     this.logger.log(
       `Daily Financial Settlement Reconciled: Gross = ₹${totalGross.toLocaleString('en-IN')}, Commission = ₹${platformCommission.toLocaleString('en-IN')}, Net Doctor Payouts = ₹${doctorNetPayouts.toLocaleString('en-IN')} across ${payments?.length || 0} transaction(s).`,

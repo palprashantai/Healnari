@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import {
   Injectable,
   NotFoundException,
+  BadRequestException,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
@@ -14,7 +15,10 @@ import { CashfreeService } from '@/core/cashfree/cashfree.service';
 import { EmailService } from '@/core/email/email.service';
 import { FXRateService } from '@/core/fx/fx-rate.service';
 import { DecimalMath } from '@/core/utils/decimal.util';
+import { CommissionCalculator } from '@/core/utils/commission.util';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
+
+import { CommissionService } from '@/core/commission/commission.service';
 
 @Injectable()
 export class AdminService {
@@ -32,6 +36,7 @@ export class AdminService {
     private readonly cashfree: CashfreeService,
     private readonly email: EmailService,
     private readonly fxRateService: FXRateService,
+    private readonly commissionService: CommissionService,
   ) {}
 
   public invalidateStatsCache() {
@@ -138,7 +143,7 @@ export class AdminService {
           'INR'
         ).toUpperCase();
         const feeAmt = Number(
-          p.platform_fee_amount || DecimalMath.percentage(origAmt, 10),
+          p.platform_fee_amount || CommissionCalculator.fromStoredPayment(p).commissionAmount,
         );
 
         // Convert gross and platform fee to requested reporting currency
@@ -677,23 +682,35 @@ export class AdminService {
 
       if (!data) return [];
 
-      // Count appointments per doctor
+      // Count appointments and query real settled payments per doctor
       const doctorIds = data.map((d) => d.id);
-      const { data: apts } = await this.supabase.admin
-        .from('appointments')
-        .select('doctor_id, status')
-        .in('doctor_id', doctorIds);
+      const [{ data: apts }, { data: payments }] = await Promise.all([
+        this.supabase.admin
+          .from('appointments')
+          .select('doctor_id, status')
+          .is('deleted_at', null)
+          .in('doctor_id', doctorIds),
+        this.supabase.admin
+          .from('payments')
+          .select('doctor_id, amount, platform_fee_amount, provider_payout_amount, status')
+          .in('doctor_id', doctorIds)
+          .in('status', ['Paid', 'Insurance Claimed']),
+      ]);
 
       const aptCountMap: Record<string, number> = {};
-      const revenueMap: Record<string, number> = {};
       for (const a of apts || []) {
         aptCountMap[a.doctor_id] = (aptCountMap[a.doctor_id] || 0) + 1;
-        if (a.status === AppointmentStatus.DONE) {
-          const fee = Number(
-            data.find((d) => d.id === a.doctor_id)?.consultation_fee || 0,
-          );
-          revenueMap[a.doctor_id] = (revenueMap[a.doctor_id] || 0) + fee;
-        }
+      }
+
+      const revenueMap: Record<string, number> = {};
+      const platformFeeMap: Record<string, number> = {};
+      for (const p of payments || []) {
+        if (!p.doctor_id) continue;
+        const breakdown = CommissionCalculator.fromStoredPayment(p);
+        revenueMap[p.doctor_id] =
+          (revenueMap[p.doctor_id] || 0) + breakdown.grossAmount;
+        platformFeeMap[p.doctor_id] =
+          (platformFeeMap[p.doctor_id] || 0) + breakdown.commissionAmount;
       }
 
       return data.map((d) => ({
@@ -709,8 +726,9 @@ export class AdminService {
               year: 'numeric',
             })
           : '',
-        commissionRate: Number(d.commission_rate ?? 15),
+        commissionRate: CommissionCalculator.GLOBAL_COMMISSION_RATE,
         totalGross: revenueMap[d.id] || 0,
+        totalPlatformFee: platformFeeMap[d.id] || 0,
         totalConsults: aptCountMap[d.id] || 0,
         rating: 0,
         consultationFee: Number(d.consultation_fee || 0),
@@ -733,6 +751,7 @@ export class AdminService {
         .eq('role', ProfileRole.DOCTOR)
         .maybeSingle();
       if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
+      doctor.commission_rate = CommissionCalculator.GLOBAL_COMMISSION_RATE;
 
       const [{ data: appointments }, { data: payments }] = await Promise.all([
         this.supabase.admin
@@ -743,7 +762,7 @@ export class AdminService {
           .order('scheduled_date', { ascending: false }),
         this.supabase.admin
           .from('payments')
-          .select('id, patient_id, amount, status, service, created_at')
+          .select('id, patient_id, amount, status, service, created_at, commission_rate, platform_fee_amount, provider_payout_amount')
           .eq('doctor_id', id)
           .order('created_at', { ascending: false }),
       ]);
@@ -759,6 +778,7 @@ export class AdminService {
           ].filter(Boolean),
         ),
       ];
+
       const { data: patientProfiles } = patientIds.length
         ? await this.supabase.admin
             .from('profiles')
@@ -799,18 +819,34 @@ export class AdminService {
         ([status, count]) => ({ status, count }),
       );
 
-      const ledger = pays.slice(0, 20).map((p) => ({
-        id: p.id,
-        patient: nameByPatientId.get(p.patient_id) || 'Patient',
-        date: new Date(p.created_at).toLocaleDateString('en-IN', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        }),
-        service: p.service,
-        amount: Number(p.amount),
-        status: p.status,
-      }));
+      const ledger = pays.slice(0, 20).map((p) => {
+        const breakdown = CommissionCalculator.fromStoredPayment(p);
+        return {
+          id: p.id,
+          patient: nameByPatientId.get(p.patient_id) || 'Patient',
+          date: new Date(p.created_at).toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+          }),
+          service: p.service,
+          amount: Number(p.amount),
+          status: p.status,
+          commissionRate: breakdown.commissionRate,
+          platformFee: breakdown.commissionAmount,
+          doctorNet: breakdown.providerPayoutAmount,
+        };
+      });
+
+      // Compute doctor financial KPIs from stored per-payment amounts
+      const totalPlatformFee = paidPayments.reduce(
+        (sum, p) => sum + Number(p.platform_fee_amount || 0),
+        0,
+      );
+      const totalDoctorNet = paidPayments.reduce(
+        (sum, p) => sum + Number(p.provider_payout_amount || p.amount || 0),
+        0,
+      );
 
       return {
         doctor,
@@ -819,6 +855,8 @@ export class AdminService {
             (sum, p) => sum + Number(p.amount),
             0,
           ),
+          totalPlatformFee,
+          totalDoctorNet,
           totalConsults: apts.filter((a) => a.status === AppointmentStatus.DONE)
             .length,
           totalAppointments: apts.length,
@@ -835,8 +873,104 @@ export class AdminService {
     }
   }
 
-  async updateDoctorCommission(id: string, commissionRate: number) {
+  // ─── Global Platform Commission (Single Source of Truth) ─────────────
+  async getGlobalCommission() {
     try {
+      const currentRate = await this.commissionService.getGlobalCommissionRate();
+      const { data: history } = await this.supabase.admin
+        .from('platform_commission_history')
+        .select('*')
+        .order('effective_from', { ascending: false });
+
+      return {
+        currentRate,
+        history: history || [],
+      };
+    } catch (error) {
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async updateGlobalCommission(
+    admin: AuthUser,
+    newRate: number,
+    reason?: string,
+  ) {
+    try {
+      const previousRate = await this.commissionService.getGlobalCommissionRate();
+      const safeNewRate = Number(newRate);
+
+      if (isNaN(safeNewRate) || safeNewRate < 0 || safeNewRate > 100) {
+        throw new BadRequestException('Commission rate must be between 0 and 100');
+      }
+
+      // Update singleton landing_settings table
+      const { error: updateError } = await this.supabase.admin
+        .from('landing_settings')
+        .update({ platform_commission_rate: safeNewRate })
+        .eq('id', 1);
+
+      if (updateError) {
+        throw new InternalServerErrorException(
+          `Failed to update global commission: ${updateError.message}`,
+        );
+      }
+
+      // Insert audit history record
+      await this.supabase.admin
+        .from('platform_commission_history')
+        .insert({
+          previous_rate: previousRate,
+          new_rate: safeNewRate,
+          effective_from: new Date().toISOString(),
+          changed_by: admin.id,
+          change_reason: reason || `Admin updated global platform commission from ${previousRate}% to ${safeNewRate}%`,
+        });
+
+      // Write general audit log
+      this.writeAudit(
+        admin,
+        'global_commission.update',
+        'landing_settings',
+        '1',
+        { platform_commission_rate: previousRate },
+        { platform_commission_rate: safeNewRate },
+      );
+
+      // Invalidate dynamic cache
+      this.commissionService.invalidateCache();
+      this.invalidateStatsCache();
+
+      return {
+        currentRate: safeNewRate,
+        previousRate,
+        updatedAt: new Date().toISOString(),
+      };
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async updateDoctorCommission(admin: AuthUser, id: string, commissionRate: number) {
+    try {
+      // Fetch current rate for audit trail
+      const { data: current } = await this.supabase.admin
+        .from('profiles')
+        .select('commission_rate')
+        .eq('id', id)
+        .eq('role', ProfileRole.DOCTOR)
+        .maybeSingle();
+      if (!current)
+        throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
+
+      const previousRate = Number(current.commission_rate);
+
+      // Update the doctor's commission rate
       const { data: updated, error } = await this.supabase.admin
         .from('profiles')
         .update({ commission_rate: commissionRate })
@@ -846,9 +980,44 @@ export class AdminService {
         .maybeSingle();
       if (error || !updated)
         throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
+
+      // Supersede the currently active history row
+      await this.supabase.admin
+        .from('doctor_commission_history')
+        .update({
+          status: 'Superseded',
+          effective_to: new Date().toISOString(),
+        })
+        .eq('doctor_id', id)
+        .eq('status', 'Active');
+
+      // Insert new active commission history row
+      await this.supabase.admin
+        .from('doctor_commission_history')
+        .insert({
+          doctor_id: id,
+          commission_rate: commissionRate,
+          previous_rate: previousRate,
+          effective_from: new Date().toISOString(),
+          status: 'Active',
+          changed_by: admin.id,
+          change_reason: `Admin changed from ${previousRate}% to ${commissionRate}%`,
+        });
+
+      // Audit trail
+      this.writeAudit(
+        admin,
+        'commission.update',
+        'profiles',
+        id,
+        { commission_rate: previousRate },
+        { commission_rate: commissionRate },
+      );
+
       return {
         doctorId: updated.id,
         commissionRate: Number(updated.commission_rate),
+        previousRate,
         updatedAt: new Date().toISOString(),
       };
     } catch (error) {
@@ -857,6 +1026,15 @@ export class AdminService {
         ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  async getDoctorCommissionHistory(doctorId: string) {
+    const { data } = await this.supabase.admin
+      .from('doctor_commission_history')
+      .select('*')
+      .eq('doctor_id', doctorId)
+      .order('effective_from', { ascending: false });
+    return data || [];
   }
 
   async getPendingVerifications() {
@@ -1209,13 +1387,9 @@ export class AdminService {
         const isPaid = p.status === 'Paid' || p.status === 'Insurance Claimed';
         const isRefunded = p.status === 'Refunded';
 
-        const platformFee = Number(
-          p.platform_fee_amount || DecimalMath.percentage(origAmt, 10),
-        );
-        const providerPayout = Number(
-          p.provider_payout_amount ||
-            DecimalMath.subtract(origAmt, platformFee),
-        );
+        const breakdown = CommissionCalculator.fromStoredPayment(p);
+        const platformFee = breakdown.commissionAmount;
+        const providerPayout = breakdown.providerPayoutAmount;
         const refAmt = isRefunded ? origAmt : Number(p.refund_amount || 0);
 
         // Group by Original Currency
@@ -1332,9 +1506,26 @@ export class AdminService {
         }
       });
 
+      // Net platform revenue = total platform fees − commission portion of refunds.
+      // Use stored per-payment commission rates rather than a hardcoded percentage.
+      let refundedPlatformFees = 0;
+      payments.filter(p => p.status === 'Refunded').forEach(p => {
+        const breakdown = CommissionCalculator.fromStoredPayment(p);
+        const origCurr = (p.original_currency || p.currency || 'INR').toUpperCase();
+        refundedPlatformFees = DecimalMath.add(
+          refundedPlatformFees,
+          this.fxRateService.reproduceReportingValue(
+            breakdown.commissionAmount,
+            origCurr,
+            repCurr,
+            p.fx_rate,
+            p.reporting_currency,
+          ),
+        );
+      });
       const netPlatformRevenue = DecimalMath.subtract(
         totalPlatformRevenue,
-        DecimalMath.percentage(totalRefundsAmount, 10),
+        refundedPlatformFees,
       );
 
       const currencyBreakdown = Array.from(originalCurrencyMap.values());
@@ -1385,12 +1576,8 @@ export class AdminService {
             this.fxRateService.getRateQuote(origCurr, repCurr).rate,
           fxRateSource: p.fx_rate_source || 'healnari_treasury_matrix_v1',
           fxRateTimestamp: p.fx_rate_timestamp || p.created_at,
-          platformFeeAmount: Number(
-            p.platform_fee_amount || DecimalMath.percentage(origAmt, 10),
-          ),
-          providerPayoutAmount: Number(
-            p.provider_payout_amount || DecimalMath.percentage(origAmt, 90),
-          ),
+          platformFeeAmount: CommissionCalculator.fromStoredPayment(p).commissionAmount,
+          providerPayoutAmount: CommissionCalculator.fromStoredPayment(p).providerPayoutAmount,
         };
       });
 
@@ -1448,7 +1635,7 @@ export class AdminService {
           amount: Number(p.amount),
           currency: doc?.currency || 'USD',
           country: doc?.country || 'US',
-          feeCut: `${Number(doc?.commission_rate ?? 10)}%`,
+          feeCut: `${CommissionCalculator.resolveCommissionRate(doc?.commission_rate)}%`,
           date: p.requested_at
             ? new Date(p.requested_at).toLocaleDateString('en-US', {
                 day: '2-digit',
@@ -1475,6 +1662,38 @@ export class AdminService {
 
   async processPayout(admin: AuthUser, id: string, referenceId: string) {
     try {
+      // 1. Fetch existing payout state
+      const { data: existing } = await this.supabase.admin
+        .from('payouts')
+        .select('id, doctor_id, amount, status, reference_id, processed_at')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (!existing) throw new NotFoundException('Payout record not found');
+
+      // 2. Strict State Transition & Idempotency Rules
+      if (existing.status === 'Paid') {
+        if (existing.reference_id === referenceId) {
+          // Idempotent retry with same settlement reference
+          return {
+            payoutId: existing.id,
+            referenceId: existing.reference_id,
+            status: 'Processed',
+            processedAt: existing.processed_at,
+          };
+        }
+        throw new BadRequestException(
+          'This payout has already been processed with a different settlement reference ID.',
+        );
+      }
+
+      if (existing.status === 'Failed' || existing.status === 'Cancelled') {
+        throw new BadRequestException(
+          `Cannot process a payout currently marked as ${existing.status}.`,
+        );
+      }
+
+      // 3. Atomically update status to Paid
       const { data: updated, error } = await this.supabase.admin
         .from('payouts')
         .update({
@@ -1485,21 +1704,22 @@ export class AdminService {
         .eq('id', id)
         .select('id, doctor_id, amount')
         .maybeSingle();
+
       if (error || !updated) throw new NotFoundException('Payout not found');
 
-      this.writeAudit(admin, 'payout.process', 'payouts', id, null, {
+      this.writeAudit(admin, 'payout.process', 'payouts', id, existing, {
         status: 'Paid',
         reference_id: referenceId,
       });
 
-      // 1. In-App + Web Push
+      // 4. In-App + Web Push notification to Doctor
       await this.notifications.create(updated.doctor_id, {
         type: 'payout_processed',
         title: 'Payout processed',
         message: `Your payout of ₹${Number(updated.amount).toLocaleString('en-IN')} has been processed. Reference: ${referenceId}`,
       });
 
-      // 2. Transactional Email to Doctor via database-managed template
+      // 5. Transactional Email to Doctor via database-managed template
       const { data: doc } = await this.supabase.admin
         .from('profiles')
         .select('email, full_name')
@@ -1533,7 +1753,124 @@ export class AdminService {
         processedAt: new Date().toISOString(),
       };
     } catch (error) {
-      if (error instanceof NotFoundException) throw error;
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      )
+        throw error;
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * FinTech-Grade Automated Payout Reconciliation Engine
+   * Cross-checks Total Doctor Earnings (payments.provider_payout_amount) against
+   * Total Payout Obligations (payouts.amount) across all network doctors.
+   */
+  async reconcileDoctorPayouts() {
+    try {
+      const [{ data: payments }, { data: payouts }, { data: doctors }] =
+        await Promise.all([
+          this.supabase.admin
+            .from('payments')
+            .select('doctor_id, amount, provider_payout_amount, status')
+            .in('status', ['Paid', 'Insurance Claimed']),
+          this.supabase.admin
+            .from('payouts')
+            .select('doctor_id, amount, status, requested_at, reference_id'),
+          this.supabase.admin
+            .from('profiles')
+            .select('id, full_name, email, specialty, currency')
+            .eq('role', ProfileRole.DOCTOR),
+        ]);
+
+      const earnedByDoctor = new Map<string, number>();
+      (payments || []).forEach((p) => {
+        const amt = Number(p.provider_payout_amount || p.amount || 0);
+        earnedByDoctor.set(
+          p.doctor_id,
+          DecimalMath.add(earnedByDoctor.get(p.doctor_id) || 0, amt),
+        );
+      });
+
+      const paidOutByDoctor = new Map<string, number>();
+      const processingByDoctor = new Map<string, number>();
+
+      (payouts || []).forEach((po) => {
+        const amt = Number(po.amount || 0);
+        if (po.status === 'Paid') {
+          paidOutByDoctor.set(
+            po.doctor_id,
+            DecimalMath.add(paidOutByDoctor.get(po.doctor_id) || 0, amt),
+          );
+        } else if (po.status === 'Processing') {
+          processingByDoctor.set(
+            po.doctor_id,
+            DecimalMath.add(processingByDoctor.get(po.doctor_id) || 0, amt),
+          );
+        }
+      });
+
+      const doctorReconciliations = (doctors || []).map((doc) => {
+        const totalEarned = earnedByDoctor.get(doc.id) || 0;
+        const totalSettled = paidOutByDoctor.get(doc.id) || 0;
+        const totalProcessing = processingByDoctor.get(doc.id) || 0;
+        const totalCommitted = DecimalMath.add(totalSettled, totalProcessing);
+        const outstandingPayable = DecimalMath.subtract(totalEarned, totalCommitted);
+
+        let reconciliationStatus: 'MATCHED' | 'DISCREPANCY' | 'OVERPAID' = 'MATCHED';
+        if (outstandingPayable < 0) {
+          reconciliationStatus = 'OVERPAID';
+        } else if (totalEarned > 0 && outstandingPayable > 0) {
+          reconciliationStatus = 'MATCHED';
+        }
+
+        return {
+          doctorId: doc.id,
+          doctorName: doc.full_name,
+          email: doc.email,
+          currency: doc.currency || 'INR',
+          totalEarned,
+          totalSettled,
+          totalProcessing,
+          outstandingPayable: Math.max(0, outstandingPayable),
+          reconciliationStatus,
+        };
+      });
+
+      const totalEarnedAll = doctorReconciliations.reduce(
+        (sum, d) => DecimalMath.add(sum, d.totalEarned),
+        0,
+      );
+      const totalSettledAll = doctorReconciliations.reduce(
+        (sum, d) => DecimalMath.add(sum, d.totalSettled),
+        0,
+      );
+      const totalProcessingAll = doctorReconciliations.reduce(
+        (sum, d) => DecimalMath.add(sum, d.totalProcessing),
+        0,
+      );
+      const totalOutstandingPayable = doctorReconciliations.reduce(
+        (sum, d) => DecimalMath.add(sum, d.outstandingPayable),
+        0,
+      );
+
+      return {
+        timestamp: new Date().toISOString(),
+        summary: {
+          totalDoctorEarnings: totalEarnedAll,
+          totalSettledPayouts: totalSettledAll,
+          totalProcessingPayouts: totalProcessingAll,
+          totalOutstandingPayable,
+          discrepancyCount: doctorReconciliations.filter(
+            (d) => d.reconciliationStatus !== 'MATCHED',
+          ).length,
+        },
+        doctors: doctorReconciliations,
+      };
+    } catch (error) {
       throw new InternalServerErrorException(
         ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
       );
@@ -1734,6 +2071,7 @@ export class AdminService {
           providerHeroSubtitle:
             "Join the leading digital platform for women's endocrinology and reproductive health. Focus on what you do best—delivering world-class clinical outcomes—while our AI EMR and automated patient acquisition handles the rest.",
           pricingAmount: 799,
+          platformCommissionRate: 10,
           toggles: {
             showEmergencyBanner: false,
             showFeaturedDoctors: true,
@@ -1753,6 +2091,11 @@ export class AdminService {
         providerHeroTitle: data.provider_hero_title,
         providerHeroSubtitle: data.provider_hero_subtitle,
         pricingAmount: data.pricing_amount,
+        platformCommissionRate:
+          data.platform_commission_rate !== undefined &&
+          data.platform_commission_rate !== null
+            ? Number(data.platform_commission_rate)
+            : 10,
         toggles: data.toggles,
         promoText: data.promo_text,
       };
@@ -1790,6 +2133,10 @@ export class AdminService {
           settings.pricingAmount !== undefined
             ? settings.pricingAmount
             : existingSettings.pricingAmount,
+        platform_commission_rate:
+          settings.platformCommissionRate !== undefined
+            ? Number(settings.platformCommissionRate)
+            : existingSettings.platformCommissionRate,
         promo_text:
           settings.promoText !== undefined
             ? settings.promoText
@@ -1819,6 +2166,7 @@ export class AdminService {
         providerHeroTitle: data.provider_hero_title,
         providerHeroSubtitle: data.provider_hero_subtitle,
         pricingAmount: data.pricing_amount,
+        platformCommissionRate: Number(data.platform_commission_rate ?? 10),
         toggles: data.toggles,
         promoText: data.promo_text,
       };

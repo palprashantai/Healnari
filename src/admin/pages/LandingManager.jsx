@@ -13,6 +13,7 @@ function AdminLandingManager() {
   const [providerHeroSubtitle, setProviderHeroSubtitle] = useState('Join the leading digital platform for women\'s endocrinology and reproductive health. Focus on what you do best—delivering world-class clinical outcomes—while our AI EMR and automated patient acquisition handles the rest.');
   
   const [pricingAmount, setPricingAmount] = useState(799);
+  const [platformCommissionRate, setPlatformCommissionRate] = useState(10);
 
   const [toggles, setToggles] = useState({
     showEmergencyBanner: false,
@@ -38,6 +39,7 @@ function AdminLandingManager() {
           setProviderHeroTitle(d.providerHeroTitle || '');
           setProviderHeroSubtitle(d.providerHeroSubtitle || '');
           if (d.pricingAmount !== undefined) setPricingAmount(d.pricingAmount);
+          if (d.platformCommissionRate !== undefined) setPlatformCommissionRate(d.platformCommissionRate);
           setPromoText(d.promoText || '');
           setToggles(d.toggles || toggles);
         }
@@ -58,9 +60,9 @@ function AdminLandingManager() {
     try {
       await apiFetch('/admin/landing-settings', {
         method: 'PUT',
-        body: { heroTitle, heroSubtitle, providerHeroTitle, providerHeroSubtitle, pricingAmount, promoText, toggles }
+        body: { heroTitle, heroSubtitle, providerHeroTitle, providerHeroSubtitle, pricingAmount, platformCommissionRate, promoText, toggles }
       });
-      toast('Landing page settings saved successfully! Changes are live.', 'success');
+      toast('Platform & Landing settings saved successfully! Changes are live across the network.', 'success');
     } catch {
       toast('Failed to save settings', 'error');
     }
@@ -135,6 +137,31 @@ function AdminLandingManager() {
                   <label className="text-xs font-bold text-slate-500 mb-1.5 block">Provider Hero Subtext</label>
                   <textarea value={providerHeroSubtitle} onChange={e => setProviderHeroSubtitle(e.target.value)} rows="4"
                     className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-aubergine-100" />
+                </div>
+                <div className="bg-aubergine-50/60 border border-aubergine-100 rounded-2xl p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                      <i className="fas fa-globe text-aubergine-600"></i> Universal Platform Commission Rate
+                    </label>
+                    <span className="bg-aubergine-700 text-white font-black text-xs px-2.5 py-0.5 rounded-full">
+                      {platformCommissionRate}% Flat
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-3 leading-relaxed">
+                    Sets the universal platform take rate applied to all consultation bookings, doctor earnings, and disbursement calculations globally across HealNari. (Doctor retains {100 - Number(platformCommissionRate)}%).
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <input 
+                      type="range" 
+                      min="5" 
+                      max="30" 
+                      step="1" 
+                      value={platformCommissionRate} 
+                      onChange={e => setPlatformCommissionRate(Number(e.target.value))} 
+                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-aubergine-600" 
+                    />
+                    <span className="font-mono font-black text-slate-900 w-12 text-right">{platformCommissionRate}%</span>
+                  </div>
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 mb-1.5 block">Top Promotional Banner Text (Global)</label>

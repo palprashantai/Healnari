@@ -38,7 +38,7 @@ function AdminDoctorDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const [commission, setCommission] = useState(15);
+  const [commission, setCommission] = useState(10);
   const [savingCommission, setSavingCommission] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [activeModal, setActiveModal] = useState(null);
@@ -57,7 +57,7 @@ function AdminDoctorDetails() {
         setRevenueTrend(d.revenueTrend || []);
         setStatusBreakdown((d.appointmentStatusBreakdown || []).map(s => ({ ...s, name: s.status })));
         setLedger(d.ledger || []);
-        setCommission(Number(d.doctor?.commission_rate ?? 15));
+        setCommission(10);
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
@@ -148,9 +148,9 @@ function AdminDoctorDetails() {
     );
   }
 
-  const totalGross = kpis?.totalGross || 0;
-  const adminCommission = totalGross * (commission / 100);
-  const doctorNet = totalGross - adminCommission;
+  const totalGross = Number(kpis?.totalGross || 0);
+  const adminCommission = Number(kpis?.totalPlatformFee ?? (totalGross * 0.10));
+  const doctorNet = Number(kpis?.totalDoctorNet ?? (totalGross - adminCommission));
   const verified = !!doctor.kyc_verified;
   const joined = doctor.created_at ? new Date(doctor.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
@@ -229,26 +229,29 @@ function AdminDoctorDetails() {
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Contract Terms</p>
-                <p className="text-sm font-semibold text-slate-700"><i className="fas fa-handshake w-5 text-aubergine-400"></i> {commission}% Platform Cut</p>
+                <p className="text-sm font-semibold text-slate-700"><i className="fas fa-handshake w-5 text-aubergine-400"></i> 10% Global Platform Cut</p>
                 <p className="text-sm font-semibold text-slate-700 mt-1"><i className="fas fa-calendar-check w-5 text-slate-400"></i> Joined: {joined}</p>
               </div>
             </div>
           </div>
 
-          {/* Contract Settings */}
+          {/* Global Platform Commission Status */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-            <h3 className="font-bold text-slate-800 mb-4"><i className="fas fa-sliders h-4 w-4 mr-1.5 text-aubergine-600"></i>Platform Commission Rate</h3>
-            <div className="flex items-center gap-4">
-              <input type="range" min="5" max="30" step="1" value={commission} onChange={(e) => setCommission(Number(e.target.value))}
-                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-aubergine-600" />
-              <span className="font-black text-xl text-slate-800 w-12 text-right">{commission}%</span>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <i className="fas fa-globe text-aubergine-600"></i> Platform Commission
+              </h3>
+              <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 font-extrabold text-xs px-2.5 py-1 rounded-full">
+                Global Standard
+              </span>
             </div>
-            <div className="flex justify-between items-center mt-4">
-              <p className="text-xs text-slate-500">Adjust the percentage cut taken from this doctor's gross billings.</p>
-              <button onClick={handleSaveCommission} disabled={savingCommission} className="bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors">
-                {savingCommission ? 'Saving…' : 'Save Rate'}
-              </button>
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-center my-3">
+              <p className="text-3xl font-black text-slate-900 font-sans">{Number(doctor?.commission_rate) || 10}%</p>
+              <p className="text-xs font-bold text-slate-500 mt-0.5">Platform Take Rate</p>
             </div>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              HealNari applies a centralized <strong>{Number(doctor?.commission_rate) || 10}% global platform fee</strong> across all network physicians. The doctor retains <strong>{100 - (Number(doctor?.commission_rate) || 10)}%</strong> of gross settled earnings.
+            </p>
           </div>
         </div>
 
@@ -259,19 +262,19 @@ function AdminDoctorDetails() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white border border-slate-200 rounded-xl p-5 text-center shadow-sm">
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Gross Billing</p>
-              <p className="text-2xl font-black text-slate-800">₹{totalGross.toLocaleString()}</p>
+              <p className="text-2xl font-black text-slate-800">₹{Math.round(totalGross).toLocaleString('en-IN')}</p>
               <p className="text-xs text-slate-500 font-bold mt-1">{kpis?.totalConsults || 0} Consults</p>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl p-5 text-center shadow-sm">
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Doctor Net Payout</p>
-              <p className="text-2xl font-black text-emerald-600">₹{doctorNet.toLocaleString()}</p>
-              <p className="text-xs text-slate-500 font-bold mt-1">Lifetime</p>
+              <p className="text-2xl font-black text-emerald-600">₹{Math.round(doctorNet).toLocaleString('en-IN')}</p>
+              <p className="text-xs text-slate-500 font-bold mt-1">{100 - (Number(doctor?.commission_rate) || 10)}% Net Share</p>
             </div>
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 text-center shadow-md relative overflow-hidden">
               <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl"></div>
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Platform Earnings</p>
-              <p className="text-2xl font-black text-white">₹{adminCommission.toLocaleString()}</p>
-              <p className="text-xs text-slate-400 font-bold mt-1">From {commission}% Cut</p>
+              <p className="text-2xl font-black text-white">₹{Math.round(adminCommission).toLocaleString('en-IN')}</p>
+              <p className="text-xs text-slate-400 font-bold mt-1">From {Number(doctor?.commission_rate) || 10}% Global Platform Fee</p>
             </div>
           </div>
 
@@ -343,8 +346,8 @@ function AdminDoctorDetails() {
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {ledger.map(b => {
-                      const cut = b.amount * (commission / 100);
-                      const docAmount = b.amount - cut;
+                      const cut = b.platformFee ?? (b.amount * (commission / 100));
+                      const docAmount = b.doctorNet ?? (b.amount - cut);
                       return (
                         <tr key={b.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-5 py-4">

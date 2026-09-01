@@ -89,6 +89,10 @@ export class UpdateLandingSettingsDto {
   @IsOptional()
   @IsNumber()
   pricingAmount?: number;
+  @ApiProperty({ required: false, example: 10 })
+  @IsOptional()
+  @IsNumber()
+  platformCommissionRate?: number;
   @ApiProperty({ required: false }) @IsOptional() toggles?: any;
   @ApiProperty({ required: false })
   @IsOptional()
@@ -157,6 +161,18 @@ export class UpdateCommissionDto {
   @Min(0)
   @Max(100)
   commissionRate: number;
+}
+export class UpdateGlobalCommissionDto {
+  @ApiProperty({ minimum: 0, maximum: 100, example: 10 })
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  commissionRate: number;
+
+  @ApiProperty({ required: false, example: 'Global platform take rate adjustment' })
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }
 export class UpdateLeadStatusDto {
   @ApiProperty({ enum: ['New', 'Contacted', 'Converted', 'Closed'] })
@@ -285,8 +301,32 @@ export class AdminController {
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
+  // ─── Global Platform Commission (Single Source of Truth) ─────────
+  @Get('commission')
+  @ApiOperation({ summary: 'Get current global platform commission and audit history' })
+  async getGlobalCommission(@CurrentUser() user: AuthUser) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getGlobalCommission();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Put('commission')
+  @ApiOperation({ summary: 'Update global platform commission rate (auditable)' })
+  async updateGlobalCommission(
+    @CurrentUser() user: AuthUser,
+    @Body() body: UpdateGlobalCommissionDto,
+  ) {
+    this.checkAdmin(user);
+    const data = await this.adminService.updateGlobalCommission(
+      user,
+      body.commissionRate,
+      body.reason,
+    );
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
   @Put('clinics/:id/commission')
-  @ApiOperation({ summary: 'Update doctor commission rate' })
+  @ApiOperation({ summary: 'Update doctor commission rate (auditable)' })
   async updateCommission(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -294,10 +334,22 @@ export class AdminController {
   ) {
     this.checkAdmin(user);
     const data = await this.adminService.updateDoctorCommission(
+      user,
       id,
       body.commissionRate,
     );
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  @Get('clinics/:id/commission/history')
+  @ApiOperation({ summary: 'Get doctor commission change history' })
+  async getCommissionHistory(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    this.checkAdmin(user);
+    const data = await this.adminService.getDoctorCommissionHistory(id);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
   // ─── Verifications ────────────────────────────────────────────────
@@ -387,6 +439,14 @@ export class AdminController {
   async getPayouts(@CurrentUser() user: AuthUser) {
     this.checkAdmin(user);
     const data = await this.adminService.getPayoutRequests();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Get('revenue/payouts/reconciliation')
+  @ApiOperation({ summary: 'Fintech-grade payout settlement reconciliation report' })
+  async getPayoutReconciliation(@CurrentUser() user: AuthUser) {
+    this.checkAdmin(user);
+    const data = await this.adminService.reconcileDoctorPayouts();
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 

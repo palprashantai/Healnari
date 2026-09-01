@@ -56,6 +56,7 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
       email as any,
       appointments as any,
       mockFXRateService as any,
+      { getGlobalCommissionRate: jest.fn().mockResolvedValue(10), calculatePayout: jest.fn() } as any,
     );
 
     const result = await service.reconcileCashfreeOrder('cf-order-1');
@@ -95,6 +96,7 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
       email as any,
       appointments as any,
       mockFXRateService as any,
+      { getGlobalCommissionRate: jest.fn().mockResolvedValue(10), calculatePayout: jest.fn() } as any,
     );
 
     const first = await service.reconcileCashfreeOrder('cf-order-1');
@@ -122,6 +124,7 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
       email as any,
       appointments as any,
       mockFXRateService as any,
+      { getGlobalCommissionRate: jest.fn().mockResolvedValue(10), calculatePayout: jest.fn() } as any,
     );
 
     const result = await service.reconcileCashfreeOrder('unknown-order');
@@ -129,4 +132,72 @@ describe('BillingService.reconcileCashfreeOrder — idempotency', () => {
     expect(result).toBeNull();
     expect(cashfree.getOrder).not.toHaveBeenCalled();
   });
+
+  describe('Doctor Payout Idempotency & Financial Safety', () => {
+    it('returns existing payout record when same idempotency key is submitted', async () => {
+      const existingPayout = {
+        id: 'po-123',
+        doctor_id: 'doc-1',
+        amount: 5000,
+        status: 'Processing',
+        idempotency_key: 'idemp-xyz',
+      };
+
+      const { supabase } = createSupabaseMock({
+        payouts: [{ data: existingPayout }],
+      });
+
+      const service = new BillingService(
+        supabase as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        mockFXRateService as any,
+        { getGlobalCommissionRate: jest.fn().mockResolvedValue(10), calculatePayout: jest.fn() } as any,
+      );
+
+      const doctorUser: any = {
+        id: 'doc-1',
+        profile: { role: 'doctor', status: 'Active', kyc_verified: true },
+      };
+
+      const result = await service.requestPayout(doctorUser, {
+        amount: 5000,
+        idempotencyKey: 'idemp-xyz',
+      });
+
+      expect(result).toEqual(existingPayout);
+    });
+
+    it('rejects payout when amount exceeds available doctor balance', async () => {
+      const { supabase } = createSupabaseMock({
+        payments: [{ data: [{ amount: 1000, provider_payout_amount: 900 }] }],
+        payouts: [{ data: [{ amount: 500, status: 'Paid' }] }],
+      });
+
+      const service = new BillingService(
+        supabase as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        mockFXRateService as any,
+        { getGlobalCommissionRate: jest.fn().mockResolvedValue(10), calculatePayout: jest.fn() } as any,
+      );
+
+      const doctorUser: any = {
+        id: 'doc-1',
+        profile: { role: 'doctor', status: 'Active', kyc_verified: true },
+      };
+
+      // Available balance is 900 - 500 = 400. Attempting to request 600 must throw.
+      await expect(
+        service.requestPayout(doctorUser, { amount: 600 }),
+      ).rejects.toThrow();
+    });
+  });
 });
+

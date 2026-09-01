@@ -27,7 +27,7 @@ const PAYMENT_STATUS_TO_DISPLAY = {
 
 /* ─── Payout Modal ───────────────────────────── */
 function PayoutModal({ isOpen, onClose, onRequest, available, currency = 'INR', toast }) {
-  const [method, setMethod] = useState('Bank Account (Direct Wire)');
+  const [method, setMethod] = useState('Bank Account');
   const [amount, setAmount] = useState('');
   const [step, setStep] = useState(1);
 
@@ -70,10 +70,15 @@ function PayoutModal({ isOpen, onClose, onRequest, available, currency = 'INR', 
           <div>
             <label className="text-xs font-extrabold text-slate-700 mb-1.5 block">Disbursement Rail</label>
             <div className="space-y-2">
-              {['Bank Account (Direct Wire)', 'UPI Direct Transfer', 'International Swift Wire'].map(m => (
-                <label key={m} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${method === m ? 'border-aubergine-500 bg-aubergine-50/50' : 'border-slate-200 hover:border-slate-300'}`}>
-                  <input type="radio" name="payout" checked={method === m} onChange={() => setMethod(m)} className="accent-aubergine-600" />
-                  <span className="text-xs font-bold text-slate-800">{m}</span>
+              {[
+                { id: 'Bank Account', label: 'Bank Account (IMPS / NEFT / Wire)', icon: 'fa-building-columns' },
+                { id: 'UPI', label: 'UPI Direct Transfer (VPA / QR)', icon: 'fa-mobile-screen' },
+                { id: 'Wallet', label: 'Digital Healthcare Wallet', icon: 'fa-wallet' },
+              ].map(m => (
+                <label key={m.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${method === m.id ? 'border-aubergine-500 bg-aubergine-50/50' : 'border-slate-200 hover:border-slate-300'}`}>
+                  <input type="radio" name="payout" checked={method === m.id} onChange={() => setMethod(m.id)} className="accent-aubergine-600" />
+                  <i className={`fas ${m.icon} text-aubergine-700 text-xs w-4`}></i>
+                  <span className="text-xs font-bold text-slate-800">{m.label}</span>
                 </label>
               ))}
             </div>

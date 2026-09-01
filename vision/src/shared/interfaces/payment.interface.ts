@@ -29,7 +29,8 @@ export interface Payment {
   fx_rate_source?: string | null;
   fx_rate_timestamp?: Date | string | null;
 
-  // Revenue Segregation
+  // Revenue Segregation (snapshot at transaction time — never recalculated)
+  commission_rate?: number | null;
   platform_fee_amount?: number | string | null;
   platform_fee_currency?: string | null;
   provider_payout_amount?: number | string | null;

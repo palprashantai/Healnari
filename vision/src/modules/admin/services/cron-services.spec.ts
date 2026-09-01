@@ -12,11 +12,13 @@ describe('Background Cron Services Suite', () => {
       sendTemplatedMail: jest.fn().mockResolvedValue(true),
     };
 
-    it('accurately reconciles gross, 15% platform commission, and doctor net payouts for Paid payments', async () => {
+    it('uses stored per-transaction platform_fee_amount instead of a hardcoded rate', async () => {
       const mockPayments = [
         {
           id: 'p-1',
           amount: 1000,
+          platform_fee_amount: 100,   // 10% (Doctor A)
+          provider_payout_amount: 900,
           status: 'Paid',
           created_at: new Date().toISOString(),
           doctor_id: 'doc-1',
@@ -24,6 +26,8 @@ describe('Background Cron Services Suite', () => {
         {
           id: 'p-2',
           amount: 2000,
+          platform_fee_amount: 300,   // 15% (Doctor B)
+          provider_payout_amount: 1700,
           status: 'Paid',
           created_at: new Date().toISOString(),
           doctor_id: 'doc-2',

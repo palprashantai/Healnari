@@ -73,6 +73,100 @@ function ProcessPayoutModal({ payout, isOpen, onClose, onProcess }) {
   );
 }
 
+function GlobalCommissionModal({ isOpen, onClose, currentRate, history, onUpdate }) {
+  const toast = useToast();
+  const [rate, setRate] = useState(currentRate || 10);
+  const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setRate(currentRate || 10);
+      setReason('');
+    }
+  }, [isOpen, currentRate]);
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await onUpdate(Number(rate), reason);
+      toast(`Global platform commission updated to ${rate}%. Effective for all new transactions.`, 'success');
+      onClose();
+    } catch {
+      toast('Failed to update global commission rate', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Global Platform Commission Settings" size="md">
+      <div className="space-y-5">
+        <div className="bg-aubergine-50/70 border border-aubergine-100 rounded-2xl p-5 text-center">
+          <p className="text-xs text-slate-500 font-bold mb-1">Active Global Platform Take Rate</p>
+          <p className="text-4xl font-black text-aubergine-900 font-sans tracking-tight">{rate}%</p>
+          <p className="text-xs text-slate-500 font-medium mt-1">
+            Doctors receive <strong>{100 - Number(rate)}%</strong> of gross settled earnings
+          </p>
+        </div>
+
+        <div>
+          <label className="text-xs font-black text-slate-700 mb-1.5 block">Adjust Global Take Rate (%)</label>
+          <div className="flex items-center gap-4">
+            <input 
+              type="range" 
+              min="5" 
+              max="30" 
+              step="1" 
+              value={rate} 
+              onChange={e => setRate(Number(e.target.value))} 
+              className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-aubergine-600" 
+            />
+            <span className="font-mono font-black text-slate-900 text-lg w-14 text-right">{rate}%</span>
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs font-black text-slate-700 mb-1.5 block">Audit Change Reason (Optional)</label>
+          <input 
+            value={reason} 
+            onChange={e => setReason(e.target.value)} 
+            placeholder="e.g. Q3 platform take rate review adjustment"
+            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white" 
+          />
+        </div>
+
+        <button 
+          onClick={handleSave} 
+          disabled={loading}
+          className="w-full bg-slate-900 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+        >
+          {loading ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-save"></i>} Save Global Commission
+        </button>
+
+        {history && history.length > 0 && (
+          <div className="pt-3 border-t border-slate-100">
+            <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Audit History Trail</p>
+            <div className="max-h-36 overflow-y-auto space-y-2 pr-1">
+              {history.map(h => (
+                <div key={h.id} className="text-xs p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex justify-between items-center">
+                  <div>
+                    <span className="font-bold text-slate-800">{h.previous_rate ?? '—'}% → <strong className="text-aubergine-700 font-black">{h.new_rate}%</strong></span>
+                    {h.change_reason && <p className="text-[10px] text-slate-500 mt-0.5">{h.change_reason}</p>}
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {new Date(h.effective_from || h.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 function AdminRevenue() {
   const toast = useToast();
   
@@ -81,6 +175,8 @@ function AdminRevenue() {
   
   const [revenueData, setRevenueData] = useState(null);
   const [payouts, setPayouts] = useState([]);
+  const [commissionInfo, setCommissionInfo] = useState({ currentRate: 10, history: [] });
+  const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [processTarget, setProcessTarget] = useState(null);
   
@@ -94,12 +190,14 @@ function AdminRevenue() {
   const fetchRevenueData = useCallback(async (curr) => {
     setLoading(true);
     try {
-      const [rev, po] = await Promise.all([
+      const [rev, po, comm] = await Promise.all([
         apiFetch(`/admin/revenue?reportingCurrency=${curr}`),
         apiFetch('/admin/revenue/payouts'),
+        apiFetch('/admin/commission').catch(() => ({ currentRate: 10, history: [] })),
       ]);
       setRevenueData(rev);
       setPayouts(po || []);
+      if (comm) setCommissionInfo(comm);
     } catch {
       toast('Failed to load multi-currency revenue data from backend API', 'error');
     } finally {
@@ -120,6 +218,28 @@ function AdminRevenue() {
     await apiFetch(`/admin/revenue/payouts/${id}/process`, { method: 'PUT', body: { referenceId } });
     setPayouts(prev => prev.map(p => p.id === id ? { ...p, status: 'Processed', referenceId } : p));
     toast('Payout processed and physician notified.', 'success');
+  };
+
+  const handleUpdateGlobalCommission = async (newRate, reason) => {
+    await apiFetch('/admin/commission', {
+      method: 'PUT',
+      body: { commissionRate: newRate, reason },
+    });
+    setCommissionInfo(prev => ({
+      ...prev,
+      currentRate: newRate,
+      history: [
+        {
+          id: `h-${Date.now()}`,
+          previous_rate: prev.currentRate,
+          new_rate: newRate,
+          effective_from: new Date().toISOString(),
+          change_reason: reason,
+        },
+        ...(prev.history || []),
+      ],
+    }));
+    fetchRevenueData(reportingCurrency);
   };
 
   // Normalized Metrics in Reporting Currency
@@ -267,6 +387,30 @@ function AdminRevenue() {
             <i className="fas fa-file-csv text-emerald-400"></i> Export Ledger CSV
           </button>
         </div>
+      </div>
+
+      {/* Global Platform Commission Banner */}
+      <div className="bg-gradient-to-r from-aubergine-900 to-slate-900 text-white p-5 rounded-2xl border border-aubergine-800 shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-aubergine-700/60 border border-aubergine-500/30 flex items-center justify-center text-lg">
+            ⚖️
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-aubergine-300 uppercase tracking-wider">Universal Single Source of Truth</span>
+              <span className="bg-emerald-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full">ACTIVE</span>
+            </div>
+            <p className="text-sm font-black text-white mt-0.5">
+              Global Platform Take Rate: <span className="text-amber-300 text-base">{commissionInfo.currentRate}%</span> <span className="text-slate-400 font-normal text-xs">(Physicians retain {100 - commissionInfo.currentRate}%)</span>
+            </p>
+          </div>
+        </div>
+        <button 
+          onClick={() => setIsCommissionModalOpen(true)}
+          className="bg-white hover:bg-aubergine-50 text-slate-900 font-black px-4 py-2 rounded-xl text-xs flex items-center gap-2 transition-all shadow-sm whitespace-nowrap"
+        >
+          <i className="fas fa-sliders text-aubergine-700"></i> Adjust Take Rate &amp; Audit Log
+        </button>
       </div>
 
       {/* Global Filter Bar */}
@@ -693,8 +837,16 @@ function AdminRevenue() {
       </div>
 
       <ProcessPayoutModal payout={processTarget} isOpen={!!processTarget} onClose={() => setProcessTarget(null)} onProcess={handleProcessPayout} />
+      <GlobalCommissionModal
+        isOpen={isCommissionModalOpen}
+        onClose={() => setIsCommissionModalOpen(false)}
+        currentRate={commissionInfo.currentRate}
+        history={commissionInfo.history}
+        onUpdate={handleUpdateGlobalCommission}
+      />
     </div>
   );
 }
 
 export default AdminRevenue;
+

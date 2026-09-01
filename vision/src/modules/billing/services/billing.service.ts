@@ -25,6 +25,8 @@ import {
   RequestPayoutDto,
 } from '@/modules/billing/controllers/billing.controller';
 import { DecimalMath } from '@/core/utils/decimal.util';
+import { CommissionCalculator } from '@/core/utils/commission.util';
+import { CommissionService } from '@/core/commission/commission.service';
 import { FXRateService } from '@/core/fx/fx-rate.service';
 
 const CHANNEL_LABELS: Record<string, string> = {
@@ -49,6 +51,7 @@ export class BillingService {
     private readonly email: EmailService,
     private readonly appointmentsService: AppointmentsService,
     private readonly fxRateService: FXRateService,
+    private readonly commissionService: CommissionService,
   ) {}
 
   private async withNames(payments: any[]) {
@@ -243,7 +246,6 @@ export class BillingService {
     if (amount <= 0)
       throw new BadRequestException(ERROR_MESSAGES.NOTHING_TO_CHARGE);
     const currency = (doctor?.currency || 'INR').toUpperCase();
-    const commissionRate = Number(doctor?.commission_rate || 10); // 10% platform fee default
 
     // Idempotency guard: prevent duplicate orders for already-settled appointment
     const { data: alreadyPaid } = await this.supabase.admin
@@ -265,9 +267,9 @@ export class BillingService {
       .eq('status', 'Pending')
       .maybeSingle();
 
-    // Financial revenue segregation (Fixed Decimal Math)
-    const platformFee = DecimalMath.percentage(amount, commissionRate);
-    const providerPayout = DecimalMath.subtract(amount, platformFee);
+    // ── Centralized dynamic global commission (single source of truth from DB) ──
+    const commissionRate = await this.commissionService.getGlobalCommissionRate();
+    const payout = this.commissionService.calculatePayout(amount, commissionRate);
 
     // Capture transaction-time FX conversion
     const fxQuote = this.fxRateService.convert(amount, currency, 'USD');
@@ -313,10 +315,11 @@ export class BillingService {
       fx_rate_source: fxQuote.fxRateSource,
       fx_rate_timestamp: fxQuote.fxRateTimestamp,
 
-      // Revenue Segregation
-      platform_fee_amount: platformFee,
+      // Revenue Segregation (snapshot — immutable after creation)
+      commission_rate: payout.commissionRate,
+      platform_fee_amount: payout.commissionAmount,
       platform_fee_currency: currency,
-      provider_payout_amount: providerPayout,
+      provider_payout_amount: payout.providerPayoutAmount,
       provider_payout_currency: currency,
 
       status: 'Pending',
@@ -579,10 +582,10 @@ export class BillingService {
 
     const amount = Number(body.amount);
     const currency = (user.profile.currency || 'INR').toUpperCase();
-    const commissionRate = Number(user.profile.commission_rate || 10);
 
-    const platformFee = DecimalMath.percentage(amount, commissionRate);
-    const providerPayout = DecimalMath.subtract(amount, platformFee);
+    // ── Centralized dynamic global commission (single source of truth from DB) ──
+    const commissionRate = await this.commissionService.getGlobalCommissionRate();
+    const payout = this.commissionService.calculatePayout(amount, commissionRate);
     const fxQuote = this.fxRateService.convert(amount, currency, 'USD');
 
     const txnRef =
@@ -608,9 +611,10 @@ export class BillingService {
         fx_rate_source: fxQuote.fxRateSource,
         fx_rate_timestamp: fxQuote.fxRateTimestamp,
 
-        platform_fee_amount: platformFee,
+        commission_rate: payout.commissionRate,
+        platform_fee_amount: payout.commissionAmount,
         platform_fee_currency: currency,
-        provider_payout_amount: providerPayout,
+        provider_payout_amount: payout.providerPayoutAmount,
         provider_payout_currency: currency,
 
         status: body.status,
@@ -638,6 +642,27 @@ export class BillingService {
     if (user.profile.role !== ProfileRole.DOCTOR)
       throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
+    if (user.profile.status === 'Suspended') {
+      throw new ForbiddenException('Suspended doctors cannot request payouts.');
+    }
+
+    // ── 1. Strict Idempotency Check ─────────────────────────────────
+    if (body.idempotencyKey) {
+      const { data: existing } = await this.supabase.admin
+        .from('payouts')
+        .select()
+        .eq('doctor_id', user.id)
+        .eq('idempotency_key', body.idempotencyKey)
+        .maybeSingle();
+
+      if (existing) {
+        this.logger.log(
+          `Idempotent payout hit for doctor ${user.id}, returning existing payout ${existing.id}`,
+        );
+        return existing;
+      }
+    }
+
     const amount = Number(body.amount);
     if (!(amount > 0))
       throw new BadRequestException(ERROR_MESSAGES.NOTHING_TO_CHARGE);
@@ -646,8 +671,24 @@ export class BillingService {
     if (amount > available)
       throw new BadRequestException(ERROR_MESSAGES.INSUFFICIENT_BALANCE);
 
+    const rawMethod = String(body.method || 'Bank Account').trim();
+    const method = rawMethod.toLowerCase().includes('upi')
+      ? 'UPI'
+      : rawMethod.toLowerCase().includes('wallet')
+        ? 'Wallet'
+        : 'Bank Account';
+
+    const idempotencyKey = body.idempotencyKey || `hn-po-${randomUUID()}`;
+    const destinationDetails = body.destinationDetails || {
+      method,
+      account_holder: user.profile.full_name || 'Doctor',
+      phone: user.profile.phone || null,
+      email: user.email || null,
+      timestamp: new Date().toISOString(),
+    };
+
     const currency = (user.profile.currency || 'INR').toUpperCase();
-    const { data } = await this.supabase.admin
+    const { data, error } = await this.supabase.admin
       .from('payouts')
       .insert({
         doctor_id: user.id,
@@ -655,11 +696,29 @@ export class BillingService {
         currency,
         original_amount: amount,
         original_currency: currency,
-        method: body.method,
+        method,
         status: 'Processing',
+        idempotency_key: idempotencyKey,
+        destination_details: destinationDetails,
       })
       .select()
       .maybeSingle();
+
+    if (error) {
+      if (error.code === '23505') {
+        // Unique constraint violation on idempotency_key
+        const { data: existing } = await this.supabase.admin
+          .from('payouts')
+          .select()
+          .eq('idempotency_key', idempotencyKey)
+          .maybeSingle();
+        if (existing) return existing;
+      }
+      throw new InternalServerErrorException(
+        `Failed to create payout: ${error.message}`,
+      );
+    }
+
     return data;
   }
 }

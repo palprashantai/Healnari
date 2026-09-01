@@ -21,10 +21,22 @@ export class CreatePaymentOrderDto {
 }
 
 export class RequestPayoutDto {
-  @ApiProperty() @IsString() amount: string;
-  @ApiProperty({ enum: ['Bank Account', 'UPI', 'Wallet'] })
-  @IsIn(['Bank Account', 'UPI', 'Wallet'])
-  method: string;
+  @ApiProperty({ example: '5000' })
+  amount: string | number;
+
+  @ApiProperty({ enum: ['Bank Account', 'UPI', 'Wallet'], default: 'Bank Account' })
+  @IsOptional()
+  @IsString()
+  method?: string;
+
+  @ApiProperty({ required: false, example: 'req-idemp-98124' })
+  @IsOptional()
+  @IsString()
+  idempotencyKey?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  destinationDetails?: Record<string, any>;
 }
 
 export class RecordChargeDto {
