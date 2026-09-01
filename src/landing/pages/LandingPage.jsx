@@ -44,8 +44,7 @@ function LandingPage() {
   const [adminSettings, setAdminSettings] = useState(null);
 
   useEffect(() => {
-    // Remove the LCP shell to reveal the hydrated React app
-    document.getElementById('lcp-shell')?.remove();
+    // Analytics
     
     // Analytics
     import('../../lib/analytics.js').then(({ trackEvent, AnalyticsEvents }) => {

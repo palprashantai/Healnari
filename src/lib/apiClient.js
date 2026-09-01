@@ -70,8 +70,21 @@ async function refreshTokens() {
         return null;
       }
       const body = await res.json();
-      setTokens(body.data);
-      return body.data;
+      const newTokens = body.data || body;
+      
+      // Preserve old refresh token if the server only returns a new access token
+      const tokensToSave = {
+        accessToken: newTokens.accessToken || newTokens.access_token,
+        refreshToken: newTokens.refreshToken || newTokens.refresh_token || tokens.refreshToken
+      };
+      
+      if (!tokensToSave.accessToken) {
+        clearTokens();
+        return null;
+      }
+      
+      setTokens(tokensToSave);
+      return tokensToSave;
     } finally {
       refreshPromise = null;
     }

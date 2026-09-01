@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
@@ -17,6 +18,7 @@ function AdminDoctorManager() {
   const [messageType, setMessageType] = useState('email');
   const [templates, setTemplates] = useState([]);
   const [dbSpecialties, setDbSpecialties] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
 
   useEffect(() => {
     apiFetch('/admin/clinics')
@@ -212,9 +214,9 @@ function AdminDoctorManager() {
                         <p className="text-[10px] text-slate-400 font-bold">From ₹{d.totalGross.toLocaleString()} Gross</p>
                       </td>
                       <td className="px-5 py-4 text-right">
-                        <a href={`/admin-dashboard/doctors/${d.id}`} className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors shadow-sm whitespace-nowrap">
+                        <Link to={`/admin-dashboard/doctors/${d.id}`} className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors shadow-sm whitespace-nowrap">
                           View Dashboard
-                        </a>
+                        </Link>
                       </td>
                     </tr>
                   );

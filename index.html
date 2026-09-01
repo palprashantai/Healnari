@@ -188,6 +188,13 @@
         </div>
       </section>
     </div>
+    <script>
+      // Instantly hide the landing page LCP shell on deep links to prevent flashing wrong content
+      if (window.location.pathname !== '/' && window.location.pathname !== '/for-doctors' && !window.location.pathname.startsWith('/dr/') && !window.location.pathname.startsWith('/book/')) {
+        var lcp = document.getElementById('lcp-shell');
+        if (lcp) lcp.style.display = 'none';
+      }
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

@@ -122,6 +122,13 @@ import { NetworkStatusIndicator } from './components/NetworkStatusIndicator.jsx'
 import { GlobalNotificationPrompt } from './components/GlobalNotificationPrompt.jsx';
 
 function App() {
+  React.useEffect(() => {
+    // Remove the LCP shell to reveal the hydrated React app.
+    // This must happen at the root level because deep links (e.g., /admin-dashboard)
+    // do not mount the LandingPage component where this was previously handled.
+    document.getElementById('lcp-shell')?.remove();
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
