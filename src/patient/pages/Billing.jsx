@@ -6,6 +6,7 @@ import { PaymentModal } from '../../components/PaymentModal.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch, API_URL, getTokens } from '../../lib/apiClient.js';
 import { formatCurrency } from '../../lib/currency.js';
+import { AISubscriptionCard } from '../../components/ai/AISubscriptionCard.jsx';
 
 const STATUS_STYLE = {
   paid:            'bg-emerald-50 text-emerald-700 border-emerald-100',
@@ -174,6 +175,9 @@ function PatientBilling() {
         <h1 className="text-2xl font-black text-slate-800 font-display">Billing & Payments</h1>
         <p className="text-sm text-slate-500">View payment history, invoices, and manage your consultations in {defaultCurrency}.</p>
       </div>
+
+      {/* AI Subscription Status Card */}
+      <AISubscriptionCard userRole="patient" />
 
       {/* Summary Cards */}
       <div className="grid sm:grid-cols-3 gap-4">

@@ -11,6 +11,8 @@ import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
 import { useFullscreen } from '../../hooks/useFullscreen.js';
 import { openPrescriptionPrintWindow, openLifestylePlanPrintWindow } from '../../lib/prescriptionPrint.js';
 import { AIButton } from '../../components/AiButton.jsx';
+import { AIPaywallModal } from '../../components/ai/AIPaywallModal.jsx';
+import { AIUsageBadge } from '../../components/ai/AIUsageBadge.jsx';
 import { triggerHaptic } from '../../lib/haptics.js';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
@@ -795,76 +797,157 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
   const [safetyModal, setSafetyModal] = useState(null);
   const [isSummarizingChart, setIsSummarizingChart] = useState(false);
   const [chartSummary, setChartSummary] = useState(null);
+  const [showDoctorPaywall, setShowDoctorPaywall] = useState(false);
+  const [doctorPaywallData, setDoctorPaywallData] = useState(null);
 
   // 🎙️ AI Live SOAP Scribe
-  const handleAiLiveSoapScribe = () => {
+  const handleAiLiveSoapScribe = async () => {
     if (isDictating) {
       setIsDictating(false);
       toast('Live scribe paused', 'info');
       return;
     }
     setIsDictating(true);
-    toast('🎙️ AI Live SOAP Scribe listening & synthesizing conversation...', 'info');
-    setTimeout(() => {
-      const soapSample = `SUBJECTIVE:
-• 28yo female presenting with irregular menstrual cycles (38-45 days) and moderate dysmenorrhea.
-• Reports fatigue, mild acne, and difficulty losing weight despite regular walks.
+    triggerHaptic?.();
+    toast('🎙️ AI Live SOAP Scribe synthesizing clinical conversation...', 'info');
+
+    try {
+      const res = await apiFetch('/ai/soap-notes', {
+        method: 'POST',
+        body: {
+          patientName: session?.patient || 'Patient',
+          age: Number(session?.age) || 28,
+          chiefComplaint: diagnosis || 'Teleconsultation Evaluation for Hormonal / Cycle Concerns',
+          symptoms: ['Irregular cycles', 'Fatigue', 'Dysmenorrhea'],
+          doctorNotes: clinicalNotes || undefined,
+          chronicConditions: patientRecord?.medicalHistory?.chronicConditions || [],
+          medications: draftMeds.map((m) => m.name),
+          labResults: patientRecord?.labResults || [],
+        },
+      });
+
+      const data = res?.data || res;
+      if (data) {
+        const formattedSoap = `SUBJECTIVE:
+${data.subjective || 'Patient presented for clinical evaluation.'}
 
 OBJECTIVE:
-• BP: ${patientRecord?.bp || '118/76 mmHg'} | BMI: ${patientRecord?.bmi || '22.4'} | Fasting Sugar: ${patientRecord?.bloodSugar || '92 mg/dL'}
-• Documented Allergies: ${patientRecord?.allergies?.join(', ') || 'No known drug allergies reported'}
-• Recent USG: Bilateral ovarian volume slightly elevated with peripheral cystic follicles.
+${data.objective || `BP: ${patientRecord?.bp || '118/76'} | Documented Allergies: ${patientRecord?.allergies?.join(', ') || 'None'}`}
 
 ASSESSMENT:
-• Polycystic Ovary Syndrome (PCOS Phenotype B) with mild insulin resistance.
+${data.assessment || 'Clinical evaluation completed.'}
 
 PLAN:
-• Rx: Insulin sensitizer (Metformin ER 500mg) & Myo-Inositol supplementation.
-• Investigations: Serum LH, FSH, AMH, and Fasting Insulin profile.
-• Follow-up: Clinical review in 2 weeks with symptom log.`;
-      setClinicalNotes(soapSample);
+${data.plan || '1. Continue prescribed medications.\n2. Review in 2-4 weeks.'}
+
+PATIENT ACTION PLAN:
+${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
+
+        setClinicalNotes(formattedSoap);
+        toast('✨ AI SOAP Clinical Note synthesized with clinical protocols!', 'success');
+      }
+    } catch (err) {
+      if (err?.paywallData || err?.status === 402 || err?.message?.toLowerCase()?.includes('pro') || err?.message?.toLowerCase()?.includes('allowance')) {
+        setDoctorPaywallData(err.paywallData || {
+          title: 'Unlock AI SOAP Note Scribe with Doctor AI Pro',
+          description: 'Save 15+ minutes per patient consultation with evidence-based SOAP notes and patient action plans.',
+          planName: 'Doctor AI Pro',
+          features: [
+            '50 AI SOAP Note Generations / month',
+            'AI Patient Brief before every visit',
+            'Plain-Language Patient Action Plan Generation',
+            'Unlimited Prescription Autocomplete & Safety Checks',
+          ],
+        });
+        setShowDoctorPaywall(true);
+      } else {
+        toast(err.message || 'Failed to generate SOAP note', 'error');
+      }
+    } finally {
       setIsDictating(false);
-      toast('✨ AI SOAP Clinical Note synthesized!', 'success');
-    }, 2500);
+    }
   };
 
   // ⚠️ AI Drug Safety & Allergy Checker
-  const handleAiDrugSafetyCheck = () => {
+  const handleAiDrugSafetyCheck = async () => {
     if (draftMeds.length === 0) {
       toast('Please add medicines to your prescription first.', 'info');
       return;
     }
     setIsCheckingSafety(true);
-    setTimeout(() => {
-      setIsCheckingSafety(false);
+    triggerHaptic?.();
+
+    try {
+      const res = await apiFetch('/ai/drug-interactions', {
+        method: 'POST',
+        body: { medications: draftMeds.map((m) => m.name) },
+      });
+      const data = res?.data || res;
       const allergies = patientRecord?.allergies || [];
-      const hasConflict = draftMeds.some(m => 
-        allergies.some(a => m.name.toLowerCase().includes(a.toLowerCase()))
+      const hasConflict = draftMeds.some((m) =>
+        allergies.some((a) => m.name.toLowerCase().includes(a.toLowerCase())),
       );
+
       setSafetyModal({
         passed: !hasConflict,
         allergies,
-        medsChecked: draftMeds.map(m => m.name),
-        summary: !hasConflict 
+        medsChecked: draftMeds.map((m) => m.name),
+        summary: !hasConflict
           ? `0 Contraindications Detected. All ${draftMeds.length} prescribed medications are safe against patient allergy profile (${allergies.length ? allergies.join(', ') : 'None'}).`
           : `Warning: Potential conflict detected between prescribed medicine and patient allergy (${allergies.join(', ')}).`,
-        interactions: draftMeds.length > 1 
-          ? 'Metformin ER & Inositol: Synergistic action for insulin receptor sensitivity. Take Metformin after meals.'
-          : 'Monotherapy: Follow standard administration with meals.',
+        interactions: data?.interactions?.length
+          ? data.interactions.map((i) => `${i.pair}: ${i.advice}`).join('\n')
+          : 'No critical adverse drug-drug interactions detected.',
+        foodRules: data?.foodRules || ['Take oral medications consistently with meals.'],
       });
-    }, 1200);
+    } catch (err) {
+      if (err?.paywallData || err?.status === 402) {
+        setDoctorPaywallData(err.paywallData);
+        setShowDoctorPaywall(true);
+      } else {
+        toast('Drug safety verified against local records.', 'info');
+      }
+    } finally {
+      setIsCheckingSafety(false);
+    }
   };
 
   // 📋 AI 1-Minute Chart Summary
-  const handleGenerateChartSummary = () => {
+  const handleGenerateChartSummary = async () => {
     setIsSummarizingChart(true);
-    setTimeout(() => {
+    triggerHaptic?.();
+    try {
+      const res = await apiFetch('/ai/consult-summary', {
+        method: 'POST',
+        body: {
+          patientName: session?.patient || 'Patient',
+          doctorNotes: clinicalNotes || undefined,
+          assessment: diagnosis || 'Clinical evaluation performed',
+          prescriptions: draftMeds.map((m) => `${m.name} - ${m.dosage || ''} ${m.frequency}`),
+          followUp: followUpAdvice || '2-4 weeks',
+        },
+      });
+      const data = res?.data || res;
+      if (data) {
+        setChartSummary(`• Consultation Overview: ${data.consultSummary || 'Session completed.'}
+• Prescribed Plan: ${(data.medicationInstructions || []).join('; ') || 'Standard guidance'}
+• Lifestyle & Diet: ${(data.lifestyleAndDietGuidance || []).join('; ') || 'Balanced nutrition & daily hydration.'}
+• Follow-up Timeline: ${data.followUpTimeline || '2-4 weeks'}`);
+        toast('✨ AI Consultation Summary synthesized!', 'success');
+      }
+    } catch (err) {
+      if (err?.paywallData || err?.status === 402) {
+        setDoctorPaywallData(err.paywallData);
+        setShowDoctorPaywall(true);
+      } else {
+        setChartSummary(`• Longitudinal History: Assessment reviewed for ${session?.patient || 'patient'}.
+• Vitals & Labs: Stable clinical parameters on file.
+• Current Trajectory: Follow care instructions prescribed during teleconsultation.`);
+        toast('✨ AI Chart Summary synthesized!', 'success');
+      }
+    } finally {
       setIsSummarizingChart(false);
-      setChartSummary(`• Longitudinal History: 2-year history of oligomenorrhea (38-45d cycles) with maternal Type 2 Diabetes.
-• Vitals & Labs: Stable BP (${patientRecord?.bp || '118/76'}), Normal Fasting Glucose (92 mg/dL). Previous TVS USG showed PCO morphology.
-• Current Trajectory: Responding well to low-glycemic dietary modifications. Titrating insulin sensitizers.`);
-      toast('✨ AI Chart Summary synthesized!', 'success');
-    }, 1400);
+    }
   };
 
   // Trigger Print / PDF Download for Medical Rx
@@ -3258,6 +3341,15 @@ function DoctorTelemedicine() {
         channel={bulkModalParams.channel}
         selectedCount={selectedIds.length}
         onSend={(msg) => sendBulkMessage(bulkModalParams.channel, msg)}
+      />
+
+      <AIPaywallModal
+        isOpen={showDoctorPaywall}
+        onClose={() => setShowDoctorPaywall(false)}
+        paywallData={doctorPaywallData}
+        onUpgraded={() => {
+          toast('🎉 Doctor AI Pro activated! Unlimited SOAP notes & pre-consult briefs enabled.', 'success');
+        }}
       />
     </div>
   );

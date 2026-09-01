@@ -8,20 +8,35 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { Content } from '@google/generative-ai';
-import { AiService } from '@/modules/ai/services/ai.service';
+import { AiOrchestrator } from '@/modules/ai/services/ai-orchestrator.service';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { resolveSupabaseToken } from '@/core/auth/supabase-token.util';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
-// Public access is intentional for the landing-page assistant. Patient/doctor
-// contexts resolve identity from the handshake token below (best-effort —
-// an invalid/missing token just means tool calls that need identity, like
-// logging a period day, ask the visitor to sign in rather than failing the
-// whole connection).
+import { AiChatMessage } from '../providers/ai-provider.interface';
+
+const TOOL_DISPLAY_LABELS: Record<string, string> = {
+  get_my_appointments: 'Checking your scheduled appointments...',
+  get_my_prescriptions: 'Looking up your active prescriptions...',
+  get_my_lab_reports: 'Retrieving your diagnostic lab records...',
+  get_my_cycle_history: 'Analyzing your menstrual tracking history...',
+  get_doctor_directory: 'Searching verified specialists...',
+  get_available_slots: 'Checking real-time doctor availability...',
+  calculate_fertility_estimate: 'Calculating fertile window & ovulation timing...',
+  log_period_day: 'Recording period date in cycle journal...',
+  log_biomarkers: 'Logging temperature and biomarker readings...',
+  search_health_knowledge: 'Searching clinical guidelines and medical evidence...',
+  get_patient_profile: 'Verifying authorized patient record...',
+  get_patient_history: 'Accessing patient clinical history...',
+  get_patient_prescriptions: 'Checking previous prescription history...',
+  get_patient_lab_reports: 'Analyzing diagnostic biomarkers...',
+  get_doctor_schedule: 'Loading consultation schedule...',
+  check_drug_safety: 'Verifying pharmacology contraindications...',
+  search_clinical_protocols: 'Searching ACOG & endocrine clinical protocols...',
+};
 
 @WebSocketGateway({
   cors: {
-    origin: '*', // Adjust for production
+    origin: '*',
   },
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -29,13 +44,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server: Server;
 
   constructor(
-    private readonly aiService: AiService,
+    private readonly orchestrator: AiOrchestrator,
     private readonly supabase: SupabaseService,
   ) {}
 
   async handleConnection(client: Socket) {
-    console.log(`Client connected: ${client.id}`);
-    client.data.history = [] as Content[];
+    client.data.history = [] as AiChatMessage[];
 
     const token = client.handshake.auth?.token || client.handshake.query?.token;
     if (typeof token === 'string' && token) {
@@ -46,7 +60,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`Client disconnected: ${client.id}`);
+    // Clean up
   }
 
   private async resolveUser(token: string): Promise<AuthUser | null> {
@@ -66,21 +80,57 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('chat_message')
   async handleMessage(
     @MessageBody()
-    data: { message: string; context: 'doctor' | 'patient' | 'landing' },
+    data: { message: string; context?: 'doctor' | 'patient' | 'landing' },
     @ConnectedSocket() client: Socket,
   ) {
     try {
-      const { message, context } = data;
+      const { message } = data;
       const user: AuthUser | null = client.data.user ?? null;
-      const history: Content[] = client.data.history ?? [];
+      const history: AiChatMessage[] = client.data.history ?? [];
 
-      const { text, history: updatedHistory } =
-        await this.aiService.processQuery(message, context, user, history);
-      client.data.history = updatedHistory;
+      const result = await this.orchestrator.processChat({
+        message,
+        history,
+        user,
+        onEvent: (event) => {
+          if (event.type === 'tool_start') {
+            client.emit('tool_activity', {
+              status: 'executing',
+              toolName: event.toolName,
+              label:
+                TOOL_DISPLAY_LABELS[event.toolName || ''] ||
+                `Consulting ${event.toolName}...`,
+            });
+          } else if (event.type === 'tool_finish') {
+            client.emit('tool_activity', {
+              status: 'completed',
+              toolName: event.toolName,
+            });
+          }
+        },
+      });
 
-      client.emit('chat_reply', { status: 'success', data: text });
-    } catch (error) {
-      client.emit('chat_reply', { status: 'error', message: error.message });
+      client.data.history = result.history;
+
+      client.emit('chat_reply', {
+        status: 'success',
+        data: result.reply,
+        toolsUsed: result.toolsExecuted,
+        creditsRemaining: result.creditsRemaining,
+      });
+    } catch (error: any) {
+      if (error?.status === 402 || error?.response?.statusCode === 402) {
+        client.emit('chat_reply', {
+          status: 'paywall',
+          message: error?.response?.message || 'Monthly AI credit limit reached.',
+          paywallData: error?.response?.paywallData,
+        });
+      } else {
+        client.emit('chat_reply', {
+          status: 'error',
+          message: error.message || 'Unable to process AI request.',
+        });
+      }
     }
   }
 }

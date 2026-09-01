@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import {
   Content,
   GoogleGenerativeAI,
@@ -8,6 +8,7 @@ import {
 import { OpenAI } from 'openai';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { PatientsService } from '@/modules/patients/services/patients.service';
+import { AiOrchestrator } from '@/modules/ai/services/ai-orchestrator.service';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
 
 /**
@@ -219,6 +220,8 @@ export class AiService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly patientsService: PatientsService,
+    @Inject(forwardRef(() => AiOrchestrator))
+    private readonly orchestrator: AiOrchestrator,
   ) {
     const geminiKey = process.env.GEMINI_API_KEY;
     const openaiKey = process.env.OPENAI_API_KEY;
@@ -232,27 +235,18 @@ export class AiService {
   }
 
   // --- Router ---
-  // `history` and the returned `history` are the chat's full turn-by-turn
-  // memory for this socket connection (see ChatGateway) — without threading
-  // this through, every message would be answered with no memory of what the
-  // patient already said, which is what made the old multi-question fertility
-  // flow unable to track or correct answers at all.
   async processQuery(
     message: string,
     context: 'doctor' | 'patient' | 'landing',
     user: AuthUser | null,
-    history: Content[],
-  ): Promise<{ text: string; history: Content[] }> {
-    switch (context) {
-      case 'doctor':
-        return { text: await this.handleDoctorAgent(message), history };
-      case 'patient':
-        return this.handlePatientAgent(message, user, history);
-      case 'landing':
-        return { text: await this.handleLandingAgent(message), history };
-      default:
-        throw new Error('Unknown context');
-    }
+    history: any[],
+  ): Promise<{ text: string; history: any[] }> {
+    const result = await this.orchestrator.processChat({
+      message,
+      history,
+      user,
+    });
+    return { text: result.reply, history: result.history };
   }
 
   // --- Agents ---
@@ -1046,6 +1040,155 @@ Return ONLY valid JSON matching this schema:
       return this.safeJsonParse(result.response.text(), defaultTriage);
     } catch {
       return defaultTriage;
+    }
+  }
+
+  /**
+   * Generates tailored pre-consultation synthesis and smart doctor questions for the patient.
+   */
+  async prepareConsultation(params: {
+    patientName: string;
+    doctorSpecialty?: string;
+    doctorName?: string;
+    concerns?: string;
+    symptoms?: string[];
+    cycleContext?: string;
+    questions?: string[];
+  }) {
+    const defaultPrep = {
+      summary: `Your upcoming appointment with ${params.doctorName || params.doctorSpecialty || 'your specialist'} is a great opportunity to get clarity on your health concerns.`,
+      keyTopicsToCover: [
+        `Main symptoms: ${(params.symptoms || []).join(', ') || params.concerns || 'General health review'}`,
+        `Hormone & cycle patterns: ${params.cycleContext || 'Standard cycle review'}`,
+        `Treatment and lifestyle adjustments`,
+      ],
+      questionsForDoctor: [
+        'What could be the primary underlying physiological cause of my symptoms?',
+        'Do you recommend any specific hormone or blood biomarker tests?',
+        'What evidence-based nutrition or lifestyle changes will best support my treatment?',
+      ],
+      checklistBeforeCall: [
+        'Have any recent lab reports and prescription details ready on screen',
+        'Note down exact dates and duration of recent symptom episodes',
+        'Have a notebook or notes app open to record doctor guidance',
+      ],
+    };
+
+    if (!this.genAI) {
+      return defaultPrep;
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: 'gemini-1.5-flash',
+        generationConfig: { responseMimeType: 'application/json' },
+      });
+
+      const prompt = `You are an empathetic, expert Patient Consultation Preparation Assistant for HealNari, a specialized women's health platform.
+Your goal is to empower the patient (${params.patientName}) to have the most productive, comprehensive conversation with their healthcare provider (${params.doctorName || params.doctorSpecialty || 'Specialist'}).
+
+Patient Context:
+- Doctor Specialty: ${params.doctorSpecialty || 'Gynecology / Women Health'}
+- Doctor Name: ${params.doctorName || 'Specialist Doctor'}
+- Primary Concerns: ${params.concerns || 'Hormonal and menstrual wellness'}
+- Reported Symptoms: ${(params.symptoms || []).join(', ') || 'None specified'}
+- Cycle Context / Phase: ${params.cycleContext || 'Not specified'}
+- Patient Questions: ${(params.questions || []).join(', ') || 'General evaluation'}
+
+Safety Rules:
+- Never provide a diagnosis or prescriptive medication advice.
+- Frame everything as structured preparation and questions to ask during the consultation.
+- Include 3 high-yield, clinically astute questions tailored to their symptoms and doctor's specialty.
+
+Return ONLY a valid JSON object matching this schema:
+{
+  "summary": "1-2 sentence supportive, calming summary framing the purpose of this appointment",
+  "keyTopicsToCover": [
+    "Key topic 1 to highlight for the doctor",
+    "Key topic 2 to highlight for the doctor",
+    "Key topic 3 to highlight for the doctor"
+  ],
+  "questionsForDoctor": [
+    "Smart question 1 to ask the doctor",
+    "Smart question 2 to ask the doctor",
+    "Smart question 3 to ask the doctor"
+  ],
+  "checklistBeforeCall": [
+    "Checklist item 1 (e.g. Keep recent ultrasound/blood reports handy)",
+    "Checklist item 2 (e.g. List all active supplements and vitamins)",
+    "Checklist item 3 (e.g. Note down exact dates of last menstrual period)"
+  ]
+}`;
+
+      const result = await model.generateContent(prompt);
+      return this.safeJsonParse(result.response.text(), defaultPrep);
+    } catch {
+      return defaultPrep;
+    }
+  }
+
+  /**
+   * Generates plain-language post-consultation summary and patient takeaway instructions for doctor review.
+   */
+  async generateConsultSummary(params: {
+    patientName: string;
+    doctorNotes?: string;
+    assessment?: string;
+    prescriptions?: string[];
+    followUp?: string;
+  }) {
+    const defaultSummary = {
+      consultSummary: `During today's consultation with ${params.patientName}, we reviewed key symptoms, conducted a clinical evaluation, and established a personalized management plan.`,
+      diagnosesDiscussed: [params.assessment || 'Clinical evaluation completed'],
+      medicationInstructions: (params.prescriptions || []).length > 0
+        ? params.prescriptions!
+        : ['Continue current recommended care as discussed during the call.'],
+      lifestyleAndDietGuidance: [
+        'Prioritize balanced nutrition with adequate protein, fiber, and hydration.',
+        'Engage in 20-30 minutes of gentle, sustainable movement daily.',
+        'Maintain a daily symptom and cycle diary.',
+      ],
+      followUpTimeline: params.followUp || 'Follow-up in 2-4 weeks or sooner if symptoms change.',
+      emergencyRedFlags: 'Seek immediate emergency medical attention if you experience sudden severe abdominal/pelvic pain, unusually heavy bleeding (soaking a pad in <1 hr), fainting, or severe shortness of breath.',
+    };
+
+    if (!this.genAI) {
+      return defaultSummary;
+    }
+
+    try {
+      const model = this.genAI.getGenerativeModel({
+        model: 'gemini-1.5-flash',
+        generationConfig: { responseMimeType: 'application/json' },
+      });
+
+      const prompt = `You are a clinical communications assistant for HealNari. Generate a structured, patient-friendly consultation summary for doctor review.
+Patient: ${params.patientName}
+Doctor Consultation Notes: ${params.doctorNotes || 'Evaluation performed'}
+Clinical Assessment: ${params.assessment || 'General clinical review'}
+Prescriptions / Recommendations: ${(params.prescriptions || []).join('; ') || 'None'}
+Follow-up: ${params.followUp || 'As needed'}
+
+Return ONLY valid JSON matching this schema:
+{
+  "consultSummary": "2-3 sentence reassuring summary of what was discussed during the visit",
+  "diagnosesDiscussed": ["Primary topic/condition 1", "Topic 2"],
+  "medicationInstructions": [
+    "Instruction 1 for patient",
+    "Instruction 2 for patient"
+  ],
+  "lifestyleAndDietGuidance": [
+    "Lifestyle/nutrition tip 1",
+    "Lifestyle/nutrition tip 2"
+  ],
+  "followUpTimeline": "Timeline for next review (e.g. 2-4 weeks)",
+  "emergencyRedFlags": "Clear statement of red flag emergency warning signs"
+}`;
+
+      const result = await model.generateContent(prompt);
+      return this.safeJsonParse(result.response.text(), defaultSummary);
+    } catch {
+      return defaultSummary;
     }
   }
 

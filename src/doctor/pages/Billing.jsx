@@ -8,6 +8,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { DashboardFilterBar } from '../../components/dashboard/DashboardFilterBar.jsx';
 import { KPITrendCard } from '../../components/dashboard/KPITrendCard.jsx';
 import { DashboardEmptyState } from '../../components/dashboard/DashboardEmptyState.jsx';
+import { AISubscriptionCard } from '../../components/ai/AISubscriptionCard.jsx';
 
 const STATUS_STYLE = {
   settled: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -263,6 +264,9 @@ function DoctorBilling() {
           <i className="fas fa-wallet"></i> Request Payout
         </button>
       </div>
+
+      {/* Doctor AI Pro Subscription Management */}
+      <AISubscriptionCard userRole="doctor" />
 
       {/* Filter Bar */}
       <DashboardFilterBar

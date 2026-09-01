@@ -6,6 +6,8 @@ import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { buildPatientTimeline } from '../../lib/patientTimeline.js';
 import { AIButton } from '../../components/AiButton.jsx';
+import { AIPaywallModal } from '../../components/ai/AIPaywallModal.jsx';
+import { AISubscriptionCard } from '../../components/ai/AISubscriptionCard.jsx';
 
 const FILE_STYLE = {
   pdf: { icon: 'fa-file-pdf', color: 'bg-rose-50 text-rose-500' },
@@ -264,6 +266,8 @@ function PatientRecords() {
   const [aiLabModalOpen, setAiLabModalOpen] = useState(false);
   const [aiLabLoading, setAiLabLoading] = useState(false);
   const [aiLabData, setAiLabData] = useState(null);
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
+  const [paywallInfo, setPaywallInfo] = useState(null);
 
   const handleExplainWithAi = async (report) => {
     setAiLabModalOpen(true);
@@ -281,8 +285,23 @@ function PatientRecords() {
       const data = res?.data || res;
       setAiLabData(data);
     } catch (err) {
-      toast(err.message || 'Failed to analyze lab report with AI', 'error');
       setAiLabModalOpen(false);
+      if (err?.paywallData || err?.status === 402 || err?.message?.toLowerCase()?.includes('premium') || err?.message?.toLowerCase()?.includes('allowance')) {
+        setPaywallInfo(err.paywallData || {
+          title: 'Unlock AI Lab Report Decoder',
+          description: 'Get clear, plain-English biomarker interpretations, reference range explanations, and intelligent questions for your doctor.',
+          planName: 'HealNari AI Premium',
+          features: [
+            'Unlimited AI Lab Report Explanations',
+            'Cycle-phase calibrated hormone evaluation',
+            'Personalized smart questions to ask your doctor',
+            '200 AI Health Companion inquiries / month',
+          ],
+        });
+        setShowPaywallModal(true);
+      } else {
+        toast(err.message || 'Failed to analyze lab report with AI', 'error');
+      }
     } finally {
       setAiLabLoading(false);
     }
@@ -553,6 +572,8 @@ function PatientRecords() {
           {/* ── LAB REPORTS TAB ── */}
           {tab === 'labReports' && (
             <div className="space-y-5">
+              <AISubscriptionCard userRole="patient" />
+
               {labRequests.length > 0 && (
                 <div className="space-y-2">
                   <h3 className="font-bold text-slate-800 text-sm">Requested by your doctor</h3>
@@ -931,6 +952,15 @@ function PatientRecords() {
         message={`Remove ${deleteContactTarget?.name} from your emergency contacts?`}
         confirmLabel="Remove"
         confirmStyle="danger"
+      />
+
+      <AIPaywallModal
+        isOpen={showPaywallModal}
+        onClose={() => setShowPaywallModal(false)}
+        paywallData={paywallInfo}
+        onUpgraded={() => {
+          toast('AI Premium activated! You can now analyze unlimited lab reports.', 'success');
+        }}
       />
     </div>
   );

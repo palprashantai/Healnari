@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import { Activity, ArrowUp, ChevronDown, Lock } from 'lucide-react';
 import { getTokens } from '../lib/apiClient.js';
 import { triggerHaptic } from '../lib/haptics.js';
+import { AIPaywallModal } from '../components/ai/AIPaywallModal.jsx';
 
 // The vision ChatGateway listens on the API's own origin (no /api suffix, no
 // separate ws proxy) — see vision/src/modules/ai/gateways/chat.gateway.ts.
@@ -105,6 +106,9 @@ export default function AiChatWidget({ context = 'landing' }) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const [activeToolActivity, setActiveToolActivity] = useState(null);
+  const [paywallModalOpen, setPaywallModalOpen] = useState(false);
+  const [paywallData, setPaywallData] = useState(null);
   const socketRef = useRef(null);
 
   const [messages, setMessages] = useState([
@@ -123,7 +127,7 @@ export default function AiChatWidget({ context = 'landing' }) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading]);
+  }, [messages, isLoading, activeToolActivity]);
 
   useEffect(() => {
     const socket = io(SOCKET_URL, {
@@ -133,8 +137,33 @@ export default function AiChatWidget({ context = 'landing' }) {
     });
     socketRef.current = socket;
 
+    socket.on('tool_activity', (data) => {
+      if (data?.status === 'executing') {
+        setActiveToolActivity(data.label || `Consulting ${data.toolName}...`);
+      } else if (data?.status === 'completed') {
+        setActiveToolActivity(null);
+      }
+    });
+
     socket.on('chat_reply', (data) => {
       setIsLoading(false);
+      setActiveToolActivity(null);
+
+      if (data?.status === 'paywall') {
+        setPaywallData(data.paywallData || {
+          title: 'Unlock HealNari AI Assistant',
+          description: 'You have reached your free monthly AI allowance. Upgrade to continue your personalized health companion.',
+          planName: context === 'doctor' ? 'Doctor AI Pro' : 'HealNari AI Premium',
+          features: [
+            'Unlimited AI Health Companion questions',
+            'Full clinical tool integrations',
+            'Priority response processing',
+          ],
+        });
+        setPaywallModalOpen(true);
+        return;
+      }
+
       const replyText = typeof data === 'string' ? data : (data?.reply || data?.message || data?.text || 'I understand. Please consult your HealNari doctor for tailored guidance.');
       setMessages(prev => [
         ...prev,
@@ -142,6 +171,7 @@ export default function AiChatWidget({ context = 'landing' }) {
           id: `bot-${Date.now()}`,
           role: 'assistant',
           text: replyText,
+          toolsUsed: data?.toolsUsed,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -149,6 +179,7 @@ export default function AiChatWidget({ context = 'landing' }) {
 
     socket.on('error', (err) => {
       setIsLoading(false);
+      setActiveToolActivity(null);
       setMessages(prev => [
         ...prev,
         {
@@ -161,7 +192,7 @@ export default function AiChatWidget({ context = 'landing' }) {
     });
 
     return () => socket.disconnect();
-  }, []);
+  }, [context]);
 
   useEffect(() => {
     if (isOpen && socketRef.current && !socketRef.current.connected) {
@@ -364,7 +395,19 @@ export default function AiChatWidget({ context = 'landing' }) {
               );
             })}
 
-            {isLoading && (
+            {/* Active Tool Execution Pill */}
+            {activeToolActivity && (
+              <div className="flex flex-col items-start animate-fade-in">
+                <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 border border-purple-200 rounded-2xl p-3 shadow-sm flex items-center gap-2.5 text-xs text-purple-950 font-bold">
+                  <div className="w-5 h-5 rounded-lg bg-purple-600 text-white flex items-center justify-center text-[10px] animate-spin">
+                    <i className="fas fa-gear"></i>
+                  </div>
+                  <span>{activeToolActivity}</span>
+                </div>
+              </div>
+            )}
+
+            {isLoading && !activeToolActivity && (
               <div className="flex flex-col items-start animate-fade-in">
                 <div className="bg-white border border-aubergine-100 rounded-2xl rounded-bl-xs p-3.5 shadow-md flex items-center gap-3">
                   <div className="w-6 h-6 rounded-lg bg-aubergine-50 flex items-center justify-center text-aubergine-600 text-xs animate-spin">
@@ -462,6 +505,24 @@ export default function AiChatWidget({ context = 'landing' }) {
           <span className="absolute -top-0.5 -right-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-emerald-400 border-2 border-white rounded-full shadow-xs" />
         </button>
       </div>
+
+      <AIPaywallModal
+        isOpen={paywallModalOpen}
+        onClose={() => setPaywallModalOpen(false)}
+        paywallData={paywallData}
+        onUpgraded={() => {
+          setPaywallModalOpen(false);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `sys-${Date.now()}`,
+              role: 'assistant',
+              text: '🎉 Your AI Premium membership is now active! All health companion and clinical features are unlocked.',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            },
+          ]);
+        }}
+      />
     </div>
   );
 }

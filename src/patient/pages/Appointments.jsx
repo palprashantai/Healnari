@@ -13,6 +13,8 @@ import { useFullscreen } from '../../hooks/useFullscreen.js';
 import { PreJoinCheck } from '../../components/PreJoinCheck.jsx';
 import { formatCurrency } from '../../lib/currency.js';
 import { AIButton } from '../../components/AiButton.jsx';
+import { AIPaywallModal } from '../../components/ai/AIPaywallModal.jsx';
+import { AISubscriptionCard } from '../../components/ai/AISubscriptionCard.jsx';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
  * for srcObject, so this stays a thin imperative wrapper. */
@@ -35,106 +37,184 @@ function VideoTile({ stream, muted = false, mirrored = false, className = '' }) 
 
 /* ─── AI Consult Prep & Question Assistant Modal ───────── */
 function AiConsultPrepModal({ isOpen, onClose, appointment }) {
-  const [questions, setQuestions] = useState([]);
+  const [prepData, setPrepData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const [paywallInfo, setPaywallInfo] = useState(null);
 
   useEffect(() => {
     if (isOpen && appointment) {
       setLoading(true);
       setCopied(false);
+      setPrepData(null);
       apiFetch('/ai/consult-prep', {
         method: 'POST',
         body: {
           patientName: 'Patient',
-          chiefComplaint: `Upcoming ${appointment.type} with ${appointment.doctor} (${appointment.specialty})`,
-          context: 'Patient Consultation Question Preparation'
-        }
+          doctorSpecialty: appointment.specialty,
+          doctorName: appointment.doctor,
+          concerns: `Upcoming ${appointment.type} consultation`,
+          symptoms: appointment.notes ? [appointment.notes] : [],
+        },
       })
-      .then(res => {
-        if (res?.questions && Array.isArray(res.questions) && res.questions.length > 0) {
-          setQuestions(res.questions);
-        } else {
-          setQuestions([
-            `What are the primary hormonal markers contributing to my cycle fluctuations?`,
-            `Do I need specific ultrasound mapping or fasting insulin (HOMA-IR) tests?`,
-            `Are there personalized nutritional adjustments (e.g. inositol, anti-inflammatory diet) recommended?`,
-            `What is our target timeline for symptom improvement before the next review?`
-          ]);
-        }
-      })
-      .catch(() => {
-        setQuestions([
-          `What are the primary hormonal markers contributing to my symptoms?`,
-          `Are any specific lab tests recommended before starting new medication?`,
-          `How can diet and lifestyle modifications support this treatment plan?`,
-          `When should I schedule my follow-up appointment?`
-        ]);
-      })
-      .finally(() => setLoading(false));
+        .then((res) => {
+          const data = res?.data || res;
+          setPrepData(data);
+        })
+        .catch((err) => {
+          if (err?.paywallData || err?.status === 402 || err?.message?.toLowerCase()?.includes('premium') || err?.message?.toLowerCase()?.includes('allowance')) {
+            onClose();
+            setPaywallInfo(err.paywallData || {
+              title: 'Unlock AI Visit Preparation',
+              description: 'Synthesize your symptoms and get high-yield doctor questions tailored to your appointment.',
+              planName: 'HealNari AI Premium',
+              features: [
+                'AI Consultation Preparation Briefs',
+                'Tailored intelligent doctor questions',
+                'Pre-consultation checklist generator',
+                '200 AI inquiries per month',
+              ],
+            });
+            setShowPaywall(true);
+          } else {
+            setPrepData({
+              summary: `Prepare for your visit with ${appointment.doctor} (${appointment.specialty}).`,
+              keyTopicsToCover: [
+                'Current symptoms and cycle timeline',
+                'Medication and supplement review',
+                'Treatment goals and next steps',
+              ],
+              questionsForDoctor: [
+                'What could be the primary physiological cause of my symptoms?',
+                'Are specific hormone or blood tests recommended?',
+                'How can lifestyle modifications support my recovery?',
+              ],
+              checklistBeforeCall: [
+                'Have recent lab reports and prescription history open',
+                'List all active medications and daily vitamins',
+              ],
+            });
+          }
+        })
+        .finally(() => setLoading(false));
     }
   }, [isOpen, appointment]);
 
-  if (!isOpen || !appointment) return null;
+  if (!isOpen && !showPaywall) return null;
 
   const copyToClipboard = () => {
-    const text = questions.map((q, idx) => `${idx + 1}. ${q}`).join('\n');
+    if (!prepData) return;
+    const questions = prepData.questionsForDoctor || [];
+    const text = `Visit Prep for Dr. ${appointment?.doctor}:\n\nQuestions for Doctor:\n` +
+      questions.map((q, idx) => `${idx + 1}. ${q}`).join('\n') +
+      (prepData.checklistBeforeCall?.length ? `\n\nChecklist:\n` + prepData.checklistBeforeCall.map(c => `• ${c}`).join('\n') : '');
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="AI Consult Question Assistant" size="md">
-      <div className="space-y-4">
-        <div className="bg-gradient-to-r from-aubergine-50 via-magenta-50 to-aubergine-50 border border-aubergine-100 rounded-2xl p-4 flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-aubergine-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
-            <i className="fas fa-sparkles text-sm"></i>
+    <>
+      <Modal isOpen={isOpen} onClose={onClose} title="AI Visit Preparation Assistant" size="lg">
+        <div className="space-y-4">
+          <div className="bg-gradient-to-r from-aubergine-50 via-magenta-50 to-aubergine-50 border border-aubergine-100 rounded-2xl p-4 flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-aubergine-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
+              <i className="fas fa-sparkles text-sm"></i>
+            </div>
+            <div>
+              <h4 className="font-extrabold text-sm text-slate-800">Smart Consultation Synthesis</h4>
+              <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                Personalized clinical brief for your visit with <strong className="text-aubergine-950">{appointment?.doctor}</strong> ({appointment?.specialty}).
+              </p>
+            </div>
           </div>
-          <div>
-            <h4 className="font-extrabold text-sm text-slate-800">Smart Visit Preparation</h4>
-            <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
-              Curated evidence-based questions for your visit with <strong className="text-aubergine-950">{appointment.doctor}</strong> ({appointment.specialty}).
-            </p>
+
+          {loading ? (
+            <div className="py-12 flex flex-col items-center justify-center space-y-3">
+              <div className="w-10 h-10 rounded-full border-3 border-purple-200 border-t-purple-600 animate-spin"></div>
+              <p className="text-xs font-bold text-slate-600">Synthesizing clinical preparation brief...</p>
+              <p className="text-[11px] text-slate-400">Curating specialist questions with Gemini Medical AI</p>
+            </div>
+          ) : prepData ? (
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+              {/* Summary */}
+              {prepData.summary && (
+                <div className="p-3 bg-purple-50/70 border border-purple-100 rounded-xl text-xs text-purple-950 font-medium">
+                  {prepData.summary}
+                </div>
+              )}
+
+              {/* Questions for Doctor */}
+              {prepData.questionsForDoctor?.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-500">
+                    High-Yield Questions to Ask Your Doctor
+                  </h4>
+                  <div className="space-y-2">
+                    {prepData.questionsForDoctor.map((q, idx) => (
+                      <div key={idx} className="bg-white border border-slate-200 hover:border-purple-300 rounded-xl p-3 text-xs text-slate-700 font-medium flex items-start gap-2.5 shadow-2xs">
+                        <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 font-black text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
+                          {idx + 1}
+                        </span>
+                        <span className="leading-relaxed flex-1 font-semibold">{q}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Checklist */}
+              {prepData.checklistBeforeCall?.length > 0 && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                    <i className="fas fa-clipboard-check text-aubergine-600"></i> Pre-Call Checklist
+                  </h4>
+                  <div className="space-y-1.5">
+                    {prepData.checklistBeforeCall.map((item, idx) => (
+                      <div key={idx} className="text-xs text-slate-700 flex items-center gap-2">
+                        <i className="fas fa-circle-check text-emerald-500 text-xs"></i>
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-[11px] text-slate-400 text-center italic pt-1">
+                * Educational Preparation: This AI brief helps you organize your consultation and does not replace medical advice.
+              </p>
+            </div>
+          ) : null}
+
+          <div className="pt-2 flex gap-3 border-t border-slate-100">
+            <button
+              onClick={copyToClipboard}
+              disabled={loading || !prepData}
+              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <i className={`fas ${copied ? 'fa-check text-emerald-600' : 'fa-copy'}`}></i>
+              {copied ? 'Copied to Clipboard!' : 'Copy Prep Brief'}
+            </button>
+            <button
+              onClick={onClose}
+              className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors shadow-sm cursor-pointer"
+            >
+              Ready for Consult
+            </button>
           </div>
         </div>
+      </Modal>
 
-        {loading ? (
-          <div className="py-10 flex flex-col items-center justify-center space-y-3">
-            <div className="w-8 h-8 rounded-full border-3 border-purple-200 border-t-purple-600 animate-spin"></div>
-            <p className="text-xs font-bold text-slate-500">Generating tailored clinical questions...</p>
-          </div>
-        ) : (
-          <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
-            {questions.map((q, idx) => (
-              <div key={idx} className="bg-white border border-slate-200/80 hover:border-purple-300 rounded-xl p-3 text-xs text-slate-700 font-medium flex items-start gap-2.5 transition-colors shadow-2xs">
-                <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 font-black text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
-                  {idx + 1}
-                </span>
-                <span className="leading-relaxed flex-1">{q}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="pt-2 flex gap-3 border-t border-slate-100">
-          <button
-            onClick={copyToClipboard}
-            disabled={loading}
-            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-          >
-            <i className={`fas ${copied ? 'fa-check text-emerald-600' : 'fa-copy'}`}></i>
-            {copied ? 'Copied to Clipboard!' : 'Copy Questions'}
-          </button>
-          <button
-            onClick={onClose}
-            className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors shadow-sm"
-          >
-            Done
-          </button>
-        </div>
-      </div>
-    </Modal>
+      <AIPaywallModal
+        isOpen={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        paywallData={paywallInfo}
+        onUpgraded={() => {
+          setShowPaywall(false);
+        }}
+      />
+    </>
   );
 }
 

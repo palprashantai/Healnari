@@ -1,0 +1,286 @@
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { SupabaseService } from '@/core/supabase/supabase.service';
+import { CashfreeService } from '@/core/cashfree/cashfree.service';
+import {
+  AiSubscription,
+  AiPlanId,
+} from '@/modules/ai/interfaces/ai-monetization.interface';
+import type { AuthUser } from '@/core/decorators/current-user.decorator';
+
+export const AI_PLANS = {
+  [AiPlanId.PATIENT_FREE]: {
+    id: AiPlanId.PATIENT_FREE,
+    role: 'patient',
+    name: 'HealNari Standard',
+    price: 0,
+    currency: 'INR',
+    monthlyCredits: 5,
+    features: [
+      '5 AI Health Companion questions / month',
+      'Basic symptom guide',
+      'Cycle tracking integrations',
+    ],
+  },
+  [AiPlanId.PATIENT_PREMIUM]: {
+    id: AiPlanId.PATIENT_PREMIUM,
+    role: 'patient',
+    name: 'HealNari AI Premium',
+    priceMonthly: 299,
+    priceYearly: 2499,
+    currency: 'INR',
+    monthlyCredits: 200,
+    features: [
+      'Unlimited AI Lab Report Explanations with cycle-phase calibration',
+      'AI Consultation Preparation & personalized questions for doctor',
+      '200 AI Health Companion inquiries / month',
+      'Hormone biomarker trend insights & safety tips',
+      'Priority LLM processing',
+    ],
+  },
+  [AiPlanId.DOCTOR_FREE]: {
+    id: AiPlanId.DOCTOR_FREE,
+    role: 'doctor',
+    name: 'Doctor Standard',
+    price: 0,
+    currency: 'INR',
+    monthlyCredits: 10,
+    features: [
+      '10 Smart Rx autocompletions / month',
+      '10 Drug-food safety checks / month',
+    ],
+  },
+  [AiPlanId.DOCTOR_PRO]: {
+    id: AiPlanId.DOCTOR_PRO,
+    role: 'doctor',
+    name: 'Doctor AI Pro',
+    priceMonthly: 999,
+    priceYearly: 8999,
+    currency: 'INR',
+    monthlyCredits: 150,
+    features: [
+      'AI Patient Brief before every consultation',
+      '50 AI SOAP Note generations / month with vector RAG protocols',
+      'AI Post-Consultation Patient Action Plan & summaries',
+      'Unlimited smart prescription autocomplete & drug-interaction safety',
+      'Saved 15+ minutes per patient consultation',
+    ],
+  },
+};
+
+@Injectable()
+export class AiSubscriptionService {
+  private readonly logger = new Logger(AiSubscriptionService.name);
+  private readonly inMemorySubscriptions: Map<string, AiSubscription> = new Map();
+
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly cashfree: CashfreeService,
+  ) {}
+
+  /**
+   * Retrieves user's active AI subscription or generates standard free tier.
+   */
+  async getSubscription(user: AuthUser): Promise<AiSubscription> {
+    const isDoctor = user.profile.role === 'doctor';
+    const defaultPlan = isDoctor ? AiPlanId.DOCTOR_FREE : AiPlanId.PATIENT_FREE;
+    const defaultCredits = isDoctor ? 10 : 5;
+
+    try {
+      const { data, error } = await this.supabase.admin
+        .from('ai_subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!error && data) {
+        return data;
+      }
+    } catch (err: any) {
+      this.logger.debug(`Could not query ai_subscriptions table: ${err?.message}`);
+    }
+
+    // Check in-memory store
+    const inMem = this.inMemorySubscriptions.get(user.id);
+    if (inMem) return inMem;
+
+    // Create default active free tier subscription
+    const defaultSub: AiSubscription = {
+      id: `sub_${user.id.slice(0, 8)}`,
+      user_id: user.id,
+      plan_id: defaultPlan,
+      role: user.profile.role,
+      status: 'active',
+      billing_cycle: 'monthly',
+      current_period_start: new Date().toISOString(),
+      current_period_end: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+      monthly_ai_credits: defaultCredits,
+      credits_used: 0,
+      payment_reference: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    this.inMemorySubscriptions.set(user.id, defaultSub);
+    return defaultSub;
+  }
+
+  /**
+   * Deducts credits or records usage.
+   */
+  async deductCredits(user: AuthUser, count = 1): Promise<AiSubscription> {
+    const current = await this.getSubscription(user);
+    const updated: AiSubscription = {
+      ...current,
+      credits_used: (current.credits_used || 0) + count,
+      updated_at: new Date().toISOString(),
+    };
+
+    this.inMemorySubscriptions.set(user.id, updated);
+
+    try {
+      await this.supabase.admin
+        .from('ai_subscriptions')
+        .upsert(updated, { onConflict: 'user_id' });
+    } catch {}
+
+    return updated;
+  }
+
+  /**
+   * Initiates payment order via Cashfree to upgrade to AI Premium or Doctor AI Pro.
+   */
+  async initiateUpgrade(
+    user: AuthUser,
+    targetPlanId: string,
+    billingCycle: 'monthly' | 'yearly' = 'monthly',
+  ): Promise<{
+    orderId: string;
+    paymentSessionId?: string;
+    amount: number;
+    currency: string;
+    planName: string;
+  }> {
+    const isDoctor = user.profile.role === 'doctor';
+    let amount = 299;
+    let planName = 'HealNari AI Premium';
+
+    if (targetPlanId === AiPlanId.PATIENT_PREMIUM || targetPlanId === 'patient_premium') {
+      amount = billingCycle === 'yearly' ? 2499 : 299;
+      planName = 'HealNari AI Premium';
+    } else if (targetPlanId === AiPlanId.DOCTOR_PRO || targetPlanId === 'doctor_pro') {
+      amount = billingCycle === 'yearly' ? 8999 : 999;
+      planName = 'Doctor AI Pro';
+    } else {
+      throw new BadRequestException(`Unknown plan ID: ${targetPlanId}`);
+    }
+
+    const orderId = `ai_sub_${user.id.slice(0, 8)}_${Date.now()}`;
+
+    // If Cashfree is configured, create a real checkout session
+    if (this.cashfree.isConfigured) {
+      try {
+        const order = await this.cashfree.createOrder({
+          orderId,
+          amount,
+          currency: user.profile.currency || 'INR',
+          customerId: user.id,
+          customerName: user.profile.full_name || 'HealNari User',
+          customerEmail: user.email || 'user@healnari.app',
+          customerPhone: user.profile.phone || '9999999999',
+          note: `HealNari AI Subscription: ${planName} (${billingCycle})`,
+        });
+
+        return {
+          orderId,
+          paymentSessionId: order.payment_session_id,
+          amount,
+          currency: user.profile.currency || 'INR',
+          planName,
+        };
+      } catch (err: any) {
+        this.logger.warn(`Cashfree order creation failed for AI sub: ${err?.message}`);
+      }
+    }
+
+    // Return sandbox mock order if Cashfree is in offline/test mode
+    return {
+      orderId,
+      amount,
+      currency: 'INR',
+      planName,
+    };
+  }
+
+  /**
+   * Activates AI subscription upon verified payment.
+   */
+  async activateSubscription(
+    user: AuthUser,
+    planId: string,
+    billingCycle: 'monthly' | 'yearly' = 'monthly',
+    paymentReference?: string,
+  ): Promise<AiSubscription> {
+    const isDoctor = user.profile.role === 'doctor';
+    const isPro = planId.includes('pro') || planId.includes('premium');
+    const monthlyCredits = isDoctor ? (isPro ? 150 : 10) : isPro ? 200 : 5;
+
+    const days = billingCycle === 'yearly' ? 365 : 30;
+    const now = new Date();
+    const endDate = new Date(now.getTime() + days * 24 * 3600 * 1000);
+
+    const subscription: AiSubscription = {
+      id: `sub_${user.id.slice(0, 8)}`,
+      user_id: user.id,
+      plan_id: planId,
+      role: user.profile.role,
+      status: 'active',
+      billing_cycle: billingCycle,
+      current_period_start: now.toISOString(),
+      current_period_end: endDate.toISOString(),
+      monthly_ai_credits: monthlyCredits,
+      credits_used: 0,
+      payment_reference: paymentReference || `pay_${Date.now()}`,
+      created_at: now.toISOString(),
+      updated_at: now.toISOString(),
+    };
+
+    this.inMemorySubscriptions.set(user.id, subscription);
+
+    try {
+      await this.supabase.admin
+        .from('ai_subscriptions')
+        .upsert(subscription, { onConflict: 'user_id' });
+    } catch (err: any) {
+      this.logger.warn(`Failed to save ai_subscription to database: ${err?.message}`);
+    }
+
+    return subscription;
+  }
+
+  /**
+   * Cron Job: Resets monthly credits on 1st of every month.
+   */
+  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT)
+  async handleMonthlyCreditReset() {
+    this.logger.log('Resetting monthly AI credits for all active users...');
+    try {
+      await this.supabase.admin
+        .from('ai_subscriptions')
+        .update({ credits_used: 0, updated_at: new Date().toISOString() })
+        .eq('status', 'active');
+    } catch (err: any) {
+      this.logger.error(`Monthly AI credit reset error: ${err?.message}`);
+    }
+
+    // Reset in-memory cache
+    for (const [key, sub] of this.inMemorySubscriptions.entries()) {
+      this.inMemorySubscriptions.set(key, { ...sub, credits_used: 0 });
+    }
+  }
+}

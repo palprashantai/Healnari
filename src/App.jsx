@@ -71,6 +71,7 @@ const AdminDoctorLedger = lazy(() => import('./admin/pages/AdminDoctorLedger.jsx
 const AdminDoctorPayouts = lazy(() => import('./admin/pages/AdminDoctorPayouts.jsx'));
 const AdminLedgerDetail = lazy(() => import('./admin/pages/AdminLedgerDetail.jsx'));
 const AdminPayoutDetail = lazy(() => import('./admin/pages/AdminPayoutDetail.jsx'));
+const AdminAIControl = lazy(() => import('./admin/pages/AIControl.jsx'));
 
 
 function dashboardPathFor(role) {
@@ -237,6 +238,7 @@ function App() {
                 <Route path="leads" element={<AdminLeads />} />
                 <Route path="crons" element={<AdminCronManager />} />
                 <Route path="specialties" element={<AdminSpecialties />} />
+                <Route path="ai" element={<AdminAIControl />} />
               </Route>
               </Route>
               <Route path="*" element={<NotFound />} />

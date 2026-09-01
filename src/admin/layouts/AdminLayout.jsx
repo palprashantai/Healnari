@@ -25,6 +25,7 @@ const NAV_CATEGORIES = [
     title: 'Core & Analytics',
     items: [
       { name: 'Dashboard',          icon: 'fa-chart-pie',         path: '/admin-dashboard',              end: true,  color: '#6B46C1' },
+      { name: 'AI Product Control', icon: 'fa-wand-magic-sparkles',path:'/admin-dashboard/ai',           end: false, color: '#a855f7' },
       { name: 'Analytics & Growth', icon: 'fa-chart-line',        path: '/admin-dashboard/analytics',    end: false, color: '#f59e0b' },
       { name: 'Revenue & Payouts',  icon: 'fa-money-bill-transfer',path:'/admin-dashboard/revenue',      end: false, color: '#ef4444' },
       { name: 'Reports',            icon: 'fa-file-contract',     path: '/admin-dashboard/reports',      end: false, color: '#6366f1' },

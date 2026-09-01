@@ -359,3 +359,45 @@ body.discreet-blur main:focus-within {
   box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
 }
 
+/* ─── Ultra-Premium AI Button Keyframes & Glows ─── */
+@keyframes aiShimmerSweep {
+  0% {
+    transform: translateX(-150%) skewX(-25deg);
+  }
+  50%, 100% {
+    transform: translateX(250%) skewX(-25deg);
+  }
+}
+
+@keyframes aiPulseHalo {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes aiStarFloat {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translateY(-1.5px) rotate(15deg) scale(1.1);
+  }
+}
+
+.animate-ai-shimmer {
+  animation: aiShimmerSweep 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-ai-halo {
+  animation: aiPulseHalo 3s ease-in-out infinite;
+}
+
+.animate-ai-star {
+  animation: aiStarFloat 2.5s ease-in-out infinite;
+}
+

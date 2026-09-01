@@ -3482,6 +3482,1409 @@ $$;
 
 
 -- ==========================================
+-- MIGRATION: 0048_add_approved_status.sql
+-- ==========================================
+
+-- Adds 'Approved' as a valid appointments.status value for the awaiting-payment flow.
+
+alter table public.appointments
+  drop constraint appointments_status_check;
+
+alter table public.appointments
+  add constraint appointments_status_check
+  check (status in ('Requested', 'Approved', 'Upcoming', 'Waiting', 'In Progress', 'Done', 'No Show', 'Cancelled'));
+
+
+-- ==========================================
+-- MIGRATION: 0049_doctor_schedules.sql
+-- ==========================================
+
+-- Adds doctor_schedules, doctor_exceptions, and updates appointments for HOLD status
+
+create table public.doctor_schedules (
+  id uuid primary key default gen_random_uuid(),
+  doctor_id uuid not null references public.profiles(id) on delete cascade,
+  day_of_week int not null check (day_of_week between 0 and 6), -- 0=Sunday, 6=Saturday
+  start_time time not null,
+  end_time time not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table public.doctor_exceptions (
+  id uuid primary key default gen_random_uuid(),
+  doctor_id uuid not null references public.profiles(id) on delete cascade,
+  exception_date date not null,
+  is_available boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index doctor_schedules_doctor_idx on public.doctor_schedules(doctor_id, day_of_week);
+create index doctor_exceptions_doctor_idx on public.doctor_exceptions(doctor_id, exception_date);
+
+-- Add HOLD status and hold_expires_at to appointments
+alter table public.appointments drop constraint appointments_status_check;
+
+alter table public.appointments
+  add constraint appointments_status_check
+  check (status in ('Requested', 'Approved', 'HOLD', 'Upcoming', 'Waiting', 'In Progress', 'Done', 'No Show', 'Cancelled'));
+
+alter table public.appointments add column hold_expires_at timestamptz;
+
+-- Insert a default schedule for existing doctors (Mon-Fri, 09:00 - 17:00)
+insert into public.doctor_schedules (doctor_id, day_of_week, start_time, end_time)
+select p.id, d, '09:00:00'::time, '17:00:00'::time
+from public.profiles p
+cross join unnest(array[1,2,3,4,5]) as d
+where p.role = 'doctor';
+
+
+-- ==========================================
+-- MIGRATION: 0050_schedule_lunch_and_limits.sql
+-- ==========================================
+
+-- Add lunch break and max bookings settings to doctor_schedules
+
+-- Lunch break columns per day (nullable = no lunch break)
+alter table public.doctor_schedules add column lunch_start time;
+alter table public.doctor_schedules add column lunch_end time;
+
+-- Max bookings per day (null = unlimited)
+alter table public.doctor_schedules add column max_bookings_per_day int;
+
+
+-- ==========================================
+-- MIGRATION: 0051_schedule_engine_improvements.sql
+-- ==========================================
+
+-- Migration 0051: Schedule Engine Improvements
+-- Fixes critical bug: doctor_exceptions.reason column referenced in code but missing from schema.
+-- Adds configurable slot duration, buffer time, booking window, and prevents duplicate exceptions.
+
+-- 1. CRITICAL FIX: Add reason column to doctor_exceptions
+--    DoctorsService.addException() inserts a `reason` field that doesn't exist.
+ALTER TABLE public.doctor_exceptions ADD COLUMN IF NOT EXISTS reason text;
+
+-- 2. Prevent duplicate exceptions for the same doctor/date
+CREATE UNIQUE INDEX IF NOT EXISTS doctor_exceptions_unique_date
+  ON public.doctor_exceptions (doctor_id, exception_date);
+
+-- 3. Configurable slot duration per day (currently hardcoded to 30 everywhere)
+ALTER TABLE public.doctor_schedules
+  ADD COLUMN IF NOT EXISTS slot_duration_minutes int NOT NULL DEFAULT 30;
+
+-- 4. Buffer time between consecutive appointments
+ALTER TABLE public.doctor_schedules
+  ADD COLUMN IF NOT EXISTS buffer_minutes int NOT NULL DEFAULT 0;
+
+-- 5. Booking window constraints on doctor profiles
+--    min_advance_booking_minutes: patient cannot book less than N minutes before
+--    max_advance_booking_days: patient can book only up to N days in advance
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS min_advance_booking_minutes int NOT NULL DEFAULT 30,
+  ADD COLUMN IF NOT EXISTS max_advance_booking_days int NOT NULL DEFAULT 60;
+
+
+-- ==========================================
+-- MIGRATION: 0052_reschedule_and_cancellation_tracking.sql
+-- ==========================================
+
+-- Migration 0052: Reschedule & Cancellation Tracking
+-- Adds columns to track appointment rescheduling history and cancellation details.
+-- Required by the new POST /appointments/:id/reschedule endpoint.
+
+-- Reschedule tracking
+ALTER TABLE public.appointments
+  ADD COLUMN IF NOT EXISTS rescheduled_from_date date,
+  ADD COLUMN IF NOT EXISTS rescheduled_from_time text,
+  ADD COLUMN IF NOT EXISTS rescheduled_at timestamptz,
+  ADD COLUMN IF NOT EXISTS rescheduled_by uuid REFERENCES public.profiles(id),
+  ADD COLUMN IF NOT EXISTS reschedule_reason text;
+
+-- Cancellation tracking (who cancelled and why)
+ALTER TABLE public.appointments
+  ADD COLUMN IF NOT EXISTS cancellation_reason text,
+  ADD COLUMN IF NOT EXISTS cancelled_by uuid REFERENCES public.profiles(id),
+  ADD COLUMN IF NOT EXISTS cancelled_at timestamptz;
+
+-- 24h reminder tracking (referenced by send24HourReminders cron but column
+-- was never created — the cron silently finds zero rows because the IS NULL
+-- check on a non-existent column returns no results)
+ALTER TABLE public.appointments
+  ADD COLUMN IF NOT EXISTS reminder_24h_sent_at timestamptz;
+
+
+-- ==========================================
+-- MIGRATION: 0053_add_bio_to_profiles.sql
+-- ==========================================
+
+-- Migration 0053: Add bio to profiles
+-- Adds the 'bio' column which is used by doctors to write a short biography.
+
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio text;
+
+
+-- ==========================================
+-- MIGRATION: 0054_database_driven_email_system.sql
+-- ==========================================
+
+-- ============================================================================
+-- Migration 0054: Database-Driven Email Template System & Email Logs
+-- ============================================================================
+-- Extends public.message_templates to be the single source of truth for all
+-- production email content, subjects, preheaders, and design tokens.
+-- Adds public.email_logs for delivery tracking, idempotency, and auditability.
+-- Seeds 23 responsive, healthcare-branded transactional templates.
+-- ============================================================================
+
+-- 1. Extend message_templates with production email architecture fields
+alter table public.message_templates
+  add column if not exists category text default 'general',
+  add column if not exists preheader text,
+  add column if not exists version integer default 1,
+  add column if not exists is_active boolean default true;
+
+-- 2. Create email_logs table for auditability and delivery tracking
+create table if not exists public.email_logs (
+  id uuid primary key default gen_random_uuid(),
+  template_key text not null,
+  recipient text not null,
+  subject text not null,
+  event text,
+  entity_type text,
+  entity_id text,
+  status text not null default 'SENT', -- 'QUEUED', 'SENT', 'FAILED', 'RETRYING'
+  provider_message_id text,
+  error text,
+  variables jsonb default '{}'::jsonb,
+  sent_at timestamptz default now(),
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_email_logs_template_key on public.email_logs (template_key);
+create index if not exists idx_email_logs_recipient on public.email_logs (recipient);
+create index if not exists idx_email_logs_created_at on public.email_logs (created_at desc);
+create index if not exists idx_email_logs_entity on public.email_logs (entity_type, entity_id);
+
+alter table public.email_logs enable row level security;
+
+create policy "admin_manage_email_logs" on public.email_logs
+  for all to authenticated
+  using (public.current_app_role() = 'admin')
+  with check (public.current_app_role() = 'admin');
+
+grant select, insert, update on public.email_logs to authenticated, service_role;
+
+-- 3. Seed / Upsert Core Production Email Templates (23 Standardized Templates)
+insert into public.message_templates (slug, name, type, audience, category, subject, preheader, description, is_system, variables_hint, content)
+values
+
+-- ============================================================================
+-- 1. PATIENT WELCOME & LOGIN CREDENTIALS
+-- ============================================================================
+(
+  'patient_welcome',
+  'Patient Account Login Credentials',
+  'email',
+  'Patient',
+  'auth',
+  'Welcome to HealNari — Your Patient Portal Credentials',
+  'Your secure HealNari patient portal account is ready.',
+  'Sent to new patients when their consultation request is approved and an account is created.',
+  true,
+  '["patientName", "email", "password", "loginUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FAF5FF; border: 1px solid #E9D8FD; color: #6B46C1; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Welcome to HealNari</div>
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Your Patient Portal Account is Ready</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>{{patientName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Your personalized patient portal account has been created so you can manage your appointments, join secure video consultations, view digital prescriptions, and connect with your care team.</p>
+    
+    <div style="background-color: #FAF5FF; border: 1px solid #E9D8FD; border-radius: 12px; padding: 20px; margin: 20px 0;">
+      <p style="margin: 0 0 12px 0; font-size: 11px; font-weight: 800; color: #6B46C1; text-transform: uppercase; letter-spacing: 0.5px;">Your Secure Login Credentials</p>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 6px 0; font-size: 14px; color: #64748B; width: 90px;"><strong>Email:</strong></td>
+          <td style="padding: 6px 0; font-size: 14px; color: #1E293B; font-weight: 600;">{{email}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-size: 14px; color: #64748B;"><strong>Password:</strong></td>
+          <td style="padding: 6px 0; font-size: 14px; color: #1E293B; font-family: monospace; font-weight: 700; background: #FFFFFF; padding: 4px 8px; border-radius: 6px; border: 1px solid #CBD5E1; display: inline-block;">{{password}}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{loginUrl}}" style="background-color: #6B46C1; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(107, 70, 193, 0.25);">Login to Patient Portal &rarr;</a>
+    </div>
+
+    <p style="color: #94A3B8; font-size: 12px; line-height: 1.5; margin: 20px 0 0 0;">For your privacy and security, please update your temporary password in your Profile Settings after your first login.</p>
+  </div>'
+),
+
+-- ============================================================================
+-- 2. CONSULTATION REQUEST RECEIVED (PUBLIC LEAD RECEIPT)
+-- ============================================================================
+(
+  'consultation_request_received',
+  'Public Consultation Request Received (Patient)',
+  'email',
+  'Patient',
+  'booking',
+  'Consultation Request Received — Dr. {{doctorName}}',
+  'We have received your appointment request and forwarded it to the specialist.',
+  'Sent to patient immediately after submitting the public booking request form.',
+  true,
+  '["patientName", "doctorName", "scheduledDate", "scheduledTime", "dashboardUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FAF5FF; border: 1px solid #E9D8FD; color: #6B46C1; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Request Received</div>
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Consultation Request Submitted</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>{{patientName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">We have received your consultation request with <strong>Dr. {{doctorName}}</strong>. The doctor has been notified and will review your schedule window shortly.</p>
+    
+    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-left: 4px solid #6B46C1; border-radius: 10px; padding: 18px; margin: 20px 0;">
+      <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 0.5px;">Requested Slot</p>
+      <p style="margin: 0; font-size: 15px; color: #1E293B;">📅 <strong>Date:</strong> {{scheduledDate}}</p>
+      <p style="margin: 6px 0 0 0; font-size: 15px; color: #1E293B;">⏰ <strong>Preferred Time:</strong> {{scheduledTime}}</p>
+    </div>
+
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Once Dr. {{doctorName}} confirms the slot, you will receive an approval notification with a secure link to complete payment and lock in your session.</p>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #0F172A; color: #FFFFFF; text-decoration: none; padding: 13px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block;">View Request Status &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 3. CONSULTATION REQUEST TO DOCTOR (NEW LEAD)
+-- ============================================================================
+(
+  'consultation_request_doctor',
+  'New Consultation Request (Doctor Notification)',
+  'email',
+  'Doctor',
+  'booking',
+  'New Consultation Request: {{patientName}} ({{scheduledDate}})',
+  'A new patient has requested a consultation with your practice.',
+  'Notification sent to doctor when a new public lead requests an appointment.',
+  true,
+  '["doctorName", "patientName", "scheduledDate", "scheduledTime", "concern", "dashboardUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FAF5FF; border: 1px solid #E9D8FD; color: #6B46C1; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Action Required &bull; New Booking</div>
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">New Patient Consultation Request</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Dear Dr. <strong>{{doctorName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;"><strong>{{patientName}}</strong> has requested a consultation slot with your practice on HealNari.</p>
+    
+    <div style="background-color: #FAF5FF; border: 1px solid #E9D8FD; border-left: 4px solid #6B46C1; border-radius: 10px; padding: 18px; margin: 20px 0;">
+      <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: 800; color: #6B46C1; text-transform: uppercase; letter-spacing: 0.5px;">Consultation Request Summary</p>
+      <p style="margin: 0; font-size: 14px; color: #1E293B;">👤 <strong>Patient:</strong> {{patientName}}</p>
+      <p style="margin: 6px 0 0 0; font-size: 14px; color: #1E293B;">📅 <strong>Requested Time:</strong> {{scheduledDate}} at {{scheduledTime}}</p>
+      <p style="margin: 6px 0 0 0; font-size: 14px; color: #475569;">🩺 <strong>Chief Concern:</strong> {{concern}}</p>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #6B46C1; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(107, 70, 193, 0.25);">Review & Accept Request &rarr;</a>
+    </div>
+
+    <p style="color: #94A3B8; font-size: 12px; margin: 20px 0 0 0;">Accepting the request reserves the slot on your calendar and prompts the patient for payment confirmation.</p>
+  </div>'
+),
+
+-- ============================================================================
+-- 4. CONSULTATION REQUEST ACCEPTED (PATIENT PAY TO CONFIRM)
+-- ============================================================================
+(
+  'consultation_request_accepted',
+  'Consultation Request Approved (Pay to Confirm)',
+  'email',
+  'Patient',
+  'booking',
+  'Action Required: Dr. {{doctorName}} accepted your consultation request',
+  'Complete payment to confirm your scheduled consultation.',
+  'Sent to patient when a doctor approves their booking request, prompting payment confirmation.',
+  true,
+  '["patientName", "doctorName", "scheduledDate", "scheduledTime", "paymentUrl", "amount"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Action Required &bull; Pay to Confirm</div>
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Consultation Request Approved!</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>{{patientName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Great news! <strong>Dr. {{doctorName}}</strong> has reviewed and approved your consultation request.</p>
+    
+    <div style="background-color: #FFFBEB; border: 1px solid #FDE68A; border-left: 4px solid #F59E0B; border-radius: 10px; padding: 18px; margin: 20px 0;">
+      <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: 800; color: #92400E; text-transform: uppercase; letter-spacing: 0.5px;">Approved Appointment Details</p>
+      <p style="margin: 0; font-size: 15px; color: #1E293B;">📅 <strong>Date:</strong> {{scheduledDate}}</p>
+      <p style="margin: 6px 0 0 0; font-size: 15px; color: #1E293B;">⏰ <strong>Time:</strong> {{scheduledTime}}</p>
+      <p style="margin: 8px 0 0 0; font-size: 14px; color: #78350F;">💳 <strong>Consultation Fee:</strong> ₹{{amount}}</p>
+    </div>
+
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">To lock in this slot and activate your digital consultation room, please complete your secure payment.</p>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{paymentUrl}}" style="background-color: #F59E0B; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);">Pay Now to Confirm Booking &rarr;</a>
+    </div>
+
+    <p style="color: #64748B; font-size: 12px; line-height: 1.5; margin: 20px 0 0 0;"><strong>Important:</strong> Your requested slot is held for 24 hours. Unconfirmed slots are automatically released back to the specialist calendar.</p>
+  </div>'
+),
+
+-- ============================================================================
+-- 5. CONSULTATION REQUEST REJECTED / DECLINED
+-- ============================================================================
+(
+  'consultation_request_rejected',
+  'Consultation Request Declined Notice',
+  'email',
+  'Patient',
+  'booking',
+  'Update regarding your consultation request with Dr. {{doctorName}}',
+  'Information regarding your consultation request.',
+  'Sent to patient if a doctor is unable to take their booking request.',
+  true,
+  '["patientName", "doctorName", "preferredDate", "findDoctorUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Consultation Request Update</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>{{patientName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Thank you for reaching out to HealNari. Due to high clinical volume or emergency schedule conflicts, <strong>Dr. {{doctorName}}</strong> is unable to take new consultations for your requested time window ({{preferredDate}}).</p>
+    
+    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 16px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 13px; color: #475569; line-height: 1.5;">We have verified specialists in gynecology, PCOS management, fertility, and wellness available for prompt consultation.</p>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{findDoctorUrl}}" style="background-color: #6B46C1; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(107, 70, 193, 0.25);">Browse Available Specialists &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 6. APPOINTMENT REQUESTED (PATIENT RECEIPT - EXISTING PATIENT)
+-- ============================================================================
+(
+  'appointment_requested_patient',
+  'Appointment Request Received (Patient)',
+  'email',
+  'Patient',
+  'booking',
+  'Consultation Request Submitted — Dr. {{doctorName}}',
+  'We have received your appointment request.',
+  'Confirmation sent to an existing patient after submitting a consultation request from dashboard.',
+  true,
+  '["patientName", "doctorName", "when", "dashboardUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FAF5FF; border: 1px solid #E9D8FD; color: #6B46C1; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Request Submitted</div>
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Consultation Request Submitted</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>{{patientName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Your consultation request with <strong>Dr. {{doctorName}}</strong> for <strong>{{when}}</strong> has been submitted to the specialist for review.</p>
+    
+    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 16px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 13px; color: #475569; line-height: 1.5;">You will receive an email and in-app alert as soon as the doctor accepts your request to complete payment confirmation.</p>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #0F172A; color: #FFFFFF; text-decoration: none; padding: 13px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block;">View Appointment Status &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 7. APPOINTMENT REQUESTED (DOCTOR NOTIFICATION)
+-- ============================================================================
+(
+  'appointment_requested',
+  'New Consultation Request (Doctor)',
+  'email',
+  'Doctor',
+  'booking',
+  'New Consultation Request from {{patientName}} ({{when}})',
+  'A patient has requested a consultation with you.',
+  'Notification sent to a doctor when a patient books a new consultation.',
+  true,
+  '["doctorName", "patientName", "when", "label", "reason", "dashboardUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FAF5FF; border: 1px solid #E9D8FD; color: #6B46C1; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">New Booking Request</div>
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">New Patient Consultation Request</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Dear Dr. <strong>{{doctorName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;"><strong>{{patientName}}</strong> has requested a {{label}} with your practice.</p>
+    
+    <div style="background-color: #FAF5FF; border: 1px solid #E9D8FD; border-left: 4px solid #6B46C1; border-radius: 10px; padding: 18px; margin: 20px 0;">
+      <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: 800; color: #6B46C1; text-transform: uppercase; letter-spacing: 0.5px;">Consultation Details</p>
+      <p style="margin: 0; font-size: 14px; color: #1E293B;">📅 <strong>Requested Slot:</strong> {{when}}</p>
+      <p style="margin: 6px 0 0 0; font-size: 14px; color: #1E293B;">📋 <strong>Format:</strong> {{label}}</p>
+      <p style="margin: 6px 0 0 0; font-size: 14px; color: #475569;">🩺 <strong>Chief Concern:</strong> {{reason}}</p>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #6B46C1; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(107, 70, 193, 0.25);">Review & Accept Request &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 8. APPOINTMENT APPROVED (EXISTING PATIENT PAY TO CONFIRM)
+-- ============================================================================
+(
+  'appointment_approved',
+  'Appointment Approved (Pay to Confirm)',
+  'email',
+  'Patient',
+  'booking',
+  'Action Required: Pay to confirm consultation with Dr. {{doctorName}}',
+  'Your doctor accepted your request. Pay now to lock in the appointment.',
+  'Sent to existing patient when doctor approves an appointment, requiring payment to confirm.',
+  true,
+  '["patientName", "doctorName", "when", "label", "dashboardUrl", "paymentUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FFFBEB; border: 1px solid #FDE68A; color: #92400E; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Action Required &bull; Pay to Confirm</div>
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Appointment Request Approved!</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>{{patientName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Your {{label}} request with <strong>Dr. {{doctorName}}</strong> has been accepted by the specialist.</p>
+    
+    <div style="background-color: #FFFBEB; border: 1px solid #FDE68A; border-left: 4px solid #F59E0B; border-radius: 10px; padding: 18px; margin: 20px 0;">
+      <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: 800; color: #92400E; text-transform: uppercase; letter-spacing: 0.5px;">Approved Slot</p>
+      <h3 style="margin: 0; color: #92400E; font-size: 17px; font-weight: 800;">{{when}}</h3>
+      <p style="margin: 6px 0 0 0; font-size: 13px; color: #78350F;">Format: <strong>{{label}}</strong></p>
+    </div>
+
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;"><strong>Please note:</strong> Your appointment slot is held for 24 hours. Complete payment to finalize and confirm your booking.</p>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{paymentUrl}}" style="background-color: #F59E0B; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);">Pay Now to Confirm &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 9. APPOINTMENT CONFIRMED
+-- ============================================================================
+(
+  'appointment_confirmed',
+  'Appointment Confirmed Notice',
+  'email',
+  'Patient',
+  'booking',
+  'Confirmed: Consultation with Dr. {{doctorName}} on {{when}}',
+  'Your appointment is locked in.',
+  'Sent to patient once appointment payment is settled or confirmed by doctor.',
+  true,
+  '["patientName", "doctorName", "when", "label", "dashboardUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">✓ Confirmed</div>
+    <h2 style="color: #065F46; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Your Consultation is Confirmed!</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>{{patientName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Your {{label}} with <strong>Dr. {{doctorName}}</strong> is fully confirmed and locked into the doctor''s schedule.</p>
+    
+    <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-left: 4px solid #10B981; border-radius: 10px; padding: 18px; margin: 20px 0;">
+      <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: 800; color: #166534; text-transform: uppercase; letter-spacing: 0.5px;">Confirmed Appointment Details</p>
+      <h3 style="margin: 0; color: #0F172A; font-size: 17px; font-weight: 800;">{{when}}</h3>
+      <p style="margin: 6px 0 0 0; font-size: 13px; color: #475569;">Format: <strong>{{label}}</strong></p>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #0F172A; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block;">Open Consultation Room &rarr;</a>
+    </div>
+
+    <p style="color: #94A3B8; font-size: 12px; text-align: center; margin: 20px 0 0 0;">Please join your consultation room 5 minutes early to test your camera and audio.</p>
+  </div>'
+),
+
+-- ============================================================================
+-- 10. APPOINTMENT CANCELLED
+-- ============================================================================
+(
+  'appointment_cancelled',
+  'Appointment Cancellation Notice',
+  'email',
+  'Patient',
+  'booking',
+  'Cancelled: Consultation with Dr. {{doctorName}} on {{when}}',
+  'Notice of appointment cancellation.',
+  'Sent to patient and doctor when an appointment is cancelled.',
+  true,
+  '["patientName", "doctorName", "when", "label", "cancellationReason", "dashboardUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FFF1F2; border: 1px solid #FECDD3; color: #9F1239; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Cancelled</div>
+    <h2 style="color: #E11D48; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Appointment Cancelled</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>{{patientName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Your {{label}} scheduled for <strong>{{when}}</strong> with <strong>Dr. {{doctorName}}</strong> has been cancelled.</p>
+    
+    <div style="background-color: #FFF1F2; border: 1px solid #FECDD3; border-radius: 10px; padding: 16px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 13px; color: #9F1239; line-height: 1.5;">If payment was processed for this consultation, a full refund has been initiated to your original payment method (settles within 3-5 business days).</p>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #0F172A; color: #FFFFFF; text-decoration: none; padding: 13px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block;">Reschedule or Book Another Slot &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 11. APPOINTMENT UNPAID CANCELLED (24H TIMEOUT CRON)
+-- ============================================================================
+(
+  'appointment_unpaid_cancelled',
+  'Appointment Expired Due to Non-Payment',
+  'email',
+  'Patient',
+  'booking',
+  'Notice: Consultation request expired due to pending payment',
+  'Your appointment slot hold has expired.',
+  'Sent to patient when 24h payment window passes without payment completion.',
+  true,
+  '["patientName", "doctorName", "when", "dashboardUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FFF1F2; border: 1px solid #FECDD3; color: #9F1239; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Slot Released</div>
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Consultation Request Expired</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>{{patientName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Your tentative consultation request with <strong>Dr. {{doctorName}}</strong> for {{when}} has expired because payment was not completed within the 24-hour hold period.</p>
+    
+    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 16px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 13px; color: #475569; line-height: 1.5;">To consult with Dr. {{doctorName}} or explore other available women''s healthcare specialists, you can submit a new booking request anytime.</p>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #6B46C1; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(107, 70, 193, 0.25);">Find Available Specialists &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 12. APPOINTMENT RESCHEDULED
+-- ============================================================================
+(
+  'appointment_rescheduled',
+  'Appointment Rescheduled Notice',
+  'email',
+  'Patient',
+  'booking',
+  'Rescheduled: Consultation with Dr. {{doctorName}} is now on {{newWhen}}',
+  'Your consultation has been rescheduled.',
+  'Sent to patient and doctor when an appointment date or time is modified.',
+  true,
+  '["patientName", "doctorName", "oldWhen", "newWhen", "label", "dashboardUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FAF5FF; border: 1px solid #E9D8FD; color: #6B46C1; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Rescheduled</div>
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Appointment Rescheduled</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>{{patientName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Your {{label}} with <strong>Dr. {{doctorName}}</strong> has been updated to a new time slot.</p>
+    
+    <div style="background-color: #FAF5FF; border: 1px solid #E9D8FD; border-left: 4px solid #6B46C1; border-radius: 10px; padding: 18px; margin: 20px 0;">
+      <p style="margin: 0 0 4px 0; font-size: 12px; color: #94A3B8; text-decoration: line-through;">Previous: {{oldWhen}}</p>
+      <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: 800; color: #6B46C1; text-transform: uppercase; letter-spacing: 0.5px;">New Scheduled Time</p>
+      <h3 style="margin: 0; color: #2A1647; font-size: 17px; font-weight: 800;">{{newWhen}}</h3>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #6B46C1; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(107, 70, 193, 0.25);">View Updated Schedule &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 13. APPOINTMENT REMINDER (UPCOMING)
+-- ============================================================================
+(
+  'appointment_reminder_upcoming',
+  'Upcoming Appointment Reminder (30m Before)',
+  'email',
+  'Patient',
+  'booking',
+  'Reminder: Your consultation with Dr. {{doctorName}} is in {{timeRemaining}}',
+  'Your upcoming consultation starts shortly.',
+  'Automated reminder sent prior to scheduled consultation start.',
+  true,
+  '["patientName", "doctorName", "when", "label", "timeRemaining", "dashboardUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Starting Soon &bull; {{timeRemaining}}</div>
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Upcoming Consultation Reminder</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>{{patientName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">This is a friendly reminder that your {{label}} with <strong>Dr. {{doctorName}}</strong> starts in approximately <strong>{{timeRemaining}}</strong>.</p>
+    
+    <div style="background-color: #F0FDF4; border: 1px solid #BBF7D0; border-left: 4px solid #10B981; border-radius: 10px; padding: 18px; margin: 20px 0;">
+      <p style="margin: 0 0 6px 0; font-size: 11px; font-weight: 800; color: #166534; text-transform: uppercase; letter-spacing: 0.5px;">Appointment Schedule</p>
+      <h3 style="margin: 0; color: #0F172A; font-size: 17px; font-weight: 800;">{{when}}</h3>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #10B981; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);">Join Telemed Room &rarr;</a>
+    </div>
+
+    <p style="color: #94A3B8; font-size: 12px; text-align: center;">Please ensure a stable internet connection and find a quiet, private space for your consultation.</p>
+  </div>'
+),
+
+-- ============================================================================
+-- 14. PAYMENT RECEIPT & INVOICE
+-- ============================================================================
+(
+  'payment_receipt',
+  'Payment Receipt & Tax Invoice',
+  'email',
+  'Patient',
+  'billing',
+  'HealNari Payment Receipt — {{amount}} ({{service}})',
+  'Your payment receipt and invoice are ready.',
+  'Sent to patient with PDF invoice attached upon successful payment completion.',
+  true,
+  '["patientName", "amount", "service", "doctorName", "doctorInfo", "invoiceUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">✓ Payment Successful</div>
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Payment Receipt</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>{{patientName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">We have received your payment for <strong>{{service}}</strong>{{doctorInfo}}.</p>
+    
+    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin: 20px 0;">
+      <p style="margin: 0 0 4px 0; font-size: 11px; color: #64748B; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Amount Paid</p>
+      <h3 style="margin: 0; color: #10B981; font-size: 24px; font-weight: 800;">{{amount}}</h3>
+      <p style="margin: 8px 0 0 0; font-size: 13px; color: #475569;">Service: <strong>{{service}}</strong></p>
+    </div>
+
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Your official tax invoice is attached as a PDF to this email for your records and medical claims.</p>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{invoiceUrl}}" style="background-color: #0F172A; color: #FFFFFF; text-decoration: none; padding: 13px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block;">View Billing History &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 15. PRESCRIPTION ISSUED
+-- ============================================================================
+(
+  'prescription_issued',
+  'New Digital Prescription Issued',
+  'email',
+  'Patient',
+  'records',
+  'New Prescription Issued by Dr. {{doctorName}} — HealNari',
+  'Your doctor has uploaded your digital prescription.',
+  'Sent to patient as soon as doctor issues a digital prescription.',
+  true,
+  '["patientName", "doctorName", "diagnosis", "medicineCount", "recordsUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FAF5FF; border: 1px solid #E9D8FD; color: #6B46C1; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Digital Prescription</div>
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">New Digital Prescription Available</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>{{patientName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;"><strong>Dr. {{doctorName}}</strong> has issued a digital prescription and care plan following your consultation.</p>
+    
+    <div style="background-color: #FAF5FF; border: 1px solid #E9D8FD; border-left: 4px solid #6B46C1; border-radius: 10px; padding: 18px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 14px; color: #1E293B;">🩺 <strong>Diagnosis / Care Plan:</strong> {{diagnosis}}</p>
+      <p style="margin: 6px 0 0 0; font-size: 13px; color: #6B46C1; font-weight: 700;">💊 Medications Prescribed: {{medicineCount}} item(s)</p>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{recordsUrl}}" style="background-color: #6B46C1; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(107, 70, 193, 0.25);">View & Download Prescription &rarr;</a>
+    </div>
+
+    <p style="color: #94A3B8; font-size: 12px; text-align: center;">For security and patient privacy, full dosage details are accessible in your encrypted patient portal.</p>
+  </div>'
+),
+
+-- ============================================================================
+-- 16. PRESCRIPTION REFILL REMINDER (CRON)
+-- ============================================================================
+(
+  'prescription_refill_reminder',
+  'Prescription Course Completion & Refill Reminder',
+  'email',
+  'Patient',
+  'records',
+  'Refill Reminder: {{medName}} course nearing completion',
+  'Refill reminder for your ongoing medication.',
+  'Automated reminder sent 5 days before active prescription course concludes.',
+  true,
+  '["patientName", "medName", "duration", "recordsUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FAF5FF; border: 1px solid #E9D8FD; color: #6B46C1; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Medication Refill Alert</div>
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Prescription Course Ending Soon</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>{{patientName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">This is a friendly reminder that your current course of <strong>{{medName}}</strong> ({{duration}}) is scheduled to complete in approximately 5 days.</p>
+    
+    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 16px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 13px; color: #475569; line-height: 1.5;">To maintain treatment continuity and titrate dosages as needed, please request a refill or schedule a follow-up review with your doctor.</p>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{recordsUrl}}" style="background-color: #6B46C1; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(107, 70, 193, 0.25);">Request Refill in Portal &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 17. PATIENT FOLLOW-UP REMINDER (CRON)
+-- ============================================================================
+(
+  'patient_followup_reminder',
+  'Recommended Follow-Up Consultation Reminder',
+  'email',
+  'Patient',
+  'records',
+  'Time for Your Follow-Up Review with Dr. {{doctorName}}',
+  'Your doctor recommended a routine review around this time.',
+  'Automated reminder sent 10-14 days after completed consultation.',
+  true,
+  '["patientName", "doctorName", "dashboardUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FAF5FF; border: 1px solid #E9D8FD; color: #6B46C1; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Follow-Up Review</div>
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Time for Your Routine Follow-Up</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Hello <strong>{{patientName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Following your recent consultation, <strong>Dr. {{doctorName}}</strong> recommended scheduling a follow-up review around this time to monitor your symptoms and evaluate treatment response.</p>
+    
+    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 16px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 13px; color: #475569; line-height: 1.5;">Regular follow-up appointments allow your specialist to fine-tune your prescription and ensure your care journey is on track.</p>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #6B46C1; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(107, 70, 193, 0.25);">Book Follow-Up Consultation &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 18. DOCTOR KYC VERIFICATION APPROVED
+-- ============================================================================
+(
+  'doctor_kyc_approved',
+  'Doctor Credentials Verification Approved',
+  'email',
+  'Doctor',
+  'compliance',
+  'Welcome to HealNari Practice Network — Credentials Verified!',
+  'Your medical provider credentials have been verified.',
+  'Sent to doctor once administrator verifies medical license and credentials.',
+  true,
+  '["doctorName", "dashboardUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">✓ Verified Provider</div>
+    <h2 style="color: #065F46; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Welcome to HealNari Practice Network</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Dear Dr. <strong>{{doctorName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">We are delighted to confirm that your medical registration, degree certificates, and clinical credentials have been <strong>verified and approved</strong> by our clinical governance board.</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Your public specialist profile is now published on HealNari. You can now set your consultation availability slots and receive patients.</p>
+    
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #0F172A; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block;">Open Provider Dashboard &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 19. DOCTOR KYC VERIFICATION REJECTED / CLARIFICATION
+-- ============================================================================
+(
+  'doctor_kyc_rejected',
+  'Doctor KYC Verification Clarification Request',
+  'email',
+  'Doctor',
+  'compliance',
+  'Action Required: HealNari Medical Verification Update',
+  'Clarification required for medical credentials.',
+  'Sent to doctor if KYC documents require correction or re-upload.',
+  true,
+  '["doctorName", "dashboardUrl", "reason"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FFF1F2; border: 1px solid #FECDD3; color: #9F1239; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Clarification Required</div>
+    <h2 style="color: #E11D48; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Provider Verification Update</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Dear Dr. <strong>{{doctorName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Thank you for submitting your practice credentials. Our clinical governance team has reviewed your documents and identified items requiring clarification or re-upload:</p>
+    
+    <div style="background-color: #FFF1F2; border: 1px solid #FECDD3; border-radius: 10px; padding: 16px; margin: 20px 0;">
+      <p style="margin: 0; font-size: 13px; color: #9F1239; line-height: 1.5;">{{reason}}</p>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #0F172A; color: #FFFFFF; text-decoration: none; padding: 13px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block;">Review & Resubmit Documents &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 20. DOCTOR PAYOUT SETTLEMENT ADVICE
+-- ============================================================================
+(
+  'doctor_payout_settlement',
+  'Doctor Payout Settlement Advice',
+  'email',
+  'Doctor',
+  'billing',
+  'HealNari Payout Settlement Confirmed — {{amount}}',
+  'Your consultation earnings payout has been processed.',
+  'Sent to doctor when consultation earnings are transferred to bank account.',
+  true,
+  '["doctorName", "amount", "referenceId", "settlementDate", "dashboardUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">✓ Payout Settled</div>
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Payout Settlement Advice</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Dear Dr. <strong>{{doctorName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Your consultation earnings payout has been settled and transferred to your registered bank account.</p>
+    
+    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin: 20px 0;">
+      <p style="margin: 0 0 4px 0; font-size: 11px; color: #64748B; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Settled Amount</p>
+      <h3 style="margin: 0; color: #10B981; font-size: 24px; font-weight: 800;">{{amount}}</h3>
+      <p style="margin: 10px 0 0 0; font-size: 13px; color: #475569;">Bank Reference (UTR): <strong>{{referenceId}}</strong></p>
+      <p style="margin: 4px 0 0 0; font-size: 13px; color: #475569;">Settlement Date: <strong>{{settlementDate}}</strong></p>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #0F172A; color: #FFFFFF; text-decoration: none; padding: 13px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block;">View Financial Ledger &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 21. DOCTOR DAILY AGENDA (CRON)
+-- ============================================================================
+(
+  'doctor_daily_agenda',
+  'Doctor Morning Schedule Digest',
+  'email',
+  'Doctor',
+  'booking',
+  'Daily Patient Agenda ({{totalPatients}} consultations) — Dr. {{doctorName}}',
+  'Your consultation schedule for today.',
+  'Daily digest sent to active doctors at 7:45 AM.',
+  true,
+  '["doctorName", "formattedDate", "totalPatients", "videoCount", "firstTime", "appointmentsTable", "dashboardUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 8px 0; line-height: 1.3;">Good Morning, Dr. {{doctorName}}</h2>
+    <p style="color: #475569; font-size: 14px; margin: 0 0 20px 0;">Here is your scheduled consultation agenda for today (<strong>{{formattedDate}}</strong>):</p>
+    
+    <div style="background-color: #FAF5FF; border: 1px solid #E9D8FD; border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+      <table style="width: 100%; border-collapse: collapse; text-align: center;">
+        <tr>
+          <td style="padding: 6px;">
+            <span style="font-size: 11px; color: #64748B; display: block; font-weight: bold; text-transform: uppercase;">Total Consults</span>
+            <strong style="font-size: 20px; color: #2A1647;">{{totalPatients}}</strong>
+          </td>
+          <td style="padding: 6px; border-left: 1px solid #E9D8FD;">
+            <span style="font-size: 11px; color: #166534; display: block; font-weight: bold; text-transform: uppercase;">Video Sessions</span>
+            <strong style="font-size: 20px; color: #15803D;">{{videoCount}}</strong>
+          </td>
+          <td style="padding: 6px; border-left: 1px solid #E9D8FD;">
+            <span style="font-size: 11px; color: #7E22CE; display: block; font-weight: bold; text-transform: uppercase;">First Appointment</span>
+            <strong style="font-size: 18px; color: #6B21A8;">{{firstTime}}</strong>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px;">
+      <thead>
+        <tr style="background-color: #F8FAFC; color: #64748B; font-size: 11px; text-transform: uppercase;">
+          <th style="padding: 10px 12px; border-bottom: 2px solid #E2E8F0; text-align: left;">Time</th>
+          <th style="padding: 10px 12px; border-bottom: 2px solid #E2E8F0; text-align: left;">Format</th>
+          <th style="padding: 10px 12px; border-bottom: 2px solid #E2E8F0; text-align: left;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{appointmentsTable}}
+      </tbody>
+    </table>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #0F172A; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block;">Open Doctor Telemed Suite &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 22. ADMIN DAILY REVENUE RECONCILIATION (CRON)
+-- ============================================================================
+(
+  'admin_daily_revenue_reconciliation',
+  'Daily Revenue Settlement Report (Admin)',
+  'email',
+  'General',
+  'admin',
+  'HealNari Daily Settlement Report ({{date}})',
+  'Daily financial reconciliation report for administration.',
+  'Sent to administrators at midnight with the 24-hour financial reconciliation breakdown.',
+  true,
+  '["adminName", "date", "totalGross", "platformCommission", "doctorNetPayouts", "paidCount", "analyticsUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <h2 style="color: #2A1647; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">HealNari 24h Revenue Settlement Report</h2>
+    <p style="color: #475569; font-size: 14px; margin: 0 0 16px 0;">Hello <strong>{{adminName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; margin: 0 0 20px 0;">Here is the automated financial reconciliation summary for <strong>{{date}}</strong>:</p>
+    
+    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 20px; margin: 20px 0;">
+      <p style="margin: 0 0 6px 0; font-size: 13px; color: #64748B;">Gross Volume: <strong style="color: #0F172A; font-size: 16px;">{{totalGross}}</strong></p>
+      <p style="margin: 0 0 6px 0; font-size: 13px; color: #64748B;">Platform Net Commission: <strong style="color: #10B981; font-size: 16px;">{{platformCommission}}</strong></p>
+      <p style="margin: 0 0 6px 0; font-size: 13px; color: #64748B;">Doctor Payout Liabilities: <strong style="color: #0284C7; font-size: 16px;">{{doctorNetPayouts}}</strong></p>
+      <p style="margin: 0; font-size: 13px; color: #64748B;">Paid Consultations: <strong style="color: #0F172A;">{{paidCount}}</strong></p>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{analyticsUrl}}" style="background-color: #0F172A; color: #FFFFFF; text-decoration: none; padding: 13px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block;">View Revenue Analytics &rarr;</a>
+    </div>
+  </div>'
+),
+
+-- ============================================================================
+-- 23. ADMIN DOCTOR KYC ESCALATION (CRON)
+-- ============================================================================
+(
+  'admin_doctor_kyc_escalation',
+  'Doctor KYC Escalation (>48h Overdue)',
+  'email',
+  'General',
+  'admin',
+  '⚠️ [Escalation] {{pendingCount}} Doctor KYC Verifications Overdue (>48h)',
+  'Action required: doctor verification pending review.',
+  'Sent to admins when doctor licenses are pending review for over 48 hours.',
+  true,
+  '["adminName", "pendingCount", "doctorListHtml", "verificationsUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FFF1F2; border: 1px solid #FECDD3; color: #9F1239; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">⚠️ Verification Escalation</div>
+    <h2 style="color: #E11D48; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Action Required: Doctor KYC Review Escalation</h2>
+    <p style="color: #475569; font-size: 14px; margin: 0 0 16px 0;">Hello <strong>{{adminName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; margin: 0 0 20px 0;">There are <strong>{{pendingCount}} doctor verification(s)</strong> that have been pending review for over 48 hours:</p>
+    
+    <div style="background-color: #FFF1F2; border: 1px solid #FECDD3; border-radius: 10px; padding: 16px; margin: 20px 0;">
+      <ul style="color: #334155; font-size: 13px; line-height: 1.6; margin: 0; padding-left: 20px;">
+        {{doctorListHtml}}
+      </ul>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{verificationsUrl}}" style="background-color: #E11D48; color: #FFFFFF; text-decoration: none; padding: 13px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block;">Review Pending Provider KYCs &rarr;</a>
+    </div>
+  </div>'
+)
+
+on conflict (slug) do update set
+  name = excluded.name,
+  type = excluded.type,
+  audience = excluded.audience,
+  category = excluded.category,
+  subject = excluded.subject,
+  preheader = excluded.preheader,
+  description = excluded.description,
+  is_system = excluded.is_system,
+  variables_hint = excluded.variables_hint,
+  content = excluded.content;
+
+
+-- ==========================================
+-- MIGRATION: 0055_production_performance_indexes.sql
+-- ==========================================
+
+-- 0055_production_performance_indexes.sql
+-- High-performance compound, partial, and foreign-key indexes for hot paths.
+
+-- 1. Appointments Hot-Paths
+-- Used in double-booking checks, slot availability, queue advancement, and doctor appointment queries
+CREATE INDEX IF NOT EXISTS idx_appointments_doctor_date_time 
+  ON public.appointments (doctor_id, scheduled_date, scheduled_time) 
+  WHERE deleted_at IS NULL;
+
+-- Used in patient appointment history, upcoming appointment widget, and patient dashboards
+CREATE INDEX IF NOT EXISTS idx_appointments_patient_date 
+  ON public.appointments (patient_id, scheduled_date DESC) 
+  WHERE deleted_at IS NULL;
+
+-- Used in cron jobs (overdue reminders, no-show markers, queue stats)
+CREATE INDEX IF NOT EXISTS idx_appointments_status_date 
+  ON public.appointments (status, scheduled_date) 
+  WHERE deleted_at IS NULL;
+
+-- 2. Notifications Hot-Paths
+-- Used in fetchNotifications (pagination by user + desc created_at) and unread count badge
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read_created 
+  ON public.notifications (user_id, read, created_at DESC);
+
+-- 3. Daily Tracking & Patient Biomarker Logs
+-- Used in cycle tracker history and analytics
+CREATE INDEX IF NOT EXISTS idx_cycle_logs_patient_date 
+  ON public.cycle_logs (patient_id, log_date DESC);
+
+-- Used in daily habit tracking & streak calculations
+CREATE INDEX IF NOT EXISTS idx_lifestyle_logs_patient_date 
+  ON public.lifestyle_logs (patient_id, log_date DESC);
+
+-- Used in vitals charts & trends
+CREATE INDEX IF NOT EXISTS idx_vitals_logs_patient_date 
+  ON public.vitals_logs (patient_id, logged_at DESC);
+
+-- 4. Clinical & EMR Records
+-- Used in prescription vaults and patient detail modals
+CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_created 
+  ON public.prescriptions (patient_id, created_at DESC) 
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_prescriptions_doctor_created 
+  ON public.prescriptions (doctor_id, created_at DESC) 
+  WHERE deleted_at IS NULL;
+
+-- Used in lab report lists and vault
+CREATE INDEX IF NOT EXISTS idx_lab_reports_patient_created 
+  ON public.lab_reports (patient_id, created_at DESC) 
+  WHERE deleted_at IS NULL;
+
+-- Used in clinical notes timeline
+CREATE INDEX IF NOT EXISTS idx_clinical_notes_patient_created 
+  ON public.clinical_notes (patient_id, created_at DESC) 
+  WHERE deleted_at IS NULL;
+
+-- 5. Scheduling & Doctor Exceptions
+-- Used in getAvailableSlots date-range checks
+CREATE INDEX IF NOT EXISTS idx_doctor_schedules_doctor_dow 
+  ON public.doctor_schedules (doctor_id, day_of_week);
+
+CREATE INDEX IF NOT EXISTS idx_doctor_exceptions_doctor_date 
+  ON public.doctor_exceptions (doctor_id, exception_date);
+
+CREATE INDEX IF NOT EXISTS idx_leave_requests_doctor_dates 
+  ON public.leave_requests (doctor_id, status, from_date, to_date);
+
+-- 6. Family & Care Connections
+CREATE INDEX IF NOT EXISTS idx_care_connections_patient_status 
+  ON public.care_connections (patient_id, status);
+
+
+-- ==========================================
+-- MIGRATION: 0056_commission_snapshot_and_history.sql
+-- ==========================================
+
+-- 0056_commission_snapshot_and_history.sql
+-- Centralizes doctor-wise platform commission with immutable snapshots
+-- and auditable change history.
+
+-- 1. Snapshot the applied commission rate on each payment record
+--    so historical transactions are never recalculated when the
+--    doctor's rate changes.
+ALTER TABLE public.payments
+  ADD COLUMN IF NOT EXISTS commission_rate numeric(5,2);
+
+-- Backfill: reverse-compute the rate from stored amounts for existing
+-- payment records. Where platform_fee_amount was backfilled by 0047 as
+-- 10%, this will reconstruct as 10. Where billing.service calculated
+-- correctly from doctor.commission_rate, the real rate is preserved.
+UPDATE public.payments
+SET commission_rate = CASE
+  WHEN amount > 0 AND platform_fee_amount IS NOT NULL AND platform_fee_amount > 0
+    THEN ROUND((platform_fee_amount::numeric / amount::numeric) * 100, 2)
+  ELSE 15  -- DB column default from 0016
+END
+WHERE commission_rate IS NULL;
+
+-- 2. Commission change history table — every rate change is preserved
+--    with who changed it and when, enabling full financial audit.
+CREATE TABLE IF NOT EXISTS public.doctor_commission_history (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  doctor_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  commission_rate numeric(5,2) NOT NULL,
+  previous_rate numeric(5,2),
+  effective_from timestamptz NOT NULL DEFAULT now(),
+  effective_to timestamptz,
+  status text NOT NULL DEFAULT 'Active' CHECK (status IN ('Active', 'Superseded')),
+  changed_by uuid REFERENCES public.profiles(id),
+  change_reason text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_commission_history_doctor
+  ON public.doctor_commission_history(doctor_id, effective_from DESC);
+
+CREATE INDEX IF NOT EXISTS idx_commission_history_active
+  ON public.doctor_commission_history(doctor_id, status)
+  WHERE status = 'Active';
+
+-- 3. Seed baseline history rows for every doctor with their current
+--    commission_rate so the history table isn't empty on day 1.
+INSERT INTO public.doctor_commission_history (doctor_id, commission_rate, effective_from, status, change_reason)
+SELECT id, commission_rate, COALESCE(created_at, now()), 'Active', 'Baseline — initial rate at migration time'
+FROM public.profiles
+WHERE role = 'doctor'
+  AND NOT EXISTS (
+    SELECT 1 FROM public.doctor_commission_history h WHERE h.doctor_id = profiles.id
+  );
+
+-- 4. Performance index for payment queries that reference commission_rate
+CREATE INDEX IF NOT EXISTS idx_payments_commission_rate
+  ON public.payments(doctor_id, commission_rate)
+  WHERE commission_rate IS NOT NULL;
+
+
+-- ==========================================
+-- MIGRATION: 0057_global_platform_commission.sql
+-- ==========================================
+
+-- 0057_global_platform_commission.sql
+-- Adds platform_commission_rate to landing_settings for central global control.
+
+ALTER TABLE public.landing_settings
+  ADD COLUMN IF NOT EXISTS platform_commission_rate NUMERIC(5,2) NOT NULL DEFAULT 10;
+
+UPDATE public.landing_settings
+SET platform_commission_rate = 10
+WHERE platform_commission_rate IS NULL;
+
+
+-- ==========================================
+-- MIGRATION: 0058_global_platform_commission_unification.sql
+-- ==========================================
+
+-- 0058_global_platform_commission_unification.sql
+-- Single Source of Truth for Global Platform Commission & Audit Trail
+
+-- 1. Ensure platform_commission_rate exists on landing_settings (singleton id = 1)
+ALTER TABLE public.landing_settings
+  ADD COLUMN IF NOT EXISTS platform_commission_rate NUMERIC(5,2) NOT NULL DEFAULT 10;
+
+UPDATE public.landing_settings
+SET platform_commission_rate = 10
+WHERE platform_commission_rate IS NULL;
+
+-- 2. Create platform_commission_history audit table for tracking global rate modifications
+CREATE TABLE IF NOT EXISTS public.platform_commission_history (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  previous_rate numeric(5,2),
+  new_rate numeric(5,2) NOT NULL,
+  effective_from timestamptz NOT NULL DEFAULT now(),
+  changed_by uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+  change_reason text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS platform_commission_history_effective_idx 
+  ON public.platform_commission_history (effective_from DESC);
+
+-- 3. Ensure payments table has commission_rate snapshot column
+ALTER TABLE public.payments
+  ADD COLUMN IF NOT EXISTS commission_rate NUMERIC(5,2);
+
+
+-- ==========================================
+-- MIGRATION: 0059_payout_fintech_hardening.sql
+-- ==========================================
+
+-- 0059_payout_fintech_hardening.sql
+-- Production Fintech-Grade Payout Schema Enhancements:
+-- 1. Idempotency key for preventing duplicate payout submissions.
+-- 2. Destination snapshot (Bank/UPI details) immutable at request time.
+-- 3. Failure reason and audit metadata for disbursement tracking.
+
+ALTER TABLE public.payouts
+  ADD COLUMN IF NOT EXISTS idempotency_key TEXT UNIQUE,
+  ADD COLUMN IF NOT EXISTS destination_details JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS failure_reason TEXT,
+  ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+
+-- Create index for quick lookup of doctor payouts by idempotency key and status
+CREATE INDEX IF NOT EXISTS idx_payouts_idempotency ON public.payouts (idempotency_key);
+CREATE INDEX IF NOT EXISTS idx_payouts_doctor_requested ON public.payouts (doctor_id, requested_at DESC);
+
+
+-- ==========================================
+-- MIGRATION: 0060_ai_monetization_and_entitlements.sql
+-- ==========================================
+
+-- 0060_ai_monetization_and_entitlements.sql
+-- AI Monetization, Entitlement, Prompt Management, Usage & Cost Control Engine
+
+-- 1. AI Subscriptions Table
+CREATE TABLE IF NOT EXISTS public.ai_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  plan_id TEXT NOT NULL DEFAULT 'free',          -- 'patient_free' | 'patient_premium' | 'doctor_free' | 'doctor_pro'
+  role TEXT NOT NULL DEFAULT 'patient',          -- 'patient' | 'doctor'
+  status TEXT NOT NULL DEFAULT 'active',         -- 'active' | 'cancelled' | 'expired' | 'trialing'
+  billing_cycle TEXT NOT NULL DEFAULT 'monthly', -- 'monthly' | 'yearly' | 'lifetime'
+  current_period_start TIMESTAMPTZ NOT NULL DEFAULT now(),
+  current_period_end TIMESTAMPTZ,
+  monthly_ai_credits INTEGER NOT NULL DEFAULT 5,
+  credits_used INTEGER NOT NULL DEFAULT 0,
+  payment_reference TEXT,                        -- reference id or payment_id in payments table
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT uq_ai_subscriptions_user UNIQUE (user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_subscriptions_user_role ON public.ai_subscriptions (user_id, role);
+CREATE INDEX IF NOT EXISTS idx_ai_subscriptions_status ON public.ai_subscriptions (status);
+
+-- 2. AI Usage Logs Table
+CREATE TABLE IF NOT EXISTS public.ai_usage_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL,
+  feature TEXT NOT NULL,                         -- 'PATIENT_CHAT' | 'PATIENT_LAB_ANALYSIS' | 'PATIENT_CONSULT_PREP' | 'DOCTOR_SOAP_NOTES' etc.
+  model TEXT DEFAULT 'gemini-1.5-flash',
+  input_tokens INTEGER DEFAULT 0,
+  output_tokens INTEGER DEFAULT 0,
+  estimated_cost_usd NUMERIC(10,6) DEFAULT 0,
+  credits_deducted INTEGER DEFAULT 1,
+  response_status TEXT DEFAULT 'success',        -- 'success' | 'error' | 'timeout' | 'rate_limited' | 'entitlement_denied'
+  duration_ms INTEGER DEFAULT 0,
+  appointment_id UUID REFERENCES public.appointments(id) ON DELETE SET NULL,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_usage_logs_user_date ON public.ai_usage_logs (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_logs_feature_date ON public.ai_usage_logs (feature, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_logs_created_at ON public.ai_usage_logs (created_at DESC);
+
+-- 3. AI Feature Flags & Entitlements Configuration Table
+CREATE TABLE IF NOT EXISTS public.ai_feature_flags (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  feature_key TEXT UNIQUE NOT NULL,              -- 'PATIENT_CHAT' | 'PATIENT_LAB_ANALYSIS' | 'PATIENT_CONSULT_PREP' | 'DOCTOR_PATIENT_BRIEF' | 'DOCTOR_SOAP_NOTES' | 'DOCTOR_RX_AUTOCOMPLETE' | 'DOCTOR_DRUG_SAFETY' | 'DOCTOR_CONSULT_SUMMARY'
+  name TEXT NOT NULL,
+  description TEXT,
+  is_enabled BOOLEAN NOT NULL DEFAULT true,
+  required_plan TEXT,                            -- null = free tier accessible, 'patient_premium', 'doctor_pro'
+  monthly_limit_free INTEGER DEFAULT 0,          -- null = unlimited, 0 = locked/disabled on free, N = max N queries/month
+  monthly_limit_premium INTEGER,                 -- null = unlimited, N = cap
+  applicable_roles TEXT[] NOT NULL DEFAULT '{"patient","doctor"}'::text[],
+  credit_cost INTEGER NOT NULL DEFAULT 1,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_feature_flags_key ON public.ai_feature_flags (feature_key);
+
+-- 4. AI Prompt Templates Table
+CREATE TABLE IF NOT EXISTS public.ai_prompt_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  feature TEXT NOT NULL,                         -- matches feature_key
+  role TEXT NOT NULL DEFAULT 'all',              -- 'patient' | 'doctor' | 'admin' | 'all'
+  version INTEGER NOT NULL DEFAULT 1,
+  system_prompt TEXT NOT NULL,
+  user_prompt_template TEXT,
+  model TEXT NOT NULL DEFAULT 'gemini-1.5-flash',
+  temperature NUMERIC(3,2) DEFAULT 0.2,
+  max_tokens INTEGER DEFAULT 2048,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT uq_ai_prompts_feature_role_version UNIQUE (feature, role, version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_prompt_templates_feature ON public.ai_prompt_templates (feature, is_active);
+
+-- 5. AI Analytics Events Table
+CREATE TABLE IF NOT EXISTS public.ai_analytics_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type TEXT NOT NULL,                      -- 'AI_FEATURE_VIEWED' | 'AI_PAYWALL_VIEWED' | 'AI_UPGRADE_STARTED' | 'AI_UPGRADE_COMPLETED' | 'AI_LIMIT_REACHED' | 'AI_DOCTOR_APPROVED' | 'AI_DOCTOR_EDITED'
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT,
+  feature TEXT,
+  session_id TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_analytics_events_type ON public.ai_analytics_events (event_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_analytics_events_user ON public.ai_analytics_events (user_id, created_at DESC);
+
+-- Enable RLS
+ALTER TABLE public.ai_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ai_usage_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ai_feature_flags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ai_prompt_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ai_analytics_events ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+-- Users can view their own AI subscription
+CREATE POLICY "Users can view own AI subscription"
+  ON public.ai_subscriptions FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Users can view their own AI usage logs
+CREATE POLICY "Users can view own AI usage"
+  ON public.ai_usage_logs FOR SELECT
+  USING (auth.uid() = user_id);
+
+-- Anyone authenticated can view active feature flags
+CREATE POLICY "Authenticated users view feature flags"
+  ON public.ai_feature_flags FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+-- Service role full access
+CREATE POLICY "Service role full access on ai_subscriptions"
+  ON public.ai_subscriptions FOR ALL
+  USING (auth.role() = 'service_role');
+
+CREATE POLICY "Service role full access on ai_usage_logs"
+  ON public.ai_usage_logs FOR ALL
+  USING (auth.role() = 'service_role');
+
+CREATE POLICY "Service role full access on ai_feature_flags"
+  ON public.ai_feature_flags FOR ALL
+  USING (auth.role() = 'service_role');
+
+CREATE POLICY "Service role full access on ai_prompt_templates"
+  ON public.ai_prompt_templates FOR ALL
+  USING (auth.role() = 'service_role');
+
+CREATE POLICY "Service role full access on ai_analytics_events"
+  ON public.ai_analytics_events FOR ALL
+  USING (auth.role() = 'service_role');
+
+-- Seed Default Feature Flags
+INSERT INTO public.ai_feature_flags (feature_key, name, description, is_enabled, required_plan, monthly_limit_free, monthly_limit_premium, applicable_roles, credit_cost)
+VALUES
+  ('PATIENT_CHAT', 'AI Health Companion', 'Interactive cycle, fertility, and wellness educational assistant', true, NULL, 5, 200, ARRAY['patient'], 1),
+  ('PATIENT_LAB_ANALYSIS', 'AI Lab Report Decoder', 'Plain-language biomarker explanation with phase calibration and doctor questions', true, 'patient_premium', 0, NULL, ARRAY['patient'], 2),
+  ('PATIENT_CONSULT_PREP', 'AI Visit Preparation', 'Pre-consultation symptom synthesis and tailored questions to ask your doctor', true, 'patient_premium', 0, NULL, ARRAY['patient'], 1),
+  ('DOCTOR_PATIENT_BRIEF', 'AI Pre-Consult Brief', 'Clinical overview summarizing patient history, chronic conditions, and recent labs', true, 'doctor_pro', 0, NULL, ARRAY['doctor'], 1),
+  ('DOCTOR_SOAP_NOTES', 'AI SOAP Note Assistant', 'Auto-generates structured Subjective, Objective, Assessment, and Plan notes', true, 'doctor_pro', 0, 50, ARRAY['doctor'], 2),
+  ('DOCTOR_RX_AUTOCOMPLETE', 'AI Prescription Autocomplete', 'Smart evidence-based drug dosage, frequency, and instructions auto-completion', true, NULL, 10, NULL, ARRAY['doctor'], 1),
+  ('DOCTOR_DRUG_SAFETY', 'AI Drug & Food Safety Shield', 'Food-drug interaction screening and optimal medication timing recommendations', true, NULL, 10, NULL, ARRAY['doctor'], 1),
+  ('DOCTOR_CONSULT_SUMMARY', 'AI Post-Consult Summary', 'Plain-language summary of consult, doctor plan, and follow-up guidance', true, 'doctor_pro', 0, NULL, ARRAY['doctor'], 1)
+ON CONFLICT (feature_key) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  is_enabled = EXCLUDED.is_enabled,
+  required_plan = EXCLUDED.required_plan,
+  monthly_limit_free = EXCLUDED.monthly_limit_free,
+  monthly_limit_premium = EXCLUDED.monthly_limit_premium,
+  applicable_roles = EXCLUDED.applicable_roles,
+  credit_cost = EXCLUDED.credit_cost;
+
+-- Seed Default Prompt Templates
+INSERT INTO public.ai_prompt_templates (feature, role, version, system_prompt, user_prompt_template, model, temperature, max_tokens, is_active)
+VALUES
+  (
+    'DOCTOR_SOAP_NOTES',
+    'doctor',
+    1,
+    'You are an expert clinical documentation assistant for HealNari, a women''s telemedicine network. Your mission is to generate structured, evidence-based SOAP notes (Subjective, Objective, Assessment, Plan) and a 3-bullet plain-language Patient Action Plan. Always ground your assessment in medical facts. Return your final answer ONLY as valid JSON.',
+    'Generate a SOAP consultation note for: Patient: {{patientName}}, Age: {{age}}, Chief Complaint: {{chiefComplaint}}, Symptoms: {{symptoms}}, Doctor Notes: {{doctorNotes}}, Chronic Conditions: {{chronicConditions}}, Medications: {{medications}}, Lab Results: {{labResults}}',
+    'gemini-1.5-flash',
+    0.2,
+    2048,
+    true
+  ),
+  (
+    'PATIENT_LAB_ANALYSIS',
+    'patient',
+    1,
+    'You are an empathetic medical education assistant for HealNari. Analyze the lab test report and explain it in clear, non-alarming, plain English for the patient. Never provide a definitive clinical diagnosis. Explain out-of-range values calmly with physiological context. Include 3 intelligent questions the patient can ask their doctor. Return ONLY a valid JSON object.',
+    'Report Name: {{reportName}}\nCycle Phase Context: {{cyclePhase}}\nReport Content: {{reportText}}',
+    'gemini-1.5-flash',
+    0.2,
+    2048,
+    true
+  ),
+  (
+    'PATIENT_CONSULT_PREP',
+    'patient',
+    1,
+    'You are a compassionate Patient Consultation Preparation Assistant for HealNari. Your role is to help the patient organize their symptoms, timeline, and questions so they get the most value out of their doctor visit. Return your final answer ONLY as valid JSON.',
+    'Prepare consultation brief for visit with {{doctorSpecialty}}. Patient reported concerns: {{concerns}}. Recent symptoms: {{symptoms}}. Questions in mind: {{patientQuestions}}.',
+    'gemini-1.5-flash',
+    0.2,
+    1500,
+    true
+  )
+ON CONFLICT (feature, role, version) DO UPDATE SET
+  system_prompt = EXCLUDED.system_prompt,
+  user_prompt_template = EXCLUDED.user_prompt_template,
+  is_active = EXCLUDED.is_active;
+
+
+-- ==========================================
 -- SEED DATA
 -- ==========================================
 
