@@ -2,10 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
-import { ClinicDataProvider } from './context/ClinicDataContext.jsx';
-import { NotificationsProvider } from './context/NotificationsContext.jsx';
 import { ToastProvider } from './components/Toast.jsx';
-import { IncomingCallModal } from './components/IncomingCallModal.jsx';
 import { IosInstallPrompt } from './components/IosInstallPrompt.jsx';
 
 const queryClient = new QueryClient();
@@ -20,6 +17,7 @@ const LegalPage = lazy(() => import('./landing/pages/LegalPage.jsx'));
 const PatientLayout = lazy(() => import('./patient/layouts/PatientLayout.jsx'));
 const DoctorLayout = lazy(() => import('./doctor/layouts/DoctorLayout.jsx'));
 const AdminLayout = lazy(() => import('./admin/layouts/AdminLayout.jsx'));
+const AuthenticatedLayout = lazy(() => import('./layouts/AuthenticatedLayout.jsx'));
 
 // Patient Pages
 const PatientDashboard = lazy(() => import('./patient/pages/Dashboard.jsx'));
@@ -127,15 +125,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-      <ClinicDataProvider>
       <ToastProvider>
-      <NotificationsProvider>
         <Router>
           <PWASplashScreen />
           <NetworkStatusIndicator />
           <IosInstallPrompt />
-          <GlobalNotificationPrompt />
-          <IncomingCallModal />
           <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
               <div className="text-center">
@@ -150,14 +144,15 @@ function App() {
               <Route path="/dr/:doctorId" element={<DoctorPublicProfile />} />
               <Route path="/book/:doctorId" element={<DoctorPublicProfile />} />
               <Route path="/doctor/:doctorId" element={<DoctorPublicProfile />} />
-              <Route path="/guide/:guideId" element={<GuidePage />} />
-              <Route path="/legal/:document" element={<LegalPage />} />
-              <Route path="/:conditionId" element={<ConditionPage />} />
-              <Route path="/learn/:slug" element={<GlossaryArticle />} />
+              <Route path="/conditions/:slug" element={<ConditionPage />} />
+              <Route path="/glossary/:slug" element={<GlossaryArticle />} />
+              <Route path="/guides/:slug" element={<GuidePage />} />
+              <Route path="/legal/:slug" element={<LegalPage />} />
 
-              <Route
-                path="/patient-dashboard"
-                element={
+              <Route element={<AuthenticatedLayout />}>
+                <Route
+                  path="/patient-dashboard"
+                  element={
                   <ProtectedRoute allowedRole="patient">
                     <PatientLayout />
                   </ProtectedRoute>
@@ -224,14 +219,13 @@ function App() {
                 <Route path="crons" element={<AdminCronManager />} />
                 <Route path="specialties" element={<AdminSpecialties />} />
               </Route>
+              </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
             <CookieBanner />
           </Suspense>
         </Router>
-      </NotificationsProvider>
       </ToastProvider>
-      </ClinicDataProvider>
     </AuthProvider>
     </QueryClientProvider>
   );
