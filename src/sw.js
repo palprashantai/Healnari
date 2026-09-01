@@ -1,8 +1,7 @@
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
-import { clientsClaim, setConfig } from 'workbox-core';
+import { clientsClaim } from 'workbox-core';
 
-// Disable workbox debug logs in development
-setConfig({ debug: false });
+// Disable workbox debug logs in development (no longer needed via setConfig in Workbox 7)
 import { registerRoute } from 'workbox-routing';
 import { StaleWhileRevalidate, CacheFirst } from 'workbox-strategies';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
