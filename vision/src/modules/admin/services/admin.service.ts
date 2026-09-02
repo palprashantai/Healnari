@@ -1368,6 +1368,99 @@ export class AdminService {
     return updated;
   }
 
+  async updateAppointmentStatus(
+    admin: AuthUser,
+    id: string,
+    status: string,
+    reason?: string,
+  ) {
+    const { data: appointment } = await this.supabase.admin
+      .from('appointments')
+      .select('*, patient:profiles!appointments_patient_id_fkey(full_name, email), doctor:profiles!appointments_doctor_id_fkey(full_name, email)')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!appointment) throw new NotFoundException('Appointment not found');
+
+    const oldStatus = appointment.status;
+    const updatePayload: Record<string, any> = { status };
+    if (status === 'Cancelled') {
+      updatePayload.cancelled_by = admin.id;
+      updatePayload.cancelled_at = new Date().toISOString();
+      if (reason) updatePayload.cancellation_reason = reason;
+    }
+
+    const { data: updated, error } = await this.supabase.admin
+      .from('appointments')
+      .update(updatePayload)
+      .eq('id', id)
+      .select('*, patient:profiles!appointments_patient_id_fkey(full_name, email), doctor:profiles!appointments_doctor_id_fkey(full_name, email)')
+      .maybeSingle();
+
+    if (error || !updated) {
+      throw new InternalServerErrorException(error?.message || 'Failed to update appointment status');
+    }
+
+    // Synchronize consultation_requests table if applicable
+    if (status === 'Approved') {
+      await this.supabase.admin
+        .from('consultation_requests')
+        .update({ status: 'Converted' })
+        .eq('doctor_id', appointment.doctor_id)
+        .eq('patient_id', appointment.patient_id)
+        .eq('status', 'New');
+    } else if (status === 'Cancelled') {
+      await this.supabase.admin
+        .from('consultation_requests')
+        .update({ status: 'Closed' })
+        .eq('doctor_id', appointment.doctor_id)
+        .eq('patient_id', appointment.patient_id)
+        .eq('status', 'New');
+
+      // If paid, initiate refund request
+      const { data: payment } = await this.supabase.admin
+        .from('payments')
+        .select()
+        .eq('appointment_id', id)
+        .eq('status', 'Paid')
+        .maybeSingle();
+
+      if (payment) {
+        const { data: existingRefund } = await this.supabase.admin
+          .from('refund_requests')
+          .select('id')
+          .eq('payment_id', payment.id)
+          .maybeSingle();
+
+        if (!existingRefund) {
+          await this.supabase.admin
+            .from('payments')
+            .update({ status: 'Refund Pending' })
+            .eq('id', payment.id);
+
+          await this.supabase.admin.from('refund_requests').insert({
+            patient_id: appointment.patient_id,
+            patient_name: updated.patient?.full_name || 'Patient',
+            payment_id: payment.id,
+            amount: payment.amount,
+            reason: reason || `Appointment cancelled by administrator`,
+          });
+        }
+      }
+    }
+
+    this.writeAudit(
+      admin,
+      'appointment.status_override',
+      'appointments',
+      id,
+      { status: oldStatus },
+      { status, reason },
+    );
+
+    return updated;
+  }
+
   // ─── Revenue & Multi-Currency Accounting ─────────────────────────
   async getRevenueData(reportingCurrency = 'USD') {
     try {

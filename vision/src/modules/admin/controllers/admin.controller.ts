@@ -179,6 +179,18 @@ export class UpdateLeadStatusDto {
   @IsIn(['New', 'Contacted', 'Converted', 'Closed'])
   status: string;
 }
+export class AdminUpdateAppointmentStatusDto {
+  @ApiProperty({
+    enum: ['Requested', 'Approved', 'Upcoming', 'Waiting', 'In Progress', 'Done', 'Cancelled', 'No Show'],
+  })
+  @IsIn(['Requested', 'Approved', 'Upcoming', 'Waiting', 'In Progress', 'Done', 'Cancelled', 'No Show'])
+  status: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
 
 @ApiTags('Admin')
 @Controller('api/admin')
@@ -278,6 +290,23 @@ export class AdminController {
   ) {
     this.checkAdmin(user);
     const data = await this.adminService.updateUserStatus(id, body.status);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  @Put('appointments/:id/status')
+  @ApiOperation({ summary: 'Admin override of appointment status with full audit logging' })
+  async updateAppointmentStatus(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: AdminUpdateAppointmentStatusDto,
+  ) {
+    this.checkAdmin(user);
+    const data = await this.adminService.updateAppointmentStatus(
+      user,
+      id,
+      body.status,
+      body.reason,
+    );
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
   }
 

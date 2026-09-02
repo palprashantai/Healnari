@@ -681,7 +681,7 @@ export class BillingService {
       timestamp: new Date().toISOString(),
     };
 
-    const currency = (user.profile.currency || 'INR').toUpperCase();
+    const currency = (user.profile.currency || 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR';
     const { data, error } = await this.supabase.admin
       .from('payouts')
       .insert({

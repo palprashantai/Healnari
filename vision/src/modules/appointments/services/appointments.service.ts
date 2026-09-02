@@ -54,6 +54,15 @@ export class AppointmentsService {
 
     if (!payment) return;
 
+    // Idempotency check: don't create duplicate refund request if one already exists
+    const { data: existingRequest } = await this.supabase.admin
+      .from('refund_requests')
+      .select('id')
+      .eq('payment_id', payment.id)
+      .maybeSingle();
+
+    if (existingRequest) return;
+
     await this.supabase.admin
       .from('payments')
       .update({ status: 'Refund Pending' })
@@ -210,6 +219,23 @@ export class AppointmentsService {
           'Cannot book an appointment in the past.',
         );
       }
+    }
+
+    // Prevent patient from double-booking themselves across doctors or tabs at the same time
+    const { data: patientConflict } = await this.supabase.admin
+      .from('appointments')
+      .select('id')
+      .eq('patient_id', user.id)
+      .eq('scheduled_date', body.scheduledDate)
+      .eq('scheduled_time', body.scheduledTime)
+      .not('status', 'in', '("Cancelled","No Show")')
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    if (patientConflict) {
+      throw new ConflictException(
+        'You already have an appointment scheduled for this date and time.',
+      );
     }
 
     // The unique index (appointments_no_double_booking, migration 0020) is
