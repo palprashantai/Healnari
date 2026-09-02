@@ -430,9 +430,6 @@ function AdminRevenue() {
               { label: 'All Original Currencies', value: 'ALL' },
               { label: '🇮🇳 INR (Indian Rupee)', value: 'INR' },
               { label: '🇺🇸 USD (US Dollar)', value: 'USD' },
-              { label: '🇦🇪 AED (UAE Dirham)', value: 'AED' },
-              { label: '🇪🇺 EUR (Euro)', value: 'EUR' },
-              { label: '🇬🇧 GBP (British Pound)', value: 'GBP' },
             ],
           },
           {
@@ -535,7 +532,7 @@ function AdminRevenue() {
           <DashboardEmptyState
             icon="fa-money-bill-wave"
             title="No Original Currency Records Yet"
-            description="Collections across INR, USD, AED, EUR, and GBP will disaggregate here."
+            description="Collections across INR and USD will disaggregate here."
           />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">

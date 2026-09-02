@@ -1530,9 +1530,6 @@ export class AdminService {
           grossReporting: 0,
           platformReporting: 0,
           USD: 0,
-          GBP: 0,
-          AED: 0,
-          EUR: 0,
           INR: 0,
         });
       }

@@ -27,6 +27,10 @@ export interface AiFeatureFlag {
   monthly_limit_premium: number | null;
   applicable_roles: string[];
   credit_cost: number;
+  usage_type?: 'messages' | 'documents' | 'credits' | 'generations' | 'calls' | string;
+  unit?: string;
+  is_system?: boolean;
+  status?: 'active' | 'inactive' | 'archived';
   metadata?: Record<string, any>;
 }
 
@@ -88,6 +92,10 @@ export interface AiEntitlementCheckResult {
   creditsRemaining: number;
   monthlyLimit: number | null;
   isRateLimited: boolean;
+  isUnlimited?: boolean;
+  unit?: string;
+  usageType?: string;
+  used?: number;
   paywallData?: {
     title: string;
     description: string;

@@ -2,7 +2,6 @@ import {
   Injectable,
   HttpException,
   HttpStatus,
-  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { AiFeatureFlagService } from '@/modules/ai/services/ai-feature-flag.service';
@@ -22,6 +21,15 @@ export class PaymentRequiredException extends HttpException {
   }
 }
 
+export interface AiUsageLimitInfo {
+  limit: number | null;
+  isUnlimited: boolean;
+  used: number;
+  remaining: number | null;
+  unit: string;
+  usageType: string;
+}
+
 @Injectable()
 export class AiEntitlementService {
   private readonly logger = new Logger(AiEntitlementService.name);
@@ -34,14 +42,58 @@ export class AiEntitlementService {
   ) {}
 
   /**
-   * Checks if user has permission to use a specific AI capability.
+   * Authoritative Single Source of Truth for feature usage limit resolution
    */
-  async checkAccess(
+  async getAIUsageLimit(
+    user: AuthUser,
+    featureKey: string,
+  ): Promise<AiUsageLimitInfo> {
+    const flag = await this.featureFlagService.getFlag(featureKey);
+    const subscription = await this.subscriptionService.getSubscription(user);
+    const plan = await this.pricingService.getPlan(subscription.plan_id);
+
+    const unit = flag.unit || 'uses';
+    const usageType = flag.usage_type || 'credits';
+
+    // 1. Check dynamic per-plan feature limits
+    const planLimitConfig = plan.feature_limits?.[featureKey];
+    const isUnlimited = planLimitConfig?.is_unlimited === true;
+    let limit: number | null = null;
+
+    if (isUnlimited) {
+      limit = null;
+    } else if (planLimitConfig?.limit !== undefined && planLimitConfig?.limit !== null) {
+      limit = Number(planLimitConfig.limit);
+    } else {
+      // Legacy fallback: check feature flag free vs premium tier
+      const isPremium =
+        subscription.plan_id.includes('premium') || subscription.plan_id.includes('pro');
+      limit = isPremium ? (flag.monthly_limit_premium ?? null) : (flag.monthly_limit_free ?? null);
+    }
+
+    const used = await this.usageService.getUserFeatureUsageCount(user.id, featureKey);
+    const remaining = isUnlimited || limit === null ? null : Math.max(0, limit - used);
+
+    return {
+      limit,
+      isUnlimited,
+      used,
+      remaining,
+      unit,
+      usageType,
+    };
+  }
+
+  /**
+   * Centralized check if user has permission and quota to use an AI feature
+   */
+  async canUseAIFeature(
     user: AuthUser,
     featureKey: string,
   ): Promise<AiEntitlementCheckResult> {
     const flag = await this.featureFlagService.getFlag(featureKey);
     const subscription = await this.subscriptionService.getSubscription(user);
+    const plan = await this.pricingService.getPlan(subscription.plan_id);
     const userRole = user.profile.role;
     const isDoctor = userRole === 'doctor';
     const isPremium =
@@ -50,8 +102,8 @@ export class AiEntitlementService {
       subscription.plan_id.includes('pro') ||
       subscription.plan_id.includes('premium');
 
-    // 1. Feature flag global enable/disable
-    if (!flag.is_enabled) {
+    // 1. Feature flag status check
+    if (!flag.is_enabled || flag.status === 'archived') {
       return {
         hasAccess: false,
         reason: `${flag.name} is currently temporarily unavailable for scheduled maintenance.`,
@@ -59,7 +111,10 @@ export class AiEntitlementService {
         featureName: flag.name,
         requiredPlan: flag.required_plan,
         userPlan: subscription.plan_id,
-        creditsRemaining: Math.max(0, (subscription.monthly_ai_credits || 0) - (subscription.credits_used || 0)),
+        creditsRemaining: Math.max(
+          0,
+          (subscription.monthly_ai_credits || 0) - (subscription.credits_used || 0),
+        ),
         monthlyLimit: null,
         isRateLimited: false,
       };
@@ -80,16 +135,14 @@ export class AiEntitlementService {
       };
     }
 
+    // Construct standard paywall context
     const upgradePlanId = isDoctor ? AiPlanId.DOCTOR_PRO : AiPlanId.PATIENT_PREMIUM;
-    const planConfig = AI_PLANS[upgradePlanId];
     const userCurrency = (user.profile?.currency || 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR';
     const isUsd = userCurrency === 'USD';
-    
-    // Independent commercial pricing per business rules
+    const priceAmount = isDoctor ? (isUsd ? 60 : 1999) : (isUsd ? 35 : 999);
     const priceText = isDoctor
       ? (isUsd ? '$60 / month' : '₹1,999 / month')
       : (isUsd ? '$35 / month' : '₹999 / month');
-    const priceAmount = isDoctor ? (isUsd ? 60 : 1999) : (isUsd ? 35 : 999);
 
     const paywallData = {
       title: isDoctor
@@ -101,18 +154,22 @@ export class AiEntitlementService {
       priceAmount,
       billingCycle: 'monthly',
       currency: userCurrency,
-      features: planConfig?.features || [],
+      features: plan?.features || [],
       upgradeUrl: '/api/ai/subscription/upgrade',
     };
 
-    // 3. Plan requirement check
-    if (flag.required_plan && !isPremium) {
+    // 3. Plan feature inclusion check
+    // If the plan has an explicit feature list, verify inclusion
+    const planFeatures = plan.features || [];
+    const isFeatureInPlan = planFeatures.length === 0 || planFeatures.includes(featureKey);
+
+    if (!isFeatureInPlan) {
       return {
         hasAccess: false,
-        reason: `${flag.name} is a premium feature requiring ${paywallData.planName}.`,
+        reason: `${flag.name} is not included in your current plan (${plan.name}). Upgrade to access this feature.`,
         featureKey,
         featureName: flag.name,
-        requiredPlan: flag.required_plan,
+        requiredPlan: flag.required_plan || upgradePlanId,
         userPlan: subscription.plan_id,
         creditsRemaining: 0,
         monthlyLimit: 0,
@@ -121,12 +178,14 @@ export class AiEntitlementService {
       };
     }
 
-    // 4. Usage limit check for free tier
-    if (!isPremium && flag.monthly_limit_free !== null && flag.monthly_limit_free !== undefined) {
-      if (flag.monthly_limit_free === 0) {
+    // 4. Usage limit check
+    const limitInfo = await this.getAIUsageLimit(user, featureKey);
+
+    if (!limitInfo.isUnlimited && limitInfo.limit !== null) {
+      if (limitInfo.limit === 0) {
         return {
           hasAccess: false,
-          reason: `${flag.name} is available exclusively on ${paywallData.planName}.`,
+          reason: `${flag.name} is available exclusively on higher tiers.`,
           featureKey,
           featureName: flag.name,
           requiredPlan: flag.required_plan || upgradePlanId,
@@ -134,37 +193,46 @@ export class AiEntitlementService {
           creditsRemaining: 0,
           monthlyLimit: 0,
           isRateLimited: false,
+          isUnlimited: false,
+          unit: limitInfo.unit,
+          usageType: limitInfo.usageType,
+          used: limitInfo.used,
           paywallData,
         };
       }
 
-      const usedThisMonth = await this.usageService.getUserFeatureUsageCount(user.id, featureKey);
-      if (usedThisMonth >= flag.monthly_limit_free) {
+      if (limitInfo.used >= limitInfo.limit) {
         return {
           hasAccess: false,
-          reason: `You have reached your free allowance of ${flag.monthly_limit_free} uses for ${flag.name} this month.`,
+          reason: `You have reached your monthly allowance of ${limitInfo.limit} ${limitInfo.unit} for ${flag.name}.`,
           featureKey,
           featureName: flag.name,
           requiredPlan: upgradePlanId,
           userPlan: subscription.plan_id,
           creditsRemaining: 0,
-          monthlyLimit: flag.monthly_limit_free,
+          monthlyLimit: limitInfo.limit,
           isRateLimited: true,
+          isUnlimited: false,
+          unit: limitInfo.unit,
+          usageType: limitInfo.usageType,
+          used: limitInfo.used,
           paywallData: {
             ...paywallData,
-            title: `Monthly Allowance Reached for ${flag.name}`,
-            description: `You have used your ${flag.monthly_limit_free} free queries this month. Upgrade to continue with unlimited queries.`,
+            title: `Monthly Limit Reached for ${flag.name}`,
+            description: `You have used ${limitInfo.used} of ${limitInfo.limit} ${limitInfo.unit} included in your plan this month. Upgrade to continue with unlimited usage.`,
           },
         };
       }
     }
 
-    // 5. Total credit balance check
+    // 5. Total credit balance check (for credit-based operations)
     const creditsUsed = subscription.credits_used || 0;
-    const monthlyCredits = subscription.monthly_ai_credits || (isPremium ? 200 : 5);
+    const monthlyCredits =
+      subscription.monthly_ai_credits || (plan.included_monthly_credits || (isPremium ? 500 : 10));
     const creditsRemaining = Math.max(0, monthlyCredits - creditsUsed);
 
-    if (creditsRemaining <= 0) {
+    // If the feature is not unlimited and credit consumption is required, verify credit balance
+    if (!limitInfo.isUnlimited && creditsRemaining <= 0 && flag.credit_cost > 0) {
       return {
         hasAccess: false,
         reason: 'You have exhausted your monthly AI credits. Your credits will reset at the start of next month.',
@@ -186,16 +254,30 @@ export class AiEntitlementService {
       requiredPlan: flag.required_plan,
       userPlan: subscription.plan_id,
       creditsRemaining,
-      monthlyLimit: isPremium ? flag.monthly_limit_premium : flag.monthly_limit_free,
+      monthlyLimit: limitInfo.limit,
       isRateLimited: false,
+      isUnlimited: limitInfo.isUnlimited,
+      unit: limitInfo.unit,
+      usageType: limitInfo.usageType,
+      used: limitInfo.used,
     };
+  }
+
+  /**
+   * Alias for canUseAIFeature to preserve backwards compatibility
+   */
+  async checkAccess(
+    user: AuthUser,
+    featureKey: string,
+  ): Promise<AiEntitlementCheckResult> {
+    return this.canUseAIFeature(user, featureKey);
   }
 
   /**
    * Enforces access check. Throws HTTP 402 PaymentRequiredException if denied.
    */
   async enforceAccess(user: AuthUser, featureKey: string): Promise<AiEntitlementCheckResult> {
-    const result = await this.checkAccess(user, featureKey);
+    const result = await this.canUseAIFeature(user, featureKey);
     if (!result.hasAccess) {
       this.logger.warn(`AI Access Denied for user ${user.id} on feature ${featureKey}: ${result.reason}`);
       throw new PaymentRequiredException({
@@ -221,7 +303,7 @@ export class AiEntitlementService {
     const subscription = await this.subscriptionService.getSubscription(user);
 
     const featureChecks = await Promise.all(
-      flags.map((flag) => this.checkAccess(user, flag.feature_key)),
+      flags.map((flag) => this.canUseAIFeature(user, flag.feature_key)),
     );
 
     const features: Record<string, AiEntitlementCheckResult> = {};
@@ -231,7 +313,10 @@ export class AiEntitlementService {
 
     return {
       subscription,
-      creditsRemaining: Math.max(0, (subscription.monthly_ai_credits || 5) - (subscription.credits_used || 0)),
+      creditsRemaining: Math.max(
+        0,
+        (subscription.monthly_ai_credits || 10) - (subscription.credits_used || 0),
+      ),
       features,
     };
   }

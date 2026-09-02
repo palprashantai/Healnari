@@ -39,6 +39,12 @@ export interface AiProduct {
   updated_at?: string;
 }
 
+export interface AiPlanFeatureLimit {
+  limit: number | null;
+  is_unlimited: boolean;
+  unit?: string;
+}
+
 export interface AiPlan {
   id: string; // 'patient_free', 'patient_premium', 'doctor_free', 'doctor_pro'
   product_id: string;
@@ -54,6 +60,9 @@ export interface AiPlan {
   is_public: boolean;
   plan_version: number;
   features: string[];
+  feature_limits?: Record<string, AiPlanFeatureLimit>;
+  price_inr?: number;
+  price_usd?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -89,8 +98,19 @@ export interface AiResolvedPriceQuote {
   finalAmount: number;
   priceVersion: number;
   billingCycle: string;
+  billing_cycle?: string;
   includedCredits: number;
+  included_monthly_credits?: number;
+  bonus_credits?: number;
+  rollover_unused_credits?: boolean;
+  product_id?: string;
+  is_public?: boolean;
   features: string[];
+  feature_limits?: Record<string, AiPlanFeatureLimit>;
+  is_active?: boolean;
+  description?: string;
+  price_inr?: number;
+  price_usd?: number;
   gateway: 'cashfree' | 'stripe' | 'razorpay' | 'manual';
 }
 

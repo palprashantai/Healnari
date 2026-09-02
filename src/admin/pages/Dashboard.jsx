@@ -10,25 +10,13 @@ import { DashboardEmptyState } from '../../components/dashboard/DashboardEmptySt
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const COUNTRY_FLAGS = {
-  US: '🇺🇸',
-  GB: '🇬🇧',
-  AE: '🇦🇪',
   IN: '🇮🇳',
-  CA: '🇨🇦',
-  AU: '🇦🇺',
-  EU: '🇪🇺',
-  GLOBAL: '🌍',
+  US: '🇺🇸',
 };
 
 const COUNTRY_NAMES = {
-  US: 'United States',
-  GB: 'United Kingdom',
-  AE: 'United Arab Emirates',
   IN: 'India',
-  CA: 'Canada',
-  AU: 'Australia',
-  EU: 'European Union',
-  GLOBAL: 'International',
+  US: 'United States & International',
 };
 
 /* ─── Modals ─────────────────────────────────── */
@@ -259,7 +247,7 @@ function AdminDashboard() {
   const filteredRefunds = useMemo(() => {
     return refunds.filter(r => {
       const matchSearch = !searchQuery || (r.patient_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (r.reason || '').toLowerCase().includes(searchQuery.toLowerCase());
-      const matchRegion = selectedRegion === 'ALL' || (r.currency === 'USD' ? 'US' : r.currency === 'GBP' ? 'GB' : r.currency === 'AED' ? 'AE' : r.currency === 'EUR' ? 'EU' : 'IN') === selectedRegion;
+      const matchRegion = selectedRegion === 'ALL' || (r.currency === 'USD' ? 'US' : 'IN') === selectedRegion;
       return matchSearch && matchRegion;
     });
   }, [refunds, searchQuery, selectedRegion]);
@@ -324,13 +312,8 @@ function AdminDashboard() {
             onChange: setSelectedRegion,
             options: [
               { label: 'All Regions (Global)', value: 'ALL' },
-              { label: '🇺🇸 United States', value: 'US' },
-              { label: '🇬🇧 United Kingdom', value: 'GB' },
-              { label: '🇦🇪 UAE & GCC', value: 'AE' },
-              { label: '🇪🇺 European Union', value: 'EU' },
-              { label: '🇮🇳 India', value: 'IN' },
-              { label: '🇨🇦 Canada', value: 'CA' },
-              { label: '🇦🇺 Australia', value: 'AU' },
+              { label: '🇮🇳 India (INR)', value: 'IN' },
+              { label: '🇺🇸 United States & International (USD)', value: 'US' },
             ],
           },
         ]}

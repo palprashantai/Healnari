@@ -4,6 +4,7 @@ import {
   Get,
   Put,
   Post,
+  Delete,
   Param,
   Query,
   UseGuards,
@@ -38,13 +39,62 @@ import {
   AiCoupon,
 } from '../interfaces/ai-globalization.interface';
 
-export class UpdateAiFeatureDto {
+export class CreateAiFeatureDto {
+  @IsString() name: string;
+  @IsOptional() @IsString() feature_key?: string;
+  @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsString() usage_type?: string;
+  @IsOptional() @IsString() unit?: string;
   @IsOptional() @IsBoolean() is_enabled?: boolean;
+  @IsOptional() @IsArray() @IsString({ each: true }) applicable_roles?: string[];
+  @IsOptional() @IsNumber() credit_cost?: number;
+}
+
+export class UpdateAiFeatureDto {
+  @IsOptional() @IsString() name?: string;
+  @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsBoolean() is_enabled?: boolean;
+  @IsOptional() @IsString() usage_type?: string;
+  @IsOptional() @IsString() unit?: string;
   @IsOptional() @IsString() required_plan?: string | null;
   @IsOptional() @IsNumber() monthly_limit_free?: number | null;
   @IsOptional() @IsNumber() monthly_limit_premium?: number | null;
   @IsOptional() @IsArray() @IsString({ each: true }) applicable_roles?: string[];
   @IsOptional() @IsNumber() credit_cost?: number;
+  @IsOptional() @IsString() status?: 'active' | 'inactive' | 'archived';
+}
+
+export class CreateAiPlanDto {
+  @IsString() name: string;
+  @IsOptional() @IsString() id?: string;
+  @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsString() billing_cycle?: 'monthly' | 'yearly' | 'pay_per_use' | 'credit_pack' | 'lifetime';
+  @IsOptional() @IsString() product_id?: string;
+  @IsOptional() @IsNumber() included_monthly_credits?: number;
+  @IsOptional() @IsNumber() bonus_credits?: number;
+  @IsOptional() @IsBoolean() rollover_unused_credits?: boolean;
+  @IsOptional() @IsBoolean() is_active?: boolean;
+  @IsOptional() @IsBoolean() is_public?: boolean;
+  @IsOptional() @IsNumber() price_inr?: number;
+  @IsOptional() @IsNumber() price_usd?: number;
+  @IsOptional() @IsArray() @IsString({ each: true }) features?: string[];
+  @IsOptional() feature_limits?: Record<string, any>;
+}
+
+export class UpdateAiPlanDto {
+  @IsOptional() @IsString() name?: string;
+  @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsString() billing_cycle?: 'monthly' | 'yearly' | 'pay_per_use' | 'credit_pack' | 'lifetime';
+  @IsOptional() @IsString() product_id?: string;
+  @IsOptional() @IsBoolean() is_active?: boolean;
+  @IsOptional() @IsBoolean() is_public?: boolean;
+  @IsOptional() @IsNumber() included_monthly_credits?: number;
+  @IsOptional() @IsNumber() bonus_credits?: number;
+  @IsOptional() @IsBoolean() rollover_unused_credits?: boolean;
+  @IsOptional() @IsNumber() price_inr?: number;
+  @IsOptional() @IsNumber() price_usd?: number;
+  @IsOptional() @IsArray() @IsString({ each: true }) features?: string[];
+  @IsOptional() feature_limits?: Record<string, any>;
 }
 
 export class SavePromptTemplateDto {
@@ -182,10 +232,59 @@ export class AiAdminController {
     @CurrentUser() user: AuthUser,
     @Query('country') country?: string,
     @Query('currency') currency?: string,
+    @Query('includeInactive') includeInactive?: string,
   ) {
     this.requireAdmin(user);
-    const quotes = await this.pricingService.getAllPlansForMarket(country || 'IN', currency || 'INR');
+    const quotes = await this.pricingService.getAllPlansForMarket(
+      country || 'IN',
+      currency || 'INR',
+      undefined,
+      includeInactive === 'true' || includeInactive === '1',
+    );
     return ResponseHelper.success(quotes, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Post('plans')
+  @ApiOperation({ summary: 'Create a new AI plan' })
+  async createPlan(
+    @CurrentUser() user: AuthUser,
+    @Body() body: CreateAiPlanDto,
+  ) {
+    this.requireAdmin(user);
+    const created = await this.pricingService.createPlan(body, {
+      id: user.id,
+      name: user.profile.full_name || 'Admin',
+    });
+    return ResponseHelper.success(created, 'AI Plan created successfully.');
+  }
+
+  @Put('plans/:id')
+  @ApiOperation({ summary: 'Update an existing AI plan, included features, and limits' })
+  async updatePlan(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: UpdateAiPlanDto,
+  ) {
+    this.requireAdmin(user);
+    const updated = await this.pricingService.updatePlan(id, body, {
+      id: user.id,
+      name: user.profile.full_name || 'Admin',
+    });
+    return ResponseHelper.success(updated, 'AI Plan updated successfully.');
+  }
+
+  @Delete('plans/:id')
+  @ApiOperation({ summary: 'Deactivate an AI plan' })
+  async deletePlan(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    this.requireAdmin(user);
+    await this.pricingService.deletePlan(id, {
+      id: user.id,
+      name: user.profile.full_name || 'Admin',
+    });
+    return ResponseHelper.success({ id }, 'AI Plan deactivated successfully.');
   }
 
   @Post('prices')
@@ -196,36 +295,17 @@ export class AiAdminController {
   ) {
     this.requireAdmin(user);
     const { plan_id, country_code, currency, base_amount } = body;
-
-    try {
-      // Inactive existing price versions and increment
-      const priceEntry: AiRegionalPrice = {
-        plan_id,
-        country_code: country_code.toUpperCase(),
-        currency: currency.toUpperCase(),
-        base_amount,
-        price_version: Date.now(),
-        is_active: true,
-        effective_from: new Date().toISOString(),
-        created_by: user.id,
-      };
-
-      await this.supabase.admin.from('ai_regional_prices').insert(priceEntry);
-
-      // Log audit
-      await this.supabase.admin.from('ai_admin_audit_logs').insert({
-        admin_id: user.id,
-        admin_name: user.profile.full_name || 'Admin',
-        action: 'PRICE_UPDATED',
-        entity_type: 'price',
-        entity_id: `${plan_id}_${country_code}_${currency}`,
-        new_value: priceEntry,
-      });
-
-      return ResponseHelper.success(priceEntry, 'Regional price published successfully.');
-    } catch (err: any) {
-      return ResponseHelper.success(body, 'Regional price updated.');
-    }
+    const priceEntry = await this.pricingService.setRegionalPrice(
+      plan_id,
+      country_code,
+      currency,
+      base_amount,
+      {
+        id: user.id,
+        name: user.profile?.full_name || 'Admin',
+      },
+    );
+    return ResponseHelper.success(priceEntry, 'Regional price published successfully.');
   }
 
   // --- 4. Pricing Profitability Simulator ---
@@ -240,13 +320,40 @@ export class AiAdminController {
     return ResponseHelper.success(result, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  // --- 5. Feature Flags & Country Availability Matrix ---
+  // --- 5. Feature Flags & Catalog Matrix ---
   @Get('features')
-  @ApiOperation({ summary: 'List all dynamic AI feature flags and entitlement gates' })
+  @ApiOperation({ summary: 'List all dynamic AI features with status, usage type, and plan count' })
   async getFeatureFlags(@CurrentUser() user: AuthUser) {
     this.requireAdmin(user);
     const flags = await this.featureFlagService.getAllFlags();
-    return ResponseHelper.success(flags, SUCCESS_MESSAGES.DATA_RETRIEVED);
+    const plans = await this.pricingService.getAllPlans();
+
+    // Attach plan count to each feature
+    const enriched = flags.map((f) => {
+      const planCount = plans.filter(
+        (p) => p.is_active && Array.isArray(p.features) && p.features.includes(f.feature_key),
+      ).length;
+      return {
+        ...f,
+        plan_count: planCount,
+      };
+    });
+
+    return ResponseHelper.success(enriched, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Post('features')
+  @ApiOperation({ summary: 'Create a new AI capability in the catalog' })
+  async createFeature(
+    @CurrentUser() user: AuthUser,
+    @Body() body: CreateAiFeatureDto,
+  ) {
+    this.requireAdmin(user);
+    const created = await this.featureFlagService.createFlag(body as any, {
+      id: user.id,
+      name: user.profile.full_name || 'Admin',
+    });
+    return ResponseHelper.success(created, 'AI Feature created successfully.');
   }
 
   @Put('features/:key')
@@ -257,8 +364,41 @@ export class AiAdminController {
     @Body() body: UpdateAiFeatureDto,
   ) {
     this.requireAdmin(user);
-    const updated = await this.featureFlagService.updateFlag(key, body as any);
-    return ResponseHelper.success(updated, 'AI Feature flag updated successfully.');
+    const updated = await this.featureFlagService.updateFlag(key, body as any, {
+      id: user.id,
+      name: user.profile.full_name || 'Admin',
+    });
+    return ResponseHelper.success(updated, 'AI Feature updated successfully.');
+  }
+
+  @Delete('features/:key')
+  @ApiOperation({ summary: 'Archive / Deactivate an AI feature with impact validation' })
+  async archiveFeature(
+    @CurrentUser() user: AuthUser,
+    @Param('key') key: string,
+    @Query('force') force?: string,
+  ) {
+    this.requireAdmin(user);
+    const result = await this.featureFlagService.archiveFlag(
+      key,
+      {
+        id: user.id,
+        name: user.profile.full_name || 'Admin',
+      },
+      force === 'true' || force === '1',
+    );
+    return ResponseHelper.success(result, result.message);
+  }
+
+  @Get('features/:key/impact')
+  @ApiOperation({ summary: 'Check which active plans use this feature before removal' })
+  async checkFeatureImpact(
+    @CurrentUser() user: AuthUser,
+    @Param('key') key: string,
+  ) {
+    this.requireAdmin(user);
+    const impactedPlans = await this.featureFlagService.checkPlanImpact(key);
+    return ResponseHelper.success({ featureKey: key, impactedPlans }, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
   // --- 6. Usage & Cost Metrics ---

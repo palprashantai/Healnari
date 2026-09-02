@@ -1,47 +1,86 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { apiFetch } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast.jsx';
-import { AIButton } from '../../components/AiButton.jsx';
 import { Modal } from '../../components/Modal.jsx';
-import { formatCurrency, getCurrencySymbol, ISO_CURRENCIES, SUPPORTED_REPORTING_CURRENCIES } from '../../lib/currency.js';
+import { formatCurrency, SUPPORTED_REPORTING_CURRENCIES } from '../../lib/currency.js';
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 export function AIControl() {
-  const { toast } = useToast?.() || { toast: (msg) => alert(msg) };
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'plans' | 'pricing' | 'simulator' | 'countries' | 'features' | 'models' | 'coupons'
+  const toastApi = useToast();
+  const notify = (msg, type = 'success') => {
+    try {
+      if (typeof toastApi === 'function') {
+        toastApi(msg, type);
+      } else if (typeof toastApi?.success === 'function' && type === 'success') {
+        toastApi.success(msg);
+      } else if (typeof toastApi?.error === 'function' && type === 'error') {
+        toastApi.error(msg);
+      } else if (typeof toastApi?.toast === 'function') {
+        toastApi.toast(msg, type);
+      } else {
+        console.log(`[Toast ${type}]: ${msg}`);
+      }
+    } catch {}
+  };
+  const [activeTab, setActiveTab] = useState('features'); // 'features' | 'plans' | 'audit' | 'advanced'
 
-  // Global State
+  // Data State
+  const [flags, setFlags] = useState([]);
+  const [plans, setPlans] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Selected Plan in Plan Management tab
+  const [selectedPlanId, setSelectedPlanId] = useState(null);
+  const [planForm, setPlanForm] = useState(null);
+  const [savingPlan, setSavingPlan] = useState(false);
+
+  // Feature Modals
+  const [featureModalOpen, setFeatureModalOpen] = useState(false);
+  const [editingFeature, setEditingFeature] = useState(null);
+  const [featureForm, setFeatureForm] = useState({
+    name: '',
+    feature_key: '',
+    description: '',
+    usage_type: 'messages',
+    unit: 'messages',
+    applicable_roles: ['patient'],
+    credit_cost: 1,
+    is_enabled: true,
+  });
+
+  // Archive Modal
+  const [archiveModalOpen, setArchiveModalOpen] = useState(false);
+  const [featureToArchive, setFeatureToArchive] = useState(null);
+  const [impactedPlans, setImpactedPlans] = useState([]);
+  const [archiving, setArchiving] = useState(false);
+
+  // Create Plan Modal
+  const [createPlanModalOpen, setCreatePlanModalOpen] = useState(false);
+  const [newPlanForm, setNewPlanForm] = useState({
+    name: '',
+    description: '',
+    product_id: 'prod_patient_ai',
+    billing_cycle: 'monthly',
+    included_monthly_credits: 500,
+    bonus_credits: 0,
+    rollover_unused_credits: false,
+    price_inr: 999,
+    price_usd: 19,
+    is_active: true,
+    is_public: true,
+  });
+
+  // Advanced / Treasury State
   const [reportingCurrency, setReportingCurrency] = useState('USD');
   const [profitability, setProfitability] = useState(null);
   const [countries, setCountries] = useState([]);
   const [currencies, setCurrencies] = useState([]);
-  const [plans, setPlans] = useState([]);
-  const [flags, setFlags] = useState([]);
-  const [prompts, setPrompts] = useState([]);
-  const [coupons, setCoupons] = useState([]);
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  // Edit/Create Modal States
-  const [editingPrice, setEditingPrice] = useState(null);
-  const [editingCountry, setEditingCountry] = useState(null);
-  const [editingPrompt, setEditingPrompt] = useState(null);
-  const [newCouponModal, setNewCouponModal] = useState(false);
-  const [newCoupon, setNewCoupon] = useState({
-    code: '',
-    discount_type: 'percentage',
-    discount_value: 20,
-    allowed_country: '',
-    allowed_currency: '',
-    max_uses: 500,
-  });
-
-  // Simulator State
   const [simInput, setSimInput] = useState({
     countryCode: 'IN',
     currency: 'INR',
-    basePrice: 299,
-    monthlyCredits: 200,
+    basePrice: 999,
+    monthlyCredits: 500,
     expectedAvgQueriesPerUser: 45,
     model: 'gemini-1.5-flash',
     taxRatePercent: 18,
@@ -50,482 +89,1153 @@ export function AIControl() {
   });
   const [simResult, setSimResult] = useState(null);
 
-  const loadDashboardData = async (curr = reportingCurrency) => {
+  // Search & Filter
+  const [featureSearch, setFeatureSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+
+  // Load Data
+  const loadData = async () => {
     setLoading(true);
     try {
-      const [pData, cData, currData, plData, fData, prData, cpData, alData] = await Promise.all([
-        apiFetch(`/admin/ai/profitability?currency=${curr}`).catch(() => null),
-        apiFetch('/admin/ai/countries').catch(() => []),
-        apiFetch('/admin/ai/currencies').catch(() => []),
-        apiFetch(`/admin/ai/plans?country=IN&currency=INR`).catch(() => []),
+      const [fData, plData, alData] = await Promise.all([
         apiFetch('/admin/ai/features').catch(() => []),
-        apiFetch('/admin/ai/prompts').catch(() => []),
-        apiFetch('/admin/ai/coupons').catch(() => []),
+        apiFetch('/admin/ai/plans?includeInactive=true').catch(() => []),
         apiFetch('/admin/ai/audit-logs').catch(() => []),
       ]);
-      setProfitability(pData);
-      setCountries(cData || []);
-      setCurrencies(currData || []);
-      setPlans(plData || []);
-      setFlags(fData || []);
-      setPrompts(prData || []);
-      setCoupons(cpData || []);
-      setAuditLogs(alData || []);
+
+      const featuresList = Array.isArray(fData) ? fData : [];
+      const plansList = Array.isArray(plData) ? plData : [];
+
+      setFlags(featuresList);
+      setPlans(plansList);
+      setAuditLogs(Array.isArray(alData) ? alData : []);
+
+      if (plansList.length > 0 && !selectedPlanId) {
+        selectPlan(plansList[0]);
+      } else if (selectedPlanId) {
+        const current = plansList.find((p) => p.planId === selectedPlanId);
+        if (current) selectPlan(current);
+      }
     } catch {
-      toast('Failed to load global AI monetization data', 'error');
+      notify('Failed to load AI control data', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadDashboardData(reportingCurrency);
-  }, [reportingCurrency]);
-
-  // Run Simulator whenever input changes
-  useEffect(() => {
-    const runSim = async () => {
-      try {
-        const res = await apiFetch('/admin/ai/simulate-pricing', {
-          method: 'POST',
-          body: simInput,
-        });
-        setSimResult(res);
-      } catch {}
-    };
-    runSim();
-  }, [simInput]);
-
-  const handleSavePrice = async () => {
-    if (!editingPrice) return;
+  const loadAdvancedData = async () => {
     try {
-      await apiFetch('/admin/ai/prices', {
+      const [pData, cData, currData] = await Promise.all([
+        apiFetch(`/admin/ai/profitability?currency=${reportingCurrency}`).catch(() => null),
+        apiFetch('/admin/ai/countries').catch(() => []),
+        apiFetch('/admin/ai/currencies').catch(() => []),
+      ]);
+      setProfitability(pData);
+      setCountries(cData || []);
+      setCurrencies(currData || []);
+    } catch {}
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'advanced') {
+      loadAdvancedData();
+    }
+  }, [activeTab, reportingCurrency]);
+
+  const selectPlan = (plan) => {
+    setSelectedPlanId(plan.planId);
+    setPlanForm({
+      id: plan.planId,
+      name: plan.planName || plan.name || plan.id,
+      description: plan.description || '',
+      billing_cycle: plan.billing_cycle || plan.billingCycle || 'monthly',
+      product_id: plan.product_id || 'prod_patient_ai',
+      is_active: plan.is_active ?? true,
+      is_public: plan.is_public ?? true,
+      included_monthly_credits: plan.included_monthly_credits !== undefined 
+        ? plan.included_monthly_credits 
+        : (plan.includedCredits ?? 0),
+      bonus_credits: plan.bonus_credits ?? 0,
+      rollover_unused_credits: plan.rollover_unused_credits ?? false,
+      price_inr: plan.price_inr !== undefined ? plan.price_inr : (plan.baseAmount ?? 0),
+      price_usd: plan.price_usd !== undefined ? plan.price_usd : (plan.planId?.includes('free') ? 0 : 19),
+      features: [...(plan.features || [])],
+      feature_limits: { ...(plan.feature_limits || {}) },
+    });
+  };
+
+  // Run Simulator
+  useEffect(() => {
+    if (activeTab === 'advanced') {
+      apiFetch('/admin/ai/simulate-pricing', {
         method: 'POST',
-        body: editingPrice,
-      });
-      toast(`Published new price version for ${editingPrice.plan_id} in ${editingPrice.country_code} (${editingPrice.currency})`);
-      setEditingPrice(null);
-      loadDashboardData();
-    } catch {
-      toast('Failed to save regional price', 'error');
+        body: simInput,
+      })
+        .then(setSimResult)
+        .catch(() => {});
     }
+  }, [simInput, activeTab]);
+
+  // --- Feature Handlers ---
+  const handleOpenAddFeature = () => {
+    setEditingFeature(null);
+    setFeatureForm({
+      name: '',
+      feature_key: '',
+      description: '',
+      usage_type: 'messages',
+      unit: 'messages',
+      applicable_roles: ['patient'],
+      credit_cost: 1,
+      is_enabled: true,
+    });
+    setFeatureModalOpen(true);
   };
 
-  const handleSaveCountry = async () => {
-    if (!editingCountry) return;
-    try {
-      await apiFetch(`/admin/ai/countries/${editingCountry.code}`, {
-        method: 'PUT',
-        body: editingCountry,
-      });
-      toast(`Updated country settings for ${editingCountry.name} (${editingCountry.code})`);
-      setEditingCountry(null);
-      loadDashboardData();
-    } catch {
-      toast('Failed to update country settings', 'error');
-    }
+  const handleOpenEditFeature = (f) => {
+    setEditingFeature(f);
+    setFeatureForm({
+      name: f.name || '',
+      feature_key: f.feature_key || '',
+      description: f.description || '',
+      usage_type: f.usage_type || 'messages',
+      unit: f.unit || 'messages',
+      applicable_roles: f.applicable_roles || ['patient'],
+      credit_cost: f.credit_cost ?? 1,
+      is_enabled: f.is_enabled ?? true,
+    });
+    setFeatureModalOpen(true);
   };
 
-  const handleCreateCoupon = async () => {
-    if (!newCoupon.code) {
-      toast('Please enter coupon code', 'error');
+  const handleSaveFeature = async (e) => {
+    e?.preventDefault();
+    if (!featureForm.name.trim()) {
+      notify('Please enter a feature name', 'error');
       return;
     }
+
     try {
-      await apiFetch('/admin/ai/coupons', {
-        method: 'POST',
-        body: newCoupon,
-      });
-      toast(`Coupon ${newCoupon.code.toUpperCase()} created successfully`);
-      setNewCouponModal(false);
-      loadDashboardData();
-    } catch {
-      toast('Failed to create coupon', 'error');
+      if (editingFeature) {
+        await apiFetch(`/admin/ai/features/${editingFeature.feature_key}`, {
+          method: 'PUT',
+          body: featureForm,
+        });
+        notify(`Feature "${featureForm.name}" updated successfully`);
+      } else {
+        await apiFetch('/admin/ai/features', {
+          method: 'POST',
+          body: featureForm,
+        });
+        notify(`Feature "${featureForm.name}" created successfully`);
+      }
+      setFeatureModalOpen(false);
+      loadData();
+    } catch (err) {
+      notify(err?.message || 'Failed to save feature', 'error');
     }
   };
 
-  const handleToggleFeature = async (featureKey, currentStatus) => {
+  const handleToggleFeatureStatus = async (featureKey, currentStatus) => {
     try {
       await apiFetch(`/admin/ai/features/${featureKey}`, {
         method: 'PUT',
         body: { is_enabled: !currentStatus },
       });
-      setFlags((prev) =>
-        prev.map((f) => (f.feature_key === featureKey ? { ...f, is_enabled: !currentStatus } : f)),
-      );
-      toast(`Updated ${featureKey} status to ${!currentStatus ? 'Active' : 'Disabled'}`);
+      notify(`Feature status set to ${!currentStatus ? 'Active' : 'Disabled'}`);
+      loadData();
     } catch {
-      toast('Failed to update feature flag', 'error');
+      notify('Failed to toggle feature status', 'error');
     }
   };
 
-  const handleSavePrompt = async () => {
-    if (!editingPrompt) return;
+  const handleOpenArchiveModal = async (f) => {
+    setFeatureToArchive(f);
     try {
-      await apiFetch('/admin/ai/prompts', {
-        method: 'POST',
-        body: editingPrompt,
-      });
-      toast(`Prompt for ${editingPrompt.feature} updated & versioned.`);
-      setEditingPrompt(null);
-      loadDashboardData();
+      const res = await apiFetch(`/admin/ai/features/${f.feature_key}/impact`);
+      setImpactedPlans(res?.impactedPlans || []);
     } catch {
-      toast('Failed to save prompt', 'error');
+      setImpactedPlans([]);
+    }
+    setArchiveModalOpen(true);
+  };
+
+  const handleConfirmArchive = async () => {
+    if (!featureToArchive) return;
+    setArchiving(true);
+    try {
+      const res = await apiFetch(`/admin/ai/features/${featureToArchive.feature_key}?force=true`, {
+        method: 'DELETE',
+      });
+      notify(res?.message || 'Feature archived successfully');
+      setArchiveModalOpen(false);
+      loadData();
+    } catch (err) {
+      notify(err?.message || 'Failed to archive feature', 'error');
+    } finally {
+      setArchiving(false);
     }
   };
+
+  // --- Plan Handlers ---
+  const handleToggleFeatureInPlan = (featureKey) => {
+    if (!planForm) return;
+    const exists = planForm.features.includes(featureKey);
+    let newFeatures;
+    const newLimits = { ...planForm.feature_limits };
+
+    if (exists) {
+      newFeatures = planForm.features.filter((k) => k !== featureKey);
+      delete newLimits[featureKey];
+    } else {
+      newFeatures = [...planForm.features, featureKey];
+      // Default to unlimited or standard limit
+      const featureMeta = flags.find((f) => f.feature_key === featureKey);
+      newLimits[featureKey] = {
+        limit: null,
+        is_unlimited: true,
+        unit: featureMeta?.unit || 'uses',
+      };
+    }
+
+    setPlanForm({
+      ...planForm,
+      features: newFeatures,
+      feature_limits: newLimits,
+    });
+  };
+
+  const handleSetFeatureLimitType = (featureKey, isUnlimited) => {
+    if (!planForm) return;
+    const featureMeta = flags.find((f) => f.feature_key === featureKey);
+    const current = planForm.feature_limits[featureKey] || {};
+
+    setPlanForm({
+      ...planForm,
+      feature_limits: {
+        ...planForm.feature_limits,
+        [featureKey]: {
+          ...current,
+          is_unlimited: isUnlimited,
+          limit: isUnlimited ? null : current.limit || 50,
+          unit: featureMeta?.unit || current.unit || 'uses',
+        },
+      },
+    });
+  };
+
+  const handleSetFeatureNumericLimit = (featureKey, num) => {
+    if (!planForm) return;
+    const current = planForm.feature_limits[featureKey] || {};
+    setPlanForm({
+      ...planForm,
+      feature_limits: {
+        ...planForm.feature_limits,
+        [featureKey]: {
+          ...current,
+          limit: num === '' ? '' : Math.max(0, parseInt(num, 10) || 0),
+        },
+      },
+    });
+  };
+
+  const handleSavePlan = async () => {
+    if (!planForm) return;
+    setSavingPlan(true);
+    try {
+      const priceInr = planForm.price_inr === '' ? 0 : Number(planForm.price_inr);
+      const priceUsd = planForm.price_usd === '' ? 0 : Number(planForm.price_usd);
+      const credits = planForm.included_monthly_credits === '' ? 0 : Number(planForm.included_monthly_credits);
+      const bonus = planForm.bonus_credits === '' ? 0 : Number(planForm.bonus_credits);
+
+      // Sanitize feature limits
+      const sanitizedLimits = {};
+      Object.entries(planForm.feature_limits || {}).forEach(([k, v]) => {
+        sanitizedLimits[k] = {
+          ...v,
+          limit: v.is_unlimited ? null : (v.limit === '' ? 50 : Number(v.limit || 0)),
+        };
+      });
+
+      // 1. Update plan details, features, limits, and prices
+      await apiFetch(`/admin/ai/plans/${planForm.id}`, {
+        method: 'PUT',
+        body: {
+          name: planForm.name,
+          description: planForm.description,
+          billing_cycle: planForm.billing_cycle,
+          product_id: planForm.product_id,
+          is_active: planForm.is_active,
+          is_public: planForm.is_public,
+          included_monthly_credits: credits,
+          bonus_credits: bonus,
+          rollover_unused_credits: planForm.rollover_unused_credits,
+          price_inr: priceInr,
+          price_usd: priceUsd,
+          features: planForm.features,
+          feature_limits: sanitizedLimits,
+        },
+      });
+
+      // 2. Publish regional prices for India (INR) and International (USD)
+      const pricePromises = [
+        apiFetch('/admin/ai/prices', {
+          method: 'POST',
+          body: {
+            plan_id: planForm.id,
+            country_code: 'IN',
+            currency: 'INR',
+            base_amount: priceInr,
+          },
+        }).catch(() => null),
+        apiFetch('/admin/ai/prices', {
+          method: 'POST',
+          body: {
+            plan_id: planForm.id,
+            country_code: 'US',
+            currency: 'USD',
+            base_amount: priceUsd,
+          },
+        }).catch(() => null),
+      ];
+
+      await Promise.all(pricePromises);
+
+      notify(`Plan "${planForm.name}" configuration and pricing saved successfully`);
+      await loadData();
+    } catch (err) {
+      notify(err?.message || 'Failed to save plan configuration', 'error');
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
+  const handleCreatePlan = async (e) => {
+    e?.preventDefault();
+    if (!newPlanForm.name.trim()) {
+      notify('Please enter a plan name', 'error');
+      return;
+    }
+
+    try {
+      const created = await apiFetch('/admin/ai/plans', {
+        method: 'POST',
+        body: {
+          ...newPlanForm,
+          included_monthly_credits: Number(newPlanForm.included_monthly_credits || 0),
+          bonus_credits: Number(newPlanForm.bonus_credits || 0),
+          price_inr: Number(newPlanForm.price_inr || 0),
+          price_usd: Number(newPlanForm.price_usd || 0),
+        },
+      });
+      notify(`Plan "${newPlanForm.name}" created successfully`);
+      setCreatePlanModalOpen(false);
+      setNewPlanForm({
+        name: '',
+        description: '',
+        product_id: 'prod_patient_ai',
+        billing_cycle: 'monthly',
+        included_monthly_credits: 500,
+        bonus_credits: 0,
+        rollover_unused_credits: false,
+        price_inr: 999,
+        price_usd: 19,
+        is_active: true,
+        is_public: true,
+      });
+      await loadData();
+      if (created?.id) setSelectedPlanId(created.id);
+    } catch (err) {
+      notify(err?.message || 'Failed to create plan', 'error');
+    }
+  };
+
+  // Filtered Features
+  const filteredFlags = useMemo(() => {
+    return flags.filter((f) => {
+      if (f.status === 'archived') return false;
+      const matchesSearch =
+        f.name?.toLowerCase().includes(featureSearch.toLowerCase()) ||
+        f.feature_key?.toLowerCase().includes(featureSearch.toLowerCase()) ||
+        f.description?.toLowerCase().includes(featureSearch.toLowerCase());
+      const matchesRole =
+        roleFilter === 'all' ||
+        (Array.isArray(f.applicable_roles) && f.applicable_roles.includes(roleFilter));
+      return matchesSearch && matchesRole;
+    });
+  }, [flags, featureSearch, roleFilter]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in">
+    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in text-slate-800">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="relative z-10">
+      <div className="bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/30 text-purple-300 text-xs font-bold mb-2">
-            <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping"></span>
-            <span>Global AI Monetization &amp; Multi-Currency Engine</span>
+            <i className="fas fa-sliders text-purple-300"></i>
+            <span>AI Product Control &amp; Entitlements</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">AI Product &amp; Treasury Command</h1>
-          <p className="text-slate-300 text-xs sm:text-sm mt-1">
-            Manage global plans, explicit market pricing, multi-currency checkout, token economics, and unit profitability.
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">AI Product Control</h1>
+          <p className="text-slate-300 text-xs sm:text-sm mt-1 max-w-2xl">
+            Control which AI features are available in your product, which subscription plans include them, and set usage limits (Limited vs Unlimited).
           </p>
         </div>
 
-        {/* Global Reporting Currency Selector */}
-        <div className="relative z-10 flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-2 rounded-2xl border border-white/15">
-          <span className="text-xs text-slate-300 font-bold">Reporting:</span>
-          <select
-            value={reportingCurrency}
-            onChange={(e) => setReportingCurrency(e.target.value)}
-            className="bg-purple-900/80 text-white font-bold text-xs rounded-xl px-2.5 py-1.5 border border-purple-400/40 focus:outline-none"
-          >
-            {SUPPORTED_REPORTING_CURRENCIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.flag} {c.code} ({c.symbol})
-              </option>
-            ))}
-          </select>
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => loadDashboardData(reportingCurrency)}
-            className="w-7 h-7 rounded-xl bg-purple-600/60 hover:bg-purple-600 text-white flex items-center justify-center transition-colors text-xs"
-            title="Refresh Data"
+            onClick={() => loadData()}
+            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3.5 py-2.5 rounded-2xl border border-white/15 transition-all"
+            title="Refresh AI Configuration"
           >
             <i className={`fas fa-rotate-right ${loading ? 'fa-spin' : ''}`}></i>
+            <span>Refresh</span>
+          </button>
+          <button
+            onClick={handleOpenAddFeature}
+            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-4 py-2.5 rounded-2xl shadow-md transition-all shadow-purple-900/30"
+          >
+            <i className="fas fa-plus"></i>
+            <span>Add AI Feature</span>
           </button>
         </div>
       </div>
 
-      {/* Navigation Tabs Bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-200 hide-scrollbar">
+      {/* Main Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto hide-scrollbar">
         {[
-          { id: 'overview', label: 'Profitability & KPIs', icon: 'fa-chart-pie' },
-          { id: 'plans', label: 'Products & Plans', icon: 'fa-layer-group' },
-          { id: 'pricing', label: 'Regional Pricing & Taxes', icon: 'fa-tags' },
-          { id: 'simulator', label: 'Pricing Simulator', icon: 'fa-calculator' },
-          { id: 'countries', label: 'Countries & Gateways', icon: 'fa-globe' },
-          { id: 'features', label: 'Features Matrix', icon: 'fa-toggle-on' },
-          { id: 'models', label: 'Model Costs & Prompts', icon: 'fa-microchip' },
-          { id: 'coupons', label: 'Coupons & Audit', icon: 'fa-ticket' },
+          { id: 'features', label: 'AI Features Catalog', icon: 'fa-wand-magic-sparkles', badge: flags.filter((f) => f.status !== 'archived').length },
+          { id: 'plans', label: 'AI Plans & Usage Limits', icon: 'fa-layer-group', badge: plans.length },
+          { id: 'audit', label: 'Audit Trail', icon: 'fa-clock-rotate-left', badge: auditLogs.length },
+          { id: 'advanced', label: 'Advanced & Unit Economics', icon: 'fa-chart-pie' },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all shrink-0 ${
+            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all shrink-0 ${
               activeTab === tab.id
                 ? 'bg-purple-900 text-white shadow-md shadow-purple-950/20'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
             <i className={`fas ${tab.icon} ${activeTab === tab.id ? 'text-purple-300' : 'text-slate-400'}`}></i>
             <span>{tab.label}</span>
+            {tab.badge !== undefined && (
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  activeTab === tab.id ? 'bg-purple-800 text-purple-200' : 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                {tab.badge}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
       {/* ========================================================================= */}
-      {/* TAB 1: OVERVIEW & GLOBAL PROFITABILITY */}
+      {/* TAB 1: AI FEATURES CATALOG */}
       {/* ========================================================================= */}
-      {activeTab === 'overview' && profitability && (
-        <div className="space-y-6">
-          {/* Top KPI Metrics Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Global AI Revenue</span>
-              <div className="text-2xl font-black text-slate-900 mt-1">
-                {formatCurrency(profitability.metrics.totalRevenue, reportingCurrency)}
-              </div>
-              <div className="text-[11px] text-emerald-600 font-bold mt-1">
-                <i className="fas fa-arrow-trend-up mr-1"></i> {profitability.metrics.totalActiveSubscribers} Paid Subscribers
-              </div>
+      {activeTab === 'features' && (
+        <div className="space-y-4">
+          {/* Filter Bar */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="relative w-full sm:w-80">
+              <i className="fas fa-search absolute left-3 top-3 text-slate-400 text-xs"></i>
+              <input
+                type="text"
+                value={featureSearch}
+                onChange={(e) => setFeatureSearch(e.target.value)}
+                placeholder="Search AI features or keys..."
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-purple-600 bg-slate-50"
+              />
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Total AI Token Cost</span>
-              <div className="text-2xl font-black text-rose-600 mt-1">
-                {formatCurrency(profitability.metrics.totalAiCost, reportingCurrency)}
-              </div>
-              <div className="text-[11px] text-slate-500 font-bold mt-1">
-                {profitability.metrics.totalAiRequests?.toLocaleString()} Requests Served
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Gross Contribution Profit</span>
-              <div className="text-2xl font-black text-emerald-700 mt-1">
-                {formatCurrency(profitability.metrics.grossProfit, reportingCurrency)}
-              </div>
-              <div className="text-[11px] text-emerald-600 font-bold mt-1">
-                Net After Token &amp; Payment Fees
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-purple-900 to-indigo-950 text-white rounded-2xl p-4 shadow-md">
-              <span className="text-[11px] font-bold text-purple-300 uppercase tracking-wider block">Gross Profit Margin</span>
-              <div className="text-3xl font-black mt-1">
-                {profitability.metrics.grossMarginPercent}%
-              </div>
-              <div className="text-[11px] text-purple-200 mt-1 flex items-center gap-1">
-                <i className="fas fa-shield-check text-emerald-400"></i> High-Margin Unit Economics
-              </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <span className="text-xs font-bold text-slate-500">Audience:</span>
+              {['all', 'patient', 'doctor'].map((role) => (
+                <button
+                  key={role}
+                  onClick={() => setRoleFilter(role)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition-all ${
+                    roleFilter === role
+                      ? 'bg-purple-100 text-purple-900 border border-purple-300'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
+                  }`}
+                >
+                  {role === 'all' ? 'All Roles' : role + 's'}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Breakdown By Country Table */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-            <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-4 flex items-center justify-between">
-              <span>Market-by-Market Profitability</span>
-              <span className="text-xs text-slate-400 font-normal">Normalized in {reportingCurrency}</span>
-            </h2>
+          {/* Features Table */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+                  Active AI Capabilities
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Global catalog of AI capabilities. Activate, configure usage units, or assign to subscription plans.
+                </p>
+              </div>
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full text-xs text-left">
                 <thead className="bg-slate-50 text-slate-500 font-bold uppercase border-b border-slate-200">
                   <tr>
-                    <th className="p-3">Country</th>
-                    <th className="p-3">Local Revenue</th>
-                    <th className="p-3">Reporting Revenue</th>
-                    <th className="p-3">Token Infra Cost</th>
-                    <th className="p-3">Net Profit</th>
-                    <th className="p-3">Margin</th>
-                    <th className="p-3">Subscribers</th>
+                    <th className="p-3.5">AI Feature</th>
+                    <th className="p-3.5">Feature Key</th>
+                    <th className="p-3.5">Usage Type / Unit</th>
+                    <th className="p-3.5">Included in Plans</th>
+                    <th className="p-3.5">Audience</th>
+                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {profitability.byCountry?.map((c) => (
-                    <tr key={c.countryCode} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-3 font-bold text-slate-900 flex items-center gap-2">
-                        <span className="text-base">{c.flag}</span>
-                        <span>{c.countryName} ({c.countryCode})</span>
+                  {filteredFlags.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-slate-400">
+                        <i className="fas fa-wand-magic-sparkles text-2xl mb-2 block"></i>
+                        No AI features found matching your search.
                       </td>
-                      <td className="p-3 font-bold text-slate-700">
-                        {formatCurrency(c.localRevenue, c.localCurrency)}
-                      </td>
-                      <td className="p-3 font-black text-slate-900">
-                        {formatCurrency(c.reportingRevenue, reportingCurrency)}
-                      </td>
-                      <td className="p-3 text-rose-600 font-bold">
-                        {formatCurrency(c.reportingCost, reportingCurrency)}
-                      </td>
-                      <td className="p-3 text-emerald-700 font-black">
-                        {formatCurrency(c.reportingProfit, reportingCurrency)}
-                      </td>
-                      <td className="p-3">
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-black text-[11px] border border-emerald-200">
-                          {c.marginPercent}%
-                        </span>
-                      </td>
-                      <td className="p-3 font-bold text-slate-700">{c.subscribersCount}</td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredFlags.map((f) => (
+                      <tr key={f.feature_key} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="p-3.5">
+                          <div className="font-bold text-slate-900 text-sm">{f.name}</div>
+                          <div className="text-[11px] text-slate-500 line-clamp-1 max-w-sm mt-0.5">
+                            {f.description || 'No description provided'}
+                          </div>
+                        </td>
+
+                        <td className="p-3.5">
+                          <span className="font-mono text-[11px] px-2 py-0.5 rounded-md bg-purple-50 text-purple-800 border border-purple-200 font-bold">
+                            {f.feature_key}
+                          </span>
+                          {f.is_system && (
+                            <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-bold">
+                              Core
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="p-3.5 font-bold text-slate-700 capitalize">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                            <span>{f.usage_type || 'Messages'}</span>
+                            <span className="text-slate-400 text-[10px]">({f.unit || 'units'})</span>
+                          </div>
+                        </td>
+
+                        <td className="p-3.5">
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                              (f.plan_count || 0) > 0
+                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                : 'bg-amber-50 text-amber-800 border border-amber-200'
+                            }`}
+                          >
+                            {f.plan_count || 0} Plan(s)
+                          </span>
+                        </td>
+
+                        <td className="p-3.5">
+                          <div className="flex gap-1">
+                            {f.applicable_roles?.map((r) => (
+                              <span
+                                key={r}
+                                className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 capitalize"
+                              >
+                                {r}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+
+                        <td className="p-3.5">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                              f.is_enabled
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                : 'bg-slate-100 text-slate-600 border border-slate-200'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${f.is_enabled ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`}
+                            ></span>
+                            <span>{f.is_enabled ? 'Active' : 'Inactive'}</span>
+                          </span>
+                        </td>
+
+                        <td className="p-3.5 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleToggleFeatureStatus(f.feature_key, f.is_enabled)}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                                f.is_enabled
+                                  ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                  : 'bg-emerald-600 text-white hover:bg-emerald-500'
+                              }`}
+                              title={f.is_enabled ? 'Deactivate feature' : 'Activate feature'}
+                            >
+                              {f.is_enabled ? 'Disable' : 'Enable'}
+                            </button>
+
+                            <button
+                              onClick={() => handleOpenEditFeature(f)}
+                              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200 transition-all"
+                            >
+                              Edit
+                            </button>
+
+                            {!f.is_system && (
+                              <button
+                                onClick={() => handleOpenArchiveModal(f)}
+                                className="px-2 py-1 rounded-lg text-xs font-bold text-rose-600 hover:bg-rose-50 transition-all"
+                                title="Archive Feature"
+                              >
+                                <i className="fas fa-trash-can"></i>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
-
-          {/* Model & Feature Cost Breakdown Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* By Model */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-3">
-                LLM Token Infrastructure by Model
-              </h2>
-              <div className="space-y-3">
-                {profitability.byModel?.map((m) => (
-                  <div key={m.model} className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-slate-900 text-xs block">{m.model}</span>
-                      <span className="text-[11px] text-slate-400">{m.provider} • {m.requests.toLocaleString()} calls</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-black text-rose-600 text-xs block">
-                        {formatCurrency(m.reportingCost, reportingCurrency)}
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        {((m.inputTokens + m.outputTokens) / 1000000).toFixed(2)}M Tokens
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* By Feature */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-              <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider mb-3">
-                Cost &amp; Credit Usage by Feature
-              </h2>
-              <div className="space-y-3">
-                {profitability.byFeature?.map((f) => (
-                  <div key={f.featureKey} className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-slate-900 text-xs block">{f.featureName}</span>
-                      <span className="text-[11px] text-purple-700 font-bold">{f.creditsUsed.toLocaleString()} Credits Consumed</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-black text-slate-900 text-xs block">
-                        {formatCurrency(f.reportingCost, reportingCurrency)}
-                      </span>
-                      <span className="text-[10px] text-slate-400">{f.requests.toLocaleString()} Invocations</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 2: PRODUCTS & PLANS */}
+      {/* TAB 2: AI PLANS & USAGE LIMITS */}
       {/* ========================================================================= */}
       {activeTab === 'plans' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Global Logical AI Plans</h2>
-              <p className="text-xs text-slate-400">Plans represent the single global logical product identity with included credits and features.</p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Plan Selector Sidebar */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                Select Subscription Plan
+              </h2>
+              <button
+                onClick={() => setCreatePlanModalOpen(true)}
+                className="text-xs font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1"
+              >
+                <i className="fas fa-plus"></i>
+                <span>Add Plan</span>
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {plans.map((p) => {
+                const isSelected = selectedPlanId === p.planId;
+                return (
+                  <div
+                    key={p.planId}
+                    onClick={() => selectPlan(p)}
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                      isSelected
+                        ? 'bg-purple-900 text-white border-purple-950 shadow-md'
+                        : 'bg-white text-slate-800 border-slate-200 hover:border-purple-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-sm">{p.planName}</span>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                          isSelected
+                            ? 'bg-purple-800 text-purple-200'
+                            : 'bg-purple-50 text-purple-800 border border-purple-200'
+                        }`}
+                      >
+                        {p.billingCycle}
+                      </span>
+                    </div>
+                    <div
+                      className={`text-xs mt-1 line-clamp-1 ${
+                        isSelected ? 'text-purple-200' : 'text-slate-400'
+                      }`}
+                    >
+                      {p.description || 'No description provided'}
+                    </div>
+
+                    <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-xs">
+                      <span className={isSelected ? 'text-purple-300' : 'text-slate-500'}>
+                        {p.features?.length || 0} Features Included
+                      </span>
+                      <span className="font-black">
+                        {p.currencySymbol || '₹'}
+                        {p.price_inr !== undefined ? p.price_inr : (p.baseAmount ?? 0)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {plans.map((p) => (
-              <div key={p.planId} className="border border-purple-100 rounded-2xl p-4 bg-gradient-to-br from-white to-purple-50/40 shadow-xs relative">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-900 border border-purple-200 uppercase">
-                      {p.billingCycle}
+          {/* Plan Limit Editor */}
+          {planForm && (
+            <div className="lg:col-span-2 bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-6">
+              {/* Header Info */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-black text-slate-900">{planForm.name}</h2>
+                    <span className="font-mono text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                      {planForm.id}
                     </span>
-                    <h3 className="text-base font-black text-slate-900 mt-2">{p.planName}</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Plan ID: <code className="text-purple-700 font-mono">{p.planId}</code></p>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xl font-black text-purple-950 block">
-                      {p.currencySymbol}{p.baseAmount}
-                    </span>
-                    <span className="text-[10px] text-slate-400">{p.includedCredits} Credits / mo</span>
+                  <p className="text-xs text-slate-500 mt-1">{planForm.description}</p>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={planForm.is_active}
+                      onChange={(e) => setPlanForm({ ...planForm, is_active: e.target.checked })}
+                      className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                    />
+                    <span>Active Plan</span>
+                  </label>
+
+                  <button
+                    onClick={handleSavePlan}
+                    disabled={savingPlan}
+                    className="flex items-center gap-1.5 bg-purple-900 hover:bg-purple-800 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition-all disabled:opacity-50"
+                  >
+                    <i className={`fas ${savingPlan ? 'fa-spinner fa-spin' : 'fa-check'}`}></i>
+                    <span>{savingPlan ? 'Saving...' : 'Save Configuration'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Plan Pricing & Commercial Settings */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                      Plan Identity &amp; Pricing
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Configure plan display names, market prices, billing intervals, and credit allowances. Changes apply immediately.
+                    </p>
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-purple-100/80">
-                  <span className="text-[11px] font-bold text-slate-600 block mb-1">Included Features:</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {p.features?.map((f) => (
-                      <span key={f} className="text-[10px] bg-white border border-slate-200 px-2 py-0.5 rounded-md text-slate-700 font-medium">
-                        ✓ {f}
+                {/* Identity: Display Name & Description */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-slate-700 text-xs block mb-1">
+                      Display Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={planForm.name}
+                      onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
+                      placeholder="e.g. HealNari AI Premium"
+                      className="w-full px-3 py-2 text-xs font-bold rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-600 shadow-2xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 text-xs block mb-1">
+                      Plan Description
+                    </label>
+                    <input
+                      type="text"
+                      value={planForm.description}
+                      onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
+                      placeholder="Brief customer-facing summary..."
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-600 shadow-2xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Plan Attributes: Cycle, Product, Visibility, Rollover */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-200">
+                  <div>
+                    <label className="font-bold text-slate-700 text-xs block mb-1">
+                      Billing Cycle
+                    </label>
+                    <select
+                      value={planForm.billing_cycle || 'monthly'}
+                      onChange={(e) => setPlanForm({ ...planForm, billing_cycle: e.target.value })}
+                      className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-600"
+                    >
+                      <option value="monthly">Monthly Subscription</option>
+                      <option value="yearly">Yearly Subscription</option>
+                      <option value="lifetime">Lifetime Access</option>
+                      <option value="pay_per_use">Pay-As-You-Go</option>
+                      <option value="credit_pack">Credit Pack</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-slate-700 text-xs block mb-1">
+                      Target Audience / Suite
+                    </label>
+                    <select
+                      value={planForm.product_id || 'prod_patient_ai'}
+                      onChange={(e) => setPlanForm({ ...planForm, product_id: e.target.value })}
+                      className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-600"
+                    >
+                      <option value="prod_patient_ai">Patient AI Suite</option>
+                      <option value="prod_doctor_ai">Doctor Clinical AI</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col justify-center">
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Catalog Visibility
+                    </label>
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer pt-1">
+                      <input
+                        type="checkbox"
+                        checked={planForm.is_public ?? true}
+                        onChange={(e) => setPlanForm({ ...planForm, is_public: e.target.checked })}
+                        className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                      />
+                      <span>Publicly Listed</span>
+                    </label>
+                  </div>
+
+                  <div className="flex flex-col justify-center">
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Credit Rollover
+                    </label>
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer pt-1">
+                      <input
+                        type="checkbox"
+                        checked={planForm.rollover_unused_credits ?? false}
+                        onChange={(e) => setPlanForm({ ...planForm, rollover_unused_credits: e.target.checked })}
+                        className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                      />
+                      <span>Rollover Unused</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Pricing & AI Quotas Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-200">
+                  {/* Price INR */}
+                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs hover:border-purple-300 transition-all space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-700">
+                        Price in India (₹ INR)
+                      </label>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                        Cashfree / UPI
                       </span>
-                    ))}
+                    </div>
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 focus-within:border-purple-600 focus-within:bg-white focus-within:ring-2 focus-within:ring-purple-100 transition-all">
+                      <span className="text-sm font-black text-slate-600">₹</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="0"
+                        value={planForm.price_inr === '' ? '' : (planForm.price_inr ?? 0)}
+                        onChange={(e) =>
+                          setPlanForm({
+                            ...planForm,
+                            price_inr: e.target.value,
+                          })
+                        }
+                        className="w-full text-sm font-black text-slate-900 bg-transparent focus:outline-none"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-400 block">
+                      Local Indian checkout
+                    </span>
+                  </div>
+
+                  {/* Price USD */}
+                  <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-2xs hover:border-purple-300 transition-all space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-slate-700">
+                        International ($ USD)
+                      </label>
+                      <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
+                        Stripe Global
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 focus-within:border-purple-600 focus-within:bg-white focus-within:ring-2 focus-within:ring-purple-100 transition-all">
+                      <span className="text-sm font-black text-slate-600">$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={planForm.price_usd === '' ? '' : (planForm.price_usd ?? 0)}
+                        onChange={(e) =>
+                          setPlanForm({
+                            ...planForm,
+                            price_usd: e.target.value,
+                          })
+                        }
+                        className="w-full text-sm font-black text-slate-900 bg-transparent focus:outline-none"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-400 block">
+                      Global checkout
+                    </span>
+                  </div>
+
+                  {/* Monthly AI Credit Pool */}
+                  <div className="bg-purple-50/60 p-3.5 rounded-2xl border border-purple-200 shadow-2xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-purple-900">
+                        Monthly Base Credits
+                      </label>
+                      <span className="text-[10px] font-bold text-purple-800 bg-purple-100 px-1.5 py-0.5 rounded">
+                        Per Cycle
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white border border-purple-300 rounded-xl px-2.5 py-1.5 focus-within:border-purple-600 focus-within:ring-2 focus-within:ring-purple-100 transition-all">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="0"
+                        value={planForm.included_monthly_credits === '' ? '' : (planForm.included_monthly_credits ?? 0)}
+                        onChange={(e) =>
+                          setPlanForm({
+                            ...planForm,
+                            included_monthly_credits: e.target.value,
+                          })
+                        }
+                        className="w-full text-sm font-black text-purple-950 bg-transparent focus:outline-none"
+                      />
+                      <span className="text-[11px] font-bold text-purple-700 shrink-0">Credits</span>
+                    </div>
+                    <span className="text-[10px] text-purple-600 block">
+                      Monthly token quota
+                    </span>
+                  </div>
+
+                  {/* Bonus Credits */}
+                  <div className="bg-amber-50/60 p-3.5 rounded-2xl border border-amber-200 shadow-2xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-bold text-amber-900">
+                        Bonus Credits
+                      </label>
+                      <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
+                        One-Time
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white border border-amber-300 rounded-xl px-2.5 py-1.5 focus-within:border-amber-600 focus-within:ring-2 focus-within:ring-amber-100 transition-all">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="0"
+                        value={planForm.bonus_credits === '' ? '' : (planForm.bonus_credits ?? 0)}
+                        onChange={(e) =>
+                          setPlanForm({
+                            ...planForm,
+                            bonus_credits: e.target.value,
+                          })
+                        }
+                        className="w-full text-sm font-black text-amber-950 bg-transparent focus:outline-none"
+                      />
+                      <span className="text-[11px] font-bold text-amber-700 shrink-0">Bonus</span>
+                    </div>
+                    <span className="text-[10px] text-amber-600 block">
+                      Granted on subscription
+                    </span>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+
+              {/* Feature Matrix & Limits Control */}
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                    Feature Inclusions &amp; Usage Quotas
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Choose which AI capabilities are included in this plan. Set whether users get Limited or Unlimited usage.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {flags
+                    .filter((f) => f.status !== 'archived')
+                    .map((f) => {
+                      const isIncluded = planForm.features.includes(f.feature_key);
+                      const limitConfig = planForm.feature_limits[f.feature_key] || {
+                        limit: null,
+                        is_unlimited: true,
+                        unit: f.unit || 'uses',
+                      };
+                      const isUnlimited = limitConfig.is_unlimited !== false;
+
+                      return (
+                        <div
+                          key={f.feature_key}
+                          className={`p-4 rounded-2xl border transition-all ${
+                            isIncluded
+                              ? 'bg-white border-purple-200 shadow-xs'
+                              : 'bg-slate-50/60 border-slate-200/70 opacity-60'
+                          }`}
+                        >
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            {/* Feature Checkbox & Title */}
+                            <div className="flex items-start gap-3">
+                              <input
+                                type="checkbox"
+                                checked={isIncluded}
+                                onChange={() => handleToggleFeatureInPlan(f.feature_key)}
+                                className="mt-1 rounded text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                              />
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-slate-900 text-sm">{f.name}</span>
+                                  <span className="text-[10px] font-mono text-purple-800 bg-purple-50 px-1.5 py-0.5 rounded">
+                                    {f.feature_key}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-500 mt-0.5">{f.description}</p>
+                              </div>
+                            </div>
+
+                            {/* Limit & Unlimited Controls (Only shown if feature is included) */}
+                            {isIncluded ? (
+                              <div className="flex items-center gap-3 shrink-0 self-end md:self-auto bg-slate-50 p-1.5 rounded-xl border border-slate-200">
+                                {/* Limited vs Unlimited Toggle */}
+                                <div className="flex rounded-lg overflow-hidden border border-slate-200 bg-white">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetFeatureLimitType(f.feature_key, false)}
+                                    className={`px-3 py-1 text-xs font-bold transition-colors ${
+                                      !isUnlimited
+                                        ? 'bg-purple-900 text-white shadow-xs'
+                                        : 'text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    Limited
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSetFeatureLimitType(f.feature_key, true)}
+                                    className={`px-3 py-1 text-xs font-bold transition-colors ${
+                                      isUnlimited
+                                        ? 'bg-emerald-600 text-white shadow-xs'
+                                        : 'text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    Unlimited
+                                  </button>
+                                </div>
+
+                                {/* Numeric Limit Input (If Limited) */}
+                                {!isUnlimited ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={limitConfig.limit ?? 50}
+                                      onChange={(e) =>
+                                        handleSetFeatureNumericLimit(f.feature_key, e.target.value)
+                                      }
+                                      className="w-20 px-2 py-1 text-xs font-black rounded-lg border border-slate-300 text-right bg-white focus:outline-none focus:border-purple-600"
+                                    />
+                                    <span className="text-[11px] font-bold text-slate-600">
+                                      {f.unit || 'uses'} / mo
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="px-2 text-[11px] font-bold text-emerald-700 flex items-center gap-1">
+                                    <i className="fas fa-infinity"></i>
+                                    <span>No monthly cap</span>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs font-bold text-slate-400">Not Included</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 3: REGIONAL PRICING & TAXES */}
+      {/* TAB 3: AUDIT LOGS */}
       {/* ========================================================================= */}
-      {activeTab === 'pricing' && (
+      {activeTab === 'audit' && (
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Explicit Market Pricing &amp; Tax Rules</h2>
-              <p className="text-xs text-slate-400">Explicit prices per country and currency. Existing subscribers are grandfathered until migrated.</p>
+              <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+                Immutable AI Control Audit Trail
+              </h2>
+              <p className="text-xs text-slate-400">
+                Chronological record of all changes to AI features, plan assignments, quotas, and pricing.
+              </p>
             </div>
-            <button
-              onClick={() =>
-                setEditingPrice({
-                  plan_id: 'patient_premium',
-                  country_code: 'IN',
-                  currency: 'INR',
-                  base_amount: 999,
-                  isNew: true,
-                })
-              }
-              className="px-3.5 py-2 rounded-xl bg-purple-900 hover:bg-purple-950 text-white font-bold text-xs transition-colors flex items-center gap-1.5"
-            >
-              <i className="fas fa-plus"></i> Add Country Price
-            </button>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 text-slate-500 font-bold uppercase border-b border-slate-200">
                 <tr>
-                  <th className="p-3">Plan</th>
-                  <th className="p-3">Market</th>
-                  <th className="p-3">Currency</th>
-                  <th className="p-3">Explicit Base Price</th>
-                  <th className="p-3">Tax Rule</th>
-                  <th className="p-3">Customer Pays</th>
+                  <th className="p-3">Timestamp</th>
+                  <th className="p-3">Admin</th>
                   <th className="p-3">Action</th>
+                  <th className="p-3">Entity</th>
+                  <th className="p-3">Change Summary / Reason</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {[
-                  { plan_id: 'patient_premium', name: 'HealNari AI Premium', country: 'IN', countryName: 'India', flag: '🇮🇳', currency: 'INR', amount: 999, tax: '18% GST (Incl.)', pays: '₹999' },
-                  { plan_id: 'patient_premium', name: 'HealNari AI Premium', country: 'US', countryName: 'United States', flag: '🇺🇸', currency: 'USD', amount: 35.00, tax: '0% Sales Tax (Excl.)', pays: '$35.00' },
-                  { plan_id: 'patient_premium', name: 'HealNari AI Premium', country: 'AE', countryName: 'UAE', flag: '🇦🇪', currency: 'AED', amount: 129.00, tax: '5% VAT (Incl.)', pays: '129 AED' },
-                  { plan_id: 'patient_premium', name: 'HealNari AI Premium', country: 'SA', countryName: 'Saudi Arabia', flag: '🇸🇦', currency: 'SAR', amount: 129.00, tax: '15% VAT (Incl.)', pays: '129 SAR' },
-                  { plan_id: 'patient_premium', name: 'HealNari AI Premium', country: 'DE', countryName: 'Germany', flag: '🇩🇪', currency: 'EUR', amount: 35.00, tax: '19% MwSt (Incl.)', pays: '€35.00' },
-                  { plan_id: 'patient_premium', name: 'HealNari AI Premium', country: 'GB', countryName: 'United Kingdom', flag: '🇬🇧', currency: 'GBP', amount: 30.00, tax: '20% VAT (Incl.)', pays: '£30.00' },
-                  { plan_id: 'patient_premium', name: 'HealNari AI Premium', country: 'CA', countryName: 'Canada', flag: '🇨🇦', currency: 'CAD', amount: 45.00, tax: '13% HST (Incl.)', pays: 'CA$45.00' },
-                  { plan_id: 'patient_premium', name: 'HealNari AI Premium', country: 'AU', countryName: 'Australia', flag: '🇦🇺', currency: 'AUD', amount: 49.00, tax: '10% GST (Incl.)', pays: 'A$49.00' },
-                  { plan_id: 'doctor_pro', name: 'Doctor AI Pro', country: 'IN', countryName: 'India', flag: '🇮🇳', currency: 'INR', amount: 1999, tax: '18% GST (Incl.)', pays: '₹1,999' },
-                  { plan_id: 'doctor_pro', name: 'Doctor AI Pro', country: 'US', countryName: 'United States', flag: '🇺🇸', currency: 'USD', amount: 60.00, tax: '0% Sales Tax (Excl.)', pays: '$60.00' },
-                  { plan_id: 'doctor_pro', name: 'Doctor AI Pro', country: 'AE', countryName: 'UAE', flag: '🇦🇪', currency: 'AED', amount: 220.00, tax: '5% VAT (Incl.)', pays: '220 AED' },
-                  { plan_id: 'doctor_pro', name: 'Doctor AI Pro', country: 'SA', countryName: 'Saudi Arabia', flag: '🇸🇦', currency: 'SAR', amount: 220.00, tax: '15% VAT (Incl.)', pays: '220 SAR' },
-                  { plan_id: 'doctor_pro', name: 'Doctor AI Pro', country: 'DE', countryName: 'Germany', flag: '🇩🇪', currency: 'EUR', amount: 60.00, tax: '19% MwSt (Incl.)', pays: '€60.00' },
-                  { plan_id: 'doctor_pro', name: 'Doctor AI Pro', country: 'GB', countryName: 'United Kingdom', flag: '🇬🇧', currency: 'GBP', amount: 50.00, tax: '20% VAT (Incl.)', pays: '£50.00' },
-                  { plan_id: 'doctor_pro', name: 'Doctor AI Pro', country: 'CA', countryName: 'Canada', flag: '🇨🇦', currency: 'CAD', amount: 79.00, tax: '13% HST (Incl.)', pays: 'CA$79.00' },
-                  { plan_id: 'doctor_pro', name: 'Doctor AI Pro', country: 'AU', countryName: 'Australia', flag: '🇦🇺', currency: 'AUD', amount: 89.00, tax: '10% GST (Incl.)', pays: 'A$89.00' },
-                ].map((row, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-3 font-bold text-slate-900">{row.name}</td>
-                    <td className="p-3 font-bold text-slate-700 flex items-center gap-1.5">
-                      <span>{row.flag}</span>
-                      <span>{row.countryName}</span>
-                    </td>
-                    <td className="p-3 font-mono font-bold text-purple-700">{row.currency}</td>
-                    <td className="p-3 font-black text-slate-900 text-sm">
-                      {formatCurrency(row.amount, row.currency)}
-                    </td>
-                    <td className="p-3 text-slate-500 font-bold">{row.tax}</td>
-                    <td className="p-3 font-black text-emerald-700">{row.pays}</td>
-                    <td className="p-3">
-                      <button
-                        onClick={() =>
-                          setEditingPrice({
-                            plan_id: row.plan_id,
-                            country_code: row.country,
-                            currency: row.currency,
-                            base_amount: row.amount,
-                          })
-                        }
-                        className="px-3 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 font-bold text-xs transition-colors border border-purple-200"
-                      >
-                        <i className="fas fa-edit mr-1"></i> Edit Price
-                      </button>
+                {auditLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-slate-400">
+                      No audit events logged yet.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  auditLogs.map((log, idx) => (
+                    <tr key={log.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-3 text-slate-500 whitespace-nowrap">
+                        {log.created_at ? new Date(log.created_at).toLocaleString() : 'Recent'}
+                      </td>
+                      <td className="p-3 font-bold text-slate-900 flex items-center gap-1.5">
+                        <i className="fas fa-user-shield text-purple-600"></i>
+                        <span>{log.admin_name || 'System Admin'}</span>
+                      </td>
+                      <td className="p-3">
+                        <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-slate-100 text-slate-700">
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="p-3 font-mono text-purple-900 font-bold">
+                        {log.entity_id || log.entity_type}
+                      </td>
+                      <td className="p-3 text-slate-700">
+                        {log.reason || (
+                          <span className="text-slate-400 italic">Configuration updated</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -533,558 +1243,463 @@ export function AIControl() {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 4: PRICING SIMULATOR */}
+      {/* TAB 4: ADVANCED & UNIT ECONOMICS (PRESERVED) */}
       {/* ========================================================================= */}
-      {activeTab === 'simulator' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Controls */}
-          <div className="lg:col-span-6 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-            <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <i className="fas fa-sliders text-purple-600"></i> Plan Profitability Simulator
-            </h2>
-            <p className="text-xs text-slate-400">Simulate unit economics before publishing prices to prevent loss-making plans.</p>
+      {activeTab === 'advanced' && (
+        <div className="space-y-6">
+          {/* Top KPI Metrics Grid */}
+          {profitability && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Global AI Revenue
+                </span>
+                <div className="text-2xl font-black text-slate-900 mt-1">
+                  {formatCurrency(profitability.metrics?.totalRevenue || 0, reportingCurrency)}
+                </div>
+                <div className="text-[11px] text-emerald-600 font-bold mt-1">
+                  {profitability.metrics?.totalActiveSubscribers || 0} Paid Subscribers
+                </div>
+              </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Target Country</label>
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Total AI Token Cost
+                </span>
+                <div className="text-2xl font-black text-rose-600 mt-1">
+                  {formatCurrency(profitability.metrics?.totalAiCost || 0, reportingCurrency)}
+                </div>
+                <div className="text-[11px] text-slate-500 font-bold mt-1">
+                  {profitability.metrics?.totalAiRequests?.toLocaleString() || 0} Requests
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Gross Margin
+                </span>
+                <div className="text-2xl font-black text-emerald-700 mt-1">
+                  {profitability.metrics?.grossMarginPercent || 0}%
+                </div>
+                <div className="text-[11px] text-emerald-600 font-bold mt-1">
+                  High-Margin Unit Economics
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-purple-900 to-indigo-950 text-white rounded-2xl p-4 shadow-md">
+                <span className="text-[11px] font-bold text-purple-300 uppercase tracking-wider block">
+                  Reporting Currency
+                </span>
                 <select
-                  value={simInput.countryCode}
-                  onChange={(e) => {
-                    const c = countries.find((x) => x.code === e.target.value) || { default_currency: 'USD', tax_rate: 0 };
-                    setSimInput((prev) => ({
-                      ...prev,
-                      countryCode: e.target.value,
-                      currency: c.default_currency,
-                      taxRatePercent: Number(c.tax_rate || 0),
-                    }));
-                  }}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold"
+                  value={reportingCurrency}
+                  onChange={(e) => setReportingCurrency(e.target.value)}
+                  className="mt-2 bg-purple-800 text-white font-bold text-xs rounded-xl px-2.5 py-1.5 border border-purple-400/40 focus:outline-none w-full"
                 >
-                  {countries.map((c) => (
-                    <option key={c.code} value={c.code}>{c.name} ({c.code})</option>
+                  {SUPPORTED_REPORTING_CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.flag} {c.code} ({c.symbol})
+                    </option>
                   ))}
                 </select>
               </div>
+            </div>
+          )}
 
+          {/* Pricing Simulator */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+            <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+              AI Unit Profitability Simulator
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Billing Currency</label>
+                <label className="font-bold text-slate-600 block mb-1">Base Price</label>
                 <input
-                  type="text"
-                  value={simInput.currency}
-                  readOnly
-                  className="w-full bg-slate-100 border border-slate-200 rounded-xl p-2 text-xs font-bold text-slate-600"
+                  type="number"
+                  value={simInput.basePrice}
+                  onChange={(e) => setSimInput({ ...simInput, basePrice: Number(e.target.value) })}
+                  className="w-full p-2 border rounded-xl"
                 />
               </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-xs font-bold mb-1">
-                <span>Proposed Base Price:</span>
-                <span className="text-purple-700 font-black">{simInput.currency} {simInput.basePrice}</span>
-              </div>
-              <input
-                type="range"
-                min={simInput.currency === 'INR' ? 49 : 1}
-                max={simInput.currency === 'INR' ? 4999 : 99}
-                step={simInput.currency === 'INR' ? 10 : 0.5}
-                value={simInput.basePrice}
-                onChange={(e) => setSimInput((prev) => ({ ...prev, basePrice: Number(e.target.value) }))}
-                className="w-full accent-purple-700"
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between text-xs font-bold mb-1">
-                <span>Expected Queries per User / Month:</span>
-                <span className="text-purple-700 font-black">{simInput.expectedAvgQueriesPerUser} Queries</span>
-              </div>
-              <input
-                type="range"
-                min="5"
-                max="200"
-                value={simInput.expectedAvgQueriesPerUser}
-                onChange={(e) => setSimInput((prev) => ({ ...prev, expectedAvgQueriesPerUser: Number(e.target.value) }))}
-                className="w-full accent-purple-700"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Primary LLM Model</label>
-                <select
-                  value={simInput.model}
-                  onChange={(e) => setSimInput((prev) => ({ ...prev, model: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold"
-                >
-                  <option value="gemini-1.5-flash">Gemini 1.5 Flash (Ultra Low Cost)</option>
-                  <option value="gpt-4o-mini">OpenAI GPT-4o-mini</option>
-                  <option value="gemini-1.5-pro">Gemini 1.5 Pro (Heavy Clinical)</option>
-                </select>
+                <label className="font-bold text-slate-600 block mb-1">Monthly Credits</label>
+                <input
+                  type="number"
+                  value={simInput.monthlyCredits}
+                  onChange={(e) => setSimInput({ ...simInput, monthlyCredits: Number(e.target.value) })}
+                  className="w-full p-2 border rounded-xl"
+                />
               </div>
-
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Expected Subscribers</label>
+                <label className="font-bold text-slate-600 block mb-1">Expected Avg Queries/User</label>
+                <input
+                  type="number"
+                  value={simInput.expectedAvgQueriesPerUser}
+                  onChange={(e) =>
+                    setSimInput({ ...simInput, expectedAvgQueriesPerUser: Number(e.target.value) })
+                  }
+                  className="w-full p-2 border rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="font-bold text-slate-600 block mb-1">Expected Users</label>
                 <input
                   type="number"
                   value={simInput.expectedUsers}
-                  onChange={(e) => setSimInput((prev) => ({ ...prev, expectedUsers: Number(e.target.value) }))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs font-bold"
+                  onChange={(e) => setSimInput({ ...simInput, expectedUsers: Number(e.target.value) })}
+                  className="w-full p-2 border rounded-xl"
                 />
               </div>
             </div>
-          </div>
 
-          {/* Simulation Output Card */}
-          <div className="lg:col-span-6 bg-gradient-to-br from-slate-900 to-purple-950 text-white rounded-2xl p-6 shadow-xl space-y-4 flex flex-col justify-between">
-            {simResult ? (
-              <>
-                <div>
-                  <span className="text-[11px] font-bold text-purple-300 uppercase tracking-wider block">Live Unit Contribution Preview</span>
-                  <div className="flex items-baseline gap-2 mt-2">
-                    <span className="text-3xl sm:text-4xl font-black">
-                      {simResult.currency} {simResult.grossContributionPerUserLocal}
-                    </span>
-                    <span className="text-xs text-slate-300">/ user / mo</span>
-                  </div>
-
-                  <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                    <i className="fas fa-chart-line"></i> {simResult.grossMarginPercent}% Contribution Margin
-                  </div>
-                </div>
-
-                <div className="space-y-2 py-4 border-y border-white/10 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Gross Price per User:</span>
-                    <span className="font-bold">{simResult.currency} {simResult.grossRevenuePerUser}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Tax deduction ({simInput.taxRatePercent}%):</span>
-                    <span className="text-rose-300 font-bold">-{simResult.currency} {simResult.taxAmountPerUser}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">AI Token Infrastructure Cost:</span>
-                    <span className="text-rose-300 font-bold">
-                      -{simResult.currency} {simResult.estimatedAiCostPerUserLocal} (${simResult.estimatedAiCostPerUserUsd} USD)
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Payment Gateway Fee (2%):</span>
-                    <span className="text-rose-300 font-bold">-{simResult.currency} {simResult.gatewayFeePerUserLocal}</span>
-                  </div>
-                </div>
-
-                <div className="bg-white/10 rounded-xl p-3 flex justify-between items-center text-xs">
-                  <div>
-                    <span className="text-slate-300 block">Total Monthly Fleet Profit:</span>
-                    <span className="text-lg font-black text-emerald-400">
-                      {simResult.currency} {simResult.totalMonthlyProfitLocal?.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-slate-300 block">Normalized in USD:</span>
-                    <span className="font-black text-white text-sm">
-                      ${(simResult.grossContributionPerUserReporting * (simInput.expectedUsers || 100)).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-48 text-slate-400 text-xs">Calculating simulation...</div>
+            {simResult && (
+              <div className="p-4 bg-purple-50 border border-purple-100 rounded-xl text-xs flex flex-wrap gap-6 font-bold text-purple-950">
+                <div>Revenue: ₹{simResult.monthlyRevenue?.toLocaleString()}</div>
+                <div>Token Cost: ₹{simResult.tokenCostTotal?.toLocaleString()}</div>
+                <div className="text-emerald-700">Gross Margin: {simResult.grossMarginPercent}%</div>
+              </div>
             )}
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 5: COUNTRIES & CURRENCIES */}
+      {/* MODAL: ADD / EDIT FEATURE */}
       {/* ========================================================================= */}
-      {activeTab === 'countries' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
+      {featureModalOpen && (
+        <Modal
+          isOpen={featureModalOpen}
+          onClose={() => setFeatureModalOpen(false)}
+          title={editingFeature ? 'Edit AI Feature' : 'Add AI Feature to Catalog'}
+        >
+          <form onSubmit={handleSaveFeature} className="space-y-4 text-xs">
+            {/* Developer vs Config Notice */}
+            <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-purple-900 text-[11px] leading-relaxed">
+              <i className="fas fa-circle-info mr-1 text-purple-700"></i>
+              <strong>Feature Configuration vs Development:</strong> Adding a feature registers it in
+              the catalog and plan matrix. Backend LLM logic and prompts execute via the AI gateway.
+            </div>
+
             <div>
-              <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Global Countries &amp; Payment Gateway Routing</h2>
-              <p className="text-xs text-slate-400">Enable/disable countries, select tax types, and route local checkout rails.</p>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-slate-50 text-slate-500 font-bold uppercase border-b border-slate-200">
-                <tr>
-                  <th className="p-3">Country</th>
-                  <th className="p-3">Region</th>
-                  <th className="p-3">Default Currency</th>
-                  <th className="p-3">Tax Name &amp; Rate</th>
-                  <th className="p-3">Payment Gateway</th>
-                  <th className="p-3">AI Status</th>
-                  <th className="p-3">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium">
-                {countries.map((c) => (
-                  <tr key={c.code} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-3 font-bold text-slate-900 flex items-center gap-2">
-                      <span className="text-base">{ISO_CURRENCIES[c.default_currency]?.flag || '🌍'}</span>
-                      <span>{c.name} ({c.code})</span>
-                    </td>
-                    <td className="p-3 text-slate-600">{c.region}</td>
-                    <td className="p-3 font-mono font-bold text-purple-700">{c.default_currency}</td>
-                    <td className="p-3 text-slate-700 font-bold">
-                      {c.tax_name} ({c.tax_rate}% {c.tax_type})
-                    </td>
-                    <td className="p-3">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-100 text-slate-800 border border-slate-200">
-                        {c.payment_gateway}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${c.is_ai_enabled ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'}`}>
-                        {c.is_ai_enabled ? 'Active' : 'Disabled'}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      <button
-                        onClick={() => setEditingCountry(c)}
-                        className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors"
-                      >
-                        <i className="fas fa-gear mr-1"></i> Configure
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 6: FEATURES & COUNTRY MATRIX */}
-      {/* ========================================================================= */}
-      {activeTab === 'features' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">AI Capabilities &amp; Entitlement Gates</h2>
-              <p className="text-xs text-slate-400">Configure global switches, credit costs, and role accessibility per AI tool.</p>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            {flags.map((f) => (
-              <div key={f.feature_key} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900 text-sm">{f.name}</span>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-purple-100 text-purple-800 font-bold">
-                      {f.feature_key}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">{f.description}</p>
-                  <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-600 font-medium">
-                    <span>💳 Credit Cost: <strong className="text-purple-800">{f.credit_cost} Credit(s)</strong></span>
-                    <span>🔒 Required Plan: <strong className="text-slate-800">{f.required_plan || 'Free Tier'}</strong></span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => handleToggleFeature(f.feature_key, f.is_enabled)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
-                      f.is_enabled
-                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
-                        : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                    }`}
-                  >
-                    {f.is_enabled ? '✓ Enabled' : '✕ Disabled'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 7: MODEL COSTS & PROMPTS */}
-      {/* ========================================================================= */}
-      {activeTab === 'models' && (
-        <div className="space-y-6">
-          {/* Versioned Prompt Templates */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-            <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Versioned System Prompts</h2>
-            <div className="space-y-3">
-              {prompts.map((p) => (
-                <div key={p.id || p.feature} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900 text-xs">{p.feature}</span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800">
-                        v{p.version}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-mono">{p.model}</span>
-                    </div>
-                    <p className="text-xs text-slate-600 font-mono line-clamp-2">{p.system_prompt}</p>
-                  </div>
-                  <button
-                    onClick={() => setEditingPrompt(p)}
-                    className="px-3 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 font-bold text-xs transition-colors shrink-0"
-                  >
-                    <i className="fas fa-pen-to-square mr-1"></i> Edit Prompt
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* TAB 8: COUPONS & AUDIT LOGS */}
-      {/* ========================================================================= */}
-      {activeTab === 'coupons' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Coupons Table */}
-          <div className="lg:col-span-6 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Discount Coupons</h2>
-              <button
-                onClick={() => setNewCouponModal(true)}
-                className="px-3 py-1.5 rounded-xl bg-purple-900 hover:bg-purple-950 text-white font-bold text-xs"
-              >
-                + New Coupon
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              {coupons.map((c) => (
-                <div key={c.code} className="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="font-mono font-black text-purple-900 text-sm block">{c.code}</span>
-                    <span className="text-slate-500 text-[11px]">
-                      {c.discount_type === 'percentage' ? `${c.discount_value}% OFF` : `${c.allowed_currency || ''} ${c.discount_value} OFF`}
-                      {c.allowed_country ? ` • ${c.allowed_country} only` : ' • Global'}
-                    </span>
-                  </div>
-                  <span className="text-slate-400 text-[11px] font-bold">{c.current_uses || 0} Uses</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Audit Logs */}
-          <div className="lg:col-span-6 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-            <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">Immutable Admin Audit Logs</h2>
-            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-              {auditLogs.map((log) => (
-                <div key={log.id} className="p-2.5 rounded-xl border border-slate-100 bg-slate-50/70 text-xs flex items-start justify-between gap-2">
-                  <div>
-                    <span className="font-bold text-slate-800 block">{log.action}</span>
-                    <span className="text-[11px] text-slate-500 font-mono">{log.entity_id} • {log.reason || 'Admin Update'}</span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 shrink-0">{new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit / Add Regional Price Modal */}
-      {editingPrice && (
-        <Modal isOpen={true} onClose={() => setEditingPrice(null)} title={editingPrice.isNew ? "Add Market-Based Regional Price" : "Publish Regional Price Version"} size="sm">
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Target AI Plan</label>
-              <select
-                value={editingPrice.plan_id}
-                disabled={!editingPrice.isNew}
-                onChange={(e) => setEditingPrice((prev) => ({ ...prev, plan_id: e.target.value }))}
-                className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900"
-              >
-                <option value="patient_premium">HealNari AI Premium (Patient)</option>
-                <option value="doctor_pro">Doctor AI Pro (Clinical)</option>
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Country / Market</label>
-                <select
-                  value={editingPrice.country_code}
-                  disabled={!editingPrice.isNew}
-                  onChange={(e) => {
-                    const cCode = e.target.value;
-                    const cObj = countries.find((x) => x.code === cCode);
-                    setEditingPrice((prev) => ({
-                      ...prev,
-                      country_code: cCode,
-                      currency: cObj?.default_currency || prev.currency,
-                    }));
-                  }}
-                  className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900"
-                >
-                  {countries.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.name} ({c.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Billing Currency</label>
-                <select
-                  value={editingPrice.currency}
-                  disabled={!editingPrice.isNew}
-                  onChange={(e) => setEditingPrice((prev) => ({ ...prev, currency: e.target.value }))}
-                  className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900"
-                >
-                  <option value="INR">🇮🇳 INR (₹) — Indian Rupee</option>
-                  <option value="USD">🇺🇸 USD ($) — US Dollar</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Explicit Base Price Amount</label>
-              <input
-                type="number"
-                value={editingPrice.base_amount}
-                onChange={(e) => setEditingPrice((prev) => ({ ...prev, base_amount: Number(e.target.value) }))}
-                className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-              <p className="text-[11px] text-slate-400 mt-1">Existing subscribers will continue paying their contracted price (Grandfathering protection).</p>
-            </div>
-            <button
-              onClick={handleSavePrice}
-              className="w-full bg-purple-900 hover:bg-purple-950 text-white font-bold py-3 rounded-xl text-xs transition-colors shadow-sm"
-            >
-              Publish Price Version
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* Edit Country Modal */}
-      {editingCountry && (
-        <Modal isOpen={true} onClose={() => setEditingCountry(null)} title={`Configure ${editingCountry.name}`} size="sm">
-          <div className="space-y-4 text-xs">
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Tax Rate (%)</label>
-              <input
-                type="number"
-                value={editingCountry.tax_rate}
-                onChange={(e) => setEditingCountry((prev) => ({ ...prev, tax_rate: Number(e.target.value) }))}
-                className="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold"
-              />
-            </div>
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Tax Rule</label>
-              <select
-                value={editingCountry.tax_type}
-                onChange={(e) => setEditingCountry((prev) => ({ ...prev, tax_type: e.target.value }))}
-                className="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold"
-              >
-                <option value="inclusive">Inclusive (Embedded in Price)</option>
-                <option value="exclusive">Exclusive (Added on Checkout)</option>
-              </select>
-            </div>
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Payment Gateway</label>
-              <select
-                value={editingCountry.payment_gateway}
-                onChange={(e) => setEditingCountry((prev) => ({ ...prev, payment_gateway: e.target.value }))}
-                className="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold"
-              >
-                <option value="cashfree">Cashfree (India UPI / Cards)</option>
-                <option value="stripe">Stripe (Global / Apple Pay)</option>
-                <option value="manual">Manual Wire</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-2 pt-2">
-              <input
-                type="checkbox"
-                id="countryAiToggle"
-                checked={editingCountry.is_ai_enabled}
-                onChange={(e) => setEditingCountry((prev) => ({ ...prev, is_ai_enabled: e.target.checked }))}
-                className="accent-purple-700 w-4 h-4"
-              />
-              <label htmlFor="countryAiToggle" className="font-bold text-slate-800">Enable AI Subscriptions in this country</label>
-            </div>
-            <button
-              onClick={handleSaveCountry}
-              className="w-full bg-purple-900 hover:bg-purple-950 text-white font-bold py-3 rounded-xl transition-colors"
-            >
-              Save Configuration
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* New Coupon Modal */}
-      {newCouponModal && (
-        <Modal isOpen={true} onClose={() => setNewCouponModal(false)} title="Create Discount Coupon" size="sm">
-          <div className="space-y-4 text-xs">
-            <div>
-              <label className="font-bold text-slate-700 block mb-1">Coupon Code</label>
+              <label className="font-bold text-slate-700 block mb-1">Feature Name *</label>
               <input
                 type="text"
-                placeholder="e.g. SUMMER30"
-                value={newCoupon.code}
-                onChange={(e) => setNewCoupon((prev) => ({ ...prev, code: e.target.value.toUpperCase() }))}
-                className="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-mono font-black"
+                required
+                value={featureForm.name}
+                onChange={(e) => setFeatureForm({ ...featureForm, name: e.target.value })}
+                placeholder="e.g. AI Document Analysis"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600"
               />
             </div>
+
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">Technical Identifier / Key</label>
+              <input
+                type="text"
+                disabled={!!editingFeature}
+                value={featureForm.feature_key}
+                onChange={(e) =>
+                  setFeatureForm({
+                    ...featureForm,
+                    feature_key: e.target.value.toUpperCase().replace(/\s+/g, '_'),
+                  })
+                }
+                placeholder="Auto-generated from name if left empty"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600 font-mono disabled:bg-slate-100"
+              />
+              <span className="text-[10px] text-slate-400 mt-0.5 block">
+                {editingFeature
+                  ? 'Technical key cannot be altered once created to preserve system stability.'
+                  : 'Leave blank to automatically slugify from feature name.'}
+              </span>
+            </div>
+
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">Description</label>
+              <textarea
+                rows={2}
+                value={featureForm.description}
+                onChange={(e) => setFeatureForm({ ...featureForm, description: e.target.value })}
+                placeholder="Plain-language summary for non-technical users..."
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Discount Type</label>
+                <label className="font-bold text-slate-700 block mb-1">Usage Metric</label>
                 <select
-                  value={newCoupon.discount_type}
-                  onChange={(e) => setNewCoupon((prev) => ({ ...prev, discount_type: e.target.value }))}
-                  className="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold"
+                  value={featureForm.usage_type}
+                  onChange={(e) => setFeatureForm({ ...featureForm, usage_type: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600"
                 >
-                  <option value="percentage">Percentage (%)</option>
-                  <option value="fixed_amount">Fixed Amount</option>
+                  <option value="messages">Messages (Chat)</option>
+                  <option value="documents">Documents (PDFs/Labs)</option>
+                  <option value="generations">Generations (Notes/Summaries)</option>
+                  <option value="calls">API Calls / Checks</option>
+                  <option value="credits">AI Credits</option>
                 </select>
               </div>
+
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Discount Value</label>
+                <label className="font-bold text-slate-700 block mb-1">Display Unit</label>
                 <input
-                  type="number"
-                  value={newCoupon.discount_value}
-                  onChange={(e) => setNewCoupon((prev) => ({ ...prev, discount_value: Number(e.target.value) }))}
-                  className="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold"
+                  type="text"
+                  value={featureForm.unit}
+                  onChange={(e) => setFeatureForm({ ...featureForm, unit: e.target.value })}
+                  placeholder="e.g. messages, documents, checks"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600"
                 />
               </div>
             </div>
-            <button
-              onClick={handleCreateCoupon}
-              className="w-full bg-purple-900 hover:bg-purple-950 text-white font-bold py-3 rounded-xl transition-colors"
-            >
-              Create Coupon
-            </button>
+
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">Target Roles</label>
+              <div className="flex gap-4 mt-1">
+                {['patient', 'doctor'].map((role) => (
+                  <label key={role} className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={featureForm.applicable_roles.includes(role)}
+                      onChange={(e) => {
+                        const next = e.target.checked
+                          ? [...featureForm.applicable_roles, role]
+                          : featureForm.applicable_roles.filter((r) => r !== role);
+                        setFeatureForm({ ...featureForm, applicable_roles: next });
+                      }}
+                      className="rounded text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="capitalize font-medium">{role}s</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setFeatureModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-bold shadow-md"
+              >
+                {editingFeature ? 'Save Changes' : 'Create Feature'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: ARCHIVE FEATURE IMPACT WARNING */}
+      {/* ========================================================================= */}
+      {archiveModalOpen && featureToArchive && (
+        <Modal
+          isOpen={archiveModalOpen}
+          onClose={() => setArchiveModalOpen(false)}
+          title="Archive AI Feature"
+        >
+          <div className="space-y-4 text-xs">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 leading-relaxed">
+              <i className="fas fa-triangle-exclamation mr-1.5 text-amber-700"></i>
+              Are you sure you want to archive <strong>{featureToArchive.name}</strong>?
+            </div>
+
+            {impactedPlans.length > 0 ? (
+              <div className="space-y-2">
+                <span className="font-bold text-slate-700 block">
+                  Impact on Active Subscription Plans:
+                </span>
+                <p className="text-slate-500 text-[11px]">
+                  This feature is currently included in the following plans. Archiving will disable access for users on these plans:
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {impactedPlans.map((p) => (
+                    <span
+                      key={p}
+                      className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-800 border border-rose-200 font-bold text-[11px]"
+                    >
+                      {p}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-slate-500">
+                No active plans currently include this feature. Historical usage and billing records will remain safely preserved.
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setArchiveModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmArchive}
+                disabled={archiving}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold shadow-md disabled:opacity-50"
+              >
+                {archiving ? 'Archiving...' : 'Confirm Archive'}
+              </button>
+            </div>
           </div>
         </Modal>
       )}
 
-      {/* Edit Prompt Modal */}
-      {editingPrompt && (
-        <Modal isOpen={true} onClose={() => setEditingPrompt(null)} title={`Edit Prompt: ${editingPrompt.feature}`} size="lg">
-          <div className="space-y-4 text-xs">
+      {/* ========================================================================= */}
+      {/* MODAL: CREATE PLAN */}
+      {/* ========================================================================= */}
+      {createPlanModalOpen && (
+        <Modal
+          isOpen={createPlanModalOpen}
+          onClose={() => setCreatePlanModalOpen(false)}
+          title="Create New AI Subscription Plan"
+        >
+          <form onSubmit={handleCreatePlan} className="space-y-4 text-xs">
             <div>
-              <label className="font-bold text-slate-700 block mb-1">System Prompt</label>
-              <textarea
-                rows={10}
-                value={editingPrompt.system_prompt}
-                onChange={(e) => setEditingPrompt((prev) => ({ ...prev, system_prompt: e.target.value }))}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-purple-500"
+              <label className="font-bold text-slate-700 block mb-1">Plan Name *</label>
+              <input
+                type="text"
+                required
+                value={newPlanForm.name}
+                onChange={(e) => setNewPlanForm({ ...newPlanForm, name: e.target.value })}
+                placeholder="e.g. Care Plus AI Tier"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-600 font-bold"
               />
             </div>
-            <button
-              onClick={handleSavePrompt}
-              className="w-full bg-purple-900 hover:bg-purple-950 text-white font-bold py-3 rounded-xl transition-colors"
-            >
-              Publish New Prompt Version
-            </button>
-          </div>
+
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">Description</label>
+              <textarea
+                rows={2}
+                value={newPlanForm.description}
+                onChange={(e) => setNewPlanForm({ ...newPlanForm, description: e.target.value })}
+                placeholder="Plan description for customers..."
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-600"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Target Product</label>
+                <select
+                  value={newPlanForm.product_id}
+                  onChange={(e) => setNewPlanForm({ ...newPlanForm, product_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600 font-semibold"
+                >
+                  <option value="prod_patient_ai">Patient AI Suite</option>
+                  <option value="prod_doctor_ai">Doctor Clinical AI</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Billing Cycle</label>
+                <select
+                  value={newPlanForm.billing_cycle}
+                  onChange={(e) => setNewPlanForm({ ...newPlanForm, billing_cycle: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600 font-semibold"
+                >
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+                  <option value="lifetime">Lifetime</option>
+                  <option value="pay_per_use">Pay-As-You-Go</option>
+                  <option value="credit_pack">Credit Pack</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Price India (₹ INR)</label>
+                <div className="flex items-center gap-1.5 border border-slate-300 rounded-xl px-3 py-2 bg-slate-50 focus-within:bg-white focus-within:border-purple-600">
+                  <span className="font-black text-slate-600">₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="999"
+                    value={newPlanForm.price_inr}
+                    onChange={(e) => setNewPlanForm({ ...newPlanForm, price_inr: e.target.value })}
+                    className="w-full bg-transparent font-black text-slate-900 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">International ($ USD)</label>
+                <div className="flex items-center gap-1.5 border border-slate-300 rounded-xl px-3 py-2 bg-slate-50 focus-within:bg-white focus-within:border-purple-600">
+                  <span className="font-black text-slate-600">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="19"
+                    value={newPlanForm.price_usd}
+                    onChange={(e) => setNewPlanForm({ ...newPlanForm, price_usd: e.target.value })}
+                    className="w-full bg-transparent font-black text-slate-900 focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Monthly Base Credits</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={newPlanForm.included_monthly_credits}
+                  onChange={(e) =>
+                    setNewPlanForm({
+                      ...newPlanForm,
+                      included_monthly_credits: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600 text-right font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Bonus Credits</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={newPlanForm.bonus_credits}
+                  onChange={(e) =>
+                    setNewPlanForm({
+                      ...newPlanForm,
+                      bonus_credits: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600 text-right font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setCreatePlanModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-bold shadow-md"
+              >
+                Create Plan
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>
