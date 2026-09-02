@@ -127,6 +127,13 @@ export class LeadsService {
 
       const patientId = patientProfile ? patientProfile.id : null;
 
+      const normalizedCountry = (body.country || 'US').toUpperCase().trim();
+      const normalizedCurrency =
+        normalizedCountry === 'IN' || (body.currency || '').toUpperCase().trim() === 'INR'
+          ? 'INR'
+          : 'USD';
+      const resolvedFee = Number(body.fee) > 0 ? Number(body.fee) : (normalizedCurrency === 'INR' ? 799 : 29);
+
       let appointmentRow = null;
       if (patientId) {
         const { data: apt, error } = await this.supabase.admin
@@ -139,8 +146,8 @@ export class LeadsService {
             status: 'Requested',
             type: 'video', // 'Consultation' violates check constraint ('video', 'clinic')
             reason: body.concern,
-            country: body.country || 'US',
-            currency: body.currency || 'USD',
+            country: normalizedCountry,
+            currency: normalizedCurrency,
             specialty: doctor?.specialty || 'General',
           })
           .select()
@@ -178,9 +185,9 @@ export class LeadsService {
           preferred_date: scheduledDate,
           preferred_time: scheduledTime,
           notes: body.notes,
-          country: body.country || 'US',
-          currency: body.currency || 'USD',
-          fee: body.fee || null,
+          country: normalizedCountry,
+          currency: normalizedCurrency,
+          fee: resolvedFee,
           status: 'New', // Always starts as New pending doctor review
         })
         .select()
@@ -354,8 +361,12 @@ export class LeadsService {
             scheduled_time: request.preferred_time || '10:00 AM',
             reason: request.concern || 'Consultation request',
             status: AppointmentStatus.APPROVED,
-            country: request.country || 'US',
-            currency: request.currency || doctor?.currency || 'USD',
+            country: (request.country || 'US').toUpperCase().trim(),
+            currency:
+              (request.country || '').toUpperCase().trim() === 'IN' ||
+              (request.currency || '').toUpperCase().trim() === 'INR'
+                ? 'INR'
+                : 'USD',
           })
           .select()
           .maybeSingle();
@@ -402,6 +413,14 @@ export class LeadsService {
       }
 
       if (request.email) {
+        const isIndia = (request.country || '').toUpperCase().trim() === 'IN';
+        const approvalAmount =
+          Number(request.fee) > 0
+            ? Number(request.fee)
+            : Number(doctor?.consultation_fee) > 0
+              ? Number(doctor?.consultation_fee)
+              : isIndia ? 799 : 29;
+
         // Send approval & payment request email via database-driven template
         await this.email
           .sendTemplateEmail({
@@ -413,7 +432,7 @@ export class LeadsService {
               scheduledDate,
               scheduledTime,
               paymentUrl: this.email.getUrl('/patient-dashboard/appointments?tab=action_required'),
-              amount: doctor?.consultation_fee || 799,
+              amount: approvalAmount,
             },
             entityType: 'appointment',
             entityId: appointment?.id,

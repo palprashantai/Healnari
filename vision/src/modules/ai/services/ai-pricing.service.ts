@@ -546,12 +546,17 @@ export class AiPricingService {
     explicitCountry?: string,
     explicitCurrency?: string,
   ): { countryCode: string; currencyCode: string } {
-    let currencyCode = (explicitCurrency || user?.profile?.currency || 'INR').toUpperCase().trim();
+    const countryCode = (explicitCountry || user?.profile?.country || 'IN').toUpperCase().trim();
+    let currencyCode = (
+      explicitCurrency ||
+      user?.profile?.currency ||
+      (countryCode === 'IN' ? 'INR' : 'USD')
+    ).toUpperCase().trim();
+
     if (currencyCode !== 'INR' && currencyCode !== 'USD') {
-      currencyCode = 'INR';
+      currencyCode = countryCode === 'IN' ? 'INR' : 'USD';
     }
 
-    const countryCode = currencyCode === 'USD' ? 'US' : 'IN';
     return { countryCode, currencyCode };
   }
 
@@ -559,7 +564,8 @@ export class AiPricingService {
    * Fetches Country Config
    */
   async getCountry(countryCode: string): Promise<CountryConfig> {
-    const code = countryCode.toUpperCase();
+    const code = (countryCode || 'IN').toUpperCase().trim();
+    const isIndia = code === 'IN';
     try {
       const { data, error } = await this.supabase.admin
         .from('countries')
@@ -567,9 +573,35 @@ export class AiPricingService {
         .eq('code', code)
         .maybeSingle();
 
-      if (!error && data) return data as CountryConfig;
+      if (!error && data) {
+        return {
+          ...data,
+          default_currency: isIndia ? 'INR' : 'USD',
+          supported_currencies: [isIndia ? 'INR' : 'USD'],
+          payment_gateway: isIndia ? 'cashfree' : 'stripe',
+        } as CountryConfig;
+      }
     } catch {}
-    return DEFAULT_COUNTRIES[code] || DEFAULT_COUNTRIES.IN;
+
+    const fallback = DEFAULT_COUNTRIES[code];
+    if (fallback) return fallback;
+
+    return {
+      code,
+      name: isIndia ? 'India' : `International (${code})`,
+      region: isIndia ? 'Asia' : 'Global',
+      default_currency: isIndia ? 'INR' : 'USD',
+      supported_currencies: [isIndia ? 'INR' : 'USD'],
+      timezone: isIndia ? 'Asia/Kolkata' : 'UTC',
+      locale: isIndia ? 'en-IN' : 'en-US',
+      phone_prefix: isIndia ? '+91' : '+1',
+      tax_rate: isIndia ? 18.0 : 0.0,
+      tax_name: isIndia ? 'GST' : 'Sales Tax',
+      tax_type: isIndia ? 'inclusive' : 'exclusive',
+      payment_gateway: isIndia ? 'cashfree' : 'stripe',
+      is_active: true,
+      is_ai_enabled: true,
+    };
   }
 
   /**
@@ -611,15 +643,13 @@ export class AiPricingService {
     currencyCode = 'INR',
     couponCode?: string,
   ): Promise<AiResolvedPriceQuote> {
-    const normalizedCurrency = (currencyCode || 'INR').toUpperCase().trim();
+    const normalizedCountry = (countryCode || 'IN').toUpperCase().trim();
+    let normalizedCurrency = (currencyCode || (normalizedCountry === 'IN' ? 'INR' : 'USD')).toUpperCase().trim();
     if (normalizedCurrency !== 'INR' && normalizedCurrency !== 'USD') {
-      throw new BadRequestException(
-        `Unsupported currency "${currencyCode}". HealNari strictly supports only INR and USD.`,
-      );
+      normalizedCurrency = normalizedCountry === 'IN' ? 'INR' : 'USD';
     }
 
-    const effectiveCountryCode = normalizedCurrency === 'USD' ? 'US' : 'IN';
-    const country = await this.getCountry(effectiveCountryCode);
+    const country = await this.getCountry(normalizedCountry);
     const plan = await this.getPlan(planId);
     if (!plan) {
       throw new NotFoundException(`AI Plan "${planId}" does not exist.`);
@@ -634,8 +664,7 @@ export class AiPricingService {
         .from('ai_regional_prices')
         .select('*')
         .eq('plan_id', planId)
-        .eq('country_code', country.code)
-        .eq('currency', currencyCode)
+        .eq('currency', normalizedCurrency)
         .eq('is_active', true)
         .order('price_version', { ascending: false })
         .limit(1)
@@ -645,13 +674,15 @@ export class AiPricingService {
         baseAmount = Number(priceRow.base_amount);
         priceVersion = priceRow.price_version;
       } else {
-        const fallback = DEFAULT_REGIONAL_PRICES[planId]?.[country.code] ||
-          DEFAULT_REGIONAL_PRICES[planId]?.IN || { amount: 0, currency: 'INR' };
+        const regionalKey = normalizedCurrency === 'USD' ? 'US' : 'IN';
+        const fallback = DEFAULT_REGIONAL_PRICES[planId]?.[regionalKey] ||
+          DEFAULT_REGIONAL_PRICES[planId]?.IN || { amount: 0, currency: normalizedCurrency };
         baseAmount = fallback.amount;
       }
     } catch {
-      const fallback = DEFAULT_REGIONAL_PRICES[planId]?.[country.code] ||
-        DEFAULT_REGIONAL_PRICES[planId]?.IN || { amount: 0, currency: 'INR' };
+      const regionalKey = normalizedCurrency === 'USD' ? 'US' : 'IN';
+      const fallback = DEFAULT_REGIONAL_PRICES[planId]?.[regionalKey] ||
+        DEFAULT_REGIONAL_PRICES[planId]?.IN || { amount: 0, currency: normalizedCurrency };
       baseAmount = fallback.amount;
     }
 
@@ -672,7 +703,7 @@ export class AiPricingService {
     // 3. Coupon Discount Calculation
     let discountAmount = 0;
     if (couponCode) {
-      const coupon = await this.validateCoupon(couponCode, planId, country.code, currencyCode);
+      const coupon = await this.validateCoupon(couponCode, planId, country.code, normalizedCurrency);
       if (coupon) {
         if (coupon.discount_type === 'percentage') {
           discountAmount = DecimalMath.percentage(baseAmount, coupon.discount_value);
@@ -720,7 +751,7 @@ export class AiPricingService {
       planName: plan.name,
       countryCode: country.code,
       countryName: country.name,
-      currency: currencyCode,
+      currency: normalizedCurrency,
       currencySymbol: currMeta.symbol,
       baseAmount,
       taxRate,
@@ -757,13 +788,12 @@ export class AiPricingService {
     role?: 'patient' | 'doctor',
     includeInactive = false,
   ): Promise<AiResolvedPriceQuote[]> {
-    const normalizedCurrency = (currencyCode || 'INR').toUpperCase().trim();
+    const normalizedCountry = (countryCode || 'IN').toUpperCase().trim();
+    let normalizedCurrency = (currencyCode || (normalizedCountry === 'IN' ? 'INR' : 'USD')).toUpperCase().trim();
     if (normalizedCurrency !== 'INR' && normalizedCurrency !== 'USD') {
-      throw new BadRequestException(
-        `Unsupported currency "${currencyCode}". HealNari strictly supports only INR and USD.`,
-      );
+      normalizedCurrency = normalizedCountry === 'IN' ? 'INR' : 'USD';
     }
-    const effectiveCountry = normalizedCurrency === 'USD' ? 'US' : 'IN';
+
     const allPlans = await this.getAllPlans();
     const plans = allPlans.filter(
       (p) => (includeInactive || p.is_active) && (!role || p.product_id.includes(role)),
@@ -771,7 +801,7 @@ export class AiPricingService {
 
     const quotes: AiResolvedPriceQuote[] = [];
     for (const p of plans) {
-      const quote = await this.getPricingQuote(p.id, effectiveCountry, normalizedCurrency);
+      const quote = await this.getPricingQuote(p.id, normalizedCountry, normalizedCurrency);
       quotes.push(quote);
     }
 

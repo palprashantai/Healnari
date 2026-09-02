@@ -242,10 +242,16 @@ export class BillingService {
       .select('consultation_fee, currency, commission_rate')
       .eq('id', appointment.doctor_id)
       .maybeSingle();
-    const amount = Number(doctor?.consultation_fee || 0);
-    if (amount <= 0)
-      throw new BadRequestException(ERROR_MESSAGES.NOTHING_TO_CHARGE);
-    const currency = (doctor?.currency || 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR';
+    const apptCountry = (appointment.country || user.profile?.country || 'US').toUpperCase().trim();
+    const currency =
+      apptCountry === 'IN' ||
+      (appointment.currency || doctor?.currency || '').toUpperCase().trim() === 'INR'
+        ? 'INR'
+        : 'USD';
+    let amount = Number(appointment.fee || doctor?.consultation_fee || 0);
+    if (amount <= 0) {
+      amount = currency === 'INR' ? 799 : 29;
+    }
 
     // Idempotency guard: prevent duplicate orders for already-settled appointment
     const { data: alreadyPaid } = await this.supabase.admin

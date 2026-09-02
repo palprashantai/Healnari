@@ -40,6 +40,14 @@ export function normalizeCurrency(currency) {
 }
 
 /**
+ * Returns strictly 'INR' for India and 'USD' for ANY other country globally.
+ */
+export function getCurrencyForCountry(countryCode) {
+  const code = (countryCode || 'IN').toUpperCase().trim();
+  return code === 'IN' ? 'INR' : 'USD';
+}
+
+/**
  * Gets ISO symbol for currency ('₹' or '$')
  */
 export function getCurrencySymbol(currency = 'INR') {

@@ -243,8 +243,12 @@ export class AppointmentsService {
     // under concurrency — the available-slots endpoint filtering is only a
     // UI nicety, not a guarantee, since two requests can race between
     // "fetch available slots" and "book". Postgres error 23505 is that
-    // constraint firing; translate it into the clean conflict message
-    // instead of letting a raw DB error reach the client.
+    const apptCountry = (body.country || user.profile?.country || 'US').toUpperCase().trim();
+    const apptCurrency =
+      apptCountry === 'IN' || (body.currency || doctor.currency || '').toUpperCase().trim() === 'INR'
+        ? 'INR'
+        : 'USD';
+
     const { data: saved, error: insertError } = await this.supabase.admin
       .from('appointments')
       .insert({
@@ -256,8 +260,8 @@ export class AppointmentsService {
         scheduled_time: body.scheduledTime,
         reason: body.reason,
         status: AppointmentStatus.REQUESTED,
-        country: body.country || 'US',
-        currency: body.currency || doctor.currency || 'USD',
+        country: apptCountry,
+        currency: apptCurrency,
       })
       .select(
         '*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)',

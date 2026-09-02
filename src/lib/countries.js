@@ -1,60 +1,11 @@
-export const COUNTRIES = [
-  {
-    code: 'IN',
-    name: 'India',
-    flag: '🇮🇳',
-    currency: 'INR',
-    symbol: '₹',
-    defaultPatientFee: 799,
-    defaultDoctorFee: 800,
-    councils: [
-      'National Medical Commission (NMC)',
-      'State Medical Council (SMC)',
-      'Dental Council of India (DCI)',
-      'State Dental Council (SDC)',
-      'Indian Nursing Council (INC)',
-      'State Nursing Council (SNC)',
-      'Rehabilitation Council of India (RCI)',
-      'Central Council of Indian Medicine (CCIM)',
-      'Central Council of Homoeopathy (CCH)',
-      'Pharmacy Council of India (PCI)',
-      'Indian Association of Physiotherapists (IAP)',
-      'Other / Not Listed'
-    ],
-    phonePrefix: '+91',
-    payoutRail: 'NEFT / IMPS / Direct UPI Payouts',
-    payoutLabel: 'IFSC Code & Bank Account / UPI ID',
-    payoutFields: [
-      { id: 'ifsc', label: 'IFSC Code', placeholder: 'HDFC0001234' },
-      { id: 'accountNo', label: 'Bank Account Number', placeholder: '50100234567890' }
-    ],
-    gatewayName: 'Cashfree / Razorpay (UPI, GPay, PhonePe, Cards, NetBanking)'
-  },
-  {
-    code: 'US',
-    name: 'United States & International',
-    flag: '🇺🇸',
-    currency: 'USD',
-    symbol: '$',
-    defaultPatientFee: 29,
-    defaultDoctorFee: 50,
-    councils: [
-      'US State Medical Board (All 50 States)',
-      'American Board of Obstetrics & Gynecology (ABOG)',
-      'American Board of Internal Medicine (ABIM - Endocrinology)',
-      'International Medical Graduate / Licensing Board',
-      'DEA Registered Practitioner'
-    ],
-    phonePrefix: '+1',
-    payoutRail: 'Weekly Direct Deposit (ACH / Stripe US / Wire)',
-    payoutLabel: 'US Bank Routing & Account Number / SWIFT',
-    payoutFields: [
-      { id: 'routingNo', label: '9-Digit Routing Number (ABA) or SWIFT', placeholder: '021000021' },
-      { id: 'accountNo', label: 'Account Number / IBAN', placeholder: '1234567890' }
-    ],
-    gatewayName: 'Stripe Global (Apple Pay, Google Pay, International Cards)'
-  }
-];
+/**
+ * HealNari Global Countries & Currency System
+ * 
+ * STRICT FINANCIAL POLICY:
+ * Accept users from every country globally, but process transactions in ONLY two currencies:
+ * 1. 🇮🇳 India (IN) -> INR (₹) via Cashfree / UPI / NetBanking / Indian Cards
+ * 2. 🌐 All other countries (Global) -> USD ($) via Stripe / Apple Pay / International Cards
+ */
 
 export const COUNTRY_DIAL_CODES = [
   { code: 'IN', name: 'India', flag: '🇮🇳', dialCode: '+91' },
@@ -73,27 +24,152 @@ export const COUNTRY_DIAL_CODES = [
   { code: 'BH', name: 'Bahrain', flag: '🇧🇭', dialCode: '+973' },
   { code: 'NZ', name: 'New Zealand', flag: '🇳🇿', dialCode: '+64' },
   { code: 'IE', name: 'Ireland', flag: '🇮🇪', dialCode: '+353' },
-  { code: 'ZA', name: 'South Africa', flag: '🇿🇦', dialCode: '+27' },
+  { code: 'NL', name: 'Netherlands', flag: '🇳🇱', dialCode: '+31' },
+  { code: 'CH', name: 'Switzerland', flag: '🇨🇭', dialCode: '+41' },
+  { code: 'SE', name: 'Sweden', flag: '🇸🇪', dialCode: '+46' },
+  { code: 'NO', name: 'Norway', flag: '🇳🇴', dialCode: '+47' },
+  { code: 'DK', name: 'Denmark', flag: '🇩🇰', dialCode: '+45' },
+  { code: 'IT', name: 'Italy', flag: '🇮🇹', dialCode: '+39' },
+  { code: 'ES', name: 'Spain', flag: '🇪🇸', dialCode: '+34' },
+  { code: 'JP', name: 'Japan', flag: '🇯🇵', dialCode: '+81' },
+  { code: 'KR', name: 'South Korea', flag: '🇰🇷', dialCode: '+82' },
   { code: 'MY', name: 'Malaysia', flag: '🇲🇾', dialCode: '+60' },
   { code: 'PH', name: 'Philippines', flag: '🇵🇭', dialCode: '+63' },
+  { code: 'ID', name: 'Indonesia', flag: '🇮🇩', dialCode: '+62' },
+  { code: 'TH', name: 'Thailand', flag: '🇹🇭', dialCode: '+66' },
+  { code: 'ZA', name: 'South Africa', flag: '🇿🇦', dialCode: '+27' },
   { code: 'NG', name: 'Nigeria', flag: '🇳🇬', dialCode: '+234' },
   { code: 'KE', name: 'Kenya', flag: '🇰🇪', dialCode: '+254' },
+  { code: 'EG', name: 'Egypt', flag: '🇪🇬', dialCode: '+20' },
+  { code: 'BR', name: 'Brazil', flag: '🇧🇷', dialCode: '+55' },
+  { code: 'MX', name: 'Mexico', flag: '🇲🇽', dialCode: '+52' },
   { code: 'BD', name: 'Bangladesh', flag: '🇧🇩', dialCode: '+880' },
   { code: 'PK', name: 'Pakistan', flag: '🇵🇰', dialCode: '+92' },
   { code: 'LK', name: 'Sri Lanka', flag: '🇱🇰', dialCode: '+94' },
   { code: 'NP', name: 'Nepal', flag: '🇳🇵', dialCode: '+977' },
 ];
 
-export function getCountryByCode(code) {
-  return COUNTRIES.find(c => c.code === code) || COUNTRIES[0];
+/**
+ * Returns strictly 'INR' for India (IN) and 'USD' for ANY other country in the world.
+ */
+export function getCurrencyForCountry(countryCode) {
+  const code = (countryCode || 'IN').toUpperCase().trim();
+  return code === 'IN' ? 'INR' : 'USD';
 }
 
+/**
+ * Full List of Countries with strict INR / USD currency mapping
+ */
+export const COUNTRIES = COUNTRY_DIAL_CODES.map((c) => {
+  const isIndia = c.code === 'IN';
+  return {
+    code: c.code,
+    name: c.name,
+    flag: c.flag,
+    currency: isIndia ? 'INR' : 'USD',
+    symbol: isIndia ? '₹' : '$',
+    defaultPatientFee: isIndia ? 799 : 29,
+    defaultDoctorFee: isIndia ? 800 : 50,
+    phonePrefix: c.dialCode,
+    councils: isIndia
+      ? [
+          'National Medical Commission (NMC)',
+          'State Medical Council (SMC)',
+          'Dental Council of India (DCI)',
+          'State Dental Council (SDC)',
+          'Indian Nursing Council (INC)',
+          'State Nursing Council (SNC)',
+          'Rehabilitation Council of India (RCI)',
+          'Central Council of Indian Medicine (CCIM)',
+          'Central Council of Homoeopathy (CCH)',
+          'Pharmacy Council of India (PCI)',
+          'Indian Association of Physiotherapists (IAP)',
+          'Other / Not Listed',
+        ]
+      : [
+          `${c.name} Medical Council / Licensing Board`,
+          'US State Medical Board (All 50 States)',
+          'General Medical Council (GMC)',
+          'International Medical Graduate / Licensing Authority',
+          'Other / International Board',
+        ],
+    payoutRail: isIndia
+      ? 'NEFT / IMPS / Direct UPI Payouts'
+      : 'Weekly Direct Deposit (ACH / Stripe Global / Wire)',
+    payoutLabel: isIndia
+      ? 'IFSC Code & Bank Account / UPI ID'
+      : 'Bank Routing & Account Number / SWIFT / IBAN',
+    payoutFields: isIndia
+      ? [
+          { id: 'ifsc', label: 'IFSC Code', placeholder: 'HDFC0001234' },
+          { id: 'accountNo', label: 'Bank Account Number', placeholder: '50100234567890' },
+        ]
+      : [
+          { id: 'routingNo', label: 'SWIFT / BIC / Routing Code', placeholder: 'SWIFTCODE' },
+          { id: 'accountNo', label: 'IBAN / Account Number', placeholder: 'GB29NWBK60161331926819' },
+        ],
+    gatewayName: isIndia
+      ? 'Cashfree / Razorpay (UPI, GPay, PhonePe, Cards, NetBanking)'
+      : 'Stripe Global (Apple Pay, Google Pay, International Cards)',
+  };
+});
+
+/**
+ * Resolves country metadata by code.
+ * Guarantees that ANY country outside India returns USD ($) with Stripe.
+ */
+export function getCountryByCode(code) {
+  const cleanCode = (code || 'IN').toUpperCase().trim();
+  const found = COUNTRIES.find((c) => c.code === cleanCode);
+  if (found) return found;
+
+  const dial = COUNTRY_DIAL_CODES.find((d) => d.code === cleanCode);
+  const isIndia = cleanCode === 'IN';
+  return {
+    code: cleanCode,
+    name: dial?.name || cleanCode,
+    flag: dial?.flag || '🌐',
+    currency: isIndia ? 'INR' : 'USD',
+    symbol: isIndia ? '₹' : '$',
+    defaultPatientFee: isIndia ? 799 : 29,
+    defaultDoctorFee: isIndia ? 800 : 50,
+    phonePrefix: dial?.dialCode || '+1',
+    payoutRail: isIndia
+      ? 'NEFT / IMPS / Direct UPI Payouts'
+      : 'Weekly Direct Deposit (ACH / Stripe Global / Wire)',
+    payoutLabel: isIndia
+      ? 'IFSC Code & Bank Account / UPI ID'
+      : 'Bank Routing & Account Number / SWIFT / IBAN',
+    payoutFields: isIndia
+      ? [
+          { id: 'ifsc', label: 'IFSC Code', placeholder: 'HDFC0001234' },
+          { id: 'accountNo', label: 'Bank Account Number', placeholder: '50100234567890' },
+        ]
+      : [
+          { id: 'routingNo', label: 'SWIFT / BIC / Routing Code', placeholder: 'SWIFTCODE' },
+          { id: 'accountNo', label: 'IBAN / Account Number', placeholder: 'GB29NWBK60161331926819' },
+        ],
+    gatewayName: isIndia
+      ? 'Cashfree / Razorpay (UPI, GPay, PhonePe, Cards, NetBanking)'
+      : 'Stripe Global (Apple Pay, Google Pay, International Cards)',
+  };
+}
+
+/**
+ * Detects user country from timezone/browser locale.
+ * Defaults to 'IN' if in Indian timezone, otherwise 'US' (which maps to USD).
+ */
 export function detectUserCountry() {
   try {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
     if (tz.includes('Calcutta') || tz.includes('Kolkata') || tz.includes('India')) return 'IN';
+    if (tz.includes('London') || tz.includes('Europe/London')) return 'GB';
+    if (tz.includes('Dubai')) return 'AE';
+    if (tz.includes('Toronto') || tz.includes('Vancouver')) return 'CA';
+    if (tz.includes('Sydney') || tz.includes('Melbourne')) return 'AU';
+    if (tz.includes('Singapore')) return 'SG';
   } catch (e) {
     // default
   }
-  return 'US'; // default US & International
+  return 'US'; // default US & International (USD)
 }
