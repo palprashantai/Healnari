@@ -27,6 +27,7 @@ import { RecordsModule } from '@/modules/records/records.module';
 import { DoctorsModule } from '@/modules/doctors/doctors.module';
 import { CashfreeModule } from '@/core/cashfree/cashfree.module';
 import { FXModule } from '@/core/fx/fx.module';
+import { NotificationsModule } from '@/modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { FXModule } from '@/core/fx/fx.module';
     DoctorsModule,
     CashfreeModule,
     FXModule,
+    NotificationsModule,
   ],
   controllers: [AiController, AiSubscriptionController, AiAdminController],
   providers: [

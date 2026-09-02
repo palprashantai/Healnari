@@ -51,6 +51,7 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
     const { supabase } = createSupabaseMock({
       profiles: [{ data: doctorProfile }],
       appointments: [
+        { data: null, error: null }, // patientConflict query check
         {
           data: null,
           error: {
@@ -76,7 +77,10 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
     const dbError = { code: '42501', message: 'permission denied' };
     const { supabase } = createSupabaseMock({
       profiles: [{ data: doctorProfile }],
-      appointments: [{ data: null, error: dbError }],
+      appointments: [
+        { data: null, error: null }, // patientConflict query check
+        { data: null, error: dbError },
+      ],
     });
     const service = new AppointmentsService(
       supabase as any,
@@ -108,7 +112,10 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
           ],
         },
       ],
-      appointments: [{ data: savedAppointment, error: null }],
+      appointments: [
+        { data: null, error: null }, // patientConflict query check
+        { data: savedAppointment, error: null },
+      ],
     });
     const service = new AppointmentsService(
       supabase as any,

@@ -9,6 +9,7 @@ import { NotificationsModule } from '@/modules/notifications/notifications.modul
 import { EmailModule } from '@/core/email/email.module';
 
 import { AppointmentsModule } from '@/modules/appointments/appointments.module';
+import { AiModule } from '@/modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AppointmentsModule } from '@/modules/appointments/appointments.module';
     NotificationsModule,
     EmailModule,
     AppointmentsModule,
+    AiModule,
   ],
   controllers: [BillingController],
   providers: [BillingService, InvoiceService, BillingCronService],

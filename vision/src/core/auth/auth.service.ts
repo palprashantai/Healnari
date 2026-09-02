@@ -119,6 +119,18 @@ export class AuthService {
     };
   }
 
+  async forgotPassword(email: string) {
+    try {
+      const clientUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || 'http://localhost:5173';
+      const redirectTo = `${clientUrl.replace(/\/$/, '')}/reset-password`;
+      await this.supabase.anon.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo,
+      });
+    } catch {
+      // Gracefully swallow error to prevent account enumeration
+    }
+  }
+
   async refresh(refreshToken: string) {
     const { data, error } = await this.supabase.anon.auth.refreshSession({
       refresh_token: refreshToken,

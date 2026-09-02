@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { load as loadCashfree } from '@cashfreepayments/cashfree-js';
 import { Modal } from '../Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { useToast } from '../Toast.jsx';
 import { triggerHaptic } from '../../lib/haptics.js';
 import { formatCurrency, getCurrencySymbol, ISO_CURRENCIES, getStoredCurrency } from '../../lib/currency.js';
+
+const CASHFREE_MODE = import.meta.env.VITE_CASHFREE_MODE || 'sandbox';
+let cashfreePromise = null;
+function getCashfree() {
+  if (!cashfreePromise) cashfreePromise = loadCashfree({ mode: CASHFREE_MODE });
+  return cashfreePromise;
+}
 
 export function AIPaywallModal({
   isOpen,
@@ -99,34 +107,50 @@ export function AIPaywallModal({
     setLoading(true);
     triggerHaptic?.();
     try {
-      // Step 1: Initiate multi-currency checkout
-      await apiFetch('/ai/subscription/upgrade', {
+      // 1. Authoritative checkout order initiation
+      const order = await apiFetch('/ai/subscription/upgrade', {
         method: 'POST',
         body: {
           planId: basePlanId,
           billingCycle,
           couponCode: appliedCoupon?.coupon?.code,
-          countryCode: currentQuote.countryCode,
-          currencyCode: currentQuote.currency,
         },
       });
 
-      // Step 2: Sandbox / production activation
-      const activated = await apiFetch('/ai/subscription/activate', {
-        method: 'POST',
-        body: {
-          planId: basePlanId,
-          billingCycle,
-          paymentReference: `PAY_${currentQuote.currency}_${Date.now()}`,
-          couponCode: appliedCoupon?.coupon?.code,
-          countryCode: currentQuote.countryCode,
-          currencyCode: currentQuote.currency,
+      // Handle complimentary / zero-amount tier
+      if (!order.paymentSessionId || order.finalAmount <= 0) {
+        const verified = await apiFetch(`/ai/subscription/verify/${order.orderId}`);
+        toast(`🎉 Successfully activated ${order.planName}!`, 'success');
+        onUpgraded?.(verified);
+        onClose();
+        return;
+      }
+
+      // 2. Open Cashfree Hosted Drop-in SDK
+      const cashfree = await getCashfree();
+      if (!cashfree) {
+        throw new Error('Could not load payment gateway. Please check connection and try again.');
+      }
+
+      await cashfree.checkout({
+        paymentSessionId: order.paymentSessionId,
+        redirectTarget: '_modal',
+        appearance: {
+          theme: 'light',
+          color: '#6B46C1',
+          fontFamily: 'Inter, system-ui, sans-serif',
         },
       });
 
-      toast(`🎉 Successfully upgraded to ${paywallData?.planName || (isDoctor ? 'Doctor AI Pro' : 'HealNari AI Premium')}!`, 'success');
-      onUpgraded?.(activated);
-      onClose();
+      // 3. Reconcile with authoritative backend server-to-server check
+      const verified = await apiFetch(`/ai/subscription/verify/${order.orderId}`);
+      if (verified && verified.status === 'active') {
+        toast(`🎉 Successfully upgraded to ${order.planName || 'Premium'}!`, 'success');
+        onUpgraded?.(verified);
+        onClose();
+      } else {
+        toast('Payment was not completed. You can try again anytime.', 'info');
+      }
     } catch (err) {
       toast(err?.message || 'Could not complete upgrade. Please try again.', 'error');
     } finally {

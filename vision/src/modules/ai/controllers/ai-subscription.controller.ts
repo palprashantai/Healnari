@@ -5,6 +5,7 @@ import {
   Post,
   UseGuards,
   Query,
+  Param,
   BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
@@ -247,8 +248,6 @@ export class AiSubscriptionController {
       body.planId,
       body.billingCycle || 'monthly',
       body.couponCode,
-      body.countryCode,
-      body.currencyCode,
     );
 
     await this.analyticsService.track({
@@ -267,6 +266,19 @@ export class AiSubscriptionController {
     return ResponseHelper.success(order, 'AI Upgrade checkout order initiated.');
   }
 
+  @Get('subscription/verify/:orderId')
+  @ApiOperation({ summary: 'Verify Cashfree payment and reconcile AI subscription status' })
+  async verifyOrder(
+    @CurrentUser() user: AuthUser,
+    @Param('orderId') orderId: string,
+  ) {
+    const subscription = await this.subscriptionService.reconcileSubscriptionOrder(orderId);
+    return ResponseHelper.success(
+      subscription,
+      'Subscription verified and reconciled successfully.',
+    );
+  }
+
   @Post('subscription/activate')
   @ApiOperation({ summary: 'Activate AI subscription upon verified payment' })
   async activateSubscription(
@@ -278,9 +290,6 @@ export class AiSubscriptionController {
       body.planId,
       body.billingCycle || 'monthly',
       body.paymentReference,
-      body.countryCode,
-      body.currencyCode,
-      body.couponCode,
     );
 
     await this.analyticsService.track({
@@ -369,29 +378,28 @@ export class AiSubscriptionController {
     );
   }
 
+  @Post('credits/order')
+  @ApiOperation({ summary: 'Initiate checkout order for one-off AI token top-up pack' })
+  async orderCredits(
+    @CurrentUser() user: AuthUser,
+    @Body() body: BuyCreditsDto,
+  ) {
+    const order = await this.subscriptionService.initiateTokenPack(user, body.packId);
+    return ResponseHelper.success(order, 'Token pack checkout order initiated.');
+  }
+
   @Post('credits/buy')
-  @ApiOperation({ summary: 'Purchase one-off AI token top-up pack' })
+  @ApiOperation({ summary: 'Purchase or verify one-off AI token top-up pack' })
   async buyCredits(
     @CurrentUser() user: AuthUser,
     @Body() body: BuyCreditsDto,
   ) {
-    const currency = body.currency ? (body.currency.toUpperCase().trim() === 'USD' ? 'USD' : 'INR') : 'INR';
-    const result = await this.subscriptionService.buyTokenPack(
-      user,
-      body.packId,
-      body.paymentReference,
-      currency,
-    );
-    await this.analyticsService.track({
-      event_type: 'AI_CREDITS_TOPPED_UP',
-      user_id: user.id,
-      role: user.profile.role,
-      metadata: { packId: body.packId, tokensAdded: result.tokensAdded },
-    });
-    return ResponseHelper.success(
-      result,
-      `Successfully added ${result.tokensAdded} AI tokens to your balance.`,
-    );
+    if (body.paymentReference) {
+      const sub = await this.subscriptionService.reconcileSubscriptionOrder(body.paymentReference);
+      return ResponseHelper.success(sub, 'Token pack purchase verified.');
+    }
+    const order = await this.subscriptionService.initiateTokenPack(user, body.packId);
+    return ResponseHelper.success(order, 'Token pack checkout order initiated.');
   }
 
   @Get('features/catalog')

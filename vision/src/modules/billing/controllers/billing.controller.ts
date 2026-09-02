@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Res, Headers, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiProperty } from '@nestjs/swagger';
 import {
   IsIn,
@@ -9,8 +9,10 @@ import {
   IsUUID,
   IsNotEmpty,
 } from 'class-validator';
-import type { Response } from 'express';
+import type { Response, Request } from 'express';
 import { BillingService } from '@/modules/billing/services/billing.service';
+import { AiSubscriptionService } from '@/modules/ai/services/ai-subscription.service';
+import { CashfreeService } from '@/core/cashfree/cashfree.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
@@ -62,7 +64,11 @@ export class RecordChargeDto {
 @ApiTags('Billing')
 @Controller('api/billing')
 export class BillingController {
-  constructor(private readonly billingService: BillingService) {}
+  constructor(
+    private readonly billingService: BillingService,
+    private readonly aiSubscriptionService: AiSubscriptionService,
+    private readonly cashfreeService: CashfreeService,
+  ) {}
 
   @ApiOperation({
     summary:
@@ -120,10 +126,29 @@ export class BillingController {
   })
   @Public()
   @Post('webhook/cashfree')
-  async cashfreeWebhook(@Body() body: any) {
+  async cashfreeWebhook(
+    @Body() body: any,
+    @Headers('x-webhook-signature') signature?: string,
+    @Headers('x-webhook-timestamp') timestamp?: string,
+    @Req() req?: Request,
+  ) {
+    // If Cashfree signature header is present, verify authenticity
+    if (signature && timestamp) {
+      const rawBody = JSON.stringify(body || {});
+      const isValid = this.cashfreeService.verifyWebhookSignature(rawBody, signature, timestamp);
+      if (!isValid) {
+        return { ok: false, error: 'Invalid webhook signature' };
+      }
+    }
+
     const orderId = body?.data?.order?.order_id || body?.order_id;
-    if (orderId)
-      await this.billingService.reconcileCashfreeOrder(orderId).catch(() => {});
+    if (orderId) {
+      if (orderId.startsWith('ai_sub_') || orderId.startsWith('ai_topup_')) {
+        await this.aiSubscriptionService.reconcileSubscriptionOrder(orderId).catch(() => {});
+      } else {
+        await this.billingService.reconcileCashfreeOrder(orderId).catch(() => {});
+      }
+    }
     return { ok: true };
   }
 

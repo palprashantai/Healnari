@@ -1,11 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { load as loadCashfree } from '@cashfreepayments/cashfree-js';
 import { apiFetch } from '../../lib/apiClient.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../Toast.jsx';
 import { Modal } from '../Modal.jsx';
 import { InvoiceModal } from './InvoiceModal.jsx';
 import { formatMoney, getStoredCurrency, setStoredCurrency } from '../../lib/currency.js';
+
+const CASHFREE_MODE = import.meta.env.VITE_CASHFREE_MODE || 'sandbox';
+let cashfreePromise = null;
+function getCashfree() {
+  if (!cashfreePromise) cashfreePromise = loadCashfree({ mode: CASHFREE_MODE });
+  return cashfreePromise;
+}
 
 export function AiHub({ role = 'doctor' }) {
   const { user } = useAuth();
@@ -147,19 +155,43 @@ export function AiHub({ role = 'doctor' }) {
   const handleUpgrade = async (planId) => {
     setSubmittingAction(true);
     try {
-      await apiFetch('/ai/subscription/activate', {
+      const order = await apiFetch('/ai/subscription/upgrade', {
         method: 'POST',
         body: {
           planId,
           billingCycle,
-          currencyCode: selectedCurrency,
-          countryCode: selectedCurrency === 'USD' ? 'US' : 'IN',
-          paymentReference: `upgrade_${Date.now()}`,
         },
       });
-      toast('Successfully activated plan! Your AI tokens have been updated.', 'success');
-      await Promise.all([loadStatus(), loadBilling(), loadUsage()]);
-      setActiveTab('overview');
+
+      if (!order.paymentSessionId || order.finalAmount <= 0) {
+        await apiFetch(`/ai/subscription/verify/${order.orderId}`);
+        toast('Successfully activated plan! Your AI tokens have been updated.', 'success');
+        await Promise.all([loadStatus(), loadBilling(), loadUsage()]);
+        setActiveTab('overview');
+        return;
+      }
+
+      const cashfree = await getCashfree();
+      if (!cashfree) throw new Error('Could not load payment gateway. Please check connection and try again.');
+
+      await cashfree.checkout({
+        paymentSessionId: order.paymentSessionId,
+        redirectTarget: '_modal',
+        appearance: {
+          theme: 'light',
+          color: '#6B46C1',
+          fontFamily: 'Inter, system-ui, sans-serif',
+        },
+      });
+
+      const verified = await apiFetch(`/ai/subscription/verify/${order.orderId}`);
+      if (verified && verified.status === 'active') {
+        toast('Successfully activated plan! Your AI tokens have been updated.', 'success');
+        await Promise.all([loadStatus(), loadBilling(), loadUsage()]);
+        setActiveTab('overview');
+      } else {
+        toast('Payment was not completed. You can try again anytime.', 'info');
+      }
     } catch (err) {
       toast(err?.message || 'Upgrade failed', 'error');
     } finally {
@@ -197,11 +229,31 @@ export function AiHub({ role = 'doctor' }) {
   const handleBuyTokenPack = async (packId) => {
     setSubmittingAction(true);
     try {
-      const res = await apiFetch('/ai/credits/buy', {
+      const order = await apiFetch('/ai/credits/order', {
         method: 'POST',
-        body: { packId, currency: selectedCurrency },
+        body: { packId },
       });
-      toast(`Added ${res.tokensAdded} tokens to your balance!`, 'success');
+
+      if (!order.paymentSessionId) {
+        toast('Could not initiate checkout session. Please try again.', 'error');
+        return;
+      }
+
+      const cashfree = await getCashfree();
+      if (!cashfree) throw new Error('Could not load payment gateway.');
+
+      await cashfree.checkout({
+        paymentSessionId: order.paymentSessionId,
+        redirectTarget: '_modal',
+        appearance: {
+          theme: 'light',
+          color: '#6B46C1',
+          fontFamily: 'Inter, system-ui, sans-serif',
+        },
+      });
+
+      await apiFetch(`/ai/subscription/verify/${order.orderId}`);
+      toast(`Added ${order.tokens} tokens to your balance!`, 'success');
       setShowTopupModal(false);
       await Promise.all([loadStatus(), loadBilling()]);
     } catch (err) {

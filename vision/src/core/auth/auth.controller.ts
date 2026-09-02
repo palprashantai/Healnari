@@ -63,6 +63,12 @@ export class RegisterDto {
   registrationNo?: string;
 }
 
+export class ForgotPasswordDto {
+  @ApiProperty({ example: 'priya.sharma@example.com' })
+  @IsEmail()
+  email: string;
+}
+
 export class LoginDto {
   @ApiProperty({ example: 'priya.sharma@example.com' })
   @IsEmail()
@@ -136,6 +142,18 @@ export class AuthController {
   async login(@Body() body: LoginDto) {
     const result = await this.authService.login(body.email, body.password);
     return ResponseHelper.success(result, SUCCESS_MESSAGES.LOGIN_SUCCESS);
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Send password reset instructions to email' })
+  @Post('forgot-password')
+  async forgotPassword(@Body() body: ForgotPasswordDto) {
+    await this.authService.forgotPassword(body.email);
+    return ResponseHelper.success(
+      null,
+      'Password reset instructions have been sent if the email is registered.',
+    );
   }
 
   @Public()

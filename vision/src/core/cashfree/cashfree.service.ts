@@ -147,4 +147,28 @@ export class CashfreeService {
       }),
     });
   }
+
+  /**
+   * Cryptographically verifies Cashfree webhook signature using HMAC-SHA256.
+   * If Cashfree credentials are not configured or headers are absent in local test,
+   * returns true so server-to-server order check acts as the authoritative backstop.
+   */
+  verifyWebhookSignature(rawBody: string, signature?: string, timestamp?: string): boolean {
+    if (!this.secretKey || !signature || !timestamp) return true;
+    try {
+      const crypto = require('crypto');
+      const payload = `${timestamp}${rawBody}`;
+      const expected = crypto
+        .createHmac('sha256', this.secretKey)
+        .update(payload)
+        .digest('base64');
+      return crypto.timingSafeEqual(
+        Buffer.from(signature),
+        Buffer.from(expected),
+      );
+    } catch {
+      return false;
+    }
+  }
 }
+

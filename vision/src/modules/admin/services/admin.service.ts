@@ -396,23 +396,7 @@ export class AdminService {
             flag = '🇺🇸';
             symbol = '$';
             name = 'US Dollar';
-          }
-          if (currency === 'GBP') {
-            flag = '🇬🇧';
-            symbol = '£';
-            name = 'British Pound';
-          }
-          if (currency === 'AED') {
-            flag = '🇦🇪';
-            symbol = 'AED';
-            name = 'UAE Dirham';
-          }
-          if (currency === 'EUR') {
-            flag = '🇪🇺';
-            symbol = '€';
-            name = 'Euro';
-          }
-          if (currency === 'INR') {
+          } else {
             flag = '🇮🇳';
             symbol = '₹';
             name = 'Indian Rupee';

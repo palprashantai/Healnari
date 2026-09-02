@@ -10,6 +10,7 @@ import { AiPricingService } from './ai-pricing.service';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { FXRateService } from '@/core/fx/fx-rate.service';
 import { CashfreeService } from '@/core/cashfree/cashfree.service';
+import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { AiCreditLedgerService } from './ai-credit-ledger.service';
 import { createSupabaseMock } from '@/test-utils/supabase-mock';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
@@ -60,6 +61,7 @@ describe('AiEntitlementService — Centralized AI Product Control & Limit Enforc
         { provide: SupabaseService, useValue: supabase },
         { provide: FXRateService, useValue: { getRate: jest.fn().mockResolvedValue(86.5) } },
         { provide: CashfreeService, useValue: { createOrder: jest.fn() } },
+        { provide: NotificationsService, useValue: { create: jest.fn().mockResolvedValue({}) } },
       ],
     }).compile();
 

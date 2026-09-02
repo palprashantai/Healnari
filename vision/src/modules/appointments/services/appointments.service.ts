@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
@@ -272,6 +273,10 @@ export class AppointmentsService {
       if (insertError.code === '23505')
         throw new ConflictException(ERROR_MESSAGES.APPOINTMENT_CONFLICT);
       throw insertError;
+    }
+
+    if (!saved) {
+      throw new InternalServerErrorException('Failed to save appointment record');
     }
 
     const [withNames] = await this.withNames([saved]);

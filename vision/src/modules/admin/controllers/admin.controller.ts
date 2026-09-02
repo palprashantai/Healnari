@@ -208,7 +208,7 @@ export class AdminController {
   @ApiQuery({
     name: 'reportingCurrency',
     required: false,
-    enum: ['USD', 'INR', 'AED', 'EUR', 'GBP'],
+    enum: ['USD', 'INR'],
   })
   async getStats(
     @CurrentUser() user: AuthUser,
@@ -472,7 +472,7 @@ export class AdminController {
   @ApiQuery({
     name: 'reportingCurrency',
     required: false,
-    enum: ['USD', 'INR', 'AED', 'EUR', 'GBP'],
+    enum: ['USD', 'INR'],
   })
   async getRevenue(
     @CurrentUser() user: AuthUser,
