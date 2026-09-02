@@ -181,7 +181,7 @@ export class LeadsService {
           country: body.country || 'US',
           currency: body.currency || 'USD',
           fee: body.fee || null,
-          status: patientId ? 'Converted' : 'New', // Auto-convert if existing
+          status: 'New', // Always starts as New pending doctor review
         })
         .select()
         .maybeSingle();
@@ -458,9 +458,23 @@ export class LeadsService {
         .eq('id', id)
         .eq('status', 'New')
         .select()
-        .maybeSingle();
-
       if (!updated) return request;
+
+      // Also cancel any corresponding appointment in Requested status
+      if (request.patient_id) {
+        await this.supabase.admin
+          .from('appointments')
+          .update({
+            status: AppointmentStatus.CANCELLED,
+            cancelled_by: user.id,
+            cancelled_at: new Date().toISOString(),
+            cancellation_reason: 'Doctor declined consultation request',
+          })
+          .eq('patient_id', request.patient_id)
+          .eq('doctor_id', user.id)
+          .eq('scheduled_date', request.preferred_date)
+          .eq('status', AppointmentStatus.REQUESTED);
+      }
 
       // Dispatch polite rejection notification via DB template
       if (request.email) {

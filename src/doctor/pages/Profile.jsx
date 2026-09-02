@@ -184,11 +184,8 @@ function DoctorProfile() {
             ['schedule', 'Availability', 'fa-calendar'],
             ['fees', 'Consultation Fees', (() => {
               const code = (doc?.profile?.currency || 'INR').toUpperCase();
-              if (['USD', 'CAD', 'AUD'].includes(code)) return 'fa-dollar-sign';
-              if (code === 'EUR') return 'fa-euro-sign';
-              if (code === 'GBP') return 'fa-sterling-sign';
-              if (code === 'INR') return 'fa-indian-rupee-sign';
-              return 'fa-money-bill-wave';
+              if (code === 'USD') return 'fa-dollar-sign';
+              return 'fa-indian-rupee-sign';
             })()],
             ['notifications', 'Notifications & Alerts', 'fa-bell'],
             ['security', 'Security', 'fa-shield-halved'],

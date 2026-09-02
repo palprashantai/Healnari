@@ -500,6 +500,8 @@ function RequestLabReportModal({ isOpen, onClose, patient, onRequest }) {
 
 /* ─── Record Payment / Charge Modal ─────────────────────────── */
 function InlineRecordPaymentModal({ isOpen, onClose, patient, onSavePayment }) {
+  const { user } = useAuth();
+  const userCurrency = user?.profile?.currency || user?.currency || 'INR';
   const [service, setService] = useState('');
   const [category, setCategory] = useState('Consultation Fee');
   const [amount, setAmount] = useState('');
@@ -616,6 +618,8 @@ function InlineRecordPaymentModal({ isOpen, onClose, patient, onSavePayment }) {
 
 /* ─── View Invoice Modal ─────────────────────────── */
 function ViewInvoiceModal({ invoice, patient, isOpen, onClose }) {
+  const { user } = useAuth();
+  const userCurrency = user?.profile?.currency || user?.currency || 'INR';
   if (!isOpen || !invoice || !patient) return null;
 
   return (
@@ -925,6 +929,8 @@ function ViewLabDocModal({ report, patient, isOpen, onClose }) {
 
 /* ─── FULL PAGE EMR COMPONENT ───────────────────────── */
 function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
+  const { user } = useAuth();
+  const userCurrency = user?.profile?.currency || user?.currency || 'INR';
   const { addRx, requestLabReport, addClinicalNote, recordCharge, listLabReportRequests, cancelLabReportRequest, appointments } = useClinicData();
   const [tab, setTab] = useState('overview');
   const patientTimeline = useMemo(

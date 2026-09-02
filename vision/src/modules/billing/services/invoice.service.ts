@@ -48,7 +48,7 @@ export class InvoiceService {
     const invoiceNo = `HEAL-${String(invoiceNoNumber).padStart(5, '0')}`;
     const date = new Date(payment.created_at);
     const amount = Number(payment.amount).toFixed(2);
-    const curr = payment.currency || 'USD';
+    const curr = (payment.currency || 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR';
     const isPaid = payment.status === 'Paid';
 
     // --- Modern Medical Invoice Design ---

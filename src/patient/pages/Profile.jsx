@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
-import { SUPPORTED_CURRENCIES } from '../../lib/currency.js';
+import { SUPPORTED_CURRENCIES, setStoredCurrency, getStoredCurrency } from '../../lib/currency.js';
 import { LIFE_MODES } from './Dashboard.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import NotificationSettingsTab from '../../components/NotificationSettingsTab.jsx';
@@ -88,10 +88,13 @@ function PatientProfile() {
     }
   }, [activeTab]);
 
-  const handleCurrencyChange = (code) => {
-    setSelectedCurrency(code);
-    localStorage.setItem('healnari_currency', code);
-    toast(`Display currency updated to ${code}.`, 'success');
+  const handleCurrencyChange = async (code) => {
+    const normalized = setStoredCurrency(code);
+    setSelectedCurrency(normalized);
+    try {
+      await updateUser?.({ currency: normalized, country: normalized === 'USD' ? 'US' : 'IN' });
+    } catch {}
+    toast(`Display currency updated to ${normalized}.`, 'success');
   };
 
   const handleLifeModeChange = (id) => {
@@ -428,7 +431,7 @@ function PatientProfile() {
                   <h3 className="font-extrabold text-slate-800 text-base">Display & Billing Currency</h3>
                   <p className="text-xs text-slate-500 mt-0.5">Formatted for your region across appointment bookings and invoices.</p>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-2 max-w-sm gap-2.5">
                   {SUPPORTED_CURRENCIES.map(curr => {
                     const isSelected = selectedCurrency === curr.code;
                     return (

@@ -97,8 +97,8 @@ function PatientBilling() {
     };
   }, [appointments, doctorById, paidAppointmentIds]);
 
-  const defaultCurrency = transactions[0]?.currency || upcomingPayment?.currency || 'INR';
-  const totalPaid = transactions.filter(t => t.status === 'paid').reduce((s, t) => s + t.amount, 0);
+  const totalPaidInr = transactions.filter(t => t.status === 'paid' && t.currency === 'INR').reduce((s, t) => s + t.amount, 0);
+  const totalPaidUsd = transactions.filter(t => t.status === 'paid' && t.currency === 'USD').reduce((s, t) => s + t.amount, 0);
 
   const openPay = (amount, description, appointmentId, currency = 'INR') => {
     setPayFor({ amount, description, currency });
@@ -185,7 +185,11 @@ function PatientBilling() {
         <div className="bg-gradient-to-br from-[#2A1647] via-[#3A1C78] to-[#2A1647] text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
           <div className="absolute -right-4 -bottom-4 text-8xl opacity-10"><i className="fas fa-wallet"></i></div>
           <div className="text-sm text-aubergine-200 font-medium mb-1">Total Spent</div>
-          <div className="text-3xl font-black">{formatCurrency(totalPaid, defaultCurrency)}</div>
+          <div className="space-y-0.5">
+            {totalPaidInr > 0 && <div className="text-2xl font-black">{formatCurrency(totalPaidInr, 'INR')}</div>}
+            {totalPaidUsd > 0 && <div className="text-2xl font-black">{formatCurrency(totalPaidUsd, 'USD')}</div>}
+            {totalPaidInr === 0 && totalPaidUsd === 0 && <div className="text-2xl font-black">{formatCurrency(0, 'INR')}</div>}
+          </div>
           <div className="text-xs text-aubergine-300 mt-2">{transactions.filter(t => t.status === 'paid').length} transactions</div>
         </div>
 

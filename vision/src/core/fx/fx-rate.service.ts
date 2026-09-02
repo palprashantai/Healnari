@@ -21,15 +21,10 @@ export interface FXRateQuote {
 export class FXRateService {
   private readonly logger = new Logger(FXRateService.name);
 
-  // Standard interbank reference rates normalized against USD (1 USD = X Currency)
+  // Standard reference rates for internal financial reporting (strictly USD and INR)
   private readonly USD_BASE_RATES: Record<string, number> = {
     USD: 1.0,
-    INR: 84.6, // 1 USD = 84.60 INR (1 INR = ~0.01182 USD)
-    AED: 3.6725, // 1 USD = 3.6725 AED (1 AED = ~0.2723 USD)
-    EUR: 0.9216, // 1 USD = 0.9216 EUR (1 EUR = ~1.085 USD)
-    GBP: 0.7812, // 1 USD = 0.7812 GBP (1 GBP = ~1.280 USD)
-    CAD: 1.365, // 1 USD = 1.3650 CAD
-    AUD: 1.522, // 1 USD = 1.5220 AUD
+    INR: 84.6, // 1 USD = 84.60 INR
   };
 
   /**

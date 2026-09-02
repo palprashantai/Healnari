@@ -938,13 +938,8 @@ export function AIControl() {
                   onChange={(e) => setEditingPrice((prev) => ({ ...prev, currency: e.target.value }))}
                   className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-900"
                 >
-                  <option value="INR">INR (₹)</option>
-                  <option value="USD">USD ($)</option>
-                  <option value="AED">AED (AED)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="GBP">GBP (£)</option>
-                  <option value="CAD">CAD (CA$)</option>
-                  <option value="AUD">AUD (A$)</option>
+                  <option value="INR">🇮🇳 INR (₹) — Indian Rupee</option>
+                  <option value="USD">🇺🇸 USD ($) — US Dollar</option>
                 </select>
               </div>
             </div>

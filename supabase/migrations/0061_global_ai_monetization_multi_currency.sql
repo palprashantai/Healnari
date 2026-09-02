@@ -210,29 +210,19 @@ CREATE INDEX IF NOT EXISTS idx_ai_audit_logs_action ON public.ai_admin_audit_log
 -- SEED DATA
 -- ============================================================================
 
--- Currencies
+-- Currencies: STRICTLY INR AND USD ONLY per business rules
 INSERT INTO public.currencies (code, symbol, name, minor_decimals, is_active, is_reporting_currency, usd_base_rate) VALUES
   ('USD', '$', 'US Dollar', 2, true, true, 1.0),
-  ('INR', '₹', 'Indian Rupee', 2, true, false, 84.60),
-  ('AED', 'AED ', 'UAE Dirham', 2, true, false, 3.6725),
-  ('EUR', '€', 'Euro', 2, true, false, 0.9216),
-  ('GBP', '£', 'British Pound', 2, true, false, 0.7812),
-  ('CAD', 'CA$', 'Canadian Dollar', 2, true, false, 1.3650),
-  ('AUD', 'A$', 'Australian Dollar', 2, true, false, 1.5220)
+  ('INR', '₹', 'Indian Rupee', 2, true, false, 84.60)
 ON CONFLICT (code) DO UPDATE SET
   symbol = EXCLUDED.symbol,
   usd_base_rate = EXCLUDED.usd_base_rate,
   updated_at = now();
 
--- Countries
+-- Countries: STRICTLY India (IN - INR) and International/US (US - USD) ONLY
 INSERT INTO public.countries (code, name, region, default_currency, supported_currencies, timezone, locale, phone_prefix, tax_rate, tax_name, tax_type, payment_gateway, is_active, is_ai_enabled) VALUES
   ('IN', 'India', 'Asia', 'INR', '{"INR"}'::text[], 'Asia/Kolkata', 'en-IN', '+91', 18.00, 'GST', 'inclusive', 'cashfree', true, true),
-  ('US', 'United States', 'North America', 'USD', '{"USD"}'::text[], 'America/New_York', 'en-US', '+1', 0.00, 'Sales Tax', 'exclusive', 'stripe', true, true),
-  ('AE', 'United Arab Emirates', 'Middle East', 'AED', '{"AED","USD"}'::text[], 'Asia/Dubai', 'en-AE', '+971', 5.00, 'VAT', 'inclusive', 'stripe', true, true),
-  ('GB', 'United Kingdom', 'Europe', 'GBP', '{"GBP","EUR"}'::text[], 'Europe/London', 'en-GB', '+44', 20.00, 'VAT', 'inclusive', 'stripe', true, true),
-  ('DE', 'Germany', 'Europe', 'EUR', '{"EUR"}'::text[], 'Europe/Berlin', 'de-DE', '+49', 19.00, 'MwSt', 'inclusive', 'stripe', true, true),
-  ('CA', 'Canada', 'North America', 'CAD', '{"CAD","USD"}'::text[], 'America/Toronto', 'en-CA', '+1', 13.00, 'HST/GST', 'exclusive', 'stripe', true, true),
-  ('AU', 'Australia', 'Oceania', 'AUD', '{"AUD","USD"}'::text[], 'Australia/Sydney', 'en-AU', '+61', 10.00, 'GST', 'inclusive', 'stripe', true, true)
+  ('US', 'United States', 'North America', 'USD', '{"USD"}'::text[], 'America/New_York', 'en-US', '+1', 0.00, 'Sales Tax', 'exclusive', 'stripe', true, true)
 ON CONFLICT (code) DO UPDATE SET
   name = EXCLUDED.name,
   default_currency = EXCLUDED.default_currency,
@@ -264,43 +254,23 @@ ON CONFLICT (id) DO UPDATE SET
   features = EXCLUDED.features,
   updated_at = now();
 
--- Regional Prices (Explicit Stored Prices Per Market - Country != Currency)
+-- Regional Prices (Independent Commercial Pricing: Only INR & USD)
 INSERT INTO public.ai_regional_prices (plan_id, country_code, currency, base_amount, price_version, is_active) VALUES
-  -- Patient Premium Monthly (Market-Positioned)
+  -- Patient Premium Monthly
   ('patient_premium', 'IN', 'INR', 999.00, 1, true),
   ('patient_premium', 'US', 'USD', 35.00, 1, true),
-  ('patient_premium', 'AE', 'AED', 129.00, 1, true),
-  ('patient_premium', 'GB', 'GBP', 30.00, 1, true),
-  ('patient_premium', 'DE', 'EUR', 35.00, 1, true),
-  ('patient_premium', 'CA', 'CAD', 45.00, 1, true),
-  ('patient_premium', 'AU', 'AUD', 49.00, 1, true),
 
   -- Patient Premium Yearly
   ('patient_premium_yearly', 'IN', 'INR', 9999.00, 1, true),
   ('patient_premium_yearly', 'US', 'USD', 349.00, 1, true),
-  ('patient_premium_yearly', 'AE', 'AED', 1299.00, 1, true),
-  ('patient_premium_yearly', 'GB', 'GBP', 299.00, 1, true),
-  ('patient_premium_yearly', 'DE', 'EUR', 349.00, 1, true),
-  ('patient_premium_yearly', 'CA', 'CAD', 449.00, 1, true),
-  ('patient_premium_yearly', 'AU', 'AUD', 489.00, 1, true),
 
-  -- Doctor Pro Monthly (Market-Positioned)
+  -- Doctor Pro Monthly
   ('doctor_pro', 'IN', 'INR', 1999.00, 1, true),
   ('doctor_pro', 'US', 'USD', 60.00, 1, true),
-  ('doctor_pro', 'AE', 'AED', 220.00, 1, true),
-  ('doctor_pro', 'GB', 'GBP', 50.00, 1, true),
-  ('doctor_pro', 'DE', 'EUR', 60.00, 1, true),
-  ('doctor_pro', 'CA', 'CAD', 79.00, 1, true),
-  ('doctor_pro', 'AU', 'AUD', 89.00, 1, true),
 
   -- Doctor Pro Yearly
   ('doctor_pro_yearly', 'IN', 'INR', 19999.00, 1, true),
-  ('doctor_pro_yearly', 'US', 'USD', 599.00, 1, true),
-  ('doctor_pro_yearly', 'AE', 'AED', 2199.00, 1, true),
-  ('doctor_pro_yearly', 'GB', 'GBP', 499.00, 1, true),
-  ('doctor_pro_yearly', 'DE', 'EUR', 599.00, 1, true),
-  ('doctor_pro_yearly', 'CA', 'CAD', 789.00, 1, true),
-  ('doctor_pro_yearly', 'AU', 'AUD', 889.00, 1, true)
+  ('doctor_pro_yearly', 'US', 'USD', 599.00, 1, true)
 ON CONFLICT (plan_id, country_code, currency, price_version) DO UPDATE SET
   base_amount = EXCLUDED.base_amount,
   is_active = EXCLUDED.is_active,

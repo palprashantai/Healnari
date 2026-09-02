@@ -32,16 +32,14 @@ describe('Multi-Currency Payment & Revenue Reconciliation Test Suite', () => {
   });
 
   describe('2. FXRateService: Currency Conversion & Historical Reproducibility', () => {
-    it('should quote valid ISO 4217 exchange rates for INR, USD, AED, EUR, GBP', () => {
+    it('should quote valid ISO 4217 exchange rates for INR and USD', () => {
       const inrToUsd = fxService.getRateQuote('INR', 'USD');
-      const aedToUsd = fxService.getRateQuote('AED', 'USD');
-      const gbpToUsd = fxService.getRateQuote('GBP', 'USD');
-      const eurToUsd = fxService.getRateQuote('EUR', 'USD');
+      const usdToInr = fxService.getRateQuote('USD', 'INR');
+      const usdToUsd = fxService.getRateQuote('USD', 'USD');
 
       expect(inrToUsd.rate).toBeGreaterThan(0);
-      expect(aedToUsd.rate).toBeGreaterThan(0);
-      expect(gbpToUsd.rate).toBeGreaterThan(1);
-      expect(eurToUsd.rate).toBeGreaterThan(1);
+      expect(usdToInr.rate).toBeGreaterThan(50);
+      expect(usdToUsd.rate).toBe(1.0);
       expect(inrToUsd.source).toBe('healnari_treasury_matrix_v1');
     });
 

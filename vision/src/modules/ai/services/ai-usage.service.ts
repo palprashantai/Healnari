@@ -126,6 +126,53 @@ export class AiUsageService {
   }
 
   /**
+   * Returns user's AI usage logs filtered by timeframe (today, week, month, all)
+   */
+  async getUserUsageLogs(
+    userId: string,
+    timeframe: 'today' | 'week' | 'month' | 'all' = 'month',
+    limit = 50,
+  ): Promise<AiUsageLog[]> {
+    let cutoff: Date | null = null;
+    const now = new Date();
+    if (timeframe === 'today') {
+      cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else if (timeframe === 'week') {
+      cutoff = new Date(now.getTime() - 7 * 24 * 3600 * 1000);
+    } else if (timeframe === 'month') {
+      cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+
+    try {
+      let query = this.supabase.admin
+        .from('ai_usage_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (cutoff) {
+        query = query.gte('created_at', cutoff.toISOString());
+      }
+
+      const { data, error } = await query;
+      if (!error && data && data.length > 0) {
+        return data as AiUsageLog[];
+      }
+    } catch {}
+
+    // Fallback to in-memory logs
+    return this.inMemoryLogs
+      .filter((l) => {
+        if (l.user_id !== userId) return false;
+        if (!cutoff) return true;
+        const entryDate = new Date((l as any).created_at || l.metadata?.created_at || Date.now());
+        return entryDate >= cutoff;
+      })
+      .slice(0, limit);
+  }
+
+  /**
    * Admin Analytics: Aggregated usage by feature and date
    */
   async getUsageStats(days = 30): Promise<{

@@ -16,6 +16,7 @@ import {
   IsBoolean,
   IsNumber,
   IsArray,
+  IsIn,
 } from 'class-validator';
 import { SupabaseAuthGuard } from '@/core/guards/supabase-auth.guard';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
@@ -68,14 +69,14 @@ export class UpdateCountryDto {
 export class SetRegionalPriceDto {
   @IsString() plan_id: string;
   @IsString() country_code: string;
-  @IsString() currency: string;
+  @IsIn(['INR', 'USD']) currency: string;
   @IsNumber() base_amount: number;
 }
 
 export class PricingSimulationDto {
   @IsOptional() @IsString() planId?: string;
   @IsString() countryCode: string;
-  @IsString() currency: string;
+  @IsIn(['INR', 'USD']) currency: string;
   @IsNumber() basePrice: number;
   @IsNumber() monthlyCredits: number;
   @IsNumber() expectedAvgQueriesPerUser: number;
@@ -90,7 +91,7 @@ export class CreateCouponDto {
   @IsString() discount_type: 'percentage' | 'fixed_amount';
   @IsNumber() discount_value: number;
   @IsOptional() @IsString() allowed_country?: string;
-  @IsOptional() @IsString() allowed_currency?: string;
+  @IsOptional() @IsIn(['INR', 'USD']) allowed_currency?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) allowed_plan_ids?: string[];
   @IsOptional() @IsNumber() max_uses?: number;
   @IsOptional() @IsString() valid_until?: string;

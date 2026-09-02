@@ -89,6 +89,14 @@ export class UpdateMeDto {
   @IsOptional()
   @IsString()
   bio?: string;
+  @ApiProperty({ required: false, enum: ['INR', 'USD'] })
+  @IsOptional()
+  @IsIn(['INR', 'USD'])
+  currency?: string;
+  @ApiProperty({ required: false, enum: ['IN', 'US'] })
+  @IsOptional()
+  @IsIn(['IN', 'US'])
+  country?: string;
   @ApiProperty({ required: false }) @IsOptional() emailNotifications?: boolean;
   @ApiProperty({ required: false }) @IsOptional() smsNotifications?: boolean;
 }

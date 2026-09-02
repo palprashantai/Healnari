@@ -558,6 +558,64 @@ function AIInsightStrip({ queue, labs, refillRequests }) {
   );
 }
 
+/* ─── Minimal AI Dashboard Discovery Card ─── */
+function AiDashboardCard({ navigate }) {
+  const [aiStatus, setAiStatus] = useState(null);
+
+  useEffect(() => {
+    apiFetch('/ai/subscription/status')
+      .then(res => setAiStatus(res))
+      .catch(() => {});
+  }, []);
+
+  const remaining = aiStatus?.creditsRemaining ?? 10;
+  const total = aiStatus?.subscription?.monthly_ai_credits ?? (aiStatus?.isPremium ? 1000 : 20);
+  const percent = Math.max(0, Math.min(100, Math.round((remaining / Math.max(1, total)) * 100)));
+
+  return (
+    <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center gap-3.5">
+        <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-base shrink-0 border border-purple-100">
+          <i className="fas fa-wand-magic-sparkles"></i>
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <h4 className="text-sm font-bold text-slate-800">AI Clinical Assistant</h4>
+            <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+              {aiStatus?.isPremium ? 'AI Pro' : 'Standard Free'}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Work faster with AI SOAP note drafts, pre-visit summaries, and clinical safety checks.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+        <div className="text-right">
+          <span className="text-xs font-black text-slate-800 font-mono">
+            {remaining.toLocaleString()} <span className="text-slate-400 font-normal">/ {total.toLocaleString()}</span>
+          </span>
+          <div className="w-28 h-1.5 rounded-full bg-slate-100 overflow-hidden mt-1">
+            <div
+              className={`h-full rounded-full transition-all ${remaining <= 5 ? 'bg-amber-500' : 'bg-purple-600'}`}
+              style={{ width: `${percent}%` }}
+            ></div>
+          </div>
+          <span className="text-[10px] text-slate-400 block mt-0.5">tokens remaining</span>
+        </div>
+
+        <button
+          onClick={() => navigate('/doctor-dashboard/ai')}
+          className="px-3.5 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition-colors shadow-xs flex items-center gap-1.5 shrink-0"
+        >
+          Explore AI →
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main Component ─── */
 function DoctorDashboard() {
   const { user } = useAuth();
@@ -753,6 +811,9 @@ function DoctorDashboard() {
 
       {/* AI Insight Strip */}
       <AIInsightStrip queue={queue} labs={visibleLabs} refillRequests={refillRequests} />
+
+      {/* AI Clinical Assistant Discovery Card */}
+      <AiDashboardCard navigate={navigate} />
 
       {/* KYC Banner */}
       {!kycVerified && !kycBannerDismissed && (

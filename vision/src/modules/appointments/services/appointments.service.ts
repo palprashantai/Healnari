@@ -630,8 +630,24 @@ export class AppointmentsService {
         '*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)',
       )
       .is('deleted_at', null)
-      .maybeSingle();
     const [withNames] = await this.withNames([saved]);
+
+    // Synchronize consultation_requests table if one exists for this patient and doctor
+    if (status === AppointmentStatus.APPROVED) {
+      await this.supabase.admin
+        .from('consultation_requests')
+        .update({ status: 'Converted', patient_id: appointment.patient_id })
+        .eq('doctor_id', appointment.doctor_id)
+        .eq('patient_id', appointment.patient_id)
+        .eq('status', 'New');
+    } else if (status === AppointmentStatus.CANCELLED) {
+      await this.supabase.admin
+        .from('consultation_requests')
+        .update({ status: 'Closed' })
+        .eq('doctor_id', appointment.doctor_id)
+        .eq('patient_id', appointment.patient_id)
+        .eq('status', 'New');
+    }
 
     await this.notifyStatusChange(user, withNames, appointment.status);
 
@@ -1361,7 +1377,7 @@ export class AppointmentsService {
         'id, patient_id, doctor_id, scheduled_date, scheduled_time, patient:profiles!appointments_patient_id_fkey(full_name, email), doctor:profiles!appointments_doctor_id_fkey(full_name)',
       )
       .eq('status', AppointmentStatus.APPROVED)
-      .lte('created_at', cutoff.toISOString());
+      .lte('updated_at', cutoff.toISOString());
 
     if (error || !unpaid?.length) return;
 

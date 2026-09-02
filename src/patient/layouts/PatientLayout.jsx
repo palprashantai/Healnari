@@ -21,6 +21,7 @@ const MENU_CATEGORIES = [
     title: 'Core',
     items: [
       { name: 'Dashboard',          icon: 'fa-house',          path: '/patient-dashboard',              color: '#6B46C1' },
+      { name: 'AI Health Hub',      icon: 'fa-wand-magic-sparkles', path: '/patient-dashboard/ai',      color: '#a855f7', badge: 'AI' },
       { name: 'Find a Doctor',      icon: 'fa-user-doctor',    path: '/patient-dashboard/find-doctor',   color: '#0ea5e9' },
     ]
   },
@@ -138,6 +139,11 @@ function Sidebar({ onClose, onItemHover }) {
                           <i className={`fas ${item.icon} text-[15px]`}></i>
                         </div>
                         <span className="flex-1 truncate">{item.name}</span>
+                        {item.badge && (
+                          <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-200 border border-purple-400/30">
+                            {item.badge}
+                          </span>
+                        )}
                       </>
                     )}
                   </NavLink>

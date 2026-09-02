@@ -60,21 +60,11 @@ export interface GlobalProfitabilityDashboard {
 const COUNTRY_FLAGS: Record<string, string> = {
   IN: '🇮🇳',
   US: '🇺🇸',
-  AE: '🇦🇪',
-  GB: '🇬🇧',
-  DE: '🇩🇪',
-  CA: '🇨🇦',
-  AU: '🇦🇺',
 };
 
 const COUNTRY_NAMES: Record<string, string> = {
   IN: 'India',
   US: 'United States',
-  AE: 'United Arab Emirates',
-  GB: 'United Kingdom',
-  DE: 'Germany',
-  CA: 'Canada',
-  AU: 'Australia',
 };
 
 @Injectable()
@@ -120,9 +110,6 @@ export class AiProfitabilityService {
     > = {
       IN: { localRev: 145000, localCurr: 'INR', count: 320, requests: 22000, costUsd: 3.63 },
       US: { localRev: 1198.8, localCurr: 'USD', count: 120, requests: 8400, costUsd: 1.38 },
-      AE: { localRev: 418.0, localCurr: 'AED', count: 22, requests: 2100, costUsd: 0.35 },
-      DE: { localRev: 107.88, localCurr: 'EUR', count: 12, requests: 1410, costUsd: 0.23 },
-      GB: { localRev: 63.92, localCurr: 'GBP', count: 8, requests: 1000, costUsd: 0.16 },
     };
 
     try {

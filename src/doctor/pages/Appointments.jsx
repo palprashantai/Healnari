@@ -203,6 +203,7 @@ function DoctorAppointments() {
   const navigate = useNavigate();
   const { appointments, patients, approveRequest: approveRequestApi, rejectRequest: rejectRequestApi, cancelAppointment, callNextForDoctor } = useClinicData();
   const [tab, setTab] = useState('queue');
+  const [actionLoadingId, setActionLoadingId] = useState(null);
 
   const ageByPatientId = useMemo(() => new Map(patients.map(p => [p.id, p.age])), [patients]);
   const todayStr = todayLocalStr();
@@ -408,20 +409,26 @@ function DoctorAppointments() {
   };
 
   const approveRequest = async (req) => {
+    setActionLoadingId(req.id);
     try {
       await approveRequestApi(req.id);
       toast(`Appointment approved for ${req.name}`, 'success');
     } catch (err) {
       toast(err.message || `Failed to approve ${req.name}'s request`, 'error');
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
   const rejectRequest = async (req) => {
+    setActionLoadingId(req.id);
     try {
       await rejectRequestApi(req.id);
       toast(`Request from ${req.name} rejected`, 'info');
     } catch (err) {
       toast(err.message || `Failed to reject ${req.name}'s request`, 'error');
+    } finally {
+      setActionLoadingId(null);
     }
   };
 
@@ -804,9 +811,20 @@ function DoctorAppointments() {
                         </span>
                       ) : (
                         <>
-                          <button onClick={() => rejectRequest(r)} className="text-rose-500 font-bold text-[11px] px-4 py-1.5 rounded-lg hover:bg-rose-50 transition-colors border border-rose-200 shadow-sm">Reject</button>
-                          <button onClick={() => approveRequest(r)} className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold text-[11px] px-4 py-1.5 rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-colors shadow-sm shadow-emerald-500/20 flex items-center gap-1.5">
-                            <i className="fas fa-check"></i> Approve
+                          <button 
+                            onClick={() => rejectRequest(r)} 
+                            disabled={actionLoadingId === r.id}
+                            className="text-rose-500 font-bold text-[11px] px-4 py-1.5 rounded-lg hover:bg-rose-50 disabled:opacity-50 transition-colors border border-rose-200 shadow-sm"
+                          >
+                            Reject
+                          </button>
+                          <button 
+                            onClick={() => approveRequest(r)} 
+                            disabled={actionLoadingId === r.id}
+                            className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold text-[11px] px-4 py-1.5 rounded-lg hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-50 transition-colors shadow-sm shadow-emerald-500/20 flex items-center gap-1.5"
+                          >
+                            {actionLoadingId === r.id ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-check"></i>}
+                            {actionLoadingId === r.id ? 'Approving…' : 'Approve'}
                           </button>
                         </>
                       )}
@@ -857,7 +875,7 @@ function DoctorAppointments() {
                     </span>
                   </td>
                   <td className="px-4 py-3 rounded-r-2xl align-middle text-right">
-                    <button onClick={() => setNotesTarget(p)} className="text-aubergine-600 font-bold text-[11px] px-4 py-1.5 rounded-lg hover:bg-aubergine-50 transition-colors border border-aubergine-100 shadow-sm flex items-center gap-1.5 inline-flex">
+                    <button onClick={() => navigate(`/doctor-dashboard/appointments/summary/${p.id}`, { state: { appointment: p } })} className="text-aubergine-600 font-bold text-[11px] px-4 py-1.5 rounded-lg hover:bg-aubergine-50 transition-colors border border-aubergine-100 shadow-sm flex items-center gap-1.5 inline-flex">
                       <i className="fas fa-file-lines"></i> View Summary
                     </button>
                   </td>

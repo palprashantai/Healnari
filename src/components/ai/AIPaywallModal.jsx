@@ -3,7 +3,7 @@ import { Modal } from '../Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { useToast } from '../Toast.jsx';
 import { triggerHaptic } from '../../lib/haptics.js';
-import { formatCurrency, getCurrencySymbol, ISO_CURRENCIES } from '../../lib/currency.js';
+import { formatCurrency, getCurrencySymbol, ISO_CURRENCIES, getStoredCurrency } from '../../lib/currency.js';
 
 export function AIPaywallModal({
   isOpen,
@@ -19,31 +19,36 @@ export function AIPaywallModal({
   const [loading, setLoading] = useState(false);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
 
+  const userCurrency = getStoredCurrency();
   const isDoctor = paywallData?.planName?.toLowerCase().includes('doctor');
   const basePlanId = isDoctor ? 'doctor_pro' : 'patient_premium';
   const effectivePlanId = billingCycle === 'yearly' ? `${basePlanId}_yearly` : basePlanId;
 
   useEffect(() => {
     if (isOpen) {
-      apiFetch('/ai/pricing')
+      apiFetch(`/ai/pricing?currency=${userCurrency}`)
         .then((quotes) => setPricingQuotes(quotes || []))
         .catch(() => {});
     }
-  }, [isOpen]);
+  }, [isOpen, userCurrency]);
 
   if (!isOpen) return null;
 
   // Resolve matching quote or fallback to standard market benchmarks
   const currentQuote = pricingQuotes.find((q) => q.planId === effectivePlanId) || {
-    baseAmount: isDoctor ? (billingCycle === 'monthly' ? 1999 : 19999) : (billingCycle === 'monthly' ? 999 : 9999),
-    finalAmount: isDoctor ? (billingCycle === 'monthly' ? 1999 : 19999) : (billingCycle === 'monthly' ? 999 : 9999),
-    currency: 'INR',
-    currencySymbol: '₹',
-    countryName: 'India',
-    countryCode: 'IN',
-    taxName: 'GST',
-    taxRate: 18,
-    taxType: 'inclusive',
+    baseAmount: isDoctor
+      ? (userCurrency === 'USD' ? (billingCycle === 'monthly' ? 29 : 290) : (billingCycle === 'monthly' ? 1999 : 19999))
+      : (userCurrency === 'USD' ? (billingCycle === 'monthly' ? 19 : 190) : (billingCycle === 'monthly' ? 999 : 9999)),
+    finalAmount: isDoctor
+      ? (userCurrency === 'USD' ? (billingCycle === 'monthly' ? 29 : 290) : (billingCycle === 'monthly' ? 1999 : 19999))
+      : (userCurrency === 'USD' ? (billingCycle === 'monthly' ? 19 : 190) : (billingCycle === 'monthly' ? 999 : 9999)),
+    currency: userCurrency,
+    currencySymbol: userCurrency === 'USD' ? '$' : '₹',
+    countryName: userCurrency === 'USD' ? 'International' : 'India',
+    countryCode: userCurrency === 'USD' ? 'US' : 'IN',
+    taxName: userCurrency === 'USD' ? 'Sales Tax' : 'GST',
+    taxRate: userCurrency === 'USD' ? 0 : 18,
+    taxType: userCurrency === 'USD' ? 'exclusive' : 'inclusive',
     includedCredits: isDoctor ? 1000 : 500,
   };
 

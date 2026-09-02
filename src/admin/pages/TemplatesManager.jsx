@@ -352,7 +352,7 @@ function AdminTemplates() {
                 <div className="flex items-center gap-2">
                   <h3 className="font-bold text-slate-800 text-sm"><i className="fas fa-pen-nib mr-1 text-slate-400"></i> Template Editor</h3>
                   <AiButton
-                    variant="pill"
+                    variant="compact"
                     size="sm"
                     icon="fa-wand-magic-sparkles"
                     badge="AI"

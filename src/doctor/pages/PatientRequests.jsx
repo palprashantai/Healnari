@@ -100,13 +100,14 @@ function DoctorPatientRequests() {
               {r.status === 'New' ? (
                 <div className="flex gap-2 flex-shrink-0">
                   <button onClick={() => setDeclineTarget(r)}
-                    className="text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                    disabled={approvingId === r.id || declining}
+                    className="text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors">
                     Decline
                   </button>
-                  <button onClick={() => approve(r.id)} disabled={approvingId === r.id}
+                  <button onClick={() => approve(r.id)} disabled={approvingId === r.id || declining}
                     className="text-xs font-bold px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white transition-colors flex items-center gap-2">
                     <i className={`fas ${approvingId === r.id ? 'fa-spinner fa-spin' : 'fa-check'}`}></i>
-                    {approvingId === r.id ? 'Creating account…' : 'Approve & Create Patient'}
+                    {approvingId === r.id ? 'Approving…' : (r.patient_id ? 'Approve Consultation' : 'Approve & Create Patient')}
                   </button>
                 </div>
               ) : r.status === 'Converted' ? (

@@ -1346,6 +1346,7 @@ function PatientAppointments() {
         onClose={() => setShowPayModal(false)}
         appointmentId={payTarget?.id}
         amount={payTarget?.fee ?? 0}
+        currency={payTarget?.currency || 'INR'}
         description={payTarget ? `Consultation — ${payTarget.doctor}` : ''}
         onPaid={handlePaid}
         onViewAppointment={() => {

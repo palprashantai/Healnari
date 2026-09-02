@@ -39,8 +39,8 @@ export const DEFAULT_COUNTRIES: Record<string, CountryConfig> = {
   },
   US: {
     code: 'US',
-    name: 'United States',
-    region: 'North America',
+    name: 'International (USD)',
+    region: 'Global',
     default_currency: 'USD',
     supported_currencies: ['USD'],
     timezone: 'America/New_York',
@@ -53,79 +53,11 @@ export const DEFAULT_COUNTRIES: Record<string, CountryConfig> = {
     is_active: true,
     is_ai_enabled: true,
   },
-  AE: {
-    code: 'AE',
-    name: 'United Arab Emirates',
-    region: 'Middle East',
-    default_currency: 'AED',
-    supported_currencies: ['AED', 'USD'],
-    timezone: 'Asia/Dubai',
-    locale: 'en-AE',
-    phone_prefix: '+971',
-    tax_rate: 5.0,
-    tax_name: 'VAT',
-    tax_type: 'inclusive',
-    payment_gateway: 'stripe',
-    is_active: true,
-    is_ai_enabled: true,
-  },
-  GB: {
-    code: 'GB',
-    name: 'United Kingdom',
-    region: 'Europe',
-    default_currency: 'GBP',
-    supported_currencies: ['GBP', 'EUR'],
-    timezone: 'Europe/London',
-    locale: 'en-GB',
-    phone_prefix: '+44',
-    tax_rate: 20.0,
-    tax_name: 'VAT',
-    tax_type: 'inclusive',
-    payment_gateway: 'stripe',
-    is_active: true,
-    is_ai_enabled: true,
-  },
-  DE: {
-    code: 'DE',
-    name: 'Germany',
-    region: 'Europe',
-    default_currency: 'EUR',
-    supported_currencies: ['EUR'],
-    timezone: 'Europe/Berlin',
-    locale: 'de-DE',
-    phone_prefix: '+49',
-    tax_rate: 19.0,
-    tax_name: 'MwSt',
-    tax_type: 'inclusive',
-    payment_gateway: 'stripe',
-    is_active: true,
-    is_ai_enabled: true,
-  },
-  SA: {
-    code: 'SA',
-    name: 'Saudi Arabia',
-    region: 'Middle East',
-    default_currency: 'SAR',
-    supported_currencies: ['SAR', 'USD'],
-    timezone: 'Asia/Riyadh',
-    locale: 'ar-SA',
-    phone_prefix: '+966',
-    tax_rate: 15.0,
-    tax_name: 'VAT',
-    tax_type: 'inclusive',
-    payment_gateway: 'stripe',
-    is_active: true,
-    is_ai_enabled: true,
-  },
 };
 
 export const DEFAULT_CURRENCIES: Record<string, CurrencyConfig> = {
+  INR: { code: 'INR', symbol: '₹', name: 'Indian Rupee', minor_decimals: 2, is_active: true, is_reporting_currency: true, usd_base_rate: 1.0 },
   USD: { code: 'USD', symbol: '$', name: 'US Dollar', minor_decimals: 2, is_active: true, is_reporting_currency: true, usd_base_rate: 1.0 },
-  INR: { code: 'INR', symbol: '₹', name: 'Indian Rupee', minor_decimals: 2, is_active: true, is_reporting_currency: false, usd_base_rate: 84.60 },
-  AED: { code: 'AED', symbol: 'AED ', name: 'UAE Dirham', minor_decimals: 2, is_active: true, is_reporting_currency: false, usd_base_rate: 3.6725 },
-  SAR: { code: 'SAR', symbol: 'SAR ', name: 'Saudi Riyal', minor_decimals: 2, is_active: true, is_reporting_currency: false, usd_base_rate: 3.75 },
-  EUR: { code: 'EUR', symbol: '€', name: 'Euro', minor_decimals: 2, is_active: true, is_reporting_currency: false, usd_base_rate: 0.9216 },
-  GBP: { code: 'GBP', symbol: '£', name: 'British Pound', minor_decimals: 2, is_active: true, is_reporting_currency: false, usd_base_rate: 0.7812 },
 };
 
 export const DEFAULT_PLANS: Record<string, AiPlan> = {
@@ -224,43 +156,19 @@ export const DEFAULT_PLANS: Record<string, AiPlan> = {
 export const DEFAULT_REGIONAL_PRICES: Record<string, Record<string, { amount: number; currency: string }>> = {
   patient_premium: {
     IN: { amount: 999.0, currency: 'INR' },
-    US: { amount: 35.0, currency: 'USD' },
-    AE: { amount: 129.0, currency: 'AED' },
-    SA: { amount: 129.0, currency: 'SAR' },
-    GB: { amount: 30.0, currency: 'GBP' },
-    DE: { amount: 35.0, currency: 'EUR' },
-    CA: { amount: 45.0, currency: 'CAD' },
-    AU: { amount: 49.0, currency: 'AUD' },
+    US: { amount: 19.0, currency: 'USD' },
   },
   patient_premium_yearly: {
     IN: { amount: 9999.0, currency: 'INR' },
-    US: { amount: 349.0, currency: 'USD' },
-    AE: { amount: 1299.0, currency: 'AED' },
-    SA: { amount: 1299.0, currency: 'SAR' },
-    GB: { amount: 299.0, currency: 'GBP' },
-    DE: { amount: 349.0, currency: 'EUR' },
-    CA: { amount: 449.0, currency: 'CAD' },
-    AU: { amount: 489.0, currency: 'AUD' },
+    US: { amount: 190.0, currency: 'USD' },
   },
   doctor_pro: {
     IN: { amount: 1999.0, currency: 'INR' },
-    US: { amount: 60.0, currency: 'USD' },
-    AE: { amount: 220.0, currency: 'AED' },
-    SA: { amount: 220.0, currency: 'SAR' },
-    GB: { amount: 50.0, currency: 'GBP' },
-    DE: { amount: 60.0, currency: 'EUR' },
-    CA: { amount: 79.0, currency: 'CAD' },
-    AU: { amount: 89.0, currency: 'AUD' },
+    US: { amount: 29.0, currency: 'USD' },
   },
   doctor_pro_yearly: {
     IN: { amount: 19999.0, currency: 'INR' },
-    US: { amount: 599.0, currency: 'USD' },
-    AE: { amount: 2199.0, currency: 'AED' },
-    SA: { amount: 2199.0, currency: 'SAR' },
-    GB: { amount: 499.0, currency: 'GBP' },
-    DE: { amount: 599.0, currency: 'EUR' },
-    CA: { amount: 789.0, currency: 'CAD' },
-    AU: { amount: 889.0, currency: 'AUD' },
+    US: { amount: 290.0, currency: 'USD' },
   },
 };
 
@@ -281,17 +189,12 @@ export class AiPricingService {
     explicitCountry?: string,
     explicitCurrency?: string,
   ): { countryCode: string; currencyCode: string } {
-    let countryCode = (explicitCountry || user?.profile?.country || 'IN').toUpperCase();
-    if (!DEFAULT_COUNTRIES[countryCode]) {
-      countryCode = 'IN';
+    let currencyCode = (explicitCurrency || user?.profile?.currency || 'INR').toUpperCase().trim();
+    if (currencyCode !== 'INR' && currencyCode !== 'USD') {
+      currencyCode = 'INR';
     }
 
-    const country = DEFAULT_COUNTRIES[countryCode] || DEFAULT_COUNTRIES.IN;
-    let currencyCode = (explicitCurrency || user?.profile?.currency || country.default_currency).toUpperCase();
-    if (!DEFAULT_CURRENCIES[currencyCode]) {
-      currencyCode = country.default_currency;
-    }
-
+    const countryCode = currencyCode === 'USD' ? 'US' : 'IN';
     return { countryCode, currencyCode };
   }
 
@@ -351,7 +254,15 @@ export class AiPricingService {
     currencyCode = 'INR',
     couponCode?: string,
   ): Promise<AiResolvedPriceQuote> {
-    const country = await this.getCountry(countryCode);
+    const normalizedCurrency = (currencyCode || 'INR').toUpperCase().trim();
+    if (normalizedCurrency !== 'INR' && normalizedCurrency !== 'USD') {
+      throw new BadRequestException(
+        `Unsupported currency "${currencyCode}". HealNari strictly supports only INR and USD.`,
+      );
+    }
+
+    const effectiveCountryCode = normalizedCurrency === 'USD' ? 'US' : 'IN';
+    const country = await this.getCountry(effectiveCountryCode);
     const plan = DEFAULT_PLANS[planId];
     if (!plan) {
       throw new NotFoundException(`AI Plan "${planId}" does not exist.`);
@@ -458,13 +369,20 @@ export class AiPricingService {
     currencyCode = 'INR',
     role?: 'patient' | 'doctor',
   ): Promise<AiResolvedPriceQuote[]> {
+    const normalizedCurrency = (currencyCode || 'INR').toUpperCase().trim();
+    if (normalizedCurrency !== 'INR' && normalizedCurrency !== 'USD') {
+      throw new BadRequestException(
+        `Unsupported currency "${currencyCode}". HealNari strictly supports only INR and USD.`,
+      );
+    }
+    const effectiveCountry = normalizedCurrency === 'USD' ? 'US' : 'IN';
     const plans = Object.values(DEFAULT_PLANS).filter(
       (p) => p.is_active && (!role || p.product_id.includes(role)),
     );
 
     const quotes: AiResolvedPriceQuote[] = [];
     for (const p of plans) {
-      const quote = await this.getPricingQuote(p.id, countryCode, currencyCode);
+      const quote = await this.getPricingQuote(p.id, effectiveCountry, normalizedCurrency);
       quotes.push(quote);
     }
 

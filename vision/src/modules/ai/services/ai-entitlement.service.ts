@@ -8,6 +8,7 @@ import {
 import { AiFeatureFlagService } from '@/modules/ai/services/ai-feature-flag.service';
 import { AiSubscriptionService, AI_PLANS } from '@/modules/ai/services/ai-subscription.service';
 import { AiUsageService } from '@/modules/ai/services/ai-usage.service';
+import { AiPricingService } from '@/modules/ai/services/ai-pricing.service';
 import {
   AiFeatureKey,
   AiPlanId,
@@ -29,6 +30,7 @@ export class AiEntitlementService {
     private readonly featureFlagService: AiFeatureFlagService,
     private readonly subscriptionService: AiSubscriptionService,
     private readonly usageService: AiUsageService,
+    private readonly pricingService: AiPricingService,
   ) {}
 
   /**
@@ -80,8 +82,14 @@ export class AiEntitlementService {
 
     const upgradePlanId = isDoctor ? AiPlanId.DOCTOR_PRO : AiPlanId.PATIENT_PREMIUM;
     const planConfig = AI_PLANS[upgradePlanId];
-    const priceText = isDoctor ? '₹999 / month' : '₹299 / month';
-    const priceAmount = isDoctor ? 999 : 299;
+    const userCurrency = (user.profile?.currency || 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR';
+    const isUsd = userCurrency === 'USD';
+    
+    // Independent commercial pricing per business rules
+    const priceText = isDoctor
+      ? (isUsd ? '$60 / month' : '₹1,999 / month')
+      : (isUsd ? '$35 / month' : '₹999 / month');
+    const priceAmount = isDoctor ? (isUsd ? 60 : 1999) : (isUsd ? 35 : 999);
 
     const paywallData = {
       title: isDoctor
@@ -92,7 +100,7 @@ export class AiEntitlementService {
       price: priceText,
       priceAmount,
       billingCycle: 'monthly',
-      currency: 'INR',
+      currency: userCurrency,
       features: planConfig?.features || [],
       upgradeUrl: '/api/ai/subscription/upgrade',
     };

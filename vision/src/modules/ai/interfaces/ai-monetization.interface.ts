@@ -42,6 +42,9 @@ export interface AiSubscription {
   monthly_ai_credits: number;
   credits_used: number;
   payment_reference?: string | null;
+  currency?: 'INR' | 'USD';
+  amount?: number;
+  cancel_at_period_end?: boolean;
   created_at?: Date | string;
   updated_at?: Date | string;
 }

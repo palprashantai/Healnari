@@ -27,6 +27,8 @@ export class AuthService {
       avatarUrl: p.avatar_url || '',
       specialty: p.specialty || '',
       regNo: p.registration_no || '',
+      currency: (p.currency || 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR',
+      country: p.country || ((p.currency || 'INR').toUpperCase() === 'USD' ? 'US' : 'IN'),
       kycVerified: p.kyc_verified,
       kycSubmittedAt: p.kyc_submitted_at || null,
       emailNotifications: p.email_notifications,
@@ -142,6 +144,14 @@ export class AuthService {
     if (body.specialty !== undefined) patch.specialty = body.specialty;
     if (body.registrationNo !== undefined)
       patch.registration_no = body.registrationNo;
+    if (body.currency !== undefined) {
+      const cleanCurrency = body.currency.toUpperCase() === 'USD' ? 'USD' : 'INR';
+      patch.currency = cleanCurrency;
+      if (!body.country) {
+        patch.country = cleanCurrency === 'USD' ? 'US' : 'IN';
+      }
+    }
+    if (body.country !== undefined) patch.country = body.country.toUpperCase() === 'US' ? 'US' : 'IN';
     // Temporarily disabled until the 'bio' column is added to the production DB
     // if (body.bio !== undefined) patch.bio = body.bio;
     if (body.emailNotifications !== undefined)

@@ -11,6 +11,7 @@ import { AiService } from '@/modules/ai/services/ai.service';
 import { AiUsageService } from '@/modules/ai/services/ai-usage.service';
 import { AiSubscriptionService } from '@/modules/ai/services/ai-subscription.service';
 import { AiEntitlementService } from '@/modules/ai/services/ai-entitlement.service';
+import { AiOrchestrator } from '@/modules/ai/services/ai-orchestrator.service';
 import { AiEntitlementGuard } from '@/modules/ai/guards/ai-entitlement.guard';
 import { RequireAiFeature } from '@/modules/ai/decorators/require-ai-feature.decorator';
 import {
@@ -98,7 +99,7 @@ export class AiController {
     private readonly usageService: AiUsageService,
     private readonly subscriptionService: AiSubscriptionService,
     private readonly entitlementService: AiEntitlementService,
-    private readonly orchestrator: import('@/modules/ai/services/ai-orchestrator.service').AiOrchestrator,
+    private readonly orchestrator: AiOrchestrator,
   ) {}
 
   @Post('chat')

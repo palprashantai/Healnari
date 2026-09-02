@@ -30,6 +30,7 @@ const PatientRecords = lazy(() => import('./patient/pages/Records.jsx'));
 const PatientFamily = lazy(() => import('./patient/pages/Family.jsx'));
 const PatientBilling = lazy(() => import('./patient/pages/Billing.jsx'));
 const PatientProfile = lazy(() => import('./patient/pages/Profile.jsx'));
+const PatientAiProduct = lazy(() => import('./patient/pages/AiProduct.jsx'));
 
 // Doctor Pages
 const DoctorDashboard = lazy(() => import('./doctor/pages/Dashboard.jsx'));
@@ -45,6 +46,8 @@ const DoctorStaff = lazy(() => import('./doctor/pages/Staff.jsx'));
 const DoctorProfile = lazy(() => import('./doctor/pages/Profile.jsx'));
 const DoctorCommunications = lazy(() => import('./doctor/pages/Communications.jsx'));
 const DoctorSchedule = lazy(() => import('./doctor/pages/Schedule.jsx'));
+const DoctorConsultationSummary = lazy(() => import('./doctor/pages/ConsultationSummary.jsx'));
+const DoctorAiProduct = lazy(() => import('./doctor/pages/AiProduct.jsx'));
 const NotFound = lazy(() => import('./NotFound.jsx'));
 
 // Admin Pages
@@ -182,6 +185,7 @@ function App() {
                 <Route path="family" element={<PatientFamily />} />
                 <Route path="billing" element={<PatientBilling />} />
                 <Route path="profile" element={<PatientProfile />} />
+                <Route path="ai" element={<PatientAiProduct />} />
               </Route>
 
               <Route
@@ -195,6 +199,7 @@ function App() {
                 <Route index element={<DoctorDashboard />} />
                 <Route path="analytics" element={<DoctorAnalytics />} />
                 <Route path="appointments" element={<DoctorAppointments />} />
+                <Route path="appointments/summary/:appointmentId" element={<DoctorConsultationSummary />} />
                 <Route path="schedule" element={<DoctorSchedule />} />
                 <Route path="requests" element={<DoctorPatientRequests />} />
                 <Route path="patients" element={<DoctorPatients />} />
@@ -205,6 +210,7 @@ function App() {
                 <Route path="staff" element={<DoctorStaff />} />
                 <Route path="profile" element={<DoctorProfile />} />
                 <Route path="communications" element={<DoctorCommunications />} />
+                <Route path="ai" element={<DoctorAiProduct />} />
               </Route>
 
               <Route

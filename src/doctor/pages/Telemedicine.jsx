@@ -2842,6 +2842,8 @@ function DoctorTelemedicine() {
   const [showNotes, setShowNotes] = useState(false);
   const [noteTarget, setNoteTarget] = useState(null);
   const [noteDraft, setNoteDraft] = useState('');
+  const [showDoctorPaywall, setShowDoctorPaywall] = useState(false);
+  const [doctorPaywallData, setDoctorPaywallData] = useState(null);
   const [rawSessions, setRawSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);

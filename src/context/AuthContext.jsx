@@ -177,6 +177,14 @@ export function AuthProvider({ children }) {
     if (updates.emergencyContact !== undefined) patch.emergencyContact = updates.emergencyContact;
     if (updates.allergies !== undefined) patch.allergies = updates.allergies;
     if (updates.chronicConditions !== undefined) patch.chronicConditions = updates.chronicConditions;
+    if (updates.currency !== undefined) {
+      patch.currency = updates.currency.toUpperCase() === 'USD' ? 'USD' : 'INR';
+      patch.country = patch.currency === 'USD' ? 'US' : 'IN';
+      try {
+        localStorage.setItem('healnari_currency', patch.currency);
+      } catch {}
+    }
+    if (updates.country !== undefined) patch.country = updates.country.toUpperCase() === 'US' ? 'US' : 'IN';
     if (updates.emailNotifications !== undefined) patch.emailNotifications = updates.emailNotifications;
     if (updates.smsNotifications !== undefined) patch.smsNotifications = updates.smsNotifications;
     if (Object.keys(patch).length === 0) return;

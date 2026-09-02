@@ -245,7 +245,7 @@ export class BillingService {
     const amount = Number(doctor?.consultation_fee || 0);
     if (amount <= 0)
       throw new BadRequestException(ERROR_MESSAGES.NOTHING_TO_CHARGE);
-    const currency = (doctor?.currency || 'INR').toUpperCase();
+    const currency = (doctor?.currency || 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR';
 
     // Idempotency guard: prevent duplicate orders for already-settled appointment
     const { data: alreadyPaid } = await this.supabase.admin
@@ -498,16 +498,10 @@ export class BillingService {
     switch (currency.toUpperCase()) {
       case 'INR':
         return `₹${num}`;
-      case 'AED':
-        return `AED ${num}`;
       case 'USD':
         return `$${num}`;
-      case 'EUR':
-        return `€${num}`;
-      case 'GBP':
-        return `£${num}`;
       default:
-        return `${currency} ${num}`;
+        return (currency || 'INR').toUpperCase() === 'USD' ? `$${num}` : `₹${num}`;
     }
   }
 

@@ -22,6 +22,7 @@ const NAV_CATEGORIES = [
     title: 'Core',
     items: [
       { name: 'Dashboard',        icon: 'fa-chart-pie',           path: '/doctor-dashboard',              end: true,  color: '#6B46C1' },
+      { name: 'AI Clinical Tools',icon: 'fa-wand-magic-sparkles', path: '/doctor-dashboard/ai',          end: false, color: '#a855f7', badge: 'AI' },
       { name: 'Analytics & Growth',icon: 'fa-chart-line',         path: '/doctor-dashboard/analytics',    end: false, color: '#f59e0b' },
     ]
   },
@@ -213,6 +214,11 @@ function SidebarContent({ user, onClose, onItemHover }) {
                           <i className={`fas ${item.icon} text-[15px]`}></i>
                         </div>
                         <span className="flex-1 truncate">{item.name}</span>
+                        {item.badge && (
+                          <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-200 border border-purple-400/30">
+                            {item.badge}
+                          </span>
+                        )}
                       </>
                     )}
                   </NavLink>

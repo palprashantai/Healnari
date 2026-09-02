@@ -80,6 +80,7 @@ export const AI_PLANS = {
 export class AiSubscriptionService {
   private readonly logger = new Logger(AiSubscriptionService.name);
   private readonly inMemorySubscriptions: Map<string, AiSubscription> = new Map();
+  private readonly inMemoryTransactions: Map<string, any[]> = new Map();
 
   constructor(
     private readonly supabase: SupabaseService,
@@ -293,6 +294,8 @@ export class AiSubscriptionService {
       monthly_ai_credits: monthlyCredits,
       credits_used: 0,
       payment_reference: orderId,
+      currency: quote.currency === 'USD' ? 'USD' : 'INR',
+      amount: quote.finalAmount,
       created_at: now.toISOString(),
       updated_at: now.toISOString(),
     };
@@ -311,13 +314,8 @@ export class AiSubscriptionService {
     // Calculate reporting currency normalization
     const reportingConv = this.fxRateService.convert(quote.finalAmount, quote.currency, 'USD');
 
-    try {
-      await this.supabase.admin
-        .from('ai_subscriptions')
-        .upsert(subscription, { onConflict: 'user_id' });
-
-      // Record immutable financial transaction
-      await this.supabase.admin.from('ai_transactions').insert({
+      const txRecord = {
+        id: `txn_${Date.now()}`,
         user_id: user.id,
         plan_id: planId,
         country_code: countryCode,
@@ -334,12 +332,177 @@ export class AiSubscriptionService {
         gateway_txn_id: orderId,
         status: 'paid',
         coupon_code: couponCode || null,
-      });
-    } catch (err: any) {
-      this.logger.warn(`Failed to save ai_subscription or transaction: ${err?.message}`);
+        created_at: now.toISOString(),
+      };
+
+      const userTxs = this.inMemoryTransactions.get(user.id) || [];
+      userTxs.unshift(txRecord);
+      this.inMemoryTransactions.set(user.id, userTxs);
+
+      try {
+        await this.supabase.admin
+          .from('ai_subscriptions')
+          .upsert(subscription, { onConflict: 'user_id' });
+
+        // Record immutable financial transaction
+        await this.supabase.admin.from('ai_transactions').insert(txRecord);
+      } catch (err: any) {
+        this.logger.warn(`Failed to save ai_subscription or transaction: ${err?.message}`);
+      }
+
+      return subscription;
     }
 
-    return subscription;
+  /**
+   * Retrieves all AI billing history / invoices for the user
+   */
+  async getBillingHistory(userId: string): Promise<any[]> {
+    try {
+      const { data, error } = await this.supabase.admin
+        .from('ai_transactions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        return data;
+      }
+    } catch {}
+
+    const inMem = this.inMemoryTransactions.get(userId);
+    if (inMem && inMem.length > 0) {
+      return inMem;
+    }
+
+    // Default complimentary starter invoice for first-time visibility
+    return [
+      {
+        id: `txn_init_${userId.slice(0, 8)}`,
+        user_id: userId,
+        plan_id: 'standard_free',
+        country_code: 'IN',
+        original_currency: 'INR',
+        base_amount: 0,
+        tax_rate: 0,
+        tax_amount: 0,
+        discount_amount: 0,
+        final_amount: 0,
+        gateway: 'complimentary',
+        gateway_txn_id: `welcome_${userId.slice(0, 6)}`,
+        status: 'paid',
+        created_at: new Date().toISOString(),
+      },
+    ];
+  }
+
+  /**
+   * Cancels AI subscription at period end (preserves access until current_period_end)
+   */
+  async cancelSubscription(user: AuthUser): Promise<AiSubscription> {
+    const current = await this.getSubscription(user);
+    const updated: AiSubscription = {
+      ...current,
+      cancel_at_period_end: true,
+      status: 'active', // Retain full access until end of paid billing cycle!
+      updated_at: new Date().toISOString(),
+    };
+    this.inMemorySubscriptions.set(user.id, updated);
+
+    try {
+      await this.supabase.admin
+        .from('ai_subscriptions')
+        .upsert(updated, { onConflict: 'user_id' });
+    } catch {}
+
+    return updated;
+  }
+
+  /**
+   * Resumes a previously cancelled AI subscription before period end
+   */
+  async resumeSubscription(user: AuthUser): Promise<AiSubscription> {
+    const current = await this.getSubscription(user);
+    const updated: AiSubscription = {
+      ...current,
+      cancel_at_period_end: false,
+      status: 'active',
+      updated_at: new Date().toISOString(),
+    };
+    this.inMemorySubscriptions.set(user.id, updated);
+
+    try {
+      await this.supabase.admin
+        .from('ai_subscriptions')
+        .upsert(updated, { onConflict: 'user_id' });
+    } catch {}
+
+    return updated;
+  }
+
+  /**
+   * Purchases an instant AI token top-up pack (e.g. 100, 500, 1000 tokens)
+   */
+  async buyTokenPack(
+    user: AuthUser,
+    packId: string,
+    paymentReference?: string,
+    currencyCode = 'INR',
+  ): Promise<{ balance: number; tokensAdded: number; transaction: any }> {
+    const currency: 'INR' | 'USD' = (currencyCode || 'INR').toUpperCase().trim() === 'USD' ? 'USD' : 'INR';
+    const isUsd = currency === 'USD';
+
+    const PACK_CONFIGS: Record<
+      string,
+      { tokens: number; priceInr: number; priceUsd: number; name: string }
+    > = {
+      pack_100: { tokens: 100, priceInr: 199, priceUsd: 5.0, name: '100 AI Tokens Pack' },
+      pack_500: { tokens: 500, priceInr: 699, priceUsd: 15.0, name: '500 AI Tokens Pack' },
+      pack_1000: { tokens: 1000, priceInr: 1199, priceUsd: 25.0, name: '1,000 AI Tokens Pack' },
+    };
+
+    const pack = PACK_CONFIGS[packId] || PACK_CONFIGS.pack_100;
+    const baseAmount = isUsd ? pack.priceUsd : pack.priceInr;
+    const taxRate = isUsd ? 0 : 18;
+    const taxAmount = isUsd ? 0 : Number((baseAmount * 0.18).toFixed(2));
+    const finalAmount = isUsd ? baseAmount : Number((baseAmount + taxAmount).toFixed(2));
+    const countryCode = isUsd ? 'US' : 'IN';
+    const orderId = paymentReference || `topup_${Date.now()}`;
+
+    // Grant tokens into double-entry ledger
+    const account = await this.creditLedgerService.grantCredits(
+      user.id,
+      pack.tokens,
+      `AI Token Pack Top-Up: ${pack.name}`,
+      orderId,
+      'GRANT',
+    );
+
+    const tx = {
+      id: `txn_${Date.now()}`,
+      user_id: user.id,
+      plan_id: packId,
+      country_code: countryCode,
+      original_currency: currency,
+      base_amount: baseAmount,
+      tax_rate: taxRate,
+      tax_amount: taxAmount,
+      discount_amount: 0,
+      final_amount: finalAmount,
+      gateway: isUsd ? 'stripe' : 'cashfree',
+      gateway_txn_id: orderId,
+      status: 'paid',
+      created_at: new Date().toISOString(),
+    };
+
+    const userTxs = this.inMemoryTransactions.get(user.id) || [];
+    userTxs.unshift(tx);
+    this.inMemoryTransactions.set(user.id, userTxs);
+
+    try {
+      await this.supabase.admin.from('ai_transactions').insert(tx);
+    } catch {}
+
+    return { balance: account.balance, tokensAdded: pack.tokens, transaction: tx };
   }
 
   /**
