@@ -299,13 +299,30 @@ export class AiPricingService {
     }
     this.lastPlansCacheTime = 0; // force refresh
 
-    // 2. Persist to Supabase
+    // 2. Determine incremental price version within 32-bit integer limits
+    let nextVersion = 1;
+    try {
+      const { data: latestPrice } = await this.supabase.admin
+        .from('ai_regional_prices')
+        .select('price_version')
+        .eq('plan_id', planId)
+        .eq('country_code', cCode)
+        .eq('currency', curr)
+        .order('price_version', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (latestPrice && typeof latestPrice.price_version === 'number') {
+        nextVersion = latestPrice.price_version + 1;
+      }
+    } catch {}
+
     const priceEntry: AiRegionalPrice = {
       plan_id: planId,
       country_code: cCode,
       currency: curr,
       base_amount: amount,
-      price_version: Date.now(),
+      price_version: nextVersion,
       is_active: true,
       effective_from: new Date().toISOString(),
       created_by: adminUser?.id || undefined,

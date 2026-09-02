@@ -1145,7 +1145,7 @@ export function AIControl() {
                                     <input
                                       type="number"
                                       min="0"
-                                      value={limitConfig.limit ?? 50}
+                                      value={limitConfig.limit === '' ? '' : (limitConfig.limit ?? 50)}
                                       onChange={(e) =>
                                         handleSetFeatureNumericLimit(f.feature_key, e.target.value)
                                       }
