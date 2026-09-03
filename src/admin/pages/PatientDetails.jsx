@@ -4,6 +4,9 @@ import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { apiFetch } from '../../lib/apiClient.js';
+import { formatCurrency, formatCompactCurrency } from '../../lib/currency.js';
+import { ChartTooltip } from '../../components/charts/ChartTooltip.jsx';
+import { standardCartesianGrid, standardXAxis, standardYAxis } from '../../components/charts/chartTheme.js';
 
 const CATEGORY_COLORS = ['#0284c7', '#6B46C1', '#10b981', '#f59e0b', '#f43f5e', '#6366f1'];
 
@@ -208,9 +211,9 @@ function AdminPatientDetails() {
           {/* KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5 text-center shadow-sm">
-              <p className="text-[10px] uppercase font-bold text-emerald-600 mb-1">Lifetime Value</p>
-              <p className="text-2xl font-black text-emerald-700">₹{(kpis?.lifetimeValue || 0).toLocaleString()}</p>
-              <p className="text-xs text-emerald-600 font-bold mt-1">Total Paid</p>
+              <p className="text-[10px] uppercase font-bold text-emerald-600 mb-1">Lifetime Value (LTV)</p>
+              <p className="text-2xl font-black text-emerald-700">{formatCurrency(kpis?.lifetimeValue || 0, profile?.currency || 'INR')}</p>
+              <p className="text-xs text-emerald-600 font-bold mt-1">Total Completed Payments</p>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl p-5 text-center shadow-sm">
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Consultations</p>
@@ -238,11 +241,11 @@ function AdminPatientDetails() {
                           <stop offset="95%" stopColor="#6B46C1" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
-                      <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
-                      <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${v / 1000}k`} />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(v) => [`₹${Number(v).toLocaleString()}`, 'Spent']} />
-                      <Area type="monotone" dataKey="spent" stroke="#6B46C1" strokeWidth={3} fillOpacity={1} fill="url(#colorSpent)" />
+                      <CartesianGrid {...standardCartesianGrid} />
+                      <XAxis dataKey="month" {...standardXAxis} />
+                      <YAxis {...standardYAxis} tickFormatter={(v) => formatCompactCurrency(v, profile?.currency || 'INR')} />
+                      <Tooltip content={<ChartTooltip currency={profile?.currency || 'INR'} />} />
+                      <Area type="monotone" dataKey="spent" name="Spent" stroke="#6B46C1" strokeWidth={3} fillOpacity={1} fill="url(#colorSpent)" activeDot={{ r: 5 }} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -258,7 +261,7 @@ function AdminPatientDetails() {
                       <Pie data={spendingByCategory} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4} dataKey="value" stroke="none">
                         {spendingByCategory.map((entry, index) => <Cell key={`cell-${index}`} fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />)}
                       </Pie>
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(value) => `₹${Number(value).toLocaleString()}`} />
+                      <Tooltip content={<ChartTooltip currency={profile?.currency || 'INR'} />} />
                       <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
                     </PieChart>
                   </ResponsiveContainer>

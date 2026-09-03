@@ -5,6 +5,8 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { apiFetch } from '../../lib/apiClient.js';
 import { KPITrendCard } from '../../components/dashboard/KPITrendCard.jsx';
 import { DashboardEmptyState } from '../../components/dashboard/DashboardEmptyState.jsx';
+import { ChartTooltip } from '../../components/charts/ChartTooltip.jsx';
+import { standardCartesianGrid, standardXAxis, standardYAxis } from '../../components/charts/chartTheme.js';
 
 const CONSULT_TYPE_COLORS = { video: '#6B46C1', clinic: '#10B981' };
 const CONSULT_TYPE_LABELS = { video: 'Video Consults (WebRTC)', clinic: 'Clinic Visits (In-Person)' };
@@ -170,17 +172,14 @@ function DoctorAnalytics() {
                     <stop offset="95%" stopColor="#6B46C1" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} dy={5} />
-                <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(val) => val >= 1000 ? `${getCurrencySymbol(userCurrency)}${(val/1000).toFixed(0)}k` : `${getCurrencySymbol(userCurrency)}${val}`} />
-                <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px', fontWeight: 'bold' }} 
-                  formatter={(val, name) => [name === 'Revenue' ? formatCurrency(val, userCurrency) : val, name]}
-                />
+                <XAxis dataKey="month" {...standardXAxis} />
+                <YAxis yAxisId="left" {...standardYAxis} tickFormatter={(val) => val >= 1000 ? `${getCurrencySymbol(userCurrency)}${(val/1000).toFixed(0)}k` : `${getCurrencySymbol(userCurrency)}${val}`} />
+                <YAxis yAxisId="right" orientation="right" {...standardYAxis} allowDecimals={false} />
+                <CartesianGrid {...standardCartesianGrid} />
+                <Tooltip content={<ChartTooltip currency={userCurrency} />} />
                 <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 'bold', paddingTop: '10px' }} />
-                <Bar yAxisId="right" dataKey="consultations" name="Consultations" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={36} opacity={0.4} />
-                <Area yAxisId="left" type="monotone" dataKey="revenue" name="Revenue" stroke="#6B46C1" strokeWidth={3} fillOpacity={1} fill="url(#colorDoctorRevenue)" activeDot={{ r: 6 }} />
+                <Bar yAxisId="right" dataKey="consultations" name="Consultations" fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={36} opacity={0.6} />
+                <Area yAxisId="left" type="monotone" dataKey="revenue" name="Net Revenue" stroke="#6B46C1" strokeWidth={3} fillOpacity={1} fill="url(#colorDoctorRevenue)" activeDot={{ r: 6 }} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -245,7 +244,7 @@ function DoctorAnalytics() {
                     <Pie data={apptStatusData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={4} dataKey="value" stroke="none">
                       {apptStatusData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px' }} />
+                    <Tooltip content={<ChartTooltip unit="Sessions" />} />
                     <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -279,7 +278,7 @@ function DoctorAnalytics() {
                     <Pie data={consultTypeData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={4} dataKey="value" stroke="none">
                       {consultTypeData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                     </Pie>
-                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px' }} />
+                    <Tooltip content={<ChartTooltip unit="Consults" />} />
                     <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: 'bold' }} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -295,7 +294,7 @@ function DoctorAnalytics() {
           <h2 className="text-sm font-black text-slate-900 mb-1 flex items-center gap-2">
             <i className="fas fa-users text-aubergine-600"></i> Patient Age Demographics
           </h2>
-          <p className="text-xs text-slate-500 mb-4">Distribution of patient roster by age bracket.</p>
+          <p className="text-xs text-slate-500 mb-4">Distribution of patient roster by discrete age bracket.</p>
           {ageDemographics.length === 0 ? (
             <DashboardEmptyState
               icon="fa-users"
@@ -305,19 +304,13 @@ function DoctorAnalytics() {
           ) : (
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={ageDemographics} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorAgeDemographics" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.35}/>
-                      <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
-                  <XAxis dataKey="age" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px' }} />
-                  <Area type="monotone" dataKey="count" name="Patients" stroke="#10B981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorAgeDemographics)" />
-                </AreaChart>
+                <BarChart data={ageDemographics} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid {...standardCartesianGrid} />
+                  <XAxis dataKey="age" {...standardXAxis} />
+                  <YAxis {...standardYAxis} allowDecimals={false} />
+                  <Tooltip content={<ChartTooltip unit="Patients" />} />
+                  <Bar dataKey="count" name="Patients" fill="#10B981" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           )}
@@ -338,11 +331,11 @@ function DoctorAnalytics() {
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={weeklyLoad} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px' }} />
-                  <Bar dataKey="consultations" name="Consultations" fill="#6B46C1" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                  <CartesianGrid {...standardCartesianGrid} />
+                  <XAxis dataKey="day" {...standardXAxis} />
+                  <YAxis {...standardYAxis} allowDecimals={false} />
+                  <Tooltip content={<ChartTooltip unit="Consults" />} />
+                  <Bar dataKey="consultations" name="Consultations" fill="#6B46C1" radius={[6, 6, 0, 0]} maxBarSize={30} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

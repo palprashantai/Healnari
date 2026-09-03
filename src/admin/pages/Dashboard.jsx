@@ -8,6 +8,8 @@ import { DashboardFilterBar } from '../../components/dashboard/DashboardFilterBa
 import { KPITrendCard } from '../../components/dashboard/KPITrendCard.jsx';
 import { DashboardEmptyState } from '../../components/dashboard/DashboardEmptyState.jsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { ChartTooltip } from '../../components/charts/ChartTooltip.jsx';
+import { standardCartesianGrid, standardXAxis, standardYAxis } from '../../components/charts/chartTheme.js';
 
 const COUNTRY_FLAGS = {
   IN: '🇮🇳',
@@ -156,6 +158,7 @@ function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [health, setHealth] = useState([]);
   const [analyticsData, setAnalyticsData] = useState(null);
+  const [scorecard, setScorecard] = useState(null);
   const [verifications, setVerifications] = useState([]);
   const [refunds, setRefunds] = useState([]);
   const [tickets, setTickets] = useState([]);
@@ -166,13 +169,14 @@ function AdminDashboard() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const [dashStats, sysHealth, pendingVerifs, refundList, ticketList, analytics] = await Promise.all([
+      const [dashStats, sysHealth, pendingVerifs, refundList, ticketList, analytics, scData] = await Promise.all([
         apiFetch('/admin/dashboard'),
         apiFetch('/admin/system-health'),
         apiFetch('/admin/verifications'),
         apiFetch('/admin/refunds'),
         apiFetch('/admin/tickets'),
         apiFetch('/admin/analytics').catch(() => null),
+        apiFetch('/admin/analytics/scorecard').catch(() => null),
       ]);
       setStats(dashStats);
       setHealth(sysHealth || []);
@@ -180,6 +184,7 @@ function AdminDashboard() {
       setRefunds((refundList || []).filter(r => r.status === 'Pending'));
       setTickets((ticketList || []).filter(t => t.status !== 'Resolved'));
       setAnalyticsData(analytics);
+      if (scData) setScorecard(scData);
     } catch (err) {
       console.error(err);
       toast(err.message || 'Failed to load admin telemetry', 'error');
@@ -324,6 +329,65 @@ function AdminDashboard() {
         }}
       />
 
+      {/* Product Health & Marketplace Decision Engine */}
+      {scorecard?.diagnosis && (
+        <div className="bg-gradient-to-r from-slate-900 via-aubergine-950 to-slate-900 border border-aubergine-800/80 rounded-2xl p-5 shadow-lg text-white space-y-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black ${
+                scorecard.diagnosis.bottleneck === 'HEALTHY'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+              }`}>
+                {scorecard.diagnosis.bottleneck === 'HEALTHY' ? '✓' : '⚡'}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-aubergine-300">Marketplace Health Diagnosis</span>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                    scorecard.diagnosis.bottleneck === 'HEALTHY' ? 'bg-emerald-500 text-slate-950' : 'bg-amber-400 text-slate-950'
+                  }`}>
+                    {scorecard.diagnosis.bottleneck}
+                  </span>
+                </div>
+                <h3 className="text-base font-black text-white mt-0.5">{scorecard.diagnosis.headline}</h3>
+              </div>
+            </div>
+            <div className="bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/10 text-xs flex items-center gap-2 self-stretch md:self-auto">
+              <span className="text-aubergine-300 font-bold">Action:</span>
+              <span className="font-semibold text-slate-100">{scorecard.diagnosis.primaryAction}</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 pt-3 border-t border-white/10 text-xs">
+            <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
+              <span className="text-slate-400 text-[10px] font-bold block">Patient/Doc Ratio</span>
+              <span className="font-mono font-black text-white text-sm">{scorecard.dimensions.acquisition.patientToDoctorRatio}:1</span>
+            </div>
+            <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
+              <span className="text-slate-400 text-[10px] font-bold block">Payment Conv.</span>
+              <span className="font-mono font-black text-emerald-400 text-sm">{scorecard.dimensions.conversion.paymentConversionRate}</span>
+            </div>
+            <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
+              <span className="text-slate-400 text-[10px] font-bold block">Clinical Completion</span>
+              <span className="font-mono font-black text-sky-400 text-sm">{scorecard.dimensions.quality.completionRate}</span>
+            </div>
+            <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
+              <span className="text-slate-400 text-[10px] font-bold block">No-Show Rate</span>
+              <span className="font-mono font-black text-amber-300 text-sm">{scorecard.dimensions.quality.noShowRate}</span>
+            </div>
+            <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
+              <span className="text-slate-400 text-[10px] font-bold block">Repeat Patients</span>
+              <span className="font-mono font-black text-fuchsia-300 text-sm">{scorecard.dimensions.retention.repeatPatientRate}</span>
+            </div>
+            <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
+              <span className="text-slate-400 text-[10px] font-bold block">AI Credits Used</span>
+              <span className="font-mono font-black text-indigo-300 text-sm">{scorecard.dimensions.ai.totalCreditsConsumed.toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Level 1: Tier-1 Critical KPI Cards Grid (Real Backend Data) */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPITrendCard
@@ -435,18 +499,18 @@ function AdminDashboard() {
 
       {/* Level 2: Real-time Telemetry Trend & SLA Health */}
       <div className="grid lg:grid-cols-3 gap-6">
-        {/* Weekly Consultation Throughput Chart (2 Cols) */}
+        {/* Monthly Patient Enrollment Trajectory (2 Cols) */}
         <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div className="flex justify-between items-center mb-4">
             <div>
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-aubergine-600 animate-pulse"></span>
-                <h2 className="font-black text-slate-900 text-base">Monthly Telehealth Patient Growth</h2>
+                <h2 className="font-black text-slate-900 text-base">Patient Enrollment Trajectory</h2>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">Real-time enrollment trends from database telemetry.</p>
+              <p className="text-xs text-slate-500 mt-0.5">Monthly patient acquisition across international and domestic cohorts.</p>
             </div>
             <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-              Live Aggregate
+              Live Enrollment Telemetry
             </span>
           </div>
 
@@ -454,41 +518,36 @@ function AdminDashboard() {
             <DashboardEmptyState
               icon="fa-chart-area"
               title="No Patient Trends Recorded Yet"
-              description="Historical monthly growth will display here once patient consults are logged."
+              description="Historical monthly growth will display here once patient accounts are created."
             />
           ) : (
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={consultationTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
-                    <linearGradient id="colorConsults" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorIntlDash" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0284c7" stopOpacity={0.35}/>
+                      <stop offset="95%" stopColor="#0284c7" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorDomDash" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#6B46C1" stopOpacity={0.35}/>
                       <stop offset="95%" stopColor="#6B46C1" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
-                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      borderRadius: '12px', 
-                      border: 'none', 
-                      boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.15)',
-                      backgroundColor: '#0f172a',
-                      color: '#fff',
-                      fontSize: '11px',
-                      fontWeight: '700'
-                    }} 
-                  />
-                  <Area type="monotone" dataKey="consults" name="Enrolled Patients" stroke="#6B46C1" strokeWidth={2.5} fillOpacity={1} fill="url(#colorConsults)" />
+                  <CartesianGrid {...standardCartesianGrid} />
+                  <XAxis dataKey="day" {...standardXAxis} />
+                  <YAxis {...standardYAxis} allowDecimals={false} />
+                  <Tooltip content={<ChartTooltip unit="Signups" />} />
+                  <Area type="monotone" dataKey="International" name="International Signups" stroke="#0284c7" strokeWidth={2.5} fillOpacity={1} fill="url(#colorIntlDash)" />
+                  <Area type="monotone" dataKey="Domestic" name="Domestic Signups" stroke="#6B46C1" strokeWidth={2.5} fillOpacity={1} fill="url(#colorDomDash)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           )}
 
           <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2 justify-between items-center text-xs">
-            <span className="text-slate-500 font-medium">Completed Consultations: <strong>{stats?.completedConsultations ?? 0}</strong></span>
-            <span className="text-slate-500 font-medium">Total Sessions Booked: <strong>{stats?.totalAppointments ?? 0}</strong></span>
+            <span className="text-slate-500 font-medium">Completed Consultations: <strong className="text-slate-900">{stats?.completedConsultations ?? 0}</strong></span>
+            <span className="text-slate-500 font-medium">Total Sessions Booked: <strong className="text-slate-900">{stats?.totalAppointments ?? 0}</strong></span>
           </div>
         </div>
 

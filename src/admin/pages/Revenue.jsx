@@ -8,6 +8,8 @@ import { formatCurrency, formatCompactCurrency, ISO_CURRENCIES, SUPPORTED_REPORT
 import { DashboardFilterBar } from '../../components/dashboard/DashboardFilterBar.jsx';
 import { KPITrendCard } from '../../components/dashboard/KPITrendCard.jsx';
 import { DashboardEmptyState } from '../../components/dashboard/DashboardEmptyState.jsx';
+import { ChartTooltip } from '../../components/charts/ChartTooltip.jsx';
+import { standardCartesianGrid, standardXAxis, standardYAxis } from '../../components/charts/chartTheme.js';
 
 function ProcessPayoutModal({ payout, isOpen, onClose, onProcess }) {
   const toast = useToast();
@@ -705,45 +707,23 @@ function AdminRevenue() {
                         <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(val) => formatCompactCurrency(val, reportingCurrency)} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        borderRadius: '16px', 
-                        border: 'none', 
-                        boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.15)',
-                        backgroundColor: '#0f172a',
-                        color: '#fff',
-                        fontSize: '12px',
-                        fontWeight: '600'
-                      }} 
-                      formatter={(val, name) => [formatCurrency(val, reportingCurrency), name]}
-                    />
+                    <CartesianGrid {...standardCartesianGrid} />
+                    <XAxis dataKey="month" {...standardXAxis} />
+                    <YAxis {...standardYAxis} tickFormatter={(val) => formatCompactCurrency(val, reportingCurrency)} />
+                    <Tooltip content={<ChartTooltip currency={reportingCurrency} />} />
                     <Legend wrapperStyle={{ fontSize: '11px', fontWeight: '700', paddingTop: '10px' }} />
-                    <Area type="monotone" dataKey="grossReporting" name={`Gross GMV (${reportingCurrency})`} stroke="#6B46C1" strokeWidth={3} fillOpacity={1} fill="url(#colorGrossReporting)" />
-                    <Area type="monotone" dataKey="platformReporting" name={`Platform Take (${reportingCurrency})`} stroke="#10B981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorPlatformReporting)" />
+                    <Area type="monotone" dataKey="grossReporting" name={`Gross GMV (${reportingCurrency})`} stroke="#6B46C1" strokeWidth={3} fillOpacity={1} fill="url(#colorGrossReporting)" activeDot={{ r: 5 }} />
+                    <Area type="monotone" dataKey="platformReporting" name={`Platform Take (${reportingCurrency})`} stroke="#10B981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorPlatformReporting)" activeDot={{ r: 5 }} />
                   </AreaChart>
                 ) : (
                   <BarChart data={monthlyRevenueStream} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(val) => formatCompactCurrency(val, reportingCurrency)} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        borderRadius: '16px', 
-                        border: 'none', 
-                        boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.15)',
-                        backgroundColor: '#0f172a',
-                        color: '#fff',
-                        fontSize: '12px',
-                        fontWeight: '600'
-                      }} 
-                      formatter={(val, name) => [formatCurrency(val, reportingCurrency), name]}
-                    />
+                    <CartesianGrid {...standardCartesianGrid} />
+                    <XAxis dataKey="month" {...standardXAxis} />
+                    <YAxis {...standardYAxis} tickFormatter={(val) => formatCompactCurrency(val, reportingCurrency)} />
+                    <Tooltip content={<ChartTooltip currency={reportingCurrency} />} />
                     <Legend wrapperStyle={{ fontSize: '11px', fontWeight: '700', paddingTop: '10px' }} />
-                    <Bar dataKey="grossReporting" name={`Gross GMV (${reportingCurrency})`} fill="#6B46C1" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="platformReporting" name={`Platform Take (${reportingCurrency})`} fill="#10B981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="grossReporting" name={`Gross GMV (${reportingCurrency})`} fill="#6B46C1" radius={[4, 4, 0, 0]} maxBarSize={38} />
+                    <Bar dataKey="platformReporting" name={`Platform Take (${reportingCurrency})`} fill="#10B981" radius={[4, 4, 0, 0]} maxBarSize={38} />
                   </BarChart>
                 )}
               </ResponsiveContainer>

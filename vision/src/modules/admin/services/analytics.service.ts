@@ -1197,6 +1197,217 @@ export class AnalyticsService {
       throw new InternalServerErrorException('Failed to retrieve patient analytics');
     }
   }
+
+  /**
+   * ADMIN & PRODUCT: Executive Product Health Scorecard & Marketplace Diagnosis
+   * Diagnoses whether marketplace bottleneck is Demand, Supply, Conversion, or Retention.
+   */
+  async getProductHealthScorecard(reportingCurrency = 'USD') {
+    const repCurr = reportingCurrency.toUpperCase();
+    try {
+      const [
+        { data: profiles },
+        { data: appointments },
+        { data: payments },
+        { data: aiTxns },
+        { data: creditAccounts },
+      ] = await Promise.all([
+        this.supabase.admin.from('profiles').select('id, role, full_name, phone, kyc_verified, created_at'),
+        this.supabase.admin.from('appointments').select('*').is('deleted_at', null),
+        this.supabase.admin.from('payments').select('*'),
+        this.supabase.admin.from('ai_transactions').select('*'),
+        this.supabase.admin.from('ai_credit_accounts').select('*'),
+      ]);
+
+      const profs = profiles || [];
+      const apts = appointments || [];
+      const pays = payments || [];
+      const aiTx = aiTxns || [];
+      const accounts = creditAccounts || [];
+
+      const patients = profs.filter((p) => p.role === ProfileRole.PATIENT);
+      const doctors = profs.filter((p) => p.role === ProfileRole.DOCTOR);
+      const verifiedDoctors = doctors.filter((d) => d.kyc_verified);
+
+      // Active doctors: doctors with an appointment or verified schedule
+      const doctorAppointmentCounts = new Map<string, number>();
+      apts.forEach((a) => {
+        if (a.doctor_id) {
+          doctorAppointmentCounts.set(a.doctor_id, (doctorAppointmentCounts.get(a.doctor_id) || 0) + 1);
+        }
+      });
+      const activeDoctors = doctors.filter((d) => doctorAppointmentCounts.has(d.id));
+
+      // Financials
+      let grossGMV = 0;
+      let platformFee = 0;
+      let doctorEarnings = 0;
+      let paidConsultationCount = 0;
+
+      pays.filter((p) => p.status === PaymentStatus.PAID).forEach((p) => {
+        const origAmt = Number(p.original_amount || p.amount || 0);
+        const origCurr = (p.original_currency || p.currency || 'INR').toUpperCase();
+        const convGross = this.fxRateService.reproduceReportingValue(origAmt, origCurr, repCurr, p.fx_rate, p.reporting_currency);
+        const breakdown = CommissionCalculator.fromStoredPayment(p);
+        const convFee = this.fxRateService.reproduceReportingValue(breakdown.commissionAmount, origCurr, repCurr, p.fx_rate, p.reporting_currency);
+        const convPayout = this.fxRateService.reproduceReportingValue(breakdown.providerPayoutAmount, origCurr, repCurr, p.fx_rate, p.reporting_currency);
+
+        grossGMV = DecimalMath.add(grossGMV, convGross);
+        platformFee = DecimalMath.add(platformFee, convFee);
+        doctorEarnings = DecimalMath.add(doctorEarnings, convPayout);
+        paidConsultationCount++;
+      });
+
+      let aiRevenue = 0;
+      aiTx.filter((t) => ['paid', 'success', 'active'].includes(String(t.status || '').toLowerCase())).forEach((t) => {
+        const origAmt = Number(t.final_amount || t.base_amount || 0);
+        const origCurr = (t.original_currency || 'INR').toUpperCase();
+        const conv = this.fxRateService.reproduceReportingValue(origAmt, origCurr, repCurr, t.fx_rate_applied, t.reporting_currency);
+        grossGMV = DecimalMath.add(grossGMV, conv);
+        platformFee = DecimalMath.add(platformFee, conv);
+        aiRevenue = DecimalMath.add(aiRevenue, conv);
+      });
+
+      // Consultations
+      const completedSessions = apts.filter((a) => a.status === AppointmentStatus.DONE).length;
+      const cancelledSessions = apts.filter((a) => a.status === AppointmentStatus.CANCELLED).length;
+      const noShowSessions = apts.filter((a) => a.status === AppointmentStatus.NO_SHOW).length;
+      const totalBooked = apts.length;
+
+      // Repeat Patients
+      const patientVisits = new Map<string, number>();
+      apts.filter((a) => a.status === AppointmentStatus.DONE).forEach((a) => {
+        patientVisits.set(a.patient_id, (patientVisits.get(a.patient_id) || 0) + 1);
+      });
+      const uniqueCompletedPatients = patientVisits.size;
+      const repeatPatients = Array.from(patientVisits.values()).filter((c) => c >= 2).length;
+      const repeatPatientRate = uniqueCompletedPatients > 0 ? Number(((repeatPatients / uniqueCompletedPatients) * 100).toFixed(1)) : 0;
+
+      // Rates
+      const completionRate = totalBooked > 0 ? Number(((completedSessions / totalBooked) * 100).toFixed(1)) : 0;
+      const noShowRate = totalBooked > 0 ? Number(((noShowSessions / totalBooked) * 100).toFixed(1)) : 0;
+      const paymentConversionRate = totalBooked > 0 ? Number(((paidConsultationCount / Math.max(1, pays.length)) * 100).toFixed(1)) : 0;
+      const patientToDoctorRatio = activeDoctors.length > 0 ? Number((patients.length / activeDoctors.length).toFixed(1)) : patients.length;
+
+      // Diagnostic Engine: Determine Marketplace Bottleneck
+      let bottleneck: 'DEMAND' | 'SUPPLY' | 'CONVERSION' | 'RETENTION' | 'HEALTHY' = 'HEALTHY';
+      let headline = 'Marketplace Equilibrium';
+      let reason = 'Supply, demand, and session execution are functioning normally.';
+      let primaryAction = 'Continue monitoring patient acquisition and physician responsiveness.';
+
+      if (activeDoctors.length === 0 || verifiedDoctors.length === 0) {
+        bottleneck = 'SUPPLY';
+        headline = 'Supply Bottleneck: No Active Verified Physicians';
+        reason = 'No active doctors are currently verified to take inbound consultation requests.';
+        primaryAction = 'Expedite physician onboarding and KYC verification queue.';
+      } else if (apts.length === 0) {
+        bottleneck = 'DEMAND';
+        headline = 'Demand Bottleneck: Zero Booking Inbound';
+        reason = 'Physician supply exists, but no consultation requests have been created by patients.';
+        primaryAction = 'Drive top-of-funnel traffic through PCOS/Women\'s health content and campaign acquisition.';
+      } else if (pays.length > 0 && paidConsultationCount === 0) {
+        bottleneck = 'CONVERSION';
+        headline = 'Conversion Bottleneck: Checkout Drop-Off';
+        reason = 'Patients are initiating bookings, but checkout payments are failing or abandoning.';
+        primaryAction = 'Audit payment gateway integration, payment methods, and pricing affordability.';
+      } else if (completedSessions >= 5 && repeatPatientRate < 10) {
+        bottleneck = 'RETENTION';
+        headline = 'Retention Bottleneck: Low Patient Continuity';
+        reason = 'Patients complete consultations but do not book follow-up consultations.';
+        primaryAction = 'Implement automated post-consultation care plans and prescription follow-up nudges.';
+      }
+
+      // Insights
+      const insights = [
+        {
+          type: bottleneck === 'HEALTHY' ? 'success' : 'warning',
+          category: 'Marketplace',
+          title: headline,
+          message: reason,
+          action: primaryAction,
+        },
+        {
+          type: 'info',
+          category: 'Revenue',
+          title: `Gross Volume: ${repCurr} ${grossGMV.toFixed(2)}`,
+          message: `Consultations generate ${repCurr} ${(grossGMV - aiRevenue).toFixed(2)}, AI subscriptions generate ${repCurr} ${aiRevenue.toFixed(2)}.`,
+          action: 'Monitor AOV across specialties to optimize consultation fee tiers.',
+        },
+        {
+          type: completionRate >= 80 ? 'success' : 'info',
+          category: 'Clinical Quality',
+          title: `Clinical Completion Rate: ${completionRate}%`,
+          message: `${completedSessions} completed sessions, ${cancelledSessions} cancelled, ${noShowSessions} no-shows.`,
+          action: noShowRate > 10 ? 'Send SMS/WhatsApp reminders 2 hours prior to call.' : 'Maintain current reminder cadence.',
+        },
+      ];
+
+      return {
+        timestamp: new Date().toISOString(),
+        reportingCurrency: repCurr,
+        diagnosis: {
+          bottleneck,
+          headline,
+          reason,
+          primaryAction,
+        },
+        dimensions: {
+          acquisition: {
+            totalPatients: patients.length,
+            totalDoctors: doctors.length,
+            patientToDoctorRatio,
+            status: patients.length > 0 ? 'HEALTHY' : 'NEEDS_ATTENTION',
+          },
+          activation: {
+            profilesCompleted: patients.filter((p) => p.full_name && p.phone).length,
+            activationRate: patients.length > 0 ? `${Math.round((patients.filter((p) => p.full_name && p.phone).length / patients.length) * 100)}%` : '0%',
+            status: 'HEALTHY',
+          },
+          conversion: {
+            totalRequests: totalBooked,
+            paidConsultations: paidConsultationCount,
+            paymentConversionRate: `${paymentConversionRate}%`,
+            status: paidConsultationCount > 0 ? 'HEALTHY' : 'NEEDS_ATTENTION',
+          },
+          retention: {
+            completedPatients: uniqueCompletedPatients,
+            repeatPatients,
+            repeatPatientRate: `${repeatPatientRate}%`,
+            status: repeatPatientRate >= 15 ? 'HEALTHY' : 'NEEDS_ATTENTION',
+          },
+          revenue: {
+            grossGMV: Number(grossGMV.toFixed(2)),
+            platformFee: Number(platformFee.toFixed(2)),
+            doctorEarnings: Number(doctorEarnings.toFixed(2)),
+            aiRevenue: Number(aiRevenue.toFixed(2)),
+            aov: paidConsultationCount > 0 ? Number((grossGMV / paidConsultationCount).toFixed(2)) : 0,
+            status: grossGMV > 0 ? 'HEALTHY' : 'NEEDS_ATTENTION',
+          },
+          supply: {
+            totalDoctors: doctors.length,
+            verifiedDoctors: verifiedDoctors.length,
+            activeDoctors: activeDoctors.length,
+            utilizationRate: `${activeDoctors.length > 0 ? Math.round((activeDoctors.length / Math.max(1, doctors.length)) * 100) : 0}%`,
+            status: verifiedDoctors.length > 0 ? 'HEALTHY' : 'CRITICAL',
+          },
+          quality: {
+            completionRate: `${completionRate}%`,
+            noShowRate: `${noShowRate}%`,
+            status: noShowRate < 10 ? 'HEALTHY' : 'NEEDS_ATTENTION',
+          },
+          ai: {
+            activeAccounts: accounts.length,
+            totalCreditsConsumed: accounts.reduce((s, a) => s + (a.lifetime_consumed || 0), 0),
+            status: accounts.length > 0 ? 'HEALTHY' : 'INFO',
+          },
+        },
+        actionableInsights: insights,
+      };
+    } catch (error: any) {
+      this.logger.error(`Error in getProductHealthScorecard: ${error?.message}`, error?.stack);
+      throw new InternalServerErrorException('Failed to generate product health scorecard');
+    }
+  }
 }
 
 function cleanKey(val?: string) {

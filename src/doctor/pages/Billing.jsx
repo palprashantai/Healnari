@@ -9,6 +9,8 @@ import { DashboardFilterBar } from '../../components/dashboard/DashboardFilterBa
 import { KPITrendCard } from '../../components/dashboard/KPITrendCard.jsx';
 import { DashboardEmptyState } from '../../components/dashboard/DashboardEmptyState.jsx';
 import { AISubscriptionCard } from '../../components/ai/AISubscriptionCard.jsx';
+import { ChartTooltip } from '../../components/charts/ChartTooltip.jsx';
+import { standardCartesianGrid, standardXAxis, standardYAxis } from '../../components/charts/chartTheme.js';
 
 const STATUS_STYLE = {
   settled: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -188,7 +190,8 @@ function DoctorBilling() {
       date: t.created_at ? new Date(t.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
       rawDate: t.created_at ? new Date(t.created_at) : new Date(),
       type: t.service || 'Consultation',
-      amount: Number(t.amount || 0),
+      amount: Number(t.provider_payout_amount || t.amount || 0),
+      grossAmount: Number(t.original_amount || t.amount || 0),
       currency: t.currency || userCurrency,
       status: PAYMENT_STATUS_TO_DISPLAY[t.status] || 'pending',
       method: t.method || '—',
@@ -204,15 +207,19 @@ function DoctorBilling() {
     rows.forEach(r => {
       if (r.status === 'settled' || r.status === 'Paid') {
         const key = r.date;
-        dateMap.set(key, (dateMap.get(key) || 0) + r.amount);
+        const exist = dateMap.get(key) || { earnings: 0, gross: 0 };
+        exist.earnings += r.amount;
+        exist.gross += r.grossAmount;
+        dateMap.set(key, exist);
       }
     });
 
     if (dateMap.size === 0) return [];
 
-    return Array.from(dateMap.entries()).map(([date, earnings]) => ({
+    return Array.from(dateMap.entries()).map(([date, vals]) => ({
       date,
-      earnings,
+      'Net Earnings': Number(vals.earnings.toFixed(2)),
+      'Gross Billed': Number(vals.gross.toFixed(2)),
     }));
   }, [rows]);
 
@@ -343,10 +350,13 @@ function DoctorBilling() {
         <div className="flex justify-between items-center mb-4">
           <div>
             <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-              <i className="fas fa-chart-area text-aubergine-600"></i> Revenue History
+              <i className="fas fa-chart-area text-aubergine-600"></i> Practice Net Earnings History
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">Consultation settlement transactions over time.</p>
+            <p className="text-xs text-slate-500 mt-0.5">Daily consultation settlements after platform take-rate.</p>
           </div>
+          <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+            Net Take-Home
+          </span>
         </div>
 
         {chartData.length === 0 ? (
@@ -365,14 +375,11 @@ function DoctorBilling() {
                     <stop offset="95%" stopColor="#6B46C1" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} dy={5} minTickGap={20} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <Tooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px', fontWeight: 'bold' }}
-                  formatter={(value) => [formatCurrency(value, userCurrency), 'Revenue']}
-                />
-                <Area type="monotone" dataKey="earnings" stroke="#6B46C1" strokeWidth={2.5} fillOpacity={1} fill="url(#colorEarningsDoctor)" />
+                <XAxis dataKey="date" {...standardXAxis} minTickGap={20} />
+                <YAxis {...standardYAxis} tickFormatter={(val) => formatCurrency(val, userCurrency)} />
+                <CartesianGrid {...standardCartesianGrid} />
+                <Tooltip content={<ChartTooltip currency={userCurrency} />} />
+                <Area type="monotone" dataKey="Net Earnings" stroke="#6B46C1" strokeWidth={2.5} fillOpacity={1} fill="url(#colorEarningsDoctor)" activeDot={{ r: 5 }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>

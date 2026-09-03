@@ -5,6 +5,8 @@ import { formatCurrency } from '../../lib/currency.js';
 import { DashboardFilterBar } from '../../components/dashboard/DashboardFilterBar.jsx';
 import { KPITrendCard } from '../../components/dashboard/KPITrendCard.jsx';
 import { DashboardEmptyState } from '../../components/dashboard/DashboardEmptyState.jsx';
+import { ChartTooltip } from '../../components/charts/ChartTooltip.jsx';
+import { standardCartesianGrid, standardXAxis, standardYAxis } from '../../components/charts/chartTheme.js';
 
 const CURRENCY_COLORS = {
   USD: '#6B46C1', // Aubergine Purple
@@ -45,7 +47,25 @@ function AdminAnalytics() {
 
   const financialData = useMemo(() => data?.financialData || [], [data]);
   const specialtyRevenue = useMemo(() => data?.specialtyRevenue || [], [data]);
-  const revenueByCurrency = useMemo(() => data?.revenueByCurrency || [], [data]);
+  const revenueByCurrency = useMemo(() => {
+    const list = data?.revenueByCurrency || [];
+    const fxToUsd = { INR: 1 / 83.33, USD: 1, EUR: 1.08, GBP: 1.28, AED: 0.272 };
+    const totalUsd = list.reduce((sum, item) => sum + (Number(item.amount || 0) * (fxToUsd[item.currency] || 1)), 0);
+
+    return list.map(item => {
+      const amt = Number(item.amount || 0);
+      const rate = fxToUsd[item.currency] || 1;
+      const normalizedUsd = Number((amt * rate).toFixed(2));
+      const sharePct = totalUsd > 0 ? Math.round((normalizedUsd / totalUsd) * 100) : 0;
+      return {
+        ...item,
+        name: `${item.flag || '🌍'} ${item.currency}`,
+        amount: amt,
+        normalizedUsd,
+        sharePct,
+      };
+    });
+  }, [data]);
   const geographicDistribution = useMemo(() => {
     const list = data?.geographicDistribution || [];
     if (selectedGeo === 'ALL') return list;
@@ -261,7 +281,7 @@ function AdminAnalytics() {
             <div className="flex justify-between items-center mb-4">
               <div>
                 <h2 className="font-black text-slate-900 text-base">Multi-Currency Gross Split</h2>
-                <p className="text-xs text-slate-500">Inflow shares across active currencies in payments ledger.</p>
+                <p className="text-xs text-slate-500">Inflow shares normalized to USD purchasing power.</p>
               </div>
             </div>
 
@@ -282,7 +302,7 @@ function AdminAnalytics() {
                       innerRadius={55} 
                       outerRadius={80} 
                       paddingAngle={4} 
-                      dataKey="amount" 
+                      dataKey="normalizedUsd" 
                       stroke="none"
                     >
                       {revenueByCurrency.map((entry) => (
@@ -290,15 +310,23 @@ function AdminAnalytics() {
                       ))}
                     </Pie>
                     <Tooltip 
-                      contentStyle={{ 
-                        borderRadius: '12px', 
-                        backgroundColor: '#0f172a', 
-                        color: '#fff', 
-                        border: 'none',
-                        fontSize: '11px',
-                        fontWeight: '700'
-                      }} 
-                      formatter={(val, name, item) => [formatCurrency(val, item.payload.currency), `${item.payload.flag} ${item.payload.currency}`]}
+                      content={({ active, payload }) => {
+                        if (!active || !payload || !payload.length) return null;
+                        const d = payload[0].payload;
+                        return (
+                          <div className="bg-slate-950/95 backdrop-blur-md border border-slate-800 text-white rounded-xl p-3 shadow-xl text-xs space-y-1">
+                            <p className="font-bold flex items-center gap-1.5">
+                              <span>{d.flag}</span> <span>{d.name || d.currency}</span>
+                            </p>
+                            <p className="font-mono text-emerald-400 font-black">
+                              {formatCurrency(d.amount, d.currency)}
+                            </p>
+                            <p className="text-[10px] text-slate-400">
+                              ≈ ${d.normalizedUsd.toLocaleString()} USD ({d.sharePct}% share)
+                            </p>
+                          </div>
+                        );
+                      }}
                     />
                     <Legend 
                       iconType="circle" 
@@ -351,8 +379,8 @@ function AdminAnalytics() {
                       </div>
                       <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
                         <div 
-                          className="h-full bg-gradient-to-r from-aubergine-600 to-aubergine-800 rounded-full transition-all duration-500"
-                          style={{ width: `${Math.max(pct, 2)}%` }}
+                          className="h-full bg-gradient-to-r from-aubergine-600 to-magenta-600 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.max(pct, 3)}%` }}
                         ></div>
                       </div>
                     </div>
@@ -395,20 +423,10 @@ function AdminAnalytics() {
                       <stop offset="95%" stopColor="#0284c7" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid vertical={false} stroke="#f1f5f9" strokeDasharray="3 3" />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      borderRadius: '14px', 
-                      border: 'none', 
-                      boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.15)',
-                      backgroundColor: '#0f172a',
-                      color: '#fff',
-                      fontSize: '11px',
-                      fontWeight: '700'
-                    }} 
-                  />
+                  <CartesianGrid {...standardCartesianGrid} />
+                  <XAxis dataKey="month" {...standardXAxis} />
+                  <YAxis {...standardYAxis} allowDecimals={false} />
+                  <Tooltip content={<ChartTooltip unit="Patients" />} />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: '11px', fontWeight: '700' }} />
                   <Area type="monotone" dataKey="International" name="International Patients" stroke="#6B46C1" strokeWidth={3} fill="url(#intlGrad)" />
                   <Area type="monotone" dataKey="Domestic" name="Domestic Patients" stroke="#0284c7" strokeWidth={2} fill="url(#domGrad)" />
@@ -449,7 +467,7 @@ function AdminAnalytics() {
                       <Cell key={`cell-${index}`} fill={entry.color || '#6B46C1'} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px' }} />
+                  <Tooltip content={<ChartTooltip currency="INR" />} />
                   <Legend iconType="circle" layout="vertical" verticalAlign="middle" align="right" wrapperStyle={{ fontSize: '10px', fontWeight: '700' }} />
                 </PieChart>
               </ResponsiveContainer>
@@ -472,9 +490,9 @@ function AdminAnalytics() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={statusBreakdown} layout="vertical" margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
                   <CartesianGrid horizontal={false} stroke="#f1f5f9" strokeDasharray="3 3" />
-                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                  <XAxis type="number" {...standardXAxis} allowDecimals={false} />
                   <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 'bold' }} width={80} />
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px' }} />
+                  <Tooltip content={<ChartTooltip unit="Sessions" />} />
                   <Bar dataKey="count" name="Appointments" radius={[0, 4, 4, 0]} barSize={18}>
                     {statusBreakdown.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.status || entry.name] || '#6B46C1'} />
@@ -503,7 +521,7 @@ function AdminAnalytics() {
                   <Pie data={consultTypeData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4} dataKey="value" stroke="none">
                     {consultTypeData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                   </Pie>
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '11px' }} />
+                  <Tooltip content={<ChartTooltip unit="Consults" />} />
                   <Legend iconType="circle" layout="vertical" verticalAlign="middle" align="right" wrapperStyle={{ fontSize: '10px', fontWeight: '700' }} />
                 </PieChart>
               </ResponsiveContainer>

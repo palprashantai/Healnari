@@ -894,6 +894,18 @@ export class AdminController {
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
+  @Get('analytics/scorecard')
+  @ApiOperation({ summary: 'Executive Product Health Scorecard and Marketplace Diagnosis' })
+  @ApiQuery({ name: 'reportingCurrency', required: false })
+  async getProductHealthScorecard(
+    @CurrentUser() user: AuthUser,
+    @Query('reportingCurrency') reportingCurrency?: string,
+  ) {
+    this.checkAdmin(user);
+    const data = await this.analyticsService.getProductHealthScorecard(reportingCurrency);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
   @Get('analytics')
   @ApiOperation({ summary: 'Analytics aggregates for charts (with authentic data and funnel)' })
   @ApiQuery({ name: 'range', required: false })

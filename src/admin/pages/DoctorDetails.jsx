@@ -4,6 +4,9 @@ import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { apiFetch } from '../../lib/apiClient.js';
+import { formatCurrency, formatCompactCurrency } from '../../lib/currency.js';
+import { ChartTooltip } from '../../components/charts/ChartTooltip.jsx';
+import { standardCartesianGrid, standardXAxis, standardYAxis } from '../../components/charts/chartTheme.js';
 
 const STATUS_COLORS = {
   Done: '#10b981',
@@ -323,14 +326,14 @@ function AdminDoctorDetails() {
               <p className="text-xs text-slate-500 font-bold mt-1">{kpis?.totalConsults || 0} Consults</p>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl p-5 text-center shadow-sm">
-              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Doctor Net Payout</p>
-              <p className="text-2xl font-black text-emerald-600">₹{Math.round(doctorNet).toLocaleString('en-IN')}</p>
+              <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Doctor Net Earned</p>
+              <p className="text-2xl font-black text-emerald-600">{formatCurrency(doctorNet, doctor?.currency || 'INR')}</p>
               <p className="text-xs text-slate-500 font-bold mt-1">{100 - (Number(doctor?.commission_rate) || 10)}% Net Share</p>
             </div>
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 text-center shadow-md relative overflow-hidden">
               <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl"></div>
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Platform Earnings</p>
-              <p className="text-2xl font-black text-white">₹{Math.round(adminCommission).toLocaleString('en-IN')}</p>
+              <p className="text-2xl font-black text-white">{formatCurrency(adminCommission, doctor?.currency || 'INR')}</p>
               <p className="text-xs text-slate-400 font-bold mt-1">From {Number(doctor?.commission_rate) || 10}% Global Platform Fee</p>
             </div>
           </div>
@@ -349,11 +352,11 @@ function AdminDoctorDetails() {
                           <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
-                      <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="3 3" />
-                      <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${v / 1000}k`} />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(v) => [`₹${Number(v).toLocaleString()}`, 'Revenue']} />
-                      <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                      <CartesianGrid {...standardCartesianGrid} />
+                      <XAxis dataKey="month" {...standardXAxis} />
+                      <YAxis {...standardYAxis} tickFormatter={(v) => formatCompactCurrency(v, doctor?.currency || 'INR')} />
+                      <Tooltip content={<ChartTooltip currency={doctor?.currency || 'INR'} />} />
+                      <Area type="monotone" dataKey="revenue" name="Gross Revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" activeDot={{ r: 5 }} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -369,7 +372,7 @@ function AdminDoctorDetails() {
                       <Pie data={statusBreakdown} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={4} dataKey="count" stroke="none">
                         {statusBreakdown.map((entry, index) => <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.status] || '#94a3b8'} />)}
                       </Pie>
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                      <Tooltip content={<ChartTooltip unit="Sessions" />} />
                       <Legend iconType="circle" wrapperStyle={{ fontSize: '11px' }} />
                     </PieChart>
                   </ResponsiveContainer>
