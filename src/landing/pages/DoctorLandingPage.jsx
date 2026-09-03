@@ -10,6 +10,7 @@ import { apiFetch } from '../../lib/apiClient.js';
 
 // Lazy load below-the-fold components
 const ProviderBenefits = lazy(() => import('../components/ProviderBenefits.jsx'));
+const DoctorAiShowcase = lazy(() => import('../components/DoctorAiShowcase.jsx'));
 const ProviderCalculator = lazy(() => import('../components/ProviderCalculator.jsx'));
 const ProviderComparison = lazy(() => import('../components/ProviderComparison.jsx'));
 const ProviderTestimonials = lazy(() => import('../components/ProviderTestimonials.jsx'));
@@ -155,6 +156,14 @@ function DoctorLandingPage() {
       a: "Yes, completely. You have 100% clinical decision-making authority — all diagnoses, lab recommendations, prescriptions, and lifestyle protocols are entirely yours. HealNari's AI tools provide non-prescriptive diagnostic intelligence and clinical summaries to support your judgment, never override it."
     },
     {
+      q: "How does HealNari's AI EMR and SOAP note generator work?",
+      a: "Our AI clinical scribe analyzes your consultation notes or audio dictation to auto-draft standard Subjective, Objective, Assessment & Plan (SOAP) documentation in under 15 seconds. It also flags drug-drug interactions and allergy contraindications in real time. You retain 100% editing authority and sign every prescription digitally."
+    },
+    {
+      q: "Can I consult international patients and how are multi-currency payments settled?",
+      a: "Yes! HealNari provides international telemedicine with built-in multi-currency conversion (USD, AED, EUR, GBP, INR). Patients abroad pay in their preferred currency, and you receive your full 90% net earnings deposited directly into your Indian bank account every Monday."
+    },
+    {
       q: "What documents do I need to get verified?",
       a: "The verification process is simple and completed within 48 hours. You'll need: your Medical Registration Certificate (NMC, State Medical Council, IDA, or relevant professional council), degree credentials, and a valid government photo ID. Our clinical credentialing team reviews and activates your account."
     }
@@ -191,6 +200,12 @@ function DoctorLandingPage() {
           
           {/* Authentic Codebase Features Grid */}
           <ProviderBenefits />
+
+          {/* Dedicated AI Clinical Suite Showcase */}
+          <DoctorAiShowcase 
+            onApply={() => setIsApplyOpen(true)} 
+            onOpenLogin={() => setIsAuthOpen(true)} 
+          />
 
           {/* Interactive Earnings Calculator */}
           {adminSettings?.toggles?.showProviderCalculator !== false && (

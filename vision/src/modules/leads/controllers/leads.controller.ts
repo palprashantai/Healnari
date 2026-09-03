@@ -27,6 +27,22 @@ export class CheckExistingUserDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() mobile?: string;
 }
 
+export class ProviderApplicationDto {
+  @ApiProperty() @IsString() fullName: string;
+  @ApiProperty() @IsEmail() email: string;
+  @ApiProperty() @IsString() phone: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() countryCode?: string;
+  @ApiProperty() @IsString() regNo: string;
+  @ApiProperty() @IsString() medicalCouncil: string;
+  @ApiProperty() @IsString() specialty: string;
+  @ApiProperty() @IsString() experienceYears: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() consultationFee?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() clinicName?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() licenseFileName?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() licenseFileSize?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() licenseFileType?: string;
+}
+
 export class ConsultationRequestDto {
   @ApiProperty() @IsString() name: string;
   @ApiProperty() @IsEmail() email: string;
@@ -96,6 +112,17 @@ export class LeadsController {
   async createConsultationRequest(@Body() body: ConsultationRequestDto) {
     const data = await this.leadsService.createConsultationRequest(body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  @Public()
+  @ApiOperation({
+    summary:
+      'Submit a specialist provider / doctor application from the public landing page',
+  })
+  @Post('provider-application')
+  async submitProviderApplication(@Body() body: ProviderApplicationDto) {
+    const data = await this.leadsService.submitProviderApplication(body);
+    return ResponseHelper.success(data, 'Application submitted successfully. Our credentialing team will review your details within 24 hours.');
   }
 
   @Public()

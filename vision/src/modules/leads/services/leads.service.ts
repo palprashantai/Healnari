@@ -596,4 +596,78 @@ export class LeadsService {
       );
     }
   }
+
+  /** Submit a specialist provider application from the public landing page.
+   *  Stores the application in provider_applications and sends admin notification. */
+  async submitProviderApplication(body: {
+    fullName: string;
+    email: string;
+    phone: string;
+    countryCode?: string;
+    regNo: string;
+    medicalCouncil: string;
+    specialty: string;
+    experienceYears: string;
+    consultationFee?: string;
+    clinicName?: string;
+    licenseFileName?: string;
+    licenseFileSize?: string;
+    licenseFileType?: string;
+  }) {
+    try {
+      const { data, error } = await this.supabase.admin
+        .from('provider_applications')
+        .insert({
+          full_name: body.fullName,
+          email: body.email,
+          phone: body.phone,
+          country_code: body.countryCode || 'IN',
+          registration_no: body.regNo,
+          medical_council: body.medicalCouncil,
+          specialty: body.specialty,
+          experience_years: body.experienceYears,
+          consultation_fee: body.consultationFee || null,
+          clinic_name: body.clinicName || null,
+          license_file_name: body.licenseFileName || null,
+          license_file_size: body.licenseFileSize || null,
+          license_file_type: body.licenseFileType || null,
+          status: 'pending',
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw new InternalServerErrorException(
+          ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      // Best-effort: send admin notification email
+      try {
+        await this.email.sendTemplateEmail({
+          to: process.env.ADMIN_EMAIL || 'admin@healnari.com',
+          templateKey: 'admin_provider_application',
+          variables: {
+            doctorName: body.fullName,
+            specialty: body.specialty,
+            country: body.countryCode,
+            email: body.email,
+            phone: body.phone,
+            regNo: body.regNo,
+            applicationId: data.id,
+          },
+        });
+      } catch (_) {
+        // Non-blocking — application is already saved even if email fails
+      }
+
+      return { id: data.id, status: data.status };
+    } catch (error) {
+      if (error instanceof InternalServerErrorException) throw error;
+      throw new InternalServerErrorException(
+        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
+

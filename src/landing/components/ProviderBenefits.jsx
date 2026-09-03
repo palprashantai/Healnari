@@ -4,6 +4,30 @@ import Reveal from '../../components/Reveal.jsx';
 function ProviderBenefits() {
   const clinicalFeatures = [
     {
+      title: 'AI SOAP Notes & Clinical Scribe',
+      subtitle: '80% Faster Charting',
+      description: 'Automatically transform teleconsult notes or voice recordings into formatted Subjective, Objective, Assessment & Plan documentation in under 15 seconds.',
+      icon: 'fa-file-medical',
+      badge: 'AI Documentation',
+      color: 'text-aubergine-600 bg-aubergine-50 border-aubergine-200'
+    },
+    {
+      title: 'Smart Rx & Drug Safety Guardrails',
+      subtitle: 'Real-Time Interaction Checks',
+      description: 'Prescribe with instant formulation autocomplete, pre-set dosage schedules (e.g. Inositol 40:1 BD, Metformin), and automated drug-drug interaction alerts.',
+      icon: 'fa-prescription-bottle-medical',
+      badge: 'Safety AI',
+      color: 'text-emerald-600 bg-emerald-50 border-emerald-200'
+    },
+    {
+      title: 'Global Multi-Currency Practice',
+      subtitle: 'India, US, UK & UAE Telehealth',
+      description: 'Consult patients worldwide with automatic currency localization (INR, USD, EUR, GBP, AED). Receive your 90% net earnings deposited directly into your bank every Monday.',
+      icon: 'fa-globe',
+      badge: 'Multi-Currency',
+      color: 'text-indigo-600 bg-indigo-50 border-indigo-200'
+    },
+    {
       title: 'Tokenized Live Patient Queue',
       subtitle: 'Zero Waiting Room Friction',
       description: 'Streamline your daily clinic with automated patient tokens (T-01, T-02), real-time status tracking (Waiting, In Session, No Show), and a 1-click "Call Next" patient workflow.',
@@ -12,43 +36,19 @@ function ProviderBenefits() {
       color: 'text-aubergine-600 bg-aubergine-50 border-aubergine-200'
     },
     {
-      title: 'AI Clinical Decision Support (CDSS)',
-      subtitle: 'Automated Diagnostic Guardrails',
-      description: 'Our proprietary AI Insight Strip continuously monitors today\'s schedule—alerting you immediately to elevated blood pressure trends, critical biomarker deviations, and pending refills.',
-      icon: 'fa-wand-magic-sparkles',
-      badge: 'CDSS Intelligence',
-      color: 'text-aubergine-600 bg-aubergine-50 border-aubergine-200'
-    },
-    {
       title: 'Priority Action Inbox & Lab Triage',
-      subtitle: 'Critical Result Interventions',
+      subtitle: 'Abnormal Biomarker Interventions',
       description: 'Triage abnormal lab values (LH/FSH ratio, AMH, DHEAS, Thyroid) in a consolidated inbox. Trigger urgent patient notifications or approve/reject prescription refills with one tap.',
       icon: 'fa-clipboard-list',
       badge: 'Lab Triage',
       color: 'text-rose-600 bg-rose-50 border-rose-200'
     },
     {
-      title: 'Persistent 2-Identifier Patient Safety',
-      subtitle: 'Zero Interruptive Context Switching',
-      description: 'Never lose patient context. The top clinical safety banner displays real-time allergies, MRN, blood group, and medical flags across every screen, with instant chart switching.',
-      icon: 'fa-shield-halved',
-      badge: 'Patient Safety',
-      color: 'text-emerald-600 bg-emerald-50 border-emerald-200'
-    },
-    {
-      title: 'Built-in Telemedicine & Digital Rx',
-      subtitle: 'HD Encrypted Video Consultations',
-      description: 'Conduct secure, compliant video consultations directly in your browser. Draft customized medical protocols, cycle-synced nutrition advice, and digitally signed prescriptions.',
-      icon: 'fa-video',
-      badge: 'Telehealth EMR',
-      color: 'text-violet-600 bg-violet-50 border-violet-200'
-    },
-    {
-      title: 'Transparent Earnings & Weekly Payouts',
-      subtitle: 'Zero Hidden Commissions',
-      description: 'Set your own consultation fees and view real-time monthly revenue, consultation volume, and practice growth analytics with automated weekly transfers to your bank account.',
-      icon: 'fa-wallet',
-      badge: 'Payouts',
+      title: 'Verified Doctor Public Profile',
+      subtitle: 'Direct Patient Booking Link',
+      description: 'Receive your personalized public profile link (healnari.care/doctor/your-name) showcasing your NMC credentials, verified reviews, specialties, and 1-click slot booking.',
+      icon: 'fa-id-card-clip',
+      badge: 'Public Profile',
       color: 'text-amber-600 bg-amber-50 border-amber-200'
     }
   ];

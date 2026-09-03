@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useToast } from '../../components/Toast.jsx';
 import { COUNTRIES, COUNTRY_DIAL_CODES, getCountryByCode, detectUserCountry } from '../../lib/countries.js';
 import { formatCurrency } from '../../lib/currency.js';
 import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
+import { API_URL } from '../../lib/apiClient.js';
 
 function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
   const [step, setStep] = useState(1);
@@ -11,6 +12,9 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
 
   const [phoneDialCode, setPhoneDialCode] = useState(initialCountry.phonePrefix || '+91');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const fileInputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
 
   const [formData, setFormData] = useState({
     countryCode: initialCountryCode,
@@ -25,6 +29,9 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
     clinicName: '',
     payoutBankDetails: {},
     licenseFile: null,
+    licenseFileName: '',
+    licenseFileSize: '',
+    licenseFileType: '',
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -68,8 +75,67 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
     }));
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  const processFile = (file) => {
+    setUploadError(null);
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    const validExtensions = ['pdf', 'jpg', 'jpeg', 'png'];
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    if (!validExtensions.includes(ext) && !file.type.match(/(pdf|image\/(jpeg|png|jpg))/i)) {
+      const err = 'Please upload a valid PDF, JPG, or PNG document.';
+      setUploadError(err);
+      toast?.error?.(err);
+      return;
+    }
+
+    if (file.size > maxSize) {
+      const err = `File size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds the 10MB limit.`;
+      setUploadError(err);
+      toast?.error?.(err);
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      licenseFile: file,
+      licenseFileName: file.name,
+      licenseFileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+      licenseFileType: ext === 'pdf' || file.type.includes('pdf') ? 'pdf' : 'image',
+    }));
+
+    toast?.success?.(`Uploaded "${file.name}"`);
+  };
+
+  const handleRemoveFile = (e) => {
+    e.stopPropagation();
+    setFormData(prev => ({
+      ...prev,
+      licenseFile: null,
+      licenseFileName: '',
+      licenseFileSize: '',
+      licenseFileType: '',
+    }));
+    setUploadError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleNext = (e) => {
     e.preventDefault();
+    if (step === 3 && !formData.licenseFile) {
+      const msg = 'Please attach your medical license or council registration certificate.';
+      setUploadError(msg);
+      toast?.error?.(msg);
+      return;
+    }
     trackEvent(AnalyticsEvents.PROVIDER_APPLY_STEP_COMPLETED, {
       step,
       specialty: formData.specialty,
@@ -82,21 +148,51 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
+    try {
+      const payload = {
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone || `${phoneDialCode} ${phoneNumber}`.trim(),
+        countryCode: formData.countryCode,
+        regNo: formData.regNo,
+        medicalCouncil: formData.medicalCouncil,
+        specialty: formData.specialty,
+        experienceYears: formData.experienceYears,
+        consultationFee: formData.consultationFee,
+        clinicName: formData.clinicName,
+        licenseFileName: formData.licenseFileName || null,
+        licenseFileSize: formData.licenseFileSize || null,
+        licenseFileType: formData.licenseFileType || null,
+      };
+
+      const res = await fetch(`${API_URL}/leads/provider-application`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody?.message || 'Submission failed. Please try again.');
+      }
+
       setIsSuccess(true);
       trackEvent(AnalyticsEvents.PROVIDER_APPLY_SUCCESS, {
         specialty: formData.specialty,
         country: formData.countryCode,
         experienceYears: formData.experienceYears,
       });
-      toast.success("Application submitted successfully! Our credentialing team will review your details within 24 hours.", {
+      toast.success("Application submitted! Our credentialing team will review your details within 24 hours.", {
         icon: "fa-shield-halved",
         duration: 6000
       });
-    }, 1200);
+    } catch (err) {
+      toast.error(err.message || 'Submission failed. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const specialties = [
@@ -381,12 +477,102 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
               {step === 3 && (
                 <div className="space-y-4 animate-fade-in">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-700">Upload Medical License / Council Registration Certificate</label>
-                    <div className="border-2 border-dashed border-slate-200 hover:border-aubergine-400 rounded-2xl p-6 text-center bg-slate-50/50 cursor-pointer transition-colors">
-                      <i className="fas fa-file-medical text-3xl text-aubergine-500 mb-2"></i>
-                      <p className="text-sm font-bold text-slate-800">Click to upload or drag &amp; drop</p>
-                      <p className="text-xs text-slate-500 mt-0.5">PDF, JPG, or PNG (Max 10MB)</p>
-                    </div>
+                    <label className="text-xs font-bold text-slate-700">
+                      Upload Medical License / Council Registration Certificate *
+                    </label>
+
+                    {/* Hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+
+                    {formData.licenseFile ? (
+                      /* Attached File State Card */
+                      <div className="border-2 border-emerald-300 bg-emerald-50/70 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-3 shadow-xs transition-all animate-fade-in">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-12 h-12 rounded-xl bg-emerald-100 border border-emerald-200 text-emerald-700 flex items-center justify-center text-xl shrink-0">
+                            <i className={`fas ${formData.licenseFileType === 'pdf' ? 'fa-file-pdf text-rose-500' : 'fa-file-image text-emerald-600'}`}></i>
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-sm font-bold text-slate-900 truncate max-w-[200px] sm:max-w-[280px]">
+                                {formData.licenseFileName}
+                              </p>
+                              <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-200 text-emerald-800 px-1.5 py-0.2 rounded-md shrink-0">
+                                Attached
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {formData.licenseFileSize} • Ready for credentialing
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="text-xs font-bold text-aubergine-700 hover:text-aubergine-900 bg-white border border-sand-300 px-3 py-1.5 rounded-xl hover:bg-slate-50 transition-colors shadow-2xs"
+                          >
+                            Replace
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleRemoveFile}
+                            className="w-8 h-8 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors flex items-center justify-center"
+                            title="Remove file"
+                            aria-label="Remove uploaded file"
+                          >
+                            <i className="fas fa-trash-can text-sm"></i>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Drag and Drop Zone */
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setIsDragging(true);
+                        }}
+                        onDragLeave={() => setIsDragging(false)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setIsDragging(false);
+                          if (e.dataTransfer.files?.[0]) {
+                            processFile(e.dataTransfer.files[0]);
+                          }
+                        }}
+                        className={`border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition-all duration-200 select-none ${
+                          isDragging
+                            ? 'border-aubergine-600 bg-aubergine-50/80 scale-[1.01] ring-4 ring-aubergine-100'
+                            : 'border-slate-300 hover:border-aubergine-500 bg-slate-50/60 hover:bg-aubergine-50/30'
+                        }`}
+                      >
+                        <div className="w-14 h-14 mx-auto rounded-2xl bg-aubergine-100 text-aubergine-600 flex items-center justify-center text-2xl mb-3 shadow-2xs">
+                          <i className="fas fa-cloud-arrow-up"></i>
+                        </div>
+                        <p className="text-sm font-bold text-slate-800">
+                          Click to upload or drag &amp; drop
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Medical License, Degree Certificate or NMC Registration (PDF, JPG, PNG up to 10MB)
+                        </p>
+                        <span className="inline-block mt-3 px-4 py-1.5 bg-white border border-sand-300 text-aubergine-700 text-xs font-bold rounded-xl shadow-2xs hover:bg-slate-50">
+                          Browse Files
+                        </span>
+                      </div>
+                    )}
+
+                    {uploadError && (
+                      <p className="text-xs text-rose-600 font-semibold flex items-center gap-1.5 mt-1.5">
+                        <i className="fas fa-circle-exclamation"></i> {uploadError}
+                      </p>
+                    )}
                   </div>
 
                   <div className="p-4 bg-slate-100 rounded-2xl text-xs space-y-1.5 text-slate-600">

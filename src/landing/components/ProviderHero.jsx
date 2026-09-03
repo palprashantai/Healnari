@@ -20,11 +20,12 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
 
   const toast = useToast();
 
-  // 5-Line Typewriter Animation Effect
+  // 6-Line Typewriter Animation Effect
   const rotatingLines = [
-    'Zero Clinic Overhead',
-    'Multi-Specialty Smart EMR',
-    'AI Clinical Decision Support',
+    'AI-Powered Clinical EMR',
+    'Automated SOAP Notes & Scribe',
+    'Smart Rx & Drug Safety Checks',
+    'Global Multi-Currency Practice',
     '90% Net Weekly Payouts',
     'Full Clinical Autonomy',
   ];
@@ -325,17 +326,17 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 hover:border-aubergine-200 transition-all">
                       <p className="text-xs text-slate-500 font-extrabold uppercase">This Month (90% Net)</p>
                       <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-1 font-sans">₹1,48,500</p>
-                      <p className="text-[11px] text-emerald-600 font-bold mt-0.5">+18% practice growth</p>
+                      <p className="text-[11px] text-indigo-600 font-bold mt-0.5">Incl. $1,420 from US/NRI Patients</p>
                     </div>
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 hover:border-indigo-200 transition-all">
                       <p className="text-xs text-slate-500 font-extrabold uppercase">Completed Consults</p>
                       <p className="text-2xl sm:text-3xl font-black text-indigo-950 mt-1 font-sans">124 Patients</p>
-                      <p className="text-[11px] text-slate-500 font-medium mt-0.5">Avg 4.96/5.0 Rating</p>
+                      <p className="text-[11px] text-slate-500 font-medium mt-0.5">Global Patients (INR • USD • AED)</p>
                     </div>
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 hover:border-emerald-200 transition-all">
                       <p className="text-xs text-slate-500 font-extrabold uppercase">Next Bank Settlement</p>
                       <p className="text-2xl sm:text-3xl font-black text-emerald-700 mt-1 font-sans">Monday</p>
-                      <p className="text-[11px] text-emerald-600 font-bold mt-0.5">Automated Weekly Payout</p>
+                      <p className="text-[11px] text-emerald-600 font-bold mt-0.5">Automated Weekly Direct Deposit</p>
                     </div>
                   </div>
                 )}

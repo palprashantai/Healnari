@@ -12,6 +12,18 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
         {/* Left Column: Copy & Actions */}
         <div className="lg:col-span-7 space-y-4 sm:space-y-7 text-center lg:text-left order-2 lg:order-1 min-w-0">
           
+          {/* AI Announcement Pill */}
+          <div className="flex justify-center lg:justify-start">
+            <a
+              href="#ai-features"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-aubergine-50 via-magenta-50 to-indigo-50 hover:from-aubergine-100 hover:via-magenta-100 hover:to-indigo-100 border border-aubergine-200/80 px-3.5 py-1.5 rounded-full shadow-2xs text-xs font-semibold text-aubergine-900 transition-all hover:scale-105"
+            >
+              <span className="w-2 h-2 rounded-full bg-magenta-500 animate-pulse"></span>
+              <span>✨ <strong>New:</strong> AI Lab Report Analyzer &amp; 24/7 Companion</span>
+              <span className="text-magenta-600 font-bold ml-1">Explore AI Suite →</span>
+            </a>
+          </div>
+
           {/* Trust Badges */}
           <div className="flex overflow-x-auto hide-scrollbar snap-x justify-start lg:justify-start gap-2 py-1 sm:flex-wrap">
             <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
@@ -21,7 +33,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
               <i className="fas fa-user-md text-emerald-500"></i> Verified Medical Doctors
             </span>
             <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-wand-magic-sparkles text-indigo-500"></i> AI-Guided Triage &amp; Tracking
+              <i className="fas fa-wand-magic-sparkles text-indigo-500"></i> AI Lab &amp; Diagnostic Suite
             </span>
             <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-magenta-50 border border-magenta-100 text-magenta-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
               <i className="fas fa-shield-halved text-magenta-600"></i> 100% Private &amp; Encrypted
@@ -52,7 +64,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
                     <strong>Your personalized holistic health journey in one platform.</strong> Comprehensive root-cause care combining medical consultations, precision lab diagnostics, customized diet plans, and lifestyle pharmacology.
                   </p>
                   <p className="text-slate-700 text-[15px] sm:text-base md:text-lg font-medium leading-relaxed pt-2 pb-4 sm:pb-0">
-                    <span className="text-aubergine-700 font-bold">Included in care:</span> 45-min video consult • Tailored nutrition &amp; yoga plans • Lab roadmap • Digital Rx • Free 14-day chat follow-up.
+                    <span className="text-aubergine-700 font-bold">Included in care:</span> 45-min video consult • AI lab analysis • Tailored nutrition &amp; yoga plans • Digital Rx • Free 14-day chat follow-up.
                   </p>
                 </>
               )}
@@ -60,12 +72,15 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
           </div>
 
           {/* Pricing Banner */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-6 justify-center lg:justify-start text-sm sm:text-base font-semibold text-slate-700">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-center lg:justify-start text-sm sm:text-base font-semibold text-slate-700">
             <span className="inline-flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full text-emerald-800 border border-emerald-100 shadow-xs text-xs sm:text-sm">
               <i className="fas fa-tag text-emerald-600"></i> Specialist Consultations starting at ₹799
             </span>
             <span className="inline-flex items-center gap-1.5 bg-aubergine-50 px-3 py-1.5 rounded-full text-aubergine-800 border border-aubergine-100 shadow-xs text-xs sm:text-sm">
               <i className="fas fa-heart-circle-bolt text-aubergine-600"></i> Free Health &amp; Cycle Tracking
+            </span>
+            <span className="inline-flex items-center gap-1.5 bg-indigo-50 px-3 py-1.5 rounded-full text-indigo-800 border border-indigo-100 shadow-xs text-xs sm:text-sm">
+              <i className="fas fa-globe text-indigo-600"></i> Global Care (INR, USD, EUR, GBP, AED)
             </span>
           </div>
 
@@ -86,14 +101,20 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
                 <i className="fas fa-stethoscope text-sm shrink-0"></i> <span>Book Specialist Consult</span>
               </button>
             </div>
+            <a
+              href="#ai-features"
+              className="w-full sm:w-auto bg-white hover:bg-magenta-50 border border-magenta-200 text-magenta-700 font-bold py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2 text-xs sm:text-base touch-target text-center"
+            >
+              <i className="fas fa-wand-magic-sparkles text-magenta-500 shrink-0"></i> <span>AI Health Suite</span>
+            </a>
             <button
               onClick={() => {
                 triggerHaptic('light');
                 onOpenChecker?.();
               }}
-              className="w-full sm:w-auto bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2 text-xs sm:text-base touch-target text-center"
+              className="w-full sm:w-auto bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-3 sm:py-3.5 px-4 sm:px-5 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2 text-xs sm:text-base touch-target text-center"
             >
-              <i className="fas fa-heart-pulse text-rose-500 shrink-0"></i> <span>2-Min Symptom Checker</span>
+              <i className="fas fa-heart-pulse text-rose-500 shrink-0"></i> <span>Symptom Checker</span>
             </button>
           </div>
 

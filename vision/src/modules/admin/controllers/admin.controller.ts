@@ -27,6 +27,7 @@ import {
   Max,
 } from 'class-validator';
 import { AdminService } from '@/modules/admin/services/admin.service';
+import { AnalyticsService } from '@/modules/admin/services/analytics.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
 import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
@@ -216,8 +217,6 @@ export class AdminUpdateAppointmentStatusDto {
   @IsString()
   reason?: string;
 }
-
-import { AnalyticsService } from '@/modules/admin/services/analytics.service';
 
 @ApiTags('Admin')
 @Controller('api/admin')

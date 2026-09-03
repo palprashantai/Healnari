@@ -31,6 +31,7 @@ const CycleTracker = lazy(() => import('../../tools/CycleTracker.jsx'));
 const NewsletterSignup = lazy(() => import('../components/NewsletterSignup.jsx'));
 const LabTests = lazy(() => import('../components/LabTests.jsx'));
 const HolisticApproach = lazy(() => import('../components/HolisticApproach.jsx'));
+const PatientAiShowcase = lazy(() => import('../components/PatientAiShowcase.jsx'));
 const AiChatWidget = lazy(() => import('../../tools/AiChatWidget.jsx'));
 
 function LandingPage() {
@@ -193,6 +194,14 @@ function LandingPage() {
           <LazyRender><Reveal><HolisticApproach /></Reveal></LazyRender>
 
           <LazyRender><Reveal><HowItWorks /></Reveal></LazyRender>
+
+          {/* Dedicated AI Health Suite Showcase */}
+          <LazyRender>
+            <PatientAiShowcase 
+              onStartConsult={() => openBooking('')} 
+              onOpenChecker={() => setIsSymptomOpen(true)} 
+            />
+          </LazyRender>
 
           {adminSettings?.toggles?.showFeaturedDoctors !== false && (
             <LazyRender><Doctors onSelectDoctor={openBooking} /></LazyRender>

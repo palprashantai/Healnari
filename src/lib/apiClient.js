@@ -115,6 +115,8 @@ export async function apiFetch(path, { method = 'GET', body, skipAuth = false, r
     if (refreshed) return apiFetch(path, { method, body, skipAuth, retry: false });
   }
 
+  const payload = await res.json().catch(() => null);
+
   if (!res.ok || (payload && payload.success === false)) {
     const err = new Error(payload?.message || `Request failed (${res.status})`);
     err.status = res.status;

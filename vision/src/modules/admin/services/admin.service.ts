@@ -1376,18 +1376,29 @@ export class AdminService {
 
   async getPendingVerifications() {
     try {
-      const { data } = await this.supabase.admin
-        .from('profiles')
-        .select('id, full_name, email, specialty, created_at')
-        .eq('role', ProfileRole.DOCTOR)
-        .eq('kyc_verified', false)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      return (data || []).map((d) => ({
+      const [{ data: profiles }, { data: applications }] = await Promise.all([
+        this.supabase.admin
+          .from('profiles')
+          .select('id, full_name, email, specialty, created_at')
+          .eq('role', ProfileRole.DOCTOR)
+          .eq('kyc_verified', false)
+          .order('created_at', { ascending: false })
+          .limit(50),
+        this.supabase.admin
+          .from('provider_applications')
+          .select('id, full_name, email, specialty, submitted_at, status, registration_no, medical_council, experience_years, phone, country_code, clinic_name, license_file_name')
+          .eq('status', 'pending')
+          .order('submitted_at', { ascending: false })
+          .limit(50),
+      ]);
+
+      const fromProfiles = (profiles || []).map((d) => ({
         id: d.id,
         name: d.full_name || 'Unknown',
         email: d.email || '',
         specialty: d.specialty || 'General',
+        country: 'IN',
+        medical_council: 'State Medical Licensing Board',
         appliedOn: d.created_at
           ? new Date(d.created_at).toLocaleDateString('en-IN', {
               day: '2-digit',
@@ -1395,7 +1406,38 @@ export class AdminService {
               year: 'numeric',
             })
           : '',
+        source: 'registered', // already has an account
+        docs: ['Medical_License.pdf', 'Board_Certification.pdf'],
       }));
+
+      const fromApplications = (applications || []).map((a) => ({
+        id: a.id,
+        name: a.full_name || 'Unknown',
+        email: a.email || '',
+        specialty: a.specialty || 'General',
+        appliedOn: a.submitted_at
+          ? new Date(a.submitted_at).toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })
+          : '',
+        source: 'application', // submitted from landing page, no account yet
+        phone: a.phone,
+        country: a.country_code || 'IN',
+        country_code: a.country_code || 'IN',
+        registration_no: a.registration_no,
+        regNo: a.registration_no,
+        medical_council: a.medical_council || 'State Licensing Board',
+        medicalCouncil: a.medical_council,
+        experienceYears: a.experience_years,
+        clinicName: a.clinic_name,
+        licenseFileName: a.license_file_name,
+        docs: a.license_file_name ? [a.license_file_name] : ['Medical_License.pdf'],
+      }));
+
+      // Applications (pre-registration) listed first so admin acts on them promptly
+      return [...fromApplications, ...fromProfiles];
     } catch (error) {
       throw new InternalServerErrorException(
         ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
@@ -1411,7 +1453,38 @@ export class AdminService {
         .eq('id', id)
         .eq('role', ProfileRole.DOCTOR)
         .maybeSingle();
-      if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
+
+      if (!doctor) {
+        // Check if this is a pre-registration provider application
+        const { data: app } = await this.supabase.admin
+          .from('provider_applications')
+          .select()
+          .eq('id', id)
+          .maybeSingle();
+
+        if (app) {
+          const appStatus = status === 'approved' ? 'approved' : 'rejected';
+          const { data: updatedApp } = await this.supabase.admin
+            .from('provider_applications')
+            .update({ status: appStatus, reviewed_at: new Date().toISOString() })
+            .eq('id', id)
+            .select()
+            .maybeSingle();
+
+          this.writeAudit(
+            admin,
+            'provider_application.update',
+            'provider_applications',
+            id,
+            { status: app.status },
+            { status: appStatus },
+          );
+
+          return updatedApp;
+        }
+
+        throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
+      }
       const isApproved = status === 'approved';
       const { data: updated } = await this.supabase.admin
         .from('profiles')
