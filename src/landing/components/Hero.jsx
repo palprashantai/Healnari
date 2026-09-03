@@ -84,11 +84,11 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
             </span>
           </div>
 
-          {/* Dual Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mt-2 pt-3 sm:pt-0">
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 mt-3 pt-1">
             {/* Primary Action Button */}
-            <div className="relative group w-full sm:w-auto mt-2 sm:mt-0">
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:-right-2 z-10 bg-rose-700 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider py-0.5 sm:py-1 px-2 sm:px-2.5 rounded-full shadow-md shadow-rose-200/50 animate-bounce flex items-center gap-1 whitespace-nowrap">
+            <div className="relative group shrink-0 w-full sm:w-auto">
+              <div className="absolute -top-3 left-4 z-10 bg-rose-700 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider py-0.5 px-2 rounded-full shadow-xs animate-bounce flex items-center gap-1 whitespace-nowrap">
                 <i className="fas fa-calendar-day"></i> Next Slot: Today
               </div>
               <button 
@@ -96,25 +96,25 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
                   triggerHaptic('medium');
                   onStartConsult?.();
                 }}
-                className="w-full sm:w-auto relative bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 hover:from-aubergine-700 hover:via-magenta-700 hover:to-indigo-700 text-white font-extrabold px-4 sm:px-8 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl shadow-xl shadow-aubergine-200 hover:shadow-2xl hover:shadow-aubergine-300 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 sm:gap-2.5 text-sm sm:text-lg group-hover:ring-4 ring-aubergine-100 touch-target text-center"
+                className="w-full sm:w-auto relative bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 hover:from-aubergine-700 hover:via-magenta-700 hover:to-indigo-700 text-white font-extrabold px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl shadow-md shadow-aubergine-200/60 hover:shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 text-xs sm:text-sm whitespace-nowrap"
               >
-                <i className="fas fa-stethoscope text-sm shrink-0"></i> <span>Book Specialist Consult</span>
+                <i className="fas fa-stethoscope text-xs shrink-0"></i> <span>Book Specialist Consult</span>
               </button>
             </div>
             <a
               href="#ai-features"
-              className="w-full sm:w-auto bg-white hover:bg-magenta-50 border border-magenta-200 text-magenta-700 font-bold py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2 text-xs sm:text-base touch-target text-center"
+              className="w-full sm:w-auto bg-white hover:bg-magenta-50/80 border border-magenta-200 text-magenta-700 font-bold py-2.5 sm:py-3 px-3.5 sm:px-4 rounded-xl shadow-xs transition-all btn-interactive flex items-center justify-center gap-1.5 text-xs sm:text-sm whitespace-nowrap"
             >
-              <i className="fas fa-wand-magic-sparkles text-magenta-500 shrink-0"></i> <span>AI Health Suite</span>
+              <i className="fas fa-wand-magic-sparkles text-magenta-500 shrink-0 text-xs"></i> <span>AI Health Suite</span>
             </a>
             <button
               onClick={() => {
                 triggerHaptic('light');
                 onOpenChecker?.();
               }}
-              className="w-full sm:w-auto bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-3 sm:py-3.5 px-4 sm:px-5 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2 text-xs sm:text-base touch-target text-center"
+              className="w-full sm:w-auto bg-sand-50/80 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-2.5 sm:py-3 px-3.5 sm:px-4 rounded-xl shadow-xs transition-all btn-interactive flex items-center justify-center gap-1.5 text-xs sm:text-sm whitespace-nowrap"
             >
-              <i className="fas fa-heart-pulse text-rose-500 shrink-0"></i> <span>Symptom Checker</span>
+              <i className="fas fa-heart-pulse text-rose-500 shrink-0 text-xs"></i> <span>Symptom Checker</span>
             </button>
           </div>
 

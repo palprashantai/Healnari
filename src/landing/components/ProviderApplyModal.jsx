@@ -102,13 +102,19 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
       return;
     }
 
-    setFormData(prev => ({
-      ...prev,
-      licenseFile: file,
-      licenseFileName: file.name,
-      licenseFileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-      licenseFileType: ext === 'pdf' || file.type.includes('pdf') ? 'pdf' : 'image',
-    }));
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const fileUrl = evt.target.result;
+      setFormData(prev => ({
+        ...prev,
+        licenseFile: file,
+        licenseFileUrl: fileUrl,
+        licenseFileName: file.name,
+        licenseFileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+        licenseFileType: ext === 'pdf' || file.type.includes('pdf') ? 'pdf' : 'image',
+      }));
+    };
+    reader.readAsDataURL(file);
 
     toast?.success?.(`Uploaded "${file.name}"`);
   };
@@ -118,6 +124,7 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
     setFormData(prev => ({
       ...prev,
       licenseFile: null,
+      licenseFileUrl: null,
       licenseFileName: '',
       licenseFileSize: '',
       licenseFileType: '',
@@ -165,6 +172,7 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
         licenseFileName: formData.licenseFileName || null,
         licenseFileSize: formData.licenseFileSize || null,
         licenseFileType: formData.licenseFileType || null,
+        licenseFileUrl: formData.licenseFileUrl || null,
       };
 
       const res = await fetch(`${API_URL}/leads/provider-application`, {

@@ -613,6 +613,7 @@ export class LeadsService {
     licenseFileName?: string;
     licenseFileSize?: string;
     licenseFileType?: string;
+    licenseFileUrl?: string;
   }) {
     try {
       const { data, error } = await this.supabase.admin
@@ -631,6 +632,7 @@ export class LeadsService {
           license_file_name: body.licenseFileName || null,
           license_file_size: body.licenseFileSize || null,
           license_file_type: body.licenseFileType || null,
+          license_file_url: body.licenseFileUrl || null,
           status: 'pending',
         })
         .select()

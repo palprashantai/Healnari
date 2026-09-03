@@ -33,33 +33,33 @@ function Header({ onStartConsult, onOpenAuth }) {
     <header 
       className={`sticky top-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'border-b border-sand-200/80 shadow-md py-3'
-          : 'border-b border-transparent py-4'
+          ? 'border-b border-sand-200/80 shadow-md py-2.5'
+          : 'border-b border-transparent py-3.5'
       }`}
       style={{ backgroundColor: isScrolled ? 'rgba(253,251,247,0.93)' : 'rgba(253,251,247,0.98)', backdropFilter: 'blur(12px)' }}
     >
-      <div className="max-w-7xl mx-auto px-5 md:px-8 flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3 lg:gap-4">
         
         {/* Left Section: Logo + Nav */}
-        <div className="flex items-center gap-6 xl:gap-12">
+        <div className="flex items-center gap-3 lg:gap-4 xl:gap-6 min-w-0">
           {/* Brand Logo */}
           <NavLink to="/" className="shrink-0">
             <HealNariLogo size="md" />
           </NavLink>
 
           {/* Desktop Navigation */}
-          <nav className="hidden xl:flex items-center gap-5 2xl:gap-7">
+          <nav className="hidden xl:flex items-center gap-2.5 xl:gap-3.5 2xl:gap-4">
             {navLinks.map((link) => (
               <a 
                 key={link.label}
                 href={link.href} 
-                className={`text-sm font-semibold transition-colors relative py-1.5 whitespace-nowrap after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:transition-all hover:after:w-full flex items-center gap-1.5 ${
+                className={`text-xs 2xl:text-sm font-semibold transition-colors relative py-1 whitespace-nowrap shrink-0 after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:transition-all hover:after:w-full flex items-center gap-1 ${
                   link.isAi
                     ? 'text-magenta-600 hover:text-magenta-700 font-bold after:bg-magenta-500'
                     : 'text-slate-600 hover:text-aubergine-600 after:bg-aubergine-500'
                 }`}
               >
-                {link.isAi && <i className="fas fa-wand-magic-sparkles text-xs text-magenta-500 animate-pulse"></i>}
+                {link.isAi && <i className="fas fa-wand-magic-sparkles text-[10px] text-magenta-500 animate-pulse"></i>}
                 <span>{link.label}</span>
                 {link.isAi && (
                   <span className="text-[9px] font-black uppercase tracking-wider bg-magenta-100 text-magenta-700 px-1.5 py-0.2 rounded-full">
@@ -68,20 +68,21 @@ function Header({ onStartConsult, onOpenAuth }) {
                 )}
               </a>
             ))}
+
+            <NavLink
+              to="/for-doctors"
+              className="text-xs font-bold text-aubergine-700 bg-aubergine-50 hover:bg-aubergine-100 border border-aubergine-200 px-2.5 py-1 rounded-xl transition-all shadow-2xs items-center gap-1 whitespace-nowrap shrink-0 ml-1"
+            >
+              <i className="fas fa-stethoscope text-[10px]"></i> For Doctors
+            </NavLink>
           </nav>
         </div>
 
-        <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
-          <NavLink
-            to="/for-doctors"
-            className="hidden 2xl:inline-flex text-xs font-extrabold text-aubergine-700 bg-aubergine-50 hover:bg-aubergine-100 border border-aubergine-200 px-3 py-2 rounded-xl transition-all shadow-2xs items-center gap-1.5 whitespace-nowrap"
-          >
-            <i className="fas fa-stethoscope text-[10px]"></i> For Doctors
-          </NavLink>
-
+        {/* Right Section: Actions */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           <button 
             onClick={() => document.body.classList.toggle('discreet-blur')}
-            className="hidden xl:flex bg-slate-50 hover:bg-slate-100 text-slate-500 font-bold px-3 py-2 rounded-xl text-sm border border-slate-200 transition-all btn-interactive items-center"
+            className="hidden xl:flex bg-slate-50 hover:bg-slate-100 text-slate-500 font-bold p-2 rounded-xl text-xs border border-slate-200 transition-all btn-interactive items-center justify-center shrink-0"
             title="Discreet Mode (Blur screen for privacy)"
             aria-label="Toggle discreet mode"
           >
@@ -89,13 +90,13 @@ function Header({ onStartConsult, onOpenAuth }) {
           </button>
           <button 
             onClick={onOpenAuth}
-            className="hidden sm:flex bg-white hover:bg-slate-50 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs sm:text-sm border border-slate-200 transition-all btn-interactive items-center gap-2 whitespace-nowrap"
+            className="hidden sm:flex bg-white hover:bg-slate-50 text-slate-700 font-bold px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm border border-slate-200 transition-all btn-interactive items-center gap-1.5 whitespace-nowrap shrink-0"
           >
             <i className="fas fa-user-circle text-slate-400"></i> Login
           </button>
           <button 
             onClick={onStartConsult}
-            className="hidden sm:flex bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-4 sm:px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-md shadow-aubergine-100 transition-all btn-interactive items-center gap-2 whitespace-nowrap"
+            className="hidden sm:flex bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm shadow-md shadow-aubergine-100 transition-all btn-interactive items-center gap-1.5 whitespace-nowrap shrink-0"
           >
             <i className="fas fa-calendar-plus text-xs"></i> Start Consultation
           </button>
@@ -103,7 +104,7 @@ function Header({ onStartConsult, onOpenAuth }) {
           {/* Mobile Menu Button */}
           <button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="xl:hidden w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-colors btn-interactive touch-target"
+            className="xl:hidden w-9 h-9 sm:w-10 sm:h-10 min-w-[36px] min-h-[36px] sm:min-w-[40px] sm:min-h-[40px] rounded-xl border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-colors btn-interactive touch-target"
             aria-label="Toggle menu"
             aria-expanded={isMobileMenuOpen}
           >

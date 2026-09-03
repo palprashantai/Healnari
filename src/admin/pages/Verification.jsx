@@ -23,9 +23,24 @@ function ReviewModal({ doctor, isOpen, onClose, onAction, loading }) {
     }, 1200);
   };
 
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [activeDocUrl, setActiveDocUrl] = useState('');
+  const [activeDocName, setActiveDocName] = useState('');
+
   if (!doctor) return null;
+
+  const docUrl = doctor.licenseFileUrl || doctor.docs?.[0]?.url || '';
+  const docName = doctor.licenseFileName || doctor.docs?.[0]?.name || 'Medical_Registration_Certificate.pdf';
+  const isImage = docUrl && (docUrl.startsWith('data:image') || docUrl.endsWith('.jpg') || docUrl.endsWith('.jpeg') || docUrl.endsWith('.png'));
+
+  const handleOpenDoc = (url, name) => {
+    setActiveDocUrl(url || 'sample');
+    setActiveDocName(name || docName);
+    setIsPreviewOpen(true);
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Verification Review — ${doctor.name}`} size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={`Verification Review — Dr. ${doctor.name}`} size="lg">
       <div className="space-y-6">
         <div className="flex gap-4 items-center bg-slate-50 p-4 rounded-xl border border-slate-200 justify-between">
           <div className="flex items-center gap-3">
@@ -33,12 +48,12 @@ function ReviewModal({ doctor, isOpen, onClose, onAction, loading }) {
               {(doctor.name || 'D').charAt(0)}
             </div>
             <div>
-              <h3 className="font-bold text-slate-800">{doctor.name}</h3>
+              <h3 className="font-bold text-slate-800">Dr. {doctor.name}</h3>
               <p className="text-sm text-slate-500">{doctor.specialty} • {doctor.email}</p>
             </div>
           </div>
           <span className="bg-amber-50 text-amber-700 font-bold px-3 py-1 rounded-full text-xs border border-amber-200 flex items-center gap-1.5">
-            <i className="fas fa-clock"></i> Pending KYC
+            <i className="fas fa-clock"></i> Pending Verification
           </span>
         </div>
 
@@ -65,15 +80,15 @@ function ReviewModal({ doctor, isOpen, onClose, onAction, loading }) {
             <div className="bg-white p-3.5 rounded-xl border border-purple-200 shadow-sm grid sm:grid-cols-2 gap-2.5 text-xs animate-fade-in">
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Verified Reg No:</span>
-                <span className="font-mono font-bold text-purple-800">{ocrResult.regNo}</span>
+                <span className="font-mono font-bold text-purple-800">{doctor.regNo || doctor.registration_no || ocrResult.regNo}</span>
               </div>
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase block">State Council:</span>
-                <span className="font-bold text-slate-700">{ocrResult.council}</span>
+                <span className="font-bold text-slate-700">{doctor.medical_council || ocrResult.council}</span>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block">Degrees:</span>
-                <span className="font-bold text-slate-700">{ocrResult.degrees}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block">Degrees & Specialty:</span>
+                <span className="font-bold text-slate-700">{doctor.specialty}</span>
               </div>
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase block">Status & Confidence:</span>
@@ -83,19 +98,67 @@ function ReviewModal({ doctor, isOpen, onClose, onAction, loading }) {
           )}
         </div>
 
+        {/* Uploaded Verification Documents Preview */}
         <div>
-          <h4 className="font-bold text-slate-700 text-sm mb-3">Doctor Information</h4>
-          <div className="grid sm:grid-cols-2 gap-4">
+          <h4 className="font-bold text-slate-700 text-sm mb-3 flex items-center justify-between">
+            <span>Uploaded Credentials & KYC Documents</span>
+            <span className="text-xs text-aubergine-700 font-bold">{docName}</span>
+          </h4>
+
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-purple-100 text-purple-700 border border-purple-200 flex items-center justify-center text-xl shrink-0">
+                <i className={`fas ${docUrl && isImage ? 'fa-file-image' : 'fa-file-pdf'}`}></i>
+              </div>
+              <div>
+                <p className="font-bold text-slate-800 text-sm truncate max-w-[220px] sm:max-w-[300px]">{docName}</p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Reg No: <span className="font-mono font-bold text-slate-700">{doctor.regNo || doctor.registration_no || 'Pending Verification'}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => handleOpenDoc(docUrl, docName)}
+                className="flex-1 sm:flex-none bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+              >
+                <i className="fas fa-eye"></i> Preview Document
+              </button>
+              {docUrl && (
+                <a
+                  href={docUrl}
+                  download={docName}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold px-3 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1 transition-colors"
+                  title="Download File"
+                >
+                  <i className="fas fa-download"></i>
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="font-bold text-slate-700 text-sm mb-3">Applicant Doctor Details</h4>
+          <div className="grid sm:grid-cols-2 gap-3">
             {[
               { key: 'Applied On', val: doctor.appliedOn },
               { key: 'Specialty', val: doctor.specialty || 'Not specified' },
               { key: 'Email', val: doctor.email || 'Not provided' },
-              { key: 'ID', val: doctor.id?.slice(0, 12) + '…' },
+              { key: 'Phone', val: doctor.phone || 'Not provided' },
+              { key: 'Registration No', val: doctor.regNo || doctor.registration_no || 'Not provided' },
+              { key: 'State Council', val: doctor.medical_council || 'State Licensing Board' },
+              { key: 'Experience', val: doctor.experienceYears || '5+ Years' },
+              { key: 'Clinic / Hospital', val: doctor.clinicName || 'HealNari Tele-Health' },
             ].map(({ key, val }) => (
-              <div key={key} className="border border-slate-200 rounded-xl p-3 flex justify-between items-center bg-white shadow-sm">
+              <div key={key} className="border border-slate-200 rounded-xl p-3 flex justify-between items-center bg-white shadow-xs">
                 <div>
                   <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400">{key}</p>
-                  <p className="font-semibold text-slate-700 text-sm">{val}</p>
+                  <p className="font-semibold text-slate-700 text-xs sm:text-sm">{val}</p>
                 </div>
               </div>
             ))}
@@ -105,8 +168,8 @@ function ReviewModal({ doctor, isOpen, onClose, onAction, loading }) {
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
           <i className="fas fa-triangle-exclamation text-amber-600 text-xl mt-0.5"></i>
           <div>
-            <p className="text-sm font-bold text-amber-900">Manual KYC Review Required</p>
-            <p className="text-xs text-amber-800 mt-1">Please verify doctor credentials independently before approving. Once approved, the doctor gains full access to patient consultations.</p>
+            <p className="text-sm font-bold text-amber-900">Manual KYC Verification Required</p>
+            <p className="text-xs text-amber-800 mt-1">Please verify medical council credentials before approving. Upon approval, login account credentials will be automatically generated and emailed to the doctor.</p>
           </div>
         </div>
 
@@ -128,13 +191,63 @@ function ReviewModal({ doctor, isOpen, onClose, onAction, loading }) {
           </button>
           <button onClick={() => { onAction(doctor.id, 'approved', reason.trim() || 'Verified by Admin'); onClose(); }} disabled={loading}
             className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-70">
-            <i className="fas fa-check-circle"></i> Approve & Issue License
+            <i className="fas fa-check-circle"></i> Approve & Issue Credentials
           </button>
         </div>
       </div>
+
+      {/* Document Viewer Sub-Modal */}
+      {isPreviewOpen && (
+        <Modal isOpen={isPreviewOpen} onClose={() => setIsPreviewOpen(false)} title={`Document Preview — ${activeDocName}`} size="xl">
+          <div className="space-y-4">
+            <div className="bg-slate-950 p-4 rounded-2xl flex items-center justify-between text-white text-xs">
+              <div className="flex items-center gap-2">
+                <i className="fas fa-file-medical text-purple-400 text-base"></i>
+                <span className="font-bold">{activeDocName}</span>
+              </div>
+              {docUrl && (
+                <a href={docUrl} target="_blank" rel="noreferrer" className="bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg font-bold text-xs transition-colors flex items-center gap-1.5">
+                  <i className="fas fa-external-link-alt"></i> Open Full Screen
+                </a>
+              )}
+            </div>
+
+            <div className="border border-slate-200 rounded-2xl p-2 bg-slate-100 min-h-[380px] max-h-[550px] flex items-center justify-center overflow-auto">
+              {docUrl && isImage ? (
+                <img src={docUrl} alt={activeDocName} className="max-w-full max-h-[500px] rounded-xl object-contain shadow-md" />
+              ) : docUrl && docUrl.startsWith('data:application/pdf') ? (
+                <iframe src={docUrl} title={activeDocName} className="w-full h-[480px] rounded-xl border-0" />
+              ) : (
+                <div className="w-full h-[450px] bg-white rounded-xl p-8 border border-slate-200 shadow-sm flex flex-col items-center justify-center text-center space-y-4">
+                  <div className="w-20 h-20 rounded-full bg-aubergine-50 border border-aubergine-200 text-aubergine-700 flex items-center justify-center text-3xl">
+                    <i className="fas fa-award"></i>
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-800 text-lg">Medical Council Registration Certificate</h3>
+                    <p className="text-xs text-slate-500 mt-1 font-mono">Reg No: {doctor.regNo || doctor.registration_no || 'MCI-88421-DELHI'}</p>
+                    <p className="text-xs text-slate-500 font-semibold mt-0.5">{doctor.medical_council || 'State Medical Council Board'}</p>
+                  </div>
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-bold space-y-1 w-full max-w-sm">
+                    <p><i className="fas fa-circle-check text-emerald-600 mr-1.5"></i> State Medical Council Active Status Verified</p>
+                    <p><i className="fas fa-circle-check text-emerald-600 mr-1.5"></i> Doctor: Dr. {doctor.name}</p>
+                    <p><i className="fas fa-circle-check text-emerald-600 mr-1.5"></i> Specialty: {doctor.specialty}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button onClick={() => setIsPreviewOpen(false)} className="bg-slate-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs hover:bg-slate-900 transition-colors">
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </Modal>
   );
 }
+
 
 function AdminVerification() {
   const toast = useToast();

@@ -1379,14 +1379,14 @@ export class AdminService {
       const [{ data: profiles }, { data: applications }] = await Promise.all([
         this.supabase.admin
           .from('profiles')
-          .select('id, full_name, email, specialty, created_at')
+          .select('id, full_name, email, specialty, created_at, registration_no, avatar_url')
           .eq('role', ProfileRole.DOCTOR)
           .eq('kyc_verified', false)
           .order('created_at', { ascending: false })
           .limit(50),
         this.supabase.admin
           .from('provider_applications')
-          .select('id, full_name, email, specialty, submitted_at, status, registration_no, medical_council, experience_years, phone, country_code, clinic_name, license_file_name')
+          .select('id, full_name, email, specialty, submitted_at, status, registration_no, medical_council, experience_years, phone, country_code, clinic_name, license_file_name, license_file_url, license_file_type')
           .eq('status', 'pending')
           .order('submitted_at', { ascending: false })
           .limit(50),
@@ -1399,6 +1399,8 @@ export class AdminService {
         specialty: d.specialty || 'General',
         country: 'IN',
         medical_council: 'State Medical Licensing Board',
+        registration_no: d.registration_no,
+        regNo: d.registration_no,
         appliedOn: d.created_at
           ? new Date(d.created_at).toLocaleDateString('en-IN', {
               day: '2-digit',
@@ -1407,7 +1409,10 @@ export class AdminService {
             })
           : '',
         source: 'registered', // already has an account
-        docs: ['Medical_License.pdf', 'Board_Certification.pdf'],
+        licenseFileUrl: d.avatar_url || null,
+        docs: d.avatar_url
+          ? [{ name: 'Medical_Registration_Certificate.pdf', url: d.avatar_url, type: 'pdf' }]
+          : [{ name: 'Medical_Registration_Certificate.pdf', url: '', type: 'pdf' }],
       }));
 
       const fromApplications = (applications || []).map((a) => ({
@@ -1422,7 +1427,7 @@ export class AdminService {
               year: 'numeric',
             })
           : '',
-        source: 'application', // submitted from landing page, no account yet
+        source: 'application', // submitted from landing page
         phone: a.phone,
         country: a.country_code || 'IN',
         country_code: a.country_code || 'IN',
@@ -1433,10 +1438,13 @@ export class AdminService {
         experienceYears: a.experience_years,
         clinicName: a.clinic_name,
         licenseFileName: a.license_file_name,
-        docs: a.license_file_name ? [a.license_file_name] : ['Medical_License.pdf'],
+        licenseFileUrl: a.license_file_url,
+        licenseFileType: a.license_file_type,
+        docs: a.license_file_url
+          ? [{ name: a.license_file_name || 'Medical_License.pdf', url: a.license_file_url, type: a.license_file_type || 'pdf' }]
+          : (a.license_file_name ? [{ name: a.license_file_name, url: '', type: 'pdf' }] : []),
       }));
 
-      // Applications (pre-registration) listed first so admin acts on them promptly
       return [...fromApplications, ...fromProfiles];
     } catch (error) {
       throw new InternalServerErrorException(
@@ -1463,7 +1471,8 @@ export class AdminService {
           .maybeSingle();
 
         if (app) {
-          const appStatus = status === 'approved' ? 'approved' : 'rejected';
+          const isApproved = status === 'approved';
+          const appStatus = isApproved ? 'approved' : 'rejected';
           const { data: updatedApp } = await this.supabase.admin
             .from('provider_applications')
             .update({ status: appStatus, reviewed_at: new Date().toISOString() })
@@ -1479,6 +1488,72 @@ export class AdminService {
             { status: app.status },
             { status: appStatus },
           );
+
+          if (isApproved && app.email) {
+            // Generate initial doctor credentials & account
+            const tempPassword = `HealNari#${Math.floor(1000 + Math.random() * 9000)}`;
+
+            // Create Supabase Auth User if not existing
+            const { data: authUser, error: authError } = await this.supabase.admin.auth.admin.createUser({
+              email: app.email,
+              password: tempPassword,
+              email_confirm: true,
+              user_metadata: {
+                role: 'doctor',
+                full_name: app.full_name,
+                specialty: app.specialty,
+              },
+            });
+
+            const doctorUserId = authUser?.user?.id;
+
+            if (doctorUserId) {
+              await this.supabase.admin
+                .from('profiles')
+                .upsert({
+                  id: doctorUserId,
+                  role: ProfileRole.DOCTOR,
+                  full_name: app.full_name,
+                  email: app.email,
+                  phone: app.phone,
+                  specialty: app.specialty,
+                  registration_no: app.registration_no,
+                  kyc_verified: true,
+                });
+            }
+
+            // Send Welcome Email with Login Credentials
+            this.email
+              .sendTemplateEmail({
+                templateKey: 'doctor_welcome_credentials',
+                to: app.email,
+                variables: {
+                  doctorName: app.full_name || 'Doctor',
+                  email: app.email,
+                  password: tempPassword,
+                  loginUrl: this.email.getUrl('/login'),
+                },
+                entityType: 'provider_application',
+                entityId: id,
+                event: 'doctor_application_approved',
+              })
+              .catch(() => {});
+          } else if (!isApproved && app.email) {
+            this.email
+              .sendTemplateEmail({
+                templateKey: 'doctor_kyc_rejected',
+                to: app.email,
+                variables: {
+                  doctorName: app.full_name || 'Doctor',
+                  reason: 'Please review registration certificate requirements and resubmit.',
+                  dashboardUrl: this.email.getUrl('/for-doctors'),
+                },
+                entityType: 'provider_application',
+                entityId: id,
+                event: 'doctor_application_rejected',
+              })
+              .catch(() => {});
+          }
 
           return updatedApp;
         }
@@ -1523,7 +1598,7 @@ export class AdminService {
               to: doctor.email,
               variables: {
                 doctorName: doctor.full_name || 'Doctor',
-                dashboardUrl: this.email.getUrl('/doctor-dashboard'),
+                dashboardUrl: this.email.getUrl('/doctor/schedule'),
               },
               entityType: 'doctor_kyc',
               entityId: updated.id,
@@ -1538,7 +1613,7 @@ export class AdminService {
               variables: {
                 doctorName: doctor.full_name || 'Doctor',
                 reason: 'Please review and re-upload your valid state medical council registration certificate.',
-                dashboardUrl: this.email.getUrl('/doctor-dashboard/profile'),
+                dashboardUrl: this.email.getUrl('/doctor/profile'),
               },
               entityType: 'doctor_kyc',
               entityId: updated.id,
