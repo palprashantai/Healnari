@@ -869,5 +869,76 @@ export class AiToolRegistry {
         };
       },
     });
+
+    // Tool: get_consultation_data (Doctor & Patient for own consultations)
+    this.registerTool({
+      name: 'get_consultation_data',
+      description:
+        'Retrieves verified details of a specific consultation/appointment including date, time, status, and participants if authorized.',
+      parameters: {
+        type: SchemaType.OBJECT,
+        properties: {
+          appointmentId: {
+            type: SchemaType.STRING,
+            description: 'UUID of the consultation appointment.',
+          },
+        },
+        required: ['appointmentId'],
+      },
+      requiredRole: 'any',
+      execute: async (params, context) => {
+        if (!context.user) return { error: 'Authentication required.' };
+        if (!params.appointmentId || typeof params.appointmentId !== 'string') {
+          return { error: 'Invalid appointment ID format.' };
+        }
+
+        const { data: appointment, error } = await this.supabase.admin
+          .from('appointments')
+          .select(`
+            id,
+            scheduled_date,
+            scheduled_time,
+            status,
+            type,
+            specialty,
+            doctor_id,
+            patient_id,
+            doctor:profiles!appointments_doctor_id_fkey(full_name, specialty),
+            patient:profiles!appointments_patient_id_fkey(full_name)
+          `)
+          .eq('id', params.appointmentId)
+          .is('deleted_at', null)
+          .maybeSingle();
+
+        if (error || !appointment) {
+          return { error: 'Consultation appointment not found.' };
+        }
+
+        const userId = context.user.id;
+        const isAttendingDoctor = appointment.doctor_id === userId;
+        const isConsultingPatient = appointment.patient_id === userId;
+        const isAdmin = context.user.profile.role === 'admin';
+
+        if (!isAttendingDoctor && !isConsultingPatient && !isAdmin) {
+          return {
+            error: 'Access Denied: You are not an authorized participant in this consultation.',
+          };
+        }
+
+        const docObj = Array.isArray(appointment.doctor) ? (appointment.doctor as any)[0] : (appointment.doctor as any);
+        const patObj = Array.isArray(appointment.patient) ? (appointment.patient as any)[0] : (appointment.patient as any);
+
+        return {
+          appointmentId: appointment.id,
+          date: appointment.scheduled_date,
+          time: appointment.scheduled_time,
+          status: appointment.status,
+          type: appointment.type,
+          doctorName: docObj?.full_name || 'Attending Doctor',
+          specialty: docObj?.specialty || appointment.specialty,
+          patientName: patObj?.full_name || 'Patient',
+        };
+      },
+    });
   }
 }

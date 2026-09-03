@@ -135,26 +135,40 @@ export class AiEntitlementService {
       };
     }
 
-    // Construct standard paywall context
-    const upgradePlanId = isDoctor ? AiPlanId.DOCTOR_PRO : AiPlanId.PATIENT_PREMIUM;
+    // Construct dynamic paywall context tailored to current plan and role
+    let upgradePlanId = isDoctor ? 'doctor_plan_2' : 'patient_plan_2';
+    if (isDoctor) {
+      if (featureKey === AiFeatureKey.DOCTOR_SOAP_NOTES || subscription.plan_id === 'doctor_plan_2') {
+        upgradePlanId = 'doctor_plan_3';
+      } else {
+        upgradePlanId = 'doctor_plan_2';
+      }
+    } else {
+      if (subscription.plan_id === 'patient_plan_2') {
+        upgradePlanId = 'patient_plan_3';
+      } else {
+        upgradePlanId = 'patient_plan_2';
+      }
+    }
+
+    const upgradePlan = await this.pricingService.getPlan(upgradePlanId).catch(() => null);
     const userCurrency = (user.profile?.currency || 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR';
     const isUsd = userCurrency === 'USD';
-    const priceAmount = isDoctor ? (isUsd ? 60 : 1999) : (isUsd ? 35 : 999);
-    const priceText = isDoctor
-      ? (isUsd ? '$60 / month' : '₹1,999 / month')
-      : (isUsd ? '$35 / month' : '₹999 / month');
+    const priceAmount = isDoctor
+      ? (upgradePlanId === 'doctor_plan_3' ? (isUsd ? 39 : 2999) : (isUsd ? 19 : 1499))
+      : (upgradePlanId === 'patient_plan_3' ? (isUsd ? 14 : 999) : (isUsd ? 7 : 499));
+    const priceText = isUsd ? `$${priceAmount} / month` : `₹${priceAmount.toLocaleString('en-IN')} / month`;
 
     const paywallData = {
-      title: isDoctor
-        ? `Unlock ${flag.name} with Doctor AI Pro`
-        : `Unlock ${flag.name} with HealNari AI Premium`,
+      title: `Unlock ${flag.name} with ${upgradePlan?.name || (isDoctor ? 'Doctor Pro' : 'Patient Pro')}`,
       description: flag.description,
-      planName: isDoctor ? 'Doctor AI Pro' : 'HealNari AI Premium',
+      planName: upgradePlan?.name || (isDoctor ? 'Doctor Pro' : 'Patient Pro'),
+      planId: upgradePlanId,
       price: priceText,
       priceAmount,
       billingCycle: 'monthly',
       currency: userCurrency,
-      features: plan?.features || [],
+      features: upgradePlan?.features || [],
       upgradeUrl: '/api/ai/subscription/upgrade',
     };
 

@@ -99,7 +99,7 @@ function LabReviewModal({ lab, isOpen, onClose, onAction }) {
     setAiGenerating(true);
     try {
       const testsStr = Array.isArray(lab.tests) ? lab.tests.join(', ') : lab.tests;
-      const res = await apiFetch('/ai/consult-prep', {
+      const res = await apiFetch('/ai/patient-brief', {
         method: 'POST',
         body: {
           patientName: lab.patient,

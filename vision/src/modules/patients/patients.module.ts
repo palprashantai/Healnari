@@ -5,8 +5,10 @@ import { PatientsController } from '@/modules/patients/controllers/patients.cont
 import { SupabaseModule } from '@/core/supabase/supabase.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 
+import { AdminModule } from '@/modules/admin/admin.module';
+
 @Module({
-  imports: [SupabaseModule, NotificationsModule],
+  imports: [SupabaseModule, NotificationsModule, AdminModule],
   controllers: [PatientsController],
   providers: [PatientsService, CyclePredictionCronService],
   exports: [PatientsService],

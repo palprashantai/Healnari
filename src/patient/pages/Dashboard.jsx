@@ -1650,8 +1650,8 @@ function PatientAiDashboardCard({ navigate }) {
       .catch(() => {});
   }, []);
 
-  const remaining = aiStatus?.creditsRemaining ?? 5;
-  const total = aiStatus?.subscription?.monthly_ai_credits ?? (aiStatus?.isPremium ? 500 : 10);
+  const remaining = aiStatus?.creditsRemaining ?? 15;
+  const total = aiStatus?.totalCredits ?? aiStatus?.subscription?.monthly_ai_credits ?? 15;
   const percent = Math.max(0, Math.min(100, Math.round((remaining / Math.max(1, total)) * 100)));
 
   return (

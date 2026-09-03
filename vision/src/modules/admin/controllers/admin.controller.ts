@@ -155,6 +155,31 @@ export class UpdateUserStatusDto {
   @IsIn(['Active', 'Suspended'])
   status: string;
 }
+export class UpdateUserAiPlanDto {
+  @ApiProperty({
+    enum: [
+      'doctor_plan_1',
+      'doctor_plan_2',
+      'doctor_plan_3',
+      'patient_plan_1',
+      'patient_plan_2',
+      'patient_plan_3',
+    ],
+  })
+  @IsIn([
+    'doctor_plan_1',
+    'doctor_plan_2',
+    'doctor_plan_3',
+    'patient_plan_1',
+    'patient_plan_2',
+    'patient_plan_3',
+  ])
+  planId: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  resetCredits?: boolean;
+}
 export class UpdateCommissionDto {
   @ApiProperty({ minimum: 0, maximum: 100 })
   @IsNumber()
@@ -192,10 +217,15 @@ export class AdminUpdateAppointmentStatusDto {
   reason?: string;
 }
 
+import { AnalyticsService } from '@/modules/admin/services/analytics.service';
+
 @ApiTags('Admin')
 @Controller('api/admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly analyticsService: AnalyticsService,
+  ) {}
 
   private checkAdmin(user: AuthUser) {
     if (user.profile.role !== ProfileRole.ADMIN)
@@ -290,6 +320,23 @@ export class AdminController {
   ) {
     this.checkAdmin(user);
     const data = await this.adminService.updateUserStatus(id, body.status);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
+  }
+
+  @Put('users/:id/ai-plan')
+  @ApiOperation({ summary: 'Admin override or assign AI subscription plan' })
+  async updateUserAiPlan(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: UpdateUserAiPlanDto,
+  ) {
+    this.checkAdmin(user);
+    const data = await this.adminService.updateUserAiPlan(
+      user,
+      id,
+      body.planId,
+      body.resetCredits,
+    );
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
   }
 
@@ -795,11 +842,86 @@ export class AdminController {
   }
 
   // ─── Analytics ────────────────────────────────────────────────────
-  @Get('analytics')
-  @ApiOperation({ summary: 'Analytics aggregates for charts' })
-  async getAnalytics(@CurrentUser() user: AuthUser) {
+  @Get('analytics/overview')
+  @ApiOperation({ summary: 'Platform KPI overview, growth trajectory, and health metrics' })
+  @ApiQuery({ name: 'range', required: false })
+  @ApiQuery({ name: 'reportingCurrency', required: false })
+  async getAnalyticsOverview(
+    @CurrentUser() user: AuthUser,
+    @Query('range') range?: string,
+    @Query('reportingCurrency') reportingCurrency?: string,
+  ) {
     this.checkAdmin(user);
-    const data = await this.adminService.getAnalytics();
+    const data = await this.analyticsService.getAdminOverview(range, reportingCurrency);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Get('analytics/revenue')
+  @ApiOperation({ summary: 'Authoritative revenue analytics with multi-currency segregation' })
+  @ApiQuery({ name: 'range', required: false })
+  @ApiQuery({ name: 'reportingCurrency', required: false })
+  async getAnalyticsRevenue(
+    @CurrentUser() user: AuthUser,
+    @Query('range') range?: string,
+    @Query('reportingCurrency') reportingCurrency?: string,
+  ) {
+    this.checkAdmin(user);
+    const data = await this.analyticsService.getAdminRevenue(range, reportingCurrency);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Get('analytics/funnel')
+  @ApiOperation({ summary: 'Authentic 10-stage healthcare marketplace growth funnel' })
+  @ApiQuery({ name: 'range', required: false })
+  async getAnalyticsFunnel(
+    @CurrentUser() user: AuthUser,
+    @Query('range') range?: string,
+  ) {
+    this.checkAdmin(user);
+    const data = await this.analyticsService.getMarketplaceFunnel(range);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Get('analytics/reconciliation')
+  @ApiOperation({ summary: 'Financial invariant and reconciliation audit report' })
+  @ApiQuery({ name: 'reportingCurrency', required: false })
+  async getRevenueReconciliationReport(
+    @CurrentUser() user: AuthUser,
+    @Query('reportingCurrency') reportingCurrency?: string,
+  ) {
+    this.checkAdmin(user);
+    const data = await this.analyticsService.getRevenueReconciliation(reportingCurrency);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Get('analytics')
+  @ApiOperation({ summary: 'Analytics aggregates for charts (with authentic data and funnel)' })
+  @ApiQuery({ name: 'range', required: false })
+  @ApiQuery({ name: 'reportingCurrency', required: false })
+  async getAnalytics(
+    @CurrentUser() user: AuthUser,
+    @Query('range') range?: string,
+    @Query('reportingCurrency') reportingCurrency?: string,
+  ) {
+    this.checkAdmin(user);
+    const [baseData, funnelData, revData] = await Promise.all([
+      this.adminService.getAnalytics(),
+      this.analyticsService.getMarketplaceFunnel(range),
+      this.analyticsService.getAdminRevenue(range, reportingCurrency),
+    ]);
+    const merged = {
+      ...baseData,
+      marketplaceFunnel: funnelData,
+      specialtyRevenue: revData.specialtyRevenue.length > 0 ? revData.specialtyRevenue : baseData.specialtyRevenue,
+      revenueByCurrency: revData.currencyBreakdown.length > 0 ? revData.currencyBreakdown.map(c => ({
+        currency: c.currency,
+        name: c.currency === 'USD' ? 'US Dollar' : c.currency === 'INR' ? 'Indian Rupee' : c.currency,
+        symbol: c.currency === 'USD' ? '$' : c.currency === 'INR' ? '₹' : c.currency,
+        flag: c.currency === 'USD' ? '🇺🇸' : c.currency === 'INR' ? '🇮🇳' : '🌍',
+        amount: c.grossAmount,
+        count: c.count,
+      })) : baseData.revenueByCurrency,
+    };
+    return ResponseHelper.success(merged, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 }

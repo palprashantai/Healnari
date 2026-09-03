@@ -28,9 +28,9 @@ export function AIPaywallModal({
   const [validatingCoupon, setValidatingCoupon] = useState(false);
 
   const userCurrency = getStoredCurrency();
-  const isDoctor = paywallData?.planName?.toLowerCase().includes('doctor');
-  const basePlanId = isDoctor ? 'doctor_pro' : 'patient_premium';
-  const effectivePlanId = billingCycle === 'yearly' ? `${basePlanId}_yearly` : basePlanId;
+  const isDoctor = paywallData?.planName?.toLowerCase().includes('doctor') || paywallData?.planId?.startsWith('doctor');
+  const basePlanId = paywallData?.planId || (isDoctor ? 'doctor_plan_2' : 'patient_plan_2');
+  const effectivePlanId = basePlanId;
 
   useEffect(() => {
     if (isOpen) {
@@ -42,14 +42,14 @@ export function AIPaywallModal({
 
   if (!isOpen) return null;
 
-  // Resolve matching quote or fallback to standard market benchmarks
+  // Resolve matching quote or fallback to canonical plan benchmarks
   const currentQuote = pricingQuotes.find((q) => q.planId === effectivePlanId) || {
     baseAmount: isDoctor
-      ? (userCurrency === 'USD' ? (billingCycle === 'monthly' ? 29 : 290) : (billingCycle === 'monthly' ? 1999 : 19999))
-      : (userCurrency === 'USD' ? (billingCycle === 'monthly' ? 19 : 190) : (billingCycle === 'monthly' ? 999 : 9999)),
+      ? (userCurrency === 'USD' ? (effectivePlanId === 'doctor_plan_3' ? 39 : 19) : (effectivePlanId === 'doctor_plan_3' ? 2999 : 1499))
+      : (userCurrency === 'USD' ? (effectivePlanId === 'patient_plan_3' ? 14 : 7) : (effectivePlanId === 'patient_plan_3' ? 999 : 499)),
     finalAmount: isDoctor
-      ? (userCurrency === 'USD' ? (billingCycle === 'monthly' ? 29 : 290) : (billingCycle === 'monthly' ? 1999 : 19999))
-      : (userCurrency === 'USD' ? (billingCycle === 'monthly' ? 19 : 190) : (billingCycle === 'monthly' ? 999 : 9999)),
+      ? (userCurrency === 'USD' ? (effectivePlanId === 'doctor_plan_3' ? 39 : 19) : (effectivePlanId === 'doctor_plan_3' ? 2999 : 1499))
+      : (userCurrency === 'USD' ? (effectivePlanId === 'patient_plan_3' ? 14 : 7) : (effectivePlanId === 'patient_plan_3' ? 999 : 499)),
     currency: userCurrency,
     currencySymbol: userCurrency === 'USD' ? '$' : '₹',
     countryName: userCurrency === 'USD' ? 'International' : 'India',
@@ -57,7 +57,7 @@ export function AIPaywallModal({
     taxName: userCurrency === 'USD' ? 'Sales Tax' : 'GST',
     taxRate: userCurrency === 'USD' ? 0 : 18,
     taxType: userCurrency === 'USD' ? 'exclusive' : 'inclusive',
-    includedCredits: isDoctor ? 1000 : 500,
+    includedCredits: isDoctor ? (effectivePlanId === 'doctor_plan_3' ? 300 : 100) : (effectivePlanId === 'patient_plan_3' ? 150 : 60),
   };
 
   const handleApplyCoupon = async () => {
@@ -181,38 +181,7 @@ export function AIPaywallModal({
               : 'Understand your blood reports in plain English, prepare tailored questions for your doctor, and take control of your health journey.')}
           </p>
 
-          {/* Billing Cycle Toggle */}
-          <div className="inline-flex items-center p-1 bg-slate-100 rounded-full border border-slate-200 mt-4">
-            <button
-              onClick={() => {
-                setBillingCycle('monthly');
-                setAppliedCoupon(null);
-              }}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
-                billingCycle === 'monthly'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              Monthly Billing
-            </button>
-            <button
-              onClick={() => {
-                setBillingCycle('yearly');
-                setAppliedCoupon(null);
-              }}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
-                billingCycle === 'yearly'
-                  ? 'bg-purple-900 text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <span>Annual VIP</span>
-              <span className="bg-amber-400 text-slate-900 text-[10px] font-black px-1.5 py-0.2 rounded-full">
-                2 Mo Free
-              </span>
-            </button>
-          </div>
+
         </div>
 
         {/* Pricing Card */}
@@ -220,10 +189,10 @@ export function AIPaywallModal({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <span className="text-xs font-extrabold text-purple-900 uppercase tracking-wider block">
-                {isDoctor ? 'Doctor AI Pro Plan' : 'HealNari AI Premium Plan'}
+                {paywallData?.planName || (isDoctor ? 'Doctor Pro Plan' : 'Patient Pro Plan')}
               </span>
               <span className="text-xs text-slate-500 mt-0.5 block">
-                Includes {currentQuote.includedCredits} monthly AI Credits • Full Feature Suite
+                Includes {currentQuote.includedCredits} monthly AI uses • Clinical Grade Intelligence
               </span>
             </div>
 

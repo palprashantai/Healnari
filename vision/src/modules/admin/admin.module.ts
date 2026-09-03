@@ -9,10 +9,12 @@ import { NotificationsModule } from '@/modules/notifications/notifications.modul
 import { CashfreeModule } from '@/core/cashfree/cashfree.module';
 import { EmailModule } from '@/core/email/email.module';
 
+import { AnalyticsService } from '@/modules/admin/services/analytics.service';
+
 @Module({
   imports: [SupabaseModule, NotificationsModule, CashfreeModule, EmailModule],
   controllers: [AdminController, CronManagerController],
-  providers: [AdminService, AdminCronService, CronManagerService],
-  exports: [AdminService, CronManagerService],
+  providers: [AdminService, AnalyticsService, AdminCronService, CronManagerService],
+  exports: [AdminService, AnalyticsService, CronManagerService],
 })
 export class AdminModule {}

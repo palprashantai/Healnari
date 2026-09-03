@@ -11,7 +11,7 @@ describe('AiService — Safety, JSON Extraction, and RAG Resilience', () => {
   };
 
   beforeEach(() => {
-    service = new AiService(supabase as any, patientsService as any);
+    service = new AiService(supabase as any, patientsService as any, {} as any);
   });
 
   describe('safeJsonParse', () => {

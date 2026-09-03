@@ -95,52 +95,75 @@ export class AiProfitabilityService {
         ? '£'
         : '$';
 
-    // Mock/Default Baseline Aggregates for Global Dashboard
     let totalRevenueRep = 0;
     let totalCostRep = 0;
     let totalGatewayFeesRep = 0;
-    let totalSubscribers = 482;
-    let totalAiRequests = 34910;
-    let totalCreditsConsumed = 28450;
 
-    // 1. Fetch live transactions if available
+    // 1. Fetch live transactions, active subscriptions, and usage logs
+    const [
+      { data: txns },
+      { data: activeSubs },
+      { data: usageLogs },
+      { data: creditAccounts },
+      { data: dbPlans },
+    ] = await Promise.all([
+      this.supabase.admin
+        .from('ai_transactions')
+        .select('*')
+        .in('status', ['paid', 'success', 'active']),
+      this.supabase.admin
+        .from('ai_subscriptions')
+        .select('*')
+        .eq('status', 'active'),
+      this.supabase.admin
+        .from('ai_usage_logs')
+        .select('*'),
+      this.supabase.admin
+        .from('ai_credit_accounts')
+        .select('*'),
+      this.supabase.admin
+        .from('ai_plans')
+        .select('*'),
+    ]);
+
+    const paidTxns = txns || [];
+    const subs = activeSubs || [];
+    const logs = usageLogs || [];
+    const accounts = creditAccounts || [];
+    const plans = dbPlans || [];
+
+    const totalSubscribers = subs.length;
+    const totalAiRequests = logs.length;
+    const totalCreditsConsumed = accounts.reduce((sum, a) => sum + (a.lifetime_consumed || 0), 0);
+
+    // Group transactions by country
     const countryDataMap: Record<
       string,
       { localRev: number; localCurr: string; count: number; requests: number; costUsd: number }
-    > = {
-      IN: { localRev: 145000, localCurr: 'INR', count: 320, requests: 22000, costUsd: 3.63 },
-      US: { localRev: 1198.8, localCurr: 'USD', count: 120, requests: 8400, costUsd: 1.38 },
-    };
+    > = {};
 
-    try {
-      const { data: txns } = await this.supabase.admin
-        .from('ai_transactions')
-        .select('*')
-        .eq('status', 'paid');
+    paidTxns.forEach((t) => {
+      const cCode = t.country_code || 'IN';
+      const origAmt = Number(t.final_amount || t.base_amount || 0);
+      const origCurr = t.original_currency || 'INR';
 
-      if (txns && txns.length > 0) {
-        // Reset baseline with actual DB rows
-        for (const key of Object.keys(countryDataMap)) {
-          countryDataMap[key].localRev = 0;
-          countryDataMap[key].count = 0;
-        }
-
-        for (const t of txns) {
-          const cCode = t.country_code || 'IN';
-          if (!countryDataMap[cCode]) {
-            countryDataMap[cCode] = {
-              localRev: 0,
-              localCurr: t.original_currency || 'USD',
-              count: 0,
-              requests: 0,
-              costUsd: 0,
-            };
-          }
-          countryDataMap[cCode].localRev += Number(t.final_amount || 0);
-          countryDataMap[cCode].count += 1;
-        }
+      if (!countryDataMap[cCode]) {
+        countryDataMap[cCode] = {
+          localRev: 0,
+          localCurr: origCurr,
+          count: 0,
+          requests: 0,
+          costUsd: 0,
+        };
       }
-    } catch {}
+      countryDataMap[cCode].localRev += origAmt;
+      countryDataMap[cCode].count += 1;
+    });
+
+    // Map logs to country where available or model costs
+    logs.forEach((log) => {
+      totalCostRep += Number(log.estimated_cost_usd || 0);
+    });
 
     // Calculate Country-by-Country metrics converted to target reporting currency
     const byCountry = Object.entries(countryDataMap).map(([code, data]) => {
@@ -194,107 +217,78 @@ export class AiProfitabilityService {
         ? Number((totalRevenueRep / totalSubscribers).toFixed(2))
         : 0;
 
-    // Breakdown By Plan
-    const byPlan = [
-      {
-        planId: 'patient_premium',
-        planName: 'HealNari AI Premium',
-        subscribers: 360,
-        reportingRevenue: Number((totalRevenueRep * 0.58).toFixed(2)),
-        reportingCost: Number((totalCostRep * 0.45).toFixed(2)),
-        marginPercent: 91.2,
-      },
-      {
-        planId: 'doctor_pro',
-        planName: 'Doctor AI Pro',
-        subscribers: 95,
-        reportingRevenue: Number((totalRevenueRep * 0.38).toFixed(2)),
-        reportingCost: Number((totalCostRep * 0.40).toFixed(2)),
-        marginPercent: 88.5,
-      },
-      {
-        planId: 'patient_free',
-        planName: 'Patient Free Tier (Acquisition)',
-        subscribers: 1250,
-        reportingRevenue: 0,
-        reportingCost: Number((totalCostRep * 0.15).toFixed(2)),
-        marginPercent: -100.0,
-      },
-    ];
+    // Breakdown By Plan from real data
+    const planMap = new Map(plans.map((p) => [p.id, p]));
+    const planSubCounts: Record<string, number> = {};
+    subs.forEach((s) => {
+      planSubCounts[s.plan_id] = (planSubCounts[s.plan_id] || 0) + 1;
+    });
 
-    // Breakdown By Model
-    const byModel = [
-      {
-        model: 'gemini-1.5-flash',
-        provider: 'Google Gemini',
-        requests: 31200,
-        inputTokens: 18720000,
-        outputTokens: 12480000,
-        reportingCost: Number(
-          this.fxRateService.convert(5.148, 'USD', repCurr).reportingAmount.toFixed(2),
-        ),
-      },
-      {
-        model: 'gpt-4o-mini',
-        provider: 'OpenAI',
-        requests: 2800,
-        inputTokens: 1680000,
-        outputTokens: 1120000,
-        reportingCost: Number(
-          this.fxRateService.convert(0.924, 'USD', repCurr).reportingAmount.toFixed(2),
-        ),
-      },
-      {
-        model: 'text-embedding-004',
-        provider: 'Google Gemini',
-        requests: 910,
-        inputTokens: 455000,
-        outputTokens: 0,
-        reportingCost: Number(
-          this.fxRateService.convert(0.011, 'USD', repCurr).reportingAmount.toFixed(2),
-        ),
-      },
-    ];
+    const planRevenueMap: Record<string, number> = {};
+    paidTxns.forEach((t) => {
+      const origAmt = Number(t.final_amount || t.base_amount || 0);
+      const origCurr = t.original_currency || 'INR';
+      const conv = this.fxRateService.convert(origAmt, origCurr, repCurr).reportingAmount;
+      planRevenueMap[t.plan_id] = DecimalMath.add(planRevenueMap[t.plan_id] || 0, conv);
+    });
 
-    // Breakdown By Feature
-    const byFeature = [
-      {
-        featureKey: 'PATIENT_CHAT',
-        featureName: 'AI Health Companion',
-        requests: 24200,
-        creditsUsed: 24200,
-        reportingCost: Number(
-          this.fxRateService.convert(3.99, 'USD', repCurr).reportingAmount.toFixed(2),
-        ),
-      },
-      {
-        featureKey: 'PATIENT_LAB_ANALYSIS',
-        featureName: 'AI Lab Decoder',
-        requests: 4100,
-        creditsUsed: 8200,
-        reportingCost: Number(
-          this.fxRateService.convert(1.15, 'USD', repCurr).reportingAmount.toFixed(2),
-        ),
-      },
-      {
-        featureKey: 'DOCTOR_SOAP_NOTES',
-        featureName: 'Clinical SOAP Notes',
-        requests: 3800,
-        creditsUsed: 7600,
-        reportingCost: Number(
-          this.fxRateService.convert(0.85, 'USD', repCurr).reportingAmount.toFixed(2),
-        ),
-      },
-      {
-        featureKey: 'DOCTOR_RX_AUTOCOMPLETE',
-        featureName: 'Prescription Autocomplete',
-        requests: 1810,
-        creditsUsed: 1810,
-        reportingCost: Number(
-          this.fxRateService.convert(0.09, 'USD', repCurr).reportingAmount.toFixed(2),
-        ),
-      },
-    ];
+    const distinctPlanIds = Array.from(new Set([...Object.keys(planSubCounts), ...Object.keys(planRevenueMap)]));
+    const byPlan = distinctPlanIds.map((pId) => {
+      const rev = planRevenueMap[pId] || 0;
+      const planCost = totalCostRep > 0 ? DecimalMath.percentage(totalCostRep, 10.0) : 0;
+      const profit = DecimalMath.subtract(rev, planCost);
+      const margin = rev > 0 ? Number(((profit / rev) * 100).toFixed(1)) : 0;
+      return {
+        planId: pId,
+        planName: planMap.get(pId)?.name || pId.replace(/_/g, ' ').toUpperCase(),
+        subscribers: planSubCounts[pId] || 0,
+        reportingRevenue: Number(rev.toFixed(2)),
+        reportingCost: Number(planCost.toFixed(2)),
+        marginPercent: margin,
+      };
+    });
+
+    // Breakdown By Model from real logs
+    const modelGroupMap: Record<string, { requests: number; inputTokens: number; outputTokens: number; costUsd: number }> = {};
+    logs.forEach((log) => {
+      const m = log.model || 'gemini-1.5-flash';
+      if (!modelGroupMap[m]) {
+        modelGroupMap[m] = { requests: 0, inputTokens: 0, outputTokens: 0, costUsd: 0 };
+      }
+      modelGroupMap[m].requests += 1;
+      modelGroupMap[m].inputTokens += log.input_tokens || 0;
+      modelGroupMap[m].outputTokens += log.output_tokens || 0;
+      modelGroupMap[m].costUsd += Number(log.estimated_cost_usd || 0);
+    });
+
+    const byModel = Object.entries(modelGroupMap).map(([model, mData]) => ({
+      model,
+      provider: model.includes('gemini') ? 'Google Gemini' : model.includes('gpt') ? 'OpenAI' : 'HealNari AI',
+      requests: mData.requests,
+      inputTokens: mData.inputTokens,
+      outputTokens: mData.outputTokens,
+      reportingCost: Number(this.fxRateService.convert(mData.costUsd, 'USD', repCurr).reportingAmount.toFixed(4)),
+    }));
+
+    // Breakdown By Feature from real logs
+    const featureGroupMap: Record<string, { requests: number; creditsUsed: number; costUsd: number }> = {};
+    logs.forEach((log) => {
+      const f = log.feature || 'PATIENT_CHAT';
+      if (!featureGroupMap[f]) {
+        featureGroupMap[f] = { requests: 0, creditsUsed: 0, costUsd: 0 };
+      }
+      featureGroupMap[f].requests += 1;
+      featureGroupMap[f].creditsUsed += log.credits_deducted || 1;
+      featureGroupMap[f].costUsd += Number(log.estimated_cost_usd || 0);
+    });
+
+    const byFeature = Object.entries(featureGroupMap).map(([featureKey, fData]) => ({
+      featureKey,
+      featureName: featureKey.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()),
+      requests: fData.requests,
+      creditsUsed: fData.creditsUsed,
+      reportingCost: Number(this.fxRateService.convert(fData.costUsd, 'USD', repCurr).reportingAmount.toFixed(4)),
+    }));
 
     return {
       reportingCurrency: repCurr,

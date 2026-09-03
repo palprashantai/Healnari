@@ -78,29 +78,50 @@ export class AiAnalyticsService {
   }
 
   /**
-   * Admin: Get Funnel Conversion Overview
+   * Admin: Get Funnel Conversion Overview (from actual database events)
    */
   async getFunnelStats() {
-    const counts: Record<string, number> = {};
-    for (const ev of this.inMemoryEvents) {
-      counts[ev.event_type] = (counts[ev.event_type] || 0) + 1;
+    try {
+      const { data: dbEvents } = await this.supabase.admin
+        .from('ai_analytics_events')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+
+      const events = (dbEvents && dbEvents.length > 0) ? dbEvents : this.inMemoryEvents;
+
+      const counts: Record<string, number> = {};
+      for (const ev of events) {
+        counts[ev.event_type] = (counts[ev.event_type] || 0) + 1;
+      }
+
+      const paywallViews = counts['AI_PAYWALL_VIEWED'] || 0;
+      const upgradeStarts = counts['AI_UPGRADE_STARTED'] || 0;
+      const upgradeCompletes = counts['AI_UPGRADE_COMPLETED'] || 0;
+
+      const conversionRate =
+        paywallViews > 0 ? Number(((upgradeCompletes / paywallViews) * 100).toFixed(1)) : 0;
+
+      return {
+        paywallViews,
+        upgradeStarts,
+        upgradeCompletes,
+        conversionRatePercent: conversionRate,
+        doctorApprovals: counts['AI_DOCTOR_APPROVED'] || 0,
+        doctorEdits: counts['AI_DOCTOR_EDITED'] || 0,
+        recentEvents: events.slice(0, 20),
+      };
+    } catch (err: any) {
+      this.logger.error(`Error calculating AI funnel stats: ${err?.message}`);
+      return {
+        paywallViews: 0,
+        upgradeStarts: 0,
+        upgradeCompletes: 0,
+        conversionRatePercent: 0,
+        doctorApprovals: 0,
+        doctorEdits: 0,
+        recentEvents: this.inMemoryEvents.slice(0, 20),
+      };
     }
-
-    const paywallViews = counts['AI_PAYWALL_VIEWED'] || 42;
-    const upgradeStarts = counts['AI_UPGRADE_STARTED'] || 18;
-    const upgradeCompletes = counts['AI_UPGRADE_COMPLETED'] || 12;
-
-    const conversionRate =
-      paywallViews > 0 ? Number(((upgradeCompletes / paywallViews) * 100).toFixed(1)) : 28.5;
-
-    return {
-      paywallViews,
-      upgradeStarts,
-      upgradeCompletes,
-      conversionRatePercent: conversionRate,
-      doctorApprovals: counts['AI_DOCTOR_APPROVED'] || 86,
-      doctorEdits: counts['AI_DOCTOR_EDITED'] || 14,
-      recentEvents: this.inMemoryEvents.slice(0, 20),
-    };
   }
 }

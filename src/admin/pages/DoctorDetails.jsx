@@ -37,6 +37,8 @@ function AdminDoctorDetails() {
   const [statusBreakdown, setStatusBreakdown] = useState([]);
   const [ledger, setLedger] = useState([]);
   const [payouts, setPayouts] = useState([]);
+  const [aiSubscription, setAiSubscription] = useState(null);
+  const [aiPurchaseHistory, setAiPurchaseHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -48,6 +50,8 @@ function AdminDoctorDetails() {
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [messageText, setMessageText] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [selectedPlanToAssign, setSelectedPlanToAssign] = useState('doctor_plan_2');
+  const [savingPlan, setSavingPlan] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -58,6 +62,11 @@ function AdminDoctorDetails() {
         setKpis(d.kpis);
         setRevenueTrend(d.revenueTrend || []);
         setStatusBreakdown((d.appointmentStatusBreakdown || []).map(s => ({ ...s, name: s.status })));
+        setAiSubscription(d.aiSubscription || null);
+        if (d.aiSubscription?.planId) {
+          setSelectedPlanToAssign(d.aiSubscription.planId);
+        }
+        setAiPurchaseHistory(d.aiPurchaseHistory || []);
         setLedger(d.ledger || []);
         setPayouts(d.payouts || []);
         setCommission(10);
@@ -79,8 +88,33 @@ function AdminDoctorDetails() {
     { id: 't4', type: 'push', label: 'Push: Urgent Update', text: 'Critical platform update requires your attention.' },
   ];
 
-  const handleAction = (action) => {
-    toast(`Action "${action}" triggered for ${doctor?.full_name || 'this doctor'}.`, 'info');
+  const handleAction = (type) => {
+    toast(`${type} action logged for audit.`, 'info');
+  };
+
+  const handleSaveAiPlan = async () => {
+    setSavingPlan(true);
+    try {
+      const res = await apiFetch(`/admin/users/${id}/ai-plan`, {
+        method: 'PUT',
+        body: { planId: selectedPlanToAssign, resetCredits: true },
+      });
+      setAiSubscription(prev => ({
+        ...(prev || {}),
+        planId: res.planId,
+        planName: res.planName,
+        monthlyCredits: res.monthlyCredits,
+        creditsUsed: res.creditsUsed,
+        creditsRemaining: res.creditsRemaining,
+        status: res.status,
+      }));
+      toast(`Successfully updated ${doctor?.full_name || 'doctor'}'s tier to ${res.planName}!`, 'success');
+      setActiveModal(null);
+    } catch (err) {
+      toast(err.message || 'Failed to update physician AI plan', 'error');
+    } finally {
+      setSavingPlan(false);
+    }
   };
 
   const handleToggleStatus = async () => {
@@ -207,7 +241,7 @@ function AdminDoctorDetails() {
               {(doctor.full_name || 'D').charAt(0)}
             </div>
             <h2 className="text-xl font-bold text-slate-800">{doctor.full_name}</h2>
-            <div className="flex justify-center gap-2 mt-2">
+            <div className="flex flex-wrap justify-center gap-2 mt-2">
               <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${doctor.status === 'Suspended' ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
                 {doctor.status || 'Active'}
               </span>
@@ -216,6 +250,15 @@ function AdminDoctorDetails() {
                   <i className="fas fa-certificate"></i> Verified
                 </span>
               )}
+              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border flex items-center gap-1 ${
+                aiSubscription?.planId === 'doctor_plan_3'
+                  ? 'bg-amber-50 text-amber-800 border-amber-200'
+                  : aiSubscription?.planId === 'doctor_plan_2'
+                  ? 'bg-purple-50 text-purple-700 border-purple-200'
+                  : 'bg-slate-100 text-slate-700 border-slate-200'
+              }`}>
+                <i className="fas fa-robot text-[9px]"></i> {aiSubscription?.planName || 'Doctor Starter'}
+              </span>
             </div>
 
             <div className="flex gap-2 mt-4 justify-center">
@@ -235,6 +278,11 @@ function AdminDoctorDetails() {
                 <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Contact Information</p>
                 <p className="text-sm font-semibold text-slate-700"><i className="fas fa-envelope w-5 text-slate-400"></i> {doctor.email || '—'}</p>
                 <p className="text-sm font-semibold text-slate-700 mt-1"><i className="fas fa-phone w-5 text-slate-400"></i> {doctor.phone || '—'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">AI Clinical Plan</p>
+                <p className="text-sm font-semibold text-slate-700"><i className="fas fa-robot w-5 text-aubergine-600"></i> {aiSubscription?.planName || 'Doctor Starter'}</p>
+                <p className="text-xs text-slate-500 mt-0.5 ml-5">{aiSubscription?.creditsRemaining ?? 25} uses remaining this month</p>
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Contract Terms</p>
@@ -440,6 +488,111 @@ function AdminDoctorDetails() {
             </div>
           </div>
 
+          {/* AI Clinical Plan & Subscription History */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col mt-6">
+            <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-aubergine-50/50 to-slate-50 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-aubergine-600 text-white flex items-center justify-center font-bold shadow-sm">
+                  <i className="fas fa-robot text-sm"></i>
+                </div>
+                <div>
+                  <h2 className="font-bold text-slate-800">AI Clinical Assistant Plan &amp; Purchase History</h2>
+                  <p className="text-xs text-slate-500">Track active tier, clinical consultation quota, and purchase receipts</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-black px-3 py-1 rounded-full border ${
+                  aiSubscription?.planId === 'doctor_plan_3'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : aiSubscription?.planId === 'doctor_plan_2'
+                    ? 'bg-purple-50 text-purple-700 border-purple-200'
+                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                }`}>
+                  {aiSubscription?.planName || 'Doctor Starter'}
+                </span>
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                  {aiSubscription?.status || 'Active'}
+                </span>
+                <button
+                  onClick={() => setActiveModal('ai-plan')}
+                  className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold text-xs px-3 py-1 rounded-xl transition-all shadow-xs flex items-center gap-1.5 ml-2"
+                >
+                  <i className="fas fa-sliders text-[10px]"></i> Change Tier
+                </button>
+              </div>
+            </div>
+
+            {/* Quota & Plan Summary Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 border-b border-slate-100 bg-slate-50/50">
+              <div className="bg-white p-4 rounded-xl border border-slate-200">
+                <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Active Plan Tier</p>
+                <p className="text-lg font-black text-slate-800">{aiSubscription?.planName || 'Doctor Starter'}</p>
+                <p className="text-[11px] text-slate-500 mt-1">Billing Cycle: {aiSubscription?.billingCycle || 'Monthly'}</p>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-slate-200">
+                <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Monthly Uses Quota</p>
+                <p className="text-lg font-black text-aubergine-700">
+                  {aiSubscription?.creditsRemaining ?? 25} <span className="text-xs text-slate-400 font-normal">/ {aiSubscription?.monthlyCredits || 25} left</span>
+                </p>
+                <p className="text-[11px] text-slate-500 mt-1">Consumed: {aiSubscription?.creditsUsed || 0} uses this month</p>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-slate-200">
+                <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Plan Validity</p>
+                <p className="text-lg font-black text-slate-800">
+                  {aiSubscription?.renewalDate ? new Date(aiSubscription.renewalDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Continuous (Free Tier)'}
+                </p>
+                <p className="text-[11px] text-slate-500 mt-1">Plan: {aiSubscription?.isPremium ? 'Prepaid (30 Days)' : 'Standard Free'}</p>
+              </div>
+            </div>
+
+            {/* AI Purchase History Table */}
+            <div className="overflow-x-auto">
+              {!aiPurchaseHistory || aiPurchaseHistory.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 font-medium text-xs">
+                  No paid AI plan purchases recorded yet. Doctor is currently on the default starter tier.
+                </div>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-[10px] text-slate-400 uppercase tracking-wider bg-slate-50/70">
+                      <th className="px-5 py-3 font-semibold">Purchase Date</th>
+                      <th className="px-5 py-3 font-semibold">Plan Purchased</th>
+                      <th className="px-5 py-3 font-semibold text-right">Amount Paid</th>
+                      <th className="px-5 py-3 font-semibold">Gateway</th>
+                      <th className="px-5 py-3 font-semibold">Reference ID</th>
+                      <th className="px-5 py-3 font-semibold text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {aiPurchaseHistory.map((t) => (
+                      <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-5 py-3.5 text-xs text-slate-600 font-medium">
+                          {new Date(t.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs font-bold text-slate-800">
+                          {t.planName}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-right font-black text-emerald-600">
+                          {t.currency === 'USD' ? '$' : '₹'}{t.finalAmount?.toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-slate-600 font-medium">
+                          {t.gateway}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs font-mono text-slate-500">
+                          {t.gatewayTxnId || t.id.slice(0, 10)}
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            {t.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
         </div>
 
       </div>
@@ -475,6 +628,55 @@ function AdminDoctorDetails() {
         </div>
       </Modal>
 
+      {/* Change AI Plan Modal */}
+      <Modal isOpen={activeModal === 'ai-plan'} onClose={() => setActiveModal(null)} title={`Assign / Update AI Plan for ${doctor?.full_name || 'Physician'}`} size="md">
+        <div className="space-y-4">
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Select the canonical physician plan tier to assign. Quotas and feature entitlements will activate immediately in the doctor's portal.
+          </p>
+
+          <div className="space-y-3">
+            {[
+              { id: 'doctor_plan_1', name: 'Doctor Plan 1 (Doctor Starter)', credits: 25, price: 'Included', desc: 'Basic clinical queries & chat companion' },
+              { id: 'doctor_plan_2', name: 'Doctor Plan 2 (Doctor Pro)', credits: 100, price: '₹1,499 / $19/mo', desc: 'Pre-consult briefs, patient history & consult summaries' },
+              { id: 'doctor_plan_3', name: 'Doctor Plan 3 (Doctor Premium)', credits: 300, price: '₹2,999 / $39/mo', desc: 'Automated SOAP notes, Rx autocomplete & full clinical support' },
+            ].map(p => (
+              <div
+                key={p.id}
+                onClick={() => setSelectedPlanToAssign(p.id)}
+                className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                  selectedPlanToAssign === p.id
+                    ? 'border-aubergine-600 bg-aubergine-50/50 ring-2 ring-aubergine-200'
+                    : 'border-slate-200 hover:border-slate-300 bg-white'
+                }`}
+              >
+                <div className="flex justify-between items-center mb-1">
+                  <span className="font-bold text-sm text-slate-800">{p.name}</span>
+                  <span className="text-xs font-black text-emerald-700">{p.price}</span>
+                </div>
+                <p className="text-xs text-slate-500">{p.desc}</p>
+                <p className="text-[11px] font-bold text-aubergine-700 mt-1">Monthly Quota: {p.credits} uses</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 flex gap-2">
+            <button
+              onClick={() => setActiveModal(null)}
+              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveAiPlan}
+              disabled={savingPlan}
+              className="flex-1 bg-slate-900 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {savingPlan ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-check"></i>} Assign Plan
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

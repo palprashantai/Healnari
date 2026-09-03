@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../../lib/apiClient.js';
-import { AIPaywallModal } from './AIPaywallModal.jsx';
+import { AIUsageUpgradeModal } from './AIUsageUpgradeModal.jsx';
 import { AIButton } from '../AiButton.jsx';
 
 export function AISubscriptionCard({ userRole = 'patient', onRefresh }) {
@@ -34,10 +34,25 @@ export function AISubscriptionCard({ userRole = 'patient', onRefresh }) {
 
   const isDoctor = userRole === 'doctor';
   const sub = subData?.subscription || {};
-  const isPremium = subData?.isPremium || false;
-  const creditsRemaining = subData?.creditsRemaining ?? 5;
-  const totalCredits = sub?.monthly_ai_credits || (isPremium ? 200 : (isDoctor ? 10 : 5));
-  const usedCredits = sub?.credits_used || 0;
+  const currentPlanId = sub?.plan_id || (isDoctor ? 'doctor_plan_1' : 'patient_plan_1');
+  const planNames = {
+    doctor_plan_1: 'Doctor Starter',
+    doctor_free: 'Doctor Starter',
+    doctor_plan_2: 'Doctor Pro',
+    doctor_pro: 'Doctor Pro',
+    doctor_plan_3: 'Doctor Premium',
+    patient_plan_1: 'Patient Basic',
+    patient_free: 'Patient Basic',
+    patient_plan_2: 'Patient Pro',
+    patient_premium: 'Patient Pro',
+    patient_plan_3: 'Patient Premium',
+  };
+  const currentPlanName = sub?.plan_name || planNames[currentPlanId] || (isDoctor ? 'Doctor Starter' : 'Patient Basic');
+  const isPremium = currentPlanId.includes('2') || currentPlanId.includes('3') || currentPlanId.includes('pro') || currentPlanId.includes('premium');
+  const isHighestPlan = currentPlanId === 'doctor_plan_3' || currentPlanId === 'patient_plan_3';
+  const creditsRemaining = subData?.creditsRemaining ?? (isDoctor ? 25 : 15);
+  const totalCredits = sub?.monthly_ai_credits || subData?.totalCredits || (isDoctor ? 25 : 15);
+  const usedCredits = subData?.creditsUsed ?? sub?.credits_used ?? 0;
   const percentUsed = Math.min(100, Math.round((usedCredits / Math.max(1, totalCredits)) * 100));
 
   return (
@@ -64,25 +79,25 @@ export function AISubscriptionCard({ userRole = 'patient', onRefresh }) {
             <div>
               <div className="flex items-center gap-2">
                 <h3 className={`font-black text-base tracking-tight ${isPremium ? 'text-white' : 'text-slate-900'}`}>
-                  {isPremium ? (isDoctor ? 'Doctor AI Pro' : 'HealNari AI Premium') : 'AI Health Assistant'}
+                  {currentPlanName}
                 </h3>
                 <span className={`text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full ${
                   isPremium
                     ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-xs'
                     : 'bg-slate-100 text-slate-600 border border-slate-200'
                 }`}>
-                  {isPremium ? 'Active Pro' : 'Free Tier'}
+                  {currentPlanId.includes('3') ? 'Premium Tier' : currentPlanId.includes('2') || isPremium ? 'Pro Tier' : 'Starter Tier'}
                 </span>
               </div>
               <p className={`text-xs mt-0.5 ${isPremium ? 'text-purple-200/80' : 'text-slate-500'}`}>
                 {isPremium
-                  ? `Unlimited priority AI clinical intelligence`
-                  : `${creditsRemaining} queries remaining this month`}
+                  ? `Clinical-grade AI intelligence enabled`
+                  : `${creditsRemaining} AI uses remaining this month`}
               </p>
             </div>
           </div>
 
-          {!isPremium && (
+          {!isHighestPlan && (
             <AIButton
               size="sm"
               variant="gradient"
@@ -98,10 +113,10 @@ export function AISubscriptionCard({ userRole = 'patient', onRefresh }) {
         <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60">
           <div className="flex items-center justify-between text-xs mb-1.5 font-bold">
             <span className={isPremium ? 'text-purple-200' : 'text-slate-500'}>
-              Monthly AI Allowance
+              Monthly AI Uses
             </span>
-            <span className={isPremium ? 'text-purple-300' : 'text-slate-700'}>
-              {creditsRemaining} / {totalCredits} credits left
+            <span className={isPremium ? 'text-purple-300' : 'text-slate-700 font-mono'}>
+              {creditsRemaining} / {totalCredits} uses left
             </span>
           </div>
           <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -148,25 +163,12 @@ export function AISubscriptionCard({ userRole = 'patient', onRefresh }) {
         </div>
       </div>
 
-      <AIPaywallModal
+      <AIUsageUpgradeModal
         isOpen={showPaywall}
         onClose={() => setShowPaywall(false)}
-        paywallData={{
-          planName: isDoctor ? 'Doctor AI Pro' : 'HealNari AI Premium',
-          features: isDoctor
-            ? [
-                'AI Patient Brief pre-summarized before consultations',
-                'SOAP Note Generation with clinical vector RAG',
-                'AI Post-Consultation Summaries & Action Plans',
-                'Unlimited Rx autocomplete and drug-food safety checks',
-              ]
-            : [
-                'Unlimited AI Lab Report Explanations with cycle-phase context',
-                'AI Consultation Preparation and doctor questions',
-                '200 AI Health Companion inquiries / month',
-                'Hormone biomarker trend insights',
-              ],
-        }}
+        role={userRole}
+        currentPlanId={currentPlanId}
+        tokensRemaining={creditsRemaining}
         onUpgraded={() => {
           fetchStatus();
           onRefresh?.();

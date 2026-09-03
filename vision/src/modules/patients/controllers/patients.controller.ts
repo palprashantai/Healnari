@@ -158,6 +158,13 @@ export class QuickFertilityEstimateDto {
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
 
+  @ApiOperation({ summary: 'Patient personalized health, appointment, and AI credit analytics' })
+  @Get('me/analytics')
+  async getMyAnalytics(@CurrentUser() user: AuthUser) {
+    const data = await this.patientsService.getMyAnalytics(user);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
   @ApiOperation({ summary: 'List all patients (doctor roster view)' })
   @Get()
   async list(@CurrentUser() user: AuthUser) {

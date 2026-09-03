@@ -295,7 +295,7 @@ function PatientRecords() {
             'Unlimited AI Lab Report Explanations',
             'Cycle-phase calibrated hormone evaluation',
             'Personalized smart questions to ask your doctor',
-            '200 AI Health Companion inquiries / month',
+            '500 AI Health Companion inquiries / month',
           ],
         });
         setShowPaywallModal(true);
@@ -863,6 +863,19 @@ function PatientRecords() {
           </div>
         ) : aiLabData ? (
           <div className="space-y-6">
+            {/* Critical Panic Value Alert */}
+            {aiLabData.criticalAlert && (
+              <div className="p-4 bg-rose-50 border-2 border-rose-400 rounded-2xl flex items-start gap-3 shadow-sm">
+                <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 text-base shadow-xs">
+                  <i className="fas fa-triangle-exclamation"></i>
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-black text-rose-950 text-sm">Urgent Clinical Notification</h4>
+                  <p className="text-xs text-rose-900 font-bold leading-relaxed">{aiLabData.criticalAlert}</p>
+                </div>
+              </div>
+            )}
+
             {/* Reassuring Summary Banner */}
             <div className="p-4 bg-purple-50/60 border border-purple-200 rounded-2xl flex items-start gap-3">
               <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 text-sm shadow-xs">

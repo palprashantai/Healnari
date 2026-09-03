@@ -58,6 +58,8 @@ export class PrepareConsultDto {
   @IsOptional() @IsString() doctorSpecialty?: string;
   @IsOptional() @IsString() doctorName?: string;
   @IsOptional() @IsString() concerns?: string;
+  @IsOptional() @IsString() chiefComplaint?: string;
+  @IsOptional() @IsString() context?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) symptoms?: string[];
   @IsOptional() @IsString() cycleContext?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) questions?: string[];
@@ -102,6 +104,56 @@ export class AiController {
     private readonly orchestrator: AiOrchestrator,
   ) {}
 
+  private async chargeCreditsIfAiGenerated(
+    user: AuthUser,
+    data: any,
+    featureKey: AiFeatureKey,
+    defaultCost: number,
+    durationMs: number,
+    inputTokens: number,
+    outputTokens: number,
+    metadata?: Record<string, any>,
+    requestId?: string,
+  ): Promise<{ creditsUsed: number; creditsRemaining: number; userPlan: string }> {
+    const isAiGenerated = data?.isAiGenerated !== false;
+    const sub = await this.subscriptionService.getSubscription(user);
+    const cost = defaultCost;
+
+    if (isAiGenerated) {
+      const updatedSub = await this.subscriptionService.deductCredits(
+        user,
+        cost,
+        requestId,
+        featureKey,
+        `AI Clinical Assistant: ${featureKey}`,
+      );
+      await this.usageService.logUsage({
+        user_id: user.id,
+        role: user.profile.role,
+        feature: featureKey,
+        model: 'gemini-1.5-flash',
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        credits_deducted: cost,
+        duration_ms: durationMs,
+        response_status: 'success',
+        metadata: { ...metadata, requestId },
+      });
+      return {
+        creditsUsed: cost,
+        creditsRemaining: updatedSub.creditsRemaining,
+        userPlan: updatedSub.plan_id,
+      };
+    }
+
+    // AI in fallback/mock mode — do not deduct credits or log successful billable AI usage
+    return {
+      creditsUsed: 0,
+      creditsRemaining: Math.max(0, (sub.monthly_ai_credits || 0) - (sub.credits_used || 0)),
+      userPlan: sub.plan_id,
+    };
+  }
+
   @Post('chat')
   @ApiOperation({
     summary:
@@ -121,21 +173,10 @@ export class AiController {
     return ResponseHelper.success(
       {
         reply: result.reply,
-        history: result.history,
+        text: result.reply,
         toolsUsed: result.toolsExecuted,
         creditsRemaining: result.creditsRemaining,
         requestId: result.requestId,
-        metadata: {
-          feature:
-            user.profile.role === ProfileRole.DOCTOR
-              ? AiFeatureKey.DOCTOR_PATIENT_BRIEF
-              : AiFeatureKey.PATIENT_CHAT,
-          model: body.preferredProvider || 'gemini',
-          tokensUsed: result.tokensUsed,
-          estimatedCostUsd: result.estimatedCostUsd,
-          disclaimer:
-            user.profile.role === ProfileRole.PATIENT ? PATIENT_DISCLAIMER : undefined,
-        },
       },
       SUCCESS_MESSAGES.DATA_RETRIEVED,
     );
@@ -164,28 +205,24 @@ export class AiController {
     const data = await this.aiService.generateSoapNotes(body);
     const durationMs = Date.now() - startTime;
 
-    // Deduct credit & log usage
-    const sub = await this.subscriptionService.deductCredits(user, 2);
-    await this.usageService.logUsage({
-      user_id: user.id,
-      role: 'doctor',
-      feature: AiFeatureKey.DOCTOR_SOAP_NOTES,
-      model: 'gemini-1.5-flash',
-      input_tokens: 850,
-      output_tokens: 650,
-      credits_deducted: 2,
-      duration_ms: durationMs,
-      response_status: 'success',
-      metadata: { patientName: body.patientName },
-    });
+    const billing = await this.chargeCreditsIfAiGenerated(
+      user,
+      data,
+      AiFeatureKey.DOCTOR_SOAP_NOTES,
+      1,
+      durationMs,
+      850,
+      650,
+      { patientName: body.patientName },
+    );
 
     const envelope: AiResponseEnvelope = {
       data,
       meta: {
         feature: AiFeatureKey.DOCTOR_SOAP_NOTES,
-        creditsUsed: 2,
-        creditsRemaining: Math.max(0, sub.monthly_ai_credits - sub.credits_used),
-        userPlan: sub.plan_id,
+        creditsUsed: billing.creditsUsed,
+        creditsRemaining: billing.creditsRemaining,
+        userPlan: billing.userPlan,
         durationMs,
         model: 'gemini-1.5-flash',
       },
@@ -217,27 +254,24 @@ export class AiController {
     const data = await this.aiService.autoCompletePrescription(body.query);
     const durationMs = Date.now() - startTime;
 
-    const sub = await this.subscriptionService.deductCredits(user, 1);
-    await this.usageService.logUsage({
-      user_id: user.id,
-      role: 'doctor',
-      feature: AiFeatureKey.DOCTOR_RX_AUTOCOMPLETE,
-      model: 'gemini-1.5-flash',
-      input_tokens: 300,
-      output_tokens: 150,
-      credits_deducted: 1,
-      duration_ms: durationMs,
-      response_status: 'success',
-      metadata: { query: body.query },
-    });
+    const billing = await this.chargeCreditsIfAiGenerated(
+      user,
+      data,
+      AiFeatureKey.DOCTOR_RX_AUTOCOMPLETE,
+      1,
+      durationMs,
+      300,
+      150,
+      { query: body.query },
+    );
 
     const envelope: AiResponseEnvelope = {
       data,
       meta: {
         feature: AiFeatureKey.DOCTOR_RX_AUTOCOMPLETE,
-        creditsUsed: 1,
-        creditsRemaining: Math.max(0, sub.monthly_ai_credits - sub.credits_used),
-        userPlan: sub.plan_id,
+        creditsUsed: billing.creditsUsed,
+        creditsRemaining: billing.creditsRemaining,
+        userPlan: billing.userPlan,
         durationMs,
       },
     };
@@ -255,6 +289,15 @@ export class AiController {
     @CurrentUser() user: AuthUser,
     @Body() body: AnalyzeLabDto,
   ) {
+    if (
+      user.profile.role !== ProfileRole.PATIENT &&
+      user.profile.role !== ProfileRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'Only patients and administrators can access the AI lab report decoder.',
+      );
+    }
+
     const startTime = Date.now();
     const data = await this.aiService.analyzeLabReport(
       body.reportText,
@@ -263,27 +306,24 @@ export class AiController {
     );
     const durationMs = Date.now() - startTime;
 
-    const sub = await this.subscriptionService.deductCredits(user, 2);
-    await this.usageService.logUsage({
-      user_id: user.id,
-      role: user.profile.role,
-      feature: AiFeatureKey.PATIENT_LAB_ANALYSIS,
-      model: 'gemini-1.5-flash',
-      input_tokens: 1200,
-      output_tokens: 800,
-      credits_deducted: 2,
-      duration_ms: durationMs,
-      response_status: 'success',
-      metadata: { reportName: body.reportName, cyclePhase: body.cyclePhase },
-    });
+    const billing = await this.chargeCreditsIfAiGenerated(
+      user,
+      data,
+      AiFeatureKey.PATIENT_LAB_ANALYSIS,
+      1,
+      durationMs,
+      1200,
+      800,
+      { reportName: body.reportName, cyclePhase: body.cyclePhase },
+    );
 
     const envelope: AiResponseEnvelope = {
       data,
       meta: {
         feature: AiFeatureKey.PATIENT_LAB_ANALYSIS,
-        creditsUsed: 2,
-        creditsRemaining: Math.max(0, sub.monthly_ai_credits - sub.credits_used),
-        userPlan: sub.plan_id,
+        creditsUsed: billing.creditsUsed,
+        creditsRemaining: billing.creditsRemaining,
+        userPlan: billing.userPlan,
         durationMs,
         disclaimer: PATIENT_DISCLAIMER,
       },
@@ -302,33 +342,87 @@ export class AiController {
     @CurrentUser() user: AuthUser,
     @Body() body: PrepareConsultDto,
   ) {
+    if (
+      user.profile.role !== ProfileRole.PATIENT &&
+      user.profile.role !== ProfileRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'Only patients and administrators can prepare patient consultation briefs.',
+      );
+    }
+
     const startTime = Date.now();
     const data = await this.aiService.prepareConsultation(body);
     const durationMs = Date.now() - startTime;
 
-    const sub = await this.subscriptionService.deductCredits(user, 1);
-    await this.usageService.logUsage({
-      user_id: user.id,
-      role: user.profile.role,
-      feature: AiFeatureKey.PATIENT_CONSULT_PREP,
-      model: 'gemini-1.5-flash',
-      input_tokens: 600,
-      output_tokens: 450,
-      credits_deducted: 1,
-      duration_ms: durationMs,
-      response_status: 'success',
-      metadata: { doctorSpecialty: body.doctorSpecialty },
-    });
+    const billing = await this.chargeCreditsIfAiGenerated(
+      user,
+      data,
+      AiFeatureKey.PATIENT_CONSULT_PREP,
+      1,
+      durationMs,
+      600,
+      450,
+      { doctorSpecialty: body.doctorSpecialty },
+    );
 
     const envelope: AiResponseEnvelope = {
       data,
       meta: {
         feature: AiFeatureKey.PATIENT_CONSULT_PREP,
-        creditsUsed: 1,
-        creditsRemaining: Math.max(0, sub.monthly_ai_credits - sub.credits_used),
-        userPlan: sub.plan_id,
+        creditsUsed: billing.creditsUsed,
+        creditsRemaining: billing.creditsRemaining,
+        userPlan: billing.userPlan,
         durationMs,
-        disclaimer: PATIENT_DISCLAIMER,
+        disclaimer: user.profile.role === 'patient' ? PATIENT_DISCLAIMER : undefined,
+      },
+    };
+
+    return ResponseHelper.success(envelope, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Post('patient-brief')
+  @RequireAiFeature(AiFeatureKey.DOCTOR_PATIENT_BRIEF)
+  @ApiOperation({
+    summary:
+      'AI Pre-Consultation Patient Brief & Diagnostic Synthesis for Doctors (Doctor Pro tier)',
+  })
+  async generatePatientBrief(
+    @CurrentUser() user: AuthUser,
+    @Body() body: PrepareConsultDto,
+  ) {
+    if (
+      user.profile.role !== ProfileRole.DOCTOR &&
+      user.profile.role !== ProfileRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'Only doctors and administrators can access clinical patient briefs.',
+      );
+    }
+
+    const startTime = Date.now();
+    const data = await this.aiService.prepareConsultation(body);
+    const durationMs = Date.now() - startTime;
+
+    const billing = await this.chargeCreditsIfAiGenerated(
+      user,
+      data,
+      AiFeatureKey.DOCTOR_PATIENT_BRIEF,
+      1,
+      durationMs,
+      600,
+      450,
+      { patientName: body.patientName },
+    );
+
+    const envelope: AiResponseEnvelope = {
+      data,
+      meta: {
+        feature: AiFeatureKey.DOCTOR_PATIENT_BRIEF,
+        creditsUsed: billing.creditsUsed,
+        creditsRemaining: billing.creditsRemaining,
+        userPlan: billing.userPlan,
+        durationMs,
       },
     };
 
@@ -358,27 +452,24 @@ export class AiController {
     const data = await this.aiService.generateConsultSummary(body);
     const durationMs = Date.now() - startTime;
 
-    const sub = await this.subscriptionService.deductCredits(user, 1);
-    await this.usageService.logUsage({
-      user_id: user.id,
-      role: 'doctor',
-      feature: AiFeatureKey.DOCTOR_CONSULT_SUMMARY,
-      model: 'gemini-1.5-flash',
-      input_tokens: 800,
-      output_tokens: 500,
-      credits_deducted: 1,
-      duration_ms: durationMs,
-      response_status: 'success',
-      metadata: { patientName: body.patientName },
-    });
+    const billing = await this.chargeCreditsIfAiGenerated(
+      user,
+      data,
+      AiFeatureKey.DOCTOR_CONSULT_SUMMARY,
+      1,
+      durationMs,
+      800,
+      500,
+      { patientName: body.patientName },
+    );
 
     const envelope: AiResponseEnvelope = {
       data,
       meta: {
         feature: AiFeatureKey.DOCTOR_CONSULT_SUMMARY,
-        creditsUsed: 1,
-        creditsRemaining: Math.max(0, sub.monthly_ai_credits - sub.credits_used),
-        userPlan: sub.plan_id,
+        creditsUsed: billing.creditsUsed,
+        creditsRemaining: billing.creditsRemaining,
+        userPlan: billing.userPlan,
         durationMs,
       },
     };
@@ -395,33 +486,38 @@ export class AiController {
     @CurrentUser() user: AuthUser,
     @Body() body: DrugInteractionsDto,
   ) {
+    if (
+      user.profile.role !== ProfileRole.DOCTOR &&
+      user.profile.role !== ProfileRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'Only doctors and administrators can access the clinical drug safety shield.',
+      );
+    }
+
     const startTime = Date.now();
     const data = await this.aiService.checkDrugInteractions(body.medications);
     const durationMs = Date.now() - startTime;
 
-    const sub = await this.subscriptionService.deductCredits(user, 1);
-    await this.usageService.logUsage({
-      user_id: user.id,
-      role: user.profile.role,
-      feature: AiFeatureKey.DOCTOR_DRUG_SAFETY,
-      model: 'gemini-1.5-flash',
-      input_tokens: 400,
-      output_tokens: 300,
-      credits_deducted: 1,
-      duration_ms: durationMs,
-      response_status: 'success',
-      metadata: { medicationsCount: body.medications.length },
-    });
+    const billing = await this.chargeCreditsIfAiGenerated(
+      user,
+      data,
+      AiFeatureKey.DOCTOR_DRUG_SAFETY,
+      1,
+      durationMs,
+      400,
+      300,
+      { medicationsCount: body.medications.length },
+    );
 
     const envelope: AiResponseEnvelope = {
       data,
       meta: {
         feature: AiFeatureKey.DOCTOR_DRUG_SAFETY,
-        creditsUsed: 1,
-        creditsRemaining: Math.max(0, sub.monthly_ai_credits - sub.credits_used),
-        userPlan: sub.plan_id,
+        creditsUsed: billing.creditsUsed,
+        creditsRemaining: billing.creditsRemaining,
+        userPlan: billing.userPlan,
         durationMs,
-        disclaimer: user.profile.role === 'patient' ? PATIENT_DISCLAIMER : undefined,
       },
     };
 

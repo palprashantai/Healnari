@@ -816,9 +816,10 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
         method: 'POST',
         body: {
           patientName: session?.patient || 'Patient',
-          age: Number(session?.age) || 28,
-          chiefComplaint: diagnosis || 'Teleconsultation Evaluation for Hormonal / Cycle Concerns',
-          symptoms: ['Irregular cycles', 'Fatigue', 'Dysmenorrhea'],
+          chiefComplaint: diagnosis || session?.chiefComplaint || session?.concern || 'Teleconsultation Clinical Evaluation',
+          symptoms: Array.isArray(session?.symptoms) && session.symptoms.length
+            ? session.symptoms
+            : (Array.isArray(patientRecord?.symptoms) && patientRecord.symptoms.length ? patientRecord.symptoms : (diagnosis ? [diagnosis] : ['Clinical consultation evaluation'])),
           doctorNotes: clinicalNotes || undefined,
           chronicConditions: patientRecord?.medicalHistory?.chronicConditions || [],
           medications: draftMeds.map((m) => m.name),

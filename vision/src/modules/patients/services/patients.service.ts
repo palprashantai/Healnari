@@ -46,9 +46,18 @@ const VITAL_KEYS: VitalKey[] = [
   'postprandial_glucose',
 ];
 
+import { AnalyticsService } from '@/modules/admin/services/analytics.service';
+
 @Injectable()
 export class PatientsService {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly analyticsService: AnalyticsService,
+  ) {}
+
+  async getMyAnalytics(user: AuthUser) {
+    return this.analyticsService.getPatientActivityAnalytics(user.id);
+  }
 
   private requireDoctor(user: AuthUser) {
     if (user.profile.role !== ProfileRole.DOCTOR)

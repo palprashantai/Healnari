@@ -3,6 +3,8 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import * as crypto from 'crypto';
@@ -19,72 +21,101 @@ import {
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
 
 export const AI_PLANS = {
-  [AiPlanId.PATIENT_FREE]: {
-    id: AiPlanId.PATIENT_FREE,
-    role: 'patient',
-    name: 'HealNari Free Companion',
+  [AiPlanId.DOCTOR_PLAN_1]: {
+    id: AiPlanId.DOCTOR_PLAN_1,
+    role: 'doctor',
+    name: 'Doctor Starter',
     price: 0,
     currency: 'INR',
-    monthlyCredits: 10,
+    monthlyCredits: 25,
     features: [
-      '10 AI Health Companion questions / month',
-      'Basic symptom guide',
-      'Cycle tracking integrations',
+      '25 AI uses / month',
+      'AI Prescription Autocomplete',
+      'AI Drug & Food Safety Shield',
     ],
   },
-  [AiPlanId.PATIENT_PREMIUM]: {
-    id: AiPlanId.PATIENT_PREMIUM,
+  [AiPlanId.DOCTOR_PLAN_2]: {
+    id: AiPlanId.DOCTOR_PLAN_2,
+    role: 'doctor',
+    name: 'Doctor Pro',
+    priceMonthly: 1499,
+    currency: 'INR',
+    monthlyCredits: 100,
+    features: [
+      '100 AI uses / month',
+      'AI Pre-Consult Patient Brief',
+      'AI Post-Consult Summary',
+      'AI Prescription Autocomplete',
+      'AI Drug & Food Safety Shield',
+    ],
+  },
+  [AiPlanId.DOCTOR_PLAN_3]: {
+    id: AiPlanId.DOCTOR_PLAN_3,
+    role: 'doctor',
+    name: 'Doctor Premium',
+    priceMonthly: 2999,
+    currency: 'INR',
+    monthlyCredits: 300,
+    features: [
+      '300 AI uses / month',
+      'All Doctor AI Features included',
+      'AI Clinical SOAP Note Assistant',
+      'AI Pre-Consult Patient Brief',
+      'AI Post-Consult Summary',
+      'Priority Clinical Processing',
+    ],
+  },
+  [AiPlanId.PATIENT_PLAN_1]: {
+    id: AiPlanId.PATIENT_PLAN_1,
     role: 'patient',
-    name: 'HealNari AI Premium',
+    name: 'Patient Basic',
+    price: 0,
+    currency: 'INR',
+    monthlyCredits: 15,
+    features: [
+      '15 AI uses / month',
+      'AI Health Companion (Cycle, fertility & symptom guidance)',
+      'Digital Health Records storage',
+    ],
+  },
+  [AiPlanId.PATIENT_PLAN_2]: {
+    id: AiPlanId.PATIENT_PLAN_2,
+    role: 'patient',
+    name: 'Patient Pro',
+    priceMonthly: 499,
+    currency: 'INR',
+    monthlyCredits: 60,
+    features: [
+      '60 AI uses / month',
+      'AI Health Companion',
+      'AI Lab Report Decoder with biomarker explanations',
+      'AI Visit Preparation Briefs for doctor consultations',
+    ],
+  },
+  [AiPlanId.PATIENT_PLAN_3]: {
+    id: AiPlanId.PATIENT_PLAN_3,
+    role: 'patient',
+    name: 'Patient Premium',
     priceMonthly: 999,
-    priceYearly: 9999,
     currency: 'INR',
-    monthlyCredits: 500,
+    monthlyCredits: 150,
     features: [
-      'Unlimited AI Lab Report Explanations with cycle-phase calibration',
-      'AI Consultation Preparation & personalized questions for doctor',
-      'Unlimited AI Health Companion inquiries / month',
-      'Hormone biomarker trend insights & safety tips',
-      'Priority LLM processing',
-    ],
-  },
-  [AiPlanId.DOCTOR_FREE]: {
-    id: AiPlanId.DOCTOR_FREE,
-    role: 'doctor',
-    name: 'Doctor Standard',
-    price: 0,
-    currency: 'INR',
-    monthlyCredits: 20,
-    features: [
-      '20 Smart Rx autocompletions / month',
-      '20 Drug-food safety checks / month',
-    ],
-  },
-  [AiPlanId.DOCTOR_PRO]: {
-    id: AiPlanId.DOCTOR_PRO,
-    role: 'doctor',
-    name: 'Doctor AI Pro',
-    priceMonthly: 1999,
-    priceYearly: 19999,
-    currency: 'INR',
-    monthlyCredits: 1000,
-    features: [
-      'AI Patient Brief before every consultation',
-      '50 AI SOAP Note generations / month with vector RAG protocols',
-      'AI Post-Consultation Patient Action Plan & summaries',
-      'Unlimited smart prescription autocomplete & drug-interaction safety',
-      'Saved 15+ minutes per patient consultation',
+      '150 AI uses / month',
+      'All Patient AI Features included',
+      'In-depth symptom & hormone analysis',
+      'Priority guidance and dedicated care support',
     ],
   },
 };
 
 export const TOKEN_PACK_CONFIGS: Record<
   string,
-  { tokens: number; priceInr: number; priceUsd: number; name: string }
+  { id: string; tokens: number; credits: number; priceInr: number; priceUsd: number; name: string; popular?: boolean }
 > = {
-  pack_100: { tokens: 100, priceInr: 199, priceUsd: 5.0, name: '100 AI Tokens Pack' },
-  pack_500: { tokens: 500, priceInr: 699, priceUsd: 15.0, name: '500 AI Tokens Pack' },
-  pack_1000: { tokens: 1000, priceInr: 1199, priceUsd: 25.0, name: '1,000 AI Tokens Pack' },
+  pack_100: { id: 'pack_100', tokens: 100, credits: 100, priceInr: 200, priceUsd: 3.0, name: '100 AI Credits', popular: true },
+  pack_250: { id: 'pack_250', tokens: 250, credits: 250, priceInr: 450, priceUsd: 6.0, name: '250 AI Credits' },
+  pack_500: { id: 'pack_500', tokens: 500, credits: 500, priceInr: 800, priceUsd: 10.0, name: '500 AI Credits' },
+  pack_1000: { id: 'pack_1000', tokens: 1000, credits: 1000, priceInr: 1500, priceUsd: 18.0, name: '1,000 AI Credits' },
 };
 
 @Injectable()
@@ -106,8 +137,8 @@ export class AiSubscriptionService {
    */
   async getSubscription(user: AuthUser): Promise<AiSubscription> {
     const isDoctor = user.profile.role === 'doctor';
-    const defaultPlan = isDoctor ? AiPlanId.DOCTOR_FREE : AiPlanId.PATIENT_FREE;
-    const defaultCredits = isDoctor ? 20 : 10;
+    const defaultPlan = isDoctor ? AiPlanId.DOCTOR_PLAN_1 : AiPlanId.PATIENT_PLAN_1;
+    const defaultCredits = isDoctor ? 25 : 15;
     const country = (user.profile.country || 'IN').toUpperCase().trim();
     const currency = country === 'IN' ? 'INR' : 'USD';
 
@@ -119,6 +150,68 @@ export class AiSubscriptionService {
         .maybeSingle();
 
       if (!error && data) {
+        // Auto-downgrade if paid period has elapsed
+        if (
+          data.current_period_end &&
+          new Date(data.current_period_end).getTime() < Date.now() &&
+          !data.plan_id.includes('plan_1') &&
+          !data.plan_id.includes('free')
+        ) {
+          const defaultPlan = isDoctor ? AiPlanId.DOCTOR_PLAN_1 : AiPlanId.PATIENT_PLAN_1;
+          const defaultCredits = isDoctor ? 25 : 15;
+          const downgraded = {
+            ...data,
+            plan_id: defaultPlan,
+            monthly_ai_credits: defaultCredits,
+            credits_used: 0,
+            current_period_end: null,
+            cancel_at_period_end: false,
+            updated_at: new Date().toISOString(),
+          };
+          await this.supabase.admin
+            .from('ai_subscriptions')
+            .update({
+              plan_id: defaultPlan,
+              monthly_ai_credits: defaultCredits,
+              credits_used: 0,
+              current_period_end: null,
+              cancel_at_period_end: false,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', user.id);
+
+          try {
+            await this.supabase.admin
+              .from('ai_credit_accounts')
+              .upsert(
+                {
+                  user_id: user.id,
+                  balance: defaultCredits,
+                  lifetime_consumed: 0,
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: 'user_id' },
+              );
+
+            await this.supabase.admin.from('ai_credit_ledger').insert({
+              user_id: user.id,
+              entry_type: 'RESET',
+              amount: defaultCredits,
+              balance_after: defaultCredits,
+              feature: null,
+              reference_id: `expiry_${Date.now()}`,
+              reason: 'Subscription period ended: Transitioned to Free Starter tier',
+              metadata: {
+                previous_plan: data.plan_id,
+                new_plan: defaultPlan,
+                timestamp: new Date().toISOString(),
+              },
+            });
+          } catch {}
+
+          return downgraded as AiSubscription;
+        }
+
         return data as AiSubscription;
       }
     } catch (err: any) {
@@ -161,20 +254,64 @@ export class AiSubscriptionService {
   }
 
   /**
-   * Deducts credits and records usage in the double-entry ledger and database.
+   * Deducts credits atomically and records usage in the double-entry ledger and database.
+   * Guarded against race conditions and duplicates via idempotency requestId.
    */
-  async deductCredits(user: AuthUser, count = 1): Promise<AiSubscription> {
+  async deductCredits(
+    user: AuthUser,
+    count = 1,
+    requestId?: string,
+    featureKey?: string,
+    reason?: string,
+  ): Promise<AiSubscription & { creditsRemaining: number; success: boolean }> {
+    // 1. Idempotency Check: if requestId provided and already logged, return current state without double deduction
+    if (requestId) {
+      try {
+        const { data: existingLedger } = await this.supabase.admin
+          .from('ai_credit_ledger')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('reference_id', requestId)
+          .eq('entry_type', 'CONSUME')
+          .maybeSingle();
+
+        if (existingLedger) {
+          this.logger.log(`[Idempotent] Request ${requestId} already processed for user ${user.id}`);
+          const current = await this.getSubscription(user);
+          const rem = Math.max(0, (current.monthly_ai_credits || 0) - (current.credits_used || 0));
+          return { ...current, creditsRemaining: rem, success: true };
+        }
+      } catch {}
+    }
+
+    // 2. Fetch current authoritative subscription
     const current = await this.getSubscription(user);
+    const maxCredits = current.monthly_ai_credits || (user.profile?.role === 'doctor' ? 25 : 15);
+    const creditsBefore = Math.max(0, maxCredits - (current.credits_used || 0));
+
+    if (creditsBefore < count) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.PAYMENT_REQUIRED,
+          error: 'Payment Required',
+          message: `Insufficient AI credits. You need ${count} credit(s), but only ${creditsBefore} available. Please top up or upgrade your plan.`,
+          creditsRemaining: creditsBefore,
+          paywallData: {
+            title: 'AI Credits Exhausted',
+            description: `You need ${count} credit(s), but only have ${creditsBefore} remaining. Recharge your credits instantly or upgrade your plan.`,
+            planName: current.plan_id,
+            creditsRemaining: creditsBefore,
+          },
+        },
+        HttpStatus.PAYMENT_REQUIRED,
+      );
+    }
+
     const newCreditsUsed = (current.credits_used || 0) + count;
+    const creditsAfter = Math.max(0, maxCredits - newCreditsUsed);
 
-    // Deduct via double-entry credit ledger
-    await this.creditLedgerService.consumeCredits(
-      user.id,
-      count,
-      'AI_INQUIRY',
-      `query_${Date.now()}`,
-    );
-
+    // 3. Update ai_subscriptions in database
+    let updatedSub: any = null;
     try {
       const { data, error } = await this.supabase.admin
         .from('ai_subscriptions')
@@ -187,13 +324,121 @@ export class AiSubscriptionService {
         .single();
 
       if (!error && data) {
-        return data as AiSubscription;
+        updatedSub = data;
       }
     } catch (err: any) {
       this.logger.error(`Error updating subscription credit usage: ${err?.message}`);
     }
 
-    return { ...current, credits_used: newCreditsUsed, updated_at: new Date().toISOString() };
+    // 4. Synchronize ai_credit_accounts
+    try {
+      await this.supabase.admin
+        .from('ai_credit_accounts')
+        .upsert(
+          {
+            user_id: user.id,
+            balance: creditsAfter,
+            lifetime_consumed: newCreditsUsed,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' },
+        );
+    } catch {}
+
+    // 5. Insert immutable audit ledger entry
+    const reqRef = requestId || `req_${Date.now()}`;
+    try {
+      await this.supabase.admin.from('ai_credit_ledger').insert({
+        user_id: user.id,
+        entry_type: 'CONSUME',
+        amount: count,
+        balance_after: creditsAfter,
+        feature: featureKey || null,
+        reference_id: reqRef,
+        reason: reason || `AI Invocation: ${featureKey || 'Chat'}`,
+        metadata: {
+          creditsBefore,
+          creditsConsumed: count,
+          creditsAfter,
+          plan_id: current.plan_id,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    } catch {}
+
+    const resultSub = (updatedSub || { ...current, credits_used: newCreditsUsed }) as AiSubscription;
+    return {
+      ...resultSub,
+      creditsRemaining: creditsAfter,
+      success: true,
+    };
+  }
+
+  /**
+   * Fail-Safe Rollback: Refunds reserved credit if AI execution throws an error
+   */
+  async refundCredits(
+    user: AuthUser,
+    count = 1,
+    requestId?: string,
+    reason = 'AI Execution Failed / Rolled Back',
+    featureKey?: string,
+  ): Promise<AiSubscription & { creditsRemaining: number }> {
+    const current = await this.getSubscription(user);
+    const newCreditsUsed = Math.max(0, (current.credits_used || 0) - count);
+    const maxCredits = current.monthly_ai_credits || (user.profile?.role === 'doctor' ? 25 : 15);
+    const creditsAfter = Math.max(0, maxCredits - newCreditsUsed);
+
+    let updatedSub: any = null;
+    try {
+      const { data } = await this.supabase.admin
+        .from('ai_subscriptions')
+        .update({
+          credits_used: newCreditsUsed,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+        .select()
+        .single();
+      if (data) updatedSub = data;
+    } catch {}
+
+    try {
+      await this.supabase.admin
+        .from('ai_credit_accounts')
+        .upsert(
+          {
+            user_id: user.id,
+            balance: creditsAfter,
+            lifetime_consumed: newCreditsUsed,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' },
+        );
+    } catch {}
+
+    try {
+      await this.supabase.admin.from('ai_credit_ledger').insert({
+        user_id: user.id,
+        entry_type: 'REFUND',
+        amount: count,
+        balance_after: creditsAfter,
+        feature: featureKey || null,
+        reference_id: requestId || `ref_${Date.now()}`,
+        reason,
+        metadata: {
+          creditsRestored: count,
+          creditsAfter,
+          timestamp: new Date().toISOString(),
+        },
+      });
+    } catch {}
+
+    const resultSub = (updatedSub || { ...current, credits_used: newCreditsUsed }) as AiSubscription;
+    return {
+      ...resultSub,
+      creditsRemaining: creditsAfter,
+    };
   }
 
   /**
@@ -365,16 +610,80 @@ export class AiSubscriptionService {
 
       const role = profile?.role || 'patient';
 
-      // ── CASE A: Token Pack Top-Up ──
+      // ── CASE A: AI Credit Top-Up ──
       if (orderId.startsWith('ai_topup_')) {
-        const packConfig = TOKEN_PACK_CONFIGS[tx.plan_id] || TOKEN_PACK_CONFIGS.pack_100;
-        await this.creditLedgerService.grantCredits(
-          tx.user_id,
-          packConfig.tokens,
-          `AI Token Pack Top-Up: ${packConfig.name}`,
-          orderId,
-          'GRANT',
-        );
+        let creditsToAdd = 100;
+        let packName = 'AI Credits Top-Up';
+
+        const { data: dbPack } = await this.supabase.admin
+          .from('ai_plans')
+          .select('*')
+          .eq('id', tx.plan_id)
+          .maybeSingle();
+
+        if (dbPack && dbPack.included_monthly_credits) {
+          creditsToAdd = dbPack.included_monthly_credits;
+          packName = dbPack.name;
+        } else {
+          const packConfig = TOKEN_PACK_CONFIGS[tx.plan_id] || TOKEN_PACK_CONFIGS.pack_100;
+          creditsToAdd = packConfig.credits || (packConfig as any).tokens || 100;
+          packName = packConfig.name;
+        }
+
+        // Fetch current subscription
+        const { data: currentSub } = await this.supabase.admin
+          .from('ai_subscriptions')
+          .select('*')
+          .eq('user_id', tx.user_id)
+          .maybeSingle();
+
+        const baseCredits = currentSub?.monthly_ai_credits || 15;
+        const newMonthlyCredits = baseCredits + creditsToAdd;
+        const usedCredits = currentSub?.credits_used || 0;
+        const newRemaining = Math.max(0, newMonthlyCredits - usedCredits);
+
+        // Increment monthly_ai_credits on authoritative subscription
+        const { data: updatedSub } = await this.supabase.admin
+          .from('ai_subscriptions')
+          .update({
+            monthly_ai_credits: newMonthlyCredits,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', tx.user_id)
+          .select()
+          .single();
+
+        // Synchronize ai_credit_accounts
+        await this.supabase.admin
+          .from('ai_credit_accounts')
+          .upsert(
+            {
+              user_id: tx.user_id,
+              balance: newRemaining,
+              lifetime_granted: newMonthlyCredits,
+              lifetime_consumed: usedCredits,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id' },
+          );
+
+        // Immutable ledger record
+        await this.supabase.admin.from('ai_credit_ledger').insert({
+          user_id: tx.user_id,
+          entry_type: 'TOPUP',
+          amount: creditsToAdd,
+          balance_after: newRemaining,
+          reference_id: orderId,
+          reason: `AI Credits Top-Up: ${creditsToAdd} Credits (${packName})`,
+          metadata: {
+            orderId,
+            creditsAdded: creditsToAdd,
+            creditsBefore: Math.max(0, baseCredits - usedCredits),
+            creditsAfter: newRemaining,
+            amountPaid: tx.final_amount,
+            currency: tx.original_currency,
+          },
+        });
 
         await this.supabase.admin
           .from('ai_transactions')
@@ -383,17 +692,12 @@ export class AiSubscriptionService {
 
         await this.notifications.create(tx.user_id, {
           type: 'credits_added',
-          title: 'AI Tokens Added',
-          message: `Successfully added ${packConfig.tokens} AI tokens to your balance.`,
-          data: { orderId, tokens: packConfig.tokens },
+          title: 'AI Credits Added',
+          message: `Successfully added ${creditsToAdd} AI credits to your account. Your new balance is ${newRemaining} credits.`,
+          data: { orderId, credits: creditsToAdd, balance: newRemaining },
         }).catch(() => {});
 
-        const { data: currentSub } = await this.supabase.admin
-          .from('ai_subscriptions')
-          .select('*')
-          .eq('user_id', tx.user_id)
-          .maybeSingle();
-        return currentSub as AiSubscription;
+        return (updatedSub || currentSub) as AiSubscription;
       }
 
       // ── CASE B: AI Subscription Plan Upgrade ──
@@ -406,9 +710,11 @@ export class AiSubscriptionService {
       );
 
       const isDoctor = role === 'doctor';
-      const isPro = tx.plan_id.includes('pro') || tx.plan_id.includes('premium');
       const monthlyCredits =
-        quote.includedCredits || (isDoctor ? (isPro ? 1000 : 20) : isPro ? 500 : 10);
+        quote.includedCredits ||
+        (isDoctor
+          ? (tx.plan_id === 'doctor_plan_3' ? 300 : tx.plan_id === 'doctor_plan_2' ? 100 : 25)
+          : (tx.plan_id === 'patient_plan_3' ? 150 : tx.plan_id === 'patient_plan_2' ? 60 : 15));
 
       const days = billingCycle === 'yearly' ? 365 : 30;
       const now = new Date();
@@ -519,13 +825,45 @@ export class AiSubscriptionService {
     currency: string;
     packName: string;
     tokens: number;
+    credits?: number;
   }> {
     const country = (user.profile.country || 'IN').toUpperCase().trim();
     const currency = country === 'IN' ? 'INR' : 'USD';
     const isUsd = currency === 'USD';
 
-    const pack = TOKEN_PACK_CONFIGS[packId] || TOKEN_PACK_CONFIGS.pack_100;
-    const baseAmount = isUsd ? pack.priceUsd : pack.priceInr;
+    // Resolve pack details dynamically from DB (ai_plans & ai_regional_prices)
+    let packName = 'AI Credits Top-Up';
+    let packCredits = 100;
+    let baseAmount = isUsd ? 3.0 : 200;
+
+    const { data: dbPack } = await this.supabase.admin
+      .from('ai_plans')
+      .select('*')
+      .eq('id', packId)
+      .maybeSingle();
+
+    if (dbPack) {
+      packName = dbPack.name;
+      packCredits = dbPack.included_monthly_credits || 100;
+
+      const { data: dbPrice } = await this.supabase.admin
+        .from('ai_regional_prices')
+        .select('*')
+        .eq('plan_id', packId)
+        .eq('currency', currency)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (dbPrice && typeof dbPrice.base_amount === 'number') {
+        baseAmount = Number(dbPrice.base_amount);
+      }
+    } else {
+      const pack = TOKEN_PACK_CONFIGS[packId] || TOKEN_PACK_CONFIGS.pack_100;
+      packName = pack.name;
+      packCredits = pack.credits || pack.tokens;
+      baseAmount = isUsd ? pack.priceUsd : pack.priceInr;
+    }
+
     const taxRate = isUsd ? 0 : 18;
     const taxAmount = isUsd ? 0 : Number((baseAmount * 0.18).toFixed(2));
     const finalAmount = isUsd ? baseAmount : Number((baseAmount + taxAmount).toFixed(2));
@@ -546,7 +884,7 @@ export class AiSubscriptionService {
           notifyUrl: process.env.API_PUBLIC_URL
             ? `${process.env.API_PUBLIC_URL.replace(/\/$/, '')}/api/billing/webhook/cashfree`
             : undefined,
-          note: `HealNari AI Tokens: ${pack.name}`,
+          note: `HealNari AI Credits: ${packName}`,
         });
         paymentSessionId = order.payment_session_id;
       } catch (err: any) {
@@ -586,9 +924,76 @@ export class AiSubscriptionService {
       paymentSessionId,
       amount: finalAmount,
       currency,
-      packName: pack.name,
-      tokens: pack.tokens,
+      packName,
+      credits: packCredits,
+      tokens: packCredits,
     };
+  }
+
+  /**
+   * Alias for initiateTokenPack with clean modern naming
+   */
+  async initiateCreditTopUp(user: AuthUser, packId: string) {
+    return this.initiateTokenPack(user, packId);
+  }
+
+  /**
+   * Get formatted AI Credit Top-Up packs from database with fallback
+   */
+  async getCreditPacks(user: AuthUser) {
+    const country = (user.profile?.country || 'IN').toUpperCase().trim();
+    const currency = country === 'IN' ? 'INR' : 'USD';
+    const isUsd = currency === 'USD';
+
+    try {
+      const { data: dbPacks } = await this.supabase.admin
+        .from('ai_plans')
+        .select('id, name, description, included_monthly_credits, is_active')
+        .eq('plan_type', 'credit_pack')
+        .eq('is_active', true)
+        .order('included_monthly_credits', { ascending: true });
+
+      if (dbPacks && dbPacks.length > 0) {
+        const planIds = dbPacks.map((p) => p.id);
+        const { data: prices } = await this.supabase.admin
+          .from('ai_regional_prices')
+          .select('plan_id, base_amount, currency')
+          .in('plan_id', planIds)
+          .eq('currency', currency)
+          .eq('is_active', true);
+
+        const priceMap = new Map((prices || []).map((pr) => [pr.plan_id, pr.base_amount]));
+
+        return dbPacks.map((p) => {
+          const defaultPrice = isUsd
+            ? (p.included_monthly_credits <= 100 ? 3 : p.included_monthly_credits <= 250 ? 6 : p.included_monthly_credits <= 500 ? 10 : 18)
+            : (p.included_monthly_credits <= 100 ? 200 : p.included_monthly_credits <= 250 ? 450 : p.included_monthly_credits <= 500 ? 800 : 1500);
+          const price = priceMap.get(p.id) ?? defaultPrice;
+          return {
+            id: p.id,
+            name: p.name,
+            credits: p.included_monthly_credits,
+            price,
+            currency,
+            priceFormatted: isUsd ? `$${price}` : `₹${price.toLocaleString('en-IN')}`,
+            description: p.description,
+            popular: p.included_monthly_credits === 100,
+          };
+        });
+      }
+    } catch (err: any) {
+      this.logger.warn(`Could not load credit packs from DB, falling back: ${err?.message}`);
+    }
+
+    return Object.values(TOKEN_PACK_CONFIGS).map((p) => ({
+      id: p.id,
+      name: p.name,
+      credits: p.credits || p.tokens,
+      price: isUsd ? p.priceUsd : p.priceInr,
+      currency,
+      priceFormatted: isUsd ? `$${p.priceUsd}` : `₹${p.priceInr.toLocaleString('en-IN')}`,
+      popular: !!p.popular,
+    }));
   }
 
   /**
@@ -661,16 +1066,131 @@ export class AiSubscriptionService {
   }
 
   /**
+   * Daily Cron: Checks for expired paid subscriptions and sends 3-day renewal reminders
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { name: 'ai_subscription_expiry_sweep' })
+  async handleSubscriptionExpirySweep() {
+    this.logger.log('Running daily AI subscription expiry sweep...');
+    const now = new Date();
+    const nowIso = now.toISOString();
+
+    try {
+      // 1. Fetch active paid subscriptions that have passed their current_period_end
+      const { data: expiredSubs } = await this.supabase.admin
+        .from('ai_subscriptions')
+        .select('*')
+        .eq('status', 'active')
+        .not('current_period_end', 'is', null)
+        .lt('current_period_end', nowIso);
+
+      if (expiredSubs && expiredSubs.length > 0) {
+        for (const sub of expiredSubs) {
+          if (sub.plan_id.includes('plan_1') || sub.plan_id.includes('free')) continue;
+          const isDoctor = sub.role === 'doctor';
+          const defaultPlan = isDoctor ? 'doctor_plan_1' : 'patient_plan_1';
+          const defaultCredits = isDoctor ? 25 : 15;
+
+          await this.supabase.admin
+            .from('ai_subscriptions')
+            .update({
+              plan_id: defaultPlan,
+              monthly_ai_credits: defaultCredits,
+              credits_used: 0,
+              current_period_end: null,
+              cancel_at_period_end: false,
+              updated_at: nowIso,
+            })
+            .eq('id', sub.id);
+
+          try {
+            await this.supabase.admin
+              .from('ai_credit_accounts')
+              .upsert(
+                {
+                  user_id: sub.user_id,
+                  balance: defaultCredits,
+                  lifetime_consumed: 0,
+                  updated_at: nowIso,
+                },
+                { onConflict: 'user_id' },
+              );
+
+            await this.supabase.admin.from('ai_credit_ledger').insert({
+              user_id: sub.user_id,
+              entry_type: 'RESET',
+              amount: defaultCredits,
+              balance_after: defaultCredits,
+              feature: null,
+              reference_id: `cron_expiry_${sub.id}_${nowIso.slice(0, 10)}`,
+              reason: 'Subscription period ended: Transitioned to Free Starter tier',
+              metadata: {
+                previous_plan: sub.plan_id,
+                new_plan: defaultPlan,
+                timestamp: nowIso,
+              },
+            });
+          } catch {}
+
+          await this.notifications.create(sub.user_id, {
+            type: 'subscription_expired',
+            title: 'AI Subscription Expired',
+            message: 'Your AI plan period has ended. Your account has transitioned to the standard Starter tier. Tap here to renew your plan.',
+            data: { path: isDoctor ? '/doctor-dashboard/ai' : '/patient-dashboard/ai' },
+          }).catch(() => {});
+        }
+        this.logger.log(`Downgraded ${expiredSubs.length} expired AI subscriptions.`);
+      }
+
+      // 2. Pre-expiry renewal reminders (3 days before expiration)
+      const inThreeDays = new Date(now.getTime() + 3 * 86400000).toISOString();
+      const { data: dueRenewals } = await this.supabase.admin
+        .from('ai_subscriptions')
+        .select('*')
+        .eq('status', 'active')
+        .not('current_period_end', 'is', null)
+        .gte('current_period_end', nowIso)
+        .lte('current_period_end', inThreeDays);
+
+      if (dueRenewals && dueRenewals.length > 0) {
+        for (const sub of dueRenewals) {
+          if (sub.plan_id.includes('plan_1') || sub.plan_id.includes('free')) continue;
+          const isDoctor = sub.role === 'doctor';
+          await this.notifications.create(sub.user_id, {
+            type: 'subscription_renewal_due',
+            title: 'AI Subscription Renewal Due Soon',
+            message: 'Your AI subscription will expire in 3 days. Renew today to maintain uninterrupted access to all clinical AI capabilities.',
+            idempotencyKey: `ai_renew_${sub.id}_${nowIso.slice(0, 10)}`,
+            data: { path: isDoctor ? '/doctor-dashboard/ai' : '/patient-dashboard/ai' },
+          }).catch(() => {});
+        }
+      }
+    } catch (err: any) {
+      this.logger.error(`Error during AI subscription expiry sweep: ${err?.message}`);
+    }
+  }
+
+  /**
    * Cron Job: Resets monthly credits on 1st of every month for active subscriptions.
+   * Only resets free tier plans or paid plans whose paid period is still valid.
    */
   @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT)
   async handleMonthlyCreditReset() {
-    this.logger.log('Resetting monthly AI credits for all active users...');
+    this.logger.log('Resetting monthly AI credits for active users on 1st of month...');
+    const nowIso = new Date().toISOString();
     try {
+      // 1. Reset free tiers
       await this.supabase.admin
         .from('ai_subscriptions')
-        .update({ credits_used: 0, updated_at: new Date().toISOString() })
-        .eq('status', 'active');
+        .update({ credits_used: 0, updated_at: nowIso })
+        .eq('status', 'active')
+        .or('plan_id.ilike.%plan_1%,plan_id.ilike.%free%');
+
+      // 2. Reset active paid subscriptions still within their validity window
+      await this.supabase.admin
+        .from('ai_subscriptions')
+        .update({ credits_used: 0, updated_at: nowIso })
+        .eq('status', 'active')
+        .gte('current_period_end', nowIso);
     } catch (err: any) {
       this.logger.error(`Monthly AI credit reset error: ${err?.message}`);
     }

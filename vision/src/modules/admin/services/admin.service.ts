@@ -39,6 +39,19 @@ export class AdminService {
     private readonly commissionService: CommissionService,
   ) {}
 
+  private static readonly CANONICAL_PLAN_NAMES: Record<string, string> = {
+    doctor_plan_1: 'Doctor Starter',
+    doctor_plan_2: 'Doctor Pro',
+    doctor_plan_3: 'Doctor Premium',
+    patient_plan_1: 'Patient Basic',
+    patient_plan_2: 'Patient Pro',
+    patient_plan_3: 'Patient Premium',
+    doctor_free: 'Doctor Starter',
+    doctor_pro: 'Doctor Pro',
+    patient_free: 'Patient Basic',
+    patient_premium: 'Patient Pro',
+  };
+
   public invalidateStatsCache() {
     this.statsCache.clear();
   }
@@ -90,6 +103,7 @@ export class AdminService {
         { count: openTickets },
         { count: pendingRefunds },
         { data: paidPayments },
+        { data: paidAiTransactions },
       ] = await Promise.all([
         this.supabase.admin
           .from('profiles')
@@ -130,10 +144,17 @@ export class AdminService {
             'amount, original_amount, currency, original_currency, reporting_amount, reporting_currency, fx_rate, platform_fee_amount',
           )
           .eq('status', 'Paid'),
+        this.supabase.admin
+          .from('ai_transactions')
+          .select(
+            'final_amount, base_amount, original_currency, reporting_currency, fx_rate_applied, status',
+          )
+          .in('status', ['Paid', 'paid', 'success', 'Success', 'active']),
       ]);
 
       let normalizedPlatformRevenue = 0;
       let normalizedGrossVolume = 0;
+      let normalizedAiRevenue = 0;
 
       (paidPayments || []).forEach((p) => {
         const origAmt = Number(p.original_amount || p.amount || 0);
@@ -172,6 +193,22 @@ export class AdminService {
         );
       });
 
+      // Integrate paid AI Plan Subscriptions (100% platform revenue)
+      (paidAiTransactions || []).forEach((t) => {
+        const origAmt = Number(t.final_amount || t.base_amount || 0);
+        const origCurr = (t.original_currency || 'INR').toUpperCase();
+        const convertedGross = this.fxRateService.reproduceReportingValue(
+          origAmt,
+          origCurr,
+          repCurr,
+          t.fx_rate_applied,
+          t.reporting_currency,
+        );
+        normalizedGrossVolume = DecimalMath.add(normalizedGrossVolume, convertedGross);
+        normalizedPlatformRevenue = DecimalMath.add(normalizedPlatformRevenue, convertedGross);
+        normalizedAiRevenue = DecimalMath.add(normalizedAiRevenue, convertedGross);
+      });
+
       const result = {
         totalUsers: totalUsers || 0,
         activeDoctors: totalDoctors || 0,
@@ -180,6 +217,7 @@ export class AdminService {
         platformRevenueCurrency: repCurr,
         grossVolume: normalizedGrossVolume,
         grossVolumeCurrency: repCurr,
+        aiSubscriptionRevenue: normalizedAiRevenue,
         pendingVerifications: pendingVerifications || 0,
         totalAppointments: totalAppointments || 0,
         completedConsultations: completedAppointments || 0,
@@ -253,10 +291,12 @@ export class AdminService {
           this.supabase.admin
             .from('profiles')
             .select('id, role, country, created_at'),
-          this.supabase.admin.from('appointments').select('id, status, type'),
+          this.supabase.admin.from('appointments').select('id, status, type, specialty'),
           this.supabase.admin
             .from('payments')
-            .select('amount, currency, status'),
+            .select(
+              'id, amount, currency, status, created_at, original_amount, original_currency, reporting_currency, fx_rate, appointment_id',
+            ),
         ]);
 
       const profs = profiles || [];
@@ -307,11 +347,19 @@ export class AdminService {
         );
         const domestic = upToMonth.filter((p) => p.country === 'IN').length;
         const international = upToMonth.length - domestic;
+        // Total international revenue settled up to this month converted to USD
+        const monthEndGrossUSD = pays
+          .filter((p) => p.status === 'Paid' && new Date(p.created_at) <= monthEnd)
+          .reduce((sum, p) => {
+            const amt = Number(p.original_amount || p.amount || 0);
+            const curr = (p.original_currency || p.currency || 'INR').toUpperCase();
+            return sum + this.fxRateService.reproduceReportingValue(amt, curr, 'USD', p.fx_rate, p.reporting_currency);
+          }, 0);
         return {
           month,
           Domestic: domestic,
           International: international,
-          TotalUSD: 0, // Placeholder, can be calculated from payments if needed
+          TotalUSD: Number(monthEndGrossUSD.toFixed(2)),
         };
       });
 
@@ -380,10 +428,10 @@ export class AdminService {
       pays
         .filter((p) => p.status === 'Paid')
         .forEach((p) => {
-          const curr = p.currency || 'USD';
+          const curr = (p.original_currency || p.currency || 'INR').toUpperCase();
           const exist = revCurrMap.get(curr) || { amount: 0, count: 0 };
           revCurrMap.set(curr, {
-            amount: exist.amount + Number(p.amount),
+            amount: exist.amount + Number(p.original_amount || p.amount || 0),
             count: exist.count + 1,
           });
         });
@@ -396,10 +444,22 @@ export class AdminService {
             flag = '🇺🇸';
             symbol = '$';
             name = 'US Dollar';
-          } else {
+          } else if (currency === 'INR') {
             flag = '🇮🇳';
             symbol = '₹';
             name = 'Indian Rupee';
+          } else if (currency === 'GBP') {
+            flag = '🇬🇧';
+            symbol = '£';
+            name = 'British Pound';
+          } else if (currency === 'EUR') {
+            flag = '🇪🇺';
+            symbol = '€';
+            name = 'Euro';
+          } else if (currency === 'AED') {
+            flag = '🇦🇪';
+            symbol = 'AED';
+            name = 'UAE Dirham';
           }
           return { currency, name, symbol, flag, ...data };
         },
@@ -421,15 +481,20 @@ export class AdminService {
         else consultTypeSplit.clinic++;
       });
 
-      // specialtyRevenue
+      // specialtyRevenue from real appointment specialties & payments
       const specRevMap = new Map<string, number>();
+      const aptPaymentMap = new Map<string, number>();
+      pays.filter((p) => p.status === 'Paid').forEach((p) => {
+        if (p.appointment_id) {
+          aptPaymentMap.set(p.appointment_id, Number(p.original_amount || p.amount || 0));
+        }
+      });
       apts
         .filter((a) => a.status === 'Done')
         .forEach((a) => {
-          // Since we don't fetch doctor profiles here easily, this is just an approximation
-          // Normally you'd join with profiles, for now let's just group by type
-          const spec = a.type === 'video' ? 'Telehealth' : 'Clinic';
-          specRevMap.set(spec, (specRevMap.get(spec) || 0) + 50); // mock 50$ per consult
+          const spec = a.specialty || (a.type === 'video' ? 'Telehealth' : 'In-Clinic Care');
+          const amt = aptPaymentMap.get(a.id) || 0;
+          specRevMap.set(spec, (specRevMap.get(spec) || 0) + amt);
         });
       const specialtyRevenue = Array.from(specRevMap.entries()).map(
         ([name, value]) => ({
@@ -485,24 +550,45 @@ export class AdminService {
         .order('created_at', { ascending: false })
         .range(from, from + limit - 1);
 
+      const userIds = (data || []).map((u) => u.id);
+      const { data: userSubs } = userIds.length
+        ? await this.supabase.admin
+            .from('ai_subscriptions')
+            .select('user_id, plan_id, status, monthly_ai_credits, credits_used, current_period_end')
+            .in('user_id', userIds)
+        : { data: [] as any[] };
+      const subByUserId = new Map((userSubs || []).map((s) => [s.user_id, s]));
+
       return {
-        users: (data || []).map((u) => ({
-          id: u.id,
-          name: u.full_name || 'Unknown',
-          email: u.email || '',
-          phone: u.phone || '',
-          role: u.role,
-          status: u.status || 'Active',
-          joined: u.created_at
-            ? new Date(u.created_at).toLocaleDateString('en-IN', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-              })
-            : '',
-          ltv: 0,
-          lastVisit: 'N/A',
-        })),
+        users: (data || []).map((u) => {
+          const sub = subByUserId.get(u.id);
+          const planId = sub?.plan_id || (u.role === 'doctor' ? 'doctor_plan_1' : 'patient_plan_1');
+          return {
+            id: u.id,
+            name: u.full_name || 'Unknown',
+            email: u.email || '',
+            phone: u.phone || '',
+            role: u.role,
+            status: u.status || 'Active',
+            aiPlan: {
+              id: planId,
+              name: AdminService.CANONICAL_PLAN_NAMES[planId] || (u.role === 'doctor' ? 'Doctor Starter' : 'Patient Basic'),
+              status: sub?.status || 'active',
+              monthlyCredits: sub?.monthly_ai_credits || (planId.includes('3') ? 150 : planId.includes('2') ? 60 : 15),
+              creditsUsed: sub?.credits_used || 0,
+              renewalDate: sub?.current_period_end || null,
+            },
+            joined: u.created_at
+              ? new Date(u.created_at).toLocaleDateString('en-IN', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : '',
+            ltv: 0,
+            lastVisit: 'N/A',
+          };
+        }),
         total: count || 0,
       };
     } catch (error) {
@@ -521,22 +607,33 @@ export class AdminService {
         .maybeSingle();
       if (!profile) throw new NotFoundException('User not found');
 
-      const [{ data: appointments }, { data: payments }] = await Promise.all([
-        this.supabase.admin
-          .from('appointments')
-          .select('id, doctor_id, specialty, type, status, scheduled_date')
-          .is('deleted_at', null)
-          .eq('patient_id', id)
-          .order('scheduled_date', { ascending: false })
-          .limit(20),
-        this.supabase.admin
-          .from('payments')
-          .select(
-            'id, doctor_id, appointment_id, amount, status, category, service, created_at',
-          )
-          .eq('patient_id', id)
-          .order('created_at', { ascending: false }),
-      ]);
+      const [{ data: appointments }, { data: payments }, { data: aiSub }, { data: aiTransactions }] =
+        await Promise.all([
+          this.supabase.admin
+            .from('appointments')
+            .select('id, doctor_id, specialty, type, status, scheduled_date')
+            .is('deleted_at', null)
+            .eq('patient_id', id)
+            .order('scheduled_date', { ascending: false })
+            .limit(20),
+          this.supabase.admin
+            .from('payments')
+            .select(
+              'id, doctor_id, appointment_id, amount, status, category, service, created_at',
+            )
+            .eq('patient_id', id)
+            .order('created_at', { ascending: false }),
+          this.supabase.admin
+            .from('ai_subscriptions')
+            .select('*')
+            .eq('user_id', id)
+            .maybeSingle(),
+          this.supabase.admin
+            .from('ai_transactions')
+            .select('*')
+            .eq('user_id', id)
+            .order('created_at', { ascending: false }),
+        ]);
 
       const apts = appointments || [];
       const pays = payments || [];
@@ -606,6 +703,37 @@ export class AdminService {
         cost: Number(amountByAppointmentId.get(a.id)?.amount || 0),
       }));
 
+      const activePlanId = aiSub?.plan_id || 'patient_plan_1';
+      const monthlyCredits = aiSub?.monthly_ai_credits || (activePlanId === 'patient_plan_3' ? 150 : activePlanId === 'patient_plan_2' ? 60 : 15);
+      const creditsUsed = aiSub?.credits_used || 0;
+
+      const aiSubscription = {
+        id: aiSub?.id || null,
+        planId: activePlanId,
+        planName: AdminService.CANONICAL_PLAN_NAMES[activePlanId] || 'Patient Basic',
+        status: aiSub?.status || 'active',
+        monthlyCredits,
+        creditsUsed,
+        creditsRemaining: Math.max(0, monthlyCredits - creditsUsed),
+        renewalDate: aiSub?.current_period_end || null,
+        billingCycle: aiSub?.billing_cycle || 'monthly',
+        currency: aiSub?.currency || 'INR',
+        amount: aiSub?.amount || 0,
+      };
+
+      const aiPurchaseHistory = (aiTransactions || []).map((t: any) => ({
+        id: t.id,
+        planId: t.plan_id,
+        planName: AdminService.CANONICAL_PLAN_NAMES[t.plan_id] || t.plan_id,
+        baseAmount: Number(t.base_amount || 0),
+        finalAmount: Number(t.final_amount || 0),
+        currency: t.original_currency || 'INR',
+        gateway: t.gateway || 'Cashfree',
+        gatewayTxnId: t.gateway_txn_id || null,
+        status: t.status || 'Paid',
+        createdAt: t.created_at,
+      }));
+
       return {
         profile,
         kpis: {
@@ -621,6 +749,8 @@ export class AdminService {
         spendingByCategory,
         consultations,
         payments: pays,
+        aiSubscription,
+        aiPurchaseHistory,
       };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
@@ -653,6 +783,108 @@ export class AdminService {
     }
   }
 
+  async updateUserAiPlan(
+    admin: AuthUser,
+    userId: string,
+    planId: string,
+    resetCredits = true,
+  ) {
+    try {
+      const { data: profile } = await this.supabase.admin
+        .from('profiles')
+        .select('id, full_name, role')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!profile) throw new NotFoundException(ERROR_MESSAGES.USER_NOT_FOUND);
+
+      const isDoctor = profile.role === 'doctor';
+      const monthlyCredits = planId === 'doctor_plan_3'
+        ? 300
+        : planId === 'doctor_plan_2'
+        ? 100
+        : planId === 'patient_plan_3'
+        ? 150
+        : planId === 'patient_plan_2'
+        ? 60
+        : isDoctor
+        ? 25
+        : 15;
+
+      const now = new Date();
+      const nextMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      const { data: existingSub } = await this.supabase.admin
+        .from('ai_subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const oldPlanId = existingSub?.plan_id;
+
+      const subPayload: Record<string, any> = {
+        user_id: userId,
+        plan_id: planId,
+        role: profile.role,
+        status: 'active',
+        billing_cycle: 'monthly',
+        monthly_ai_credits: monthlyCredits,
+        updated_at: now.toISOString(),
+      };
+
+      if (resetCredits || !existingSub) {
+        subPayload.credits_used = 0;
+        subPayload.current_period_start = now.toISOString();
+        subPayload.current_period_end = nextMonth.toISOString();
+      }
+
+      let updatedSub: any;
+      if (existingSub) {
+        const { data, error } = await this.supabase.admin
+          .from('ai_subscriptions')
+          .update(subPayload)
+          .eq('user_id', userId)
+          .select('*')
+          .single();
+        if (error) throw error;
+        updatedSub = data;
+      } else {
+        const { data, error } = await this.supabase.admin
+          .from('ai_subscriptions')
+          .insert(subPayload)
+          .select('*')
+          .single();
+        if (error) throw error;
+        updatedSub = data;
+      }
+
+      this.writeAudit(
+        admin,
+        'ai_subscription.admin_override',
+        'ai_subscriptions',
+        updatedSub.id,
+        { planId: oldPlanId },
+        { planId, monthlyCredits },
+      );
+
+      return {
+        id: updatedSub.id,
+        planId,
+        planName: AdminService.CANONICAL_PLAN_NAMES[planId] || planId,
+        monthlyCredits: updatedSub.monthly_ai_credits,
+        creditsUsed: updatedSub.credits_used,
+        creditsRemaining: Math.max(0, updatedSub.monthly_ai_credits - updatedSub.credits_used),
+        status: updatedSub.status,
+        renewalDate: updatedSub.current_period_end,
+      };
+    } catch (error: any) {
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException(
+        error?.message || ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   // ─── Doctors ─────────────────────────────────────────────────────
   async getDoctorsAndClinics() {
     try {
@@ -666,9 +898,8 @@ export class AdminService {
 
       if (!data) return [];
 
-      // Count appointments and query real settled payments per doctor
       const doctorIds = data.map((d) => d.id);
-      const [{ data: apts }, { data: payments }] = await Promise.all([
+      const [{ data: apts }, { data: payments }, { data: doctorSubs }] = await Promise.all([
         this.supabase.admin
           .from('appointments')
           .select('doctor_id, status')
@@ -677,48 +908,58 @@ export class AdminService {
         this.supabase.admin
           .from('payments')
           .select('doctor_id, amount, platform_fee_amount, provider_payout_amount, status')
-          .in('doctor_id', doctorIds)
-          .in('status', ['Paid', 'Insurance Claimed']),
+          .in('doctor_id', doctorIds),
+        this.supabase.admin
+          .from('ai_subscriptions')
+          .select('user_id, plan_id, status, monthly_ai_credits, credits_used, current_period_end')
+          .in('user_id', doctorIds),
       ]);
 
-      const aptCountMap: Record<string, number> = {};
-      for (const a of apts || []) {
-        aptCountMap[a.doctor_id] = (aptCountMap[a.doctor_id] || 0) + 1;
-      }
+      const subByDoctorId = new Map((doctorSubs || []).map((s) => [s.user_id, s]));
 
-      const revenueMap: Record<string, number> = {};
-      const platformFeeMap: Record<string, number> = {};
-      for (const p of payments || []) {
-        if (!p.doctor_id) continue;
-        const breakdown = CommissionCalculator.fromStoredPayment(p);
-        revenueMap[p.doctor_id] =
-          (revenueMap[p.doctor_id] || 0) + breakdown.grossAmount;
-        platformFeeMap[p.doctor_id] =
-          (platformFeeMap[p.doctor_id] || 0) + breakdown.commissionAmount;
-      }
+      const aptCountByDoctor = new Map<string, number>();
+      (apts || []).forEach((a) => {
+        aptCountByDoctor.set(
+          a.doctor_id,
+          (aptCountByDoctor.get(a.doctor_id) || 0) + 1,
+        );
+      });
 
-      return data.map((d) => ({
-        id: d.id,
-        name: d.full_name || 'Unknown',
-        specialty: d.specialty || 'General',
-        status: d.status || 'Active',
-        verified: d.kyc_verified || false,
-        joined: d.created_at
-          ? new Date(d.created_at).toLocaleDateString('en-IN', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-            })
-          : '',
-        commissionRate: CommissionCalculator.GLOBAL_COMMISSION_RATE,
-        totalGross: revenueMap[d.id] || 0,
-        totalPlatformFee: platformFeeMap[d.id] || 0,
-        totalConsults: aptCountMap[d.id] || 0,
-        rating: 0,
-        consultationFee: Number(d.consultation_fee || 0),
-        email: d.email || '',
-        phone: d.phone || '',
-      }));
+      const revenueByDoctor = new Map<string, number>();
+      (payments || [])
+        .filter((p) => p.status === 'Paid')
+        .forEach((p) => {
+          revenueByDoctor.set(
+            p.doctor_id,
+            (revenueByDoctor.get(p.doctor_id) || 0) + Number(p.amount || 0),
+          );
+        });
+
+      return data.map((d) => {
+        const sub = subByDoctorId.get(d.id);
+        const planId = sub?.plan_id || 'doctor_plan_1';
+        return {
+          id: d.id,
+          name: d.full_name || 'Dr. Unknown',
+          email: d.email || '',
+          specialty: d.specialty || 'General Practitioner',
+          status: d.status || 'Active',
+          kyc_verified: d.kyc_verified || false,
+          totalAppointments: aptCountByDoctor.get(d.id) || 0,
+          totalRevenue: revenueByDoctor.get(d.id) || 0,
+          consultation_fee: d.consultation_fee || 0,
+          commission_rate: CommissionCalculator.GLOBAL_COMMISSION_RATE,
+          phone: d.phone || '',
+          aiPlan: {
+            id: planId,
+            name: AdminService.CANONICAL_PLAN_NAMES[planId] || 'Doctor Starter',
+            status: sub?.status || 'active',
+            monthlyCredits: sub?.monthly_ai_credits || (planId === 'doctor_plan_3' ? 300 : planId === 'doctor_plan_2' ? 100 : 25),
+            creditsUsed: sub?.credits_used || 0,
+            renewalDate: sub?.current_period_end || null,
+          },
+        };
+      });
     } catch (error) {
       throw new InternalServerErrorException(
         ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
@@ -737,19 +978,30 @@ export class AdminService {
       if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
       doctor.commission_rate = CommissionCalculator.GLOBAL_COMMISSION_RATE;
 
-      const [{ data: appointments }, { data: payments }] = await Promise.all([
-        this.supabase.admin
-          .from('appointments')
-          .select('id, patient_id, type, status, scheduled_date')
-          .is('deleted_at', null)
-          .eq('doctor_id', id)
-          .order('scheduled_date', { ascending: false }),
-        this.supabase.admin
-          .from('payments')
-          .select('id, patient_id, amount, status, service, created_at, commission_rate, platform_fee_amount, provider_payout_amount')
-          .eq('doctor_id', id)
-          .order('created_at', { ascending: false }),
-      ]);
+      const [{ data: appointments }, { data: payments }, { data: aiSub }, { data: aiTransactions }] =
+        await Promise.all([
+          this.supabase.admin
+            .from('appointments')
+            .select('id, patient_id, type, status, scheduled_date')
+            .is('deleted_at', null)
+            .eq('doctor_id', id)
+            .order('scheduled_date', { ascending: false }),
+          this.supabase.admin
+            .from('payments')
+            .select('id, patient_id, amount, status, service, created_at, commission_rate, platform_fee_amount, provider_payout_amount')
+            .eq('doctor_id', id)
+            .order('created_at', { ascending: false }),
+          this.supabase.admin
+            .from('ai_subscriptions')
+            .select('*')
+            .eq('user_id', id)
+            .maybeSingle(),
+          this.supabase.admin
+            .from('ai_transactions')
+            .select('*')
+            .eq('user_id', id)
+            .order('created_at', { ascending: false }),
+        ]);
 
       const apts = appointments || [];
       const pays = payments || [];
@@ -831,6 +1083,37 @@ export class AdminService {
         (sum, p) => sum + Number(p.provider_payout_amount || p.amount || 0),
         0,
       );
+
+      const activePlanId = aiSub?.plan_id || 'doctor_plan_1';
+      const monthlyCredits = aiSub?.monthly_ai_credits || (activePlanId === 'doctor_plan_3' ? 300 : activePlanId === 'doctor_plan_2' ? 100 : 25);
+      const creditsUsed = aiSub?.credits_used || 0;
+
+      const aiSubscription = {
+        id: aiSub?.id || null,
+        planId: activePlanId,
+        planName: AdminService.CANONICAL_PLAN_NAMES[activePlanId] || 'Doctor Starter',
+        status: aiSub?.status || 'active',
+        monthlyCredits,
+        creditsUsed,
+        creditsRemaining: Math.max(0, monthlyCredits - creditsUsed),
+        renewalDate: aiSub?.current_period_end || null,
+        billingCycle: aiSub?.billing_cycle || 'monthly',
+        currency: aiSub?.currency || 'INR',
+        amount: aiSub?.amount || 0,
+      };
+
+      const aiPurchaseHistory = (aiTransactions || []).map((t: any) => ({
+        id: t.id,
+        planId: t.plan_id,
+        planName: AdminService.CANONICAL_PLAN_NAMES[t.plan_id] || t.plan_id,
+        baseAmount: Number(t.base_amount || 0),
+        finalAmount: Number(t.final_amount || 0),
+        currency: t.original_currency || 'INR',
+        gateway: t.gateway || 'Cashfree',
+        gatewayTxnId: t.gateway_txn_id || null,
+        status: t.status || 'Paid',
+        createdAt: t.created_at,
+      }));
 
       return {
         doctor,
@@ -1455,6 +1738,7 @@ export class AdminService {
         { data: doneAppointments },
         { data: allPayments },
         { data: allRefunds },
+        { data: allAiTransactions },
       ] = await Promise.all([
         this.supabase.admin
           .from('appointments')
@@ -1477,10 +1761,17 @@ export class AdminService {
         this.supabase.admin
           .from('refund_requests')
           .select('amount, currency, status, created_at'),
+        this.supabase.admin
+          .from('ai_transactions')
+          .select(
+            'id, user_id, plan_id, original_currency, base_amount, final_amount, reporting_currency, reporting_amount, fx_rate_applied, gateway, gateway_txn_id, status, created_at',
+          )
+          .in('status', ['Paid', 'paid', 'success', 'Success', 'active']),
       ]);
 
       const payments = allPayments || [];
       const refunds = allRefunds || [];
+      const aiTxList = allAiTransactions || [];
 
       // 1. Original Currency Distribution Map (NEVER mixes currencies)
       const originalCurrencyMap = new Map<
@@ -1668,6 +1959,71 @@ export class AdminService {
           ),
         );
       });
+      // Process AI Plan Transactions (100% platform revenue)
+      let aiTotalRevenue = 0;
+      let aiDoctorPlansRevenue = 0;
+      let aiPatientPlansRevenue = 0;
+      let aiCount = 0;
+
+      aiTxList.forEach((t) => {
+        aiCount++;
+        const origAmt = Number(t.final_amount || t.base_amount || 0);
+        const origCurr = (t.original_currency || 'INR').toUpperCase();
+        const convertedGross = this.fxRateService.reproduceReportingValue(
+          origAmt,
+          origCurr,
+          repCurr,
+          t.fx_rate_applied,
+          t.reporting_currency,
+        );
+
+        totalGrossGMV = DecimalMath.add(totalGrossGMV, convertedGross);
+        totalPlatformRevenue = DecimalMath.add(totalPlatformRevenue, convertedGross);
+        aiTotalRevenue = DecimalMath.add(aiTotalRevenue, convertedGross);
+
+        if (t.plan_id?.startsWith('doctor')) {
+          aiDoctorPlansRevenue = DecimalMath.add(aiDoctorPlansRevenue, convertedGross);
+        } else {
+          aiPatientPlansRevenue = DecimalMath.add(aiPatientPlansRevenue, convertedGross);
+        }
+
+        // Incorporate AI subscriptions into the Original Currency Distribution Map
+        const existing = originalCurrencyMap.get(origCurr) || {
+          currency: origCurr,
+          count: 0,
+          grossAmount: 0,
+          platformFeeAmount: 0,
+          providerPayoutAmount: 0,
+          refundAmount: 0,
+          netAmount: 0,
+        };
+        existing.count += 1;
+        existing.grossAmount = DecimalMath.add(existing.grossAmount, origAmt);
+        existing.platformFeeAmount = DecimalMath.add(existing.platformFeeAmount, origAmt);
+        existing.netAmount = DecimalMath.subtract(existing.grossAmount, existing.refundAmount);
+        originalCurrencyMap.set(origCurr, existing);
+
+        // Monthly Stream Bucket for AI
+        if (t.created_at) {
+          const tDate = new Date(t.created_at);
+          const monthKey = tDate.toLocaleString('en-US', { month: 'short' });
+          if (monthlyStreamMap.has(monthKey)) {
+            const mData = monthlyStreamMap.get(monthKey)!;
+            mData.grossReporting = DecimalMath.add(mData.grossReporting, convertedGross);
+            mData.platformReporting = DecimalMath.add(mData.platformReporting, convertedGross);
+            if (mData[origCurr] !== undefined) {
+              mData[origCurr] = DecimalMath.add(mData[origCurr], origAmt);
+            }
+          }
+        }
+      });
+
+      // Specialty / Category Breakdown including AI
+      bySpecialtyMap.set(
+        'AI Subscriptions',
+        DecimalMath.add(bySpecialtyMap.get('AI Subscriptions') || 0, aiTotalRevenue),
+      );
+
       const netPlatformRevenue = DecimalMath.subtract(
         totalPlatformRevenue,
         refundedPlatformFees,
@@ -1683,8 +2039,46 @@ export class AdminService {
         }),
       );
 
-      // Top 20 Detailed Ledger Records
-      const transactions = payments.slice(0, 50).map((p) => {
+      // Detailed Ledger Records (Combining Consultations and AI Subscriptions)
+      const aiTxFormatted = aiTxList.map((t) => {
+        const origAmt = Number(t.final_amount || t.base_amount || 0);
+        const origCurr = (t.original_currency || 'INR').toUpperCase();
+        const repAmt = this.fxRateService.reproduceReportingValue(
+          origAmt,
+          origCurr,
+          repCurr,
+          t.fx_rate_applied,
+          t.reporting_currency,
+        );
+        return {
+          id: t.id,
+          txnRef: t.gateway_txn_id || `AI-${t.id.slice(0, 8).toUpperCase()}`,
+          rawDate: t.created_at,
+          date: t.created_at
+            ? new Date(t.created_at).toLocaleDateString('en-US', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })
+            : '—',
+          service: `AI Plan: ${AdminService.CANONICAL_PLAN_NAMES[t.plan_id] || t.plan_id}`,
+          status: 'Paid',
+          method: t.gateway || 'Cashfree',
+          originalAmount: origAmt,
+          originalCurrency: origCurr,
+          reportingAmount: repAmt,
+          reportingCurrency: repCurr,
+          fxRate: t.fx_rate_applied || 1,
+          fxRateSource: 'cashfree_checkout',
+          fxRateTimestamp: t.created_at,
+          platformFeeAmount: repAmt,
+          providerPayoutAmount: 0,
+          isAiSubscription: true,
+          planId: t.plan_id,
+        };
+      });
+
+      const paymentsFormatted = payments.map((p) => {
         const origAmt = Number(p.original_amount || p.amount || 0);
         const origCurr = (
           p.original_currency ||
@@ -1698,10 +2092,12 @@ export class AdminService {
           p.fx_rate,
           p.reporting_currency,
         );
+        const breakdown = CommissionCalculator.fromStoredPayment(p);
 
         return {
           id: p.id,
           txnRef: p.txn_ref || `TXN-${p.id.slice(0, 8).toUpperCase()}`,
+          rawDate: p.created_at,
           date: p.created_at
             ? new Date(p.created_at).toLocaleDateString('en-US', {
                 day: '2-digit',
@@ -1718,13 +2114,37 @@ export class AdminService {
           reportingCurrency: repCurr,
           fxRate:
             p.fx_rate ||
-            this.fxRateService.getRateQuote(origCurr, repCurr).rate,
-          fxRateSource: p.fx_rate_source || 'healnari_treasury_matrix_v1',
+            (origCurr === repCurr
+              ? 1
+              : this.fxRateService.getRateQuote(origCurr, repCurr).rate),
+          fxRateSource: p.fx_rate_source || 'live_ecb',
           fxRateTimestamp: p.fx_rate_timestamp || p.created_at,
-          platformFeeAmount: CommissionCalculator.fromStoredPayment(p).commissionAmount,
-          providerPayoutAmount: CommissionCalculator.fromStoredPayment(p).providerPayoutAmount,
+          platformFeeAmount: this.fxRateService.reproduceReportingValue(
+            breakdown.commissionAmount,
+            origCurr,
+            repCurr,
+            p.fx_rate,
+            p.reporting_currency,
+          ),
+          providerPayoutAmount: this.fxRateService.reproduceReportingValue(
+            breakdown.providerPayoutAmount,
+            origCurr,
+            repCurr,
+            p.fx_rate,
+            p.reporting_currency,
+          ),
+          isAiSubscription: false,
         };
       });
+
+      const allMergedTx = [...paymentsFormatted, ...aiTxFormatted];
+      allMergedTx.sort((a, b) => {
+        const timeA = new Date(a.rawDate || 0).getTime();
+        const timeB = new Date(b.rawDate || 0).getTime();
+        return timeB - timeA;
+      });
+
+      const transactions = allMergedTx.slice(0, 50);
 
       return {
         reportingCurrency: repCurr,
@@ -1734,7 +2154,7 @@ export class AdminService {
           providerPayouts: totalProviderPayouts,
           refundsTotal: totalRefundsAmount,
           netPlatformRevenue,
-          totalTransactions: settledCount,
+          totalTransactions: settledCount + aiCount,
           reportingCurrency: repCurr,
         },
         currentMonth: totalGrossGMV,
@@ -1743,6 +2163,12 @@ export class AdminService {
         monthlyRevenueStream,
         revenueBySpecialty,
         transactions,
+        aiSubscriptionRevenue: {
+          total: aiTotalRevenue,
+          doctorPlansRevenue: aiDoctorPlansRevenue,
+          patientPlansRevenue: aiPatientPlansRevenue,
+          count: aiCount,
+        },
       };
     } catch (error) {
       console.error(error);

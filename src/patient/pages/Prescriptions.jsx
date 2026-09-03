@@ -63,6 +63,32 @@ function AiDrugSafetyModal({ rx, onClose }) {
           </div>
         ) : safetyData ? (
           <div className="space-y-4">
+            {/* Pregnancy Safety Warning */}
+            {safetyData.pregnancyWarning && (
+              <div className="p-4 rounded-2xl border-2 bg-rose-50 border-rose-300 text-rose-950 flex items-start gap-3 shadow-sm">
+                <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 text-sm mt-0.5">
+                  <i className="fas fa-person-pregnant"></i>
+                </div>
+                <div>
+                  <h4 className="font-black text-xs uppercase tracking-wider text-rose-800">Pregnancy Safety Alert</h4>
+                  <p className="text-xs font-semibold text-rose-900 mt-0.5 leading-relaxed">{safetyData.pregnancyWarning}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Lactation Safety Guidance */}
+            {safetyData.lactationWarning && (
+              <div className="p-4 rounded-2xl border bg-amber-50 border-amber-200 text-amber-950 flex items-start gap-3 shadow-xs">
+                <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 text-sm mt-0.5">
+                  <i className="fas fa-baby"></i>
+                </div>
+                <div>
+                  <h4 className="font-black text-xs uppercase tracking-wider text-amber-800">Breastfeeding &amp; Lactation Notice</h4>
+                  <p className="text-xs font-medium text-amber-900 mt-0.5 leading-relaxed">{safetyData.lactationWarning}</p>
+                </div>
+              </div>
+            )}
+
             <div className={`p-4 rounded-2xl border ${safetyData.hasInteractions ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900'}`}>
               <div className="flex items-center gap-2 font-bold text-xs mb-1">
                 <i className={`fas ${safetyData.hasInteractions ? 'fa-triangle-exclamation text-amber-600' : 'fa-circle-check text-emerald-600'}`}></i>

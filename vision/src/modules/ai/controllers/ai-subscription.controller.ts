@@ -19,6 +19,7 @@ import { AiAnalyticsService } from '@/modules/ai/services/ai-analytics.service';
 import { AiPricingService } from '@/modules/ai/services/ai-pricing.service';
 import { AiCreditLedgerService } from '@/modules/ai/services/ai-credit-ledger.service';
 import { AiUsageService } from '@/modules/ai/services/ai-usage.service';
+import { AiFeatureFlagService } from '@/modules/ai/services/ai-feature-flag.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
 
@@ -120,14 +121,16 @@ export class AiSubscriptionController {
     private readonly pricingService: AiPricingService,
     private readonly creditLedgerService: AiCreditLedgerService,
     private readonly usageService: AiUsageService,
+    private readonly featureFlagService: AiFeatureFlagService,
   ) {}
 
   @Get('subscription/status')
   @ApiOperation({ summary: 'Get current user AI subscription plan, credit ledger balance, and active perks' })
   async getSubscriptionStatus(@CurrentUser() user: AuthUser) {
     const subscription = await this.subscriptionService.getSubscription(user);
-    const account = await this.creditLedgerService.getAccount(user.id);
-    const creditsRemaining = account.balance;
+    const totalCredits = subscription.monthly_ai_credits || (user.profile?.role === 'doctor' ? 25 : 15);
+    const creditsUsed = subscription.credits_used || 0;
+    const creditsRemaining = Math.max(0, totalCredits - creditsUsed);
 
     const { countryCode, currencyCode } = this.pricingService.resolveCountryAndCurrency(user);
     const currentPriceQuote = await this.pricingService.getPricingQuote(
@@ -138,11 +141,16 @@ export class AiSubscriptionController {
 
     return ResponseHelper.success(
       {
-        subscription,
+        subscription: {
+          ...subscription,
+          plan_name: currentPriceQuote?.planName || subscription.plan_id,
+        },
         planConfig: currentPriceQuote,
         creditsRemaining,
-        lifetimeGranted: account.lifetimeGranted,
-        lifetimeConsumed: account.lifetimeConsumed,
+        totalCredits,
+        creditsUsed,
+        lifetimeGranted: totalCredits,
+        lifetimeConsumed: creditsUsed,
         isPremium:
           subscription.plan_id.includes('premium') ||
           subscription.plan_id.includes('pro'),
@@ -279,6 +287,33 @@ export class AiSubscriptionController {
     );
   }
 
+  @Get('credits/packs')
+  @ApiOperation({ summary: 'Get available AI credit top-up packs with localized pricing' })
+  async getCreditPacks(@CurrentUser() user: AuthUser) {
+    const packs = await this.subscriptionService.getCreditPacks(user);
+    return ResponseHelper.success(packs, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Post('credits/topup')
+  @ApiOperation({ summary: 'Initiate payment order for instant AI credit top-up pack' })
+  async initiateTopUp(
+    @CurrentUser() user: AuthUser,
+    @Body() body: BuyCreditsDto,
+  ) {
+    const order = await this.subscriptionService.initiateCreditTopUp(user, body.packId);
+    return ResponseHelper.success(order, 'Credit top-up checkout initiated.');
+  }
+
+  @Post('credits/topup/activate')
+  @ApiOperation({ summary: 'Activate AI credit top-up upon successful payment' })
+  async activateTopUp(
+    @CurrentUser() user: AuthUser,
+    @Body() body: { orderId: string },
+  ) {
+    const sub = await this.subscriptionService.reconcileSubscriptionOrder(body.orderId);
+    return ResponseHelper.success(sub, 'AI credits successfully added to your balance.');
+  }
+
   @Post('subscription/activate')
   @ApiOperation({ summary: 'Activate AI subscription upon verified payment' })
   async activateSubscription(
@@ -359,7 +394,7 @@ export class AiSubscriptionController {
     });
     return ResponseHelper.success(
       subscription,
-      'Your subscription auto-renewal has been cancelled. You retain full access until the end of your billing cycle.',
+      'Your subscription will expire at the end of your current 30-day period.',
     );
   }
 
@@ -405,159 +440,127 @@ export class AiSubscriptionController {
   @Get('features/catalog')
   @ApiOperation({ summary: 'Get user role-tailored AI feature catalog with token costs and launch routes' })
   async getFeaturesCatalog(@CurrentUser() user: AuthUser) {
-    const isDoctor = user.profile.role === 'doctor';
-    const sub = await this.subscriptionService.getSubscription(user);
-    const isPro = sub.plan_id.includes('pro') || sub.plan_id.includes('premium');
+    const role = user.profile?.role || 'patient';
+    const isDoctor = role === 'doctor';
 
-    const doctorFeatures = [
-      {
-        id: 'DOCTOR_SOAP_NOTES',
-        name: 'AI Clinical SOAP Notes',
-        tagline: 'Draft comprehensive clinical notes from consultation notes in seconds',
-        description: 'Converts subjective observations, assessment, and care plans into structured HIPAA-ready SOAP notes.',
-        tokenCost: 2,
-        isIncluded: isPro,
-        badge: isPro ? 'Included' : 'Pro Tier',
-        category: 'Clinical EMR',
+    // 1. Fetch user's active subscription and plan from DB
+    const sub = await this.subscriptionService.getSubscription(user);
+    const plan = await this.pricingService.getPlan(sub.plan_id).catch(() => null);
+    const includedFeatures = plan?.features || [];
+
+    // 2. Fetch all feature flags from DB
+    const allFlags = await this.featureFlagService.getAllFlags();
+
+    // 3. Filter for applicable role
+    const roleFlags = allFlags.filter((f) => {
+      if (!f.is_enabled) return false;
+      if (f.status === 'archived') return false;
+      const roles = Array.isArray(f.applicable_roles) ? f.applicable_roles : ['patient', 'doctor'];
+      return roles.includes(role);
+    });
+
+    // Presentation UI metadata mapping for icons, category and destination routes
+    const uiMeta: Record<string, { icon: string; accent: string; route: string; actionLabel: string; category: string; tagline?: string }> = {
+      DOCTOR_SOAP_NOTES: {
         icon: 'fa-file-medical',
         accent: '#6B46C1',
         route: '/doctor-dashboard/telemedicine',
         actionLabel: 'Use in Telemed →',
+        category: 'Clinical EMR',
+        tagline: 'Draft comprehensive clinical notes from consultation notes in seconds',
       },
-      {
-        id: 'DOCTOR_RX_AUTOCOMPLETE',
-        name: 'Prescription Autocomplete',
-        tagline: 'Instant dosage, frequency, and duration intelligence',
-        description: 'Smart auto-completion for medication orders with standard therapeutic guidelines.',
-        tokenCost: 1,
-        isIncluded: true,
-        badge: 'Included',
-        category: 'Prescriptions',
+      DOCTOR_RX_AUTOCOMPLETE: {
         icon: 'fa-prescription-bottle-medical',
         accent: '#10b981',
         route: '/doctor-dashboard/prescriptions',
         actionLabel: 'Open Prescriptions →',
+        category: 'Prescriptions',
+        tagline: 'Instant dosage, frequency, and duration intelligence',
       },
-      {
-        id: 'DOCTOR_CONSULT_SUMMARY',
-        name: 'Consultation Summary & Action Plan',
-        tagline: 'Generate patient-friendly takeaway briefs & follow-up milestones',
-        description: 'Translates complex medical decisions into clear, understandable next steps for the patient.',
-        tokenCost: 1,
-        isIncluded: isPro,
-        badge: isPro ? 'Included' : 'Pro Tier',
-        category: 'Patient Care',
+      DOCTOR_CONSULT_SUMMARY: {
         icon: 'fa-file-lines',
         accent: '#0ea5e9',
         route: '/doctor-dashboard/telemedicine',
         actionLabel: 'Use in Telemed →',
+        category: 'Patient Care',
+        tagline: 'Generate patient-friendly takeaway briefs & follow-up milestones',
       },
-      {
-        id: 'DOCTOR_DRUG_SAFETY',
-        name: 'Food & Drug Interaction Shield',
-        tagline: 'Cross-check multiple prescriptions for contraindications',
-        description: 'Evaluates drug-drug and food-drug interactions to safeguard patient safety.',
-        tokenCost: 1,
-        isIncluded: true,
-        badge: 'Included',
-        category: 'Safety',
+      DOCTOR_DRUG_SAFETY: {
         icon: 'fa-shield-halved',
         accent: '#f43f5e',
         route: '/doctor-dashboard/prescriptions',
         actionLabel: 'Check Interactions →',
+        category: 'Safety',
+        tagline: 'Cross-check multiple prescriptions for contraindications',
       },
-      {
-        id: 'DOCTOR_PATIENT_BRIEF',
-        name: 'Pre-Consultation Patient Brief',
-        tagline: 'AI summary of patient medical history before your call begins',
-        description: 'Synthesizes past lab reports, chief complaints, and timeline before walking into the consult.',
-        tokenCost: 1,
-        isIncluded: isPro,
-        badge: isPro ? 'Included' : 'Pro Tier',
-        category: 'Preparation',
+      DOCTOR_PATIENT_BRIEF: {
         icon: 'fa-clipboard-user',
         accent: '#f59e0b',
         route: '/doctor-dashboard/reports',
         actionLabel: 'View Reports →',
+        category: 'Preparation',
+        tagline: 'AI summary of patient medical history before your call begins',
       },
-      {
-        id: 'PATIENT_CHAT',
-        name: 'Clinical AI Assistant',
-        tagline: 'Ask clinical questions and look up therapeutic reference protocols',
-        description: 'Interactive assistant for dosage formulas, guidelines, and EMR workflow support.',
-        tokenCost: 1,
-        isIncluded: true,
-        badge: 'Included',
-        category: 'Assistant',
+      DOCTOR_CHAT: {
         icon: 'fa-comments',
         accent: '#8b5cf6',
         route: '#chat',
         actionLabel: 'Open Assistant →',
+        category: 'Assistant',
+        tagline: 'Interactive assistant for dosage formulas and clinical protocols',
       },
-    ];
-
-    const patientFeatures = [
-      {
-        id: 'PATIENT_LAB_ANALYSIS',
-        name: 'AI Lab Report Decoder',
-        tagline: 'Translate blood work & pathology reports into plain English',
-        description: 'Explains biomarkers, hormone ranges, and cycle-phase calibrated insights with zero medical jargon.',
-        tokenCost: 2,
-        isIncluded: isPro,
-        badge: isPro ? 'Included' : 'Premium',
-        category: 'Diagnostics',
+      PATIENT_LAB_ANALYSIS: {
         icon: 'fa-flask-vial',
         accent: '#6B46C1',
         route: '/patient-dashboard/records',
         actionLabel: 'Upload Report →',
+        category: 'Diagnostics',
+        tagline: 'Translate blood work & pathology reports into plain English',
       },
-      {
-        id: 'PATIENT_CONSULT_PREP',
-        name: 'Doctor Visit Prep Brief',
-        tagline: 'Personalized questions & symptom timeline to ask your doctor',
-        description: 'Organizes your concerns, symptoms, and cycle context so you make the most of every minute with your doctor.',
-        tokenCost: 1,
-        isIncluded: isPro,
-        badge: isPro ? 'Included' : 'Premium',
-        category: 'Care Prep',
+      PATIENT_CONSULT_PREP: {
         icon: 'fa-calendar-plus',
         accent: '#10b981',
         route: '/patient-dashboard/appointments',
         actionLabel: 'Prepare Visit →',
+        category: 'Care Prep',
+        tagline: 'Personalized questions & symptom timeline to ask your doctor',
       },
-      {
-        id: 'PATIENT_CHAT',
-        name: '24/7 Care Companion',
-        tagline: 'Private, compassionate answers for women’s wellness & health',
-        description: 'Ask questions about your symptoms, cycle variations, nutrition, and lifestyle in total privacy.',
-        tokenCost: 1,
-        isIncluded: true,
-        badge: 'Included',
-        category: 'Wellness',
+      PATIENT_CHAT: {
         icon: 'fa-heart-pulse',
         accent: '#e11d48',
         route: '#chat',
         actionLabel: 'Talk to Companion →',
+        category: 'Wellness',
+        tagline: 'Private, compassionate answers for women’s wellness & health',
       },
-      {
-        id: 'DOCTOR_DRUG_SAFETY',
-        name: 'Medication & Food Timing Safety',
-        tagline: 'Learn how to take your medications safely with meals & supplements',
-        description: 'Instant guidance on avoiding food-drug interactions and optimal time of day to take your prescriptions.',
-        tokenCost: 1,
-        isIncluded: true,
-        badge: 'Included',
-        category: 'Prescriptions',
-        icon: 'fa-pills',
-        accent: '#0ea5e9',
-        route: '/patient-dashboard/prescriptions',
-        actionLabel: 'Check Medicine →',
-      },
-    ];
+    };
 
-    return ResponseHelper.success(
-      isDoctor ? doctorFeatures : patientFeatures,
-      SUCCESS_MESSAGES.DATA_RETRIEVED,
-    );
+    const result = roleFlags.map((f) => {
+      const isIncluded = includedFeatures.includes(f.feature_key);
+      const meta = uiMeta[f.feature_key] || {
+        icon: 'fa-wand-magic-sparkles',
+        accent: '#8b5cf6',
+        route: '#chat',
+        actionLabel: 'Launch Feature →',
+        category: isDoctor ? 'Clinical Tool' : 'Health Tool',
+      };
+
+      return {
+        id: f.feature_key,
+        name: f.name,
+        tagline: meta.tagline || f.description,
+        description: f.description,
+        tokenCost: f.credit_cost || 1,
+        isIncluded,
+        badge: isIncluded ? 'Included' : 'Upgrade Required',
+        category: meta.category,
+        icon: meta.icon,
+        accent: meta.accent,
+        route: meta.route,
+        actionLabel: meta.actionLabel,
+      };
+    });
+
+    return ResponseHelper.success(result, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 }

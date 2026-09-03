@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import {
@@ -95,6 +96,16 @@ export class UpdateAiPlanDto {
   @IsOptional() @IsNumber() price_usd?: number;
   @IsOptional() @IsArray() @IsString({ each: true }) features?: string[];
   @IsOptional() feature_limits?: Record<string, any>;
+}
+
+export class UpsertCreditPackDto {
+  @IsString() id: string;
+  @IsString() name: string;
+  @IsOptional() @IsString() description?: string;
+  @IsNumber() credits: number;
+  @IsNumber() price_inr: number;
+  @IsNumber() price_usd: number;
+  @IsOptional() @IsBoolean() is_active?: boolean;
 }
 
 export class SavePromptTemplateDto {
@@ -306,6 +317,173 @@ export class AiAdminController {
       },
     );
     return ResponseHelper.success(priceEntry, 'Regional price published successfully.');
+  }
+
+  // --- 3B. AI Credit Top-Up Packs Database Management ---
+  @Get('credit-packs')
+  @ApiOperation({ summary: 'List all AI credit top-up packs from DB with INR & USD prices' })
+  async getCreditPacksAdmin(@CurrentUser() user: AuthUser) {
+    this.requireAdmin(user);
+    const { data: dbPacks, error: pErr } = await this.supabase.admin
+      .from('ai_plans')
+      .select('*')
+      .eq('plan_type', 'credit_pack')
+      .order('included_monthly_credits', { ascending: true });
+
+    if (pErr) throw new BadRequestException(pErr.message);
+
+    const planIds = (dbPacks || []).map((p) => p.id);
+    const { data: prices } = await this.supabase.admin
+      .from('ai_regional_prices')
+      .select('*')
+      .in('plan_id', planIds);
+
+    const priceMap = new Map<string, { inr?: number; usd?: number }>();
+    for (const pr of prices || []) {
+      const entry = priceMap.get(pr.plan_id) || {};
+      if (pr.currency === 'INR') entry.inr = Number(pr.base_amount);
+      if (pr.currency === 'USD') entry.usd = Number(pr.base_amount);
+      priceMap.set(pr.plan_id, entry);
+    }
+
+    const result = (dbPacks || []).map((p) => {
+      const pr = priceMap.get(p.id) || {};
+      return {
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        credits: p.included_monthly_credits,
+        price_inr: pr.inr ?? 200,
+        price_usd: pr.usd ?? 3,
+        is_active: p.is_active,
+        created_at: p.created_at,
+        updated_at: p.updated_at,
+      };
+    });
+
+    return ResponseHelper.success(result, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Post('credit-packs')
+  @ApiOperation({ summary: 'Create or update an AI credit top-up pack in database' })
+  async upsertCreditPack(
+    @CurrentUser() user: AuthUser,
+    @Body() body: UpsertCreditPackDto,
+  ) {
+    this.requireAdmin(user);
+    const { id, name, description, credits, price_inr, price_usd, is_active } = body;
+
+    const packId = id || `pack_${credits}`;
+
+    // 1. Upsert into ai_plans
+    const planPayload = {
+      id: packId,
+      product_id: 'prod_credit_pack',
+      name,
+      description: description || `Instant top-up of ${credits} AI credits`,
+      billing_cycle: 'credit_pack',
+      plan_type: 'credit_pack',
+      included_monthly_credits: Number(credits),
+      bonus_credits: 0,
+      is_active: is_active !== false,
+      is_public: true,
+      features: ['ai_credits_topup'],
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: plErr } = await this.supabase.admin
+      .from('ai_plans')
+      .upsert(planPayload, { onConflict: 'id' });
+
+    if (plErr) throw new BadRequestException(`Failed to save pack: ${plErr.message}`);
+
+    // 2. Upsert INR price
+    const { data: existingInr } = await this.supabase.admin
+      .from('ai_regional_prices')
+      .select('id')
+      .eq('plan_id', packId)
+      .eq('currency', 'INR')
+      .maybeSingle();
+
+    if (existingInr) {
+      await this.supabase.admin
+        .from('ai_regional_prices')
+        .update({ base_amount: Number(price_inr), is_active: true, updated_at: new Date().toISOString() })
+        .eq('id', existingInr.id);
+    } else {
+      await this.supabase.admin.from('ai_regional_prices').insert({
+        plan_id: packId,
+        country_code: 'IN',
+        currency: 'INR',
+        base_amount: Number(price_inr),
+        is_active: true,
+      });
+    }
+
+    // 3. Upsert USD price
+    const { data: existingUsd } = await this.supabase.admin
+      .from('ai_regional_prices')
+      .select('id')
+      .eq('plan_id', packId)
+      .eq('currency', 'USD')
+      .maybeSingle();
+
+    if (existingUsd) {
+      await this.supabase.admin
+        .from('ai_regional_prices')
+        .update({ base_amount: Number(price_usd), is_active: true, updated_at: new Date().toISOString() })
+        .eq('id', existingUsd.id);
+    } else {
+      await this.supabase.admin.from('ai_regional_prices').insert({
+        plan_id: packId,
+        country_code: 'US',
+        currency: 'USD',
+        base_amount: Number(price_usd),
+        is_active: true,
+      });
+    }
+
+    // Audit log
+    try {
+      await this.supabase.admin.from('ai_admin_audit_logs').insert({
+        admin_id: user.id,
+        admin_name: user.profile?.full_name || 'Admin',
+        action: 'CREDIT_PACK_UPSERTED',
+        entity_type: 'credit_pack',
+        entity_id: packId,
+        new_value: { name, credits, price_inr, price_usd, is_active },
+      });
+    } catch {}
+
+    return ResponseHelper.success({ packId }, 'Credit pack saved successfully in database.');
+  }
+
+  @Delete('credit-packs/:id')
+  @ApiOperation({ summary: 'Toggle status or deactivate an AI credit top-up pack' })
+  async toggleCreditPackStatus(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    this.requireAdmin(user);
+    const { data: current } = await this.supabase.admin
+      .from('ai_plans')
+      .select('is_active')
+      .eq('id', id)
+      .single();
+
+    const newStatus = !current?.is_active;
+
+    await this.supabase.admin
+      .from('ai_plans')
+      .update({ is_active: newStatus, updated_at: new Date().toISOString() })
+      .eq('id', id);
+
+    await this.supabase.admin
+      .from('ai_regional_prices')
+      .update({ is_active: newStatus, updated_at: new Date().toISOString() })
+      .eq('plan_id', id);
+
+    return ResponseHelper.success({ id, is_active: newStatus }, `Credit pack ${newStatus ? 'activated' : 'deactivated'}.`);
   }
 
   // --- 4. Pricing Profitability Simulator ---

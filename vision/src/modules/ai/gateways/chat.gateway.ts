@@ -59,10 +59,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  handleDisconnect(client: Socket) {
-    // Clean up
-  }
-
   private async resolveUser(token: string): Promise<AuthUser | null> {
     const identity = await resolveSupabaseToken(this.supabase.anon, token);
     if (!identity) return null;
@@ -77,6 +73,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return { id: profile.id, email: identity.email as string, profile };
   }
 
+  // In-memory rate limiting: socketId -> timestamp[]
+  private messageTimestamps = new Map<string, number[]>();
+
   @SubscribeMessage('chat_message')
   async handleMessage(
     @MessageBody()
@@ -85,11 +84,32 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     try {
       const { message } = data;
+      if (!message || typeof message !== 'string' || !message.trim()) {
+        return;
+      }
+
       const user: AuthUser | null = client.data.user ?? null;
       const history: AiChatMessage[] = client.data.history ?? [];
 
+      // Rate limit check: 15 msgs/min for visitors, 45 msgs/min for authenticated
+      const now = Date.now();
+      const limit = user ? 45 : 15;
+      const timestamps = (this.messageTimestamps.get(client.id) || []).filter(
+        (t) => now - t < 60000,
+      );
+      if (timestamps.length >= limit) {
+        client.emit('chat_reply', {
+          status: 'error',
+          message:
+            'Message rate limit reached. Please wait a moment before asking another question.',
+        });
+        return;
+      }
+      timestamps.push(now);
+      this.messageTimestamps.set(client.id, timestamps);
+
       const result = await this.orchestrator.processChat({
-        message,
+        message: message.trim(),
         history,
         user,
         onEvent: (event) => {
@@ -114,9 +134,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       client.emit('chat_reply', {
         status: 'success',
+        reply: result.reply,
+        text: result.reply,
         data: result.reply,
         toolsUsed: result.toolsExecuted,
         creditsRemaining: result.creditsRemaining,
+        requestId: result.requestId,
       });
     } catch (error: any) {
       if (error?.status === 402 || error?.response?.statusCode === 402) {
@@ -132,5 +155,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         });
       }
     }
+  }
+
+  handleDisconnect(client: Socket) {
+    this.messageTimestamps.delete(client.id);
   }
 }

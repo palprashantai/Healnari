@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { Activity, ArrowUp, ChevronDown, Lock } from 'lucide-react';
-import { getTokens } from '../lib/apiClient.js';
+import { getTokens, apiFetch } from '../lib/apiClient.js';
 import { triggerHaptic } from '../lib/haptics.js';
-import { AIPaywallModal } from '../components/ai/AIPaywallModal.jsx';
+import { AIUsageUpgradeModal } from '../components/ai/AIUsageUpgradeModal.jsx';
 
 // The vision ChatGateway listens on the API's own origin (no /api suffix, no
 // separate ws proxy) — see vision/src/modules/ai/gateways/chat.gateway.ts.
@@ -109,6 +109,8 @@ export default function AiChatWidget({ context = 'landing' }) {
   const [activeToolActivity, setActiveToolActivity] = useState(null);
   const [paywallModalOpen, setPaywallModalOpen] = useState(false);
   const [paywallData, setPaywallData] = useState(null);
+  const [subData, setSubData] = useState(null);
+  const [remainingUses, setRemainingUses] = useState(null);
   const socketRef = useRef(null);
 
   const [messages, setMessages] = useState([
@@ -164,7 +166,27 @@ export default function AiChatWidget({ context = 'landing' }) {
         return;
       }
 
-      const replyText = typeof data === 'string' ? data : (data?.reply || data?.message || data?.text || 'I understand. Please consult your HealNari doctor for tailored guidance.');
+      if (data?.status === 'error') {
+        setMessages(prev => [
+          ...prev,
+          {
+            id: `bot-err-${Date.now()}`,
+            role: 'assistant',
+            text: data?.message || 'Unable to process request right now. Please try again shortly.',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          },
+        ]);
+        return;
+      }
+
+      const replyText = typeof data === 'string'
+        ? data
+        : (data?.reply || data?.data || data?.text || data?.message || 'I understand. Please consult your HealNari doctor for tailored guidance.');
+      
+      if (typeof data?.creditsRemaining === 'number') {
+        setRemainingUses(data.creditsRemaining);
+      }
+
       setMessages(prev => [
         ...prev,
         {
@@ -194,11 +216,49 @@ export default function AiChatWidget({ context = 'landing' }) {
     return () => socket.disconnect();
   }, [context]);
 
+  // Fetch Authoritative Plan Status & Remaining Quota
+  const loadSubscriptionStatus = async () => {
+    try {
+      const res = await apiFetch('/ai/subscription/status');
+      if (res && res.subscription) {
+        setSubData(res);
+        setRemainingUses(typeof res.creditsRemaining === 'number' ? res.creditsRemaining : null);
+      }
+    } catch (e) {
+      console.warn('Could not fetch AI subscription in widget:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      loadSubscriptionStatus();
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (isOpen && socketRef.current && !socketRef.current.connected) {
       socketRef.current.connect();
     }
   }, [isOpen]);
+
+  // Resolve Canonical Plan Details
+  const isDoctor = context === 'doctor';
+  const currentPlanId = subData?.subscription?.plan_id || (isDoctor ? 'doctor_plan_1' : 'patient_plan_1');
+  const planDisplayNames = {
+    doctor_plan_1: 'Doctor Starter',
+    doctor_free: 'Doctor Starter',
+    doctor_plan_2: 'Doctor Pro',
+    doctor_pro: 'Doctor Pro',
+    doctor_plan_3: 'Doctor Premium',
+    patient_plan_1: 'Patient Basic',
+    patient_free: 'Patient Basic',
+    patient_plan_2: 'Patient Pro',
+    patient_premium: 'Patient Pro',
+    patient_plan_3: 'Patient Premium',
+  };
+  const currentPlanName = subData?.subscription?.plan_name || planDisplayNames[currentPlanId] || (isDoctor ? 'Doctor Starter' : 'Patient Basic');
+  const isQuotaExhausted = remainingUses !== null && remainingUses <= 0;
+  const isHighestTier = currentPlanId === 'doctor_plan_3' || currentPlanId === 'patient_plan_3';
 
   const sendQuery = (text) => {
     if (!text.trim() || isLoading) return;
@@ -313,13 +373,26 @@ export default function AiChatWidget({ context = 'landing' }) {
                       HealNari AI
                     </h3>
                     <span className="bg-white/20 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-white/20">
-                      Clinical AI Companion
+                      {currentPlanName}
                     </span>
                   </div>
-                  <p className="hn-body text-[11px] font-semibold text-white/80 mt-1 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    {theme.label} • Active
-                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="hn-body text-[11px] font-semibold text-white/80 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      {theme.label}
+                    </p>
+                    {remainingUses !== null && (
+                      <span className={`text-[9.5px] font-bold px-2 py-0.2 rounded-full ${
+                        remainingUses > 5
+                          ? 'bg-emerald-400/20 text-emerald-200 border border-emerald-400/30'
+                          : remainingUses > 0
+                          ? 'bg-amber-400/25 text-amber-200 border border-amber-400/40'
+                          : 'bg-rose-400/30 text-rose-200 border border-rose-400/40'
+                      }`}>
+                        {remainingUses} uses left
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
@@ -446,24 +519,62 @@ export default function AiChatWidget({ context = 'landing' }) {
               ))}
             </div>
           )}
+          {/* In-Chat Quota Exhausted Plan Upgrade Banner */}
+          {isQuotaExhausted && (
+            <div className="mx-4 mb-2 p-3.5 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-2xl shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs">
+              <div>
+                <h4 className="font-bold text-purple-950 flex items-center gap-1.5">
+                  <i className="fas fa-lock text-purple-600"></i> Monthly AI Allowance Reached
+                </h4>
+                <p className="text-[11px] text-purple-800 mt-0.5">
+                  You have used all queries in <strong>{currentPlanName}</strong>. Upgrade to unlock more monthly uses.
+                </p>
+              </div>
+              {!isHighestTier && (
+                <button
+                  onClick={() => {
+                    triggerHaptic('medium');
+                    const nextPlanId = isDoctor
+                      ? (currentPlanId === 'doctor_plan_2' ? 'doctor_plan_3' : 'doctor_plan_2')
+                      : (currentPlanId === 'patient_plan_2' ? 'patient_plan_3' : 'patient_plan_2');
+                    setPaywallData({
+                      title: `Upgrade from ${currentPlanName}`,
+                      description: 'Unlock more monthly AI uses and faster clinical intelligence.',
+                      planId: nextPlanId,
+                    });
+                    setPaywallModalOpen(true);
+                  }}
+                  className="px-3.5 py-1.5 bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold rounded-xl transition-all shadow-xs shrink-0"
+                >
+                  Upgrade Plan →
+                </button>
+              )}
+            </div>
+          )}
 
-          {/* Input Console */}
-          <div className="p-3.5 bg-white border-t border-slate-100 shrink-0 mt-auto">
+          {/* INPUT FORM */}
+          <div className="p-3 bg-white border-t border-slate-100 shrink-0">
             <form
               onSubmit={handleSend}
-              className="hn-input-wrap flex items-center gap-2 pl-4 pr-1.5 py-1.5 rounded-full border border-slate-200 bg-slate-50/80 hover:bg-white focus-within:bg-white shadow-xs transition-all"
+              className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-4 py-2 focus-within:ring-2 focus-within:ring-aubergine-500/20 focus-within:border-aubergine-600 transition-all"
             >
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask anything about PCOS, symptoms, reports..."
-                className="hn-body flex-1 bg-transparent border-none text-[13px] text-slate-800 placeholder-slate-400 focus:outline-none"
-                disabled={isLoading}
+                placeholder={
+                  isQuotaExhausted
+                    ? `Monthly limit reached (${currentPlanName}). Upgrade to continue...`
+                    : isDoctor
+                    ? "Ask clinical question or analyze patient case..."
+                    : "Ask anything about PCOS, symptoms, reports..."
+                }
+                className="hn-body flex-1 bg-transparent border-none text-[13px] text-slate-800 placeholder-slate-400 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                disabled={isLoading || isQuotaExhausted}
               />
               <button
                 type="submit"
-                disabled={!input.trim() || isLoading}
+                disabled={!input.trim() || isLoading || isQuotaExhausted}
                 aria-label="Send message"
                 className="hn-send w-8 h-8 shrink-0 rounded-full flex items-center justify-center text-white transition-transform disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105 active:scale-95 shadow-sm"
               >
@@ -506,18 +617,21 @@ export default function AiChatWidget({ context = 'landing' }) {
         </button>
       </div>
 
-      <AIPaywallModal
+      <AIUsageUpgradeModal
         isOpen={paywallModalOpen}
         onClose={() => setPaywallModalOpen(false)}
-        paywallData={paywallData}
+        role={context}
+        currentPlanId={currentPlanId}
+        tokensRemaining={remainingUses ?? 0}
         onUpgraded={() => {
           setPaywallModalOpen(false);
+          loadSubscriptionStatus();
           setMessages((prev) => [
             ...prev,
             {
               id: `sys-${Date.now()}`,
               role: 'assistant',
-              text: '🎉 Your AI Premium membership is now active! All health companion and clinical features are unlocked.',
+              text: '🎉 Your AI plan upgrade is active! Your monthly uses have been refreshed.',
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             },
           ]);

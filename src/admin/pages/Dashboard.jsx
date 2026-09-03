@@ -351,19 +351,20 @@ function AdminDashboard() {
 
         <KPITrendCard
           title="Gross Platform Volume"
-          value={formatCurrency(totalRevenueNumber, 'INR')}
-          period="Total Consultation Gross Revenue"
+          value={formatCurrency(stats?.grossVolume || totalRevenueNumber, stats?.grossVolumeCurrency || 'INR')}
+          period={`Consultations & AI Plans (${stats?.grossVolumeCurrency || 'INR'})`}
           icon="fa-money-bill-trend-up"
           colorScheme="dark"
+          badgeText={stats?.aiSubscriptionRevenue ? `+${formatCurrency(stats.aiSubscriptionRevenue, stats?.grossVolumeCurrency || 'INR')} AI` : undefined}
           drillDownLabel="View Revenue"
           onDrillDown={() => navigate('/admin-dashboard/revenue')}
           loading={loading}
         />
 
         <KPITrendCard
-          title="Platform Take-Rate Margin"
+          title="Platform Retained Revenue"
           value={formatCurrency(stats?.platformRevenue || 0, stats?.platformRevenueCurrency || 'INR')}
-          period="Effective Net Commission"
+          period={`Commission & 100% AI Plans (${stats?.platformRevenueCurrency || 'INR'})`}
           icon="fa-sack-dollar"
           colorScheme="magenta"
           drillDownLabel="View Settlements"

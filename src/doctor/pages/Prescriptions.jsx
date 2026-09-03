@@ -1089,8 +1089,12 @@ function WriteRxPage({ onBack, onSave, patients }) {
                                       }));
                                     }
                                   }
-                                } catch {
-                                  // Silent fallback
+                                } catch (err) {
+                                  if (err?.paywallData || err?.status === 402) {
+                                    toast?.('AI Prescriptions allowance reached. Please upgrade via AI Hub.', 'info');
+                                  } else {
+                                    toast?.(err?.message || 'Could not auto-complete prescription details', 'error');
+                                  }
                                 }
                               }}
                             />

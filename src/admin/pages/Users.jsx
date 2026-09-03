@@ -149,7 +149,8 @@ function AdminUsers() {
                   <input type="checkbox" className="w-4 h-4 rounded border-slate-300" onChange={handleSelectAll} checked={filteredUsers.length > 0 && selectedIds.length === filteredUsers.length} />
                 </th>
                 <th className="px-5 py-3 font-semibold">Patient ID</th>
-                <th className="px-5 py-3 font-semibold">Name & Email</th>
+                <th className="px-5 py-3 font-semibold">Name &amp; Email</th>
+                <th className="px-5 py-3 font-semibold">AI Care Plan</th>
                 <th className="px-5 py-3 font-semibold">Status</th>
                 <th className="px-5 py-3 font-semibold text-right">Joined</th>
                 <th className="px-5 py-3 font-semibold text-right">Actions</th>
@@ -158,10 +159,10 @@ function AdminUsers() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <tr key={i}><td colSpan="6" className="px-5 py-3"><div className="animate-pulse h-10 bg-slate-100 rounded-lg"></div></td></tr>
+                  <tr key={i}><td colSpan="7" className="px-5 py-3"><div className="animate-pulse h-10 bg-slate-100 rounded-lg"></div></td></tr>
                 ))
               ) : filteredUsers.length === 0 ? (
-                <tr><td colSpan="6" className="px-5 py-8 text-center text-slate-400">No users found.</td></tr>
+                <tr><td colSpan="7" className="px-5 py-8 text-center text-slate-400">No users found.</td></tr>
               ) : (
                 filteredUsers.map(u => (
                   <tr key={u.id} className={`hover:bg-slate-50 transition-colors group ${selectedIds.includes(u.id) ? 'bg-aubergine-50/40' : ''}`}>
@@ -172,6 +173,22 @@ function AdminUsers() {
                     <td className="px-5 py-4">
                       <p className="font-bold text-slate-800">{u.name}</p>
                       <p className="text-xs text-slate-500 mt-0.5">{u.email}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                          u.aiPlan?.id === 'patient_plan_3'
+                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            : u.aiPlan?.id === 'patient_plan_2'
+                            ? 'bg-purple-50 text-purple-700 border-purple-200'
+                            : 'bg-slate-100 text-slate-700 border-slate-200'
+                        }`}>
+                          {u.aiPlan?.name || 'Patient Basic'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {u.aiPlan?.creditsUsed || 0}/{u.aiPlan?.monthlyCredits || 15} uses
+                        </span>
+                      </div>
                     </td>
                     <td className="px-5 py-4">
                       <span className={`text-[10px] font-bold px-2 py-1 rounded-full border ${getStatusColor(u.status)}`}>{u.status}</span>

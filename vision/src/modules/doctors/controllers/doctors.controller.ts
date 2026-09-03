@@ -99,8 +99,9 @@ export class DoctorsController {
       "Doctor's practice analytics — revenue, consultations, patient demographics (doctor only)",
   })
   @Get('me/analytics')
-  async analytics(@CurrentUser() user: AuthUser) {
-    const data = await this.doctorsService.getAnalytics(user);
+  @ApiQuery({ name: 'range', required: false, description: 'Time range: 7d, 30d, 6m, ytd, all' })
+  async analytics(@CurrentUser() user: AuthUser, @Query('range') range?: string) {
+    const data = await this.doctorsService.getAnalytics(user, range);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 

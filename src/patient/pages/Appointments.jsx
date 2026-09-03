@@ -73,7 +73,7 @@ function AiConsultPrepModal({ isOpen, onClose, appointment }) {
                 'AI Consultation Preparation Briefs',
                 'Tailored intelligent doctor questions',
                 'Pre-consultation checklist generator',
-                '200 AI inquiries per month',
+                '500 AI inquiries per month',
               ],
             });
             setShowPaywall(true);
@@ -138,6 +138,19 @@ function AiConsultPrepModal({ isOpen, onClose, appointment }) {
             </div>
           ) : prepData ? (
             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+              {/* Emergency Red Flag Alert */}
+              {prepData.emergencyAlert && (
+                <div className="p-4 bg-rose-50 border-2 border-rose-400 rounded-2xl flex items-start gap-3 shadow-sm">
+                  <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center flex-shrink-0 text-base shadow-xs mt-0.5">
+                    <i className="fas fa-triangle-exclamation"></i>
+                  </div>
+                  <div>
+                    <h4 className="font-black text-rose-950 text-sm">Emergency Medical Notice</h4>
+                    <p className="text-xs text-rose-900 font-bold mt-1 leading-relaxed">{prepData.emergencyAlert}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Summary */}
               {prepData.summary && (
                 <div className="p-3 bg-purple-50/70 border border-purple-100 rounded-xl text-xs text-purple-950 font-medium">

@@ -454,6 +454,21 @@ function PracticePerformanceCard({ earnings, navigate, queue, userCurrency }) {
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const circumference = 2 * Math.PI * 30;
   const dashOffset = circumference - (pct / 100) * circumference;
+
+  const momGrowth = useMemo(() => {
+    if (!earnings) return null;
+    const thisM = Number(earnings.thisMonth ?? 0);
+    const lastM = Number(earnings.lastMonth ?? 0);
+    if (lastM === 0) {
+      return thisM === 0 ? { display: '0%', direction: 'flat' } : { display: 'Active this month', direction: 'up' };
+    }
+    const pctChange = Math.round(((thisM - lastM) / lastM) * 100);
+    return {
+      display: `${pctChange >= 0 ? '+' : ''}${pctChange}% vs last month`,
+      direction: pctChange >= 0 ? 'up' : 'down',
+    };
+  }, [earnings]);
+
   return (
     <Tilt3D max={5}>
       <div className="bg-gradient-to-br from-aubergine-900 via-aubergine-800 to-magenta-700 rounded-3xl shadow-lg overflow-hidden text-white p-6 relative card-premium">
@@ -491,10 +506,16 @@ function PracticePerformanceCard({ earnings, navigate, queue, userCurrency }) {
                 <p className="text-3xl font-black">{formatCurrency(earnings?.thisMonth ?? 0, userCurrency)}</p>
                 <p className="text-xs text-aubergine-200">{earnings ? `${earnings.thisMonthCount} consultations` : 'Loading...'}</p>
               </div>
-              <div className="flex items-center gap-1.5 text-emerald-300">
-                <i className="fas fa-arrow-trend-up text-xs"></i>
-                <span className="text-xs font-bold">+12% vs last month</span>
-              </div>
+              {momGrowth ? (
+                <div className={`flex items-center gap-1.5 ${momGrowth.direction === 'down' ? 'text-rose-300' : 'text-emerald-300'}`}>
+                  <i className={`fas fa-arrow-trend-${momGrowth.direction === 'down' ? 'down' : 'up'} text-xs`}></i>
+                  <span className="text-xs font-bold">{momGrowth.display}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-aubergine-300 text-xs">
+                  <span>Calculating trend...</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 mb-4">
@@ -568,8 +589,8 @@ function AiDashboardCard({ navigate }) {
       .catch(() => {});
   }, []);
 
-  const remaining = aiStatus?.creditsRemaining ?? 10;
-  const total = aiStatus?.subscription?.monthly_ai_credits ?? (aiStatus?.isPremium ? 1000 : 20);
+  const remaining = aiStatus?.creditsRemaining ?? 25;
+  const total = aiStatus?.totalCredits ?? aiStatus?.subscription?.monthly_ai_credits ?? 25;
   const percent = Math.max(0, Math.min(100, Math.round((remaining / Math.max(1, total)) * 100)));
 
   return (

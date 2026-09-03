@@ -79,11 +79,7 @@ export class AiOrchestrator {
     };
 
     // 2. Feature Key Resolution & Entitlement Check
-    const featureKey =
-      params.featureKey ||
-      (role === ProfileRole.DOCTOR
-        ? AiFeatureKey.DOCTOR_PATIENT_BRIEF
-        : AiFeatureKey.PATIENT_CHAT);
+    const featureKey = params.featureKey || AiFeatureKey.PATIENT_CHAT;
 
     if (user) {
       const entitlement = await this.entitlementService.checkAccess(
@@ -215,10 +211,16 @@ export class AiOrchestrator {
         },
       });
 
-      // Deduct credit
-      const sub = await this.subscriptionService.deductCredits(user, 1);
+      // Deduct credit atomically with idempotency requestId and featureKey
+      const sub = await this.subscriptionService.deductCredits(
+        user,
+        1,
+        requestId,
+        featureKey,
+        `AI Assistant: ${featureKey}`,
+      );
       if (sub) {
-        creditsRemaining = Math.max(0, (sub.monthly_ai_credits || 5) - (sub.credits_used || 0));
+        creditsRemaining = sub.creditsRemaining;
       }
 
       this.analyticsService.track({

@@ -15,7 +15,7 @@ export function AIUsageBadge({ className = '', onUpgrade }) {
   if (!status) return null;
 
   const isPremium = status.isPremium;
-  const creditsRemaining = status.creditsRemaining ?? 5;
+  const creditsRemaining = status.creditsRemaining ?? 15;
 
   return (
     <>

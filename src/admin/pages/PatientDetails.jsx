@@ -30,6 +30,8 @@ function AdminPatientDetails() {
   const [spendingByCategory, setSpendingByCategory] = useState([]);
   const [consultations, setConsultations] = useState([]);
   const [payments, setPayments] = useState([]);
+  const [aiSubscription, setAiSubscription] = useState(null);
+  const [aiPurchaseHistory, setAiPurchaseHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [status, setStatus] = useState('Active');
@@ -54,6 +56,8 @@ function AdminPatientDetails() {
         setSpendingByCategory(d.spendingByCategory.map(c => ({ ...c, name: c.category, value: c.amount })));
         setConsultations(d.consultations);
         setPayments(d.payments);
+        setAiSubscription(d.aiSubscription || null);
+        setAiPurchaseHistory(d.aiPurchaseHistory || []);
         setStatus(d.profile?.status || 'Active');
       })
       .catch(() => setError(true))
@@ -292,6 +296,106 @@ function AdminPatientDetails() {
               ))}
               {consultations.length === 0 && (
                 <div className="p-10 text-center text-slate-400 font-bold">No recent consultations.</div>
+              )}
+            </div>
+          </div>
+
+          {/* AI Health Companion Plan & Purchase History */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col mt-6">
+            <div className="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-aubergine-50/50 to-slate-50 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-aubergine-600 text-white flex items-center justify-center font-bold shadow-sm">
+                  <i className="fas fa-heart-pulse text-sm"></i>
+                </div>
+                <div>
+                  <h2 className="font-bold text-slate-800">AI Health Companion Plan &amp; Purchase History</h2>
+                  <p className="text-xs text-slate-500">Track active tier, companion queries allowance, and purchase history</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs font-black px-3 py-1 rounded-full border ${
+                  aiSubscription?.planId === 'patient_plan_3'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : aiSubscription?.planId === 'patient_plan_2'
+                    ? 'bg-purple-50 text-purple-700 border-purple-200'
+                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                }`}>
+                  {aiSubscription?.planName || 'Patient Basic'}
+                </span>
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                  {aiSubscription?.status || 'Active'}
+                </span>
+              </div>
+            </div>
+
+            {/* Quota & Plan Summary Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 border-b border-slate-100 bg-slate-50/50">
+              <div className="bg-white p-4 rounded-xl border border-slate-200">
+                <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Active Plan Tier</p>
+                <p className="text-lg font-black text-slate-800">{aiSubscription?.planName || 'Patient Basic'}</p>
+                <p className="text-[11px] text-slate-500 mt-1">Billing Cycle: {aiSubscription?.billingCycle || 'Monthly'}</p>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-slate-200">
+                <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Monthly Queries Quota</p>
+                <p className="text-lg font-black text-aubergine-700">
+                  {aiSubscription?.creditsRemaining ?? 15} <span className="text-xs text-slate-400 font-normal">/ {aiSubscription?.monthlyCredits || 15} left</span>
+                </p>
+                <p className="text-[11px] text-slate-500 mt-1">Consumed: {aiSubscription?.creditsUsed || 0} queries this month</p>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-slate-200">
+                <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Plan Validity</p>
+                <p className="text-lg font-black text-slate-800">
+                  {aiSubscription?.renewalDate ? new Date(aiSubscription.renewalDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Continuous (Free Tier)'}
+                </p>
+                <p className="text-[11px] text-slate-500 mt-1">Plan: {aiSubscription?.isPremium ? 'Prepaid (30 Days)' : 'Standard Free'}</p>
+              </div>
+            </div>
+
+            {/* AI Purchase History Table */}
+            <div className="overflow-x-auto">
+              {!aiPurchaseHistory || aiPurchaseHistory.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 font-medium text-xs">
+                  No paid AI plan purchases recorded yet. Patient is currently on the free basic tier.
+                </div>
+              ) : (
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-[10px] text-slate-400 uppercase tracking-wider bg-slate-50/70">
+                      <th className="px-5 py-3 font-semibold">Purchase Date</th>
+                      <th className="px-5 py-3 font-semibold">Plan Purchased</th>
+                      <th className="px-5 py-3 font-semibold text-right">Amount Paid</th>
+                      <th className="px-5 py-3 font-semibold">Gateway</th>
+                      <th className="px-5 py-3 font-semibold">Reference ID</th>
+                      <th className="px-5 py-3 font-semibold text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {aiPurchaseHistory.map((t) => (
+                      <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-5 py-3.5 text-xs text-slate-600 font-medium">
+                          {new Date(t.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs font-bold text-slate-800">
+                          {t.planName}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-right font-black text-emerald-600">
+                          {t.currency === 'USD' ? '$' : '₹'}{t.finalAmount?.toLocaleString('en-IN')}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-slate-600 font-medium">
+                          {t.gateway}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs font-mono text-slate-500">
+                          {t.gatewayTxnId || t.id.slice(0, 10)}
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            {t.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
           </div>

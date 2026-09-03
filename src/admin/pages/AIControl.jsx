@@ -71,6 +71,21 @@ export function AIControl() {
     is_public: true,
   });
 
+  // Credit Top-Up Packs State (Database Managed)
+  const [creditPacks, setCreditPacks] = useState([]);
+  const [packModalOpen, setPackModalOpen] = useState(false);
+  const [editingPack, setEditingPack] = useState(null);
+  const [packForm, setPackForm] = useState({
+    id: '',
+    name: '',
+    description: '',
+    credits: 100,
+    price_inr: 200,
+    price_usd: 3.0,
+    is_active: true,
+  });
+  const [savingPack, setSavingPack] = useState(false);
+
   // Advanced / Treasury State
   const [reportingCurrency, setReportingCurrency] = useState('USD');
   const [profitability, setProfitability] = useState(null);
@@ -97,10 +112,11 @@ export function AIControl() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [fData, plData, alData] = await Promise.all([
+      const [fData, plData, alData, cpData] = await Promise.all([
         apiFetch('/admin/ai/features').catch(() => []),
         apiFetch('/admin/ai/plans?includeInactive=true').catch(() => []),
         apiFetch('/admin/ai/audit-logs').catch(() => []),
+        apiFetch('/admin/ai/credit-packs').catch(() => []),
       ]);
 
       const featuresList = Array.isArray(fData) ? fData : [];
@@ -109,9 +125,11 @@ export function AIControl() {
       setFlags(featuresList);
       setPlans(plansList);
       setAuditLogs(Array.isArray(alData) ? alData : []);
+      setCreditPacks(Array.isArray(cpData) ? cpData : []);
 
-      if (plansList.length > 0 && !selectedPlanId) {
-        selectPlan(plansList[0]);
+      const subPlans = plansList.filter((p) => p.billingCycle !== 'credit_pack' && p.billing_cycle !== 'credit_pack' && !p.planId?.startsWith('pack_') && !p.id?.startsWith('pack_'));
+      if (subPlans.length > 0 && !selectedPlanId) {
+        selectPlan(subPlans[0]);
       } else if (selectedPlanId) {
         const current = plansList.find((p) => p.planId === selectedPlanId);
         if (current) selectPlan(current);
@@ -453,6 +471,79 @@ export function AIControl() {
     }
   };
 
+  // Credit Top-Up Pack Handlers
+  const handleOpenPackModal = (pack = null) => {
+    if (pack) {
+      setEditingPack(pack);
+      setPackForm({
+        id: pack.id,
+        name: pack.name,
+        description: pack.description || '',
+        credits: pack.credits || pack.included_monthly_credits || 100,
+        price_inr: pack.price_inr ?? 200,
+        price_usd: pack.price_usd ?? 3,
+        is_active: pack.is_active !== false,
+      });
+    } else {
+      setEditingPack(null);
+      setPackForm({
+        id: `pack_${Date.now().toString().slice(-4)}`,
+        name: '',
+        description: '',
+        credits: 100,
+        price_inr: 200,
+        price_usd: 3.0,
+        is_active: true,
+      });
+    }
+    setPackModalOpen(true);
+  };
+
+  const handleSavePack = async (e) => {
+    e?.preventDefault();
+    if (!packForm.name.trim()) {
+      notify('Please enter a pack name', 'error');
+      return;
+    }
+    if (!packForm.credits || Number(packForm.credits) <= 0) {
+      notify('Credits must be greater than 0', 'error');
+      return;
+    }
+
+    setSavingPack(true);
+    try {
+      await apiFetch('/admin/ai/credit-packs', {
+        method: 'POST',
+        body: {
+          id: packForm.id,
+          name: packForm.name,
+          description: packForm.description,
+          credits: Number(packForm.credits),
+          price_inr: Number(packForm.price_inr),
+          price_usd: Number(packForm.price_usd),
+          is_active: packForm.is_active,
+        },
+      });
+      notify(`Credit pack "${packForm.name}" saved in database`);
+      setPackModalOpen(false);
+      await loadData();
+    } catch (err) {
+      notify(err?.message || 'Failed to save credit pack', 'error');
+    } finally {
+      setSavingPack(false);
+    }
+  };
+
+  const handleTogglePack = async (packId) => {
+    try {
+      await apiFetch(`/admin/ai/credit-packs/${packId}`, { method: 'DELETE' });
+      notify('Top-up pack status updated in database');
+      await loadData();
+    } catch (err) {
+      notify(err?.message || 'Failed to update pack status', 'error');
+    }
+  };
+
   // Filtered Features
   const filteredFlags = useMemo(() => {
     return flags.filter((f) => {
@@ -506,7 +597,8 @@ export function AIControl() {
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto hide-scrollbar">
         {[
           { id: 'features', label: 'AI Features Catalog', icon: 'fa-wand-magic-sparkles', badge: flags.filter((f) => f.status !== 'archived').length },
-          { id: 'plans', label: 'AI Plans & Usage Limits', icon: 'fa-layer-group', badge: plans.length },
+          { id: 'plans', label: 'AI Plans & Usage Limits', icon: 'fa-layer-group', badge: plans.filter((p) => p.billingCycle !== 'credit_pack' && !p.planId?.startsWith('pack_')).length },
+          { id: 'credit_packs', label: 'Credit Top-Up Packs', icon: 'fa-bolt', badge: creditPacks.length },
           { id: 'audit', label: 'Audit Trail', icon: 'fa-clock-rotate-left', badge: auditLogs.length },
           { id: 'advanced', label: 'Advanced & Unit Economics', icon: 'fa-chart-pie' },
         ].map((tab) => (
@@ -736,7 +828,9 @@ export function AIControl() {
             </div>
 
             <div className="space-y-2">
-              {plans.map((p) => {
+              {plans
+                .filter((p) => p.billingCycle !== 'credit_pack' && p.billing_cycle !== 'credit_pack' && !p.planId?.startsWith('pack_') && !p.id?.startsWith('pack_'))
+                .map((p) => {
                 const isSelected = selectedPlanId === p.planId;
                 return (
                   <div
@@ -1020,7 +1114,7 @@ export function AIControl() {
                       <span className="text-[11px] font-bold text-purple-700 shrink-0">Credits</span>
                     </div>
                     <span className="text-[10px] text-purple-600 block">
-                      Monthly token quota
+                      Monthly credits quota
                     </span>
                   </div>
 
@@ -1058,121 +1152,222 @@ export function AIControl() {
                 </div>
               </div>
 
-              {/* Feature Matrix & Limits Control */}
-              <div className="space-y-3">
-                <div>
-                  <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                    Feature Inclusions &amp; Usage Quotas
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Choose which AI capabilities are included in this plan. Set whether users get Limited or Unlimited usage.
-                  </p>
+              {/* Feature Matrix & Limits Control (Subscription Plans Only - Excluded for Top-Up Packs) */}
+              {planForm.billing_cycle === 'credit_pack' || planForm.id?.startsWith('pack_') ? (
+                <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-5 flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
+                    <i className="fas fa-bolt text-base"></i>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-amber-950">Top-Up Credit Pack — Universal Credit Recharge</h4>
+                    <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                      Top-Up packs provide universal AI credits that directly recharge the user's balance. These credits can be spent on any feature currently unlocked by the user's active subscription tier. Specific feature inclusions do not apply to top-up packs.
+                    </p>
+                  </div>
                 </div>
-
+              ) : (
                 <div className="space-y-3">
-                  {flags
-                    .filter((f) => f.status !== 'archived')
-                    .map((f) => {
-                      const isIncluded = planForm.features.includes(f.feature_key);
-                      const limitConfig = planForm.feature_limits[f.feature_key] || {
-                        limit: null,
-                        is_unlimited: true,
-                        unit: f.unit || 'uses',
-                      };
-                      const isUnlimited = limitConfig.is_unlimited !== false;
+                  <div>
+                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                      Feature Inclusions (Unified Credit Pool)
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Select which AI features are included in this plan. Every included feature consumes from the plan's Monthly Base Credits.
+                    </p>
+                  </div>
 
-                      return (
-                        <div
-                          key={f.feature_key}
-                          className={`p-4 rounded-2xl border transition-all ${
-                            isIncluded
-                              ? 'bg-white border-purple-200 shadow-xs'
-                              : 'bg-slate-50/60 border-slate-200/70 opacity-60'
-                          }`}
-                        >
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            {/* Feature Checkbox & Title */}
-                            <div className="flex items-start gap-3">
-                              <input
-                                type="checkbox"
-                                checked={isIncluded}
-                                onChange={() => handleToggleFeatureInPlan(f.feature_key)}
-                                className="mt-1 rounded text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
-                              />
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-slate-900 text-sm">{f.name}</span>
-                                  <span className="text-[10px] font-mono text-purple-800 bg-purple-50 px-1.5 py-0.5 rounded">
-                                    {f.feature_key}
-                                  </span>
-                                </div>
-                                <p className="text-[11px] text-slate-500 mt-0.5">{f.description}</p>
-                              </div>
-                            </div>
+                  <div className="space-y-3">
+                    {flags
+                      .filter((f) => {
+                        if (f.status === 'archived') return false;
+                        const targetRole = (planForm.product_id === 'prod_doctor_ai' || planForm.id?.startsWith('doctor')) ? 'doctor' : 'patient';
+                        return !f.applicable_roles?.length || f.applicable_roles.includes(targetRole);
+                      })
+                      .map((f) => {
+                        const isIncluded = planForm.features.includes(f.feature_key);
+                        const limitConfig = planForm.feature_limits[f.feature_key] || {
+                          limit: null,
+                          is_unlimited: true,
+                          unit: f.unit || 'uses',
+                        };
+                        const isUnlimited = limitConfig.is_unlimited !== false;
 
-                            {/* Limit & Unlimited Controls (Only shown if feature is included) */}
-                            {isIncluded ? (
-                              <div className="flex items-center gap-3 shrink-0 self-end md:self-auto bg-slate-50 p-1.5 rounded-xl border border-slate-200">
-                                {/* Limited vs Unlimited Toggle */}
-                                <div className="flex rounded-lg overflow-hidden border border-slate-200 bg-white">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSetFeatureLimitType(f.feature_key, false)}
-                                    className={`px-3 py-1 text-xs font-bold transition-colors ${
-                                      !isUnlimited
-                                        ? 'bg-purple-900 text-white shadow-xs'
-                                        : 'text-slate-600 hover:bg-slate-100'
-                                    }`}
-                                  >
-                                    Limited
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSetFeatureLimitType(f.feature_key, true)}
-                                    className={`px-3 py-1 text-xs font-bold transition-colors ${
-                                      isUnlimited
-                                        ? 'bg-emerald-600 text-white shadow-xs'
-                                        : 'text-slate-600 hover:bg-slate-100'
-                                    }`}
-                                  >
-                                    Unlimited
-                                  </button>
-                                </div>
-
-                                {/* Numeric Limit Input (If Limited) */}
-                                {!isUnlimited ? (
-                                  <div className="flex items-center gap-1.5">
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={limitConfig.limit === '' ? '' : (limitConfig.limit ?? 50)}
-                                      onChange={(e) =>
-                                        handleSetFeatureNumericLimit(f.feature_key, e.target.value)
-                                      }
-                                      className="w-20 px-2 py-1 text-xs font-black rounded-lg border border-slate-300 text-right bg-white focus:outline-none focus:border-purple-600"
-                                    />
-                                    <span className="text-[11px] font-bold text-slate-600">
-                                      {f.unit || 'uses'} / mo
+                        return (
+                          <div
+                            key={f.feature_key}
+                            className={`p-4 rounded-2xl border transition-all ${
+                              isIncluded
+                                ? 'bg-white border-purple-200 shadow-xs'
+                                : 'bg-slate-50/60 border-slate-200/70 opacity-60'
+                            }`}
+                          >
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                              {/* Feature Checkbox & Title */}
+                              <div className="flex items-start gap-3">
+                                <input
+                                  type="checkbox"
+                                  checked={isIncluded}
+                                  onChange={() => handleToggleFeatureInPlan(f.feature_key)}
+                                  className="mt-1 rounded text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                                />
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-slate-900 text-sm">{f.name}</span>
+                                    <span className="text-[10px] font-mono text-purple-800 bg-purple-50 px-1.5 py-0.5 rounded">
+                                      {f.feature_key}
                                     </span>
                                   </div>
-                                ) : (
-                                  <div className="px-2 text-[11px] font-bold text-emerald-700 flex items-center gap-1">
-                                    <i className="fas fa-infinity"></i>
-                                    <span>No monthly cap</span>
-                                  </div>
-                                )}
+                                  <p className="text-[11px] text-slate-500 mt-0.5">{f.description}</p>
+                                </div>
                               </div>
-                            ) : (
-                              <span className="text-xs font-bold text-slate-400">Not Included</span>
-                            )}
+
+                              {/* Simple Included / Excluded Status & Toggle */}
+                              <div className="flex items-center gap-2.5 shrink-0">
+                                {isIncluded ? (
+                                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                                    <i className="fas fa-check-circle text-emerald-600"></i>
+                                    <span>Included</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-400 bg-slate-100 border border-slate-200">
+                                    <span>Not Included</span>
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleFeatureInPlan(f.feature_key)}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                    isIncluded
+                                      ? 'bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600 border border-slate-200'
+                                      : 'bg-purple-600 text-white hover:bg-purple-700 shadow-xs'
+                                  }`}
+                                >
+                                  {isIncluded ? 'Remove' : 'Include'}
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 2B: CREDIT TOP-UP PACKS (DATABASE MANAGED) */}
+      {/* ========================================================================= */}
+      {activeTab === 'credit_packs' && (
+        <div className="space-y-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center font-black text-sm">
+                  <i className="fas fa-bolt"></i>
+                </span>
+                <h2 className="text-base font-black text-slate-900">
+                  AI Credit Top-Up Packs
+                </h2>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Database-managed instant recharge packs. When users or doctors exhaust their monthly plan credits, they can purchase these packs directly to keep generating AI insights without altering their subscription.
+              </p>
+            </div>
+
+            <button
+              onClick={() => handleOpenPackModal(null)}
+              className="px-4 py-2.5 rounded-xl bg-purple-900 hover:bg-purple-800 text-white text-xs font-bold shadow-md flex items-center gap-2 shrink-0"
+            >
+              <i className="fas fa-plus"></i>
+              <span>Create Top-Up Pack</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {creditPacks.length === 0 ? (
+              <div className="col-span-full bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400">
+                <i className="fas fa-box-open text-4xl mb-3 text-slate-300"></i>
+                <p className="text-sm font-bold text-slate-600">No Credit Packs found</p>
+                <p className="text-xs text-slate-400 mt-1">Click "Create Top-Up Pack" to add a new pack to the database.</p>
+              </div>
+            ) : (
+              creditPacks.map((pack) => (
+                <div
+                  key={pack.id}
+                  className={`bg-white border rounded-2xl p-5 shadow-sm flex flex-col justify-between transition-all ${
+                    pack.is_active ? 'border-slate-200 hover:border-purple-300' : 'border-slate-200 bg-slate-50/60 opacity-75'
+                  }`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold">
+                        {pack.id}
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          pack.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {pack.is_active ? 'Active in DB' : 'Inactive'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900">{pack.name}</h3>
+                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
+                        {pack.description || 'Instant AI credit booster pack.'}
+                      </p>
+                    </div>
+
+                    <div className="bg-purple-50/60 rounded-xl p-3 border border-purple-100">
+                      <div className="text-xs text-purple-700 font-bold uppercase tracking-wider text-[10px]">
+                        Included AI Credits
+                      </div>
+                      <div className="text-2xl font-black text-purple-950 mt-0.5 flex items-baseline gap-1">
+                        <span>{pack.credits}</span>
+                        <span className="text-xs font-semibold text-purple-600">credits</span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                      <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <div className="text-[10px] text-slate-400 font-semibold uppercase">India (INR)</div>
+                        <div className="text-sm font-black text-slate-800 mt-0.5">₹{pack.price_inr}</div>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <div className="text-[10px] text-slate-400 font-semibold uppercase">Global (USD)</div>
+                        <div className="text-sm font-black text-slate-800 mt-0.5">${pack.price_usd}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-4 mt-4 border-t border-slate-100">
+                    <button
+                      onClick={() => handleOpenPackModal(pack)}
+                      className="flex-1 py-2 rounded-xl text-xs font-bold bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <i className="fas fa-edit"></i>
+                      <span>Edit Pack</span>
+                    </button>
+                    <button
+                      onClick={() => handleTogglePack(pack.id)}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                        pack.is_active
+                          ? 'bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600'
+                          : 'bg-emerald-600 text-white hover:bg-emerald-500'
+                      }`}
+                      title={pack.is_active ? 'Deactivate Pack' : 'Activate Pack'}
+                    >
+                      {pack.is_active ? 'Disable' : 'Enable'}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 
@@ -1697,6 +1892,136 @@ export function AIControl() {
                 className="px-5 py-2 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-bold shadow-md"
               >
                 Create Plan
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: CREATE / EDIT CREDIT PACK */}
+      {/* ========================================================================= */}
+      {packModalOpen && (
+        <Modal
+          isOpen={packModalOpen}
+          onClose={() => setPackModalOpen(false)}
+          title={editingPack ? 'Edit Credit Top-Up Pack' : 'Create New Credit Top-Up Pack'}
+        >
+          <form onSubmit={handleSavePack} className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Pack ID *</label>
+                <input
+                  type="text"
+                  required
+                  disabled={Boolean(editingPack)}
+                  value={packForm.id}
+                  onChange={(e) => setPackForm({ ...packForm, id: e.target.value })}
+                  placeholder="e.g. pack_100"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600 font-mono text-xs disabled:bg-slate-100 disabled:text-slate-500"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Credits Granted *</label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={packForm.credits}
+                  onChange={(e) => setPackForm({ ...packForm, credits: e.target.value })}
+                  placeholder="100"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600 font-black text-purple-950 text-right"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">Pack Name *</label>
+              <input
+                type="text"
+                required
+                value={packForm.name}
+                onChange={(e) => setPackForm({ ...packForm, name: e.target.value })}
+                placeholder="e.g. 100 AI Credits Top-Up"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-600 font-bold"
+              />
+            </div>
+
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">Description</label>
+              <textarea
+                rows={2}
+                value={packForm.description}
+                onChange={(e) => setPackForm({ ...packForm, description: e.target.value })}
+                placeholder="Instant boost of AI credits for extra inquiries..."
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-600"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Price India (₹ INR) *</label>
+                <div className="flex items-center gap-1.5 border border-slate-300 rounded-xl px-3 py-2 bg-slate-50 focus-within:bg-white focus-within:border-purple-600">
+                  <span className="font-black text-slate-600">₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    required
+                    placeholder="200"
+                    value={packForm.price_inr}
+                    onChange={(e) => setPackForm({ ...packForm, price_inr: e.target.value })}
+                    className="w-full bg-transparent font-black text-slate-900 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">International ($ USD) *</label>
+                <div className="flex items-center gap-1.5 border border-slate-300 rounded-xl px-3 py-2 bg-slate-50 focus-within:bg-white focus-within:border-purple-600">
+                  <span className="font-black text-slate-600">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required
+                    placeholder="3.00"
+                    value={packForm.price_usd}
+                    onChange={(e) => setPackForm({ ...packForm, price_usd: e.target.value })}
+                    className="w-full bg-transparent font-black text-slate-900 focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="pack_active"
+                checked={packForm.is_active}
+                onChange={(e) => setPackForm({ ...packForm, is_active: e.target.checked })}
+                className="rounded text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+              />
+              <label htmlFor="pack_active" className="text-xs font-bold text-slate-700 select-none cursor-pointer">
+                Active & available for purchase by users
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setPackModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-bold"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={savingPack}
+                className="px-5 py-2 rounded-xl bg-purple-900 hover:bg-purple-800 text-white font-bold shadow-md disabled:opacity-50"
+              >
+                {savingPack ? 'Saving...' : editingPack ? 'Update Pack' : 'Create Pack'}
               </button>
             </div>
           </form>

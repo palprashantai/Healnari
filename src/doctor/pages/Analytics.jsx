@@ -17,12 +17,21 @@ function DoctorAnalytics() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const rangeQueryMap = {
+    '7 Days': '7d',
+    '30 Days': '30d',
+    '6 Months': '6m',
+    'Year to Date': 'ytd',
+  };
+
   useEffect(() => {
-    apiFetch('/doctors/me/analytics')
+    setLoading(true);
+    const rangeParam = rangeQueryMap[timeRange] || 'ytd';
+    apiFetch(`/doctors/me/analytics?range=${rangeParam}`)
       .then(setData)
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, []);
+  }, [timeRange]);
 
   const monthlyTrend = useMemo(() => data?.monthlyTrend || [], [data]);
   const weeklyLoad = useMemo(() => data?.weeklyLoad || [], [data]);
@@ -94,9 +103,9 @@ function DoctorAnalytics() {
       {/* Level 1: Tier-1 KPI Cards (Real Data) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPITrendCard
-          title="Total Practice Revenue"
+          title="Net Practice Earnings"
           value={data?.totalRevenue !== undefined ? formatCurrency(data.totalRevenue, userCurrency) : formatCurrency(0, userCurrency)}
-          period="Year-to-Date Earned"
+          period={data?.grossBillings ? `Gross: ${formatCurrency(data.grossBillings, userCurrency)} (10% fee: ${formatCurrency(data.platformCommission || 0, userCurrency)})` : `${timeRange} Net Earned`}
           icon={['USD','CAD','AUD'].includes(userCurrency) ? 'fa-dollar-sign' : userCurrency === 'EUR' ? 'fa-euro-sign' : userCurrency === 'GBP' ? 'fa-sterling-sign' : userCurrency === 'INR' ? 'fa-indian-rupee-sign' : 'fa-money-bill-wave'}
           colorScheme="purple"
           loading={loading}

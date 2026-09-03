@@ -166,52 +166,6 @@ const checkDrugSafetyDeclaration: FunctionDeclaration = {
   },
 } as any as FunctionDeclaration;
 
-const queryDatabaseDeclaration: FunctionDeclaration = {
-  name: 'queryDatabase',
-  description:
-    'Queries the database for aggregate statistics. Translates a natural language query into a structured database query. Relations are not supported.',
-  parameters: {
-    type: SchemaType.OBJECT,
-    properties: {
-      targetEntity: {
-        type: SchemaType.STRING,
-        description: 'The entity to query',
-        enum: ['Profile', 'PatientRecord', 'Appointment'],
-      },
-      queryType: {
-        type: SchemaType.STRING,
-        description: 'The type of query',
-        enum: ['find', 'count'],
-      },
-      queryOptions: {
-        type: SchemaType.OBJECT,
-        description: 'Options for the query including where, take, and order',
-        properties: {
-          where: {
-            type: SchemaType.OBJECT,
-            description:
-              'Key-value pairs for exact match filtering on allowed columns',
-          },
-          take: {
-            type: SchemaType.NUMBER,
-            description: 'Limit results, max 25',
-          },
-          order: {
-            type: SchemaType.OBJECT,
-            description: 'Order by field, e.g. { created_at: "ASC" }',
-          },
-        },
-      },
-      responseTemplate: {
-        type: SchemaType.STRING,
-        description:
-          'A natural language template explaining how to describe the results, using {value} for counts or {list} for arrays.',
-      },
-    },
-    required: ['targetEntity', 'queryType', 'responseTemplate'],
-  },
-} as any as FunctionDeclaration;
-
 @Injectable()
 export class AiService {
   private genAI: GoogleGenerativeAI;
@@ -247,50 +201,6 @@ export class AiService {
       user,
     });
     return { text: result.reply, history: result.history };
-  }
-
-  // --- Agents ---
-
-  private async handleDoctorAgent(userQuery: string): Promise<string> {
-    const parsedQuery = await this.parseQuery(userQuery);
-    const safeQuery = this.sanitizeQueryOptions(parsedQuery);
-
-    const { targetEntity, queryType, queryOptions } = safeQuery;
-    let dbResult: any = null;
-
-    // Use admin client for simplicity in this aggregate stats bot
-    const client = this.supabaseService.admin;
-
-    let query = client
-      .from(targetEntity)
-      .select(queryOptions.select.join(','), {
-        count: queryType === 'count' ? 'exact' : undefined,
-        head: queryType === 'count',
-      });
-
-    if (queryOptions.where) {
-      for (const [key, val] of Object.entries(queryOptions.where)) {
-        query = query.eq(key, val);
-      }
-    }
-
-    if (queryType === 'find') {
-      if (queryOptions.order) {
-        for (const [key, val] of Object.entries(queryOptions.order)) {
-          query = query.order(key, { ascending: val === 'ASC' });
-        }
-      }
-      query = query.limit(queryOptions.take);
-    }
-
-    const { data, count, error } = await query;
-    if (error) {
-      console.error('Supabase query error:', error);
-      throw new Error('Database query failed.');
-    }
-
-    dbResult = queryType === 'count' ? count : data;
-    return this.generateNaturalResponse(dbResult, parsedQuery);
   }
 
   /** Real conversational memory (via `history`) plus two tools that write to
@@ -598,6 +508,7 @@ Recent lab reports: ${facts.recentLabReports.length ? facts.recentLabReports.map
           `Monitor symptoms daily and keep notes.`,
           `Schedule a follow-up consultation in 2-4 weeks.`,
         ],
+        isAiGenerated: false,
       };
     }
 
@@ -695,7 +606,11 @@ Return your final answer ONLY as valid JSON matching this schema:
           `Schedule a follow-up if symptoms persist.`,
         ],
       };
-      return this.safeJsonParse(rawText, fallbackSoap);
+      const parsed = this.safeJsonParse(rawText, fallbackSoap);
+      return {
+        ...parsed,
+        isAiGenerated: true,
+      };
     } catch (err) {
       return {
         subjective: `Patient ${facts.patientName} presents with ${facts.chiefComplaint}.`,
@@ -706,6 +621,7 @@ Return your final answer ONLY as valid JSON matching this schema:
           `Follow the doctor's prescribed care instructions.`,
           `Schedule a follow-up if symptoms persist.`,
         ],
+        isAiGenerated: false,
       };
     }
   }
@@ -721,6 +637,7 @@ Return your final answer ONLY as valid JSON matching this schema:
       frequency: 'Once daily',
       duration: '14 Days',
       instructions: 'Take after meals with water.',
+      isAiGenerated: false,
     };
 
     if (!this.genAI) {
@@ -773,7 +690,11 @@ Return your answer ONLY as valid JSON:
       }
 
       const rawText = response.response.text();
-      return this.safeJsonParse(rawText, defaultRx);
+      const parsed = this.safeJsonParse(rawText, defaultRx);
+      return {
+        ...parsed,
+        isAiGenerated: true,
+      };
     } catch {
       return defaultRx;
     }
@@ -796,6 +717,7 @@ Return your answer ONLY as valid JSON:
       return {
         reportName: reportName || 'Diagnostic Lab Report',
         cyclePhase: cyclePhase || 'Not specified',
+        criticalAlert: null,
         summary: `Your lab report has been reviewed (${cyclePhase || 'General'}). Values appear within expected standard limits. Please consult your physician for comprehensive clinical interpretation.`,
         biomarkers: [
           {
@@ -811,6 +733,7 @@ Return your answer ONLY as valid JSON:
           'Are my hormone levels within optimal range for my cycle phase?',
           'Do I need any follow-up blood tests in the next 3 months?',
         ],
+        isAiGenerated: false,
       };
     }
 
@@ -832,12 +755,21 @@ Safety & Clinical Rules:
 - Never provide a definitive clinical diagnosis.
 - For reproductive hormones (Estradiol, Progesterone, LH, FSH, AMH, Prolactin), evaluate values taking into account the specified cycle phase (${cyclePhase || 'general'}).
 - Explain out-of-range values calmly with physiological context.
+- CRITICAL PANIC VALUES DETECTION:
+  Check for life-threatening laboratory panic values:
+  • Severe Anemia: Hemoglobin < 7.0 g/dL.
+  • Severe Thrombocytopenia: Platelets < 50,000 /µL.
+  • Critical Glycemia: Fasting Glucose < 50 mg/dL or > 300 mg/dL.
+  • Critical Potassium: < 3.0 mEq/L or > 6.0 mEq/L.
+  • Markedly elevated Beta-hCG with severe pain/bleeding concerns.
+  If ANY panic value is present, populate 'criticalAlert' with a prominent warning message instructing immediate medical care. Otherwise set 'criticalAlert' to null.
 - Include 3 intelligent questions the patient can ask their doctor.
 
 Return ONLY a valid JSON object matching this exact schema:
 {
   "reportName": "${reportName || 'Diagnostic Report'}",
   "cyclePhase": "${cyclePhase || 'General'}",
+  "criticalAlert": "URGENT CLINICAL WARNING string if critical panic values detected, otherwise null",
   "summary": "2-3 sentence reassuring plain-English summary of what the test measures, phase context, and overall findings",
   "biomarkers": [
     {
@@ -860,6 +792,7 @@ Return ONLY a valid JSON object matching this exact schema:
       const fallbackLab = {
         reportName: reportName || 'Diagnostic Report',
         cyclePhase: cyclePhase || 'General',
+        criticalAlert: null,
         summary:
           'Report successfully parsed. Please review the findings with your doctor for clinical guidance.',
         biomarkers: [],
@@ -867,12 +800,18 @@ Return ONLY a valid JSON object matching this exact schema:
           'What do these test results indicate for my overall treatment plan?',
           'Should we repeat this test in the future?',
         ],
+        isAiGenerated: false,
       };
-      return this.safeJsonParse(result.response.text(), fallbackLab);
+      const parsed = this.safeJsonParse(result.response.text(), fallbackLab);
+      return {
+        ...parsed,
+        isAiGenerated: true,
+      };
     } catch (err) {
       return {
         reportName: reportName || 'Diagnostic Report',
         cyclePhase: cyclePhase || 'General',
+        criticalAlert: null,
         summary:
           'Report successfully parsed. Please review the findings with your doctor for clinical guidance.',
         biomarkers: [],
@@ -880,6 +819,7 @@ Return ONLY a valid JSON object matching this exact schema:
           'What do these test results indicate for my overall treatment plan?',
           'Should we repeat this test in the future?',
         ],
+        isAiGenerated: false,
       };
     }
   }
@@ -890,20 +830,39 @@ Return ONLY a valid JSON object matching this exact schema:
   async checkDrugInteractions(medications: string[]) {
     if (!medications || medications.length === 0) {
       return {
+        hasInteractions: false,
+        summary: 'No active medications provided for interaction screening.',
         guidelines: [],
         interactions: [],
         foodRules: [],
+        foodGuidelines: [],
+        missedDoseAdvice: 'Take your medication as soon as you remember, unless it is close to the time for your next scheduled dose.',
       };
     }
 
     const defaultInteractions = {
+      hasInteractions: false,
+      pregnancyWarning: null as string | null,
+      lactationWarning: null as string | null,
+      isPregnancySafe: true,
+      summary: 'No critical adverse drug-drug or food-drug interactions detected for your prescribed regimen.',
       guidelines: medications.map((med) => ({
         medName: med,
         bestTime: 'With meals',
         keyRule: 'Take consistently at the same time daily.',
       })),
-      interactions: [],
-      foodRules: ['Drink plenty of water with medications.'],
+      interactions: [] as any[],
+      foodRules: [
+        'Take oral medications consistently with water.',
+        'Maintain a 2-hour gap between vitamins/iron and calcium or dairy products.',
+      ],
+      foodGuidelines: [
+        'Take oral medications consistently with water.',
+        'Maintain a 2-hour gap between vitamins/iron and calcium or dairy products.',
+      ],
+      missedDoseAdvice:
+        'Take your medication as soon as you remember, unless it is close to the time for your next scheduled dose. Never take a double dose to make up for a missed one.',
+      isAiGenerated: false,
     };
 
     if (!this.genAI) {
@@ -917,10 +876,23 @@ Return ONLY a valid JSON object matching this exact schema:
       });
 
       const prompt = `You are a patient safety & pharmacology assistant for HealNari. Analyze this list of active medications: ${medications.join(', ')}.
-Provide practical patient-centered guidance on timing, food/supplement interactions, and safety.
+Provide practical patient-centered guidance on timing, food/supplement interactions, and women's health safety.
+
+Clinical Safety & Pregnancy Rules:
+- PREGNANCY & LACTATION SAFETY ASSESSMENT:
+  Explicitly evaluate each medication for known teratogenic potential, FDA pregnancy contraindications, or lactation precautions (e.g. retinoids, methotrexate, warfarin, ACE inhibitors/ARBs, valproate, spironolactone, statins, NSAIDs in third trimester).
+  Populate:
+  - "pregnancyWarning": Clear prominent clinical warning if any medication poses pregnancy risk or contraindication, otherwise null.
+  - "lactationWarning": Clear clinical guidance if contraindicated or requires caution while breastfeeding, otherwise null.
+  - "isPregnancySafe": true if safe/standard in pregnancy, false if any medication is contraindicated or poses significant risk.
 
 Return ONLY a valid JSON object matching this schema:
 {
+  "hasInteractions": false,
+  "pregnancyWarning": null,
+  "lactationWarning": null,
+  "isPregnancySafe": true,
+  "summary": "1-2 sentence reassuring plain-English summary of interaction findings",
   "guidelines": [
     {
       "medName": "Medication Name",
@@ -936,13 +908,45 @@ Return ONLY a valid JSON object matching this schema:
     }
   ],
   "foodRules": [
-    "Practical dietary tip 1 (e.g. Avoid dairy with iron)",
-    "Practical dietary tip 2"
-  ]
+    "Practical dietary rule 1 (e.g. Avoid dairy with iron)",
+    "Practical dietary rule 2"
+  ],
+  "foodGuidelines": [
+    "Practical meal & absorption guideline 1",
+    "Practical meal & absorption guideline 2"
+  ],
+  "missedDoseAdvice": "Clear advice on what to do if a dose is missed"
 }`;
 
       const result = await model.generateContent(prompt);
-      return this.safeJsonParse(result.response.text(), defaultInteractions);
+      const parsed = this.safeJsonParse(result.response.text(), defaultInteractions);
+      
+      const hasInteractions =
+        parsed.hasInteractions !== undefined
+          ? parsed.hasInteractions
+          : Array.isArray(parsed.interactions) && parsed.interactions.length > 0;
+      
+      const foodRules = Array.isArray(parsed.foodRules) && parsed.foodRules.length > 0
+        ? parsed.foodRules
+        : defaultInteractions.foodRules;
+
+      const foodGuidelines = Array.isArray(parsed.foodGuidelines) && parsed.foodGuidelines.length > 0
+        ? parsed.foodGuidelines
+        : foodRules;
+
+      return {
+        ...defaultInteractions,
+        ...parsed,
+        hasInteractions,
+        pregnancyWarning: parsed.pregnancyWarning ?? null,
+        lactationWarning: parsed.lactationWarning ?? null,
+        isPregnancySafe: parsed.isPregnancySafe ?? true,
+        foodRules,
+        foodGuidelines,
+        summary: parsed.summary || defaultInteractions.summary,
+        missedDoseAdvice: parsed.missedDoseAdvice || defaultInteractions.missedDoseAdvice,
+        isAiGenerated: true,
+      };
     } catch {
       return defaultInteractions;
     }
@@ -1051,14 +1055,23 @@ Return ONLY valid JSON matching this schema:
     doctorSpecialty?: string;
     doctorName?: string;
     concerns?: string;
+    chiefComplaint?: string;
+    context?: string;
     symptoms?: string[];
     cycleContext?: string;
     questions?: string[];
   }) {
+    const summaryText = params.chiefComplaint
+      ? `Clinical review synthesized for ${params.patientName}: ${params.chiefComplaint}.`
+      : `Your upcoming appointment with ${params.doctorName || params.doctorSpecialty || 'your specialist'} is a great opportunity to get clarity on your health concerns.`;
+
     const defaultPrep = {
-      summary: `Your upcoming appointment with ${params.doctorName || params.doctorSpecialty || 'your specialist'} is a great opportunity to get clarity on your health concerns.`,
+      emergencyEscalation: false,
+      emergencyAlert: null as string | null,
+      summary: summaryText,
+      prepNotes: summaryText,
       keyTopicsToCover: [
-        `Main symptoms: ${(params.symptoms || []).join(', ') || params.concerns || 'General health review'}`,
+        `Main symptoms: ${(params.symptoms || []).join(', ') || params.chiefComplaint || params.concerns || 'General health review'}`,
         `Hormone & cycle patterns: ${params.cycleContext || 'Standard cycle review'}`,
         `Treatment and lifestyle adjustments`,
       ],
@@ -1072,6 +1085,7 @@ Return ONLY valid JSON matching this schema:
         'Note down exact dates and duration of recent symptom episodes',
         'Have a notebook or notes app open to record doctor guidance',
       ],
+      isAiGenerated: false,
     };
 
     if (!this.genAI) {
@@ -1095,13 +1109,24 @@ Patient Context:
 - Cycle Context / Phase: ${params.cycleContext || 'Not specified'}
 - Patient Questions: ${(params.questions || []).join(', ') || 'General evaluation'}
 
-Safety Rules:
+Safety & Emergency Rules:
 - Never provide a diagnosis or prescriptive medication advice.
+- EMERGENCY RED FLAGS SCREENING:
+  Screen symptoms and concerns for acute life-threatening emergencies:
+  • Sudden, severe one-sided pelvic pain (possible ruptured ectopic pregnancy or ovarian torsion).
+  • Very heavy bleeding: soaking through ≥2 pads/tampons per hour for 2 hours, or passing large blood clots.
+  • In pregnancy: severe persistent headache, sudden visual disturbances, or severe epigastric pain (preeclampsia signs).
+  • Fainting, severe dizziness, chest pain, or suicidal thoughts.
+  If ANY red-flag emergency symptoms are present:
+  Set "emergencyEscalation" to true, and "emergencyAlert" to "URGENT SAFETY ALERT: Your reported symptoms indicate a potential medical emergency. Please seek immediate medical evaluation at an emergency department or contact emergency services right away rather than waiting for a scheduled appointment."
+  Otherwise, set "emergencyEscalation" to false and "emergencyAlert" to null.
 - Frame everything as structured preparation and questions to ask during the consultation.
 - Include 3 high-yield, clinically astute questions tailored to their symptoms and doctor's specialty.
 
 Return ONLY a valid JSON object matching this schema:
 {
+  "emergencyEscalation": false,
+  "emergencyAlert": null,
   "summary": "1-2 sentence supportive, calming summary framing the purpose of this appointment",
   "keyTopicsToCover": [
     "Key topic 1 to highlight for the doctor",
@@ -1121,7 +1146,14 @@ Return ONLY a valid JSON object matching this schema:
 }`;
 
       const result = await model.generateContent(prompt);
-      return this.safeJsonParse(result.response.text(), defaultPrep);
+      const parsed = this.safeJsonParse(result.response.text(), defaultPrep);
+      return {
+        ...defaultPrep,
+        ...parsed,
+        emergencyEscalation: parsed.emergencyEscalation ?? false,
+        emergencyAlert: parsed.emergencyAlert ?? null,
+        isAiGenerated: true,
+      };
     } catch {
       return defaultPrep;
     }
@@ -1211,113 +1243,5 @@ Return ONLY valid JSON matching this schema:
       } catch {}
       return fallback;
     }
-  }
-
-  // --- Helpers ---
-
-  sanitizeQueryOptions(parsedQuery: any): {
-    targetEntity: string;
-    queryType: 'find' | 'count' | 'unsupported';
-    queryOptions: {
-      select: string[];
-      where?: Record<string, unknown>;
-      take: number;
-      order?: Record<string, 'ASC' | 'DESC'>;
-    };
-  } {
-    const entity =
-      typeof parsedQuery?.targetEntity === 'string'
-        ? parsedQuery.targetEntity
-        : '';
-    const allowed = ALLOWED_QUERY_ENTITIES[entity];
-    if (!allowed) {
-      throw new Error(
-        `Querying "${entity || 'unknown entity'}" is not permitted through the chat assistant.`,
-      );
-    }
-
-    const rawWhere = parsedQuery?.queryOptions?.where;
-    const where: Record<string, unknown> = {};
-    if (rawWhere && typeof rawWhere === 'object') {
-      for (const key of Object.keys(rawWhere)) {
-        if (allowed.select.includes(key) && isPlainScalar(rawWhere[key])) {
-          where[key] = rawWhere[key];
-        }
-      }
-    }
-
-    const rawTake = Number(parsedQuery?.queryOptions?.take);
-    const take =
-      Number.isFinite(rawTake) && rawTake > 0
-        ? Math.min(Math.floor(rawTake), MAX_TAKE)
-        : MAX_TAKE;
-
-    const rawOrder = parsedQuery?.queryOptions?.order;
-    const order: Record<string, 'ASC' | 'DESC'> = {};
-    if (rawOrder && typeof rawOrder === 'object') {
-      for (const key of Object.keys(rawOrder)) {
-        const direction = rawOrder[key];
-        if (
-          allowed.select.includes(key) &&
-          (direction === 'ASC' || direction === 'DESC')
-        ) {
-          order[key] = direction;
-        }
-      }
-    }
-
-    const queryType =
-      parsedQuery?.queryType === 'find' || parsedQuery?.queryType === 'count'
-        ? parsedQuery.queryType
-        : 'unsupported';
-
-    return {
-      targetEntity: entity,
-      queryType,
-      queryOptions: {
-        select: allowed.select,
-        where: Object.keys(where).length ? where : undefined,
-        take,
-        order: Object.keys(order).length ? order : undefined,
-      },
-    };
-  }
-
-  async parseQuery(userQuery: string): Promise<any> {
-    if (this.genAI) {
-      const model = this.genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
-        tools: [{ functionDeclarations: [queryDatabaseDeclaration] }],
-      });
-
-      const result = await model.generateContent(
-        `You are an AI Operations Assistant for the HealNari platform. Please answer this user query using the queryDatabase tool: "${userQuery}"`,
-      );
-      const call = result.response.functionCalls()?.[0];
-
-      if (call && call.name === 'queryDatabase') {
-        return call.args;
-      }
-
-      throw new Error(
-        'Model did not return a valid queryDatabase function call. Response: ' +
-          result.response.text(),
-      );
-    }
-    throw new Error('AI credentials missing or parsing failed.');
-  }
-
-  generateNaturalResponse(dbResult: any, parsedQuery: any): string {
-    const { queryType, responseTemplate } = parsedQuery;
-
-    if (queryType === 'count') {
-      return responseTemplate.replace('{value}', dbResult);
-    }
-
-    if (Array.isArray(dbResult) && dbResult.length > 0) {
-      return `Found ${dbResult.length} matching records based on your query.`;
-    }
-
-    return 'No results found in the database.';
   }
 }

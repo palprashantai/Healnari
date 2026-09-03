@@ -36,11 +36,12 @@ function AdminAnalytics() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch('/admin/analytics')
+    setLoading(true);
+    apiFetch(`/admin/analytics?range=${timeRange.toLowerCase()}`)
       .then(d => setData(d))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [timeRange]);
 
   const financialData = useMemo(() => data?.financialData || [], [data]);
   const specialtyRevenue = useMemo(() => data?.specialtyRevenue || [], [data]);
@@ -80,13 +81,16 @@ function AdminAnalytics() {
   const totalBookedSessions = statusBreakdown.reduce((sum, s) => sum + s.count, 0);
 
   const conversionFunnelStages = useMemo(() => {
+    if (data?.marketplaceFunnel?.stages && data.marketplaceFunnel.stages.length > 0) {
+      return data.marketplaceFunnel.stages;
+    }
     if (totalPatientsCount === 0 && totalBookedSessions === 0) return [];
     return [
       { stage: '1. Registered Patient Accounts', count: totalPatientsCount },
       { stage: '2. Consultations Booked', count: totalBookedSessions },
       { stage: '3. Sessions Successfully Completed', count: completedSessions },
     ];
-  }, [totalPatientsCount, totalBookedSessions, completedSessions]);
+  }, [data, totalPatientsCount, totalBookedSessions, completedSessions]);
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">

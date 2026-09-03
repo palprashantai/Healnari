@@ -10,10 +10,17 @@ export enum AiFeatureKey {
 }
 
 export enum AiPlanId {
-  PATIENT_FREE = 'patient_free',
-  PATIENT_PREMIUM = 'patient_premium',
-  DOCTOR_FREE = 'doctor_free',
-  DOCTOR_PRO = 'doctor_pro',
+  DOCTOR_PLAN_1 = 'doctor_plan_1',
+  DOCTOR_PLAN_2 = 'doctor_plan_2',
+  DOCTOR_PLAN_3 = 'doctor_plan_3',
+  PATIENT_PLAN_1 = 'patient_plan_1',
+  PATIENT_PLAN_2 = 'patient_plan_2',
+  PATIENT_PLAN_3 = 'patient_plan_3',
+  // Backwards compatibility aliases
+  DOCTOR_FREE = 'doctor_plan_1',
+  DOCTOR_PRO = 'doctor_plan_2',
+  PATIENT_FREE = 'patient_plan_1',
+  PATIENT_PREMIUM = 'patient_plan_2',
 }
 
 export interface AiFeatureFlag {

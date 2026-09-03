@@ -6,8 +6,10 @@ import { SupabaseModule } from '@/core/supabase/supabase.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { EmailModule } from '@/core/email/email.module';
 
+import { AdminModule } from '@/modules/admin/admin.module';
+
 @Module({
-  imports: [SupabaseModule, NotificationsModule, EmailModule],
+  imports: [SupabaseModule, NotificationsModule, EmailModule, AdminModule],
   controllers: [DoctorsController],
   providers: [DoctorsService, DoctorsCronService],
   exports: [DoctorsService],

@@ -168,6 +168,7 @@ function AdminDoctorManager() {
                   <input type="checkbox" className="w-4 h-4 rounded border-slate-300" onChange={handleSelectAll} checked={filteredDoctors.length > 0 && selectedIds.length === filteredDoctors.length} />
                 </th>
                 <th className="px-5 py-3 font-semibold">Doctor Info</th>
+                <th className="px-5 py-3 font-semibold">AI Plan</th>
                 <th className="px-5 py-3 font-semibold">Status / Verification</th>
                 <th className="px-5 py-3 font-semibold text-center">Consultations</th>
                 <th className="px-5 py-3 font-semibold text-right">Commission Rate</th>
@@ -178,10 +179,10 @@ function AdminDoctorManager() {
             <tbody className="divide-y divide-slate-50">
               {loading ? (
                 Array.from({ length: 3 }).map((_, i) => (
-                  <tr key={i}><td colSpan="7" className="px-5 py-3"><div className="animate-pulse h-10 bg-slate-100 rounded-lg"></div></td></tr>
+                  <tr key={i}><td colSpan="8" className="px-5 py-3"><div className="animate-pulse h-10 bg-slate-100 rounded-lg"></div></td></tr>
                 ))
               ) : filteredDoctors.length === 0 ? (
-                <tr><td colSpan="7" className="px-5 py-8 text-center text-slate-400">No doctors found.</td></tr>
+                <tr><td colSpan="8" className="px-5 py-8 text-center text-slate-400">No doctors found.</td></tr>
               ) : (
                 filteredDoctors.map(d => {
                   const platformEarnings = d.totalPlatformFee || 0;
@@ -194,6 +195,22 @@ function AdminDoctorManager() {
                         <p className="font-bold text-slate-800">{d.name}</p>
                         <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">{d.specialty} • {d.id.slice(0, 8)}…</p>
                         {d.rating > 0 && <span className="text-xs font-bold text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100"><i className="fas fa-star mr-1"></i>{d.rating}</span>}
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            d.aiPlan?.id === 'doctor_plan_3'
+                              ? 'bg-amber-50 text-amber-800 border-amber-200'
+                              : d.aiPlan?.id === 'doctor_plan_2'
+                              ? 'bg-purple-50 text-purple-700 border-purple-200'
+                              : 'bg-slate-100 text-slate-700 border-slate-200'
+                          }`}>
+                            {d.aiPlan?.name || 'Doctor Starter'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {d.aiPlan?.creditsUsed || 0}/{d.aiPlan?.monthlyCredits || 25} uses
+                          </span>
+                        </div>
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex flex-col gap-1.5 items-start">

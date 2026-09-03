@@ -175,6 +175,7 @@ function AdminRevenue() {
   
   const [revenueData, setRevenueData] = useState(null);
   const [payouts, setPayouts] = useState([]);
+  const [reconciliationData, setReconciliationData] = useState(null);
   const [commissionInfo, setCommissionInfo] = useState({ currentRate: 10, history: [] });
   const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -190,14 +191,16 @@ function AdminRevenue() {
   const fetchRevenueData = useCallback(async (curr) => {
     setLoading(true);
     try {
-      const [rev, po, comm] = await Promise.all([
+      const [rev, po, comm, recon] = await Promise.all([
         apiFetch(`/admin/revenue?reportingCurrency=${curr}`),
         apiFetch('/admin/revenue/payouts'),
         apiFetch('/admin/commission').catch(() => ({ currentRate: 10, history: [] })),
+        apiFetch(`/admin/analytics/reconciliation?reportingCurrency=${curr}`).catch(() => null),
       ]);
       setRevenueData(rev);
       setPayouts(po || []);
       if (comm) setCommissionInfo(comm);
+      if (recon) setReconciliationData(recon);
     } catch {
       toast('Failed to load multi-currency revenue data from backend API', 'error');
     } finally {
@@ -268,6 +271,19 @@ function AdminRevenue() {
       return matchCurrency && matchStatus && matchSearch;
     });
   }, [payouts, selectedOriginalCurrency, selectedStatus, searchQuery]);
+
+  const filteredTransactions = useMemo(() => {
+    const list = revenueData?.transactions || [];
+    return list.filter(t => {
+      const matchCurrency = selectedOriginalCurrency === 'ALL' || (t.originalCurrency || '').toUpperCase() === selectedOriginalCurrency;
+      const matchStatus = selectedStatus === 'ALL' || (t.status || '').toLowerCase() === selectedStatus.toLowerCase();
+      const matchSearch = !searchQuery ||
+        (t.txnRef || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (t.service || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (t.method || '').toLowerCase().includes(searchQuery.toLowerCase());
+      return matchCurrency && matchStatus && matchSearch;
+    });
+  }, [revenueData?.transactions, selectedOriginalCurrency, selectedStatus, searchQuery]);
 
   const pendingPayouts = payouts.filter(p => p.status === 'Pending');
 
@@ -413,6 +429,55 @@ function AdminRevenue() {
         </button>
       </div>
 
+      {/* Automated Revenue Reconciliation & Financial Invariant Audit */}
+      {reconciliationData && (
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">⚖️</span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-black text-slate-900">Automated Ledger Reconciliation</h3>
+                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                    reconciliationData.reconciliationStatus === 'BALANCED'
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                      : 'bg-amber-100 text-amber-800 border border-amber-300'
+                  }`}>
+                    {reconciliationData.reconciliationStatus === 'BALANCED' ? '✓ BALANCED LEDGER' : '⚠ DISCREPANCY DETECTED'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Mathematical Invariant: Gross Revenue ({formatCurrency(reconciliationData.financialEquation.grossRevenue, reportingCurrency)}) == Doctor Earnings ({formatCurrency(reconciliationData.financialEquation.doctorEarnings, reportingCurrency)}) + Platform Commission ({formatCurrency(reconciliationData.financialEquation.platformCommission, reportingCurrency)}) + Refunds ({formatCurrency(reconciliationData.financialEquation.refunds, reportingCurrency)})
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-xs font-bold text-slate-400">Ledger Variance: </span>
+              <span className="text-xs font-mono font-black text-slate-900">{formatCurrency(reconciliationData.financialEquation.variance, reportingCurrency)}</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-slate-100 text-xs">
+            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+              <span className="text-slate-400 font-bold block">Gross Revenue</span>
+              <span className="font-mono font-black text-slate-900 text-sm">{formatCurrency(reconciliationData.financialEquation.grossRevenue, reportingCurrency)}</span>
+            </div>
+            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+              <span className="text-slate-400 font-bold block">Doctor Earned</span>
+              <span className="font-mono font-black text-emerald-700 text-sm">{formatCurrency(reconciliationData.payoutLedger.totalDoctorEarned, reportingCurrency)}</span>
+            </div>
+            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+              <span className="text-slate-400 font-bold block">Payouts Settled</span>
+              <span className="font-mono font-black text-slate-900 text-sm">{formatCurrency(reconciliationData.payoutLedger.totalSettled, reportingCurrency)}</span>
+            </div>
+            <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+              <span className="text-slate-400 font-bold block">Outstanding Doctor Payable</span>
+              <span className="font-mono font-black text-amber-600 text-sm">{formatCurrency(reconciliationData.payoutLedger.outstandingPayable, reportingCurrency)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Global Filter Bar */}
       <DashboardFilterBar
         dateRange={dateRange}
@@ -455,9 +520,9 @@ function AdminRevenue() {
       {/* Level 1: Tier-1 KPI Cards Normalized in Reporting Currency */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <KPITrendCard
-          title="Gross Transaction Value (GMV)"
+          title="Gross Volume (GMV)"
           value={formatCurrency(normalized.grossGMV, reportingCurrency)}
-          period={`Total Paid (${reportingCurrency})`}
+          period={`Consults & AI (${reportingCurrency})`}
           icon="fa-money-bill-trend-up"
           colorScheme="dark"
           badgeText="Total GMV"
@@ -465,21 +530,22 @@ function AdminRevenue() {
         />
 
         <KPITrendCard
-          title="HealNari Platform Revenue"
+          title="Platform Retained Revenue"
           value={formatCurrency(normalized.platformRevenue, reportingCurrency)}
-          period={`10% Take-Rate (${reportingCurrency})`}
+          period={`Commission + 100% AI`}
           icon="fa-sack-dollar"
           colorScheme="purple"
-          badgeText="Retained"
+          badgeText="Fee + AI"
           loading={loading}
         />
 
         <KPITrendCard
-          title="Provider Payouts Owed"
+          title="Physician Share (Earned)"
           value={formatCurrency(normalized.providerPayouts, reportingCurrency)}
-          period={`90% Specialist Share`}
+          period={`Doctor Telehealth Share`}
           icon="fa-user-doctor"
           colorScheme="emerald"
+          badgeText="Doctor Cut"
           loading={loading}
         />
 
@@ -493,7 +559,7 @@ function AdminRevenue() {
         />
 
         <KPITrendCard
-          title="Net Platform Revenue"
+          title="Net Platform Retention"
           value={formatCurrency(normalized.netPlatformRevenue, reportingCurrency)}
           period={`Fee Minus Refund Losses`}
           icon="fa-scale-balanced"
@@ -505,7 +571,7 @@ function AdminRevenue() {
         <KPITrendCard
           title="Settled Transactions"
           value={(normalized.totalTransactions || 0).toLocaleString()}
-          period="Completed Telehealth Sessions"
+          period="Consults &amp; AI Plans"
           icon="fa-calendar-check"
           colorScheme="dark"
           loading={loading}
@@ -729,6 +795,128 @@ function AdminRevenue() {
             <span className="text-slate-500 font-bold">Fulfilled Appointments:</span>
             <span className="font-extrabold text-aubergine-700">{revenueData?.completedConsultations || 0}</span>
           </div>
+        </div>
+      </div>
+
+      {/* Level 3.5: AI Subscription Revenue Stream Breakdown */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4 mb-5">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-aubergine-50 border border-aubergine-200 flex items-center justify-center text-aubergine-700 text-lg shadow-xs">
+              <i className="fas fa-robot"></i>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-black text-slate-900">AI Subscription Revenue Stream</h3>
+                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full">
+                  100% PLATFORM MARGIN
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">Automated recurring earnings from Doctor Clinical Plans &amp; Patient Care Plans</p>
+            </div>
+          </div>
+          <span className="bg-slate-100 text-slate-700 font-bold text-xs px-3 py-1 rounded-full">
+            {(revenueData?.aiSubscriptionRevenue?.count || 0)} Plan Purchases Logged
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-gradient-to-br from-slate-900 to-aubergine-950 text-white rounded-xl p-4 border border-slate-800 relative overflow-hidden shadow-xs">
+            <p className="text-[10px] uppercase font-black tracking-wider text-aubergine-300 mb-1">Total AI Subscription Earnings</p>
+            <p className="text-2xl font-black text-white font-sans">
+              {formatCurrency(revenueData?.aiSubscriptionRevenue?.total || 0, reportingCurrency)}
+            </p>
+            <p className="text-[11px] text-emerald-400 font-bold mt-1 flex items-center gap-1">
+              <i className="fas fa-check-circle text-[10px]"></i> 100% Platform Revenue (Zero Provider Deductions)
+            </p>
+          </div>
+
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+            <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Doctor AI Plans (Pro &amp; Premium)</p>
+            <p className="text-2xl font-black text-aubergine-900 font-sans">
+              {formatCurrency(revenueData?.aiSubscriptionRevenue?.doctorPlansRevenue || 0, reportingCurrency)}
+            </p>
+            <p className="text-[11px] text-slate-500 font-medium mt-1">Clinical Tools, SOAP Notes &amp; Rx Autocomplete</p>
+          </div>
+
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+            <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Patient AI Plans (Pro &amp; Premium)</p>
+            <p className="text-2xl font-black text-magenta-700 font-sans">
+              {formatCurrency(revenueData?.aiSubscriptionRevenue?.patientPlansRevenue || 0, reportingCurrency)}
+            </p>
+            <p className="text-[11px] text-slate-500 font-medium mt-1">Health Companion, Visit Prep &amp; Lab Report Decoder</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Master Revenue & AI Plan Transactions Ledger */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <h2 className="font-black text-slate-900 text-sm">Platform Collections &amp; AI Transactions Ledger</h2>
+            <p className="text-xs text-slate-500">Live feed of consultation billings and AI plan subscription sales</p>
+          </div>
+          <span className="text-xs font-bold text-slate-500">
+            Showing {filteredTransactions.length} of {(revenueData?.transactions || []).length} transactions
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-[11px] text-slate-400 uppercase tracking-wider font-extrabold bg-slate-50/50">
+                <th className="px-6 py-3.5">Reference ID</th>
+                <th className="px-6 py-3.5">Service / Plan</th>
+                <th className="px-6 py-3.5">Date</th>
+                <th className="px-6 py-3.5">Rail</th>
+                <th className="px-6 py-3.5 text-right">Original Paid</th>
+                <th className="px-6 py-3.5 text-right">Platform Fee Retained</th>
+                <th className="px-6 py-3.5 text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredTransactions.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="p-8 text-center text-slate-400 font-medium text-xs">
+                    No transactions matching current filter criteria.
+                  </td>
+                </tr>
+              ) : (
+                filteredTransactions.slice(0, 50).map((t) => (
+                  <tr key={t.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="px-6 py-4 font-mono text-xs font-bold text-slate-500">{t.txnRef}</td>
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-slate-800 text-xs">{t.service}</div>
+                      <div className="text-[10px] text-slate-400">
+                        {t.isAiSubscription ? (
+                          <span className="text-aubergine-700 font-bold">AI Subscription Plan</span>
+                        ) : (
+                          <span>Telehealth Clinical Visit</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-xs text-slate-500 font-medium">{t.date}</td>
+                    <td className="px-6 py-4 text-xs text-slate-600 font-medium">{t.method}</td>
+                    <td className="px-6 py-4 text-right font-extrabold text-slate-800 font-sans text-xs">
+                      {formatCurrency(t.originalAmount, t.originalCurrency)}
+                    </td>
+                    <td className="px-6 py-4 text-right font-black text-emerald-600 font-sans text-xs">
+                      {formatCurrency(t.platformFeeAmount, reportingCurrency)}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                        t.status === 'Paid' || t.status === 'success'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}>
+                        {t.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
