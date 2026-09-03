@@ -605,7 +605,191 @@ function DoctorAppointments() {
           )}
         </div>
 
-        <div className="overflow-x-auto px-4 pb-4">
+        {/* Mobile View: Stacked Adaptive Queue & Appointment Cards (< sm) */}
+        <div className="sm:hidden px-3 pb-4 space-y-3">
+          {tab === 'queue' && filteredData.map((p, tokenIndex) => {
+            const waiting = queue.filter(q => q.status === 'Waiting');
+            const waitingIndex = waiting.findIndex(w => w.id === p.id);
+            const estWait = p.status === 'Waiting' && waitingIndex >= 0 ? computeEstWait(waitingIndex) : null;
+            return (
+              <div key={p.id} className={`responsive-table-card ${p.status === 'In Progress' ? 'ring-2 ring-emerald-400 bg-emerald-50/20' : ''}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded font-mono tracking-wider ${p.status === 'In Progress' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-white'}`}>{p.token}</span>
+                    <div>
+                      <h4 className="font-extrabold text-slate-800 text-sm leading-snug">{p.name}</h4>
+                      <p className="text-[11px] text-slate-500">{p.age} • {p.type}</p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${STATUS_BADGE[p.status] || 'bg-slate-100 text-slate-500'}`}>
+                    {p.status}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs py-2 border-y border-slate-100 bg-slate-50/50 -mx-4 px-4">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase">Appointment Time</span>
+                    <span className="font-bold text-aubergine-700">{p.time}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase">Est. Wait / Status</span>
+                    {p.status === 'In Progress' ? (
+                      <span className="text-emerald-700 font-bold text-[11px] flex items-center gap-1">
+                        <i className="fas fa-stethoscope text-[9px] animate-pulse"></i> In Session
+                      </span>
+                    ) : estWait ? (
+                      <span className="text-amber-700 font-bold text-[11px] flex items-center gap-1">
+                        <i className="fas fa-hourglass-half text-[9px]"></i> ~{estWait.waitMins}m ({estWait.timeStr})
+                      </span>
+                    ) : (
+                      <span className="text-slate-500 text-[11px]">{p.status}</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-1 flex gap-2">
+                  {p.mode === 'Video' && p.status !== 'Done' && (
+                    <button
+                      onClick={() => navigate(`/doctor-dashboard/telemedicine?startCall=${p.id}`)}
+                      className="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold text-xs py-2.5 rounded-xl shadow-sm flex items-center justify-center gap-1.5 touch-target active:scale-95"
+                    >
+                      <i className="fas fa-video animate-pulse"></i> Join Call
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setNotesTarget(p)}
+                    className="crm-btn-secondary text-xs font-bold py-2.5 px-3 flex items-center justify-center gap-1.5 touch-target text-aubergine-700"
+                  >
+                    <i className="fas fa-pen"></i> Notes
+                  </button>
+                  {p.status !== 'Done' && (
+                    <button
+                      onClick={() => setCancelTarget(p)}
+                      className="crm-btn-secondary text-xs font-bold py-2.5 px-3 text-rose-600 hover:bg-rose-50 border-rose-100 flex items-center justify-center"
+                      title="Cancel"
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {tab === 'queue' && filteredData.length === 0 && (
+            <div className="text-center py-10 text-slate-400 bg-slate-50 rounded-2xl">
+              <i className="fas fa-mug-hot text-3xl mb-2 text-slate-300"></i>
+              <p className="text-sm font-bold">No patients in the queue right now.</p>
+            </div>
+          )}
+
+          {tab === 'upcoming' && filteredData.map(p => (
+            <div key={p.id} className="responsive-table-card">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h4 className="font-extrabold text-slate-800 text-sm">{p.name}</h4>
+                  <p className="text-[11px] text-slate-500">{p.age} • {p.type}</p>
+                </div>
+                <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                  {p.mode}
+                </span>
+              </div>
+              <div className="text-xs py-2 border-y border-slate-100 bg-slate-50/50 -mx-4 px-4 flex justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Scheduled</span>
+                  <span className="font-bold text-aubergine-700">{p.date} • {p.time}</span>
+                </div>
+              </div>
+              <div className="pt-1 flex justify-end">
+                <button onClick={() => setCancelTarget(p)} className="crm-btn-secondary text-xs text-rose-600 hover:bg-rose-50 py-2 px-4">
+                  Cancel Appointment
+                </button>
+              </div>
+            </div>
+          ))}
+          {tab === 'upcoming' && filteredData.length === 0 && (
+            <div className="text-center py-10 text-slate-400 bg-slate-50 rounded-2xl">
+              <p className="text-sm font-bold">No upcoming appointments found.</p>
+            </div>
+          )}
+
+          {tab === 'requests' && filteredData.map(r => (
+            <div key={r.id} className="responsive-table-card">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h4 className="font-extrabold text-slate-800 text-sm">{r.name}</h4>
+                  <p className="text-[11px] text-slate-500">{r.age} • {r.type}</p>
+                </div>
+                <span className="text-[10px] font-bold text-aubergine-700 bg-aubergine-50 border border-aubergine-200 px-2 py-0.5 rounded-full">
+                  {r.mode}
+                </span>
+              </div>
+              <div className="text-xs py-2 border-y border-slate-100 bg-slate-50/50 -mx-4 px-4">
+                <span className="text-[10px] font-bold text-slate-400 block uppercase">Requested Window</span>
+                <span className="font-bold text-aubergine-700">{r.date} • {r.time}</span>
+              </div>
+              <div className="pt-1 flex gap-2">
+                {r.status === 'Approved' ? (
+                  <span className="w-full text-center text-amber-600 font-bold text-xs py-2 bg-amber-50 rounded-xl border border-amber-200">
+                    <i className="fas fa-hourglass-half mr-1"></i> Awaiting Patient Payment
+                  </span>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => rejectRequest(r)}
+                      disabled={actionLoadingId === r.id}
+                      className="flex-1 crm-btn-secondary text-xs font-bold text-rose-600 hover:bg-rose-50 py-2"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => approveRequest(r)}
+                      disabled={actionLoadingId === r.id}
+                      className="flex-1 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold text-xs py-2 rounded-xl shadow-sm flex items-center justify-center gap-1.5 touch-target"
+                    >
+                      {actionLoadingId === r.id ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-check"></i>}
+                      {actionLoadingId === r.id ? 'Approving…' : 'Approve Request'}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+          {tab === 'requests' && filteredData.length === 0 && (
+            <div className="text-center py-10 text-slate-400 bg-slate-50 rounded-2xl">
+              <p className="text-sm font-bold">No pending appointment requests.</p>
+            </div>
+          )}
+
+          {tab === 'past' && filteredData.map(p => (
+            <div key={p.id} className="responsive-table-card">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h4 className="font-extrabold text-slate-800 text-sm">{p.name}</h4>
+                  <p className="text-[11px] text-slate-500">{p.age} • {p.type}</p>
+                </div>
+                <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                  {p.date}
+                </span>
+              </div>
+              <div className="pt-1 flex justify-end">
+                <button
+                  onClick={() => navigate(`/doctor-dashboard/appointments/summary/${p.id}`, { state: { appointment: p } })}
+                  className="w-full sm:w-auto crm-btn-secondary text-xs font-bold py-2 px-3 text-aubergine-700 flex items-center justify-center gap-1.5"
+                >
+                  <i className="fas fa-file-lines"></i> View Visit Summary
+                </button>
+              </div>
+            </div>
+          ))}
+          {tab === 'past' && filteredData.length === 0 && (
+            <div className="text-center py-10 text-slate-400 bg-slate-50 rounded-2xl">
+              <p className="text-sm font-bold">No past consultations found.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop View: Full Table (sm:block) */}
+        <div className="hidden sm:block overflow-x-auto px-4 pb-4">
           <table className="w-full text-left text-sm border-separate border-spacing-y-3">
             <thead>
               <tr className="text-[10px] text-slate-400 uppercase tracking-widest">

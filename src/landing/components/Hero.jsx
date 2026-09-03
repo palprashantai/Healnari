@@ -81,9 +81,9 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
                   triggerHaptic('medium');
                   onStartConsult?.();
                 }}
-                className="w-full sm:w-auto relative bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 hover:from-aubergine-700 hover:via-magenta-700 hover:to-indigo-700 text-white font-extrabold px-5 sm:px-8 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl shadow-xl shadow-aubergine-200 hover:shadow-2xl hover:shadow-aubergine-300 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 sm:gap-2.5 text-[15px] sm:text-lg group-hover:ring-4 ring-aubergine-100 whitespace-nowrap"
+                className="w-full sm:w-auto relative bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 hover:from-aubergine-700 hover:via-magenta-700 hover:to-indigo-700 text-white font-extrabold px-4 sm:px-8 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl shadow-xl shadow-aubergine-200 hover:shadow-2xl hover:shadow-aubergine-300 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 sm:gap-2.5 text-sm sm:text-lg group-hover:ring-4 ring-aubergine-100 touch-target text-center"
               >
-                <i className="fas fa-stethoscope text-sm"></i> Book Specialist Consult
+                <i className="fas fa-stethoscope text-sm shrink-0"></i> <span>Book Specialist Consult</span>
               </button>
             </div>
             <button
@@ -91,9 +91,9 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
                 triggerHaptic('light');
                 onOpenChecker?.();
               }}
-              className="w-full sm:w-auto bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2 text-xs sm:text-base whitespace-nowrap"
+              className="w-full sm:w-auto bg-sand-50 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-3 sm:py-3.5 px-4 sm:px-6 rounded-xl shadow-sm transition-all btn-interactive flex items-center justify-center gap-2 text-xs sm:text-base touch-target text-center"
             >
-              <i className="fas fa-heart-pulse text-rose-500"></i> 2-Min Symptom Checker
+              <i className="fas fa-heart-pulse text-rose-500 shrink-0"></i> <span>2-Min Symptom Checker</span>
             </button>
           </div>
 

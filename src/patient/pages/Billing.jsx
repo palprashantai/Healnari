@@ -230,7 +230,54 @@ function PatientBilling() {
             <i className="fas fa-download"></i> Export All
           </button>
         </div>
-        <div className="crm-table-container border-0 rounded-none">
+        {/* Mobile View: Stacked Transaction Cards (< sm) */}
+        <div className="sm:hidden p-3 space-y-3">
+          {transactions.map(txn => (
+            <div key={txn.id} className="responsive-table-card">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="font-extrabold text-slate-800 text-sm">{txn.doctor}</h3>
+                  <p className="text-[11px] text-slate-400 font-mono">{txn.txn_ref || txn.id}</p>
+                </div>
+                <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${STATUS_STYLE[txn.status]}`}>
+                  {txn.status.charAt(0).toUpperCase() + txn.status.slice(1)}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs py-2 border-y border-slate-100 bg-slate-50/50 -mx-4 px-4">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Date & Type</span>
+                  <span className="text-slate-700 font-semibold">{txn.date}</span>
+                  <span className="text-slate-500 block text-[11px]">{txn.type}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Amount & Method</span>
+                  <span className="font-black text-slate-900 block text-sm">{formatCurrency(txn.amount, txn.currency)}</span>
+                  <span className="text-slate-500 text-[11px] inline-flex items-center gap-1">
+                    <i className={`fas ${METHOD_ICON[txn.method] || 'fa-money-bill'} text-[10px]`}></i> {txn.method}
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-1 flex justify-end">
+                <button
+                  onClick={() => downloadReceipt(txn)}
+                  className="w-full sm:w-auto crm-btn-secondary text-xs font-bold py-2.5 flex items-center justify-center gap-1.5 touch-target text-aubergine-700 hover:text-aubergine-900"
+                >
+                  <i className="fas fa-file-invoice"></i> Download Invoice Receipt
+                </button>
+              </div>
+            </div>
+          ))}
+          {transactions.length === 0 && (
+            <div className="text-center py-10 text-slate-400 bg-slate-50 rounded-2xl">
+              No transactions recorded yet.
+            </div>
+          )}
+        </div>
+
+        {/* Desktop View: Full Table (sm:block) */}
+        <div className="hidden sm:block crm-table-container border-0 rounded-none">
           <table className="crm-table">
             <thead>
               <tr>

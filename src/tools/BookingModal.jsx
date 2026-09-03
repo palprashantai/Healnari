@@ -283,12 +283,12 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
 
   return (
     <div
-      className="fixed inset-0 z-[9000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 z-[9000] bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="booking-modal-title"
     >
-      <div className="bg-white rounded-none sm:rounded-3xl w-full max-w-md sm:mx-auto shadow-2xl overflow-hidden border-0 sm:border border-slate-100 animate-slide-up flex flex-col my-auto max-h-[100dvh] sm:max-h-[92vh]">
+      <div className="bg-white rounded-t-[2rem] sm:rounded-3xl w-full max-w-md sm:mx-auto shadow-2xl overflow-hidden border-t sm:border border-slate-100 animate-slide-up flex flex-col my-auto max-h-[92dvh] sm:max-h-[92vh] safe-area-pb sm:pb-0">
 
         <div className="sticky top-0 bg-white border-b border-slate-100 px-4 sm:px-6 py-3 sm:py-4 z-10">
           <div className="flex justify-between items-center">
@@ -302,9 +302,10 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full hover:bg-slate-50 border border-slate-150 flex items-center justify-center text-slate-400 hover:text-slate-600 transition btn-interactive"
+              aria-label="Close booking modal"
+              className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full hover:bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition btn-interactive touch-target active:scale-95"
             >
-              <i className="fas fa-times"></i>
+              <i className="fas fa-times text-base"></i>
             </button>
           </div>
 

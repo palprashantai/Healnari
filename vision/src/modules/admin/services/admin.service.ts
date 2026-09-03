@@ -295,7 +295,7 @@ export class AdminService {
           this.supabase.admin
             .from('payments')
             .select(
-              'id, amount, currency, status, created_at, original_amount, original_currency, reporting_currency, fx_rate, appointment_id',
+              'id, amount, currency, status, created_at, base_amount, base_currency, original_amount, original_currency, reporting_currency, fx_rate, appointment_id',
             ),
         ]);
 
@@ -1754,7 +1754,7 @@ export class AdminService {
         this.supabase.admin
           .from('payments')
           .select(
-            'id, amount, original_amount, currency, original_currency, reporting_amount, reporting_currency, fx_rate, fx_rate_source, fx_rate_timestamp, platform_fee_amount, provider_payout_amount, refund_amount, status, method, txn_ref, created_at, category, service, doctor_id, patient_id',
+            'id, amount, base_amount, original_amount, currency, base_currency, original_currency, reporting_amount, reporting_currency, fx_rate, fx_rate_source, fx_rate_timestamp, platform_fee_amount, provider_payout_amount, refund_amount, status, method, txn_ref, created_at, category, service, doctor_id, patient_id',
           )
           .in('status', ['Paid', 'Refunded', 'Insurance Claimed']),
         this.supabase.admin

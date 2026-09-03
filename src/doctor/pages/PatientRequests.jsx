@@ -60,15 +60,15 @@ function DoctorPatientRequests() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800">Patient Requests</h1>
           <p className="text-sm text-slate-500">Public consultation requests submitted via your booking link.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5 sm:gap-2 overflow-x-auto hide-scrollbar w-full sm:w-auto pb-1 sm:pb-0">
           {['New', 'Converted', 'Closed', 'All'].map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${tab === t ? 'bg-aubergine-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${tab === t ? 'bg-aubergine-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}>
               {t === 'New' ? `Pending (${pendingCount})` : t}
             </button>
           ))}
@@ -86,34 +86,34 @@ function DoctorPatientRequests() {
         )}
         <div className="divide-y divide-slate-100">
           {filtered.map(r => (
-            <div key={r.id} className="p-5 flex items-start justify-between gap-4 hover:bg-slate-50 transition-colors">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
+            <div key={r.id} className="p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
+              <div className="space-y-1 w-full sm:w-auto">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-bold text-slate-800 text-sm">{r.name}</span>
                   <span className="text-xs text-slate-400">({r.age ? `${r.age} yrs` : 'Age not provided'})</span>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[r.status] || STATUS_STYLE.New}`}>{r.status === 'New' ? 'Pending' : r.status}</span>
                 </div>
-                <p className="text-xs text-slate-500">{r.email} • {r.mobile}</p>
+                <p className="text-xs text-slate-500 break-all">{r.email} • {r.mobile}</p>
                 <p className="text-xs text-aubergine-700 font-bold mt-1">{r.concern || 'General consultation'}</p>
                 <p className="text-[10px] text-slate-400 mt-1">Preferred: {r.preferred_date || 'Any date'} {r.preferred_time || ''} • Received {new Date(r.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
               </div>
               {r.status === 'New' ? (
-                <div className="flex gap-2 flex-shrink-0">
+                <div className="flex gap-2 w-full sm:w-auto shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                   <button onClick={() => setDeclineTarget(r)}
                     disabled={approvingId === r.id || declining}
-                    className="text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors">
+                    className="flex-1 sm:flex-initial text-xs font-bold px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors touch-target">
                     Decline
                   </button>
                   <button onClick={() => approve(r.id)} disabled={approvingId === r.id || declining}
-                    className="text-xs font-bold px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white transition-colors flex items-center gap-2">
+                    className="flex-1 sm:flex-initial text-xs font-bold px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white transition-colors flex items-center justify-center gap-2 touch-target">
                     <i className={`fas ${approvingId === r.id ? 'fa-spinner fa-spin' : 'fa-check'}`}></i>
-                    {approvingId === r.id ? 'Approving…' : (r.patient_id ? 'Approve Consultation' : 'Approve & Create Patient')}
+                    {approvingId === r.id ? 'Approving…' : (r.patient_id ? 'Approve' : 'Approve & Onboard')}
                   </button>
                 </div>
               ) : r.status === 'Converted' ? (
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 pt-2 sm:pt-0">
                   <button onClick={() => navigate('/doctor-dashboard/appointments')}
-                    className="text-xs font-bold px-3 py-2 rounded-xl bg-aubergine-50 text-aubergine-700 border border-aubergine-200 hover:bg-aubergine-100 transition-colors flex items-center gap-1.5">
+                    className="w-full sm:w-auto text-xs font-bold px-3.5 py-2.5 rounded-xl bg-aubergine-50 text-aubergine-700 border border-aubergine-200 hover:bg-aubergine-100 transition-colors flex items-center justify-center gap-1.5 touch-target">
                     <i className="fas fa-calendar-check text-[11px]"></i> View in Appointments
                   </button>
                 </div>

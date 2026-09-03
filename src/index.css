@@ -347,6 +347,52 @@ body.discreet-blur main:focus-within {
   padding-top: max(12px, env(safe-area-inset-top, 12px));
 }
 
+.safe-area-mb {
+  margin-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+}
+
+.safe-area-bottom {
+  bottom: max(12px, env(safe-area-inset-bottom, 12px));
+}
+
+/* Touch targets conform to Apple HIG (44px) & WCAG 2.5.5 (44px min) */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.touch-target-icon {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.h-screen-safe {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.max-h-screen-safe {
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+
+.responsive-table-card {
+  background-color: #ffffff;
+  border-radius: 1rem;
+  border: 1px solid #e2e8f0;
+  padding: 1rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease-in-out;
+}
+
 .mobile-floating-dock {
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);

@@ -1798,14 +1798,14 @@ function PatientDashboard() {
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       {/* Dynamic Header */}
-      <div className="relative rounded-3xl overflow-hidden shadow-soft border border-aubergine-100 p-8 md:p-10 bg-gradient-to-br from-white via-white to-aubergine-50/60">
+      <div className="relative rounded-3xl overflow-hidden shadow-soft border border-aubergine-100 p-5 sm:p-8 md:p-10 bg-gradient-to-br from-white via-white to-aubergine-50/60">
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-magenta-100 via-aubergine-50 to-transparent rounded-full mix-blend-multiply opacity-70 transform translate-x-1/4 -translate-y-1/4 pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-aubergine-50 via-magenta-50 to-transparent rounded-full mix-blend-multiply opacity-60 transform -translate-x-1/4 translate-y-1/4 pointer-events-none"></div>
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <p className="text-[10px] font-black text-aubergine-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><i className="fas fa-calendar-day"></i> {todayLabel}</p>
-            <h1 className="text-3xl md:text-4xl font-serif-brand font-black text-slate-800 mb-2 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif-brand font-black text-slate-800 mb-2 tracking-tight">
               {greeting}, {user?.name?.split(' ')[0] || 'there'}.
             </h1>
             <p className="text-slate-500 text-sm max-w-md leading-relaxed">

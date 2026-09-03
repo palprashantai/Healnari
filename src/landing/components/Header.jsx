@@ -92,55 +92,68 @@ function Header({ onStartConsult, onOpenAuth }) {
           {/* Mobile Menu Button */}
           <button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden w-11 h-11 rounded-xl border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors btn-interactive"
+            className="lg:hidden w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 transition-colors btn-interactive touch-target"
             aria-label="Toggle menu"
+            aria-expanded={isMobileMenuOpen}
           >
             <i className={`fas ${isMobileMenuOpen ? 'fa-times' : 'fa-bars'} text-lg`}></i>
           </button>
         </div>
       </div>
 
+      {/* Backdrop Scrim */}
+      {isMobileMenuOpen && (
+        <div
+          className="lg:hidden fixed inset-0 top-16 bg-slate-900/40 backdrop-blur-xs z-30 animate-fade-in"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile Menu Dropdown */}
       <div 
-        className={`lg:hidden fixed inset-x-0 top-[65px] bg-white border-b border-slate-200 shadow-xl transition-all duration-300 ease-out overflow-y-auto z-40 ${
-          isMobileMenuOpen ? 'max-h-[80vh] opacity-100' : 'max-h-0 opacity-0'
+        className={`lg:hidden absolute inset-x-0 top-full bg-white border-b border-slate-200 shadow-xl transition-all duration-300 ease-out overflow-y-auto z-40 max-h-[calc(100dvh-4.5rem)] ${
+          isMobileMenuOpen ? 'opacity-100 visible' : 'max-h-0 opacity-0 invisible pointer-events-none'
         }`}
       >
-        <div className="px-5 py-6 space-y-4 flex flex-col">
+        <div className="px-5 py-6 space-y-3 flex flex-col safe-area-pb">
           {navLinks.map((link) => (
             <a 
               key={link.label}
-              href={link.href}
+              href={link.href} 
               onClick={() => setIsMobileMenuOpen(false)}
-              className="text-base font-semibold text-slate-700 hover:text-aubergine-600 transition-colors py-1"
+              className="text-base font-semibold text-slate-700 hover:text-aubergine-600 transition-colors py-2 px-1 border-b border-slate-50 flex items-center justify-between"
             >
-              {link.label}
+              <span>{link.label}</span>
+              <i className="fas fa-chevron-right text-xs text-slate-300"></i>
             </a>
           ))}
           <NavLink
             to="/for-doctors"
             onClick={() => setIsMobileMenuOpen(false)}
-            className="text-base font-semibold text-aubergine-700 hover:text-aubergine-800 transition-colors py-1 flex items-center gap-2"
+            className="text-base font-semibold text-aubergine-700 hover:text-aubergine-800 transition-colors py-2 px-1 flex items-center gap-2 border-b border-slate-50"
           >
             <i className="fas fa-stethoscope text-xs"></i> For Healthcare Providers
           </NavLink>
-          <button 
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              onStartConsult();
-            }}
-            className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm shadow-md transition-all btn-interactive flex items-center justify-center gap-2"
-          >
-            <i className="fas fa-calendar-plus"></i> Start Consultation
-          </button>
-          <button 
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              onOpenAuth();
-            }}
-            className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl text-sm transition-all btn-interactive flex items-center justify-center gap-2"
-          >
-            <i className="fas fa-user-circle"></i> Login / Register
-          </button>
+          <div className="pt-2 space-y-2.5">
+            <button 
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                onStartConsult();
+              }}
+              className="w-full bg-aubergine-600 hover:bg-aubergine-700 active:scale-[0.98] text-white font-bold py-3.5 rounded-xl text-sm shadow-md transition-all btn-interactive flex items-center justify-center gap-2 touch-target"
+            >
+              <i className="fas fa-calendar-plus"></i> Start Consultation
+            </button>
+            <button 
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                onOpenAuth();
+              }}
+              className="w-full bg-slate-100 hover:bg-slate-200 active:scale-[0.98] text-slate-700 font-bold py-3.5 rounded-xl text-sm transition-all btn-interactive flex items-center justify-center gap-2 touch-target"
+            >
+              <i className="fas fa-user-circle"></i> Login / Register
+            </button>
+          </div>
         </div>
       </div>
     </header>

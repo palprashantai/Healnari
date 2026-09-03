@@ -162,29 +162,54 @@ export class AiCreditLedgerService {
     this.inMemoryLedger.set(userId, userLedger);
 
     try {
-      await this.supabase.admin.from('ai_credit_accounts').upsert(
-        {
-          user_id: userId,
-          balance: newBalance,
-          lifetime_granted: account.lifetimeGranted,
-          lifetime_consumed: newConsumed,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id' },
-      );
+      const { data: updatedAccount, error: upsertError } = await this.supabase.admin
+        .from('ai_credit_accounts')
+        .upsert(
+          {
+            user_id: userId,
+            balance: newBalance,
+            lifetime_granted: account.lifetimeGranted,
+            lifetime_consumed: newConsumed,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' },
+        )
+        .select('balance')
+        .maybeSingle();
+
+      if (upsertError) {
+        this.logger.warn(
+          `Credit consumption DB write rejected for ${userId}: ${upsertError.message}`,
+        );
+        // Revert in-memory balance to previous state
+        this.inMemoryAccounts.set(userId, {
+          balance: account.balance,
+          granted: account.lifetimeGranted,
+          consumed: account.lifetimeConsumed,
+        });
+        return { balance: account.balance, success: false };
+      }
 
       await this.supabase.admin.from('ai_credit_ledger').insert({
         user_id: userId,
         entry_type: 'CONSUME',
         amount: -amount,
-        balance_after: newBalance,
+        balance_after: updatedAccount?.balance ?? newBalance,
         feature: featureKey,
         reference_id: referenceId || null,
         reason: `AI Invocation: ${featureKey}`,
         metadata: metadata || {},
       });
     } catch (err: any) {
-      this.logger.warn(`Credit consumption DB write fallback for ${userId}: ${err?.message}`);
+      this.logger.warn(
+        `Credit consumption exception for ${userId}: ${err?.message}`,
+      );
+      this.inMemoryAccounts.set(userId, {
+        balance: account.balance,
+        granted: account.lifetimeGranted,
+        consumed: account.lifetimeConsumed,
+      });
+      return { balance: account.balance, success: false };
     }
 
     return { balance: newBalance, success: true };

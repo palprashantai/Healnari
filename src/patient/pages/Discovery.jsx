@@ -96,16 +96,22 @@ function BookingModal({ doc, patientCountry = 'IN', isOpen, onClose, toast, addA
   return (
     <Modal isOpen={isOpen} onClose={reset} size="md" hideClose ariaLabel={`Book appointment with ${doc.name}`}>
       {/* Custom Header */}
-      <div className="-mx-6 -mt-6 px-6 py-5 bg-gradient-to-r from-aubergine-900 to-aubergine-700 text-white mb-5 rounded-t-3xl">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl border-2 border-white/30 bg-white/10 flex items-center justify-center font-black text-lg flex-shrink-0">
+      <div className="-mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 py-4 sm:py-5 bg-gradient-to-r from-aubergine-900 to-aubergine-700 text-white mb-5 rounded-t-[2rem] sm:rounded-t-3xl">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl border-2 border-white/30 bg-white/10 flex items-center justify-center font-black text-base sm:text-lg flex-shrink-0">
             {doc.name.split(' ').filter(w => w).map(w => w[0]).join('').slice(0, 2).toUpperCase()}
           </div>
-          <div>
-            <h3 className="font-black text-lg">{doc.name}</h3>
-            <p className="text-xs text-aubergine-200">{doc.specialty || 'Specialist'}</p>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-black text-base sm:text-lg truncate">{doc.name}</h3>
+            <p className="text-xs text-aubergine-200 truncate">{doc.specialty || 'Specialist'}</p>
           </div>
-          <button onClick={reset} className="ml-auto text-white/60 hover:text-white"><i className="fas fa-xmark text-xl"></i></button>
+          <button
+            onClick={reset}
+            aria-label="Close"
+            className="ml-auto w-10 h-10 min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-all touch-target active:scale-95"
+          >
+            <i className="fas fa-xmark text-lg"></i>
+          </button>
         </div>
       </div>
 

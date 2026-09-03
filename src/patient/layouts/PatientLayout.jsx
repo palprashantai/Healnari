@@ -323,8 +323,12 @@ function PatientLayout() {
         {/* Topbar */}
         <header className="h-16 border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0" style={{ backgroundColor: 'var(--color-surface-page)' }}>
           {/* Mobile hamburger */}
-          <button className="md:hidden text-aubergine-600 hover:text-aubergine-800 mr-3" onClick={() => setMobileSidebarOpen(true)}>
-            <i className="fas fa-bars text-xl"></i>
+          <button
+            aria-label="Open navigation menu"
+            className="md:hidden w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center text-aubergine-700 hover:bg-aubergine-50 active:scale-95 transition-all mr-2 touch-target"
+            onClick={() => setMobileSidebarOpen(true)}
+          >
+            <i className="fas fa-bars text-lg"></i>
           </button>
 
           {/* Page breadcrumb (desktop) */}
@@ -412,7 +416,7 @@ function PatientLayout() {
       </div>
 
       {/* iOS/Android Styled Floating Frosted-Glass Mobile Bottom Dock */}
-      <nav className="md:hidden fixed bottom-3 inset-x-2 sm:inset-x-4 z-50 pointer-events-none safe-area-pb">
+      <nav className="md:hidden fixed bottom-[max(0.75rem,env(safe-area-inset-bottom,0.75rem))] inset-x-2 sm:inset-x-4 z-50 pointer-events-none">
         <div className="mobile-floating-dock pointer-events-auto rounded-3xl border border-white/60 px-1 py-1.5 flex items-center justify-around shadow-[0_12px_35px_rgba(42,22,71,0.18)] gap-1">
           {BOTTOM_TABS.map(tab => (
             <NavLink

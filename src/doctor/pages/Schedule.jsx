@@ -317,8 +317,8 @@ export default function Schedule() {
              `${schedule.filter(d => d.isActive).map(d => d.short).join(', ')}`}
           </span>
         </div>
-        <div className="p-4 sm:p-5 overflow-x-auto">
-          <div className="grid grid-cols-7 gap-2 min-w-[500px] sm:min-w-0">
+        <div className="p-3 sm:p-5 overflow-x-auto hide-scrollbar">
+          <div className="flex sm:grid sm:grid-cols-7 gap-2 min-w-full sm:min-w-0 pb-1 sm:pb-0 snap-x">
             {schedule.map(day => {
               const hours = day.isActive ? hoursFromRange(day.startTime, day.endTime) : 0;
               const slots = day.isActive ? slotsFromRange(day.startTime, day.endTime) : 0;
@@ -328,7 +328,7 @@ export default function Schedule() {
                   key={day.dayOfWeek}
                   onClick={() => handleScheduleChange(day.dayOfWeek, 'isActive', !day.isActive)}
                   className={`
-                    relative flex flex-col items-center rounded-xl p-2 sm:p-3 transition-all duration-200 cursor-pointer border-2 group
+                    relative flex flex-col items-center rounded-xl p-2.5 sm:p-3 transition-all duration-200 cursor-pointer border-2 group shrink-0 w-[68px] sm:w-auto snap-start
                     ${day.isActive
                       ? isToday
                         ? 'bg-aubergine-600 border-aubergine-600 text-white shadow-lg shadow-aubergine-500/25'

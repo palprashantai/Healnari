@@ -131,4 +131,24 @@ export class FXRateService {
     const quote = this.getExchangeRate(from, target);
     return this.roundAmount(DecimalMath.multiply(originalAmount, quote.rate, 2), target);
   }
+
+  /** Backward-compatible alias for getExchangeRate */
+  getRateQuote(fromCurrency = 'INR', toCurrency = 'USD'): FXRateQuote {
+    return this.getExchangeRate(fromCurrency, toCurrency);
+  }
+
+  /** Backward-compatible alias for convertAmount */
+  convert(
+    baseAmount: number | string,
+    fromCurrency = 'INR',
+    toCurrency = 'USD',
+  ): FXConversionResult & { reportingAmount: number; reportingCurrency: string; rate: number } {
+    const res = this.convertAmount(baseAmount, fromCurrency, toCurrency);
+    return {
+      ...res,
+      reportingAmount: res.convertedAmount,
+      reportingCurrency: res.convertedCurrency,
+      rate: res.fxRate,
+    };
+  }
 }

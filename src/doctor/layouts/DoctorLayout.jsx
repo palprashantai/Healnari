@@ -355,8 +355,12 @@ function DoctorLayout() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setDrawerOpen(false)}></div>
           <aside className="absolute left-0 top-0 h-full w-72 flex flex-col shadow-2xl animate-slide-in bg-aubergine-900 border-r border-aubergine-800">
             <div className="absolute top-4 right-4">
-              <button onClick={() => setDrawerOpen(false)} className="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors">
-                <i className="fas fa-xmark"></i>
+              <button
+                aria-label="Close menu"
+                onClick={() => setDrawerOpen(false)}
+                className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors touch-target"
+              >
+                <i className="fas fa-xmark text-base"></i>
               </button>
             </div>
             <SidebarContent user={user} onClose={() => setDrawerOpen(false)} />
@@ -370,8 +374,12 @@ function DoctorLayout() {
         {/* Topbar */}
         <header className="h-16 border-b border-slate-200/60 flex items-center justify-between px-4 md:px-6 shrink-0 bg-white/80 backdrop-blur-md shadow-sm z-40 relative">
           <div className="flex items-center gap-3">
-            <button onClick={() => setDrawerOpen(true)} className="md:hidden text-slate-500 hover:text-aubergine-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
-              <i className="fas fa-bars text-xl"></i>
+            <button
+              aria-label="Open doctor menu"
+              onClick={() => setDrawerOpen(true)}
+              className="md:hidden w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center text-slate-600 hover:text-aubergine-700 hover:bg-slate-100 active:scale-95 transition-all touch-target"
+            >
+              <i className="fas fa-bars text-lg"></i>
             </button>
             {/* Breadcrumb */}
             <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 font-medium">
@@ -583,7 +591,7 @@ function DoctorLayout() {
       </div>
 
       {/* iOS/Android Styled Floating Frosted-Glass Mobile Bottom Dock for Doctors */}
-      <nav className="md:hidden fixed bottom-3 inset-x-2 sm:inset-x-4 z-50 pointer-events-none safe-area-pb">
+      <nav className="md:hidden fixed bottom-[max(0.75rem,env(safe-area-inset-bottom,0.75rem))] inset-x-2 sm:inset-x-4 z-50 pointer-events-none">
         <div className="mobile-floating-dock pointer-events-auto rounded-3xl border border-white/60 px-1 py-1.5 flex items-center justify-around shadow-[0_12px_35px_rgba(42,22,71,0.18)] gap-1">
           {DOCTOR_BOTTOM_TABS.map(tab => (
             <NavLink

@@ -467,7 +467,7 @@ function DoctorPublicProfile() {
 
           {/* Right Column: Direct Booking Engine */}
           <div id="booking-section" className="lg:col-span-5 sticky top-20 scroll-mt-20">
-            <div className="bg-white border-2 border-aubergine-300 rounded-3xl p-5 sm:p-7 shadow-xl relative overflow-hidden space-y-5">
+            <div className="bg-white border-2 border-aubergine-300 rounded-3xl p-4 sm:p-7 shadow-xl relative overflow-hidden space-y-5">
               
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div>
@@ -670,7 +670,7 @@ function DoctorPublicProfile() {
                 el.scrollIntoView({ behavior: 'smooth' });
               }
             }}
-            className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 shrink-0"
+            className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 shrink-0 touch-target"
           >
             <i className="fas fa-calendar-check text-[10px]"></i> Book Slot
           </button>

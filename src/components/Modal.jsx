@@ -97,7 +97,7 @@ export function Modal({ isOpen, onClose, title, ariaLabel, children, size = 'md'
     <div
       ref={overlayRef}
       onClick={handleOverlayClick}
-      className="modal-overlay fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9000] flex items-center justify-center p-4"
+      className="modal-overlay fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9000] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{
         animation: closing ? `overlayFadeOut ${CLOSE_ANIM_MS}ms ease-in both` : 'fadeIn 0.15s ease-out',
         pointerEvents: closing ? 'none' : 'auto',
@@ -110,7 +110,7 @@ export function Modal({ isOpen, onClose, title, ariaLabel, children, size = 'md'
         aria-labelledby={title ? titleId : undefined}
         aria-label={!title ? ariaLabel : undefined}
         tabIndex={-1}
-        className={`modal-box bg-white rounded-3xl w-full ${SIZE_CLASS[size]} max-h-[95vh] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100 outline-none`}
+        className={`modal-box bg-white rounded-t-[2rem] sm:rounded-3xl w-full ${SIZE_CLASS[size]} max-h-[92vh] max-h-[92dvh] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border-t sm:border border-slate-100 outline-none safe-area-pb sm:pb-0`}
         style={{ animation: closing ? `modalSlideDown ${CLOSE_ANIM_MS}ms ease-in both` : 'slideUp 0.2s ease-out' }}
       >
         {title && (
@@ -119,9 +119,9 @@ export function Modal({ isOpen, onClose, title, ariaLabel, children, size = 'md'
             <button
               onClick={onClose}
               aria-label="Close dialog"
-              className="w-8 h-8 rounded-full text-white/70 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all shrink-0"
+              className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full text-white/80 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all shrink-0 active:scale-95 touch-target"
             >
-              <i className="fas fa-xmark"></i>
+              <i className="fas fa-xmark text-base"></i>
             </button>
           </div>
         )}
@@ -129,9 +129,9 @@ export function Modal({ isOpen, onClose, title, ariaLabel, children, size = 'md'
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 w-10 h-10 min-w-[40px] min-h-[40px] rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all active:scale-95 touch-target"
           >
-            <i className="fas fa-xmark text-sm"></i>
+            <i className="fas fa-xmark text-base"></i>
           </button>
         )}
         <div className={`overflow-y-auto overscroll-contain ${noPadding ? '' : 'p-4 sm:p-6'}`}>

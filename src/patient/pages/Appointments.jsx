@@ -511,13 +511,13 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
         <div className="space-y-4">
           <p className="text-sm font-bold text-slate-700">Available slots for {form.date}: <span className="font-normal text-slate-500 text-xs ml-1">(Local Time)</span></p>
           {slotsLoading ? (
-            <div className="grid grid-cols-3 gap-2 animate-pulse">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => <div key={i} className="h-10 bg-slate-100 rounded-xl"></div>)}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 animate-pulse">
+              {[1, 2, 3, 4, 5, 6].map(i => <div key={i} className="h-10 bg-slate-100 rounded-xl"></div>)}
             </div>
           ) : slots.length === 0 ? (
             <p className="text-xs text-slate-500 py-2">No slots left for this date — go back and try another date.</p>
           ) : (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {slots.map(slot => (
                 <button key={slot} onClick={() => setForm(p => ({ ...p, slot }))}
                   className={`py-3 rounded-xl text-xs font-bold border transition-all ${form.slot === slot ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-slate-50 text-slate-700 border-slate-200 hover:border-aubergine-300'}`}>
@@ -1160,7 +1160,130 @@ function PatientAppointments() {
           </div>
         </div>
 
-        <div className="crm-table-container">
+        {/* Mobile View: Stacked Adaptive Cards (< sm) */}
+        <div className="sm:hidden p-3 space-y-3">
+          {filteredData.map(apt => (
+            <div key={apt.id} className="responsive-table-card">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="font-extrabold text-slate-800 text-sm">{apt.doctor}</h3>
+                  <p className="text-xs text-slate-500">{apt.specialty}</p>
+                </div>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${STATUS_BADGE[apt.status] || 'bg-slate-100 text-slate-600'}`}>
+                  {apt.status}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs py-2 border-y border-slate-100 bg-slate-50/50 -mx-4 px-4">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Schedule</span>
+                  <span className="font-extrabold text-aubergine-700">{apt.dateLabel}</span>
+                  <span className="text-slate-500 block text-[11px]">{apt.time}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase">Type & Fee</span>
+                  <span className="font-bold text-slate-700 inline-flex items-center gap-1">
+                    <i className={`fas ${apt.type === 'Video Consult' ? 'fa-video text-aubergine-600' : 'fa-hospital text-emerald-600'} text-[10px]`}></i>
+                    {apt.type}
+                  </span>
+                  <span className="text-slate-500 block text-[11px] font-semibold">{formatCurrency(apt.fee, apt.currency || 'INR')}</span>
+                </div>
+              </div>
+
+              {/* Mobile Actions */}
+              <div className="pt-1">
+                {tab === 'action_required' && (
+                  <div className="space-y-2">
+                    {apt.rawStatus === 'Approved' && (
+                      <button onClick={() => openPayFor(apt)}
+                        className="w-full crm-btn-primary bg-amber-500 hover:bg-amber-600 border-none text-xs font-bold py-2.5 flex items-center justify-center gap-2 shadow-sm animate-pulse-subtle touch-target">
+                        <i className="fas fa-credit-card"></i> Pay Now to Confirm ({formatCurrency(apt.fee, apt.currency || 'INR')})
+                      </button>
+                    )}
+                    {apt.rawStatus === 'Requested' && (
+                      <div className="text-xs text-amber-700 bg-amber-50 rounded-xl p-2.5 text-center font-medium">
+                        <i className="fas fa-clock mr-1"></i> Awaiting doctor review &amp; acceptance
+                      </div>
+                    )}
+                    <button onClick={() => setCancelTarget(apt)}
+                      className="w-full crm-btn-secondary text-xs text-rose-600 hover:bg-rose-50 py-2">
+                      Cancel Request
+                    </button>
+                  </div>
+                )}
+
+                {tab === 'upcoming' && (
+                  <div className="space-y-2">
+                    {apt.type === 'Video Consult' && (
+                      <button
+                        onClick={() => isVideoEnabled(apt) && setVideoTarget(apt)}
+                        disabled={!isVideoEnabled(apt)}
+                        className={`w-full text-xs py-2.5 rounded-xl font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all touch-target ${
+                          isVideoEnabled(apt)
+                            ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
+                            : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
+                        }`}
+                      >
+                        <i className="fas fa-video"></i> {isVideoEnabled(apt) ? 'Join Video Call Now' : 'Call Link Active 5m Before Visit'}
+                      </button>
+                    )}
+                    <div className="flex gap-2">
+                      <AIButton
+                        variant="gradient"
+                        size="sm"
+                        icon="fa-sparkles"
+                        onClick={() => setAiPrepTarget(apt)}
+                        className="flex-1 !py-2 text-xs"
+                      >
+                        AI Prep
+                      </AIButton>
+                      <button onClick={() => setRescheduleTarget(apt)}
+                        className="flex-1 crm-btn-secondary py-2 text-xs font-bold text-slate-700">
+                        Reschedule
+                      </button>
+                      <button onClick={() => setCancelTarget(apt)}
+                        className="crm-btn-secondary py-2 px-3 text-xs font-bold text-rose-600 hover:bg-rose-50 border-rose-100">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {tab === 'past' && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const docSlug = (apt.doctor || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                        const docUrl = `${window.location.origin}/dr/${apt.doctorId || docSlug}`;
+                        const msg = encodeURIComponent(
+                          `Hi! I recommend consulting with ${apt.doctor} (${apt.specialty}) on HealNari. You can view their verified profile and book direct appointments here:\n\n${docUrl}`
+                        );
+                        window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+                      }}
+                      className="crm-btn-secondary text-xs py-2 px-3 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 flex items-center justify-center gap-1"
+                      title="Share recommendation on WhatsApp"
+                    >
+                      <i className="fab fa-whatsapp text-emerald-600"></i>
+                    </button>
+                    <button onClick={() => { setBookPrefill({ doctorId: apt.doctorId, followUp: true }); setShowBook(true); }}
+                      className="flex-1 crm-btn-primary text-xs py-2 flex items-center justify-center gap-1.5 touch-target">
+                      <i className="fas fa-calendar-plus"></i> Book Follow-up
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          {filteredData.length === 0 && (
+            <div className="text-center py-10 bg-slate-50 rounded-2xl p-4">
+              <p className="text-sm font-bold text-slate-600">No Appointments Found</p>
+              <p className="text-xs text-slate-400 mt-1">Try adjusting your filters.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop View: Full Data Table (sm:block) */}
+        <div className="hidden sm:block crm-table-container">
           <table className="crm-table">
             <thead>
               <tr>

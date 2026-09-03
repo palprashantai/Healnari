@@ -1375,7 +1375,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
               </div>
 
               {/* Floating In-Call Control Toolbar */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2.5 bg-slate-900/90 backdrop-blur-xl px-4 py-2 rounded-full border border-slate-700 shadow-2xl z-30">
+              <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom,1rem))] left-1/2 -translate-x-1/2 flex items-center gap-2.5 bg-slate-900/90 backdrop-blur-xl px-4 py-2 rounded-full border border-slate-700 shadow-2xl z-30 max-w-[95vw]">
                 <button
                   onClick={call.toggleMute}
                   disabled={!call.localStream}
@@ -1418,14 +1418,13 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                 >
                   <i className="fas fa-file-prescription"></i>
                   {(draftMeds.length > 0 || draftLabs.length > 0) && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white rounded-full text-[9px] font-black flex items-center justify-center border-2 border-slate-900">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-slate-900">
                       {draftMeds.length + draftLabs.length}
                     </span>
                   )}
                 </button>
 
-                <div className="w-px h-6 bg-slate-700 mx-1"></div>
-
+                {/* End Call Button */}
                 <button
                   onClick={() => setShowSignModal(true)}
                   title="End Call & Send Prescription"
@@ -1441,7 +1440,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
           <div className={`
             ${viewLayout === 'video-focus' ? 'lg:col-span-4' : viewLayout === 'pad-focus' ? 'lg:col-span-8' : 'lg:col-span-7 xl:col-span-6'}
             flex flex-col min-h-0 bg-slate-900/95 lg:bg-slate-900/60 backdrop-blur-xl rounded-t-[2.5rem] lg:rounded-[2rem] border border-slate-800 shadow-2xl overflow-hidden transition-transform duration-300 ease-out will-change-transform transform-gpu
-            fixed lg:relative inset-x-0 bottom-0 z-40 lg:z-auto h-[82vh] h-[82dvh] lg:h-auto
+            fixed lg:relative inset-x-0 bottom-0 z-40 lg:z-auto h-[82vh] h-[82dvh] lg:h-auto safe-area-pb lg:pb-0
             ${mobileDrawerOpen ? 'translate-y-0 opacity-100 pointer-events-auto' : 'translate-y-full lg:translate-y-0 opacity-0 lg:opacity-100 pointer-events-none lg:pointer-events-auto'}
           `}>
             
