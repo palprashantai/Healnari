@@ -33,9 +33,9 @@ describe('Multi-Currency Payment & Revenue Reconciliation Test Suite', () => {
 
   describe('2. FXRateService: Currency Conversion & Historical Reproducibility', () => {
     it('should quote valid ISO 4217 exchange rates for INR and USD', () => {
-      const inrToUsd = fxService.getRateQuote('INR', 'USD');
-      const usdToInr = fxService.getRateQuote('USD', 'INR');
-      const usdToUsd = fxService.getRateQuote('USD', 'USD');
+      const inrToUsd = fxService.getExchangeRate('INR', 'USD');
+      const usdToInr = fxService.getExchangeRate('USD', 'INR');
+      const usdToUsd = fxService.getExchangeRate('USD', 'USD');
 
       expect(inrToUsd.rate).toBeGreaterThan(0);
       expect(usdToInr.rate).toBeGreaterThan(50);
@@ -43,12 +43,18 @@ describe('Multi-Currency Payment & Revenue Reconciliation Test Suite', () => {
       expect(inrToUsd.source).toBe('healnari_treasury_matrix_v1');
     });
 
+    it('should reject unsupported currencies outside INR and USD', () => {
+      expect(() => fxService.getExchangeRate('EUR', 'USD')).toThrow();
+      expect(() => fxService.getExchangeRate('INR', 'GBP')).toThrow();
+      expect(() => fxService.convertAmount(100, 'AED', 'USD')).toThrow();
+    });
+
     it('should convert original transactions and attach FX metadata', () => {
-      const conversion = fxService.convert(10000, 'INR', 'USD');
-      expect(conversion.originalAmount).toBe(10000);
-      expect(conversion.originalCurrency).toBe('INR');
-      expect(conversion.reportingCurrency).toBe('USD');
-      expect(conversion.reportingAmount).toBeCloseTo(118.2, 1);
+      const conversion = fxService.convertAmount(10000, 'INR', 'USD');
+      expect(conversion.baseAmount).toBe(10000);
+      expect(conversion.baseCurrency).toBe('INR');
+      expect(conversion.convertedCurrency).toBe('USD');
+      expect(conversion.convertedAmount).toBeCloseTo(118.2, 1);
       expect(conversion.fxRate).toBeDefined();
       expect(conversion.fxRateTimestamp).toBeDefined();
     });
@@ -72,9 +78,8 @@ describe('Multi-Currency Payment & Revenue Reconciliation Test Suite', () => {
       const transactions = [
         { id: '1', amount: 1500, currency: 'INR', feeRate: 10 },
         { id: '2', amount: 200, currency: 'USD', feeRate: 10 },
-        { id: '3', amount: 350, currency: 'AED', feeRate: 10 },
-        { id: '4', amount: 120, currency: 'GBP', feeRate: 10 },
-        { id: '5', amount: 150, currency: 'EUR', feeRate: 10 },
+        { id: '3', amount: 799, currency: 'INR', feeRate: 15 },
+        { id: '4', amount: 49, currency: 'USD', feeRate: 15 },
       ];
 
       transactions.forEach((t) => {

@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, BadRequestException } from '@nestjs/common';
 import {
   Content,
   GoogleGenerativeAI,
@@ -1243,5 +1243,22 @@ Return ONLY valid JSON matching this schema:
       } catch {}
       return fallback;
     }
+  }
+
+  sanitizeQueryOptions(parsed: any) {
+    const ALLOWED_ENTITIES = ['Profile', 'Doctor', 'Appointment', 'Record', 'Prescription', 'LabReport'];
+    if (!parsed?.targetEntity || !ALLOWED_ENTITIES.includes(parsed.targetEntity)) {
+      throw new BadRequestException(
+        `Entity "${parsed?.targetEntity}" is not permitted through the chat assistant.`,
+      );
+    }
+    const queryOptions = { ...(parsed.queryOptions || {}) };
+    if (queryOptions.take && typeof queryOptions.take === 'number') {
+      queryOptions.take = Math.min(queryOptions.take, 25);
+    }
+    return {
+      ...parsed,
+      queryOptions,
+    };
   }
 }

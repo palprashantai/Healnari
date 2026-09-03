@@ -20,6 +20,12 @@ import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ConsultationRequestDto } from '@/modules/leads/controllers/leads.controller';
 import { DoctorsService } from '@/modules/doctors/services/doctors.service';
 import { AppointmentsService } from '@/modules/appointments/services/appointments.service';
+import { FXRateService } from '@/core/fx/fx-rate.service';
+import {
+  resolveCountryCurrency,
+  embedPricingLock,
+  AppointmentPricingLock,
+} from '@/core/utils/currency-resolver.util';
 
 @Injectable()
 export class LeadsService {
@@ -29,6 +35,7 @@ export class LeadsService {
     private readonly email: EmailService,
     private readonly doctorsService: DoctorsService,
     private readonly appointmentsService: AppointmentsService,
+    private readonly fxRateService: FXRateService,
   ) {}
 
   private requireVerifiedDoctor(user: AuthUser) {
@@ -100,7 +107,7 @@ export class LeadsService {
     try {
       const { data: doctor } = await this.supabase.admin
         .from('profiles')
-        .select('full_name, email, specialty, currency')
+        .select('full_name, email, specialty, currency, consultation_fee')
         .eq('id', body.doctorId)
         .maybeSingle();
 
@@ -127,12 +134,41 @@ export class LeadsService {
 
       const patientId = patientProfile ? patientProfile.id : null;
 
-      const normalizedCountry = (body.country || 'US').toUpperCase().trim();
-      const normalizedCurrency =
-        normalizedCountry === 'IN' || (body.currency || '').toUpperCase().trim() === 'INR'
-          ? 'INR'
-          : 'USD';
-      const resolvedFee = Number(body.fee) > 0 ? Number(body.fee) : (normalizedCurrency === 'INR' ? 799 : 29);
+      const doctorResolved = resolveCountryCurrency(doctor?.currency);
+      const doctorCurrency = doctorResolved.currency;
+      let doctorBaseFee = Number(doctor?.consultation_fee || 0);
+      if (doctorBaseFee <= 0) {
+        doctorBaseFee = doctorCurrency === 'INR' ? 799 : 29;
+      }
+      const patientResolved = resolveCountryCurrency(body.country || 'IN');
+      const patientCurrency = patientResolved.currency;
+
+      let exchangeRate = 1.0;
+      let rateSource = 'healnari_treasury_matrix_v1';
+      let rateTimestamp = new Date().toISOString();
+      let patientPayableAmount = doctorBaseFee;
+
+      if (doctorCurrency !== patientCurrency) {
+        const quote = this.fxRateService.getExchangeRate(doctorCurrency, patientCurrency);
+        exchangeRate = quote.rate;
+        rateSource = quote.source;
+        rateTimestamp = quote.timestamp;
+        patientPayableAmount = this.fxRateService.roundAmount(doctorBaseFee * exchangeRate, patientCurrency);
+      } else {
+        patientPayableAmount = this.fxRateService.roundAmount(doctorBaseFee, patientCurrency);
+      }
+
+      const pricingLock: AppointmentPricingLock = {
+        base_fee_amount: doctorBaseFee,
+        base_fee_currency: doctorCurrency,
+        patient_payable_amount: patientPayableAmount,
+        patient_payable_currency: patientCurrency,
+        exchange_rate: exchangeRate,
+        exchange_rate_source: rateSource,
+        exchange_rate_timestamp: rateTimestamp,
+      };
+
+      const notesWithLock = embedPricingLock(body.concern || body.notes, pricingLock);
 
       let appointmentRow = null;
       if (patientId) {
@@ -144,10 +180,11 @@ export class LeadsService {
             scheduled_date: scheduledDate,
             scheduled_time: scheduledTime,
             status: 'Requested',
-            type: 'video', // 'Consultation' violates check constraint ('video', 'clinic')
+            type: 'video',
             reason: body.concern,
-            country: normalizedCountry,
-            currency: normalizedCurrency,
+            notes: notesWithLock,
+            country: patientResolved.country,
+            currency: patientCurrency,
             specialty: doctor?.specialty || 'General',
           })
           .select()
@@ -185,9 +222,9 @@ export class LeadsService {
           preferred_date: scheduledDate,
           preferred_time: scheduledTime,
           notes: body.notes,
-          country: normalizedCountry,
-          currency: normalizedCurrency,
-          fee: resolvedFee,
+          country: patientResolved.country,
+          currency: patientCurrency,
+          fee: patientPayableAmount,
           status: 'New', // Always starts as New pending doctor review
         })
         .select()
@@ -349,6 +386,42 @@ export class LeadsService {
           appointment = existingAppt; // Already approved or paid
         }
       } else {
+        const doctorResolved = resolveCountryCurrency(doctor?.currency);
+        const doctorCurrency = doctorResolved.currency;
+        let doctorBaseFee = Number(doctor?.consultation_fee || 0);
+        if (doctorBaseFee <= 0) {
+          doctorBaseFee = doctorCurrency === 'INR' ? 799 : 29;
+        }
+        const patientResolved = resolveCountryCurrency(request.country || 'IN');
+        const patientCurrency = patientResolved.currency;
+
+        let exchangeRate = 1.0;
+        let rateSource = 'healnari_treasury_matrix_v1';
+        let rateTimestamp = new Date().toISOString();
+        let patientPayableAmount = doctorBaseFee;
+
+        if (doctorCurrency !== patientCurrency) {
+          const quote = this.fxRateService.getExchangeRate(doctorCurrency, patientCurrency);
+          exchangeRate = quote.rate;
+          rateSource = quote.source;
+          rateTimestamp = quote.timestamp;
+          patientPayableAmount = this.fxRateService.roundAmount(doctorBaseFee * exchangeRate, patientCurrency);
+        } else {
+          patientPayableAmount = this.fxRateService.roundAmount(doctorBaseFee, patientCurrency);
+        }
+
+        const pricingLock: AppointmentPricingLock = {
+          base_fee_amount: doctorBaseFee,
+          base_fee_currency: doctorCurrency,
+          patient_payable_amount: patientPayableAmount,
+          patient_payable_currency: patientCurrency,
+          exchange_rate: exchangeRate,
+          exchange_rate_source: rateSource,
+          exchange_rate_timestamp: rateTimestamp,
+        };
+
+        const notesWithLock = embedPricingLock(request.concern || request.notes, pricingLock);
+
         // Fallback: create as Approved if no matching active appointment exists
         const { data: createdAppt, error: insertError } = await this.supabase.admin
           .from('appointments')
@@ -360,13 +433,10 @@ export class LeadsService {
             scheduled_date: request.preferred_date || new Date().toISOString().slice(0, 10),
             scheduled_time: request.preferred_time || '10:00 AM',
             reason: request.concern || 'Consultation request',
+            notes: notesWithLock,
             status: AppointmentStatus.APPROVED,
-            country: (request.country || 'US').toUpperCase().trim(),
-            currency:
-              (request.country || '').toUpperCase().trim() === 'IN' ||
-              (request.currency || '').toUpperCase().trim() === 'INR'
-                ? 'INR'
-                : 'USD',
+            country: patientResolved.country,
+            currency: patientCurrency,
           })
           .select()
           .maybeSingle();

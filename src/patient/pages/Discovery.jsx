@@ -6,7 +6,8 @@ import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
 import { CONCERN_OPTIONS, findClosestSpecialty } from '../../lib/specialtyMatch.js';
-import { formatCurrency } from '../../lib/currency.js';
+import { formatCurrency, getConvertedDisplayPrice } from '../../lib/currency.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 /* ─── "Not sure which specialist?" Modal ─────── */
 function ConcernPickerModal({ isOpen, onClose, specialties, onPick }) {
@@ -49,7 +50,7 @@ function ConcernPickerModal({ isOpen, onClose, specialties, onPick }) {
 }
 
 /* ─── Booking Modal ──────────────────────────── */
-function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow }) {
+function BookingModal({ doc, patientCountry = 'IN', isOpen, onClose, toast, addAppointment, onPayNow }) {
   const [step, setStep] = useState(1);
   const [type, setType] = useState('Video Consult');
   const [date, setDate] = useState(() => todayLocalStr());
@@ -59,6 +60,11 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow })
   const [notes, setNotes] = useState('');
   const [booking, setBooking] = useState(false);
   const [bookedApt, setBookedApt] = useState(null);
+
+  const pricing = useMemo(() => {
+    if (!doc) return { formattedPayable: '₹0', hasConversion: false, baseDisclosure: null };
+    return getConvertedDisplayPrice(doc.fee, doc.currency || 'INR', patientCountry);
+  }, [doc, patientCountry]);
 
   useEffect(() => {
     if (!doc || !date) return;
@@ -106,9 +112,14 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow })
       {step === 1 && (
         <div className="space-y-4">
           {/* Fee summary */}
-          <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-3 text-xs flex justify-between">
-            <span className="text-slate-600 font-medium">Standard Consult (30 mins)</span>
-            <span className="font-black text-aubergine-800">{formatCurrency(doc.fee, doc.currency || 'INR')}</span>
+          <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-3 text-xs flex flex-col gap-1">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-600 font-medium">Standard Consult (30 mins)</span>
+              <span className="font-black text-aubergine-800 text-sm">{pricing.formattedPayable}</span>
+            </div>
+            {pricing.hasConversion && (
+              <p className="text-[10px] text-aubergine-600 font-medium text-right">{pricing.baseDisclosure}</p>
+            )}
           </div>
 
           {/* Type */}
@@ -172,9 +183,17 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow })
             <div className="flex justify-between"><span className="text-slate-500">Type</span><span className="font-bold text-slate-800">{type}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Date</span><span className="font-bold text-slate-800">{date}</span></div>
             <div className="flex justify-between"><span className="text-slate-500">Slot</span><span className="font-bold text-slate-800">{slot}</span></div>
-            <div className="flex justify-between"><span className="text-slate-500">Fee</span><span className="font-black text-aubergine-800">{formatCurrency(doc.fee, doc.currency || 'INR')}</span></div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500">Payable Fee</span>
+              <div className="text-right">
+                <span className="font-black text-aubergine-800 text-sm">{pricing.formattedPayable}</span>
+                {pricing.hasConversion && (
+                  <p className="text-[10px] text-slate-400">{pricing.baseDisclosure}</p>
+                )}
+              </div>
+            </div>
             <p className="text-[10px] text-slate-500 pt-2 border-t border-slate-200">
-              🔒 Private & confidential. Governed under NMC Telemedicine Guidelines, India.
+              🔒 Private & confidential. Governed under NMC Telemedicine Guidelines.
             </p>
           </div>
 
@@ -191,8 +210,11 @@ function BookingModal({ doc, isOpen, onClose, toast, addAppointment, onPayNow })
 }
 
 /* ─── Doctor Card ────────────────────────────── */
-function DoctorCard({ doc, onBook, onFavorite, favorites }) {
+function DoctorCard({ doc, patientCountry = 'IN', onBook, onFavorite, favorites }) {
   const isFav = favorites.includes(doc.id);
+  const pricing = useMemo(() => {
+    return getConvertedDisplayPrice(doc.fee, doc.currency || 'INR', patientCountry);
+  }, [doc.fee, doc.currency, patientCountry]);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow">
@@ -224,7 +246,10 @@ function DoctorCard({ doc, onBook, onFavorite, favorites }) {
           </div>
           <div className="flex flex-col items-end">
             <span className="text-[9px] text-slate-500 uppercase tracking-wider mb-0.5">Consult Fee</span>
-            <span className="text-slate-800 font-black text-sm">{formatCurrency(doc.fee, doc.currency || 'INR')}</span>
+            <span className="text-slate-800 font-black text-sm">{pricing.formattedPayable}</span>
+            {pricing.hasConversion && (
+              <span className="text-[10px] text-slate-400 font-normal">{pricing.baseDisclosure}</span>
+            )}
           </div>
         </div>
       </div>
@@ -245,6 +270,7 @@ import { useQuery } from '@tanstack/react-query';
 /* ─── Main Component ─────────────────────────── */
 function PatientDiscovery() {
   const toast = useToast();
+  const { user } = useAuth();
   const { addAppointment, favorites, toggleFavorite, syncPayment } = useClinicData();
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [search, setSearch] = useState('');
@@ -252,6 +278,8 @@ function PatientDiscovery() {
   const [showConcernPicker, setShowConcernPicker] = useState(false);
   const [payTarget, setPayTarget] = useState(null);
   const [showPayModal, setShowPayModal] = useState(false);
+
+  const patientCountry = user?.profile?.country || 'IN';
 
   const { data: rawDoctors = [], isLoading: loading } = useQuery({
     queryKey: ['doctors', 'search'],
@@ -283,7 +311,9 @@ function PatientDiscovery() {
     name: d.full_name,
     specialty: d.specialty,
     regNo: d.registration_no,
-    fee: d.consultation_fee || 799,
+    fee: d.consultation_fee || (d.currency === 'USD' ? 29 : 799),
+    currency: d.currency || (d.country === 'IN' ? 'INR' : 'USD'),
+    country: d.country,
     verified: !!d.kyc_verified,
   })), [rawDoctors]);
 
@@ -371,7 +401,7 @@ function PatientDiscovery() {
       {/* Doctor Grid */}
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filtered.map(doc => (
-          <DoctorCard key={doc.id} doc={doc} onBook={d => setSelectedDoc(d)} onFavorite={handleFavorite} favorites={favorites} />
+          <DoctorCard key={doc.id} doc={doc} patientCountry={patientCountry} onBook={d => setSelectedDoc(d)} onFavorite={handleFavorite} favorites={favorites} />
         ))}
         {!loading && filtered.length === 0 && (
           <div className="col-span-3 text-center py-16 text-slate-500">
@@ -383,7 +413,7 @@ function PatientDiscovery() {
       </div>
 
       {/* Booking Modal */}
-      <BookingModal doc={selectedDoc} isOpen={!!selectedDoc} onClose={() => setSelectedDoc(null)} toast={toast} addAppointment={addAppointment} onPayNow={handlePayNow} />
+      <BookingModal doc={selectedDoc} patientCountry={patientCountry} isOpen={!!selectedDoc} onClose={() => setSelectedDoc(null)} toast={toast} addAppointment={addAppointment} onPayNow={handlePayNow} />
 
       <PaymentModal
         isOpen={showPayModal}

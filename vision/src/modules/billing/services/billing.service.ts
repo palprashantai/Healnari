@@ -28,6 +28,10 @@ import { DecimalMath } from '@/core/utils/decimal.util';
 import { CommissionCalculator } from '@/core/utils/commission.util';
 import { CommissionService } from '@/core/commission/commission.service';
 import { FXRateService } from '@/core/fx/fx-rate.service';
+import {
+  resolveCountryCurrency,
+  extractPricingLock,
+} from '@/core/utils/currency-resolver.util';
 
 const CHANNEL_LABELS: Record<string, string> = {
   upi: 'UPI',
@@ -52,7 +56,7 @@ export class BillingService {
     private readonly appointmentsService: AppointmentsService,
     private readonly fxRateService: FXRateService,
     private readonly commissionService: CommissionService,
-  ) {}
+  ) { }
 
   private async withNames(payments: any[]) {
     if (!payments.length) return [];
@@ -111,25 +115,40 @@ export class BillingService {
 
   /** What a doctor can actually request as a payout in their currency */
   private async getAvailableBalance(doctorId: string): Promise<number> {
+    const { data: docProfile } = await this.supabase.admin
+      .from('profiles')
+      .select('currency, country')
+      .eq('id', doctorId)
+      .maybeSingle();
+    const docCurrency = resolveCountryCurrency(docProfile?.currency || docProfile?.country).currency;
+
     const [{ data: paid }, { data: outgoing }] = await Promise.all([
       this.supabase.admin
         .from('payments')
-        .select('amount, provider_payout_amount')
+        .select('amount, currency, base_amount, base_currency, doctor_payout_amount, doctor_payout_currency, provider_payout_amount, provider_payout_currency')
         .eq('doctor_id', doctorId)
         .eq('status', 'Paid'),
       this.supabase.admin
         .from('payouts')
-        .select('amount')
+        .select('amount, currency')
         .eq('doctor_id', doctorId)
         .in('status', ['Processing', 'Paid']),
     ]);
 
-    // Sum provider_payout_amount (90% take rate) if populated, otherwise fallback to amount
+    // Sum strictly in doctor operating currency to avoid cross-currency mathematical pollution
+    const matchingPaid = (paid || []).filter((p) => {
+      const payCurr = (p.doctor_payout_currency || p.provider_payout_currency || p.base_currency || p.currency || 'INR').toUpperCase();
+      return payCurr === docCurrency;
+    });
+    const matchingOutgoing = (outgoing || []).filter(
+      (p) => (p.currency || 'INR').toUpperCase() === docCurrency,
+    );
+
     const totalEarned = DecimalMath.sum(
-      (paid || []).map((p) => p.provider_payout_amount || p.amount || 0),
+      matchingPaid.map((p) => p.doctor_payout_amount ?? p.provider_payout_amount ?? p.base_amount ?? p.amount ?? 0),
     );
     const totalOut = DecimalMath.sum(
-      (outgoing || []).map((p) => p.amount || 0),
+      matchingOutgoing.map((p) => p.amount || 0),
     );
     return Math.max(0, DecimalMath.subtract(totalEarned, totalOut));
   }
@@ -138,16 +157,18 @@ export class BillingService {
     if (user.profile.role !== ProfileRole.DOCTOR)
       throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
+    const docCurrency = resolveCountryCurrency(user.profile.currency || user.profile.country).currency;
+
     const [{ data: paid }, { data: pending }, { data: outgoing }] =
       await Promise.all([
         this.supabase.admin
           .from('payments')
-          .select('amount, provider_payout_amount, currency, created_at')
+          .select('amount, currency, base_amount, base_currency, doctor_payout_amount, doctor_payout_currency, provider_payout_amount, provider_payout_currency, created_at')
           .eq('doctor_id', user.id)
           .eq('status', 'Paid'),
         this.supabase.admin
           .from('payments')
-          .select('amount, provider_payout_amount, currency')
+          .select('amount, currency, base_amount, base_currency, doctor_payout_amount, doctor_payout_currency, provider_payout_amount, provider_payout_currency')
           .eq('doctor_id', user.id)
           .eq('status', 'Pending'),
         this.supabase.admin
@@ -157,12 +178,22 @@ export class BillingService {
           .in('status', ['Processing', 'Paid']),
       ]);
 
+    const matchingPaid = (paid || []).filter((p) => {
+      const payCurr = (p.doctor_payout_currency || p.provider_payout_currency || p.base_currency || p.currency || 'INR').toUpperCase();
+      return payCurr === docCurrency;
+    });
+    const matchingPending = (pending || []).filter((p) => {
+      const payCurr = (p.doctor_payout_currency || p.provider_payout_currency || p.base_currency || p.currency || 'INR').toUpperCase();
+      return payCurr === docCurrency;
+    });
+    const matchingOutgoing = (outgoing || []).filter(
+      (p) => (p.currency || 'INR').toUpperCase() === docCurrency,
+    );
+
     const totalEarned = DecimalMath.sum(
-      (paid || []).map((p) => p.provider_payout_amount || p.amount || 0),
+      matchingPaid.map((p) => p.doctor_payout_amount ?? p.provider_payout_amount ?? p.base_amount ?? p.amount ?? 0),
     );
-    const totalOut = DecimalMath.sum(
-      (outgoing || []).map((p) => p.amount || 0),
-    );
+    const totalOut = DecimalMath.sum(matchingOutgoing.map((p) => p.amount || 0));
     const available = Math.max(0, DecimalMath.subtract(totalEarned, totalOut));
 
     const now = new Date();
@@ -170,11 +201,12 @@ export class BillingService {
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const startOfYear = new Date(now.getFullYear(), 0, 1);
 
+    /** Sum earnings from the doctor's payout layer, then fall back to base (service) amount */
     const sumEarned = (rows: any[]) =>
       DecimalMath.sum(
-        rows.map((r) => r.provider_payout_amount || r.amount || 0),
+        rows.map((r) => r.doctor_payout_amount ?? r.provider_payout_amount ?? r.base_amount ?? r.amount ?? 0),
       );
-    const rows = paid || [];
+    const rows = matchingPaid;
 
     return {
       thisMonth: sumEarned(
@@ -194,13 +226,13 @@ export class BillingService {
           new Date(r.created_at) >= startOfLastMonth &&
           new Date(r.created_at) < startOfMonth,
       ).length,
-      pending: sumEarned(pending || []),
-      pendingCount: (pending || []).length,
+      pending: sumEarned(matchingPending),
+      pendingCount: matchingPending.length,
       totalYtd: sumEarned(
         rows.filter((r) => new Date(r.created_at) >= startOfYear),
       ),
       available,
-      currency: user.profile.currency || 'INR',
+      currency: docCurrency,
     };
   }
 
@@ -239,18 +271,47 @@ export class BillingService {
 
     const { data: doctor } = await this.supabase.admin
       .from('profiles')
-      .select('consultation_fee, currency, commission_rate')
+      .select('consultation_fee, currency, country, commission_rate')
       .eq('id', appointment.doctor_id)
       .maybeSingle();
-    const apptCountry = (appointment.country || user.profile?.country || 'US').toUpperCase().trim();
-    const currency =
-      apptCountry === 'IN' ||
-      (appointment.currency || doctor?.currency || '').toUpperCase().trim() === 'INR'
-        ? 'INR'
-        : 'USD';
-    let amount = Number(appointment.fee || doctor?.consultation_fee || 0);
-    if (amount <= 0) {
-      amount = currency === 'INR' ? 799 : 29;
+
+    // ── 1. Resolve Locked Pricing or Compute Real Conversion ─────────
+    const pricingLock = extractPricingLock(appointment);
+
+    let doctorBaseFee: number;
+    let doctorCurrency: string;
+    let patientPayableAmount: number;
+    let patientCurrency: string;
+    let exchangeRate = 1.0;
+    let fxRateSource = 'healnari_treasury_matrix_v1';
+    let fxRateTimestamp = new Date().toISOString();
+
+    if (pricingLock) {
+      doctorBaseFee = pricingLock.base_fee_amount;
+      doctorCurrency = pricingLock.base_fee_currency;
+      patientPayableAmount = pricingLock.patient_payable_amount;
+      patientCurrency = pricingLock.patient_payable_currency;
+      exchangeRate = pricingLock.exchange_rate;
+      fxRateSource = pricingLock.exchange_rate_source;
+      fxRateTimestamp = pricingLock.exchange_rate_timestamp;
+    } else {
+      // Backward compatibility for pre-migration appointments
+      const docResolved = resolveCountryCurrency(doctor?.currency || doctor?.country);
+      doctorCurrency = docResolved.currency;
+      doctorBaseFee = Number(appointment.fee || doctor?.consultation_fee || (doctorCurrency === 'INR' ? 799 : 29));
+
+      const patResolved = resolveCountryCurrency(appointment.country || user.profile?.country);
+      patientCurrency = patResolved.currency;
+
+      if (doctorCurrency !== patientCurrency) {
+        const quote = this.fxRateService.getExchangeRate(doctorCurrency, patientCurrency);
+        exchangeRate = quote.rate;
+        fxRateSource = quote.source;
+        fxRateTimestamp = quote.timestamp;
+        patientPayableAmount = this.fxRateService.roundAmount(doctorBaseFee * exchangeRate, patientCurrency);
+      } else {
+        patientPayableAmount = this.fxRateService.roundAmount(doctorBaseFee, patientCurrency);
+      }
     }
 
     // Idempotency guard: prevent duplicate orders for already-settled appointment
@@ -273,12 +334,12 @@ export class BillingService {
       .eq('status', 'Pending')
       .maybeSingle();
 
-    // ── Centralized dynamic global commission (single source of truth from DB) ──
+    // ── 2. Calculate Commission & Payout in Doctor Base Currency (Doctor Payout Currency) ──
     const commissionRate = await this.commissionService.getGlobalCommissionRate();
-    const payout = this.commissionService.calculatePayout(amount, commissionRate);
+    const payoutInDoctorCurr = this.commissionService.calculatePayout(doctorBaseFee, commissionRate);
 
-    // Capture transaction-time FX conversion
-    const fxQuote = this.fxRateService.convert(amount, currency, 'USD');
+    // ── 3. Normalized USD Reporting Layer (Immutable Snapshot) ────────
+    const fxQuoteUsd = this.fxRateService.convertAmount(patientPayableAmount, patientCurrency, 'USD');
 
     const cfOrderId = `hn-${randomUUID()}`;
     const apiBase = (process.env.API_PUBLIC_URL || '').replace(/\/$/, '');
@@ -286,8 +347,8 @@ export class BillingService {
 
     const order = await this.cashfree.createOrder({
       orderId: cfOrderId,
-      amount,
-      currency,
+      amount: patientPayableAmount,
+      currency: patientCurrency,
       customerId: user.id,
       customerName: user.profile.full_name || 'Patient',
       customerEmail: user.email,
@@ -308,25 +369,33 @@ export class BillingService {
       service: appointment.type === 'video' ? 'Video Consult' : 'Clinic Visit',
       category: appointment.specialty,
 
-      // Original Financial Transaction (Immutable)
-      amount,
-      currency,
-      original_amount: amount,
-      original_currency: currency,
+      // 1. Patient Gateway Charge
+      paid_amount: patientPayableAmount,
+      paid_currency: patientCurrency,
+      amount: patientPayableAmount,
+      currency: patientCurrency,
 
-      // Normalized Reporting Layer
-      reporting_amount: fxQuote.reportingAmount,
-      reporting_currency: fxQuote.reportingCurrency,
-      fx_rate: fxQuote.fxRate,
-      fx_rate_source: fxQuote.fxRateSource,
-      fx_rate_timestamp: fxQuote.fxRateTimestamp,
+      // 2. Doctor Base Service Price (Source)
+      base_amount: doctorBaseFee,
+      base_currency: doctorCurrency,
+      original_amount: doctorBaseFee,
+      original_currency: doctorCurrency,
 
-      // Revenue Segregation (snapshot — immutable after creation)
-      commission_rate: payout.commissionRate,
-      platform_fee_amount: payout.commissionAmount,
-      platform_fee_currency: currency,
-      provider_payout_amount: payout.providerPayoutAmount,
-      provider_payout_currency: currency,
+      // 3. Locked Exchange Rate Metadata
+      fx_rate: exchangeRate,
+      fx_rate_source: fxRateSource,
+      fx_rate_timestamp: fxRateTimestamp,
+
+      // 4. Normalized USD Reporting
+      reporting_amount: fxQuoteUsd.convertedAmount,
+      reporting_currency: fxQuoteUsd.convertedCurrency,
+
+      // 5. Doctor Earnings & Platform Fee in Doctor Operating Currency (NO currency mixing!)
+      commission_rate: payoutInDoctorCurr.commissionRate,
+      platform_fee_amount: payoutInDoctorCurr.commissionAmount,
+      platform_fee_currency: doctorCurrency,
+      provider_payout_amount: payoutInDoctorCurr.providerPayoutAmount,
+      provider_payout_currency: doctorCurrency,
 
       status: 'Pending',
       cf_order_id: cfOrderId,
@@ -334,16 +403,16 @@ export class BillingService {
 
     const { data: saved, error } = pending
       ? await this.supabase.admin
-          .from('payments')
-          .update(row)
-          .eq('id', pending.id)
-          .select()
-          .maybeSingle()
+        .from('payments')
+        .update(row)
+        .eq('id', pending.id)
+        .select()
+        .maybeSingle()
       : await this.supabase.admin
-          .from('payments')
-          .insert(row)
-          .select()
-          .maybeSingle();
+        .from('payments')
+        .insert(row)
+        .select()
+        .maybeSingle();
 
     if (error || !saved) {
       throw new InternalServerErrorException(
@@ -354,8 +423,8 @@ export class BillingService {
     return {
       orderId: cfOrderId,
       paymentSessionId: order.payment_session_id,
-      amount,
-      currency,
+      amount: patientPayableAmount,
+      currency: patientCurrency,
       paymentId: saved.id,
     };
   }
@@ -394,10 +463,10 @@ export class BillingService {
         order.order_currency || 'INR',
       ).toUpperCase();
       const expectedAmount = Number(
-        payment.original_amount ?? payment.amount ?? 0,
+        payment.paid_amount ?? payment.amount ?? 0,
       );
       const expectedCurrency = String(
-        payment.original_currency || payment.currency || 'INR',
+        payment.paid_currency || payment.currency || 'INR',
       ).toUpperCase();
 
       if (
@@ -407,6 +476,18 @@ export class BillingService {
         this.logger.error(
           `Gateway discrepancy on ${cfOrderId}: Expected ${expectedAmount} ${expectedCurrency}, got ${gatewayAmount} ${gatewayCurrency}`,
         );
+        // Strict security rule: Mark Disputed, log security alert, and reject auto-settlement
+        const { data: disputed } = await this.supabase.admin
+          .from('payments')
+          .update({
+            status: 'Disputed',
+            txn_ref: `FLAGGED_MISMATCH_${cfOrderId}`,
+          })
+          .eq('id', payment.id)
+          .select()
+          .maybeSingle();
+
+        return (await this.withNames([disputed || payment]))[0];
       }
 
       const attempts = await this.cashfree.getOrderPayments(cfOrderId);
@@ -513,8 +594,8 @@ export class BillingService {
 
   private async onPaymentSettled(payment: any) {
     const formattedAmount = this.formatAmountWithCurrency(
-      payment.original_amount || payment.amount,
-      payment.original_currency || payment.currency || 'INR',
+      payment.paid_amount ?? payment.original_amount ?? payment.amount,
+      payment.paid_currency || payment.original_currency || payment.currency || 'INR',
     );
 
     this.notifications.create(payment.patient_id, {
@@ -586,7 +667,7 @@ export class BillingService {
     // ── Centralized dynamic global commission (single source of truth from DB) ──
     const commissionRate = await this.commissionService.getGlobalCommissionRate();
     const payout = this.commissionService.calculatePayout(amount, commissionRate);
-    const fxQuote = this.fxRateService.convert(amount, currency, 'USD');
+    const fxQuote = this.fxRateService.convertAmount(amount, currency, 'USD');
 
     const txnRef =
       body.status === 'Paid'
@@ -600,13 +681,17 @@ export class BillingService {
         service: body.service,
         category: body.category,
 
+        paid_amount: amount,
+        paid_currency: currency,
         amount,
         currency,
+        base_amount: amount,
+        base_currency: currency,
         original_amount: amount,
         original_currency: currency,
 
-        reporting_amount: fxQuote.reportingAmount,
-        reporting_currency: fxQuote.reportingCurrency,
+        reporting_amount: fxQuote.convertedAmount,
+        reporting_currency: fxQuote.convertedCurrency,
         fx_rate: fxQuote.fxRate,
         fx_rate_source: fxQuote.fxRateSource,
         fx_rate_timestamp: fxQuote.fxRateTimestamp,

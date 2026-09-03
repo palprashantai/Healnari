@@ -21,6 +21,14 @@ import { CreateAppointmentDto } from '@/modules/appointments/controllers/appoint
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { AiService } from '@/modules/ai/services/ai.service';
 import { EmailService } from '@/core/email/email.service';
+import { FXRateService } from '@/core/fx/fx-rate.service';
+import {
+  resolveCountryCurrency,
+  embedPricingLock,
+  extractPricingLock,
+  stripPricingLockFromNotes,
+  AppointmentPricingLock,
+} from '@/core/utils/currency-resolver.util';
 
 @Injectable()
 export class AppointmentsService {
@@ -31,7 +39,8 @@ export class AppointmentsService {
     private readonly notifications: NotificationsService,
     private readonly ai: AiService,
     private readonly email: EmailService,
-  ) {}
+    private readonly fxRateService: FXRateService,
+  ) { }
 
   private appointmentWhen(a: Appointment) {
     return `${a.scheduled_date} at ${a.scheduled_time}`;
@@ -128,8 +137,19 @@ export class AppointmentsService {
       const pAvatar = a.patient?.avatar_url || null;
       const dAvatar = a.doctor?.avatar_url || null;
 
+      const pricingLock = extractPricingLock(a);
+      const cleanNotes = stripPricingLockFromNotes(a.notes || a.reason);
+
       const out = {
         ...a,
+        notes: cleanNotes,
+        reason: cleanNotes || a.reason,
+        pricingLock,
+        base_fee_amount: pricingLock?.base_fee_amount ?? a.base_fee_amount ?? a.fee ?? null,
+        base_fee_currency: pricingLock?.base_fee_currency ?? a.base_fee_currency ?? a.currency ?? 'INR',
+        patient_payable_amount: pricingLock?.patient_payable_amount ?? a.patient_payable_amount ?? a.fee ?? null,
+        patient_payable_currency: pricingLock?.patient_payable_currency ?? a.patient_payable_currency ?? a.currency ?? 'INR',
+        exchange_rate: pricingLock?.exchange_rate ?? a.exchange_rate ?? 1.0,
         patientName: pName,
         doctorName: dName,
         patientAvatarUrl: pAvatar,
@@ -167,7 +187,7 @@ export class AppointmentsService {
     }
     const { data: doctor } = await this.supabase.admin
       .from('profiles')
-      .select('specialty, kyc_verified, timezone, email, full_name, currency')
+      .select('specialty, kyc_verified, timezone, email, full_name, currency, country, consultation_fee')
       .eq('id', body.doctorId)
       .eq('role', ProfileRole.DOCTOR)
       .maybeSingle();
@@ -244,11 +264,48 @@ export class AppointmentsService {
     // under concurrency — the available-slots endpoint filtering is only a
     // UI nicety, not a guarantee, since two requests can race between
     // "fetch available slots" and "book". Postgres error 23505 is that
-    const apptCountry = (body.country || user.profile?.country || 'US').toUpperCase().trim();
-    const apptCurrency =
-      apptCountry === 'IN' || (body.currency || doctor.currency || '').toUpperCase().trim() === 'INR'
-        ? 'INR'
-        : 'USD';
+
+    // ── 1. Doctor's Base Service Fee & Operating Currency ─────────────
+    const doctorCountry = (doctor.country || 'IN').toUpperCase().trim();
+    const doctorResolved = resolveCountryCurrency(doctor.currency || doctorCountry);
+    const doctorCurrency = doctorResolved.currency;
+    let doctorBaseFee = Number(doctor.consultation_fee || 0);
+    if (doctorBaseFee <= 0) {
+      doctorBaseFee = doctorCurrency === 'INR' ? 799 : 29;
+    }
+
+    // ── 2. Patient's Payment Currency (Primary rule: India -> INR, others -> USD) ──
+    const patientCountry = (body.country || user.profile?.country || 'IN').toUpperCase().trim();
+    const patientResolved = resolveCountryCurrency(patientCountry);
+    const patientCurrency = patientResolved.currency;
+
+    // ── 3. Transaction-Level FX Conversion & Rounding ─────────────
+    let exchangeRate = 1.0;
+    let rateSource = 'healnari_treasury_matrix_v1';
+    let rateTimestamp = new Date().toISOString();
+    let patientPayableAmount = doctorBaseFee;
+
+    if (doctorCurrency !== patientCurrency) {
+      const quote = this.fxRateService.getExchangeRate(doctorCurrency, patientCurrency);
+      exchangeRate = quote.rate;
+      rateSource = quote.source;
+      rateTimestamp = quote.timestamp;
+      patientPayableAmount = this.fxRateService.roundAmount(doctorBaseFee * exchangeRate, patientCurrency);
+    } else {
+      patientPayableAmount = this.fxRateService.roundAmount(doctorBaseFee, patientCurrency);
+    }
+
+    const pricingLock: AppointmentPricingLock = {
+      base_fee_amount: doctorBaseFee,
+      base_fee_currency: doctorCurrency,
+      patient_payable_amount: patientPayableAmount,
+      patient_payable_currency: patientCurrency,
+      exchange_rate: exchangeRate,
+      exchange_rate_source: rateSource,
+      exchange_rate_timestamp: rateTimestamp,
+    };
+
+    const notesWithLock = embedPricingLock(body.reason, pricingLock);
 
     const { data: saved, error: insertError } = await this.supabase.admin
       .from('appointments')
@@ -260,9 +317,10 @@ export class AppointmentsService {
         scheduled_date: body.scheduledDate,
         scheduled_time: body.scheduledTime,
         reason: body.reason,
+        notes: notesWithLock,
         status: AppointmentStatus.REQUESTED,
-        country: apptCountry,
-        currency: apptCurrency,
+        country: patientResolved.country,
+        currency: patientCurrency,
       })
       .select(
         '*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)',
@@ -306,7 +364,7 @@ export class AppointmentsService {
           entityId: withNames.id,
           event: 'appointment_requested',
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     const { data: patientProfile } = await this.supabase.admin
@@ -330,7 +388,7 @@ export class AppointmentsService {
           entityId: withNames.id,
           event: 'appointment_requested_patient',
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     return withNames;
@@ -517,7 +575,7 @@ export class AppointmentsService {
           entityId: withNames.id,
           event: 'appointment_rescheduled',
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     return withNames;
@@ -559,92 +617,102 @@ export class AppointmentsService {
       );
     }
 
-    // Patients cannot mark appointments as Done or No Show
-    if (
-      (status === AppointmentStatus.DONE ||
-        status === AppointmentStatus.NO_SHOW) &&
-      user.profile.role !== ProfileRole.DOCTOR
-    ) {
-      throw new ForbiddenException(
-        'Only doctors can complete or mark appointments as no-show.',
-      );
-    }
+    const isDoctor = user.id === appointment.doctor_id || user.profile.role === ProfileRole.DOCTOR;
+    const isPatient = user.id === appointment.patient_id && !isDoctor;
 
-    // Patients cannot cancel an ongoing consultation
-    if (
-      status === AppointmentStatus.CANCELLED &&
-      appointment.status === AppointmentStatus.IN_PROGRESS &&
-      user.id === appointment.patient_id
-    ) {
-      throw new BadRequestException(
-        'Cannot cancel a consultation that has already started.',
-      );
-    }
+    // ── Strict Role-Based State Machine Validation ───────────────────
+    if (isPatient) {
+      if (status === AppointmentStatus.APPROVED) {
+        throw new ForbiddenException('Patients cannot approve appointment requests.');
+      }
+      if (status === AppointmentStatus.DONE || status === AppointmentStatus.NO_SHOW) {
+        throw new ForbiddenException('Only doctors can complete or mark appointments as no-show.');
+      }
+      if (status === AppointmentStatus.IN_PROGRESS) {
+        throw new ForbiddenException('Only doctors can initiate a live consultation.');
+      }
+      if (status === AppointmentStatus.UPCOMING) {
+        throw new ForbiddenException('Appointments can only be confirmed via verified payment settlement.');
+      }
+      if (status === AppointmentStatus.WAITING) {
+        if (appointment.status !== AppointmentStatus.UPCOMING) {
+          throw new BadRequestException('Cannot enter waiting room for an appointment that is not confirmed.');
+        }
+      }
+      if (status === AppointmentStatus.CANCELLED) {
+        if (appointment.status === AppointmentStatus.IN_PROGRESS) {
+          throw new BadRequestException('Cannot cancel a consultation that has already started.');
+        }
+        // 8-hour cutoff validation for patients canceling
+        const { data: doctor } = await this.supabase.admin
+          .from('profiles')
+          .select('timezone')
+          .eq('id', appointment.doctor_id)
+          .maybeSingle();
+        const doctorTz = doctor?.timezone || 'Asia/Kolkata';
+        const doctorNowStr = new Date().toLocaleString('en-US', {
+          timeZone: doctorTz,
+          hour12: false,
+        });
+        const doctorNow = new Date(doctorNowStr);
 
-    // 8-hour cutoff validation for patients canceling
-    if (
-      status === AppointmentStatus.CANCELLED &&
-      user.id === appointment.patient_id
-    ) {
-      const { data: doctor } = await this.supabase.admin
-        .from('profiles')
-        .select('timezone')
-        .eq('id', appointment.doctor_id)
-        .maybeSingle();
-      const doctorTz = doctor?.timezone || 'Asia/Kolkata';
-      const doctorNowStr = new Date().toLocaleString('en-US', {
-        timeZone: doctorTz,
-        hour12: false,
-      });
-      const doctorNow = new Date(doctorNowStr);
-
-      const isOldPM = appointment.scheduled_time.toLowerCase().includes('pm');
-      const oldTimeMatches = appointment.scheduled_time.match(/(\d+):(\d+)/);
-      if (oldTimeMatches) {
-        let oldHour = parseInt(oldTimeMatches[1], 10);
-        const oldMin = parseInt(oldTimeMatches[2], 10);
-        if (isOldPM && oldHour < 12) oldHour += 12;
-        if (!isOldPM && oldHour === 12) oldHour = 0;
-        const oldDateTime = new Date(
-          `${appointment.scheduled_date}T${oldHour.toString().padStart(2, '0')}:${oldMin.toString().padStart(2, '0')}:00`,
-        );
-
-        const hoursUntilAppointment =
-          (oldDateTime.getTime() - doctorNow.getTime()) / (1000 * 60 * 60);
-        if (hoursUntilAppointment < 8) {
-          throw new BadRequestException(
-            'Appointments must be cancelled at least 8 hours in advance.',
+        const isOldPM = appointment.scheduled_time.toLowerCase().includes('pm');
+        const oldTimeMatches = appointment.scheduled_time.match(/(\d+):(\d+)/);
+        if (oldTimeMatches) {
+          let oldHour = parseInt(oldTimeMatches[1], 10);
+          const oldMin = parseInt(oldTimeMatches[2], 10);
+          if (isOldPM && oldHour < 12) oldHour += 12;
+          if (!isOldPM && oldHour === 12) oldHour = 0;
+          const oldDateTime = new Date(
+            `${appointment.scheduled_date}T${oldHour.toString().padStart(2, '0')}:${oldMin.toString().padStart(2, '0')}:00`,
           );
+
+          const hoursUntilAppointment =
+            (oldDateTime.getTime() - doctorNow.getTime()) / (1000 * 60 * 60);
+          if (hoursUntilAppointment < 8) {
+            throw new BadRequestException(
+              'Appointments must be cancelled at least 8 hours in advance.',
+            );
+          }
         }
       }
     }
 
-    // Payment validation for UPCOMING status
-    if (status === AppointmentStatus.UPCOMING) {
-      const { data: payment } = await this.supabase.admin
-        .from('payments')
-        .select('id')
-        .eq('appointment_id', id)
-        .eq('status', 'Paid')
-        .maybeSingle();
-
-      if (!payment) {
-        throw new BadRequestException(
-          'Appointment cannot be confirmed without a successful payment.',
-        );
+    if (isDoctor) {
+      if (status === AppointmentStatus.APPROVED) {
+        if (
+          appointment.status !== AppointmentStatus.REQUESTED &&
+          appointment.status !== AppointmentStatus.HOLD
+        ) {
+          throw new BadRequestException(
+            `Cannot approve an appointment that is already ${appointment.status.toLowerCase()}.`,
+          );
+        }
       }
-    }
+      if (status === AppointmentStatus.UPCOMING) {
+        const { data: payment } = await this.supabase.admin
+          .from('payments')
+          .select('id')
+          .eq('appointment_id', id)
+          .eq('status', 'Paid')
+          .maybeSingle();
 
-    // Prevent joining call (IN_PROGRESS) if not confirmed
-    if (status === AppointmentStatus.IN_PROGRESS) {
-      if (
-        appointment.status !== AppointmentStatus.UPCOMING &&
-        appointment.status !== AppointmentStatus.WAITING &&
-        appointment.status !== AppointmentStatus.IN_PROGRESS
-      ) {
-        throw new BadRequestException(
-          'Cannot join a call for an appointment that is not confirmed.',
-        );
+        if (!payment) {
+          throw new BadRequestException(
+            'Appointment cannot be confirmed without a successful payment.',
+          );
+        }
+      }
+      if (status === AppointmentStatus.IN_PROGRESS) {
+        if (
+          appointment.status !== AppointmentStatus.UPCOMING &&
+          appointment.status !== AppointmentStatus.WAITING &&
+          appointment.status !== AppointmentStatus.IN_PROGRESS
+        ) {
+          throw new BadRequestException(
+            'Cannot start a call for an appointment that is not confirmed or waiting.',
+          );
+        }
       }
     }
 
@@ -753,7 +821,7 @@ export class AppointmentsService {
             entityId: withNames.id,
             event: 'appointment_confirmed',
           })
-          .catch(() => {});
+          .catch(() => { });
       }
 
       return withNames;
@@ -862,7 +930,7 @@ export class AppointmentsService {
             entityId: appointment.id,
             event: 'appointment_approved',
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     } else if (
       isDoctorActing &&
@@ -898,7 +966,7 @@ export class AppointmentsService {
             entityId: appointment.id,
             event: 'appointment_confirmed',
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     } else if (
       isDoctorActing &&
@@ -934,7 +1002,7 @@ export class AppointmentsService {
             entityId: appointment.id,
             event: 'appointment_cancelled',
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     } else if (
       !isDoctorActing &&
@@ -979,7 +1047,7 @@ export class AppointmentsService {
             entityId: appointment.id,
             event: 'appointment_cancelled',
           })
-          .catch(() => {});
+          .catch(() => { });
       }
 
       if (doctorProfile?.email) {
@@ -999,7 +1067,7 @@ export class AppointmentsService {
             entityId: appointment.id,
             event: 'appointment_cancelled_doctor',
           })
-          .catch(() => {});
+          .catch(() => { });
       }
     } else if (
       appointment.status === AppointmentStatus.IN_PROGRESS &&
@@ -1249,7 +1317,7 @@ export class AppointmentsService {
     const peopleAhead = index;
     const avgMinutes =
       AppointmentsService.AVG_CONSULT_MINUTES[
-        appointment.type as AppointmentType
+      appointment.type as AppointmentType
       ] ?? 15;
 
     return {
@@ -1369,7 +1437,7 @@ export class AppointmentsService {
           message: `You have a ${apt.type} appointment tomorrow at ${apt.scheduled_time}.`,
           data: { appointmentId: apt.id },
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }
 
@@ -1527,7 +1595,7 @@ export class AppointmentsService {
               path: '/patient-dashboard/appointments',
             },
           })
-          .catch(() => {});
+          .catch(() => { });
 
         if (apt.patient?.email) {
           this.email
@@ -1546,7 +1614,7 @@ export class AppointmentsService {
               entityId: apt.id,
               event: 'appointment_reminder_upcoming',
             })
-            .catch(() => {});
+            .catch(() => { });
         }
       }),
     );
@@ -1618,7 +1686,7 @@ export class AppointmentsService {
 
         const avgMinutes =
           AppointmentsService.AVG_CONSULT_MINUTES[
-            apt.type as AppointmentType
+          apt.type as AppointmentType
           ] ?? 15;
         const projectedStartMs = now + index * avgMinutes * 60 * 1000;
         const delayMinutes =
@@ -1664,7 +1732,7 @@ export class AppointmentsService {
             path: '/patient-dashboard/appointments',
           },
         })
-        .catch(() => {});
+        .catch(() => { });
     }
 
     if (claimed?.length)

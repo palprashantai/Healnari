@@ -237,8 +237,9 @@ export class AnalyticsService {
 
       // Process consultation payments
       pays.forEach((p) => {
-        const origAmt = Number(p.original_amount || p.amount || 0);
-        const origCurr = (p.original_currency || p.currency || 'INR').toUpperCase();
+        const origAmt = Number(p.base_amount ?? p.original_amount ?? p.amount ?? 0);
+        const origCurr = ((p.base_currency ?? p.original_currency ?? p.currency ?? 'INR') as string).toUpperCase();
+
         const convertedGross = this.fxRateService.reproduceReportingValue(
           origAmt,
           origCurr,
@@ -453,8 +454,8 @@ export class AnalyticsService {
 
       // Process consultation payments
       pays.forEach((p) => {
-        const origAmt = Number(p.original_amount || p.amount || 0);
-        const origCurr = (p.original_currency || p.currency || 'INR').toUpperCase();
+        const origAmt = Number(p.base_amount ?? p.original_amount ?? p.amount ?? 0);
+        const origCurr = ((p.base_currency ?? p.original_currency ?? p.currency ?? 'INR') as string).toUpperCase();
         const breakdown = CommissionCalculator.fromStoredPayment(p);
 
         const fee = breakdown.commissionAmount;
@@ -810,8 +811,8 @@ export class AnalyticsService {
 
       // 1. Audit consultation payments
       pays.forEach((p) => {
-        const origAmt = Number(p.original_amount || p.amount || 0);
-        const origCurr = (p.original_currency || p.currency || 'INR').toUpperCase();
+        const origAmt = Number(p.base_amount ?? p.original_amount ?? p.amount ?? 0);
+        const origCurr = ((p.base_currency ?? p.original_currency ?? p.currency ?? 'INR') as string).toUpperCase();
         const breakdown = CommissionCalculator.fromStoredPayment(p);
 
         const convGross = this.fxRateService.reproduceReportingValue(origAmt, origCurr, repCurr, p.fx_rate, p.reporting_currency);

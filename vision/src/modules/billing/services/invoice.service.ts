@@ -11,8 +11,21 @@ export interface InvoiceData {
   txn_ref?: string | null;
   service: string;
   category?: string | null;
+
+  /** Canonical gateway-charge layer — what the patient actually paid */
   amount: number | string;
   currency?: string | null;
+  paid_amount?: number | string | null;
+  paid_currency?: string | null;
+
+  /** Doctor-defined base price layer — service price in the doctor's operating currency */
+  base_amount?: number | string | null;
+  base_currency?: string | null;
+  /** Kept for backward-compat; prefer base_amount/base_currency for new code */
+  original_amount?: number | string | null;
+  original_currency?: string | null;
+
+  fx_rate?: number | string | null;
   method?: string | null;
   status: string;
   created_at: string;
@@ -47,8 +60,16 @@ export class InvoiceService {
     }
     const invoiceNo = `HEAL-${String(invoiceNoNumber).padStart(5, '0')}`;
     const date = new Date(payment.created_at);
-    const amount = Number(payment.amount).toFixed(2);
-    const curr = (payment.currency || 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR';
+    // paid layer — what the gateway actually charged the patient
+    const paidAmt  = Number(payment.paid_amount  ?? payment.amount).toFixed(2);
+    const paidCurr = ((payment.paid_currency  ?? payment.currency  ?? 'INR') as string).toUpperCase();
+    const curr     = paidCurr === 'USD' ? 'USD' : 'INR';
+    const amount   = paidAmt;  // alias kept for legacy render calls below
+
+    // base layer — doctor's original service price
+    const baseAmt  = Number(payment.base_amount  ?? payment.original_amount  ?? payment.amount);
+    const baseCurr = ((payment.base_currency  ?? payment.original_currency  ?? paidCurr) as string).toUpperCase();
+
     const isPaid = payment.status === 'Paid';
 
     // --- Modern Medical Invoice Design ---
@@ -261,6 +282,56 @@ export class InvoiceService {
 
     // --- Totals Section ---
     const totalsTop = rowTop + 75;
+
+    // --- Currency Conversion Disclosure (if cross-currency) ---
+    const isCrossCurrency = baseCurr !== paidCurr && baseAmt > 0;
+    if (isCrossCurrency) {
+      doc
+        .rect(50, totalsTop - 15, 255, 120)
+        .fill('#f8fafc')
+        .strokeColor('#cbd5e1')
+        .lineWidth(1)
+        .stroke();
+
+      doc
+        .fillColor('#4338ca')
+        .fontSize(10)
+        .font('Helvetica-Bold')
+        .text('Cross-Border FX Conversion', 65, totalsTop - 2);
+
+      const fxRate = Number(payment.fx_rate || 1.0).toFixed(4);
+
+      doc
+        .fillColor('#64748b')
+        .fontSize(9)
+        .font('Helvetica')
+        // Row 1 — doctor's base service price
+        .text('Doctor Base Fee:', 65, totalsTop + 18)
+        .fillColor('#0f172a')
+        .font('Helvetica-Bold')
+        .text(`${baseCurr} ${baseAmt.toFixed(2)}`, 180, totalsTop + 18)
+        // Row 2 — locked FX rate
+        .fillColor('#64748b')
+        .font('Helvetica')
+        .text('Locked FX Rate:', 65, totalsTop + 38)
+        .fillColor('#0f172a')
+        .font('Helvetica-Bold')
+        .text(`1 ${baseCurr} = ${fxRate} ${paidCurr}`, 180, totalsTop + 38)
+        // Row 3 — total charged to patient
+        .fillColor('#64748b')
+        .font('Helvetica')
+        .text('Patient Charged:', 65, totalsTop + 58)
+        .fillColor('#0f172a')
+        .font('Helvetica-Bold')
+        .text(`${paidCurr} ${paidAmt}`, 180, totalsTop + 58)
+        // Row 4 — rate source
+        .fillColor('#64748b')
+        .font('Helvetica')
+        .text('Rate Source:', 65, totalsTop + 78)
+        .fillColor('#0f172a')
+        .font('Helvetica')
+        .text('Treasury Matrix Lock', 180, totalsTop + 78);
+    }
 
     doc
       .rect(320, totalsTop - 15, 225, 110)

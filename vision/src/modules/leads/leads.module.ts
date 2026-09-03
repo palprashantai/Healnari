@@ -6,6 +6,7 @@ import { NotificationsModule } from '@/modules/notifications/notifications.modul
 import { EmailModule } from '@/core/email/email.module';
 import { DoctorsModule } from '@/modules/doctors/doctors.module';
 import { AppointmentsModule } from '@/modules/appointments/appointments.module';
+import { FXModule } from '@/core/fx/fx.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { AppointmentsModule } from '@/modules/appointments/appointments.module';
     EmailModule,
     DoctorsModule,
     AppointmentsModule,
+    FXModule,
   ],
   controllers: [LeadsController],
   providers: [LeadsService],

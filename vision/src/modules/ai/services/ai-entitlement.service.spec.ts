@@ -107,7 +107,7 @@ describe('AiEntitlementService — Centralized AI Product Control & Limit Enforc
       expect(result.hasAccess).toBe(false);
       expect(result.reason).toContain('not included in your current plan');
       expect(result.paywallData).toBeDefined();
-      expect(result.paywallData?.planName).toBe('HealNari AI Premium');
+      expect(result.paywallData?.planName).toBe('Patient Pro');
     });
 
     it('throws PaymentRequiredException when enforceAccess fails', async () => {
@@ -132,6 +132,14 @@ describe('AiEntitlementService — Centralized AI Product Control & Limit Enforc
         monthly_ai_credits: 500,
         credits_used: 100,
       });
+      jest.spyOn(pricingService, 'getPlan').mockResolvedValue({
+        id: 'patient_premium',
+        name: 'Patient Premium',
+        features: [AiFeatureKey.PATIENT_CHAT],
+        feature_limits: {
+          [AiFeatureKey.PATIENT_CHAT]: { limit: null, is_unlimited: true, unit: 'messages' },
+        },
+      } as any);
 
       const result = await service.canUseAIFeature(mockPatientUser, AiFeatureKey.PATIENT_CHAT);
       expect(result.hasAccess).toBe(true);
@@ -140,24 +148,24 @@ describe('AiEntitlementService — Centralized AI Product Control & Limit Enforc
     });
 
     it('allows access when usage is within limited plan allowance', async () => {
-      // Free user has 10 queries, has used 4
+      // Free user has 15 queries, has used 4
       jest.spyOn(usageService, 'getUserFeatureUsageCount').mockResolvedValueOnce(4);
 
       const result = await service.canUseAIFeature(mockPatientUser, AiFeatureKey.PATIENT_CHAT);
       expect(result.hasAccess).toBe(true);
       expect(result.isUnlimited).toBe(false);
-      expect(result.monthlyLimit).toBe(10);
+      expect(result.monthlyLimit).toBe(15);
       expect(result.used).toBe(4);
     });
 
     it('blocks access when usage reaches or exceeds monthly limit', async () => {
-      // Free user has 10 queries, has used 10
-      jest.spyOn(usageService, 'getUserFeatureUsageCount').mockResolvedValueOnce(10);
+      // Free user has 15 queries, has used 15
+      jest.spyOn(usageService, 'getUserFeatureUsageCount').mockResolvedValueOnce(15);
 
       const result = await service.canUseAIFeature(mockPatientUser, AiFeatureKey.PATIENT_CHAT);
       expect(result.hasAccess).toBe(false);
       expect(result.isRateLimited).toBe(true);
-      expect(result.reason).toContain('reached your monthly allowance of 10');
+      expect(result.reason).toContain('reached your monthly allowance of 15');
       expect(result.paywallData).toBeDefined();
     });
   });
@@ -168,9 +176,9 @@ describe('AiEntitlementService — Centralized AI Product Control & Limit Enforc
 
       const limitInfo = await service.getAIUsageLimit(mockPatientUser, AiFeatureKey.PATIENT_CHAT);
       expect(limitInfo.isUnlimited).toBe(false);
-      expect(limitInfo.limit).toBe(10);
+      expect(limitInfo.limit).toBe(15);
       expect(limitInfo.used).toBe(3);
-      expect(limitInfo.remaining).toBe(7);
+      expect(limitInfo.remaining).toBe(12);
       expect(limitInfo.unit).toBe('messages');
     });
   });

@@ -96,7 +96,7 @@ export function formatMoney(amount, currency = 'INR', options = {}) {
   });
 
   const sign = isNegative ? '-' : (options.showPlus && rawNum > 0 ? '+' : '');
-  return `${sign}${meta.symbol}${formattedValue}`;
+  return `${sign}${meta.symbol}${formattedValue} ${meta.code}`;
 }
 
 // Alias for backward compatibility across existing components
@@ -154,5 +154,48 @@ export function setStoredCurrency(code) {
   return normalized;
 }
 
+/**
+ * Calculates dual-currency display for international healthcare consultations.
+ * E.g., when a foreign doctor ($50 USD) is viewed by an Indian patient (INR),
+ * returns payable amount ₹4,230 with base fee disclosure "$50 USD base fee".
+ */
+export function getConvertedDisplayPrice(baseAmount, baseCurrency = 'INR', patientCountry = 'IN') {
+  const baseCurr = normalizeCurrency(baseCurrency);
+  const patientCurr = getCurrencyForCountry(patientCountry);
+  const amt = Number(baseAmount || 0);
+
+  if (baseCurr === patientCurr) {
+    return {
+      payableAmount: amt,
+      payableCurrency: patientCurr,
+      formattedPayable: formatMoney(amt, patientCurr),
+      hasConversion: false,
+      baseDisclosure: null,
+    };
+  }
+
+  // Institutional Treasury Matrix Reference Rate (USD/INR = 84.60)
+  const USD_INR_RATE = 84.60;
+  let payable = amt;
+  let rateNote = '';
+
+  if (baseCurr === 'USD' && patientCurr === 'INR') {
+    payable = Math.round(amt * USD_INR_RATE);
+    rateNote = '1 USD = ₹84.60';
+  } else if (baseCurr === 'INR' && patientCurr === 'USD') {
+    payable = Number((amt / USD_INR_RATE).toFixed(2));
+    rateNote = '1 USD = ₹84.60';
+  }
+
+  return {
+    payableAmount: payable,
+    payableCurrency: patientCurr,
+    formattedPayable: formatMoney(payable, patientCurr),
+    hasConversion: true,
+    baseDisclosure: `≈ ${formatMoney(amt, baseCurr)} base fee (${rateNote})`,
+  };
+}
+
 export default formatMoney;
+
 

@@ -425,35 +425,25 @@ function PatientProfile() {
                 </div>
               </div>
 
-              {/* International Currency Selection */}
+              {/* Regional Billing Currency (Automated by Country) */}
               <div className="border-t border-slate-100 pt-6 space-y-3">
                 <div>
-                  <h3 className="font-extrabold text-slate-800 text-base">Display & Billing Currency</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Formatted for your region across appointment bookings and invoices.</p>
+                  <h3 className="font-extrabold text-slate-800 text-base">Regional Billing Currency</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Automatically configured according to your verified country of residence.</p>
                 </div>
-                <div className="grid grid-cols-2 max-w-sm gap-2.5">
-                  {SUPPORTED_CURRENCIES.map(curr => {
-                    const isSelected = selectedCurrency === curr.code;
-                    return (
-                      <button
-                        key={curr.code}
-                        type="button"
-                        onClick={() => handleCurrencyChange(curr.code)}
-                        className={`p-3 rounded-xl border text-left transition-all ${
-                          isSelected
-                            ? 'border-aubergine-500 bg-aubergine-50 text-aubergine-900 shadow-sm'
-                            : 'border-slate-200 hover:bg-slate-50 text-slate-700'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-base">{curr.flag}</span>
-                          <span className="text-xs font-black">{curr.symbol}</span>
-                        </div>
-                        <p className="text-xs font-bold truncate">{curr.code}</p>
-                        <p className="text-[10px] text-slate-400 truncate">{curr.label.split('(')[1]?.replace(')', '')}</p>
-                      </button>
-                    );
-                  })}
+                <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200/80 rounded-2xl max-w-md">
+                  <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-xl shadow-sm">
+                    {profile?.country === 'IN' ? '🇮🇳' : '🌍'}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">
+                      {profile?.country === 'IN' ? 'India (Domestic Patient)' : 'International Patient'}
+                    </p>
+                    <p className="text-xs text-emerald-700 font-bold flex items-center gap-1.5 mt-0.5">
+                      <i className="fas fa-shield-alt text-[11px]"></i>
+                      <span>Auto-Assigned Currency: {profile?.country === 'IN' ? 'INR (₹) — Indian Rupee' : 'USD ($) — US Dollar'}</span>
+                    </p>
+                  </div>
                 </div>
               </div>
 

@@ -91,11 +91,12 @@ export class CommissionService {
   fromStoredPayment(payment: {
     amount?: number | string | null;
     original_amount?: number | string | null;
+    base_amount?: number | string | null;
     commission_rate?: number | string | null;
     platform_fee_amount?: number | string | null;
     provider_payout_amount?: number | string | null;
   }): PayoutBreakdown {
-    const gross = Number(payment.original_amount || payment.amount || 0);
+    const gross = Number(payment.base_amount || payment.original_amount || payment.amount || 0);
     const storedFee = Number(payment.platform_fee_amount || 0);
     const storedPayout = Number(payment.provider_payout_amount || 0);
     const storedRate = Number(payment.commission_rate || 0);

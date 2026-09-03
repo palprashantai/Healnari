@@ -132,6 +132,11 @@ export class BillingController {
     @Headers('x-webhook-timestamp') timestamp?: string,
     @Req() req?: Request,
   ) {
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (isProduction && (!signature || !timestamp)) {
+      return { ok: false, error: 'Webhook signature and timestamp required in production' };
+    }
+
     // If Cashfree signature header is present, verify authenticity
     if (signature && timestamp) {
       const rawBody = JSON.stringify(body || {});

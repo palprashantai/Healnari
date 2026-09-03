@@ -428,10 +428,10 @@ export class AdminService {
       pays
         .filter((p) => p.status === 'Paid')
         .forEach((p) => {
-          const curr = (p.original_currency || p.currency || 'INR').toUpperCase();
+          const curr = ((p.base_currency ?? p.original_currency ?? p.currency ?? 'INR') as string).toUpperCase();
           const exist = revCurrMap.get(curr) || { amount: 0, count: 0 };
           revCurrMap.set(curr, {
-            amount: exist.amount + Number(p.original_amount || p.amount || 0),
+            amount: exist.amount + Number(p.base_amount ?? p.original_amount ?? p.amount ?? 0),
             count: exist.count + 1,
           });
         });
@@ -481,12 +481,11 @@ export class AdminService {
         else consultTypeSplit.clinic++;
       });
 
-      // specialtyRevenue from real appointment specialties & payments
       const specRevMap = new Map<string, number>();
       const aptPaymentMap = new Map<string, number>();
       pays.filter((p) => p.status === 'Paid').forEach((p) => {
         if (p.appointment_id) {
-          aptPaymentMap.set(p.appointment_id, Number(p.original_amount || p.amount || 0));
+          aptPaymentMap.set(p.appointment_id, Number(p.base_amount ?? p.original_amount ?? p.amount ?? 0));
         }
       });
       apts
@@ -2079,12 +2078,9 @@ export class AdminService {
       });
 
       const paymentsFormatted = payments.map((p) => {
-        const origAmt = Number(p.original_amount || p.amount || 0);
-        const origCurr = (
-          p.original_currency ||
-          p.currency ||
-          'INR'
-        ).toUpperCase();
+        const origAmt = Number(p.base_amount ?? p.original_amount ?? p.amount ?? 0);
+        const origCurr = ((p.base_currency ?? p.original_currency ?? p.currency ?? 'INR') as string).toUpperCase();
+
         const repAmt = this.fxRateService.reproduceReportingValue(
           origAmt,
           origCurr,

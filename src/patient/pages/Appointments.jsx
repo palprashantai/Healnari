@@ -1045,17 +1045,17 @@ function PatientAppointments() {
       let minutes = 0;
       const ampmMatch = apt.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
       if (ampmMatch) {
-         let h = parseInt(ampmMatch[1], 10);
-         const m = parseInt(ampmMatch[2], 10);
-         const ampm = ampmMatch[3].toUpperCase();
-         if (ampm === 'PM' && h < 12) h += 12;
-         if (ampm === 'AM' && h === 12) h = 0;
-         hours = h;
-         minutes = m;
+        let h = parseInt(ampmMatch[1], 10);
+        const m = parseInt(ampmMatch[2], 10);
+        const ampm = ampmMatch[3].toUpperCase();
+        if (ampm === 'PM' && h < 12) h += 12;
+        if (ampm === 'AM' && h === 12) h = 0;
+        hours = h;
+        minutes = m;
       } else {
-         const parts = apt.time.split(':');
-         hours = parseInt(parts[0] || '0', 10);
-         minutes = parseInt(parts[1] || '0', 10);
+        const parts = apt.time.split(':');
+        hours = parseInt(parts[0] || '0', 10);
+        minutes = parseInt(parts[1] || '0', 10);
       }
       const aptTime = new Date(apt.date);
       aptTime.setHours(hours, minutes, 0, 0);
@@ -1228,18 +1228,17 @@ function PatientAppointments() {
                         </button>
                         <button onClick={() => setCancelTarget(apt)}
                           className="crm-btn-secondary h-8 px-3 text-[11px] font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 border-rose-100">
-                          Cancel 
+                          Cancel
                         </button>
                         {apt.type === 'Video Consult' && (
-                          <button 
+                          <button
                             onClick={() => isVideoEnabled(apt) && setVideoTarget(apt)}
                             disabled={!isVideoEnabled(apt)}
                             title={!isVideoEnabled(apt) ? "Video call link will be active 5 mins before appointment time" : ""}
-                            className={`border-none text-[11px] h-8 px-3 rounded-xl font-bold flex items-center shadow-sm transition-all ${
-                              isVideoEnabled(apt) 
-                                ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20' 
+                            className={`border-none text-[11px] h-8 px-3 rounded-xl font-bold flex items-center shadow-sm transition-all ${isVideoEnabled(apt)
+                                ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20'
                                 : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
-                            }`}>
+                              }`}>
                             <i className="fas fa-video mr-1"></i> Join Call
                           </button>
                         )}

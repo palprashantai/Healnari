@@ -47,6 +47,15 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
     sendTemplatedMail: jest.fn().mockResolvedValue({ success: true }),
   };
 
+  const fxRateService = {
+    getExchangeRate: jest.fn().mockReturnValue({
+      rate: 1.0,
+      source: 'healnari_treasury_matrix_v1',
+      timestamp: new Date().toISOString(),
+    }),
+    roundAmount: jest.fn((amount: number) => amount),
+  };
+
   it('translates a 23505 unique-violation into a ConflictException, not a raw DB error', async () => {
     const { supabase } = createSupabaseMock({
       profiles: [{ data: doctorProfile }],
@@ -66,6 +75,7 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
       notifications as any,
       ai as any,
       email as any,
+      fxRateService as any,
     );
 
     await expect(service.create(patient, body)).rejects.toBeInstanceOf(
@@ -87,6 +97,7 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
       notifications as any,
       ai as any,
       email as any,
+      fxRateService as any,
     );
 
     await expect(service.create(patient, body)).rejects.toBe(dbError);
@@ -122,6 +133,7 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
       notifications as any,
       ai as any,
       email as any,
+      fxRateService as any,
     );
 
     const result = await service.create(patient, body);
@@ -161,6 +173,7 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
       notifications as any,
       ai as any,
       email as any,
+      fxRateService as any,
     );
 
     await expect(
@@ -201,6 +214,7 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
       notifications as any,
       ai as any,
       email as any,
+      fxRateService as any,
     );
 
     await expect(
@@ -209,5 +223,81 @@ describe('AppointmentsService.create — double-booking conflict handling', () =
         newTime: '11:00 AM',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  describe('updateStatus — role-based state machine enforcement', () => {
+    it('blocks patient from self-approving a requested appointment', async () => {
+      const apt = {
+        id: 'apt-sm-1',
+        patient_id: 'patient-1',
+        doctor_id: 'doctor-1',
+        status: 'Requested',
+      };
+      const { supabase } = createSupabaseMock({
+        appointments: [{ data: apt }],
+      });
+      const service = new AppointmentsService(
+        supabase as any,
+        notifications as any,
+        ai as any,
+        email as any,
+        fxRateService as any,
+      );
+
+      await expect(
+        service.updateStatus(patient, 'apt-sm-1', 'Approved' as any),
+      ).rejects.toThrow('Patients cannot approve appointment requests.');
+    });
+
+    it('blocks patient from marking an appointment as Done', async () => {
+      const apt = {
+        id: 'apt-sm-2',
+        patient_id: 'patient-1',
+        doctor_id: 'doctor-1',
+        status: 'In Progress',
+      };
+      const { supabase } = createSupabaseMock({
+        appointments: [{ data: apt }],
+      });
+      const service = new AppointmentsService(
+        supabase as any,
+        notifications as any,
+        ai as any,
+        email as any,
+        fxRateService as any,
+      );
+
+      await expect(
+        service.updateStatus(patient, 'apt-sm-2', 'Done' as any),
+      ).rejects.toThrow('Only doctors can complete or mark appointments as no-show.');
+    });
+
+    it('blocks doctor from approving an appointment that is not Requested or HOLD', async () => {
+      const doctorUser: AuthUser = {
+        id: 'doctor-1',
+        email: 'd@x.com',
+        profile: { role: ProfileRole.DOCTOR } as any,
+      };
+      const apt = {
+        id: 'apt-sm-3',
+        patient_id: 'patient-1',
+        doctor_id: 'doctor-1',
+        status: 'Upcoming',
+      };
+      const { supabase } = createSupabaseMock({
+        appointments: [{ data: apt }],
+      });
+      const service = new AppointmentsService(
+        supabase as any,
+        notifications as any,
+        ai as any,
+        email as any,
+        fxRateService as any,
+      );
+
+      await expect(
+        service.updateStatus(doctorUser, 'apt-sm-3', 'Approved' as any),
+      ).rejects.toThrow('Cannot approve an appointment that is already upcoming.');
+    });
   });
 });

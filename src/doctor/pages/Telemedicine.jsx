@@ -2987,9 +2987,9 @@ function DoctorTelemedicine() {
 
   const handleAccept = async (id) => {
     try {
-      await updateAppointmentStatus(id, 'Upcoming');
+      await updateAppointmentStatus(id, 'Approved');
       await loadQueue();
-      toast('Appointment accepted', 'success');
+      toast('Appointment request approved. Patient has been notified to complete payment.', 'success');
     } catch (err) {
       toast(err.message || 'Failed to accept', 'error');
     }
