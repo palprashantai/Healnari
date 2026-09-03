@@ -644,9 +644,9 @@ export class LeadsService {
         );
       }
 
-      // Best-effort: send admin notification email
-      try {
-        await this.email.sendTemplateEmail({
+      // Best-effort: send admin notification email asynchronously in background
+      this.email
+        .sendTemplateEmail({
           to: process.env.ADMIN_EMAIL || 'admin@healnari.com',
           templateKey: 'admin_provider_application',
           variables: {
@@ -658,10 +658,8 @@ export class LeadsService {
             regNo: body.regNo,
             applicationId: data.id,
           },
-        });
-      } catch (_) {
-        // Non-blocking — application is already saved even if email fails
-      }
+        })
+        .catch(() => {});
 
       return { id: data.id, status: data.status };
     } catch (error) {

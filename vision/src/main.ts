@@ -4,6 +4,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { AllExceptionsFilter } from './core/filters/http-exception.filter';
 import { initSentry } from './core/monitoring/sentry';
+import { json, urlencoded } from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
 
@@ -19,6 +20,10 @@ const DEFAULT_ALLOWED_ORIGINS = [
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Increase payload limit to handle document uploads (base64 Data URLs)
+  app.use(json({ limit: '25mb' }));
+  app.use(urlencoded({ limit: '25mb', extended: true }));
 
   // Use Helmet for security headers
   app.use(helmet());

@@ -102,19 +102,60 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const fileUrl = evt.target.result;
-      setFormData(prev => ({
-        ...prev,
-        licenseFile: file,
-        licenseFileUrl: fileUrl,
-        licenseFileName: file.name,
-        licenseFileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-        licenseFileType: ext === 'pdf' || file.type.includes('pdf') ? 'pdf' : 'image',
-      }));
-    };
-    reader.readAsDataURL(file);
+    const isImg = file.type.startsWith('image/') || ['jpg', 'jpeg', 'png'].includes(ext);
+
+    if (isImg) {
+      // Compress image client-side for fast transfer
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.src = e.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 1200;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+          setFormData(prev => ({
+            ...prev,
+            licenseFile: file,
+            licenseFileUrl: compressedDataUrl,
+            licenseFileName: file.name,
+            licenseFileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+            licenseFileType: 'image',
+          }));
+        };
+      };
+      reader.readAsDataURL(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const fileUrl = evt.target.result;
+        setFormData(prev => ({
+          ...prev,
+          licenseFile: file,
+          licenseFileUrl: fileUrl,
+          licenseFileName: file.name,
+          licenseFileSize: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+          licenseFileType: 'pdf',
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
 
     toast?.success?.(`Uploaded "${file.name}"`);
   };

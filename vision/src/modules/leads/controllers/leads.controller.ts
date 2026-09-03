@@ -41,6 +41,7 @@ export class ProviderApplicationDto {
   @ApiProperty({ required: false }) @IsOptional() @IsString() licenseFileName?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() licenseFileSize?: string;
   @ApiProperty({ required: false }) @IsOptional() @IsString() licenseFileType?: string;
+  @ApiProperty({ required: false }) @IsOptional() @IsString() licenseFileUrl?: string;
 }
 
 export class ConsultationRequestDto {
