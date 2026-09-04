@@ -912,7 +912,7 @@ export function AiHub({ role = 'doctor' }) {
             </div>
           </div>
 
-          {/* 3-Plan Cards Deck: "Is plan mein mujhe kya milega?" */}
+          {/* 3-Plan Cards Deck: What's included in each plan */}
           <div id="plans-grid" className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div>
@@ -998,10 +998,10 @@ export function AiHub({ role = 'doctor' }) {
                         </p>
                       </div>
 
-                      {/* "Is plan mein mujhe kya milega?" Benefits Box */}
+                      {/* "What's included in this plan" Benefits Box */}
                       <div>
                         <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 block mb-2.5">
-                          Is plan mein aapko milega:
+                          What's included in this plan:
                         </span>
                         <ul className="space-y-2.5 text-xs text-slate-700">
                           {plan.whatYouGet.map((item, idx) => (

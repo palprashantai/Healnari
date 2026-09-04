@@ -540,10 +540,10 @@ export function AIUsageUpgradePage({ role = 'patient' }) {
                     </p>
                   </div>
 
-                  {/* Benefits: "Is plan mein aapko milega" */}
+                  {/* Benefits: "What's included in this plan" */}
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
-                      Is plan mein aapko milega:
+                      What's included in this plan:
                     </span>
                     <ul className="space-y-2 text-[11.5px] text-slate-700">
                       {plan.whatYouGet.map((item, idx) => (
