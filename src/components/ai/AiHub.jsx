@@ -142,9 +142,11 @@ export function AiHub({ role = 'doctor' }) {
     return isDoctor ? 'Doctor Starter' : 'Patient Basic';
   }, [pricingQuotes, currentPlanId, sub?.plan_name, isDoctor]);
 
-  const isPremium = currentPlanId.includes('2') || currentPlanId.includes('3') || currentPlanId.includes('pro') || currentPlanId.includes('premium');
   const isCancelled = sub?.cancel_at_period_end || sub?.status === 'cancelled';
+  const isActive = sub?.status === 'active' || sub?.status === 'trialing';
+  const isPremium = isActive && (currentPlanId.includes('2') || currentPlanId.includes('3') || currentPlanId.includes('pro') || currentPlanId.includes('premium'));
   const creditsRemaining = statusData?.creditsRemaining ?? (isDoctor ? 25 : 15);
+  const tokensRemaining = creditsRemaining;
   const totalCredits = statusData?.totalCredits ?? sub?.monthly_ai_credits ?? (isDoctor ? (currentPlanId === 'doctor_plan_3' ? 300 : currentPlanId === 'doctor_plan_2' ? 100 : 25) : (currentPlanId === 'patient_plan_3' ? 150 : currentPlanId === 'patient_plan_2' ? 60 : 15));
   const usedCredits = statusData?.creditsUsed ?? sub?.credits_used ?? 0;
   const percentRemaining = Math.max(0, Math.min(100, Math.round((creditsRemaining / Math.max(1, totalCredits)) * 100)));

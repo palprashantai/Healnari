@@ -97,10 +97,26 @@ export class AiEntitlementService {
     const userRole = user.profile.role;
     const isDoctor = userRole === 'doctor';
     const isPremium =
-      subscription.plan_id === AiPlanId.PATIENT_PREMIUM ||
-      subscription.plan_id === AiPlanId.DOCTOR_PRO ||
-      subscription.plan_id.includes('pro') ||
-      subscription.plan_id.includes('premium');
+      (subscription.status === 'active' || subscription.status === 'trialing') &&
+      (subscription.plan_id === AiPlanId.PATIENT_PREMIUM ||
+        subscription.plan_id === AiPlanId.DOCTOR_PRO ||
+        subscription.plan_id.includes('pro') ||
+        subscription.plan_id.includes('premium'));
+
+    // Check if subscription has expired or failed payment
+    if (!['active', 'trialing', 'free'].includes(subscription.status || 'free') && flag.required_plan && !flag.required_plan.includes('plan_1')) {
+      return {
+        hasAccess: false,
+        reason: `Your AI subscription is ${subscription.status || 'inactive'}. Please renew your subscription to access paid features.`,
+        featureKey,
+        featureName: flag.name,
+        requiredPlan: flag.required_plan,
+        userPlan: subscription.plan_id,
+        creditsRemaining: 0,
+        monthlyLimit: 0,
+        isRateLimited: false,
+      };
+    }
 
     // 1. Feature flag status check
     if (!flag.is_enabled || flag.status === 'archived') {

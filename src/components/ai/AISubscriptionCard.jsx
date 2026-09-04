@@ -48,7 +48,8 @@ export function AISubscriptionCard({ userRole = 'patient', onRefresh }) {
     patient_plan_3: 'Patient Premium',
   };
   const currentPlanName = sub?.plan_name || planNames[currentPlanId] || (isDoctor ? 'Doctor Starter' : 'Patient Basic');
-  const isPremium = currentPlanId.includes('2') || currentPlanId.includes('3') || currentPlanId.includes('pro') || currentPlanId.includes('premium');
+  const isActive = currentSubscription?.status === 'active' || currentSubscription?.status === 'trialing';
+  const isPremium = isActive && (currentPlanId.includes('2') || currentPlanId.includes('3') || currentPlanId.includes('pro') || currentPlanId.includes('premium'));
   const isHighestPlan = currentPlanId === 'doctor_plan_3' || currentPlanId === 'patient_plan_3';
   const creditsRemaining = subData?.creditsRemaining ?? (isDoctor ? 25 : 15);
   const totalCredits = sub?.monthly_ai_credits || subData?.totalCredits || (isDoctor ? 25 : 15);
