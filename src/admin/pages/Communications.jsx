@@ -118,6 +118,27 @@ function AdminCommunications() {
     }, 500);
   };
 
+  const [testingEmail, setTestingEmail] = useState(false);
+
+  const handleTestEmail = async () => {
+    setTestingEmail(true);
+    try {
+      const res = await apiFetch('/admin/email/test', {
+        method: 'POST',
+        body: {},
+      });
+      if (res?.success) {
+        toast(`✅ Test email delivered successfully via ${res.data?.provider || 'provider'}!`, 'success');
+      } else {
+        toast(`❌ ${res?.data?.error || res?.message || 'Email delivery failed'}`, 'error');
+      }
+    } catch (err) {
+      toast(`❌ Test failed: ${err.message}`, 'error');
+    } finally {
+      setTestingEmail(false);
+    }
+  };
+
   const audienceOptions = ['All Patients', 'All Doctors', 'New Patients', 'Unverified Doctors', 'All Users'];
 
   return (
@@ -127,14 +148,25 @@ function AdminCommunications() {
           <h1 className="text-2xl font-black text-slate-800">Communications</h1>
           <p className="text-sm text-slate-500">Broadcast messages to patients and doctors across the platform.</p>
         </div>
-        <AIButton
-          onClick={() => setAiGeneratorOpen(true)}
-          variant="gradient"
-          icon="fa-wand-magic-sparkles"
-          size="sm"
-        >
-          AI Campaign Generator
-        </AIButton>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleTestEmail}
+            disabled={testingEmail}
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-sm transition-all disabled:opacity-50"
+            title="Send a live test verification email to your account"
+          >
+            <i className={`fas ${testingEmail ? 'fa-spinner fa-spin text-purple-600' : 'fa-paper-plane text-purple-600'}`}></i>
+            {testingEmail ? 'Sending Test...' : 'Test Email Delivery'}
+          </button>
+          <AIButton
+            onClick={() => setAiGeneratorOpen(true)}
+            variant="gradient"
+            icon="fa-wand-magic-sparkles"
+            size="sm"
+          >
+            AI Campaign Generator
+          </AIButton>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-5 gap-6">
