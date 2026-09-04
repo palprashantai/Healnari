@@ -1,8 +1,10 @@
+import dns from 'node:dns';
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { SupabaseService } from '@/core/supabase/supabase.service';
+import { FALLBACK_EMAIL_TEMPLATES } from './email-templates.fallback';
 
 // Mask email for privacy in logs (SEC-7)
 function maskEmail(email: string): string {
@@ -95,6 +97,10 @@ export class EmailService {
     const pass =
       this.configService.get<string>('SMTP_PASS') || process.env.SMTP_PASS;
 
+    if (typeof dns.setDefaultResultOrder === 'function') {
+      dns.setDefaultResultOrder('ipv4first');
+    }
+
     if (host && user && pass) {
       this.transporter = nodemailer.createTransport({
         host,
@@ -109,10 +115,15 @@ export class EmailService {
         auth: { user, pass },
         pool: true,
         maxConnections: 5,
+        family: 4,
+        connectionTimeout: 15000,
+        greetingTimeout: 15000,
+        socketTimeout: 30000,
+        dnsTimeout: 10000,
         tls: {
           rejectUnauthorized: false,
         },
-      });
+      } as any);
       this.logger.log(`Email service configured with SMTP host: ${host}`);
     } else {
       this.logger.warn('SMTP not configured — emails will be logged only.');
@@ -163,9 +174,10 @@ export class EmailService {
       return false;
     }
 
-    let templateSubject = `Notification: ${templateKey}`;
-    let templateHtml = `<p>Hello,</p><p>You have a new update from HealNari.</p>`;
-    let preheader = '';
+    const hardcoded = FALLBACK_EMAIL_TEMPLATES[templateKey];
+    let templateSubject = hardcoded?.subject || `Notification: ${templateKey}`;
+    let templateHtml = hardcoded?.content || `<p>Hello,</p><p>You have a new update from HealNari.</p>`;
+    let preheader = hardcoded?.preheader || '';
 
     try {
       // 1. Check in-memory cache
@@ -212,7 +224,7 @@ export class EmailService {
           });
         } else {
           this.logger.warn(
-            `Template '${templateKey}' not found in database — using default fallback`,
+            `Template '${templateKey}' not found in database — using ${hardcoded ? 'built-in structured' : 'default generic'} fallback`,
           );
         }
       }

@@ -1,3 +1,13 @@
+import dns from 'node:dns';
+
+// Force Node.js to resolve IPv4 addresses first.
+// On cloud environments like Render, outbound IPv6 routing is unsupported or disabled,
+// which causes connections to dual-stack services (such as Gmail SMTP 2607:f8b0:...:587)
+// to fail with `connect ENETUNREACH` or hang and trigger connection timeouts.
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
