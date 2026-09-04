@@ -209,7 +209,6 @@ export function AIUsageUpgradeModal({
         body: {
           planId: plan.id,
           billingCycle: 'monthly',
-          currency: selectedCurrency,
           currencyCode: selectedCurrency,
           countryCode: isIndian ? 'IN' : 'US',
           couponCode: appliedCoupon?.code || undefined,
@@ -277,8 +276,6 @@ export function AIUsageUpgradeModal({
         body: {
           packId: pack.id,
           currency: selectedCurrency,
-          currencyCode: selectedCurrency,
-          countryCode: isIndian ? 'IN' : 'US',
         },
       });
 

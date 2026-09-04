@@ -117,10 +117,9 @@ export function AIPaywallModal({
         body: {
           planId: basePlanId,
           billingCycle,
-          couponCode: appliedCoupon?.coupon?.code,
-          currency: userCurrency,
           currencyCode: userCurrency,
           countryCode: isIndian ? 'IN' : 'US',
+          couponCode: appliedCoupon?.coupon?.code,
         },
       });
 

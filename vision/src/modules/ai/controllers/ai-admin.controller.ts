@@ -158,6 +158,16 @@ export class CreateCouponDto {
   @IsOptional() @IsString() valid_until?: string;
 }
 
+export class UpdateCouponDto {
+  @IsOptional() @IsBoolean() is_active?: boolean;
+  @IsOptional() @IsNumber() max_uses?: number;
+  @IsOptional() @IsNumber() discount_value?: number;
+  @IsOptional() @IsString() valid_until?: string;
+  @IsOptional() @IsString() allowed_country?: string;
+  @IsOptional() @IsIn(['INR', 'USD']) allowed_currency?: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) allowed_plan_ids?: string[];
+}
+
 @ApiTags('Admin AI Control Center & Global Monetization')
 @Controller('api/admin/ai')
 @UseGuards(SupabaseAuthGuard)
@@ -668,6 +678,45 @@ export class AiAdminController {
     } catch {}
 
     return ResponseHelper.success(body, 'Coupon created successfully.');
+  }
+
+  @Put('coupons/:code')
+  @ApiOperation({ summary: 'Update promo coupon or toggle active status' })
+  async updateCoupon(
+    @CurrentUser() user: AuthUser,
+    @Param('code') code: string,
+    @Body() body: UpdateCouponDto,
+  ) {
+    this.requireAdmin(user);
+    const cleanCode = code.toUpperCase().trim();
+    try {
+      await this.supabase.admin
+        .from('ai_coupons')
+        .update({
+          ...body,
+        })
+        .eq('code', cleanCode);
+    } catch {}
+
+    return ResponseHelper.success({ code: cleanCode, ...body }, 'Coupon updated successfully.');
+  }
+
+  @Delete('coupons/:code')
+  @ApiOperation({ summary: 'Delete promotional discount coupon' })
+  async deleteCoupon(
+    @CurrentUser() user: AuthUser,
+    @Param('code') code: string,
+  ) {
+    this.requireAdmin(user);
+    const cleanCode = code.toUpperCase().trim();
+    try {
+      await this.supabase.admin
+        .from('ai_coupons')
+        .delete()
+        .eq('code', cleanCode);
+    } catch {}
+
+    return ResponseHelper.success({ code: cleanCode }, 'Coupon deleted successfully.');
   }
 
   // --- 9. Admin Audit Logs ---

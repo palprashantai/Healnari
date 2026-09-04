@@ -86,6 +86,25 @@ export function AIControl() {
   });
   const [savingPack, setSavingPack] = useState(false);
 
+  // Coupons Management State
+  const [coupons, setCoupons] = useState([]);
+  const [couponModalOpen, setCouponModalOpen] = useState(false);
+  const [couponSearch, setCouponSearch] = useState('');
+  const [couponScopeFilter, setCouponScopeFilter] = useState('all');
+  const [couponForm, setCouponForm] = useState({
+    code: '',
+    discount_type: 'percentage',
+    discount_value: 20,
+    allowed_country: '',
+    allowed_currency: '',
+    allowed_plan_ids: [],
+    max_uses: 500,
+    valid_until: '',
+    is_active: true,
+  });
+  const [savingCoupon, setSavingCoupon] = useState(false);
+  const [deletingCouponCode, setDeletingCouponCode] = useState(null);
+
   // Advanced / Treasury State
   const [reportingCurrency, setReportingCurrency] = useState('USD');
   const [profitability, setProfitability] = useState(null);
@@ -126,6 +145,7 @@ export function AIControl() {
       setPlans(plansList);
       setAuditLogs(Array.isArray(alData) ? alData : []);
       setCreditPacks(Array.isArray(cpData) ? cpData : []);
+      setCoupons(Array.isArray(coupData) ? coupData : []);
 
       const subPlans = plansList.filter((p) => p.billingCycle !== 'credit_pack' && p.billing_cycle !== 'credit_pack' && !p.planId?.startsWith('pack_') && !p.id?.startsWith('pack_'));
       if (subPlans.length > 0 && !selectedPlanId) {
@@ -499,6 +519,88 @@ export function AIControl() {
     setPackModalOpen(true);
   };
 
+  // Coupon Management Handlers
+  const handleSaveCoupon = async (e) => {
+    e.preventDefault();
+    if (!couponForm.code.trim()) {
+      notify('Coupon code is required', 'error');
+      return;
+    }
+    setSavingCoupon(true);
+    try {
+      let allowed_currency = couponForm.allowed_currency;
+      if (couponForm.allowed_country === 'IN') allowed_currency = 'INR';
+      if (couponForm.allowed_country === 'US') allowed_currency = 'USD';
+
+      const payload = {
+        code: couponForm.code.trim().toUpperCase(),
+        discount_type: couponForm.discount_type,
+        discount_value: Number(couponForm.discount_value),
+        allowed_country: couponForm.allowed_country || undefined,
+        allowed_currency: allowed_currency || undefined,
+        allowed_plan_ids: couponForm.allowed_plan_ids.length > 0 ? couponForm.allowed_plan_ids : undefined,
+        max_uses: Number(couponForm.max_uses) || 1000,
+        valid_until: couponForm.valid_until ? new Date(couponForm.valid_until).toISOString() : undefined,
+      };
+
+      await apiFetch('/admin/ai/coupons', {
+        method: 'POST',
+        body: payload,
+      });
+
+      notify('Coupon "' + payload.code + '" created successfully!', 'success');
+      setCouponModalOpen(false);
+      setCouponForm({
+        code: '',
+        discount_type: 'percentage',
+        discount_value: 20,
+        allowed_country: '',
+        allowed_currency: '',
+        allowed_plan_ids: [],
+        max_uses: 500,
+        valid_until: '',
+        is_active: true,
+      });
+      loadData();
+    } catch (err) {
+      notify(err?.message || 'Failed to create coupon', 'error');
+    } finally {
+      setSavingCoupon(false);
+    }
+  };
+
+  const handleToggleCouponStatus = async (coupon) => {
+    try {
+      const updatedStatus = !coupon.is_active;
+      await apiFetch('/admin/ai/coupons/' + encodeURIComponent(coupon.code), {
+        method: 'PUT',
+        body: { is_active: updatedStatus },
+      });
+      notify('Coupon "' + coupon.code + '" ' + (updatedStatus ? 'activated' : 'deactivated'));
+      setCoupons((prev) =>
+        prev.map((c) => (c.code === coupon.code ? { ...c, is_active: updatedStatus } : c))
+      );
+    } catch (err) {
+      notify(err?.message || 'Failed to update coupon status', 'error');
+    }
+  };
+
+  const handleDeleteCoupon = async (code) => {
+    if (!window.confirm('Are you sure you want to delete promo coupon "' + code + '"?')) return;
+    setDeletingCouponCode(code);
+    try {
+      await apiFetch('/admin/ai/coupons/' + encodeURIComponent(code), {
+        method: 'DELETE',
+      });
+      notify('Coupon "' + code + '" deleted successfully');
+      setCoupons((prev) => prev.filter((c) => c.code !== code));
+    } catch (err) {
+      notify(err?.message || 'Failed to delete coupon', 'error');
+    } finally {
+      setDeletingCouponCode(null);
+    }
+  };
+
   const handleSavePack = async (e) => {
     e?.preventDefault();
     if (!packForm.name.trim()) {
@@ -599,6 +701,7 @@ export function AIControl() {
           { id: 'features', label: 'AI Features Catalog', icon: 'fa-wand-magic-sparkles', badge: flags.filter((f) => f.status !== 'archived').length },
           { id: 'plans', label: 'AI Plans & Usage Limits', icon: 'fa-layer-group', badge: plans.filter((p) => p.billingCycle !== 'credit_pack' && !p.planId?.startsWith('pack_')).length },
           { id: 'credit_packs', label: 'Credit Top-Up Packs', icon: 'fa-bolt', badge: creditPacks.length },
+          { id: 'coupons', label: 'Coupons & Promos', icon: 'fa-ticket-alt', badge: coupons.length },
           { id: 'audit', label: 'Audit Trail', icon: 'fa-clock-rotate-left', badge: auditLogs.length },
           { id: 'advanced', label: 'Advanced & Unit Economics', icon: 'fa-chart-pie' },
         ].map((tab) => (
