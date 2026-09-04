@@ -25,6 +25,7 @@ export function NotificationSettingsTab() {
     user,
     subscribePush,
     unsubscribePush,
+    testPush,
     pushPermissionState,
     isPushSubscribed,
     isPushSupported,
@@ -36,6 +37,7 @@ export function NotificationSettingsTab() {
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testingPush, setTestingPush] = useState(false);
   const [showPrePrompt, setShowPrePrompt] = useState(false);
 
   const [prefs, setPrefs] = useState({
@@ -127,6 +129,22 @@ export function NotificationSettingsTab() {
     }
   };
 
+  const handleTestPush = async () => {
+    setTestingPush(true);
+    try {
+      const res = await testPush();
+      if (res?.success) {
+        toast('Test push notification sent! Check your device notification shade or lockscreen.', 'success');
+      } else {
+        toast(res?.message || 'Could not send test notification.', 'error');
+      }
+    } catch {
+      toast('Failed to trigger test push notification.', 'error');
+    } finally {
+      setTestingPush(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center text-slate-400">
@@ -182,6 +200,17 @@ export function NotificationSettingsTab() {
                     ? 'Blocked by browser settings'
                     : 'Not subscribed'}
                 </span>
+                {isPushSubscribed && (
+                  <button
+                    onClick={handleTestPush}
+                    disabled={testingPush}
+                    className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-aubergine-50 text-aubergine-700 hover:bg-aubergine-100 transition-colors border border-aubergine-200 disabled:opacity-50"
+                    title="Send a live test alert to your device"
+                  >
+                    <i className={`fas ${testingPush ? 'fa-spinner fa-spin' : 'fa-paper-plane'} text-[10px]`}></i>
+                    {testingPush ? 'Sending...' : 'Test Alert'}
+                  </button>
+                )}
                 {isIos && !isPwaStandalone && (
                   <span className="text-xs text-aubergine-700 bg-aubergine-50 px-2.5 py-0.5 rounded-full border border-aubergine-200 font-medium flex items-center gap-1">
                     <i className="fa-solid fa-arrow-up-from-bracket text-[10px]"></i>

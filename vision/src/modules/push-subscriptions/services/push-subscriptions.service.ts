@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as webpush from 'web-push';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
@@ -14,12 +15,22 @@ export interface PushPayload {
 export class PushSubscriptionsService {
   private readonly logger = new Logger(PushSubscriptionsService.name);
 
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly configService: ConfigService,
+  ) {}
 
   private getVapidDetails() {
-    const publicKey = process.env.VAPID_PUBLIC_KEY;
-    const privateKey = process.env.VAPID_PRIVATE_KEY;
-    const subject = process.env.VAPID_SUBJECT || 'mailto:support@healnari.com';
+    const publicKey =
+      this.configService.get<string>('VAPID_PUBLIC_KEY') ||
+      process.env.VAPID_PUBLIC_KEY;
+    const privateKey =
+      this.configService.get<string>('VAPID_PRIVATE_KEY') ||
+      process.env.VAPID_PRIVATE_KEY;
+    const subject =
+      this.configService.get<string>('VAPID_SUBJECT') ||
+      process.env.VAPID_SUBJECT ||
+      'mailto:support@healnari.com';
 
     if (!publicKey || !privateKey) {
       return null;
@@ -136,5 +147,83 @@ export class PushSubscriptionsService {
         }
       }),
     );
+  }
+
+  /**
+   * Dispatches a test lockscreen push notification to all active devices of the caller.
+   */
+  async testPush(user: AuthUser) {
+    const vapid = this.getVapidDetails();
+    if (!vapid) {
+      throw new BadRequestException(
+        'VAPID keys are not configured on the server. Please check server environment.',
+      );
+    }
+
+    const { data: subscriptions, error } = await this.supabase.admin
+      .from('push_subscriptions')
+      .select()
+      .eq('user_id', user.id);
+
+    if (error) {
+      throw new BadRequestException(
+        `Failed to query push subscriptions: ${error.message}`,
+      );
+    }
+
+    if (!subscriptions?.length) {
+      return {
+        sent: false,
+        deviceCount: 0,
+        message:
+          'No active push subscriptions found for your account. Please enable notifications on this device first.',
+      };
+    }
+
+    let successCount = 0;
+    const errors: string[] = [];
+
+    await Promise.all(
+      subscriptions.map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: { p256dh: sub.p256dh, auth: sub.auth },
+            },
+            JSON.stringify({
+              title: '🌸 HealNari Push Connected!',
+              body: 'Real-time telemedicine, prescription, and appointment alerts are active.',
+              data: {
+                type: 'system_test',
+                timestamp: Date.now(),
+              },
+            }),
+            {
+              TTL: 86400,
+              urgency: 'high',
+              vapidDetails: vapid,
+            },
+          );
+          successCount++;
+        } catch (err: any) {
+          const status = err?.statusCode;
+          errors.push(`Device (${sub.platform || 'web'}): ${err.message}`);
+          if (status === 404 || status === 410) {
+            await this.supabase.admin
+              .from('push_subscriptions')
+              .delete()
+              .eq('id', sub.id);
+          }
+        }
+      }),
+    );
+
+    return {
+      sent: successCount > 0,
+      deliveredTo: successCount,
+      totalDevices: subscriptions.length,
+      errors: errors.length ? errors : undefined,
+    };
   }
 }

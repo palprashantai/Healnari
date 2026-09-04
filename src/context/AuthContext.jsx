@@ -45,6 +45,7 @@ export function AuthProvider({ children }) {
   const {
     subscribe: subscribePush,
     unsubscribe: unsubscribePush,
+    testPush,
     permissionState: pushPermissionState,
     isSubscribed: isPushSubscribed,
     isSupported: isPushSupported,
@@ -229,6 +230,7 @@ export function AuthProvider({ children }) {
     loading,
     subscribePush,
     unsubscribePush,
+    testPush,
     pushPermissionState,
     isPushSubscribed,
     isPushSupported,
@@ -247,6 +249,7 @@ export function AuthProvider({ children }) {
     loading,
     subscribePush,
     unsubscribePush,
+    testPush,
     pushPermissionState,
     isPushSubscribed,
     isPushSupported,

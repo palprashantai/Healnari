@@ -54,4 +54,13 @@ export class PushSubscriptionsController {
     await this.pushSubscriptionsService.unsubscribe(user, endpoint);
     return ResponseHelper.success(null, SUCCESS_MESSAGES.PUSH_UNSUBSCRIBED);
   }
+
+  @ApiOperation({
+    summary: "Send a test lockscreen push notification to the caller's registered devices",
+  })
+  @Post('test')
+  async testPush(@CurrentUser() user: AuthUser) {
+    const data = await this.pushSubscriptionsService.testPush(user);
+    return ResponseHelper.success(data, 'Test push notification dispatched.');
+  }
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { apiFetch } from '../lib/apiClient.js';
+import { apiFetch, getTokens } from '../lib/apiClient.js';
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
@@ -111,6 +111,7 @@ export function usePushSubscription(user) {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
   const subscribedForRef = useRef(null);
+  const inFlightRef = useRef(false);
 
   const isIos = isIosDevice();
   const isPwaStandalone = isStandaloneMode();
@@ -154,7 +155,7 @@ export function usePushSubscription(user) {
    * Subscribes the device to Web Push with pre-permission handling.
    * Prompts user for browser permission only when explicitly invoked by user gesture.
    */
-  const subscribe = useCallback(async () => {
+  const subscribe = useCallback(async (options = {}) => {
     if (!VAPID_PUBLIC_KEY) {
       console.warn('VITE_VAPID_PUBLIC_KEY is not configured.');
       return { success: false, reason: 'unconfigured' };
@@ -168,6 +169,11 @@ export function usePushSubscription(user) {
       return { success: false, reason: 'unsupported' };
     }
 
+    if (inFlightRef.current) {
+      return { success: false, reason: 'in_flight' };
+    }
+
+    inFlightRef.current = true;
     setLoading(true);
     try {
       let currentPerm = Notification.permission;
@@ -179,12 +185,14 @@ export function usePushSubscription(user) {
       if (currentPerm !== 'granted') {
         setIsSubscribed(false);
         setLoading(false);
+        inFlightRef.current = false;
         return { success: false, reason: currentPerm === 'denied' ? 'denied' : 'dismissed' };
       }
 
       const registration = await getRegistrationSafely();
       if (!registration || !registration.pushManager) {
         setLoading(false);
+        inFlightRef.current = false;
         return { success: false, reason: 'sw_not_ready', error: new Error('Service Worker push manager not ready.') };
       }
 
@@ -234,6 +242,27 @@ export function usePushSubscription(user) {
       const platform = detectPlatform();
       const userAgent = navigator.userAgent;
 
+      // Ensure user is authenticated before sending endpoint to backend
+      const tokens = getTokens();
+      if (!tokens?.accessToken) {
+        setLoading(false);
+        inFlightRef.current = false;
+        return { success: false, reason: 'unauthenticated' };
+      }
+
+      // Session cache check: prevent repeating identical network registrations during rapid navigation
+      const syncKey = `healnari_push_synced_${user?.id}`;
+      const endpointHash = subscription.endpoint.slice(-24);
+      const lastSynced = sessionStorage.getItem(syncKey);
+
+      if (!options?.force && lastSynced === endpointHash) {
+        subscribedForRef.current = user?.id;
+        setIsSubscribed(true);
+        setLoading(false);
+        inFlightRef.current = false;
+        return { success: true, cached: true };
+      }
+
       try {
         await apiFetch('/push-subscriptions', {
           method: 'POST',
@@ -244,7 +273,15 @@ export function usePushSubscription(user) {
             userAgent,
           },
         });
+        sessionStorage.setItem(syncKey, endpointHash);
       } catch (postErr) {
+        if (postErr?.status === 401) {
+          subscribedForRef.current = user?.id;
+          setIsSubscribed(false);
+          setLoading(false);
+          inFlightRef.current = false;
+          return { success: false, reason: 'unauthorized' };
+        }
         // Resilient fallback for backend versions with strict DTO whitelisting
         if (postErr?.message?.includes('should not exist') || postErr?.status === 400) {
           await apiFetch('/push-subscriptions', {
@@ -254,6 +291,7 @@ export function usePushSubscription(user) {
               keys: { p256dh, auth },
             },
           });
+          sessionStorage.setItem(syncKey, endpointHash);
         } else {
           throw postErr;
         }
@@ -262,11 +300,13 @@ export function usePushSubscription(user) {
       subscribedForRef.current = user?.id;
       setIsSubscribed(true);
       setLoading(false);
+      inFlightRef.current = false;
       return { success: true };
     } catch (err) {
       console.warn('Push subscription failed:', err);
       setIsSubscribed(false);
       setLoading(false);
+      inFlightRef.current = false;
       return { success: false, reason: 'error', error: err };
     }
   }, [isIos, isPwaStandalone, user?.id]);
@@ -289,6 +329,9 @@ export function usePushSubscription(user) {
         }
       }
 
+      if (user?.id) {
+        sessionStorage.removeItem(`healnari_push_synced_${user.id}`);
+      }
       subscribedForRef.current = null;
       setIsSubscribed(false);
       setLoading(false);
@@ -297,6 +340,22 @@ export function usePushSubscription(user) {
       console.warn('Push unsubscription failed:', err);
       setLoading(false);
       return false;
+    }
+  }, [user?.id]);
+
+  /**
+   * Dispatches a test lockscreen push notification to this device via backend.
+   */
+  const testPush = useCallback(async () => {
+    try {
+      const tokens = getTokens();
+      if (!tokens?.accessToken) {
+        return { success: false, message: 'Please log in to test push notifications.' };
+      }
+      const res = await apiFetch('/push-subscriptions/test', { method: 'POST' });
+      return { success: true, data: res };
+    } catch (err) {
+      return { success: false, message: err?.message || 'Failed to dispatch test notification.' };
     }
   }, []);
 
@@ -316,6 +375,7 @@ export function usePushSubscription(user) {
   return {
     subscribe,
     unsubscribe,
+    testPush,
     permissionState,
     isSubscribed,
     isSupported,
