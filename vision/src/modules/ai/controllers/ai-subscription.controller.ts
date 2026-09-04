@@ -53,6 +53,10 @@ export class UpgradeSubscriptionDto {
   @IsOptional()
   @IsIn(['INR', 'USD'])
   currencyCode?: string;
+
+  @IsOptional()
+  @IsIn(['INR', 'USD'])
+  currency?: string;
 }
 
 export class ActivateSubscriptionDto {
@@ -119,9 +123,28 @@ export class BuyCreditsDto {
   @IsOptional()
   @IsIn(['INR', 'USD'])
   currency?: string;
+
+  @IsOptional()
+  @IsIn(['INR', 'USD'])
+  currencyCode?: string;
+
+  @IsOptional()
+  @IsString()
+  countryCode?: string;
 }
 
 @ApiTags('AI Subscriptions & Entitlements')
+
+export class VerifyCheckoutDto {
+  @IsOptional()
+  @IsString()
+  orderId?: string;
+
+  @IsOptional()
+  @IsString()
+  order_id?: string;
+}
+
 @Controller('api/ai')
 @UseGuards(SupabaseAuthGuard)
 export class AiSubscriptionController {
@@ -259,17 +282,20 @@ export class AiSubscriptionController {
     return ResponseHelper.success(history, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  @Post('subscription/upgrade')
+  @Post(['subscription/upgrade', 'checkout/create-subscription-order'])
   @ApiOperation({ summary: 'Initiate payment order for AI Premium plan in local currency' })
   async initiateUpgrade(
     @CurrentUser() user: AuthUser,
     @Body() body: UpgradeSubscriptionDto,
   ) {
+    const targetCurrency = body.currencyCode || body.currency;
     const order = await this.subscriptionService.initiateUpgrade(
       user,
       body.planId,
       body.billingCycle || 'monthly',
       body.couponCode,
+      body.countryCode,
+      targetCurrency,
     );
 
     await this.analyticsService.track({
@@ -285,7 +311,35 @@ export class AiSubscriptionController {
       },
     });
 
-    return ResponseHelper.success(order, 'AI Upgrade checkout order initiated.');
+    return ResponseHelper.success(
+      {
+        ...order,
+        order_id: order.orderId,
+        payment_session_id: order.paymentSessionId,
+      },
+      'AI Upgrade checkout order initiated.'
+    );
+  }
+
+  @Post('checkout/verify')
+  @ApiOperation({ summary: 'Verify Cashfree payment order (legacy checkout alias)' })
+  async verifyCheckoutOrder(
+    @CurrentUser() user: AuthUser,
+    @Body() body: VerifyCheckoutDto,
+  ) {
+    const targetOrderId = body.orderId || body.order_id;
+    if (!targetOrderId) {
+      throw new BadRequestException('orderId is required');
+    }
+    const subscription = await this.subscriptionService.reconcileSubscriptionOrder(targetOrderId);
+    return ResponseHelper.success(
+      {
+        ...subscription,
+        status: subscription?.status === 'active' ? 'PAID' : subscription?.status,
+        success: true,
+      },
+      'Subscription verified and reconciled successfully.'
+    );
   }
 
   @Get('subscription/verify/:orderId')
@@ -303,8 +357,12 @@ export class AiSubscriptionController {
 
   @Get('credits/packs')
   @ApiOperation({ summary: 'Get available AI credit top-up packs with localized pricing' })
-  async getCreditPacks(@CurrentUser() user: AuthUser) {
-    const packs = await this.subscriptionService.getCreditPacks(user);
+  async getCreditPacks(
+    @CurrentUser() user: AuthUser,
+    @Query('country') country?: string,
+    @Query('currency') currency?: string,
+  ) {
+    const packs = await this.subscriptionService.getCreditPacks(user, country, currency);
     return ResponseHelper.success(packs, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
@@ -314,7 +372,13 @@ export class AiSubscriptionController {
     @CurrentUser() user: AuthUser,
     @Body() body: BuyCreditsDto,
   ) {
-    const order = await this.subscriptionService.initiateCreditTopUp(user, body.packId);
+    const targetCurrency = body.currencyCode || body.currency;
+    const order = await this.subscriptionService.initiateCreditTopUp(
+      user,
+      body.packId,
+      body.countryCode,
+      targetCurrency,
+    );
     return ResponseHelper.success(order, 'Credit top-up checkout initiated.');
   }
 

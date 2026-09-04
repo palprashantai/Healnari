@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { load as loadCashfree } from '@cashfreepayments/cashfree-js';
 import { Modal } from '../Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
-import { formatMoney, getStoredCurrency, setStoredCurrency } from '../../lib/currency.js';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { detectUserCountry } from '../../lib/countries.js';
 import { useToast } from '../Toast.jsx';
 
 const CASHFREE_MODE = import.meta.env.VITE_CASHFREE_MODE || 'sandbox';
@@ -21,8 +22,12 @@ export function AIUsageUpgradeModal({
   renewalDate = null,
   onUpgraded = () => {},
 }) {
-  const { toast } = useToast?.() || { toast: (m) => alert(m) };
-  const [selectedCurrency, setSelectedCurrency] = useState(() => getStoredCurrency());
+  const { user } = useAuth();
+  const toastFn = useToast();
+  const toast = typeof toastFn === 'function' ? toastFn : (toastFn?.toast || ((m) => alert(m)));
+  const userCountry = detectUserCountry(user);
+  const isIndian = userCountry === 'IN';
+  const selectedCurrency = isIndian ? 'INR' : 'USD';
   const [pricingQuotes, setPricingQuotes] = useState([]);
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
@@ -33,46 +38,30 @@ export function AIUsageUpgradeModal({
 
   const isDoctor = role === 'doctor' || (currentPlanId && currentPlanId.startsWith('doctor'));
 
-  // Sync external currency changes
-  useEffect(() => {
-    const handleCurrencyChange = (e) => {
-      const code = e?.detail || 'INR';
-      setSelectedCurrency(code);
-    };
-    window.addEventListener('healnari_currency_changed', handleCurrencyChange);
-    return () => window.removeEventListener('healnari_currency_changed', handleCurrencyChange);
-  }, []);
-
   // Fetch Quotes on Open
   useEffect(() => {
     if (isOpen) {
-      apiFetch(`/ai/pricing?currency=${selectedCurrency}`)
+      apiFetch(`/ai/pricing?currency=${selectedCurrency}&country=${isIndian ? "IN" : "US"}`)
         .then((quotes) => setPricingQuotes(quotes || []))
         .catch(() => {});
     }
   }, [isOpen, selectedCurrency]);
-
-  const handleCurrencyToggle = (curr) => {
-    setStoredCurrency(curr);
-    setSelectedCurrency(curr);
-    setAppliedCoupon(null);
-  };
 
   // Derive Plans dynamically from database pricingQuotes
   const availablePlans = useMemo(() => {
     const paidRoleQuotes = pricingQuotes.filter((q) => {
       if (q.billing_cycle === 'credit_pack' || q.billingCycle === 'credit_pack') return false;
       if (q.planId?.startsWith('pack_')) return false;
-      const price = q.price_inr ?? q.baseAmount ?? 0;
-      const isPaid = price > 0 || (q.price_usd && q.price_usd > 0);
+      const price = isIndian ? (q.price_inr ?? q.baseAmount ?? 0) : (q.price_usd ?? q.baseAmount ?? 0);
+      const isPaid = price > 0;
       const matchesRole = isDoctor ? q.product_id?.includes('doctor') : q.product_id?.includes('patient');
       return isPaid && matchesRole;
     });
 
     if (paidRoleQuotes.length > 0) {
       const sorted = [...paidRoleQuotes].sort((a, b) => {
-        const pa = a.price_inr ?? a.baseAmount ?? 0;
-        const pb = b.price_inr ?? b.baseAmount ?? 0;
+        const pa = isIndian ? (a.price_inr ?? a.baseAmount ?? 0) : (a.price_usd ?? a.baseAmount ?? 0);
+        const pb = isIndian ? (b.price_inr ?? b.baseAmount ?? 0) : (b.price_usd ?? b.baseAmount ?? 0);
         return pa - pb;
       });
 
@@ -186,7 +175,7 @@ export function AIUsageUpgradeModal({
             highlight: false,
           },
         ];
-  }, [pricingQuotes, isDoctor]);
+  }, [pricingQuotes, isDoctor, isIndian]);
 
   // Coupon Validation
   const handleApplyCoupon = async (targetPlanId) => {
@@ -215,42 +204,47 @@ export function AIUsageUpgradeModal({
   const handleSelectPlan = async (plan) => {
     setSubmittingPlanId(plan.id);
     try {
-      const order = await apiFetch('/ai/checkout/create-subscription-order', {
+      const order = await apiFetch('/ai/subscription/upgrade', {
         method: 'POST',
         body: {
           planId: plan.id,
+          billingCycle: 'monthly',
           currency: selectedCurrency,
-          countryCode: selectedCurrency === 'USD' ? 'US' : 'IN',
+          currencyCode: selectedCurrency,
+          countryCode: isIndian ? 'IN' : 'US',
           couponCode: appliedCoupon?.code || undefined,
         },
       });
 
-      if (!order?.payment_session_id) {
+      const paymentSessionId = order?.paymentSessionId || order?.payment_session_id;
+      const orderId = order?.orderId || order?.order_id;
+
+      if (!paymentSessionId && !orderId) {
         throw new Error('Could not initiate payment session.');
       }
 
-      const cashfree = await getCashfree();
-      const checkoutResult = await cashfree.checkout({
-        paymentSessionId: order.payment_session_id,
-        redirectTarget: '_modal',
-      });
+      if (paymentSessionId) {
+        const cashfree = await getCashfree();
+        const checkoutResult = await cashfree.checkout({
+          paymentSessionId,
+          redirectTarget: '_modal',
+        });
 
-      if (checkoutResult.error) {
-        toast(checkoutResult.error.message || 'Payment failed', 'error');
-        return;
+        if (checkoutResult?.error) {
+          toast(checkoutResult.error.message || 'Payment cancelled', 'info');
+          return;
+        }
       }
 
-      const verifyRes = await apiFetch('/ai/checkout/verify', {
-        method: 'POST',
-        body: { orderId: order.order_id },
-      });
-
-      if (verifyRes?.status === 'PAID' || verifyRes?.status === 'ACTIVE' || verifyRes?.success) {
-        toast(`Successfully upgraded to ${plan.name}! Your monthly AI uses have been refreshed.`, 'success');
-        onUpgraded(plan);
-        onClose();
-      } else {
-        toast('Payment was not completed. You can try again anytime.', 'info');
+      if (orderId) {
+        const verifyRes = await apiFetch(`/ai/subscription/verify/${orderId}`);
+        if (verifyRes?.status === 'paid' || verifyRes?.status === 'active' || verifyRes?.id) {
+          toast(`Successfully upgraded to ${plan.name}! Your monthly AI uses have been refreshed.`, 'success');
+          onUpgraded(plan);
+          onClose();
+        } else {
+          toast('Payment was not completed. You can try again anytime.', 'info');
+        }
       }
     } catch (err) {
       toast(err?.message || 'Could not complete upgrade. Please try again.', 'error');
@@ -260,21 +254,32 @@ export function AIUsageUpgradeModal({
   };
 
   const topUpPacks = useMemo(() => {
-    const isUsd = selectedCurrency === 'USD';
-    return [
-      { id: 'pack_100', credits: 100, price: isUsd ? '$3' : '₹200', name: '100 AI Credits', popular: true, tagline: 'Perfect for quick consults and reports' },
-      { id: 'pack_250', credits: 250, price: isUsd ? '$6' : '₹450', name: '250 AI Credits', tagline: 'Extra bandwidth for the busy week' },
-      { id: 'pack_500', credits: 500, price: isUsd ? '$10' : '₹800', name: '500 AI Credits', tagline: 'Heavy clinical & diagnostic workload' },
-      { id: 'pack_1000', credits: 1000, price: isUsd ? '$18' : '₹1,500', name: '1,000 AI Credits', tagline: 'Best bulk value for full team use' },
-    ];
-  }, [selectedCurrency]);
+    return isIndian
+      ? [
+          { id: 'pack_100', credits: 100, price: '₹200', name: '100 AI Credits', popular: true, tagline: 'Perfect for quick consults and reports' },
+          { id: 'pack_250', credits: 250, price: '₹450', name: '250 AI Credits', tagline: 'Extra bandwidth for the busy week' },
+          { id: 'pack_500', credits: 500, price: '₹800', name: '500 AI Credits', tagline: 'Heavy clinical & diagnostic workload' },
+          { id: 'pack_1000', credits: 1000, price: '₹1,500', name: '1,000 AI Credits', tagline: 'Best bulk value for full team use' },
+        ]
+      : [
+          { id: 'pack_100', credits: 100, price: '$3', name: '100 AI Credits', popular: true, tagline: 'Perfect for quick consults and reports' },
+          { id: 'pack_250', credits: 250, price: '$6', name: '250 AI Credits', tagline: 'Extra bandwidth for the busy week' },
+          { id: 'pack_500', credits: 500, price: '$10', name: '500 AI Credits', tagline: 'Heavy clinical & diagnostic workload' },
+          { id: 'pack_1000', credits: 1000, price: '$18', name: '1,000 AI Credits', tagline: 'Best bulk value for full team use' },
+        ];
+  }, [isIndian]);
 
   const handleTopUpCheckout = async (pack) => {
     setSubmittingTopUpId(pack.id);
     try {
       const order = await apiFetch('/ai/credits/topup', {
         method: 'POST',
-        body: { packId: pack.id },
+        body: {
+          packId: pack.id,
+          currency: selectedCurrency,
+          currencyCode: selectedCurrency,
+          countryCode: isIndian ? 'IN' : 'US',
+        },
       });
 
       if (!order?.orderId) {
@@ -334,11 +339,11 @@ export function AIUsageUpgradeModal({
           </h2>
           <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
             {tokensRemaining <= 0
-              ? `You have used your queries for this cycle. Top up 100 credits for ₹200 or upgrade your monthly plan.`
+              ? `You have used your queries for this cycle. Top up 100 credits for ${isIndian ? '₹200' : '$3'} or upgrade your monthly plan.`
               : `Top up instant credits or upgrade to higher monthly clinical tiers.`}
           </p>
 
-          {/* Current Status Strip & Currency Toggle */}
+          {/* Current Status Strip */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 mt-4 p-3 bg-slate-50 rounded-2xl border border-slate-200/80 text-xs">
             <div className="flex items-center gap-2 text-left">
               <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
@@ -348,24 +353,8 @@ export function AIUsageUpgradeModal({
               </span>
             </div>
 
-            {/* Currency Selector */}
-            <div className="bg-white p-0.5 rounded-xl border border-slate-200 flex items-center text-[11px] font-bold shrink-0">
-              <button
-                onClick={() => handleCurrencyToggle('INR')}
-                className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${
-                  selectedCurrency === 'INR' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                🇮🇳 ₹ INR
-              </button>
-              <button
-                onClick={() => handleCurrencyToggle('USD')}
-                className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${
-                  selectedCurrency === 'USD' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                🇺🇸 $ USD
-              </button>
+            <div className="text-[11px] font-bold text-slate-500 bg-white px-2.5 py-1 rounded-xl border border-slate-200 shrink-0">
+              {isIndian ? '🇮🇳 Indian Rupee (₹ INR)' : '🇺🇸 US Dollar ($ USD)'}
             </div>
           </div>
         </div>

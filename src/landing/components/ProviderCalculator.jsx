@@ -1,10 +1,12 @@
+import { detectUserCountry } from '../../lib/countries.js';
 import React, { useState } from 'react';
 import Reveal from '../../components/Reveal.jsx';
 import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
 
 function ProviderCalculator({ onApply }) {
-  const [currency, setCurrency] = useState('INR'); // 'INR' or 'USD'
-  const [fee, setFee] = useState(800);
+  const isIndian = typeof window !== 'undefined' ? detectUserCountry() === 'IN' : true;
+  const [currency, setCurrency] = useState(isIndian ? 'INR' : 'USD'); // 'INR' or 'USD'
+  const [fee, setFee] = useState(isIndian ? 800 : 40);
   const [consultsPerDay, setConsultsPerDay] = useState(4);
   const [daysPerWeek, setDaysPerWeek] = useState(5);
 
@@ -57,21 +59,10 @@ function ProviderCalculator({ onApply }) {
             Practice Economics
           </span>
 
-          {/* Currency Switcher */}
-          <div className="bg-white p-1 rounded-2xl flex items-center gap-1 text-xs font-semibold border border-sand-300 shadow-xs">
-            <button
-              onClick={() => handleCurrencyChange('INR')}
-              className={`px-3.5 py-1.5 rounded-xl transition-all ${currency === 'INR' ? 'bg-aubergine-700 text-white shadow-sm font-bold' : 'text-slate-600 hover:text-aubergine-800'}`}
-            >
-              ₹ INR (India)
-            </button>
-            <button
-              onClick={() => handleCurrencyChange('USD')}
-              className={`px-3.5 py-1.5 rounded-xl transition-all ${currency === 'USD' ? 'bg-aubergine-700 text-white shadow-sm font-bold' : 'text-slate-600 hover:text-aubergine-800'}`}
-            >
-              $ USD (Global)
-            </button>
-          </div>
+          {/* Currency Badge */}
+          <span className="text-xs font-bold text-slate-700 bg-white border border-sand-300 px-3 py-1 rounded-full shadow-xs">
+            {currency === 'INR' ? '₹ INR (India)' : '$ USD (Global)'}
+          </span>
         </div>
 
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 font-display tracking-tight">

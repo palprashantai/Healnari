@@ -1,3 +1,4 @@
+import { getUserCurrency, isIndianUser } from './countries.js';
 /**
  * HealNari Centralized Two-Currency Formatter & Store
  * STRICT POLICY: Supports exclusively two currencies:
@@ -137,12 +138,8 @@ export function formatCompactCurrency(amount, currency = 'INR') {
 /**
  * Client-side Currency Persistence Helpers
  */
-export function getStoredCurrency() {
-  try {
-    const saved = localStorage.getItem('healnari_currency');
-    if (saved === 'USD' || saved === 'INR') return saved;
-  } catch {}
-  return 'INR';
+export function getStoredCurrency(user = null) {
+  return getUserCurrency(user);
 }
 
 export function setStoredCurrency(code) {

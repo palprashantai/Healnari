@@ -156,10 +156,17 @@ export function getCountryByCode(code) {
 }
 
 /**
- * Detects user country from timezone/browser locale.
- * Defaults to 'IN' if in Indian timezone, otherwise 'US' (which maps to USD).
+ * Detects user country from user profile, phone, or browser timezone.
+ * Defaults to 'IN' if in Indian timezone/profile, otherwise 'US' (which maps to USD).
  */
-export function detectUserCountry() {
+export function detectUserCountry(user = null) {
+  const profileCountry = (user?.profile?.country || user?.country || '').trim().toUpperCase();
+  if (profileCountry === 'IN' || profileCountry === 'INDIA') return 'IN';
+  if (profileCountry && profileCountry !== 'IN') return profileCountry;
+
+  const phone = (user?.profile?.phone || user?.phone || '').trim();
+  if (phone.startsWith('+91') || (phone.startsWith('91') && phone.length >= 10)) return 'IN';
+
   try {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
     if (tz.includes('Calcutta') || tz.includes('Kolkata') || tz.includes('India')) return 'IN';
@@ -172,4 +179,19 @@ export function detectUserCountry() {
     // default
   }
   return 'US'; // default US & International (USD)
+}
+
+/**
+ * Returns 'INR' if user is Indian (profile, phone or timezone), else 'USD'.
+ */
+export function getUserCurrency(user = null) {
+  const country = detectUserCountry(user);
+  return country === 'IN' ? 'INR' : 'USD';
+}
+
+/**
+ * Boolean helper to check if user is in India.
+ */
+export function isIndianUser(user = null) {
+  return detectUserCountry(user) === 'IN';
 }

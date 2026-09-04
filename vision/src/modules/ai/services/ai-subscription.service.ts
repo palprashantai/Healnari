@@ -453,6 +453,8 @@ export class AiSubscriptionService {
     targetPlanId: string,
     billingCycle: 'monthly' | 'yearly' = 'monthly',
     couponCode?: string,
+    explicitCountryCode?: string,
+    explicitCurrencyCode?: string,
   ): Promise<{
     orderId: string;
     paymentSessionId?: string;
@@ -464,8 +466,14 @@ export class AiSubscriptionService {
     discountAmount: number;
     finalAmount: number;
   }> {
-    // 1. Authoritative Currency & Country resolution (locked to user profile)
-    const countryCode = (user.profile.country || 'IN').toUpperCase().trim();
+    // 1. Authoritative Currency & Country resolution
+    // Respect explicitly provided country or fall back to user profile; default to IN
+    let countryCode = (explicitCountryCode || user?.profile?.country || 'IN').toUpperCase().trim();
+    if (!countryCode) countryCode = 'IN';
+
+    // Strict regional enforcement:
+    // India = strictly INR
+    // International = strictly USD (using higher tier purchasing power pricing: $19/$39 doctor, $7/$14 patient)
     const currencyCode = countryCode === 'IN' ? 'INR' : 'USD';
 
     // 2. Authoritative Price Quote from Pricing Engine
@@ -827,6 +835,8 @@ export class AiSubscriptionService {
   async initiateTokenPack(
     user: AuthUser,
     packId: string,
+    explicitCountryCode?: string,
+    explicitCurrencyCode?: string,
   ): Promise<{
     orderId: string;
     paymentSessionId?: string;
@@ -836,7 +846,9 @@ export class AiSubscriptionService {
     tokens: number;
     credits?: number;
   }> {
-    const country = (user.profile.country || 'IN').toUpperCase().trim();
+    let country = (explicitCountryCode || user?.profile?.country || 'IN').toUpperCase().trim();
+    if (!country) country = 'IN';
+
     const currency = country === 'IN' ? 'INR' : 'USD';
     const isUsd = currency === 'USD';
 
@@ -942,15 +954,26 @@ export class AiSubscriptionService {
   /**
    * Alias for initiateTokenPack with clean modern naming
    */
-  async initiateCreditTopUp(user: AuthUser, packId: string) {
-    return this.initiateTokenPack(user, packId);
+  async initiateCreditTopUp(
+    user: AuthUser,
+    packId: string,
+    explicitCountryCode?: string,
+    explicitCurrencyCode?: string,
+  ) {
+    return this.initiateTokenPack(user, packId, explicitCountryCode, explicitCurrencyCode);
   }
 
   /**
    * Get formatted AI Credit Top-Up packs from database with fallback
    */
-  async getCreditPacks(user: AuthUser) {
-    const country = (user.profile?.country || 'IN').toUpperCase().trim();
+  async getCreditPacks(
+    user: AuthUser,
+    explicitCountry?: string,
+    explicitCurrency?: string,
+  ) {
+    let country = (explicitCountry || user?.profile?.country || 'IN').toUpperCase().trim();
+    if (!country) country = 'IN';
+
     const currency = country === 'IN' ? 'INR' : 'USD';
     const isUsd = currency === 'USD';
 

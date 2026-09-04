@@ -6,6 +6,7 @@ import { PaymentModal } from '../../components/PaymentModal.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch, API_URL, getTokens } from '../../lib/apiClient.js';
 import { formatCurrency } from '../../lib/currency.js';
+import { getUserCurrency, detectUserCountry } from '../../lib/countries.js';
 import { AISubscriptionCard } from '../../components/ai/AISubscriptionCard.jsx';
 
 const STATUS_STYLE = {
@@ -36,7 +37,7 @@ function PatientBilling() {
   const [showPayModal, setShowPayModal] = useState(false);
   const [payFor, setPayFor] = useState(() => ({
     amount: 0,
-    currency: localStorage.getItem('healnari_currency') || 'INR',
+    currency: getUserCurrency(user),
     description: '',
   }));
 

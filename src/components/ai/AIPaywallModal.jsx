@@ -1,3 +1,5 @@
+import { useAuth } from '../../context/AuthContext.jsx';
+import { isIndianUser } from '../../lib/countries.js';
 import React, { useState, useEffect } from 'react';
 import { load as loadCashfree } from '@cashfreepayments/cashfree-js';
 import { Modal } from '../Modal.jsx';
@@ -27,14 +29,16 @@ export function AIPaywallModal({
   const [loading, setLoading] = useState(false);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
 
-  const userCurrency = getStoredCurrency();
+  const { user } = useAuth();
+  const isIndian = isIndianUser(user);
+  const userCurrency = isIndian ? "INR" : "USD";
   const isDoctor = paywallData?.planName?.toLowerCase().includes('doctor') || paywallData?.planId?.startsWith('doctor');
   const basePlanId = paywallData?.planId || (isDoctor ? 'doctor_plan_2' : 'patient_plan_2');
   const effectivePlanId = basePlanId;
 
   useEffect(() => {
     if (isOpen) {
-      apiFetch(`/ai/pricing?currency=${userCurrency}`)
+      apiFetch(`/ai/pricing?currency=${userCurrency}&country=${isIndian ? "IN" : "US"}`)
         .then((quotes) => setPricingQuotes(quotes || []))
         .catch(() => {});
     }
@@ -114,6 +118,9 @@ export function AIPaywallModal({
           planId: basePlanId,
           billingCycle,
           couponCode: appliedCoupon?.coupon?.code,
+          currency: userCurrency,
+          currencyCode: userCurrency,
+          countryCode: isIndian ? 'IN' : 'US',
         },
       });
 

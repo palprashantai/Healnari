@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiClient.js';
-import { AIUsageUpgradeModal } from './AIUsageUpgradeModal.jsx';
 import { AIButton } from '../AiButton.jsx';
 
 export function AISubscriptionCard({ userRole = 'patient', onRefresh }) {
+  const navigate = useNavigate();
   const [subData, setSubData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showPaywall, setShowPaywall] = useState(false);
 
   const fetchStatus = async () => {
     try {
@@ -56,126 +56,126 @@ export function AISubscriptionCard({ userRole = 'patient', onRefresh }) {
   const usedCredits = subData?.creditsUsed ?? sub?.credits_used ?? 0;
   const percentUsed = Math.min(100, Math.round((usedCredits / Math.max(1, totalCredits)) * 100));
 
+  const handleUpgradeClick = () => {
+    const targetPath = isDoctor ? '/doctor-dashboard/ai-billing' : '/patient-dashboard/ai-billing';
+    navigate(targetPath);
+  };
+
   return (
-    <>
-      <div className={`relative overflow-hidden rounded-2xl border p-5 shadow-sm transition-all ${
-        isPremium
-          ? 'bg-gradient-to-br from-purple-900 via-indigo-900 to-slate-900 text-white border-purple-500/30'
-          : 'bg-white text-slate-800 border-slate-200'
-      }`}>
-        {/* Ambient Top Glow for Premium */}
-        {isPremium && (
-          <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl pointer-events-none -mr-16 -mt-16"></div>
-        )}
+    <div className={`relative overflow-hidden rounded-2xl border p-5 shadow-sm transition-all ${
+      isPremium
+        ? 'bg-gradient-to-br from-purple-900 via-indigo-900 to-slate-900 text-white border-purple-500/30'
+        : 'bg-white text-slate-800 border-slate-200'
+    }`}>
+      {/* Ambient Top Glow for Premium */}
+      {isPremium && (
+        <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl pointer-events-none -mr-16 -mt-16"></div>
+      )}
 
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
-              isPremium
-                ? 'bg-gradient-to-tr from-purple-500 to-magenta-500 text-white'
-                : 'bg-purple-50 text-purple-600 border border-purple-100'
-            }`}>
-              <i className={`fas ${isPremium ? 'fa-crown' : 'fa-wand-magic-sparkles'} text-xl`}></i>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className={`font-black text-base tracking-tight ${isPremium ? 'text-white' : 'text-slate-900'}`}>
-                  {currentPlanName}
-                </h3>
-                <span className={`text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full ${
-                  isPremium
-                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-xs'
-                    : 'bg-slate-100 text-slate-600 border border-slate-200'
-                }`}>
-                  {currentPlanId.includes('3') ? 'Premium Tier' : currentPlanId.includes('2') || isPremium ? 'Pro Tier' : 'Starter Tier'}
-                </span>
-              </div>
-              <p className={`text-xs mt-0.5 ${isPremium ? 'text-purple-200/80' : 'text-slate-500'}`}>
-                {isPremium
-                  ? `Clinical-grade AI intelligence enabled`
-                  : `${creditsRemaining} AI uses remaining this month`}
-              </p>
-            </div>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
+            isPremium
+              ? 'bg-gradient-to-tr from-purple-500 to-magenta-500 text-white'
+              : 'bg-purple-50 text-purple-600 border border-purple-100'
+          }`}>
+            <i className={`fas ${isPremium ? 'fa-crown' : 'fa-wand-magic-sparkles'} text-xl`}></i>
           </div>
-
-          {!isHighestPlan && (
-            <AIButton
-              size="sm"
-              variant="gradient"
-              onClick={() => setShowPaywall(true)}
-              icon="fa-bolt"
-            >
-              Upgrade
-            </AIButton>
-          )}
-        </div>
-
-        {/* Usage Progress Bar */}
-        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60">
-          <div className="flex items-center justify-between text-xs mb-1.5 font-bold">
-            <span className={isPremium ? 'text-purple-200' : 'text-slate-500'}>
-              Monthly AI Uses
-            </span>
-            <span className={isPremium ? 'text-purple-300' : 'text-slate-700 font-mono'}>
-              {creditsRemaining} / {totalCredits} uses left
-            </span>
-          </div>
-          <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className={`font-black text-base tracking-tight ${isPremium ? 'text-white' : 'text-slate-900'}`}>
+                {currentPlanName}
+              </h3>
+              <span className={`text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full ${
                 isPremium
-                  ? 'bg-gradient-to-r from-purple-400 via-indigo-400 to-magenta-400'
-                  : 'bg-aubergine-600'
-              }`}
-              style={{ width: `${Math.max(5, 100 - percentUsed)}%` }}
-            ></div>
+                  ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 shadow-xs'
+                  : 'bg-slate-100 text-slate-600 border border-slate-200'
+              }`}>
+                {currentPlanId.includes('3') ? 'Premium Tier' : currentPlanId.includes('2') || isPremium ? 'Pro Tier' : 'Starter Tier'}
+              </span>
+            </div>
+            <p className={`text-xs mt-0.5 ${isPremium ? 'text-purple-200/80' : 'text-slate-500'}`}>
+              {isPremium
+                ? 'Clinical-grade AI intelligence enabled'
+                : `${creditsRemaining} AI uses remaining this month`}
+            </p>
           </div>
         </div>
 
-        {/* Feature Highlights */}
-        <div className="mt-3 flex flex-wrap gap-2 pt-2 text-[11px] font-medium">
-          {isPremium ? (
-            <>
-              <span className="inline-flex items-center gap-1 text-purple-200">
-                <i className="fas fa-check-circle text-emerald-400"></i>
-                {isDoctor ? 'SOAP Notes Enabled' : 'Lab Report AI Explainer'}
-              </span>
-              <span className="inline-flex items-center gap-1 text-purple-200">
-                <i className="fas fa-check-circle text-emerald-400"></i>
-                {isDoctor ? 'Pre-Consult Briefs' : 'Consult Preparation Briefs'}
-              </span>
-              <span className="inline-flex items-center gap-1 text-purple-200">
-                <i className="fas fa-check-circle text-emerald-400"></i>
-                Priority Processing
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="inline-flex items-center gap-1 text-slate-500">
-                <i className="fas fa-lock text-amber-500"></i>
-                {isDoctor ? 'SOAP Notes (Pro)' : 'Lab Report Explainer (Premium)'}
-              </span>
-              <span className="inline-flex items-center gap-1 text-slate-500">
-                <i className="fas fa-lock text-amber-500"></i>
-                {isDoctor ? 'Consult Summaries (Pro)' : 'Visit Prep (Premium)'}
-              </span>
-            </>
-          )}
+        {!isHighestPlan ? (
+          <AIButton
+            size="sm"
+            variant="gradient"
+            onClick={handleUpgradeClick}
+            icon="fa-bolt"
+          >
+            Upgrade
+          </AIButton>
+        ) : (
+          <button
+            type="button"
+            onClick={handleUpgradeClick}
+            className="px-3 py-1.5 text-xs font-bold rounded-xl border border-purple-400/40 text-purple-200 hover:bg-purple-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <i className="fas fa-sliders text-[11px]"></i>
+            Manage
+          </button>
+        )}
+      </div>
+
+      {/* Usage Progress Bar */}
+      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60">
+        <div className="flex items-center justify-between text-xs mb-1.5 font-bold">
+          <span className={isPremium ? 'text-purple-200' : 'text-slate-500'}>
+            Monthly AI Uses
+          </span>
+          <span className={isPremium ? 'text-purple-300' : 'text-slate-700 font-mono'}>
+            {creditsRemaining} / {totalCredits} uses left
+          </span>
+        </div>
+        <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${
+              isPremium
+                ? 'bg-gradient-to-r from-purple-400 via-indigo-400 to-magenta-400'
+                : 'bg-aubergine-600'
+            }`}
+            style={{ width: `${Math.max(5, 100 - percentUsed)}%` }}
+          ></div>
         </div>
       </div>
 
-      <AIUsageUpgradeModal
-        isOpen={showPaywall}
-        onClose={() => setShowPaywall(false)}
-        role={userRole}
-        currentPlanId={currentPlanId}
-        tokensRemaining={creditsRemaining}
-        onUpgraded={() => {
-          fetchStatus();
-          onRefresh?.();
-        }}
-      />
-    </>
+      {/* Feature Highlights */}
+      <div className="mt-3 flex flex-wrap gap-2 pt-2 text-[11px] font-medium">
+        {isPremium ? (
+          <>
+            <span className="inline-flex items-center gap-1 text-purple-200">
+              <i className="fas fa-check-circle text-emerald-400"></i>
+              {isDoctor ? 'SOAP Notes Enabled' : 'Lab Report AI Explainer'}
+            </span>
+            <span className="inline-flex items-center gap-1 text-purple-200">
+              <i className="fas fa-check-circle text-emerald-400"></i>
+              {isDoctor ? 'Pre-Consult Briefs' : 'Consult Preparation Briefs'}
+            </span>
+            <span className="inline-flex items-center gap-1 text-purple-200">
+              <i className="fas fa-check-circle text-emerald-400"></i>
+              Priority Processing
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="inline-flex items-center gap-1 text-slate-500">
+              <i className="fas fa-lock text-amber-500"></i>
+              {isDoctor ? 'SOAP Notes (Pro)' : 'Lab Report Explainer (Premium)'}
+            </span>
+            <span className="inline-flex items-center gap-1 text-slate-500">
+              <i className="fas fa-lock text-amber-500"></i>
+              {isDoctor ? 'Consult Summaries (Pro)' : 'Visit Prep (Premium)'}
+            </span>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

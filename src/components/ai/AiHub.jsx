@@ -7,7 +7,8 @@ import { useToast } from '../Toast.jsx';
 import { Modal } from '../Modal.jsx';
 import { InvoiceModal } from './InvoiceModal.jsx';
 import { AIUsageUpgradeModal } from './AIUsageUpgradeModal.jsx';
-import { formatMoney, getStoredCurrency, setStoredCurrency } from '../../lib/currency.js';
+import { formatMoney } from '../../lib/currency.js';
+import { detectUserCountry } from '../../lib/countries.js';
 
 const CASHFREE_MODE = import.meta.env.VITE_CASHFREE_MODE || 'sandbox';
 let cashfreePromise = null;
@@ -20,7 +21,8 @@ export function AiHub({ role = 'doctor' }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast?.() || { toast: (m) => alert(m) };
+  const toastFn = useToast();
+  const toast = typeof toastFn === 'function' ? toastFn : (toastFn?.toast || ((m) => alert(m)));
 
   // Parse active tab from URL query params (e.g. ?tab=features) or default to 'overview'
   const searchParams = new URLSearchParams(location.search);
@@ -41,7 +43,9 @@ export function AiHub({ role = 'doctor' }) {
   const [usageTimeframe, setUsageTimeframe] = useState('month');
   const [billingHistory, setBillingHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCurrency, setSelectedCurrency] = useState(() => getStoredCurrency());
+  const userCountry = detectUserCountry(user);
+  const isIndian = userCountry === 'IN';
+  const selectedCurrency = isIndian ? 'INR' : 'USD';
 
   // Modals
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -49,23 +53,6 @@ export function AiHub({ role = 'doctor' }) {
   const [showTopupModal, setShowTopupModal] = useState(false);
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [submittingAction, setSubmittingAction] = useState(false);
-
-  // Sync external currency changes
-  useEffect(() => {
-    const handleCurrencyChange = (e) => {
-      const code = e?.detail || 'INR';
-      setSelectedCurrency(code);
-      loadPricing(code);
-    };
-    window.addEventListener('healnari_currency_changed', handleCurrencyChange);
-    return () => window.removeEventListener('healnari_currency_changed', handleCurrencyChange);
-  }, []);
-
-  const handleCurrencyToggle = (curr) => {
-    setStoredCurrency(curr);
-    setSelectedCurrency(curr);
-    loadPricing(curr);
-  };
 
   // Fetch Core Status
   const loadStatus = async () => {
@@ -119,9 +106,9 @@ export function AiHub({ role = 'doctor' }) {
 
   useEffect(() => {
     setLoading(true);
-    Promise.allSettled([loadStatus(), loadCatalog(), loadPricing(), loadUsage(usageTimeframe), loadBilling()])
+    Promise.allSettled([loadStatus(), loadCatalog(), loadPricing(selectedCurrency), loadUsage(usageTimeframe), loadBilling()])
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedCurrency]);
 
   // When timeframe changes in usage tab
   useEffect(() => {
@@ -340,6 +327,8 @@ export function AiHub({ role = 'doctor' }) {
         body: {
           planId,
           billingCycle,
+          currencyCode: selectedCurrency,
+          countryCode: isIndian ? 'IN' : 'US',
         },
       });
 
@@ -478,30 +467,8 @@ export function AiHub({ role = 'doctor' }) {
 
         {/* Quick actions in header */}
         <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
-          {/* Two-Currency Selector Toggle */}
-          <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center text-xs font-bold shrink-0">
-            <button
-              onClick={() => handleCurrencyToggle('INR')}
-              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 ${
-                selectedCurrency === 'INR'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <span>🇮🇳</span>
-              <span>₹ INR</span>
-            </button>
-            <button
-              onClick={() => handleCurrencyToggle('USD')}
-              className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1.5 ${
-                selectedCurrency === 'USD'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <span>🇺🇸</span>
-              <span>$ USD</span>
-            </button>
+          <div className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 shrink-0">
+            {isIndian ? '🇮🇳 Indian (INR)' : '🇺🇸 Global (USD)'}
           </div>
 
           <div className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-1.5 text-right">
@@ -831,16 +798,7 @@ export function AiHub({ role = 'doctor' }) {
       {/* TAB 3: MY AI PLAN & PRICING */}
       {activeTab === 'plan' && (
         <div className="space-y-6">
-          {/* Subscription Currency Lock Notice */}
-          {isCurrencyMismatched && (
-            <div className="bg-blue-50 border border-blue-200 text-blue-900 rounded-2xl p-4 flex items-start gap-3 shadow-xs">
-              <i className="fas fa-circle-info text-blue-600 mt-0.5 text-sm shrink-0"></i>
-              <div className="text-xs leading-relaxed">
-                <span className="font-bold">Subscription Billed in {activeSubCurrency}: </span>
-                Your active subscription is locked and billed in {activeSubCurrency} ({activeSubCurrency === 'INR' ? '₹' : '$'}). Changing your display currency to {selectedCurrency} affects display only and does not alter your active subscription billing.
-              </div>
-            </div>
-          )}
+          
 
           {/* Current Active Plan Summary Card */}
           <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs">
@@ -924,24 +882,8 @@ export function AiHub({ role = 'doctor' }) {
                 </p>
               </div>
 
-              {/* Currency Toggle */}
-              <div className="bg-slate-100 p-1 rounded-xl border border-slate-200 flex items-center text-xs font-bold">
-                <button
-                  onClick={() => handleCurrencyToggle('INR')}
-                  className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
-                    selectedCurrency === 'INR' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  🇮🇳 ₹ INR
-                </button>
-                <button
-                  onClick={() => handleCurrencyToggle('USD')}
-                  className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${
-                    selectedCurrency === 'USD' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  🇺🇸 $ USD
-                </button>
+              <div className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 shrink-0">
+                {isIndian ? '🇮🇳 Pricing in INR (₹)' : '🇺🇸 Pricing in USD ($)'}
               </div>
             </div>
 

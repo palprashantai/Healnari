@@ -46,6 +46,7 @@ export function ToastProvider({ children }) {
       const dur = typeof durationOrOpts === 'object' ? (durationOrOpts.duration || 3000) : (durationOrOpts || 3000);
       addToast(msg, 'warning', dur);
     };
+    fn.toast = fn;
     return fn;
   }, [addToast]);
 

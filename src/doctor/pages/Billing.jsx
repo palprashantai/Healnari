@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { apiFetch, API_URL, getTokens } from '../../lib/apiClient.js';
 import { formatCurrency } from '../../lib/currency.js';
+import { getUserCurrency } from '../../lib/countries.js';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { DashboardFilterBar } from '../../components/dashboard/DashboardFilterBar.jsx';
 import { KPITrendCard } from '../../components/dashboard/KPITrendCard.jsx';
@@ -180,7 +181,7 @@ function DoctorBilling() {
   };
   useEffect(() => { load(); }, []);
 
-  const userCurrency = user?.profile?.currency || user?.currency || 'INR';
+  const userCurrency = user?.profile?.currency || user?.currency || getUserCurrency(user);
 
   const rows = useMemo(() => {
     return transactions.map(t => ({
