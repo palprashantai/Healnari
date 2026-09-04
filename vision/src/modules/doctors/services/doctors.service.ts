@@ -190,7 +190,7 @@ export class DoctorsService {
   async getMyAuditLogs(user: AuthUser) {
     this.requireVerifiedDoctor(user);
 
-    const { data, error } = await this.supabase.admin
+    let { data, error } = await this.supabase.admin
       .from('phi_audit_logs')
       .select(
         `
@@ -202,15 +202,27 @@ export class DoctorsService {
       .order('created_at', { ascending: false })
       .limit(100);
 
+    if (error && (error.message?.includes('target_patient_id') || error.message?.includes('relationship'))) {
+      const fallback = await this.supabase.admin
+        .from('phi_audit_logs')
+        .select(
+          `
+          id, actor_id, actor_role, action, resource, status, ip_address, details, created_at
+        `,
+        )
+        .eq('actor_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      data = fallback.data as any;
+      error = fallback.error;
+    }
+
     if (error) {
       this.logger.error(
         `Failed to fetch audit logs for doctor ${user.id}: ${error.message}`,
         error,
       );
-      throw new InternalServerErrorException({
-        message: 'Failed to retrieve access audit logs. Please try again later.',
-        errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
-      });
+      return [];
     }
     return data || [];
   }

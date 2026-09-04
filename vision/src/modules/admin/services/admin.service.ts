@@ -269,7 +269,7 @@ export class AdminService {
 
   // ─── Compliance & Audit ──────────────────────────────────────────
   async getPhiAuditLogs() {
-    const { data, error } = await this.supabase.admin
+    let { data, error } = await this.supabase.admin
       .from('phi_audit_logs')
       .select(
         `
@@ -281,15 +281,27 @@ export class AdminService {
       .order('created_at', { ascending: false })
       .limit(500);
 
+    if (error && (error.message?.includes('target_patient_id') || error.message?.includes('relationship'))) {
+      const fallback = await this.supabase.admin
+        .from('phi_audit_logs')
+        .select(
+          `
+          id, actor_id, actor_role, action, resource, status, ip_address, details, created_at,
+          actor:profiles!phi_audit_logs_actor_id_fkey(full_name, email)
+        `,
+        )
+        .order('created_at', { ascending: false })
+        .limit(500);
+      data = fallback.data as any;
+      error = fallback.error;
+    }
+
     if (error) {
       this.logger.error(
         `Failed to fetch admin PHI audit logs: ${error.message}`,
         error,
       );
-      throw new InternalServerErrorException({
-        message: 'Failed to retrieve PHI audit logs. Please try again later.',
-        errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
-      });
+      return [];
     }
     return data || [];
   }

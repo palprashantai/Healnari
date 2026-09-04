@@ -78,6 +78,8 @@ export class AuditLogInterceptor implements NestInterceptor {
     );
   }
 
+  private supportsTargetPatientId: boolean | null = null;
+
   private async logAction(
     actorId: string,
     actorRole: string,
@@ -88,21 +90,42 @@ export class AuditLogInterceptor implements NestInterceptor {
     status: string,
   ) {
     try {
-      // Non-blocking fire-and-forget log to Supabase
-      // Uses the service_role client to bypass RLS for inserts
-      await this.supabase.admin.from('phi_audit_logs').insert({
+      const details = {
+        url,
+        ...(targetPatientId ? { target_patient_id: targetPatientId } : {}),
+      };
+
+      const payload: Record<string, any> = {
         actor_id: actorId,
         actor_role: actorRole,
-        target_patient_id: targetPatientId,
         action: method,
-        resource: url.split('?')[0], // strip query params for the resource path
+        resource: url.split('?')[0],
         status: status,
         ip_address: ip,
-        details: { url },
-      });
-    } catch (error) {
-      // Fail silently for the user, but log to the backend console
-      this.logger.error(`Failed to write audit log: ${error.message}`);
+        details,
+      };
+
+      if (this.supportsTargetPatientId !== false && targetPatientId) {
+        payload.target_patient_id = targetPatientId;
+      }
+
+      const { error } = await this.supabase.admin
+        .from('phi_audit_logs')
+        .insert(payload);
+
+      if (error) {
+        if (error.message?.includes('target_patient_id')) {
+          this.supportsTargetPatientId = false;
+          delete payload.target_patient_id;
+          await this.supabase.admin.from('phi_audit_logs').insert(payload);
+          return;
+        }
+        this.logger.warn(`Failed to write audit log: ${error.message}`);
+      } else if (this.supportsTargetPatientId === null && targetPatientId) {
+        this.supportsTargetPatientId = true;
+      }
+    } catch (error: any) {
+      this.logger.warn(`Failed to write audit log: ${error.message}`);
     }
   }
 }

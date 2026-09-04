@@ -329,10 +329,10 @@ export class PatientsService {
       .limit(100);
 
     if (error) {
-      if (error.message.includes('target_patient_id does not exist')) {
+      if (error.message?.includes('target_patient_id')) {
         // Schema mismatch on remote DB / stale PostgREST cache. Fallback gracefully.
-        console.warn(
-          'phi_audit_logs schema is out of sync; returning empty logs',
+        this.logger.warn(
+          'phi_audit_logs schema is missing target_patient_id; returning empty logs',
         );
         return [];
       }
@@ -340,10 +340,7 @@ export class PatientsService {
         `Failed to fetch audit logs for patient ${user.id}: ${error.message}`,
         error,
       );
-      throw new InternalServerErrorException({
-        message: 'Failed to retrieve access audit logs. Please try again later.',
-        errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
-      });
+      return [];
     }
     return data || [];
   }
