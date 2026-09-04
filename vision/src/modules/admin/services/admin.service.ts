@@ -3394,4 +3394,10 @@ export class AdminService {
       return [];
     }
   }
+
+  /** Test transactional email delivery with diagnostics */
+  async testEmail(recipient: string) {
+    return this.email.testEmail(recipient);
+  }
 }
+

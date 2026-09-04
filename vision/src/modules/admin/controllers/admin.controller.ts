@@ -7,6 +7,7 @@ import {
   Param,
   Body,
   ForbiddenException,
+  BadRequestException,
   Query,
   ParseUUIDPipe,
   ParseIntPipe,
@@ -1123,4 +1124,20 @@ export class AdminController {
     };
     return ResponseHelper.success(merged, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
+
+  @Post('email/test')
+  @ApiOperation({ summary: 'Send test email and verify delivery provider diagnostics' })
+  async testEmail(
+    @CurrentUser() user: AuthUser,
+    @Body('recipient') recipient?: string,
+  ) {
+    this.checkAdmin(user);
+    const targetEmail = recipient || user.email;
+    if (!targetEmail) {
+      throw new BadRequestException('Recipient email is required');
+    }
+    const result = await this.adminService.testEmail(targetEmail);
+    return ResponseHelper.success(result, 'Email delivery test executed');
+  }
 }
+

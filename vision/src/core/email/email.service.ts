@@ -6,6 +6,27 @@ import * as nodemailer from 'nodemailer';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { FALLBACK_EMAIL_TEMPLATES } from './email-templates.fallback';
 
+// Patch nodemailer's shared networkInterfaces to strip IPv6.
+// Render and many cloud containers have no IPv6 outbound routing; if an SMTP attempt fails over IPv4,
+// nodemailer's internal address fallback would otherwise attempt IPv6 and trigger ENETUNREACH errors.
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const shared = require('nodemailer/lib/shared');
+  if (shared && shared.networkInterfaces) {
+    const ipv4Only: Record<string, any[]> = {};
+    for (const [name, ifaces] of Object.entries(shared.networkInterfaces)) {
+      if (Array.isArray(ifaces)) {
+        ipv4Only[name] = ifaces.filter(
+          (i: any) => i.family === 'IPv4' || i.family === 4,
+        );
+      }
+    }
+    shared.networkInterfaces = ipv4Only;
+  }
+} catch {
+  // Safe ignore if shared module is not directly accessible
+}
+
 // Mask email for privacy in logs (SEC-7)
 function maskEmail(email: string): string {
   if (!email) return '***';
@@ -68,6 +89,8 @@ interface CachedTemplate {
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter | null = null;
+  private readonly resendApiKey?: string;
+  private readonly brevoApiKey?: string;
   private readonly from: string;
   private readonly frontendUrl: string;
   private templateCache = new Map<string, CachedTemplate>();
@@ -90,12 +113,39 @@ export class EmailService {
       'https://healnari.vercel.app'
     ).replace(/\/$/, '');
 
+    this.resendApiKey =
+      this.configService.get<string>('RESEND_API_KEY') ||
+      process.env.RESEND_API_KEY;
+    this.brevoApiKey =
+      this.configService.get<string>('BREVO_API_KEY') ||
+      process.env.BREVO_API_KEY;
+
+    if (this.resendApiKey) {
+      this.logger.log(
+        'EmailService: Resend HTTP API configured (HTTPS Port 443 — immune to SMTP port blocks)',
+      );
+    }
+    if (this.brevoApiKey) {
+      this.logger.log(
+        'EmailService: Brevo HTTP API configured (HTTPS Port 443 — immune to SMTP port blocks)',
+      );
+    }
+
     const host =
       this.configService.get<string>('SMTP_HOST') || process.env.SMTP_HOST;
     const user =
       this.configService.get<string>('SMTP_USER') || process.env.SMTP_USER;
     const pass =
       this.configService.get<string>('SMTP_PASS') || process.env.SMTP_PASS;
+    const port = Number(
+      this.configService.get<string>('SMTP_PORT') ||
+        process.env.SMTP_PORT ||
+        587,
+    );
+    const secure =
+      (this.configService.get<string>('SMTP_SECURE') ||
+        process.env.SMTP_SECURE) === 'true' ||
+      port === 465;
 
     if (typeof dns.setDefaultResultOrder === 'function') {
       dns.setDefaultResultOrder('ipv4first');
@@ -104,34 +154,31 @@ export class EmailService {
     if (host && user && pass) {
       this.transporter = nodemailer.createTransport({
         host,
-        port: Number(
-          this.configService.get<string>('SMTP_PORT') ||
-            process.env.SMTP_PORT ||
-            587,
-        ),
-        secure:
-          (this.configService.get<string>('SMTP_SECURE') ||
-            process.env.SMTP_SECURE) === 'true',
+        port,
+        secure,
         auth: { user, pass },
-        pool: true,
-        maxConnections: 5,
+        pool: false,
         family: 4,
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
-        socketTimeout: 30000,
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 20000,
         dnsTimeout: 10000,
         tls: {
           rejectUnauthorized: false,
         },
       } as any);
-      this.logger.log(`Email service configured with SMTP host: ${host}`);
-    } else {
-      this.logger.warn('SMTP not configured — emails will be logged only.');
+      this.logger.log(
+        `EmailService: SMTP configured with host: ${host}:${port} (secure: ${secure})`,
+      );
+    } else if (!this.resendApiKey && !this.brevoApiKey) {
+      this.logger.warn(
+        'EmailService: No delivery provider configured (SMTP, RESEND_API_KEY, or BREVO_API_KEY missing) — emails will be simulated.',
+      );
     }
   }
 
   get isConfigured(): boolean {
-    return !!this.transporter;
+    return !!this.resendApiKey || !!this.brevoApiKey || !!this.transporter;
   }
 
   /**
@@ -416,10 +463,183 @@ export class EmailService {
   }
 
   /**
-   * Dispatches email via nodemailer transporter and records delivery log in email_logs.
+   * Sends email via Resend REST API (HTTPS Port 443).
+   * Free tier provides 3,000 emails/mo, 100/day, zero port-blocking on Render.
+   */
+  private async sendViaResend(
+    payload: MailPayload,
+  ): Promise<{ messageId: string }> {
+    if (!this.resendApiKey) {
+      throw new Error('RESEND_API_KEY is not configured');
+    }
+
+    const resendFrom =
+      this.configService.get<string>('RESEND_FROM') ||
+      process.env.RESEND_FROM ||
+      (this.from.includes('healnari.app') || this.from.includes('healnari.com')
+        ? this.from
+        : 'HealNari <onboarding@resend.dev>');
+
+    const body: Record<string, any> = {
+      from: resendFrom,
+      to: [payload.to],
+      subject: payload.subject,
+      html: payload.html,
+      text: payload.text || undefined,
+    };
+
+    if (payload.attachments && payload.attachments.length > 0) {
+      body.attachments = payload.attachments.map((att) => ({
+        filename: att.filename,
+        content: att.content.toString('base64'),
+      }));
+    }
+
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.resendApiKey.trim()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = (await response.json()) as any;
+    if (!response.ok) {
+      throw new Error(
+        `Resend API error (${response.status}): ${data?.message || JSON.stringify(data)}`,
+      );
+    }
+
+    return { messageId: data.id || `resend-${Date.now()}` };
+  }
+
+  /**
+   * Sends email via Brevo REST API (HTTPS Port 443).
+   * Free tier provides 300 emails/day, zero port-blocking on Render.
+   */
+  private async sendViaBrevo(
+    payload: MailPayload,
+  ): Promise<{ messageId: string }> {
+    if (!this.brevoApiKey) {
+      throw new Error('BREVO_API_KEY is not configured');
+    }
+
+    let senderName = 'HealNari';
+    let senderEmail = 'notifications@healnari.com';
+    const match = this.from.match(/(.*)<(.*)>/);
+    if (match) {
+      senderName = match[1].trim() || senderName;
+      senderEmail = match[2].trim() || senderEmail;
+    } else if (this.from.includes('@')) {
+      senderEmail = this.from.trim();
+    }
+
+    const body: Record<string, any> = {
+      sender: { name: senderName, email: senderEmail },
+      to: [{ email: payload.to }],
+      subject: payload.subject,
+      htmlContent: payload.html,
+      textContent: payload.text || undefined,
+    };
+
+    if (payload.attachments && payload.attachments.length > 0) {
+      body.attachment = payload.attachments.map((att) => ({
+        name: att.filename,
+        content: att.content.toString('base64'),
+      }));
+    }
+
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': this.brevoApiKey.trim(),
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = (await response.json()) as any;
+    if (!response.ok) {
+      throw new Error(
+        `Brevo API error (${response.status}): ${data?.message || JSON.stringify(data)}`,
+      );
+    }
+
+    return { messageId: data.messageId || `brevo-${Date.now()}` };
+  }
+
+  /**
+   * Internal dispatcher trying available providers in order:
+   * 1. Resend HTTP API (Port 443 HTTPS — immune to Render SMTP block)
+   * 2. Brevo HTTP API (Port 443 HTTPS — immune to Render SMTP block)
+   * 3. SMTP Transporter
+   */
+  private async dispatchMail(
+    payload: MailPayload,
+  ): Promise<{ provider: string; messageId: string }> {
+    // 1. Resend HTTP API (HTTPS Port 443)
+    if (this.resendApiKey) {
+      try {
+        const res = await this.sendViaResend(payload);
+        return { provider: 'resend', messageId: res.messageId };
+      } catch (err: any) {
+        this.logger.warn(
+          `Resend API dispatch failed for ${maskEmail(payload.to)}: ${err.message}`,
+        );
+        if (!this.brevoApiKey && !this.transporter) throw err;
+      }
+    }
+
+    // 2. Brevo HTTP API (HTTPS Port 443)
+    if (this.brevoApiKey) {
+      try {
+        const res = await this.sendViaBrevo(payload);
+        return { provider: 'brevo', messageId: res.messageId };
+      } catch (err: any) {
+        this.logger.warn(
+          `Brevo API dispatch failed for ${maskEmail(payload.to)}: ${err.message}`,
+        );
+        if (!this.transporter) throw err;
+      }
+    }
+
+    // 3. SMTP Transporter
+    if (this.transporter) {
+      try {
+        const info = await this.transporter.sendMail({
+          from: this.from,
+          to: payload.to,
+          subject: payload.subject,
+          html: payload.html,
+          text: payload.text,
+          attachments: payload.attachments,
+        });
+        return { provider: 'smtp', messageId: info.messageId };
+      } catch (err: any) {
+        if (
+          err.message?.includes('Connection timeout') ||
+          err.code === 'ETIMEDOUT'
+        ) {
+          this.logger.error(
+            `[Render SMTP Firewall Warning] Connection timeout connecting to SMTP host. Render blocks outbound SMTP ports 25, 465, and 587 on their free tier. To fix: Add RESEND_API_KEY in Render environment variables (uses HTTPS port 443) or upgrade your Render instance to a paid plan.`,
+          );
+        }
+        throw err;
+      }
+    }
+
+    throw new Error(
+      'No email delivery provider available (set RESEND_API_KEY, BREVO_API_KEY, or valid SMTP credentials)',
+    );
+  }
+
+  /**
+   * Dispatches email via configured provider and records delivery log in email_logs.
    */
   async sendMail(payload: MailPayload): Promise<boolean> {
-    if (!this.transporter) {
+    if (!this.isConfigured) {
       this.logger.warn(
         `Email not configured — simulated "${payload.subject}" to ${maskEmail(payload.to)}`,
       );
@@ -436,28 +656,26 @@ export class EmailService {
       finalHtml = this.wrapWithLayout(finalHtml);
     }
 
+    const preparedPayload: MailPayload = {
+      ...payload,
+      html: finalHtml,
+    };
+
     try {
-      const info = await this.transporter.sendMail({
-        from: this.from,
-        to: payload.to,
-        subject: payload.subject,
-        html: finalHtml,
-        text: payload.text,
-        attachments: payload.attachments,
-      });
+      const result = await this.dispatchMail(preparedPayload);
 
       this.logger.log(
-        `Sent mail "${payload.subject}" to ${maskEmail(payload.to)} (${info.messageId})`,
+        `Sent mail "${payload.subject}" to ${maskEmail(payload.to)} via ${result.provider} (${result.messageId})`,
       );
 
       this.logToDatabase({
         ...payload,
         status: 'SENT',
-        providerMessageId: info.messageId,
+        providerMessageId: result.messageId,
       }).catch(() => {});
 
       return true;
-    } catch (err) {
+    } catch (err: any) {
       this.logger.error(
         `Failed to send mail to ${maskEmail(payload.to)}: ${err.message}`,
         err.stack,
@@ -469,8 +687,45 @@ export class EmailService {
         error: err.message,
       }).catch(() => {});
 
-      this.queueForRetry(payload);
+      this.queueForRetry(preparedPayload);
       return false;
+    }
+  }
+
+  /**
+   * Diagnostic test method to verify email delivery and identify provider issues.
+   */
+  async testEmail(recipient: string): Promise<{
+    success: boolean;
+    provider?: string;
+    messageId?: string;
+    error?: string;
+    diagnostics?: string;
+  }> {
+    try {
+      const result = await this.dispatchMail({
+        to: recipient,
+        subject: 'HealNari Email Delivery Test',
+        html: this.wrapWithLayout(
+          '<h2>Email System Verified</h2><p>Your HealNari transactional email system is successfully configured and delivering messages.</p>',
+          'Email System Verified',
+        ),
+      });
+      return {
+        success: true,
+        provider: result.provider,
+        messageId: result.messageId,
+      };
+    } catch (err: any) {
+      const isRenderFirewall =
+        err.message?.includes('Connection timeout') || err.code === 'ETIMEDOUT';
+      return {
+        success: false,
+        error: err.message,
+        diagnostics: isRenderFirewall
+          ? 'Outbound SMTP port blocked by Render free-tier firewall. Add RESEND_API_KEY (HTTPS port 443) or upgrade Render service.'
+          : undefined,
+      };
     }
   }
 
@@ -529,34 +784,29 @@ export class EmailService {
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async processRetryQueue() {
-    if (this.retryQueue.length === 0 || !this.transporter) return;
+    if (this.retryQueue.length === 0 || !this.isConfigured) return;
 
-    this.logger.log(`Processing ${this.retryQueue.length} email(s) in retry queue...`);
+    this.logger.log(
+      `Processing ${this.retryQueue.length} email(s) in retry queue...`,
+    );
 
     const currentQueue = [...this.retryQueue];
     this.retryQueue = [];
 
     for (const item of currentQueue) {
       try {
-        const info = await this.transporter.sendMail({
-          from: this.from,
-          to: item.payload.to,
-          subject: item.payload.subject,
-          html: item.payload.html,
-          text: item.payload.text,
-          attachments: item.payload.attachments,
-        });
+        const result = await this.dispatchMail(item.payload);
 
         this.logger.log(
-          `Successfully sent retried email to ${maskEmail(item.payload.to)} (${info.messageId})`,
+          `Successfully sent retried email to ${maskEmail(item.payload.to)} via ${result.provider} (${result.messageId})`,
         );
 
         this.logToDatabase({
           ...item.payload,
           status: 'SENT',
-          providerMessageId: info.messageId,
+          providerMessageId: result.messageId,
         }).catch(() => {});
-      } catch (err) {
+      } catch (err: any) {
         this.logger.warn(
           `Retry failed for ${maskEmail(item.payload.to)}: ${err.message}`,
         );
