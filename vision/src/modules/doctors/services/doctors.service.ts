@@ -10,7 +10,7 @@ import {
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
-import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
+import { ERROR_MESSAGES, ERROR_CODES } from '@/core/constants/errors.constant';
 import {
   UpdateScheduleDto,
   CreateExceptionDto,
@@ -202,7 +202,16 @@ export class DoctorsService {
       .order('created_at', { ascending: false })
       .limit(100);
 
-    if (error) throw new InternalServerErrorException(error.message);
+    if (error) {
+      this.logger.error(
+        `Failed to fetch audit logs for doctor ${user.id}: ${error.message}`,
+        error,
+      );
+      throw new InternalServerErrorException({
+        message: 'Failed to retrieve access audit logs. Please try again later.',
+        errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+      });
+    }
     return data || [];
   }
 

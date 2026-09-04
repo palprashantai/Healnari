@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsOptional, IsString } from 'class-validator';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
@@ -95,7 +103,10 @@ export class NotificationsController {
   @ApiOperation({ summary: 'Mark a single notification as read (owner only)' })
   @ApiParam({ name: 'id' })
   @Put(':id/read')
-  async markRead(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async markRead(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     const data = await this.notificationsService.markRead(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.NOTIFICATION_READ);
   }

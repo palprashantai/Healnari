@@ -9,13 +9,27 @@ export class ResponseHelper {
     };
   }
 
-  static error(message: string, errorDetails?: any) {
-    return {
+  static error(
+    message: string,
+    statusCode: number = 500,
+    errorCode: string = 'INTERNAL_SERVER_ERROR',
+    path?: string,
+    details?: any,
+    extra?: Record<string, any>,
+  ) {
+    const res: Record<string, any> = {
       success: false,
+      statusCode,
       message,
-      error: errorDetails || null,
+      errorCode,
       timestamp: new Date().toISOString(),
     };
+    if (path) res.path = path;
+    if (details !== undefined && details !== null) res.details = details;
+    if (extra && typeof extra === 'object') {
+      Object.assign(res, extra);
+    }
+    return res;
   }
 
   static paginated(

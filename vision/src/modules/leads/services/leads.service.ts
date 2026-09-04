@@ -15,7 +15,7 @@ import {
   AppointmentStatus,
   AppointmentType,
 } from '@/shared/interfaces/appointment.interface';
-import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
+import { ERROR_MESSAGES, ERROR_CODES } from '@/core/constants/errors.constant';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ConsultationRequestDto } from '@/modules/leads/controllers/leads.controller';
 import { DoctorsService } from '@/modules/doctors/services/doctors.service';
@@ -191,8 +191,17 @@ export class LeadsService {
           .maybeSingle();
         
         if (error) {
+          if (error.code === '23505') {
+            throw new ConflictException({
+              message: ERROR_MESSAGES.APPOINTMENT_CONFLICT,
+              errorCode: ERROR_CODES.APPOINTMENT_SLOT_UNAVAILABLE,
+            });
+          }
           console.error('Failed to insert appointment:', error);
-          throw new Error('Appointment insert failed: ' + error.message);
+          throw new InternalServerErrorException({
+            message: 'Unable to schedule appointment right now. Please try again later.',
+            errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+          });
         }
         appointmentRow = apt;
 
@@ -597,6 +606,67 @@ export class LeadsService {
     }
   }
 
+  /** Check if a specialist email is already in profiles or provider_applications. */
+  async checkProviderEmail(email: string) {
+    if (!email) return { exists: false };
+    const cleanEmail = email.trim().toLowerCase();
+
+    // 1. Check profiles (registered doctor or patient)
+    const { data: profile } = await this.supabase.admin
+      .from('profiles')
+      .select('id, role, full_name')
+      .ilike('email', cleanEmail)
+      .maybeSingle();
+
+    if (profile) {
+      if (profile.role === ProfileRole.DOCTOR) {
+        return {
+          exists: true,
+          reason: 'doctor_account_exists',
+          message:
+            'A doctor account with this email address already exists. Please sign in to access your doctor dashboard or reset your password.',
+        };
+      } else {
+        return {
+          exists: true,
+          reason: 'account_exists',
+          message:
+            'An account with this email address is already registered on HealNari. Please sign in or use a different professional work email.',
+        };
+      }
+    }
+
+    // 2. Check provider_applications (pending, reviewing or approved)
+    const { data: app } = await this.supabase.admin
+      .from('provider_applications')
+      .select('id, status, submitted_at')
+      .ilike('email', cleanEmail)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (app) {
+      if (app.status === 'pending' || app.status === 'reviewing') {
+        return {
+          exists: true,
+          reason: 'application_pending',
+          message:
+            'An application with this email address has already been submitted and is currently under review by our medical credentialing team.',
+        };
+      }
+      if (app.status === 'approved') {
+        return {
+          exists: true,
+          reason: 'application_approved',
+          message:
+            'Your provider application with this email address has already been approved! Please check your inbox for login credentials or sign in.',
+        };
+      }
+    }
+
+    return { exists: false };
+  }
+
   /** Submit a specialist provider application from the public landing page.
    *  Stores the application in provider_applications and sends admin notification. */
   async submitProviderApplication(body: {
@@ -615,12 +685,20 @@ export class LeadsService {
     licenseFileType?: string;
     licenseFileUrl?: string;
   }) {
+    const cleanEmail = (body.email || '').trim().toLowerCase();
+
+    // Proactively check if email already exists in profiles or applications
+    const checkResult = await this.checkProviderEmail(cleanEmail);
+    if (checkResult.exists) {
+      throw new ConflictException(checkResult.message);
+    }
+
     try {
       const { data, error } = await this.supabase.admin
         .from('provider_applications')
         .insert({
           full_name: body.fullName,
-          email: body.email,
+          email: cleanEmail,
           phone: body.phone,
           country_code: body.countryCode || 'IN',
           registration_no: body.regNo,
@@ -639,8 +717,17 @@ export class LeadsService {
         .single();
 
       if (error) {
+        if (
+          error.code === '23505' ||
+          error.message?.toLowerCase().includes('duplicate') ||
+          error.message?.toLowerCase().includes('already exists')
+        ) {
+          throw new ConflictException(
+            'An application or account with this email address already exists. Please sign in or use a different email.',
+          );
+        }
         throw new InternalServerErrorException(
-          ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+          'Unable to submit application at this time. Please try again shortly.',
         );
       }
 
@@ -653,7 +740,7 @@ export class LeadsService {
             doctorName: body.fullName,
             specialty: body.specialty,
             country: body.countryCode,
-            email: body.email,
+            email: cleanEmail,
             phone: body.phone,
             regNo: body.regNo,
             applicationId: data.id,
@@ -663,9 +750,15 @@ export class LeadsService {
 
       return { id: data.id, status: data.status };
     } catch (error) {
-      if (error instanceof InternalServerErrorException) throw error;
+      if (
+        error instanceof ConflictException ||
+        error instanceof BadRequestException ||
+        error instanceof ForbiddenException
+      ) {
+        throw error;
+      }
       throw new InternalServerErrorException(
-        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+        error?.message || ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
       );
     }
   }

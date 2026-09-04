@@ -35,6 +35,8 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [emailError, setEmailError] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
   const toast = useToast();
 
@@ -176,19 +178,54 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
     }
   };
 
-  const handleNext = (e) => {
+  const handleNext = async (e) => {
     e.preventDefault();
+
+    if (step === 1) {
+      if (!formData.fullName?.trim() || !formData.email?.trim()) {
+        toast?.error?.('Please enter your full name and work email address.');
+        return;
+      }
+
+      setCheckingEmail(true);
+      setEmailError('');
+
+      try {
+        const checkRes = await fetch(`${API_URL}/leads/check-provider-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: formData.email.trim().toLowerCase() }),
+        });
+        const checkJson = await checkRes.json().catch(() => ({}));
+        if (checkJson?.data?.exists) {
+          const msg =
+            checkJson.data.message ||
+            'An account or application with this email already exists in our system.';
+          setEmailError(msg);
+          toast?.error?.(msg);
+          setCheckingEmail(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('Provider email check warning:', err);
+      } finally {
+        setCheckingEmail(false);
+      }
+    }
+
     if (step === 3 && !formData.licenseFile) {
       const msg = 'Please attach your medical license or council registration certificate.';
       setUploadError(msg);
       toast?.error?.(msg);
       return;
     }
+
     trackEvent(AnalyticsEvents.PROVIDER_APPLY_STEP_COMPLETED, {
       step,
       specialty: formData.specialty,
       country: formData.countryCode,
     });
+
     if (step < 3) {
       setStep(s => s + 1);
     } else {
@@ -224,7 +261,16 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
 
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody?.message || 'Submission failed. Please try again.');
+        const errMsg = errBody?.message || 'Submission failed. Please try again.';
+        if (
+          res.status === 409 ||
+          errMsg.toLowerCase().includes('already') ||
+          errMsg.toLowerCase().includes('exists')
+        ) {
+          setEmailError(errMsg);
+          setStep(1); // Return to step 1 so the doctor clearly sees the highlighted email field
+        }
+        throw new Error(errMsg);
       }
 
       setIsSuccess(true);
@@ -400,9 +446,37 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
                         required
                         placeholder="doctor@clinic.com"
                         value={formData.email}
-                        onChange={e => handleChange('email', e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-aubergine-500 text-sm outline-none transition-all"
+                        onChange={e => {
+                          handleChange('email', e.target.value);
+                          if (emailError) setEmailError('');
+                        }}
+                        className={`w-full px-3.5 py-2.5 rounded-xl border ${
+                          emailError
+                            ? 'border-rose-400 bg-rose-50/40 text-rose-900 focus:border-rose-500 ring-1 ring-rose-200'
+                            : 'border-slate-200 bg-slate-50 focus:bg-white focus:border-aubergine-500'
+                        } text-sm outline-none transition-all`}
                       />
+                      {emailError && (
+                        <div className="p-3 bg-rose-50/90 border border-rose-200/80 rounded-xl text-xs text-rose-800 flex items-start gap-2.5 mt-1.5 animate-fade-in shadow-sm">
+                          <i className="fas fa-circle-exclamation mt-0.5 text-rose-600 text-sm shrink-0"></i>
+                          <div className="flex-1 space-y-1">
+                            <p className="font-semibold leading-relaxed">{emailError}</p>
+                            {onOpenLogin && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onClose();
+                                  onOpenLogin();
+                                }}
+                                className="font-bold text-aubergine-700 hover:text-aubergine-900 underline inline-flex items-center gap-1 mt-0.5"
+                              >
+                                <span>Sign In to Doctor Dashboard</span>
+                                <i className="fas fa-arrow-right text-[10px]"></i>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-700">Contact / WhatsApp Number *</label>
@@ -648,12 +722,16 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
 
                 <button
                   type="submit"
-                  disabled={submitting}
-                  className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-all shadow-md flex items-center gap-2"
+                  disabled={submitting || checkingEmail}
+                  className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-all shadow-md flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {submitting ? (
                     <>
                       <i className="fas fa-spinner fa-spin"></i> Submitting...
+                    </>
+                  ) : checkingEmail ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin"></i> Checking Email...
                     </>
                   ) : step === 3 ? (
                     <>

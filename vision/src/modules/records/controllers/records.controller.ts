@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
   Put,
   Query,
@@ -21,16 +22,19 @@ import {
   ApiConsumes,
 } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   IsArray,
   IsBoolean,
   IsIn,
   IsInt,
-  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
+  MaxLength,
   Min,
+  MinLength,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -42,32 +46,53 @@ import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
 
 export class MedicineLineDto {
-  @ApiProperty({ example: 'Metformin 500mg' }) @IsString() medName: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() dosage?: string;
+  @ApiProperty({ example: 'Metformin 500mg' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  medName: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  dosage?: string;
+
   @ApiProperty({ required: false, example: '1-0-1' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   schedule?: string;
+
   @ApiProperty({ required: false, example: '30 Days' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   duration?: string;
 }
 
 export class CreatePrescriptionDto {
-  @ApiProperty() @IsUUID() patientId: string;
+  @ApiProperty()
+  @IsUUID()
+  patientId: string;
+
   @ApiProperty({ required: false, example: 'PCOS — IR Subtype' })
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   diagnosis?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   instructions?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsUUID()
   idempotencyKey?: string;
+
   @ApiProperty({
     required: false,
     description:
@@ -76,6 +101,7 @@ export class CreatePrescriptionDto {
   @IsOptional()
   @IsString()
   handwrittenImage?: string;
+
   @ApiProperty({
     type: [MedicineLineDto],
     description:
@@ -83,6 +109,7 @@ export class CreatePrescriptionDto {
   })
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(30)
   @ValidateNested({ each: true })
   @Type(() => MedicineLineDto)
   medicines: MedicineLineDto[];
@@ -98,39 +125,61 @@ export class ReviewLabReportDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   interpretation?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   doctorAction?: string;
 }
 
 export class UploadLabReportDto {
-  @ApiProperty() @IsUUID() patientId: string;
+  @ApiProperty()
+  @IsUUID()
+  patientId: string;
+
   @ApiProperty({ required: false, example: 'Serum AMH' })
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   testName?: string;
+
   @ApiProperty({ required: false, example: 'Hormonal' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   testCategory?: string;
+
   @ApiProperty({ required: false, example: 'Dr. Lal PathLabs' })
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   labName?: string;
+
   @ApiProperty({ required: false, default: false })
   @IsOptional()
   @IsBoolean()
   urgent?: boolean;
+
   @ApiProperty({
     required: false,
     description: 'Date the test was actually taken (YYYY-MM-DD)',
   })
   @IsOptional()
   @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'reportDate must be in YYYY-MM-DD format',
+  })
   reportDate?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() notes?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  notes?: string;
+
   @ApiProperty({
     required: false,
     description: 'Fulfills a pending lab_report_requests row',
@@ -141,37 +190,96 @@ export class UploadLabReportDto {
 }
 
 export class RequestLabReportDto {
-  @ApiProperty() @IsUUID() patientId: string;
-  @ApiProperty({ example: 'CBC, TSH' }) @IsString() requestedTests: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() dueDate?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() notes?: string;
+  @ApiProperty()
+  @IsUUID()
+  patientId: string;
+
+  @ApiProperty({ example: 'CBC, TSH' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(500)
+  requestedTests: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'dueDate must be in YYYY-MM-DD format',
+  })
+  dueDate?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  notes?: string;
 }
 
 export class CreateClinicalNoteDto {
-  @ApiProperty() @IsUUID() patientId: string;
-  @ApiProperty() @IsString() note: string;
+  @ApiProperty()
+  @IsUUID()
+  patientId: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(10000)
+  note: string;
 }
 
 export class AddDocumentDto {
-  @ApiProperty() @IsUUID() patientId: string;
-  @ApiProperty() @IsString() fileName: string;
+  @ApiProperty()
+  @IsUUID()
+  patientId: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(255)
+  fileName: string;
+
   @ApiProperty({ required: false, default: 'pdf' })
   @IsOptional()
   @IsString()
+  @MaxLength(20)
   fileType?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsInt()
   @Min(0)
   sizeBytes?: number;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() labName?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() fileUrl?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  labName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  fileUrl?: string;
 }
 
 export class AddVaccinationDto {
-  @ApiProperty() @IsUUID() patientId: string;
-  @ApiProperty() @IsString() name: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() doses?: string;
+  @ApiProperty()
+  @IsUUID()
+  patientId: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  name: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  doses?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsBoolean()
@@ -179,45 +287,85 @@ export class AddVaccinationDto {
 }
 
 export class AddEmergencyContactDto {
-  @ApiProperty() @IsUUID() patientId: string;
-  @ApiProperty() @IsString() name: string;
-  @ApiProperty() @IsString() relation: string;
-  @ApiProperty() @IsString() phone: string;
+  @ApiProperty()
+  @IsUUID()
+  patientId: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  relation: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(7)
+  @MaxLength(20)
+  @Matches(/^[0-9+\s\-()]{7,20}$/, {
+    message: 'phone must be a valid phone number',
+  })
+  phone: string;
 }
 
 export class CreateCatalogItemDto {
   @ApiProperty({ enum: ['medicine', 'lab_test'] })
   @IsIn(['medicine', 'lab_test'])
   type: 'medicine' | 'lab_test';
-  @ApiProperty({ example: 'Metformin ER' }) @IsString() name: string;
+
+  @ApiProperty({ example: 'Metformin ER' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  name: string;
+
   @ApiProperty({ required: false, example: 'Metabolic' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   category?: string;
+
   @ApiProperty({ required: false, example: '500mg' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   defaultDose?: string;
+
   @ApiProperty({ required: false, example: '1-0-1' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   defaultFreq?: string;
+
   @ApiProperty({ required: false, example: 'After Food' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   defaultTiming?: string;
+
   @ApiProperty({ required: false, example: '90 Days' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   defaultDuration?: string;
+
   @ApiProperty({ required: false, example: '🌸 PCOS' })
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   badge?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   instructions?: string;
+
   @ApiProperty({
     required: false,
     description: 'Admin-only: true to make item global',
@@ -228,59 +376,95 @@ export class CreateCatalogItemDto {
 }
 
 export class ProtocolMedDto {
-  @ApiProperty({ example: 'Metformin ER 500mg' }) @IsString() name: string;
+  @ApiProperty({ example: 'Metformin ER 500mg' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  name: string;
+
   @ApiProperty({ required: false, example: '1-0-1' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   schedule?: string;
+
   @ApiProperty({ required: false, example: '30 Days' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   duration?: string;
+
   @ApiProperty({ required: false, example: 'After Food' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   timing?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   instructions?: string;
 }
 
 export class CreateProtocolDto {
-  @ApiProperty({ example: '🌸 PCOS Protocol' }) @IsString() name: string;
+  @ApiProperty({ example: '🌸 PCOS Protocol' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  name: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   shortName?: string;
+
   @ApiProperty({ required: false, example: 'PCOS' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   category?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() badge?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(50)
+  badge?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
   description?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   diagnosis?: string;
+
   @ApiProperty({ required: false, type: [ProtocolMedDto] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(30)
   @ValidateNested({ each: true })
   @Type(() => ProtocolMedDto)
   meds?: ProtocolMedDto[];
+
   @ApiProperty({ required: false, type: [String] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20)
   @IsString({ each: true })
   labs?: string[];
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(5000)
   clinicalNotes?: string;
+
   @ApiProperty({
     required: false,
     description: 'Admin only: make protocol global',
@@ -319,7 +503,10 @@ export class RecordsController {
   })
   @ApiParam({ name: 'id' })
   @Put('prescriptions/:id/request-refill')
-  async requestRefill(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async requestRefill(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     const data = await this.recordsService.requestRefill(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
@@ -331,7 +518,7 @@ export class RecordsController {
   @Put('prescriptions/:id/refill')
   async handleRefill(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: HandleRefillDto,
   ) {
     const data = await this.recordsService.handleRefill(user, id, body.action);
@@ -348,7 +535,8 @@ export class RecordsController {
   @Get('lab-reports')
   async getLabReports(
     @CurrentUser() user: AuthUser,
-    @Query('patientId') patientId?: string,
+    @Query('patientId', new ParseUUIDPipe({ optional: true }))
+    patientId?: string,
   ) {
     const data = await this.recordsService.getLabReports(user, patientId);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
@@ -383,7 +571,7 @@ export class RecordsController {
   @Get('lab-reports/:id/url')
   async getLabReportUrl(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     const data = await this.recordsService.getSignedUrl(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
@@ -396,7 +584,7 @@ export class RecordsController {
   @Put('lab-reports/:id/review')
   async reviewLabReport(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: ReviewLabReportDto,
   ) {
     const data = await this.recordsService.reviewLabReport(user, id, body);
@@ -410,7 +598,7 @@ export class RecordsController {
   @Delete('lab-reports/:id')
   async deleteLabReport(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     const data = await this.recordsService.deleteLabReport(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.LAB_REPORT_DELETED);
@@ -433,7 +621,8 @@ export class RecordsController {
   @Get('lab-report-requests')
   async listLabReportRequests(
     @CurrentUser() user: AuthUser,
-    @Query('patientId') patientId?: string,
+    @Query('patientId', new ParseUUIDPipe({ optional: true }))
+    patientId?: string,
   ) {
     const data = await this.recordsService.listLabReportRequests(
       user,
@@ -447,7 +636,7 @@ export class RecordsController {
   @Put('lab-report-requests/:id/cancel')
   async cancelLabReportRequest(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     const data = await this.recordsService.cancelLabReportRequest(user, id);
     return ResponseHelper.success(
@@ -476,7 +665,7 @@ export class RecordsController {
   @Get('documents/:patientId')
   async getDocuments(
     @CurrentUser() user: AuthUser,
-    @Param('patientId') patientId: string,
+    @Param('patientId', new ParseUUIDPipe()) patientId: string,
   ) {
     const data = await this.recordsService.getDocuments(user, patientId);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
@@ -498,7 +687,10 @@ export class RecordsController {
   @ApiOperation({ summary: 'Remove a document from the records vault' })
   @ApiParam({ name: 'id' })
   @Delete('documents/:id')
-  async deleteDocument(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async deleteDocument(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     const data = await this.recordsService.deleteDocument(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DOCUMENT_DELETED);
   }
@@ -509,7 +701,7 @@ export class RecordsController {
   @Get('vaccinations/:patientId')
   async getVaccinations(
     @CurrentUser() user: AuthUser,
-    @Param('patientId') patientId: string,
+    @Param('patientId', new ParseUUIDPipe()) patientId: string,
   ) {
     const data = await this.recordsService.getVaccinations(user, patientId);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
@@ -531,7 +723,7 @@ export class RecordsController {
   @Get('emergency-contacts/:patientId')
   async getEmergencyContacts(
     @CurrentUser() user: AuthUser,
-    @Param('patientId') patientId: string,
+    @Param('patientId', new ParseUUIDPipe()) patientId: string,
   ) {
     const data = await this.recordsService.getEmergencyContacts(
       user,
@@ -555,7 +747,7 @@ export class RecordsController {
   @Delete('emergency-contacts/:id')
   async deleteEmergencyContact(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     const data = await this.recordsService.deleteEmergencyContact(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.CONTACT_DELETED);
@@ -592,7 +784,7 @@ export class RecordsController {
   @Delete('catalog/:id')
   async deleteCatalogItem(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     const data = await this.recordsService.deleteCatalogItem(user, id);
     return ResponseHelper.success(data, 'Catalog item removed successfully');

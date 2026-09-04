@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Post, Res, Headers, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Res,
+  Headers,
+  Req,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiProperty } from '@nestjs/swagger';
 import {
   IsIn,
@@ -7,8 +17,9 @@ import {
   IsPositive,
   IsString,
   IsUUID,
-  IsNotEmpty,
+  MaxLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import type { Response, Request } from 'express';
 import { BillingService } from '@/modules/billing/services/billing.service';
 import { AiSubscriptionService } from '@/modules/ai/services/ai-subscription.service';
@@ -20,27 +31,37 @@ import type { AuthUser } from '@/core/decorators/current-user.decorator';
 import { Public } from '@/core/decorators/public.decorator';
 
 export class CreatePaymentOrderDto {
-  @ApiProperty() @IsUUID() appointmentId: string;
+  @ApiProperty()
+  @IsUUID()
+  appointmentId: string;
 }
 
 export class RequestPayoutDto {
-  @ApiProperty({ example: '5000' })
-  @IsNotEmpty()
-  amount: string | number;
+  @ApiProperty({ example: 5000 })
+  @Transform(({ value }) =>
+    value !== undefined && value !== null ? Number(value) : value,
+  )
+  @IsNumber()
+  @IsPositive()
+  amount: number;
 
-  @ApiProperty({ required: false, example: 'INR' })
+  @ApiProperty({ required: false, example: 'INR', enum: ['INR', 'USD'] })
   @IsOptional()
-  @IsString()
+  @IsIn(['INR', 'USD'])
   currency?: string;
 
-  @ApiProperty({ enum: ['Bank Account', 'UPI', 'Wallet'], default: 'Bank Account' })
+  @ApiProperty({
+    enum: ['Bank Account', 'UPI', 'Wallet'],
+    default: 'Bank Account',
+  })
   @IsOptional()
-  @IsString()
+  @IsIn(['Bank Account', 'UPI', 'Wallet'])
   method?: string;
 
   @ApiProperty({ required: false, example: 'req-idemp-98124' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   idempotencyKey?: string;
 
   @ApiProperty({ required: false })
@@ -49,13 +70,31 @@ export class RequestPayoutDto {
 }
 
 export class RecordChargeDto {
-  @ApiProperty() @IsUUID() patientId: string;
+  @ApiProperty()
+  @IsUUID()
+  patientId: string;
+
   @ApiProperty({ example: 'Follow-up Consultation Fee' })
   @IsString()
+  @MaxLength(200)
   service: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() category?: string;
-  @ApiProperty() @IsNumber() @IsPositive() amount: number;
-  @ApiProperty() @IsString() method: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  category?: string;
+
+  @ApiProperty()
+  @IsNumber()
+  @IsPositive()
+  amount: number;
+
+  @ApiProperty()
+  @IsString()
+  @MaxLength(50)
+  method: string;
+
   @ApiProperty({ enum: ['Paid', 'Pending', 'Insurance Claimed'] })
   @IsIn(['Paid', 'Pending', 'Insurance Claimed'])
   status: string;
@@ -134,13 +173,20 @@ export class BillingController {
   ) {
     const isProduction = process.env.NODE_ENV === 'production';
     if (isProduction && (!signature || !timestamp)) {
-      return { ok: false, error: 'Webhook signature and timestamp required in production' };
+      return {
+        ok: false,
+        error: 'Webhook signature and timestamp required in production',
+      };
     }
 
     // If Cashfree signature header is present, verify authenticity
     if (signature && timestamp) {
       const rawBody = JSON.stringify(body || {});
-      const isValid = this.cashfreeService.verifyWebhookSignature(rawBody, signature, timestamp);
+      const isValid = this.cashfreeService.verifyWebhookSignature(
+        rawBody,
+        signature,
+        timestamp,
+      );
       if (!isValid) {
         return { ok: false, error: 'Invalid webhook signature' };
       }
@@ -149,9 +195,13 @@ export class BillingController {
     const orderId = body?.data?.order?.order_id || body?.order_id;
     if (orderId) {
       if (orderId.startsWith('ai_sub_') || orderId.startsWith('ai_topup_')) {
-        await this.aiSubscriptionService.reconcileSubscriptionOrder(orderId).catch(() => {});
+        await this.aiSubscriptionService
+          .reconcileSubscriptionOrder(orderId)
+          .catch(() => {});
       } else {
-        await this.billingService.reconcileCashfreeOrder(orderId).catch(() => {});
+        await this.billingService
+          .reconcileCashfreeOrder(orderId)
+          .catch(() => {});
       }
     }
     return { ok: true };
@@ -192,7 +242,10 @@ export class BillingController {
   @ApiOperation({ summary: 'Get a single transaction (invoice detail)' })
   @ApiParam({ name: 'id' })
   @Get('transactions/:id')
-  async transaction(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async transaction(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     const data = await this.billingService.getTransaction(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
@@ -205,7 +258,7 @@ export class BillingController {
   @Get('transactions/:id/invoice')
   async invoice(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Res() res: Response,
   ) {
     const { pdf, filename } = await this.billingService.getInvoicePdf(user, id);

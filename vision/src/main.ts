@@ -1,8 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, BadRequestException } from '@nestjs/common';
 import { AllExceptionsFilter } from './core/filters/http-exception.filter';
+import { ERROR_CODES } from './core/constants/errors.constant';
 import { initSentry } from './core/monitoring/sentry';
 import { json, urlencoded } from 'express';
 import helmet from 'helmet';
@@ -56,6 +57,25 @@ async function bootstrap() {
       whitelist: true,
       transform: true,
       forbidNonWhitelisted: true,
+      exceptionFactory: (validationErrors = []) => {
+        const details: Record<string, string> = {};
+        const extract = (errs: any[]) => {
+          for (const err of errs) {
+            if (err.constraints) {
+              details[err.property] = Object.values(err.constraints)[0] as string;
+            }
+            if (err.children && err.children.length > 0) {
+              extract(err.children);
+            }
+          }
+        };
+        extract(validationErrors);
+        return new BadRequestException({
+          message: 'Validation failed',
+          errorCode: ERROR_CODES.VALIDATION_ERROR,
+          details,
+        });
+      },
     }),
   );
 

@@ -1,6 +1,13 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiProperty } from '@nestjs/swagger';
-import { IsString } from 'class-validator';
+import { IsString, MaxLength, MinLength } from 'class-validator';
 import { TelemedicineService } from '@/modules/telemedicine/services/telemedicine.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
@@ -8,7 +15,11 @@ import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
 
 export class AddNoteDto {
-  @ApiProperty() @IsString() note: string;
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(5000)
+  note: string;
 }
 
 @ApiTags('Telemedicine')
@@ -44,7 +55,7 @@ export class TelemedicineController {
   @Get(':appointmentId/notes')
   async getNotes(
     @CurrentUser() user: AuthUser,
-    @Param('appointmentId') appointmentId: string,
+    @Param('appointmentId', new ParseUUIDPipe()) appointmentId: string,
   ) {
     const data = await this.telemedicineService.getNotes(user, appointmentId);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
@@ -57,7 +68,7 @@ export class TelemedicineController {
   @Post(':appointmentId/notes')
   async addNote(
     @CurrentUser() user: AuthUser,
-    @Param('appointmentId') appointmentId: string,
+    @Param('appointmentId', new ParseUUIDPipe()) appointmentId: string,
     @Body() body: AddNoteDto,
   ) {
     const data = await this.telemedicineService.addNote(

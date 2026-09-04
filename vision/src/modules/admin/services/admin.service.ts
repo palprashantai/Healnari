@@ -3,13 +3,15 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
+  HttpException,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AppointmentStatus } from '@/shared/interfaces/appointment.interface';
-import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
+import { ERROR_MESSAGES, ERROR_CODES } from '@/core/constants/errors.constant';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { CashfreeService } from '@/core/cashfree/cashfree.service';
 import { EmailService } from '@/core/email/email.service';
@@ -279,7 +281,16 @@ export class AdminService {
       .order('created_at', { ascending: false })
       .limit(500);
 
-    if (error) throw new InternalServerErrorException(error.message);
+    if (error) {
+      this.logger.error(
+        `Failed to fetch admin PHI audit logs: ${error.message}`,
+        error,
+      );
+      throw new InternalServerErrorException({
+        message: 'Failed to retrieve PHI audit logs. Please try again later.',
+        errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+      });
+    }
     return data || [];
   }
 
@@ -3246,65 +3257,88 @@ export class AdminService {
 
   // ─── Specialties Management ─────────────────────────────────────────
   async getSpecialties() {
-    try {
-      const { data, error } = await this.supabase.admin
-        .from('specialties')
-        .select('id, name, created_at')
-        .order('name', { ascending: true });
-      if (error) throw new InternalServerErrorException(error.message);
-      return data || [];
-    } catch (error) {
-      throw new InternalServerErrorException(
-        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
-      );
+    const { data, error } = await this.supabase.admin
+      .from('specialties')
+      .select('id, name, created_at')
+      .order('name', { ascending: true });
+    if (error) {
+      this.logger.error(`Failed to fetch specialties: ${error.message}`, error);
+      throw new InternalServerErrorException({
+        message: 'Failed to retrieve specialties.',
+        errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+      });
     }
+    return data || [];
   }
 
   async createSpecialty(name: string) {
-    try {
-      const { data, error } = await this.supabase.admin
-        .from('specialties')
-        .insert({ name })
-        .select()
-        .maybeSingle();
-      if (error) throw new InternalServerErrorException(error.message);
-      return data;
-    } catch (error) {
-      throw new InternalServerErrorException(
-        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
-      );
+    const { data, error } = await this.supabase.admin
+      .from('specialties')
+      .insert({ name })
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === '23505') {
+        throw new ConflictException({
+          message: ERROR_MESSAGES.SPECIALTY_ALREADY_EXISTS,
+          errorCode: ERROR_CODES.SPECIALTY_ALREADY_EXISTS,
+        });
+      }
+      this.logger.error(`Failed to create specialty "${name}": ${error.message}`, error);
+      throw new InternalServerErrorException({
+        message: 'Unable to create specialty. Please try again.',
+        errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+      });
     }
+    return data;
   }
 
   async updateSpecialty(id: string, name: string) {
-    try {
-      const { data, error } = await this.supabase.admin
-        .from('specialties')
-        .update({ name })
-        .eq('id', id)
-        .select()
-        .maybeSingle();
-      if (error) throw new InternalServerErrorException(error.message);
-      return data;
-    } catch (error) {
-      throw new InternalServerErrorException(
-        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
-      );
+    const { data, error } = await this.supabase.admin
+      .from('specialties')
+      .update({ name })
+      .eq('id', id)
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === '23505') {
+        throw new ConflictException({
+          message: ERROR_MESSAGES.SPECIALTY_ALREADY_EXISTS,
+          errorCode: ERROR_CODES.SPECIALTY_ALREADY_EXISTS,
+        });
+      }
+      this.logger.error(`Failed to update specialty ${id}: ${error.message}`, error);
+      throw new InternalServerErrorException({
+        message: 'Unable to update specialty. Please try again.',
+        errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+      });
     }
+
+    if (!data) {
+      throw new NotFoundException({
+        message: ERROR_MESSAGES.SPECIALTY_NOT_FOUND,
+        errorCode: ERROR_CODES.SPECIALTY_NOT_FOUND,
+      });
+    }
+    return data;
   }
 
   async deleteSpecialty(id: string) {
-    try {
-      const { error } = await this.supabase.admin
-        .from('specialties')
-        .delete()
-        .eq('id', id);
-      if (error) throw new InternalServerErrorException(error.message);
-    } catch (error) {
-      throw new InternalServerErrorException(
-        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
-      );
+    const { error } = await this.supabase.admin
+      .from('specialties')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      this.logger.error(`Failed to delete specialty ${id}: ${error.message}`, error);
+      throw new InternalServerErrorException({
+        message: 'Unable to delete specialty. Please try again.',
+        errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+      });
     }
+    return { success: true, id };
   }
 
   /** Public landing page — returns verified doctors with display-safe fields */

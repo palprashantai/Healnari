@@ -3,7 +3,9 @@ import {
   Logger,
   HttpException,
   HttpStatus,
+  ServiceUnavailableException,
 } from '@nestjs/common';
+import { ERROR_MESSAGES, ERROR_CODES } from '@/core/constants/errors.constant';
 import { randomUUID } from 'crypto';
 import { AiProviderGateway } from '../providers/ai-provider.gateway';
 import { AiToolRegistry } from '../tools/ai-tool.registry';
@@ -101,6 +103,7 @@ export class AiOrchestrator {
           statusCode: HttpStatus.PAYMENT_REQUIRED,
           error: 'Payment Required',
           message: entitlement.reason || 'AI credit allowance reached for current billing cycle.',
+          errorCode: ERROR_CODES.AI_CREDITS_INSUFFICIENT,
           paywallData: entitlement.paywallData,
         });
       }
@@ -126,11 +129,23 @@ export class AiOrchestrator {
     while (turns < maxTurns) {
       turns++;
 
-      const modelResponse = await provider.chat(messages, {
-        systemInstruction,
-        tools: availableTools,
-        temperature: 0.3,
-      });
+      let modelResponse;
+      try {
+        modelResponse = await provider.chat(messages, {
+          systemInstruction,
+          tools: availableTools,
+          temperature: 0.3,
+        });
+      } catch (err: any) {
+        this.logger.error(
+          `AI Provider (${provider.name}) failed on requestId ${requestId}: ${err.message}`,
+          err.stack,
+        );
+        throw new ServiceUnavailableException({
+          message: ERROR_MESSAGES.AI_PROVIDER_UNAVAILABLE,
+          errorCode: ERROR_CODES.AI_PROVIDER_UNAVAILABLE,
+        });
+      }
 
       totalInputTokens += modelResponse.inputTokens || 0;
       totalOutputTokens += modelResponse.outputTokens || 0;

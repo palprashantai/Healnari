@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
@@ -9,7 +11,7 @@ import { SupabaseService } from '@/core/supabase/supabase.service';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
-import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
+import { ERROR_MESSAGES, ERROR_CODES } from '@/core/constants/errors.constant';
 import { EmailService } from '@/core/email/email.service';
 import {
   AddDocumentDto,
@@ -28,6 +30,8 @@ const ALLOWED_LAB_REPORT_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 
 @Injectable()
 export class RecordsService {
+  private readonly logger = new Logger(RecordsService.name);
+
   constructor(
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
@@ -336,8 +340,13 @@ export class RecordsService {
     const testName = body.testName || request?.requested_tests;
     if (!testName) throw new BadRequestException(ERROR_MESSAGES.BAD_REQUEST);
 
-    const ext = (file.originalname.split('.').pop() || 'pdf').toLowerCase();
-    const sanitizedBase = file.originalname
+    const mimeToExt: Record<string, string> = {
+      'application/pdf': 'pdf',
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+    };
+    const ext = mimeToExt[file.mimetype] || 'pdf';
+    const sanitizedBase = (file.originalname || 'document')
       .replace(/\.[^.]+$/, '')
       .replace(/[^a-zA-Z0-9-_]/g, '_')
       .slice(0, 60);
@@ -346,7 +355,16 @@ export class RecordsService {
     const { error: uploadError } = await this.supabase.admin.storage
       .from(LAB_REPORTS_BUCKET)
       .upload(path, file.buffer, { contentType: file.mimetype });
-    if (uploadError) throw new BadRequestException(uploadError.message);
+    if (uploadError) {
+      this.logger.error(
+        `Lab report upload to storage failed for patient ${body.patientId}: ${uploadError.message}`,
+        uploadError,
+      );
+      throw new InternalServerErrorException({
+        message: 'Failed to upload lab report file. Please try again.',
+        errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+      });
+    }
 
     const { data: report } = await this.supabase.admin
       .from('lab_reports')
@@ -433,10 +451,16 @@ export class RecordsService {
     const { data, error } = await this.supabase.admin.storage
       .from(LAB_REPORTS_BUCKET)
       .createSignedUrl(report.file_path, 3600);
-    if (error || !data)
-      throw new BadRequestException(
-        error?.message || ERROR_MESSAGES.BAD_REQUEST,
+    if (error || !data) {
+      this.logger.error(
+        `Failed to generate signed URL for lab report ${id}: ${error?.message}`,
+        error,
       );
+      throw new InternalServerErrorException({
+        message: 'Unable to access document file at this time. Please try again.',
+        errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+      });
+    }
     return {
       url: data.signedUrl,
       fileType: report.file_type,
@@ -919,10 +943,16 @@ export class RecordsService {
       .select()
       .maybeSingle();
 
-    if (error)
-      throw new BadRequestException(
-        error.message || 'Failed to create protocol',
+    if (error) {
+      this.logger.error(
+        `Failed to create clinical protocol for doctor ${doctorId}: ${error.message}`,
+        error,
       );
+      throw new BadRequestException({
+        message: 'Unable to create clinical protocol. Please check your parameters and try again.',
+        errorCode: ERROR_CODES.BAD_REQUEST,
+      });
+    }
     return data;
   }
 }

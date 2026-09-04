@@ -15,6 +15,7 @@ function AuthModal({ onClose, initialEmail = '' }) {
   const [regNo, setRegNo] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [authError, setAuthError] = useState('');
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
@@ -33,6 +34,7 @@ function AuthModal({ onClose, initialEmail = '' }) {
     }
 
     setSubmitting(true);
+    setAuthError('');
 
     try {
       if (mode === 'login') {
@@ -61,7 +63,9 @@ function AuthModal({ onClose, initialEmail = '' }) {
         toast('Password recovery instructions sent to your email.', 'success');
       }
     } catch (err) {
-      toast(err?.message || 'Invalid email or password. Please verify your credentials and try again.', 'error');
+      const msg = err?.message || 'Authentication failed. Please verify your details and try again.';
+      setAuthError(msg);
+      toast(msg, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -160,14 +164,40 @@ function AuthModal({ onClose, initialEmail = '' }) {
               </div>
               <button
                 type="button"
-                onClick={() => { setResetSent(false); setMode('login'); }}
+                onClick={() => { setResetSent(false); setMode('login'); setAuthError(''); }}
                 className="w-full py-3 bg-aubergine-600 text-white font-bold rounded-xl text-sm hover:bg-aubergine-700 transition-colors"
               >
                 Return to Sign In
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <>
+              {authError && (
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-start gap-2.5 animate-fade-in shadow-sm mb-4">
+                  <i className="fas fa-circle-exclamation mt-0.5 text-rose-600 text-sm shrink-0"></i>
+                  <div className="flex-1 space-y-1">
+                    <p className="font-semibold leading-relaxed">{authError}</p>
+                    {(authError.toLowerCase().includes('already') ||
+                      authError.toLowerCase().includes('registered') ||
+                      authError.toLowerCase().includes('exists')) &&
+                      mode === 'register' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAuthError('');
+                            setMode('login');
+                          }}
+                          className="font-bold text-aubergine-700 hover:text-aubergine-900 underline inline-flex items-center gap-1 mt-0.5"
+                        >
+                          <span>Sign in to your account instead</span>
+                          <i className="fas fa-arrow-right text-[10px]"></i>
+                        </button>
+                      )}
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-4">
               {mode === 'register' && (
                 <div className="space-y-1.5">
                   <label htmlFor="auth-fullname" className="text-sm font-semibold text-slate-700 block">Full Name</label>
@@ -286,6 +316,7 @@ function AuthModal({ onClose, initialEmail = '' }) {
                 ) : mode === 'login' ? 'Sign In' : (mode === 'register' ? 'Create Account' : 'Send Recovery Link')}
               </button>
             </form>
+            </>
           )}
 
           <div className="mt-6 text-center border-t border-slate-100 pt-4">
@@ -302,7 +333,10 @@ function AuthModal({ onClose, initialEmail = '' }) {
                 {mode === 'login' ? "Don't have an account?" : "Already have an account?"}{' '}
                 <button
                   type="button"
-                  onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+                  onClick={() => {
+                    setAuthError('');
+                    setMode(mode === 'login' ? 'register' : 'login');
+                  }}
                   className="font-bold text-brand-600 hover:text-brand-700"
                 >
                   {mode === 'login' ? 'Register now' : 'Sign in instead'}

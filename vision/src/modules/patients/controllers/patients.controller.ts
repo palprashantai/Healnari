@@ -1,25 +1,32 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
   Put,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiProperty } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
   IsArray,
   IsDateString,
   IsEmail,
   IsIn,
   IsInt,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Max,
+  MaxLength,
   Min,
+  MinLength,
 } from 'class-validator';
 import { PatientsService } from '@/modules/patients/services/patients.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
@@ -28,42 +35,112 @@ import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
 
 export class CreatePatientDto {
-  @ApiProperty() @IsString() name: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() phone?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() email?: string;
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @Matches(/^[0-9+\s\-()]{7,20}$/, {
+    message: 'phone must be a valid contact number',
+  })
+  phone?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiProperty({
+    required: false,
+    enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
+  })
+  @IsOptional()
+  @IsIn(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'])
   bloodGroup?: string;
 }
 
 export class UpdatePatientDto {
-  @ApiProperty({ required: false }) @IsOptional() @IsString() name?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() phone?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() dob?: string;
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9+\s\-()]{7,20}$/, {
+    message: 'phone must be a valid contact number',
+  })
+  phone?: string;
+
+  @ApiProperty({ required: false, example: '1995-05-15' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'dob must be in YYYY-MM-DD format',
+  })
+  dob?: string;
+
+  @ApiProperty({
+    required: false,
+    enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
+  })
+  @IsOptional()
+  @IsIn(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'])
   bloodGroup?: string;
-  @ApiProperty({ required: false }) @IsOptional() heightCm?: number;
-  @ApiProperty({ required: false }) @IsOptional() weightKg?: number;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() city?: string;
+
+  @ApiProperty({ required: false, example: 165 })
+  @IsOptional()
+  @IsNumber()
+  @Min(30)
+  @Max(300)
+  heightCm?: number;
+
+  @ApiProperty({ required: false, example: 62 })
+  @IsOptional()
+  @IsNumber()
+  @Min(2)
+  @Max(500)
+  weightKg?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  city?: string;
+
   @ApiProperty({ required: false, type: [String] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
   allergies?: string[];
+
   @ApiProperty({ required: false, type: [String] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
   chronicConditions?: string[];
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   lifeStageMode?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(10)
   currencyPreference?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsInt()
@@ -73,25 +150,71 @@ export class UpdatePatientDto {
 }
 
 export class LogCycleDto {
-  @ApiProperty({ required: false }) @IsOptional() @IsString() phase?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() flow?: string;
-  @ApiProperty({ required: false }) @IsOptional() cramps?: number;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() mood?: string;
-  @ApiProperty({ required: false, type: [String] })
-  @IsOptional()
-  @IsArray()
-  symptoms?: string[];
-  @ApiProperty({ required: false }) @IsOptional() bbt?: number;
-  @ApiProperty({ required: false }) @IsOptional() lhRatio?: number;
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(50)
+  phase?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  flow?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(10)
+  cramps?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  mood?: string;
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  symptoms?: string[];
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(90)
+  @Max(110)
+  bbt?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(10)
+  lhRatio?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
   cervicalMucus?: string;
 }
 
 export class LogVitalDto {
-  @ApiProperty() @IsString() value: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() unit?: string;
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  value: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  unit?: string;
 }
 
 export class LogLifestyleDto {
@@ -104,8 +227,15 @@ export class LogLifestyleDto {
 }
 
 export class InviteConnectionDto {
-  @ApiProperty() @IsEmail() email: string;
-  @ApiProperty() @IsString() relation: string;
+  @ApiProperty()
+  @IsEmail()
+  email: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  relation: string;
 }
 
 export class UpdateConnectionPermissionsDto {
@@ -118,13 +248,20 @@ export class UpdateConnectionPermissionsDto {
 }
 
 export class AddFavoriteDto {
-  @ApiProperty() @IsUUID() doctorId: string;
+  @ApiProperty()
+  @IsUUID()
+  doctorId: string;
 }
 
 export class JoinWaitlistDto {
-  @ApiProperty() @IsUUID() doctorId: string;
+  @ApiProperty()
+  @IsUUID()
+  doctorId: string;
+
   @ApiProperty({ example: 'Tomorrow, Morning Slot' })
   @IsString()
+  @MinLength(1)
+  @MaxLength(200)
   preferredWindow: string;
 }
 
@@ -135,16 +272,19 @@ export class QuickFertilityEstimateDto {
   })
   @IsDateString()
   lastPeriodStart: string;
+
   @ApiProperty({ example: 5 })
   @IsInt()
   @Min(1)
   @Max(15)
   periodDurationDays: number;
+
   @ApiProperty({ example: 28 })
   @IsInt()
   @Min(15)
   @Max(90)
   cycleLengthDays: number;
+
   @ApiProperty({ required: false, example: 14 })
   @IsOptional()
   @IsInt()
@@ -153,12 +293,17 @@ export class QuickFertilityEstimateDto {
   customLutealPhaseDays?: number;
 }
 
+const ALLOWED_VITAL_KEYS = ['weight', 'bp', 'sugar', 'sleep', 'hirsutism'];
+
 @ApiTags('Patients')
 @Controller('api/patients')
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
 
-  @ApiOperation({ summary: 'Patient personalized health, appointment, and AI credit analytics' })
+  @ApiOperation({
+    summary:
+      'Patient personalized health, appointment, and AI credit analytics',
+  })
   @Get('me/analytics')
   async getMyAnalytics(@CurrentUser() user: AuthUser) {
     const data = await this.patientsService.getMyAnalytics(user);
@@ -245,6 +390,9 @@ export class PatientsController {
     @Param('date') date: string,
     @Body() body: LogCycleDto,
   ) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new BadRequestException('date parameter must be in YYYY-MM-DD format');
+    }
     const data = await this.patientsService.logCycle(user, date, body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
@@ -272,6 +420,11 @@ export class PatientsController {
     @Param('key') key: string,
     @Body() body: LogVitalDto,
   ) {
+    if (!ALLOWED_VITAL_KEYS.includes(key)) {
+      throw new BadRequestException(
+        `Invalid vital key '${key}'. Allowed: ${ALLOWED_VITAL_KEYS.join(', ')}`,
+      );
+    }
     const data = await this.patientsService.logVital(user, key, body);
     return ResponseHelper.success(
       data,
@@ -297,6 +450,9 @@ export class PatientsController {
     @Param('date') date: string,
     @Body() body: LogLifestyleDto,
   ) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new BadRequestException('date parameter must be in YYYY-MM-DD format');
+    }
     const data = await this.patientsService.logLifestyle(user, date, body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.GOAL_LOGGED);
   }
@@ -325,7 +481,7 @@ export class PatientsController {
   @Put('me/care-connections/:id/permissions')
   async updateConnectionPermissions(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: UpdateConnectionPermissionsDto,
   ) {
     const data = await this.patientsService.updateConnectionPermissions(
@@ -344,7 +500,7 @@ export class PatientsController {
   @Delete('me/care-connections/:id')
   async removeConnection(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     const data = await this.patientsService.removeConnection(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.CONNECTION_REMOVED);
@@ -372,7 +528,7 @@ export class PatientsController {
   @Delete('me/favorites/:doctorId')
   async removeFavorite(
     @CurrentUser() user: AuthUser,
-    @Param('doctorId') doctorId: string,
+    @Param('doctorId', new ParseUUIDPipe()) doctorId: string,
   ) {
     const data = await this.patientsService.removeFavorite(user, doctorId);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.FAVORITE_REMOVED);
@@ -400,7 +556,10 @@ export class PatientsController {
   @ApiOperation({ summary: 'Leave a waitlist' })
   @ApiParam({ name: 'id' })
   @Delete('me/waitlist/:id')
-  async leaveWaitlist(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async leaveWaitlist(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     const data = await this.patientsService.leaveWaitlist(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.WAITLIST_LEFT);
   }
@@ -410,7 +569,7 @@ export class PatientsController {
   @Put(':id')
   async update(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: UpdatePatientDto,
   ) {
     const data = await this.patientsService.update(user, id, body);

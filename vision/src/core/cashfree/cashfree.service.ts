@@ -3,7 +3,9 @@ import {
   InternalServerErrorException,
   Logger,
   ServiceUnavailableException,
+  BadRequestException,
 } from '@nestjs/common';
+import { ERROR_MESSAGES, ERROR_CODES } from '@/core/constants/errors.constant';
 
 export interface CreateCashfreeOrderParams {
   orderId: string;
@@ -58,28 +60,48 @@ export class CashfreeService {
 
   private requireConfigured() {
     if (!this.isConfigured) {
-      throw new ServiceUnavailableException(
-        'Payment gateway is not configured yet. Please try again later.',
-      );
+      throw new ServiceUnavailableException({
+        message: ERROR_MESSAGES.PAYMENT_SERVICE_UNAVAILABLE,
+        errorCode: ERROR_CODES.PAYMENT_GATEWAY_UNAVAILABLE,
+      });
     }
   }
 
   private async request(path: string, init?: RequestInit) {
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      ...init,
-      headers: this.headers(),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}${path}`, {
+        ...init,
+        headers: this.headers(),
+      });
+    } catch (networkErr: any) {
+      this.logger.error(
+        `Cashfree network connection failed for ${init?.method || 'GET'} ${path}: ${networkErr.message}`,
+        networkErr.stack,
+      );
+      throw new ServiceUnavailableException({
+        message: ERROR_MESSAGES.PAYMENT_SERVICE_UNAVAILABLE,
+        errorCode: ERROR_CODES.PAYMENT_GATEWAY_UNAVAILABLE,
+      });
+    }
+
     const data = await res.json().catch(() => null);
     if (!res.ok) {
-      // AUDIT_REPORT.md SEC-7 — Cashfree's error body can echo back customer
-      // email/phone; log only what's needed to diagnose a failed call, not
-      // the full response.
       this.logger.error(
         `Cashfree ${init?.method || 'GET'} ${path} -> ${res.status}: ${data?.code || data?.type || 'unknown_error'} — ${data?.message || 'no message'}`,
       );
-      throw new InternalServerErrorException(
-        data?.message || 'Payment gateway request failed.',
-      );
+
+      if (res.status >= 500) {
+        throw new ServiceUnavailableException({
+          message: ERROR_MESSAGES.PAYMENT_SERVICE_UNAVAILABLE,
+          errorCode: ERROR_CODES.PAYMENT_GATEWAY_UNAVAILABLE,
+        });
+      }
+
+      throw new BadRequestException({
+        message: 'Payment processing failed. Please verify payment details and try again.',
+        errorCode: ERROR_CODES.PAYMENT_FAILED,
+      });
     }
     return data;
   }

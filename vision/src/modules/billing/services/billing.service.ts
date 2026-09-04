@@ -19,7 +19,7 @@ import {
 } from '@/shared/interfaces/appointment.interface';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
-import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
+import { ERROR_MESSAGES, ERROR_CODES } from '@/core/constants/errors.constant';
 import {
   RecordChargeDto,
   RequestPayoutDto,
@@ -799,9 +799,14 @@ export class BillingService {
           .maybeSingle();
         if (existing) return existing;
       }
-      throw new InternalServerErrorException(
-        `Failed to create payout: ${error.message}`,
+      this.logger.error(
+        `Failed to create payout for doctor ${user.id}: ${error.message}`,
+        error,
       );
+      throw new InternalServerErrorException({
+        message: ERROR_MESSAGES.PAYOUT_FAILED,
+        errorCode: ERROR_CODES.PAYOUT_PROCESSING_FAILED,
+      });
     }
 
     return data;

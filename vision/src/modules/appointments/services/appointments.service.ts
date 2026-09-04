@@ -16,7 +16,7 @@ import {
 } from '@/shared/interfaces/appointment.interface';
 import { Profile, ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
-import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
+import { ERROR_MESSAGES, ERROR_CODES } from '@/core/constants/errors.constant';
 import { CreateAppointmentDto } from '@/modules/appointments/controllers/appointments.controller';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { AiService } from '@/modules/ai/services/ai.service';
@@ -525,11 +525,19 @@ export class AppointmentsService {
 
     if (updateError) {
       if (updateError.code === '23505') {
-        throw new ConflictException(
-          'The new time slot is already booked. Please select a different time.',
-        );
+        throw new ConflictException({
+          message: ERROR_MESSAGES.APPOINTMENT_CONFLICT,
+          errorCode: ERROR_CODES.APPOINTMENT_SLOT_UNAVAILABLE,
+        });
       }
-      throw updateError;
+      this.logger.error(
+        `Database error during appointment reschedule (${id}): ${updateError.message}`,
+        updateError,
+      );
+      throw new InternalServerErrorException({
+        message: 'Unable to reschedule appointment. Please try again later.',
+        errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+      });
     }
 
     const isDoctorActing = user.id === appointment.doctor_id;
@@ -612,9 +620,13 @@ export class AppointmentsService {
       appointment.status === AppointmentStatus.DONE ||
       appointment.status === AppointmentStatus.CANCELLED
     ) {
-      throw new BadRequestException(
-        `Cannot change status of an appointment that is already ${appointment.status.toLowerCase()}.`,
-      );
+      throw new BadRequestException({
+        message: `Cannot change status of an appointment that is already ${appointment.status.toLowerCase()}.`,
+        errorCode:
+          appointment.status === AppointmentStatus.DONE
+            ? ERROR_CODES.APPOINTMENT_ALREADY_COMPLETED
+            : ERROR_CODES.APPOINTMENT_ALREADY_CANCELLED,
+      });
     }
 
     const isDoctor = user.id === appointment.doctor_id || user.profile.role === ProfileRole.DOCTOR;

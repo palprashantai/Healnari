@@ -21,10 +21,13 @@ import {
 } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsEmail,
   IsIn,
   IsOptional,
   IsString,
+  Matches,
+  MaxLength,
   MinLength,
 } from 'class-validator';
 import { AuthService } from '@/core/auth/auth.service';
@@ -43,11 +46,14 @@ export class RegisterDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
   @IsEmail()
   email: string;
+
   @ApiProperty({ example: 'password123' })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(6)
+  @MaxLength(128)
   password: string;
+
   // Admin accounts are provisioned manually, never through public self-signup.
   @ApiProperty({
     enum: [ProfileRole.DOCTOR, ProfileRole.PATIENT],
@@ -55,14 +61,24 @@ export class RegisterDto {
   })
   @IsIn([ProfileRole.DOCTOR, ProfileRole.PATIENT])
   role: ProfileRole;
-  @ApiProperty({ example: 'Priya Sharma' }) @IsString() fullName: string;
+
+  @ApiProperty({ example: 'Priya Sharma' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(2)
+  @MaxLength(100)
+  fullName: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   specialty?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   registrationNo?: string;
 }
 
@@ -78,48 +94,87 @@ export class LoginDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
   @IsEmail()
   email: string;
+
   @ApiProperty({ example: 'password123' })
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
+  @MinLength(6)
+  @MaxLength(128)
   password: string;
 }
 
 export class RefreshDto {
-  @ApiProperty() @IsString() refreshToken: string;
+  @ApiProperty()
+  @IsString()
+  refreshToken: string;
 }
 
 export class UpdateMeDto {
-  @ApiProperty({ required: false }) @IsOptional() @IsString() fullName?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() phone?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(2)
+  @MaxLength(100)
+  fullName?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @Matches(/^[0-9+\s\-()]{7,20}$/, {
+    message: 'phone must be a valid contact number',
+  })
+  phone?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
   specialty?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   registrationNo?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   bio?: string;
+
   @ApiProperty({ required: false, enum: ['INR', 'USD'] })
   @IsOptional()
   @IsIn(['INR', 'USD'])
   currency?: string;
+
   @ApiProperty({ required: false, enum: ['IN', 'US'] })
   @IsOptional()
   @IsIn(['IN', 'US'])
   country?: string;
-  @ApiProperty({ required: false }) @IsOptional() emailNotifications?: boolean;
-  @ApiProperty({ required: false }) @IsOptional() smsNotifications?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  emailNotifications?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  smsNotifications?: boolean;
 }
 
 export class UpdatePasswordDto {
-  @ApiProperty() @IsString() currentPassword: string;
+  @ApiProperty()
+  @IsString()
+  @MaxLength(128)
+  currentPassword: string;
+
   @ApiProperty({ example: 'newPassword123' })
   @IsString()
   @MinLength(6)
+  @MaxLength(128)
   newPassword: string;
 }
 

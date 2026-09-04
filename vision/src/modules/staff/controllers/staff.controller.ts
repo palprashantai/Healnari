@@ -4,11 +4,20 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Post,
   Put,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import {
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { StaffService } from '@/modules/staff/services/staff.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
@@ -16,17 +25,63 @@ import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
 
 export class CreateStaffDto {
-  @ApiProperty() @IsString() name: string;
-  @ApiProperty() @IsString() role: string;
-  @ApiProperty() @IsString() shift: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() phone?: string;
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  role: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  shift: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9+\s\-()]{7,20}$/, {
+    message: 'phone must be a valid contact number',
+  })
+  phone?: string;
 }
 
 export class UpdateStaffDto {
-  @ApiProperty({ required: false }) @IsOptional() @IsString() name?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() role?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() shift?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() phone?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  role?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  shift?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[0-9+\s\-()]{7,20}$/, {
+    message: 'phone must be a valid contact number',
+  })
+  phone?: string;
+
   @ApiProperty({ required: false, enum: ['On Duty', 'Off Duty'] })
   @IsOptional()
   @IsIn(['On Duty', 'Off Duty'])
@@ -34,10 +89,29 @@ export class UpdateStaffDto {
 }
 
 export class CreateLeaveDto {
-  @ApiProperty() @IsString() staffId: string;
-  @ApiProperty() @IsString() leaveType: string;
-  @ApiProperty() @IsString() fromDate: string;
-  @ApiProperty() @IsString() toDate: string;
+  @ApiProperty()
+  @IsUUID()
+  staffId: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  leaveType: string;
+
+  @ApiProperty({ example: '2026-09-10' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'fromDate must be in YYYY-MM-DD format',
+  })
+  fromDate: string;
+
+  @ApiProperty({ example: '2026-09-15' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'toDate must be in YYYY-MM-DD format',
+  })
+  toDate: string;
 }
 
 export class UpdateLeaveDto {
@@ -70,7 +144,7 @@ export class StaffController {
   @Put(':id')
   async update(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: UpdateStaffDto,
   ) {
     const data = await this.staffService.update(user, id, body);
@@ -80,7 +154,10 @@ export class StaffController {
   @ApiOperation({ summary: 'Remove a staff member' })
   @ApiParam({ name: 'id' })
   @Delete(':id')
-  async remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async remove(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     const data = await this.staffService.remove(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.STAFF_REMOVED);
   }
@@ -107,7 +184,7 @@ export class StaffController {
   @Put('leaves/:id')
   async updateLeave(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: UpdateLeaveDto,
   ) {
     const data = await this.staffService.updateLeave(user, id, body.status);

@@ -1,19 +1,24 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   InternalServerErrorException,
+  Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
-import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
+import { ERROR_MESSAGES, ERROR_CODES } from '@/core/constants/errors.constant';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { RegisterDto, UpdateMeDto } from '@/core/auth/auth.controller';
-import { Profile } from '@/shared/interfaces/profile.interface';
+import { Profile, ProfileRole } from '@/shared/interfaces/profile.interface';
 
 const AVATAR_BUCKET = 'avatars';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(private readonly supabase: SupabaseService) {}
 
   toAppUser(user: AuthUser) {
@@ -37,8 +42,29 @@ export class AuthService {
   }
 
   async register(body: RegisterDto) {
+    const cleanEmail = (body.email || '').trim().toLowerCase();
+
+    // 1. Check if email already exists in profiles
+    const { data: existingProfile } = await this.supabase.admin
+      .from('profiles')
+      .select('id, role, full_name')
+      .ilike('email', cleanEmail)
+      .maybeSingle();
+
+    if (existingProfile) {
+      if (existingProfile.role === ProfileRole.DOCTOR) {
+        throw new ConflictException(
+          'A doctor account with this email address already exists. Please sign in to access your doctor dashboard.',
+        );
+      } else {
+        throw new ConflictException(
+          'An account with this email address is already registered on HealNari. Please sign in or use a different email address.',
+        );
+      }
+    }
+
     const { data, error } = await this.supabase.admin.auth.admin.createUser({
-      email: body.email,
+      email: cleanEmail,
       password: body.password,
       email_confirm: true,
       user_metadata: {
@@ -47,7 +73,27 @@ export class AuthService {
         specialty: body.specialty,
       },
     });
-    if (error) throw new BadRequestException(error.message);
+
+    if (error) {
+      const errMsg = (error.message || '').toLowerCase();
+      if (
+        errMsg.includes('already') ||
+        errMsg.includes('registered') ||
+        errMsg.includes('exists') ||
+        errMsg.includes('duplicate')
+      ) {
+        throw new ConflictException(
+          body.role === ProfileRole.DOCTOR
+            ? 'A doctor account with this email address already exists. Please sign in to access your doctor dashboard or reset your password.'
+            : 'An account with this email address is already registered. Please sign in instead.',
+        );
+      }
+      this.logger.error(`Registration failed for email ${cleanEmail}: ${error.message}`, error);
+      throw new BadRequestException({
+        message: 'Registration failed. Please check your details and try again.',
+        errorCode: ERROR_CODES.BAD_REQUEST,
+      });
+    }
 
     if (body.registrationNo) {
       await this.supabase.admin
@@ -179,9 +225,14 @@ export class AuthService {
         .update(patch)
         .eq('id', userId);
       if (error) {
-        throw new InternalServerErrorException(
-          `Failed to update profile: ${error.message}`,
+        this.logger.error(
+          `Failed to update profile for user ${userId}: ${error.message}`,
+          error,
         );
+        throw new InternalServerErrorException({
+          message: 'Unable to update profile. Please try again later.',
+          errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+        });
       }
     }
     const { data: profile } = await this.supabase.admin
@@ -189,8 +240,12 @@ export class AuthService {
       .select()
       .eq('id', userId)
       .single();
-    if (!profile)
-      throw new InternalServerErrorException('Profile not found after update');
+    if (!profile) {
+      throw new NotFoundException({
+        message: ERROR_MESSAGES.USER_NOT_FOUND,
+        errorCode: ERROR_CODES.USER_NOT_FOUND,
+      });
+    }
 
     return this.toAppUser({ id: profile.id, email: '', profile });
   }
@@ -213,7 +268,16 @@ export class AuthService {
       user.id,
       { password: newPassword },
     );
-    if (error) throw new BadRequestException(error.message);
+    if (error) {
+      this.logger.error(
+        `Password update failed for user ${user.id}: ${error.message}`,
+        error,
+      );
+      throw new BadRequestException({
+        message: 'Unable to update password. Please check password requirements and try again.',
+        errorCode: ERROR_CODES.BAD_REQUEST,
+      });
+    }
   }
 
   async uploadAvatar(user: AuthUser, file: Express.Multer.File) {
@@ -223,7 +287,16 @@ export class AuthService {
     const { error: uploadError } = await this.supabase.admin.storage
       .from(AVATAR_BUCKET)
       .upload(path, file.buffer, { contentType: file.mimetype, upsert: true });
-    if (uploadError) throw new BadRequestException(uploadError.message);
+    if (uploadError) {
+      this.logger.error(
+        `Avatar upload failed for user ${user.id}: ${uploadError.message}`,
+        uploadError,
+      );
+      throw new InternalServerErrorException({
+        message: 'Unable to upload profile photo. Please try again.',
+        errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+      });
+    }
 
     const { data: publicUrlData } = this.supabase.admin.storage
       .from(AVATAR_BUCKET)

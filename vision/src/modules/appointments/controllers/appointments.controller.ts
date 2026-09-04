@@ -1,6 +1,21 @@
-import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 import { AppointmentsService } from '@/modules/appointments/services/appointments.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
@@ -12,29 +27,91 @@ import {
 } from '@/shared/interfaces/appointment.interface';
 
 export class CreateAppointmentDto {
-  @ApiProperty() @IsUUID() doctorId: string;
+  @ApiProperty()
+  @IsUUID()
+  doctorId: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   specialty?: string;
+
   @ApiProperty({ enum: AppointmentType })
   @IsEnum(AppointmentType)
   type: AppointmentType;
-  @ApiProperty({ example: '2026-08-20' }) @IsString() scheduledDate: string;
-  @ApiProperty({ example: '10:30 AM' }) @IsString() scheduledTime: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() reason?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() country?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() currency?: string;
+
+  @ApiProperty({ example: '2026-08-20' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'scheduledDate must be in YYYY-MM-DD format',
+  })
+  scheduledDate: string;
+
+  @ApiProperty({ example: '10:30 AM' })
+  @IsString()
+  @Matches(/^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM|am|pm)$/, {
+    message: 'scheduledTime must be in HH:MM AM/PM format (e.g. 10:30 AM)',
+  })
+  scheduledTime: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  country?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  currency?: string;
 }
 
 export class UpdateStatusDto {
   @ApiProperty({ enum: AppointmentStatus })
   @IsEnum(AppointmentStatus)
   status: AppointmentStatus;
+
+  @ApiProperty({ required: false, maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  cancellationReason?: string;
+}
+
+export class RescheduleAppointmentDto {
+  @ApiProperty({ example: '2026-08-22' })
+  @IsString()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: 'newDate must be in YYYY-MM-DD format',
+  })
+  newDate: string;
+
+  @ApiProperty({ example: '11:00 AM' })
+  @IsString()
+  @Matches(/^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM|am|pm)$/, {
+    message: 'newTime must be in HH:MM AM/PM format (e.g. 11:00 AM)',
+  })
+  newTime: string;
+
+  @ApiProperty({ required: false, maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
 }
 
 export class InstantCallDto {
-  @ApiProperty() @IsUUID() patientId: string;
+  @ApiProperty()
+  @IsUUID()
+  patientId: string;
 }
 
 @ApiTags('Appointments')
@@ -94,14 +171,14 @@ export class AppointmentsController {
   @Put(':id/status')
   async updateStatus(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: UpdateStatusDto,
   ) {
     const data = await this.appointmentsService.updateStatus(
       user,
       id,
       body.status,
-      (body as any).cancellationReason,
+      body.cancellationReason,
     );
     return ResponseHelper.success(data, SUCCESS_MESSAGES.APPOINTMENT_UPDATED);
   }
@@ -111,8 +188,8 @@ export class AppointmentsController {
   @Post(':id/reschedule')
   async reschedule(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-    @Body() body: { newDate: string; newTime: string; reason?: string },
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: RescheduleAppointmentDto,
   ) {
     const data = await this.appointmentsService.reschedule(user, id, body);
     return ResponseHelper.success(
@@ -127,7 +204,10 @@ export class AppointmentsController {
   })
   @ApiParam({ name: 'id' })
   @Post(':id/decline-call')
-  async declineCall(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async declineCall(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     const data = await this.appointmentsService.declineCall(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.APPOINTMENT_UPDATED);
   }
@@ -138,7 +218,10 @@ export class AppointmentsController {
   })
   @ApiParam({ name: 'id' })
   @Get(':id/queue-status')
-  async getQueueStatus(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async getQueueStatus(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     const data = await this.appointmentsService.getQueueStatus(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
@@ -151,7 +234,7 @@ export class AppointmentsController {
   @Get(':id/consult-brief')
   async getConsultBrief(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     const data = await this.appointmentsService.getConsultBrief(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);

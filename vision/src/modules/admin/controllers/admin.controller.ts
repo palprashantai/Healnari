@@ -8,6 +8,8 @@ import {
   Body,
   ForbiddenException,
   Query,
+  ParseUUIDPipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,6 +27,10 @@ import {
   IsNumber,
   Min,
   Max,
+  IsBoolean,
+  MinLength,
+  MaxLength,
+  IsUUID,
 } from 'class-validator';
 import { AdminService } from '@/modules/admin/services/admin.service';
 import { AnalyticsService } from '@/modules/admin/services/analytics.service';
@@ -41,96 +47,234 @@ export class UpdateVerificationDto {
   @IsIn(['approved', 'rejected'])
   status: string;
 }
+
 export class ResolveTicketDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   resolution?: string;
 }
+
 export class CmsArticleDto {
-  @ApiProperty() @IsString() title: string;
-  @ApiProperty() @IsString() author: string;
-  @ApiProperty() @IsString() category: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() summary?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() content?: string;
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  title: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  author: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  category: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  summary?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20000)
+  content?: string;
+
   @ApiProperty({ enum: ['Draft', 'Published', 'Archived'], required: false })
   @IsOptional()
   @IsIn(['Draft', 'Published', 'Archived'])
   status?: string;
 }
+
 export class UpdateCmsArticleDto {
-  @ApiProperty({ required: false }) @IsOptional() @IsString() title?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() author?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() category?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() summary?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() content?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  title?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  author?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  category?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  summary?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20000)
+  content?: string;
+
   @ApiProperty({ enum: ['Draft', 'Published', 'Archived'], required: false })
   @IsOptional()
   @IsIn(['Draft', 'Published', 'Archived'])
   status?: string;
 }
+
+export class UpdateCmsStatusDto {
+  @ApiProperty({ enum: ['Draft', 'Published', 'Archived'] })
+  @IsIn(['Draft', 'Published', 'Archived'])
+  status: string;
+}
+
+export class SpecialtyDto {
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name: string;
+}
+
+export class ProcessPayoutDto {
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  referenceId: string;
+}
+
 export class UpdateLandingSettingsDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   heroTitle?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   heroSubtitle?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   providerHeroTitle?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   providerHeroSubtitle?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsNumber()
+  @Min(0)
+  @Max(100000)
   pricingAmount?: number;
+
   @ApiProperty({ required: false, example: 10 })
   @IsOptional()
   @IsNumber()
+  @Min(0)
+  @Max(100)
   platformCommissionRate?: number;
-  @ApiProperty({ required: false }) @IsOptional() toggles?: any;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  toggles?: any;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   promoText?: string;
 }
+
 export class MessageTemplateDto {
-  @ApiProperty() @IsString() name: string;
-  @ApiProperty() @IsString() content: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() subject?: string;
-  @ApiProperty({ required: false }) @IsOptional() @IsString() slug?: string;
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(150)
+  name: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(10000)
+  content: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(200)
+  subject?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  slug?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
   description?: string;
+
   @ApiProperty({ enum: ['email', 'whatsapp', 'push'], required: false })
   @IsOptional()
   @IsIn(['email', 'whatsapp', 'push'])
   type?: string;
+
   @ApiProperty({ enum: ['General', 'Patient', 'Doctor'], required: false })
   @IsOptional()
   @IsIn(['General', 'Patient', 'Doctor'])
   audience?: string;
 }
+
 export class BroadcastDto {
-  @ApiProperty() @IsString() subject: string;
-  @ApiProperty() @IsString() audience: string;
-  @ApiProperty() @IsString() body: string;
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  subject: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  audience: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(10000)
+  body: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   scheduleAt?: string;
+
   @ApiProperty({ required: false, type: [String] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   channels?: string[];
+
   @ApiProperty({
     required: false,
     type: [String],
@@ -139,23 +283,48 @@ export class BroadcastDto {
   })
   @IsOptional()
   @IsArray()
-  @IsString({ each: true })
+  @IsUUID('4', { each: true })
   userIds?: string[];
 }
+
 export class GenerateReportDto {
-  @ApiProperty() @IsString() name: string;
-  @ApiProperty() @IsString() type: string;
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  type: string;
 }
+
 export class NotifyUserDto {
-  @ApiProperty() @IsString() userId: string;
-  @ApiProperty() @IsString() title: string;
-  @ApiProperty() @IsString() message: string;
+  @ApiProperty()
+  @IsUUID()
+  userId: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(150)
+  title: string;
+
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(2000)
+  message: string;
 }
+
 export class UpdateUserStatusDto {
   @ApiProperty({ enum: ['Active', 'Suspended'] })
   @IsIn(['Active', 'Suspended'])
   status: string;
 }
+
 export class UpdateUserAiPlanDto {
   @ApiProperty({
     enum: [
@@ -179,8 +348,10 @@ export class UpdateUserAiPlanDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
+  @IsBoolean()
   resetCredits?: boolean;
 }
+
 export class UpdateCommissionDto {
   @ApiProperty({ minimum: 0, maximum: 100 })
   @IsNumber()
@@ -188,6 +359,7 @@ export class UpdateCommissionDto {
   @Max(100)
   commissionRate: number;
 }
+
 export class UpdateGlobalCommissionDto {
   @ApiProperty({ minimum: 0, maximum: 100, example: 10 })
   @IsNumber()
@@ -198,13 +370,16 @@ export class UpdateGlobalCommissionDto {
   @ApiProperty({ required: false, example: 'Global platform take rate adjustment' })
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   reason?: string;
 }
+
 export class UpdateLeadStatusDto {
   @ApiProperty({ enum: ['New', 'Contacted', 'Converted', 'Closed'] })
   @IsIn(['New', 'Contacted', 'Converted', 'Closed'])
   status: string;
 }
+
 export class AdminUpdateAppointmentStatusDto {
   @ApiProperty({
     enum: ['Requested', 'Approved', 'Upcoming', 'Waiting', 'In Progress', 'Done', 'Cancelled', 'No Show'],
@@ -215,6 +390,7 @@ export class AdminUpdateAppointmentStatusDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   reason?: string;
 }
 
@@ -304,7 +480,10 @@ export class AdminController {
 
   @Get('users/:id')
   @ApiOperation({ summary: 'Single user detail' })
-  async getUserById(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async getUserById(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     this.checkAdmin(user);
     const data = await this.adminService.getUserById(id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
@@ -314,7 +493,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Suspend or activate a user' })
   async updateUserStatus(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: UpdateUserStatusDto,
   ) {
     this.checkAdmin(user);
@@ -326,7 +505,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Admin override or assign AI subscription plan' })
   async updateUserAiPlan(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: UpdateUserAiPlanDto,
   ) {
     this.checkAdmin(user);
@@ -343,7 +522,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Admin override of appointment status with full audit logging' })
   async updateAppointmentStatus(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: AdminUpdateAppointmentStatusDto,
   ) {
     this.checkAdmin(user);
@@ -369,7 +548,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Single doctor/clinic detail with appointments' })
   async getDoctorDetail(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     this.checkAdmin(user);
     const data = await this.adminService.getDoctorDetail(id);
@@ -380,7 +559,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Single doctor/clinic complete payment ledger' })
   async getDoctorLedger(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     this.checkAdmin(user);
     const data = await this.adminService.getDoctorLedger(id);
@@ -391,7 +570,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Single doctor/clinic complete payout history' })
   async getDoctorPayouts(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     this.checkAdmin(user);
     const data = await this.adminService.getDoctorPayouts(id);
@@ -426,7 +605,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Update doctor commission rate (auditable)' })
   async updateCommission(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: UpdateCommissionDto,
   ) {
     this.checkAdmin(user);
@@ -442,7 +621,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Get doctor commission change history' })
   async getCommissionHistory(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     this.checkAdmin(user);
     const data = await this.adminService.getDoctorCommissionHistory(id);
@@ -462,7 +641,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Approve or reject a doctor verification' })
   async updateVerification(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: UpdateVerificationDto,
   ) {
     this.checkAdmin(user);
@@ -489,9 +668,12 @@ export class AdminController {
 
   @Put('tickets/:id/resolve')
   @ApiOperation({ summary: 'Resolve a support ticket' })
-  async resolveTicket(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async resolveTicket(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseIntPipe()) id: number,
+  ) {
     this.checkAdmin(user);
-    const data = await this.adminService.resolveTicket(user, Number(id));
+    const data = await this.adminService.resolveTicket(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.TICKET_RESOLVED);
   }
 
@@ -506,9 +688,12 @@ export class AdminController {
 
   @Put('refunds/:id/process')
   @ApiOperation({ summary: 'Process a refund' })
-  async processRefund(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async processRefund(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseIntPipe()) id: number,
+  ) {
     this.checkAdmin(user);
-    const data = await this.adminService.processRefund(user, Number(id));
+    const data = await this.adminService.processRefund(user, id);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.REFUND_INITIATED);
   }
 
@@ -551,8 +736,8 @@ export class AdminController {
   @ApiOperation({ summary: 'Mark a payout as processed' })
   async processPayout(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-    @Body() body: { referenceId: string },
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: ProcessPayoutDto,
   ) {
     this.checkAdmin(user);
     const data = await this.adminService.processPayout(
@@ -607,8 +792,8 @@ export class AdminController {
   @ApiOperation({ summary: 'Toggle CMS article status (publish/unpublish)' })
   async toggleCmsStatus(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-    @Body() body: { status: string },
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: UpdateCmsStatusDto,
   ) {
     this.checkAdmin(user);
     const data = await this.adminService.updateCmsArticleStatus(
@@ -622,7 +807,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Update a CMS article' })
   async updateCmsArticle(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: UpdateCmsArticleDto,
   ) {
     this.checkAdmin(user);
@@ -634,7 +819,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Delete a CMS article' })
   async deleteCmsArticle(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     this.checkAdmin(user);
     await this.adminService.deleteCmsArticle(id);
@@ -692,7 +877,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Update a message template' })
   async updateTemplate(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: MessageTemplateDto,
   ) {
     this.checkAdmin(user);
@@ -702,7 +887,10 @@ export class AdminController {
 
   @Delete('communications/templates/:id')
   @ApiOperation({ summary: 'Delete a message template' })
-  async deleteTemplate(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+  async deleteTemplate(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     this.checkAdmin(user);
     await this.adminService.deleteMessageTemplate(id);
     return ResponseHelper.success(null, SUCCESS_MESSAGES.DATA_UPDATED);
@@ -738,7 +926,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Create a specialty' })
   async createSpecialty(
     @CurrentUser() user: AuthUser,
-    @Body() body: { name: string },
+    @Body() body: SpecialtyDto,
   ) {
     this.checkAdmin(user);
     const data = await this.adminService.createSpecialty(body.name);
@@ -749,8 +937,8 @@ export class AdminController {
   @ApiOperation({ summary: 'Update a specialty' })
   async updateSpecialty(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-    @Body() body: { name: string },
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: SpecialtyDto,
   ) {
     this.checkAdmin(user);
     const data = await this.adminService.updateSpecialty(id, body.name);
@@ -761,7 +949,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Delete a specialty' })
   async deleteSpecialty(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     this.checkAdmin(user);
     await this.adminService.deleteSpecialty(id);
@@ -829,7 +1017,7 @@ export class AdminController {
   })
   async updateConsultationRequestStatus(
     @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() body: UpdateLeadStatusDto,
   ) {
     this.checkAdmin(user);

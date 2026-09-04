@@ -120,6 +120,9 @@ export async function apiFetch(path, { method = 'GET', body, skipAuth = false, r
   if (!res.ok || (payload && payload.success === false)) {
     const err = new Error(payload?.message || `Request failed (${res.status})`);
     err.status = res.status;
+    err.statusCode = payload?.statusCode || res.status;
+    err.errorCode = payload?.errorCode;
+    err.details = payload?.details;
     err.paywallData = payload?.paywallData || payload?.data?.paywallData;
     err.data = payload?.data;
     err.response = payload;

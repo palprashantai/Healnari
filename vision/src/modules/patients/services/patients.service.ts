@@ -1,9 +1,11 @@
 import { randomBytes } from 'crypto';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PatientRecord } from '@/shared/interfaces/patient-record.interface';
@@ -12,7 +14,7 @@ import { VitalKey } from '@/shared/interfaces/vitals-log.interface';
 import { Profile, ProfileRole } from '@/shared/interfaces/profile.interface';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
-import { ERROR_MESSAGES } from '@/core/constants/errors.constant';
+import { ERROR_MESSAGES, ERROR_CODES } from '@/core/constants/errors.constant';
 import {
   addDays,
   computeFertilityPrediction,
@@ -50,6 +52,8 @@ import { AnalyticsService } from '@/modules/admin/services/analytics.service';
 
 @Injectable()
 export class PatientsService {
+  private readonly logger = new Logger(PatientsService.name);
+
   constructor(
     private readonly supabase: SupabaseService,
     private readonly analyticsService: AnalyticsService,
@@ -243,7 +247,25 @@ export class PatientsService {
       email_confirm: true,
       user_metadata: { role: ProfileRole.PATIENT, full_name: body.name },
     });
-    if (error) throw new ForbiddenException(error.message);
+    if (error) {
+      const errMsg = (error.message || '').toLowerCase();
+      if (
+        errMsg.includes('already') ||
+        errMsg.includes('registered') ||
+        errMsg.includes('exists') ||
+        errMsg.includes('duplicate')
+      ) {
+        throw new ConflictException({
+          message: 'A patient with this email address already exists in the system.',
+          errorCode: ERROR_CODES.CONFLICT_DUPLICATE_EMAIL,
+        });
+      }
+      this.logger.error(`Failed to create patient user: ${error.message}`, error);
+      throw new BadRequestException({
+        message: 'Failed to create patient account. Please verify patient information and try again.',
+        errorCode: ERROR_CODES.BAD_REQUEST,
+      });
+    }
 
     if (body.phone || body.bloodGroup) {
       await this.supabase.admin
@@ -314,7 +336,14 @@ export class PatientsService {
         );
         return [];
       }
-      throw new InternalServerErrorException(error.message);
+      this.logger.error(
+        `Failed to fetch audit logs for patient ${user.id}: ${error.message}`,
+        error,
+      );
+      throw new InternalServerErrorException({
+        message: 'Failed to retrieve access audit logs. Please try again later.',
+        errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+      });
     }
     return data || [];
   }

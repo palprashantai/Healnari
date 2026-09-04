@@ -6,7 +6,19 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { IsString, IsOptional, IsArray, IsNumber } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsIn,
+  IsString,
+  IsOptional,
+  IsArray,
+  IsNumber,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 import { AiService } from '@/modules/ai/services/ai.service';
 import { AiUsageService } from '@/modules/ai/services/ai-usage.service';
 import { AiSubscriptionService } from '@/modules/ai/services/ai-subscription.service';
@@ -29,67 +41,214 @@ const PATIENT_DISCLAIMER =
   'This is AI-generated health information for educational purposes only. It is not a clinical diagnosis or medical advice. Always consult your doctor for medical decisions.';
 
 export class GenerateSoapDto {
-  @IsString() patientName: string;
-  @IsOptional() @IsNumber() age?: number;
-  @IsString() chiefComplaint: string;
-  @IsOptional() @IsArray() @IsString({ each: true }) symptoms?: string[];
-  @IsOptional() @IsString() doctorNotes?: string;
-  @IsOptional() @IsArray() @IsString({ each: true }) medications?: string[];
-  @IsOptional() @IsArray() @IsString({ each: true }) chronicConditions?: string[];
-  @IsOptional() @IsArray() @IsString({ each: true }) labResults?: string[];
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  patientName: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(130)
+  age?: number;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(1000)
+  chiefComplaint: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  symptoms?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  doctorNotes?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  medications?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  chronicConditions?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  labResults?: string[];
 }
 
 export class RxAutocompleteDto {
-  @IsString() query: string;
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  query: string;
 }
 
 export class AnalyzeLabDto {
-  @IsString() reportText: string;
-  @IsOptional() @IsString() reportName?: string;
-  @IsOptional() @IsString() cyclePhase?: string;
+  @IsString()
+  @MinLength(1)
+  @MaxLength(20000)
+  reportText: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  reportName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  cyclePhase?: string;
 }
 
 export class DrugInteractionsDto {
-  @IsArray() @IsString({ each: true }) medications: string[];
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  medications: string[];
 }
 
 export class PrepareConsultDto {
-  @IsString() patientName: string;
-  @IsOptional() @IsString() doctorSpecialty?: string;
-  @IsOptional() @IsString() doctorName?: string;
-  @IsOptional() @IsString() concerns?: string;
-  @IsOptional() @IsString() chiefComplaint?: string;
-  @IsOptional() @IsString() context?: string;
-  @IsOptional() @IsArray() @IsString({ each: true }) symptoms?: string[];
-  @IsOptional() @IsString() cycleContext?: string;
-  @IsOptional() @IsArray() @IsString({ each: true }) questions?: string[];
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  patientName: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  doctorSpecialty?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  doctorName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  concerns?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  chiefComplaint?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  context?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  symptoms?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  cycleContext?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  questions?: string[];
 }
 
 export class GenerateConsultSummaryDto {
-  @IsString() patientName: string;
-  @IsOptional() @IsString() doctorNotes?: string;
-  @IsOptional() @IsString() assessment?: string;
-  @IsOptional() @IsArray() @IsString({ each: true }) prescriptions?: string[];
-  @IsOptional() @IsString() followUp?: string;
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  patientName: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  doctorNotes?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  assessment?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  prescriptions?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  followUp?: string;
 }
 
 export class GenerateCmsArticleDto {
-  @IsString() topic: string;
-  @IsString() category: string;
-  @IsOptional() @IsString() tone?: string;
+  @IsString()
+  @MinLength(1)
+  @MaxLength(300)
+  topic: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  category: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  tone?: string;
 }
 
 export class TriageTicketDto {
-  @IsString() subject: string;
-  @IsString() message: string;
-  @IsOptional() @IsString() category?: string;
-  @IsOptional() @IsString() userRole?: string;
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  subject: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(5000)
+  message: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  category?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  userRole?: string;
 }
 
 export class AiChatDto {
-  @IsString() message: string;
-  @IsOptional() @IsArray() history?: any[];
-  @IsOptional() @IsString() preferredProvider?: 'gemini' | 'openai';
+  @IsString()
+  @MinLength(1)
+  @MaxLength(4000)
+  message: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  history?: any[];
+
+  @IsOptional()
+  @IsIn(['gemini', 'openai'])
+  preferredProvider?: 'gemini' | 'openai';
 }
 
 @ApiTags('AI Clinical & Operational Intelligence')

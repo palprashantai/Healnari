@@ -8,8 +8,8 @@ import {
   Param,
   BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { IsString, IsOptional, IsIn } from 'class-validator';
+import { ApiTags, ApiOperation, ApiProperty } from '@nestjs/swagger';
+import { IsString, IsOptional, IsIn, IsNotEmpty, Matches } from 'class-validator';
 import { SupabaseAuthGuard } from '@/core/guards/supabase-auth.guard';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
@@ -22,6 +22,17 @@ import { AiUsageService } from '@/modules/ai/services/ai-usage.service';
 import { AiFeatureFlagService } from '@/modules/ai/services/ai-feature-flag.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
+import { ERROR_MESSAGES, ERROR_CODES } from '@/core/constants/errors.constant';
+
+export class ActivateTopUpDto {
+  @ApiProperty({ example: 'ai_topup_123456789' })
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[a-zA-Z0-9_\-]+$/, {
+    message: 'orderId must be a valid alphanumeric order identifier',
+  })
+  orderId: string;
+}
 
 export class UpgradeSubscriptionDto {
   @IsString()
@@ -206,7 +217,10 @@ export class AiSubscriptionController {
     );
 
     if (!coupon) {
-      return ResponseHelper.error('Invalid or expired coupon code.');
+      throw new BadRequestException({
+        message: ERROR_MESSAGES.INVALID_COUPON_CODE,
+        errorCode: ERROR_CODES.INVALID_COUPON_CODE,
+      });
     }
 
     const discountedQuote = await this.pricingService.getPricingQuote(
@@ -308,7 +322,7 @@ export class AiSubscriptionController {
   @ApiOperation({ summary: 'Activate AI credit top-up upon successful payment' })
   async activateTopUp(
     @CurrentUser() user: AuthUser,
-    @Body() body: { orderId: string },
+    @Body() body: ActivateTopUpDto,
   ) {
     const sub = await this.subscriptionService.reconcileSubscriptionOrder(body.orderId);
     return ResponseHelper.success(sub, 'AI credits successfully added to your balance.');
