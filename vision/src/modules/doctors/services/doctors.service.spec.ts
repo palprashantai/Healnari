@@ -36,7 +36,7 @@ describe('DoctorsService — Slots & Timezone Safety', () => {
       appointments: [{ data: [] }],
     });
 
-    const service = new DoctorsService(supabase as any);
+    const service = new DoctorsService(supabase as any, {} as any);
     const result = await service.getAvailableSlots('doc-123', testDate);
 
     expect(result.availableSlots).toBeDefined();
@@ -59,7 +59,7 @@ describe('DoctorsService — Slots & Timezone Safety', () => {
       leave_requests: [{ data: [{ id: 'leave-1' }] }],
     });
 
-    const service = new DoctorsService(supabase as any);
+    const service = new DoctorsService(supabase as any, {} as any);
     const result = await service.getAvailableSlots('doc-123', testDate);
 
     expect(result.availableSlots).toEqual([]);
@@ -77,7 +77,7 @@ describe('DoctorsService — Slots & Timezone Safety', () => {
       appointments: [{ data: [{ scheduled_time: '9:00 AM' }] }],
     });
 
-    const service = new DoctorsService(supabase as any);
+    const service = new DoctorsService(supabase as any, {} as any);
     const result = await service.getAvailableSlots('doc-123', testDate);
 
     expect(result.availableSlots).not.toContain('9:00 AM');

@@ -151,6 +151,7 @@ describe('Background Cron Services Suite', () => {
         notifications as any,
         ai as any,
         email as any,
+        {} as any, // fxRateService
       );
       await service.processNoShows();
 

@@ -694,7 +694,12 @@ export class AiSubscriptionService {
           type: 'credits_added',
           title: 'AI Credits Added',
           message: `Successfully added ${creditsToAdd} AI credits to your account. Your new balance is ${newRemaining} credits.`,
-          data: { orderId, credits: creditsToAdd, balance: newRemaining },
+          data: {
+            orderId,
+            credits: creditsToAdd,
+            balance: newRemaining,
+            path: role === 'doctor' ? '/doctor-dashboard/ai' : '/patient-dashboard/ai',
+          },
         }).catch(() => {});
 
         return (updatedSub || currentSub) as AiSubscription;
@@ -765,9 +770,13 @@ export class AiSubscriptionService {
       // Deliver in-app notification
       await this.notifications.create(tx.user_id, {
         type: 'subscription_activated',
-        title: 'Plan Activated',
+        title: 'AI Plan Activated',
         message: `Your subscription to ${quote.planName} is active with ${monthlyCredits} AI credits.`,
-        data: { orderId, planId: tx.plan_id },
+        data: {
+          orderId,
+          planId: tx.plan_id,
+          path: isDoctor ? '/doctor-dashboard/ai' : '/patient-dashboard/ai',
+        },
       }).catch(() => {});
 
       return (updatedSub || subscriptionRow) as AiSubscription;

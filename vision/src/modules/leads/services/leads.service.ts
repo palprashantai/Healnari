@@ -207,11 +207,13 @@ export class LeadsService {
 
         await this.notifications.create(body.doctorId, {
           type: 'appointment_requested',
-          title: 'New Appointment Request',
-          message: `${body.name} requested a new Consultation for ${new Date(scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${scheduledTime}.`,
+          title: 'New Consultation Request',
+          message: `${body.name} has requested a consultation for ${new Date(scheduledDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${scheduledTime}. Please review the request and respond.`,
           data: {
             entity_type: 'appointment',
             entity_id: apt?.id,
+            appointmentId: apt?.id,
+            path: '/doctor-dashboard/appointments',
           },
         }).catch(err => console.error('Failed to send appointment notification:', err));
       }

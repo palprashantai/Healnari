@@ -175,8 +175,8 @@ export class RecordsService {
     this.notifications
       .create(body.patientId, {
         type: 'prescription_issued',
-        title: 'New prescription',
-        message: `Dr. ${user.profile.full_name} issued a new prescription${body.diagnosis ? ` for ${body.diagnosis}` : ''} (${body.medicines.length} medicine${body.medicines.length > 1 ? 's' : ''}).`,
+        title: 'Prescription Issued',
+        message: `Dr. ${user.profile.full_name} has issued your prescription${body.diagnosis ? ` for ${body.diagnosis}` : ''} (${body.medicines.length} medication${body.medicines.length > 1 ? 's' : ''}). Tap to review directions and dosage.`,
         idempotencyKey: `rx_issued_${groupId}`,
         data: { groupId, path: '/patient-dashboard/prescriptions' },
       })
@@ -236,7 +236,7 @@ export class RecordsService {
         .create(rx.doctor_id, {
           type: 'refill_requested',
           title: 'Prescription Refill Requested',
-          message: `${user.profile?.full_name || 'A patient'} requested a refill for ${rx.med_name}.`,
+          message: `${user.profile?.full_name || 'A patient'} requested a prescription refill for ${rx.med_name}. Review request.`,
           idempotencyKey: `refill_req_${id}_${Date.now()}`,
           data: {
             prescriptionId: id,
@@ -395,8 +395,8 @@ export class RecordsService {
       this.notifications
         .create(request.doctor_id, {
           type: 'lab_report_uploaded',
-          title: 'Lab report uploaded',
-          message: `A new report for "${testName}" was uploaded.`,
+          title: 'Lab Report Uploaded',
+          message: `A new diagnostic report for "${testName}" was uploaded by the patient.`,
           idempotencyKey: `lab_upload_${report.id}`,
           data: {
             labReportId: report.id,
@@ -419,8 +419,8 @@ export class RecordsService {
         this.notifications
           .create(recentAppt.doctor_id, {
             type: 'lab_report_uploaded',
-            title: 'Lab report uploaded',
-            message: `A patient uploaded a new lab report ("${testName}").`,
+            title: 'Lab Report Uploaded',
+            message: `A patient uploaded a new diagnostic report ("${testName}"). Tap to review.`,
             idempotencyKey: `lab_upload_${report.id}`,
             data: {
               labReportId: report.id,
@@ -532,8 +532,8 @@ export class RecordsService {
     this.notifications
       .create(body.patientId, {
         type: 'lab_report_requested',
-        title: 'New report requested',
-        message: `Dr. ${user.profile.full_name} requested: ${body.requestedTests}${body.dueDate ? ` (by ${body.dueDate})` : ''}`,
+        title: 'Diagnostic Investigation Requested',
+        message: `Dr. ${user.profile.full_name} requested diagnostic investigation: ${body.requestedTests}${body.dueDate ? ` (recommended by ${body.dueDate})` : ''}.`,
         idempotencyKey: `lab_req_${request.id}`,
         data: { requestId: request.id, path: '/patient-dashboard/records' },
       })
@@ -654,8 +654,8 @@ export class RecordsService {
     this.notifications
       .create(report.patient_id, {
         type: 'lab_report_reviewed',
-        title: 'Lab report reviewed',
-        message: `Dr. ${user.profile.full_name} reviewed your "${report.test_name}" report.`,
+        title: 'Lab Report Reviewed',
+        message: `Dr. ${user.profile.full_name} has reviewed your "${report.test_name}" report and added clinical observations.`,
         idempotencyKey: `lab_review_${report.id}`,
         data: { labReportId: report.id, path: '/patient-dashboard/records' },
       })

@@ -108,8 +108,30 @@ export class AiOrchestrator {
         });
       }
     }
-
-    // 3. Provider & Tools Selection
+    // 2b. Pre-deduct one credit before calling the AI provider.
+    // Using the requestId as idempotency key ensures a retry of the same
+    // request cannot double-charge. If the provider fails we refund below.
+    // BUG-002 fix: credits deducted BEFORE execution, not after — a post-
+    // execution DB failure can no longer grant a free AI response.
+    let creditSub: { creditsRemaining: number } | null = null;
+    if (user) {
+      try {
+        creditSub = await this.subscriptionService.deductCredits(
+          user,
+          1,
+          requestId,
+          featureKey,
+          `AI Assistant: ${featureKey}`,
+        );
+      } catch (deductErr: any) {
+        // If deduction itself fails (e.g. DB unavailable), abort cleanly.
+        this.logger.error(`Credit deduction failed for user ${user.id}: ${deductErr?.message}`);
+        throw new ServiceUnavailableException({
+          message: 'Unable to process AI request right now. Please try again.',
+          errorCode: ERROR_CODES.AI_PROVIDER_UNAVAILABLE,
+        });
+      }
+    }
     const provider = this.providerGateway.getProvider(preferredProvider);
     const availableTools = this.toolRegistry.getAvailableTools(executionContext);
     const systemInstruction = this.contextBuilder.buildSystemInstruction(executionContext);
@@ -141,6 +163,14 @@ export class AiOrchestrator {
           `AI Provider (${provider.name}) failed on requestId ${requestId}: ${err.message}`,
           err.stack,
         );
+        // Refund the pre-deducted credit since the AI call failed.
+        if (user && creditSub) {
+          this.subscriptionService
+            .refundCredits(user, 1, requestId, `Refund: provider failure ${requestId}`)
+            .catch((refundErr: any) =>
+              this.logger.error(`Credit refund failed for requestId ${requestId}: ${refundErr?.message}`),
+            );
+        }
         throw new ServiceUnavailableException({
           message: ERROR_MESSAGES.AI_PROVIDER_UNAVAILABLE,
           errorCode: ERROR_CODES.AI_PROVIDER_UNAVAILABLE,
@@ -226,18 +256,6 @@ export class AiOrchestrator {
         },
       });
 
-      // Deduct credit atomically with idempotency requestId and featureKey
-      const sub = await this.subscriptionService.deductCredits(
-        user,
-        1,
-        requestId,
-        featureKey,
-        `AI Assistant: ${featureKey}`,
-      );
-      if (sub) {
-        creditsRemaining = sub.creditsRemaining;
-      }
-
       this.analyticsService.track({
         event_type: 'AI_COMPLETED',
         user_id: user.id,
@@ -250,6 +268,12 @@ export class AiOrchestrator {
           costUsd: estimatedCostUsd,
         },
       });
+    }
+
+    // Expose the credits remaining from the pre-deducted subscription state
+    // (creditSub was populated before the AI call; post-call value is same - 1).
+    if (creditSub) {
+      creditsRemaining = creditSub.creditsRemaining;
     }
 
     return {

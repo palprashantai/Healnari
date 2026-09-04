@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AuthUser } from '@/core/decorators/current-user.decorator';
@@ -9,6 +9,8 @@ import { EmailService } from '@/core/email/email.service';
 
 @Injectable()
 export class CommunicationsService {
+  private readonly logger = new Logger(CommunicationsService.name);
+
   constructor(
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
@@ -80,19 +82,31 @@ export class CommunicationsService {
       (body.channels.includes('Push Notification') ||
         body.channels.includes('Email'))
     ) {
-      const recipientIds = body.patientIds?.length
-        ? [
-            ...new Set(
-              (
-                await this.supabase.admin
-                  .from('appointments')
-                  .select('patient_id')
-                  .eq('doctor_id', user.id)
-                  .in('patient_id', body.patientIds)
-              ).data?.map((a) => a.patient_id) || [],
-            ),
-          ]
-        : await this.resolveDoctorAudience(user.id, body.audience);
+      const recipientIds = await (body.patientIds?.length
+        ? (() => {
+            // BUG-009 fix: resolved IDs are always filtered by care relationship
+            // (appointment exists between this doctor and the patient). If caller
+            // passes IDs outside that set, they are silently dropped — but we now
+            // log the discrepancy so probe attempts are visible in audit logs.
+            return this.supabase.admin
+              .from('appointments')
+              .select('patient_id')
+              .eq('doctor_id', user.id)
+              .in('patient_id', body.patientIds)
+              .then(({ data }) => {
+                const resolved = [...new Set(data?.map((a) => a.patient_id) || [])];
+                const requestedCount = new Set(body.patientIds).size;
+                const droppedCount = requestedCount - resolved.length;
+                if (droppedCount > 0) {
+                  this.logger.warn(
+                    `[Broadcast] Doctor ${user.id} requested broadcast to ${requestedCount} patient(s); ` +
+                    `${droppedCount} ID(s) dropped (no care relationship). Resolved: ${resolved.length}.`,
+                  );
+                }
+                return resolved;
+              });
+          })()
+        : this.resolveDoctorAudience(user.id, body.audience));
 
       if (recipientIds.length > 0) {
         const promises: Promise<any>[] = [];

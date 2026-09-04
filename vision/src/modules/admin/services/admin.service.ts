@@ -1619,11 +1619,14 @@ export class AdminService {
         .create(id, {
           type: 'doctor_kyc_status',
           title: isApproved
-            ? '🎉 KYC Verification Approved!'
-            : 'KYC Verification Update',
+            ? 'Medical Credentials Verified'
+            : 'Verification Update Required',
           message: isApproved
-            ? 'Congratulations! Your medical credentials have been verified. You can now publish availability and consult patients.'
-            : 'Your doctor verification submission requires revision. Please review your medical license details.',
+            ? 'Your medical credentials and registration details have been verified. You can now publish your schedule and accept consultations.'
+            : 'Your medical credential submission requires additional documentation. Please review the feedback and update your profile.',
+          data: {
+            path: isApproved ? '/doctor/schedule' : '/doctor/profile',
+          },
         })
         .catch(() => {});
 
@@ -1812,8 +1815,8 @@ export class AdminService {
       this.notifications.create(patientId, {
         type: 'refund_processed',
         title: 'Refund Processed',
-        message: `Your refund of ₹${Number(refund.amount).toFixed(0)} has been processed.`,
-        data: { refundId },
+        message: `Your refund of ₹${Number(refund.amount).toFixed(0)} has been processed to your original payment method.`,
+        data: { refundId, path: '/patient-dashboard/billing' },
       });
     }
 
@@ -2468,8 +2471,13 @@ export class AdminService {
       // 4. In-App + Web Push notification to Doctor
       await this.notifications.create(updated.doctor_id, {
         type: 'payout_processed',
-        title: 'Payout processed',
-        message: `Your payout of ₹${Number(updated.amount).toLocaleString('en-IN')} has been processed. Reference: ${referenceId}`,
+        title: 'Payout Processed',
+        message: `Your payout of ₹${Number(updated.amount).toLocaleString('en-IN')} has been processed (Reference: ${referenceId}).`,
+        data: {
+          path: '/doctor-dashboard/revenue',
+          referenceId,
+          amount: updated.amount,
+        },
       });
 
       // 5. Transactional Email to Doctor via database-managed template

@@ -176,7 +176,10 @@ export class CashfreeService {
    * returns true so server-to-server order check acts as the authoritative backstop.
    */
   verifyWebhookSignature(rawBody: string, signature?: string, timestamp?: string): boolean {
-    if (!this.secretKey || !signature || !timestamp) return true;
+    // Only bypass signature verification during local development (no Cashfree credentials
+    // configured). In staging and production, always require a valid HMAC-SHA256 signature.
+    if (!this.secretKey) return process.env.NODE_ENV === 'development';
+    if (!signature || !timestamp) return false;
     try {
       const crypto = require('crypto');
       const payload = `${timestamp}${rawBody}`;

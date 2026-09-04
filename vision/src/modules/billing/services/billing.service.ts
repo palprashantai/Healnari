@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
@@ -470,7 +471,7 @@ export class BillingService {
       ).toUpperCase();
 
       if (
-        gatewayAmount !== expectedAmount ||
+        Math.abs(gatewayAmount - expectedAmount) > 0.01 ||
         gatewayCurrency !== expectedCurrency
       ) {
         this.logger.error(
@@ -601,8 +602,12 @@ export class BillingService {
     this.notifications.create(payment.patient_id, {
       type: 'payment_success',
       title: 'Payment Successful',
-      message: `${formattedAmount} paid for your ${payment.service}${payment.doctorName ? ` with Dr. ${payment.doctorName}` : ''}.`,
-      data: { paymentId: payment.id, appointmentId: payment.appointment_id },
+      message: `${formattedAmount} paid for your ${payment.service}${payment.doctorName ? ` with Dr. ${payment.doctorName}` : ''}. Tap to view receipt.`,
+      data: {
+        paymentId: payment.id,
+        appointmentId: payment.appointment_id,
+        path: '/patient-dashboard/billing',
+      },
     });
 
     if (payment.doctor_id) {
@@ -610,7 +615,11 @@ export class BillingService {
         type: 'payment_received',
         title: 'Payment Received',
         message: `${formattedAmount} received from ${payment.patientName || 'a patient'} for ${payment.service}.`,
-        data: { paymentId: payment.id, appointmentId: payment.appointment_id },
+        data: {
+          paymentId: payment.id,
+          appointmentId: payment.appointment_id,
+          path: '/doctor-dashboard/revenue',
+        },
       });
     }
 
@@ -751,6 +760,23 @@ export class BillingService {
     const amount = Number(body.amount);
     if (!(amount > 0))
       throw new BadRequestException(ERROR_MESSAGES.NOTHING_TO_CHARGE);
+
+    // BUG-007 fix: prevent concurrent double-withdrawal by checking for an
+    // existing Processing payout before reading the available balance.
+    // The balance check and insert are not in a single DB transaction, so
+    // two concurrent requests could both pass the balance check and both
+    // insert. One Processing payout at a time per doctor is the practical lock.
+    const { data: processingPayout } = await this.supabase.admin
+      .from('payouts')
+      .select('id')
+      .eq('doctor_id', user.id)
+      .eq('status', 'Processing')
+      .maybeSingle();
+    if (processingPayout) {
+      throw new ConflictException(
+        'A payout request is already being processed. Please wait for it to complete before submitting another.',
+      );
+    }
 
     const available = await this.getAvailableBalance(user.id);
     if (amount > available)

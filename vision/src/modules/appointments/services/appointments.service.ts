@@ -341,9 +341,9 @@ export class AppointmentsService {
 
     await this.notifications.create(body.doctorId, {
       type: 'appointment_requested',
-      title: 'New Appointment Request',
-      message: `${withNames.patientName} requested a ${this.typeLabel(withNames.type)} on ${this.appointmentWhen(withNames)}.`,
-      data: { appointmentId: withNames.id },
+      title: 'New Consultation Request',
+      message: `${withNames.patientName} has requested a ${this.typeLabel(withNames.type)} for ${this.appointmentWhen(withNames)}. Please review the request and respond.`,
+      data: { appointmentId: withNames.id, path: '/doctor-dashboard/appointments' },
     });
 
     // Notify doctor via email
@@ -558,9 +558,14 @@ export class AppointmentsService {
       : withNames.patientName;
     await this.notifications.create(recipientId, {
       type: 'appointment_rescheduled',
-      title: 'Appointment Rescheduled',
-      message: `${actorLabel} rescheduled the ${this.typeLabel(withNames.type)} from ${oldWhen} to ${newWhen}.`,
-      data: { appointmentId: withNames.id },
+      title: 'Consultation Rescheduled',
+      message: `${actorLabel} has rescheduled the ${this.typeLabel(withNames.type)} from ${oldWhen} to ${newWhen}.`,
+      data: {
+        appointmentId: withNames.id,
+        path: isDoctorActing
+          ? '/patient-dashboard/appointments'
+          : '/doctor-dashboard/appointments',
+      },
     });
 
     // Send database-driven reschedule email
@@ -737,7 +742,7 @@ export class AppointmentsService {
         updatePayload.cancellation_reason = cancellationReason;
     }
 
-    const { data: saved } = await this.supabase.admin
+    const { data: saved, error: updateError } = await this.supabase.admin
       .from('appointments')
       .update(updatePayload)
       .eq('id', id)
@@ -745,6 +750,17 @@ export class AppointmentsService {
         '*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)',
       )
       .is('deleted_at', null)
+      .maybeSingle();
+
+    if (updateError) {
+      this.logger.error(`Status update DB error (${id}): ${updateError.message}`, updateError);
+      throw new InternalServerErrorException('Failed to update appointment status. Please try again.');
+    }
+    if (!saved) {
+      // Row was concurrently deleted or soft-deleted between our initial select
+      // and the update — treat as not-found rather than crashing withNames([null]).
+      throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
+    }
     const [withNames] = await this.withNames([saved]);
 
     // Synchronize consultation_requests table if one exists for this patient and doctor
@@ -811,9 +827,9 @@ export class AppointmentsService {
       // Notify the doctor that a paid appointment was confirmed
       await this.notifications.create(appointment.doctor_id, {
         type: 'appointment_confirmed',
-        title: 'New Appointment Booked',
-        message: `${withNames.patientName} booked a ${this.typeLabel(withNames.type)} on ${this.appointmentWhen(withNames)}.`,
-        data: { appointmentId: withNames.id },
+        title: 'Consultation Confirmed',
+        message: `${withNames.patientName} has confirmed and paid for their ${this.typeLabel(withNames.type)} on ${this.appointmentWhen(withNames)}.`,
+        data: { appointmentId: withNames.id, path: '/doctor-dashboard/appointments' },
       });
 
       // Notify patient
@@ -880,8 +896,8 @@ export class AppointmentsService {
 
     await this.notifications.create(callerId, {
       type: 'call_cancelled',
-      title: 'Call Declined',
-      message: `${isDoctorDeclining ? 'The doctor' : 'The patient'} declined the call.`,
+      title: 'Consultation Call Declined',
+      message: `${isDoctorDeclining ? 'The doctor' : 'The patient'} is unavailable to connect right now. You can retry in a moment.`,
       data: { appointmentId: id, calleeRole: callerRole },
     });
 
@@ -914,9 +930,12 @@ export class AppointmentsService {
     if (isDoctorActing && appointment.status === AppointmentStatus.APPROVED) {
       await this.notifications.create(appointment.patient_id, {
         type: 'appointment_approved',
-        title: 'Action Required: Pay to Confirm',
-        message: `Dr. ${appointment.doctorName} approved your ${label} request for ${when}. Please complete the payment to confirm.`,
-        data: { appointmentId: appointment.id },
+        title: 'Payment Required to Confirm',
+        message: `Dr. ${appointment.doctorName} has accepted your ${label} for ${when}. Please complete payment to confirm your booking.`,
+        data: {
+          appointmentId: appointment.id,
+          path: '/patient-dashboard/appointments?tab=action_required',
+        },
       });
 
       // Send approval/payment request email to patient
@@ -951,9 +970,12 @@ export class AppointmentsService {
       // Manual confirmation by doctor (without payment webhook)
       await this.notifications.create(appointment.patient_id, {
         type: 'appointment_confirmed',
-        title: 'Appointment Confirmed',
-        message: `Dr. ${appointment.doctorName} confirmed your ${label} on ${when}.`,
-        data: { appointmentId: appointment.id },
+        title: 'Consultation Confirmed',
+        message: `Your ${label} with Dr. ${appointment.doctorName} is confirmed for ${when}.`,
+        data: {
+          appointmentId: appointment.id,
+          path: '/patient-dashboard/appointments?tab=upcoming',
+        },
       });
 
       const { data: patientProfile } = await this.supabase.admin
@@ -986,9 +1008,12 @@ export class AppointmentsService {
     ) {
       await this.notifications.create(appointment.patient_id, {
         type: 'appointment_cancelled',
-        title: 'Appointment Cancelled',
-        message: `Dr. ${appointment.doctorName} cancelled your ${label} on ${when}.`,
-        data: { appointmentId: appointment.id },
+        title: 'Consultation Cancelled',
+        message: `Your ${label} with Dr. ${appointment.doctorName} scheduled for ${when} was cancelled by the doctor. Any advance payment will be refunded to your original payment method.`,
+        data: {
+          appointmentId: appointment.id,
+          path: '/patient-dashboard/appointments?tab=past',
+        },
       });
       await this.initiateRefundIfPaid(appointment);
 
@@ -1022,9 +1047,12 @@ export class AppointmentsService {
     ) {
       await this.notifications.create(appointment.doctor_id, {
         type: 'appointment_cancelled',
-        title: 'Appointment Cancelled',
-        message: `${appointment.patientName} cancelled their ${label} on ${when}.`,
-        data: { appointmentId: appointment.id },
+        title: 'Consultation Cancelled',
+        message: `${appointment.patientName} cancelled their ${label} scheduled for ${when}.`,
+        data: {
+          appointmentId: appointment.id,
+          path: '/doctor-dashboard/appointments',
+        },
       });
       await this.initiateRefundIfPaid(appointment);
 
@@ -1119,11 +1147,12 @@ export class AppointmentsService {
       // the patient's ring screen (if still showing) dismiss itself.
       await this.notifications.create(appointment.patient_id, {
         type: 'call_cancelled',
-        title: 'Call Ended',
-        message: 'The doctor ended the call.',
+        title: 'Consultation Concluded',
+        message: 'The consultation call with your doctor has ended.',
         data: {
           appointmentId: appointment.id,
           calleeRole: ProfileRole.PATIENT,
+          path: '/patient-dashboard/appointments',
         },
       });
     }
@@ -1143,6 +1172,22 @@ export class AppointmentsService {
       .eq('role', ProfileRole.PATIENT)
       .maybeSingle();
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
+
+    // BUG-008 fix: instant calls must only be initiated for patients the doctor
+    // already has a care relationship with (any past/present appointment).
+    // Without this, instant calls bypass the entire booking/payment flow and
+    // can be placed to arbitrary patients by any verified doctor.
+    const { count: relCount } = await this.supabase.admin
+      .from('appointments')
+      .select('id', { count: 'exact', head: true })
+      .eq('doctor_id', user.id)
+      .eq('patient_id', patientId)
+      .is('deleted_at', null);
+    if ((relCount || 0) === 0) {
+      throw new ForbiddenException(
+        'Instant calls can only be initiated for patients you have previously consulted.',
+      );
+    }
 
     const now = new Date();
     const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -1180,71 +1225,97 @@ export class AppointmentsService {
   }
 
   /** Advances the calling doctor's today queue: current In Progress -> Done,
-   * next Waiting -> In Progress, next Upcoming (by time) -> Waiting. */
+   * next Waiting -> In Progress, next Upcoming (by time) -> Waiting.
+   * BUG-012 fix: re-reads the live queue from the DB inside an atomic update
+   * to prevent rapid double-calls from advancing the queue twice. */
   async callNext(user: AuthUser) {
     if (user.profile.role !== ProfileRole.DOCTOR)
       throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const { data: todays } = await this.supabase.admin
+
+    // Atomically close the current In Progress appointment. We use an
+    // UPDATE ... WHERE status = IN_PROGRESS so if a concurrent call already
+    // transitioned it, we get 0 rows back and skip double-notification.
+    const { data: closedRows } = await this.supabase.admin
       .from('appointments')
-      .select()
+      .update({ status: AppointmentStatus.DONE })
       .eq('doctor_id', user.id)
       .eq('scheduled_date', today)
-      .order('scheduled_time', { ascending: true });
+      .eq('status', AppointmentStatus.IN_PROGRESS)
+      .select('id, patient_id, type');
 
-    if (!todays) return this.list(user);
-
-    const inProgress = todays.find(
-      (a) => a.status === AppointmentStatus.IN_PROGRESS,
-    );
-    if (inProgress) {
-      await this.supabase.admin
-        .from('appointments')
-        .update({ status: AppointmentStatus.DONE })
-        .eq('id', inProgress.id);
-      if (inProgress.type === AppointmentType.VIDEO) {
-        // Advancing the queue while the previous patient's ring/call was
-        // still active — let their ring screen dismiss itself.
-        await this.notifications.create(inProgress.patient_id, {
+    if (closedRows?.length) {
+      const closed = closedRows[0];
+      if (closed.type === AppointmentType.VIDEO) {
+        await this.notifications.create(closed.patient_id, {
           type: 'call_cancelled',
-          title: 'Call Ended',
-          message: 'The doctor ended the call.',
+          title: 'Consultation Concluded',
+          message: 'The consultation call with your doctor has ended.',
           data: {
-            appointmentId: inProgress.id,
+            appointmentId: closed.id,
             calleeRole: ProfileRole.PATIENT,
+            path: '/patient-dashboard/appointments',
           },
         });
       }
     }
 
-    const waiting = todays.find((a) => a.status === AppointmentStatus.WAITING);
-    if (waiting) {
-      await this.supabase.admin
+    // Atomically advance the first Waiting appointment to In Progress.
+    // The subquery approach isn't available in Supabase client, so we
+    // read the candidate then update it; the status condition in the
+    // update acts as the final atomic guard.
+    const { data: waitingList } = await this.supabase.admin
+      .from('appointments')
+      .select('id, patient_id')
+      .eq('doctor_id', user.id)
+      .eq('scheduled_date', today)
+      .eq('status', AppointmentStatus.WAITING)
+      .order('scheduled_time', { ascending: true })
+      .limit(1);
+
+    const waitingId = waitingList?.[0]?.id;
+    const waitingPatientId = waitingList?.[0]?.patient_id;
+    if (waitingId) {
+      const { data: advanced } = await this.supabase.admin
         .from('appointments')
         .update({ status: AppointmentStatus.IN_PROGRESS })
-        .eq('id', waiting.id);
-      await this.notifications.create(waiting.patient_id, {
-        type: 'appointment_called',
-        title: "It's Your Turn",
-        message: `Dr. ${user.profile.full_name} is ready to see you now.`,
-        data: {
-          appointmentId: waiting.id,
-          calleeRole: ProfileRole.PATIENT,
-          callerAvatarUrl: user.profile.avatar_url || undefined,
-        },
-      });
+        .eq('id', waitingId)
+        .eq('status', AppointmentStatus.WAITING) // atomic guard
+        .select('id');
+      if (advanced?.length) {
+        await this.notifications.create(waitingPatientId, {
+          type: 'appointment_called',
+          title: 'Consultation Starting Now',
+          message: `Dr. ${user.profile.full_name} is ready for your consultation. Tap to join your room.`,
+          data: {
+            appointmentId: waitingId,
+            calleeRole: ProfileRole.PATIENT,
+            callerAvatarUrl: user.profile.avatar_url || undefined,
+            path: '/patient-dashboard/appointments',
+          },
+        });
+      }
     }
 
-    const nextUpcoming = todays.find(
-      (a) => a.status === AppointmentStatus.UPCOMING,
-    );
-    if (nextUpcoming) {
+    // Advance the next Upcoming appointment to Waiting.
+    const { data: upcomingList } = await this.supabase.admin
+      .from('appointments')
+      .select('id')
+      .eq('doctor_id', user.id)
+      .eq('scheduled_date', today)
+      .eq('status', AppointmentStatus.UPCOMING)
+      .order('scheduled_time', { ascending: true })
+      .limit(1);
+
+    const upcomingId = upcomingList?.[0]?.id;
+    if (upcomingId) {
       await this.supabase.admin
         .from('appointments')
         .update({ status: AppointmentStatus.WAITING })
-        .eq('id', nextUpcoming.id);
+        .eq('id', upcomingId)
+        .eq('status', AppointmentStatus.UPCOMING); // atomic guard
     }
 
     return this.list(user);
@@ -1427,7 +1498,15 @@ export class AppointmentsService {
       .gte('scheduled_at', windowStart.toISOString())
       .lte('scheduled_at', windowEnd.toISOString());
 
-    if (error || !due?.length) return;
+    // BUG-011: Uses atomic claim-then-notify pattern (same as sendUpcomingReminders):
+    // 1) SELECT candidates with reminder_24h_sent_at IS NULL (identifies due rows)
+    // 2) UPDATE ... IS NULL to atomically claim them before sending (prevents duplicate reminders
+    //    if two NestJS instances or cron invocations fire at the same moment).
+    if (error) {
+      this.logger.warn(`24h reminder sweep query failed: ${error.message}`);
+      return;
+    }
+    if (!due?.length) return;
 
     const { data: claimed } = await this.supabase.admin
       .from('appointments')
@@ -1457,10 +1536,13 @@ export class AppointmentsService {
   async processNoShows() {
     const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
 
+    // BUG-010 fix: explicitly exclude rows with null scheduled_at (pre-migration
+    // appointments) so the intent is clear and the log count is accurate.
     const { data: noShows, error } = await this.supabase.admin
       .from('appointments')
       .select('id, patient_id, doctor_id')
       .in('status', [AppointmentStatus.UPCOMING, AppointmentStatus.WAITING])
+      .not('scheduled_at', 'is', null)
       .lte('scheduled_at', cutoff.toISOString());
 
     if (error || !noShows?.length) return;
@@ -1486,15 +1568,39 @@ export class AppointmentsService {
   async processUnpaidApprovals() {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
 
-    const { data: unpaid, error } = await this.supabase.admin
+    // BUG-006 fix: fetch candidate IDs first, then exclude any that have a
+    // Pending or Paid payment row — an in-flight gateway payment must not be
+    // cancelled by the sweep firing between payment creation and webhook receipt.
+    const { data: candidates, error } = await this.supabase.admin
+      .from('appointments')
+      .select('id')
+      .eq('status', AppointmentStatus.APPROVED)
+      .lte('updated_at', cutoff.toISOString());
+
+    if (error || !candidates?.length) return;
+
+    const candidateIds = candidates.map((a) => a.id);
+
+    // Exclude any appointment that already has an active payment attempt
+    const { data: activePayments } = await this.supabase.admin
+      .from('payments')
+      .select('appointment_id')
+      .in('appointment_id', candidateIds)
+      .in('status', ['Pending', 'Paid']);
+
+    const blockedIds = new Set((activePayments || []).map((p) => p.appointment_id));
+    const safeToCancel = candidateIds.filter((id) => !blockedIds.has(id));
+
+    if (!safeToCancel.length) return;
+
+    const { data: unpaid, error: fetchError } = await this.supabase.admin
       .from('appointments')
       .select(
         'id, patient_id, doctor_id, scheduled_date, scheduled_time, patient:profiles!appointments_patient_id_fkey(full_name, email), doctor:profiles!appointments_doctor_id_fkey(full_name)',
       )
-      .eq('status', AppointmentStatus.APPROVED)
-      .lte('updated_at', cutoff.toISOString());
+      .in('id', safeToCancel);
 
-    if (error || !unpaid?.length) return;
+    if (fetchError || !unpaid?.length) return;
 
     const ids = unpaid.map((a) => a.id);
     const { error: updateError } = await this.supabase.admin
@@ -1508,16 +1614,16 @@ export class AppointmentsService {
       );
     } else {
       this.logger.log(
-        `Cancelled ${ids.length} unpaid approved appointment(s).`,
+        `Cancelled ${ids.length} unpaid approved appointment(s) (${blockedIds.size} skipped — active payment in flight).`,
       );
 
       await Promise.all(
         unpaid.map(async (a: any) => {
           this.notifications.create(a.patient_id, {
             type: 'appointment_cancelled',
-            title: 'Appointment Cancelled',
-            message: 'Your appointment was cancelled due to non-payment.',
-            data: { appointmentId: a.id },
+            title: 'Consultation Request Expired',
+            message: `Your consultation request with Dr. ${a.doctor?.full_name || 'your doctor'} has expired because payment was not completed within the time window. You can rebook whenever you are ready.`,
+            data: { appointmentId: a.id, path: '/doctors' },
           });
 
           if (this.email.isConfigured && a.patient?.email) {
@@ -1599,8 +1705,8 @@ export class AppointmentsService {
         await this.notifications
           .create(apt.patient_id, {
             type: 'appointment_reminder',
-            title: 'Upcoming appointment',
-            message: `Your ${apt.type === AppointmentType.VIDEO ? 'video consultation' : 'clinic visit'} with Dr. ${doctorNameById.get(apt.doctor_id) || ''} is at ${apt.scheduled_time} today. Please be ready a few minutes early.`,
+            title: 'Upcoming Consultation',
+            message: `Your ${apt.type === AppointmentType.VIDEO ? 'video consultation' : 'clinic visit'} with Dr. ${doctorNameById.get(apt.doctor_id) || 'your doctor'} starts at ${apt.scheduled_time} today. Tap to prepare and view your consultation details.`,
             idempotencyKey: `apt_reminder_${apt.id}_${now.toISOString().slice(0, 10)}`,
             data: {
               appointmentId: apt.id,
@@ -1736,8 +1842,8 @@ export class AppointmentsService {
       this.notifications
         .create(c.patientId, {
           type: 'appointment_delayed',
-          title: 'Running behind schedule',
-          message: `Dr. ${doctorNameById.get(c.doctorId) || ''} is running about ${Math.round(c.delayMinutes)} minutes behind for your ${c.scheduledTime} appointment. We'll let you know when it's your turn.`,
+          title: 'Consultation Schedule Update',
+          message: `Dr. ${doctorNameById.get(c.doctorId) || 'Your doctor'} is running approximately ${Math.round(c.delayMinutes)} minutes behind schedule for your ${c.scheduledTime} appointment. Thank you for your patience; we will notify you when your consultation begins.`,
           idempotencyKey: `apt_delay_${row.id}_${today}`,
           data: {
             appointmentId: row.id,
