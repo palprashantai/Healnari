@@ -151,7 +151,7 @@ function AdminReports() {
       <div className="grid sm:grid-cols-3 gap-5">
         <KPITrendCard
           title="Total Registered Platform Patients"
-          value={(summary?.totalRegisteredUsers ?? 0).toLocaleString()}
+          value={(summary?.totalPatients ?? summary?.totalRegisteredUsers ?? 0).toLocaleString()}
           period="Verified Database Records"
           icon="fa-users"
           colorScheme="purple"

@@ -392,7 +392,7 @@ function AdminDashboard() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPITrendCard
           title="Global Patients"
-          value={(stats?.totalUsers ?? stats?.totalPatients ?? 0).toLocaleString()}
+          value={(stats?.totalPatients ?? 0).toLocaleString()}
           period="Total Registered Patient Base"
           icon="fa-globe"
           colorScheme="purple"

@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import AIUsageUpgradePage from './components/ai/AIUsageUpgradePage.jsx';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { ToastProvider } from './components/Toast.jsx';
@@ -187,6 +188,7 @@ function App() {
                 <Route path="billing" element={<PatientBilling />} />
                 <Route path="profile" element={<PatientProfile />} />
                 <Route path="ai" element={<PatientAiProduct />} />
+                <Route path="ai-billing" element={<AIUsageUpgradePage role="patient" />} />
               </Route>
 
               <Route
@@ -212,6 +214,7 @@ function App() {
                 <Route path="profile" element={<DoctorProfile />} />
                 <Route path="communications" element={<DoctorCommunications />} />
                 <Route path="ai" element={<DoctorAiProduct />} />
+                <Route path="ai-billing" element={<AIUsageUpgradePage role="doctor" />} />
               </Route>
 
               <Route

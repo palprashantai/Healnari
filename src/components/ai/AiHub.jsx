@@ -615,7 +615,7 @@ export function AiHub({ role = 'doctor' }) {
               <div className="flex items-center gap-2.5">
                 <button
                   type="button"
-                  onClick={() => setShowTopupModal(true)}
+                  onClick={() => navigate(`/${role}-dashboard/ai-billing`)}
                   className="px-4 py-2.5 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl transition-colors shadow-2xs flex items-center gap-1.5 cursor-pointer"
                 >
                   <i className="fas fa-bolt text-[11px] text-amber-500"></i> Top-Up Credits
@@ -860,7 +860,7 @@ export function AiHub({ role = 'doctor' }) {
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  {totalTokens} monthly AI uses included · Valid until {renewalDateFormatted}
+                  {totalCredits} monthly AI uses included · Valid until {renewalDateFormatted}
                 </p>
               </div>
 
@@ -1234,19 +1234,7 @@ export function AiHub({ role = 'doctor' }) {
 
 
 
-      {/* Unified AI Usage & Plan Upgrade Modal */}
-      <AIUsageUpgradeModal
-        isOpen={showTopupModal}
-        onClose={() => setShowTopupModal(false)}
-        role={role}
-        currentPlanId={currentPlanId}
-        tokensRemaining={tokensRemaining}
-        renewalDate={renewalDateFormatted}
-        onUpgraded={() => {
-          loadStatus();
-          loadUsage();
-        }}
-      />
+      {/* Unified AI Usage & Plan Upgrade Page Link Used Instead of Modal */}
     </div>
   );
 }
