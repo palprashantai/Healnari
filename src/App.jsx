@@ -158,6 +158,7 @@ function App() {
             <Routes>
               <Route path="/" element={<RootRoute />} />
               <Route path="/for-doctors" element={<DoctorLandingPage />} />
+              <Route path="/login" element={<Navigate to="/for-doctors?auth=login" replace />} />
               <Route path="/dr/:doctorId" element={<DoctorPublicProfile />} />
               <Route path="/book/:doctorId" element={<DoctorPublicProfile />} />
               <Route path="/doctor/:doctorId" element={<DoctorPublicProfile />} />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import ProviderHeader from '../components/ProviderHeader.jsx';
 import ProviderHero from '../components/ProviderHero.jsx';
 import ProviderApplyModal from '../components/ProviderApplyModal.jsx';
@@ -18,11 +19,18 @@ const ProviderFooter = lazy(() => import('../components/ProviderFooter.jsx'));
 const AiChatWidget = lazy(() => import('../../tools/AiChatWidget.jsx'));
 
 function DoctorLandingPage() {
+  const [searchParams] = useSearchParams();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isApplyOpen, setIsApplyOpen] = useState(false);
   const [activeFaq, setActiveFaq] = useState(null);
   const [showMobileBar, setShowMobileBar] = useState(false);
   const [adminSettings, setAdminSettings] = useState(null);
+
+  useEffect(() => {
+    if (searchParams.get('auth') === 'login' || searchParams.get('login') === 'true') {
+      setIsAuthOpen(true);
+    }
+  }, [searchParams]);
 
   // Dynamic SEO, OpenGraph & Structured Data Schema Injection
   useEffect(() => {

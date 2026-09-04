@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { apiFetch } from '../lib/apiClient.js';
 
-function AuthModal({ onClose }) {
+function AuthModal({ onClose, initialEmail = '' }) {
+  const [searchParams] = useSearchParams();
   const [role, setRole] = useState('patient'); // 'patient' or 'doctor'
   const [mode, setMode] = useState('login'); // 'login' | 'register' | 'forgot'
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail || searchParams?.get('email') || '');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [regNo, setRegNo] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [resetSent, setResetSent] = useState(false);
@@ -21,18 +23,27 @@ function AuthModal({ onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (submitting) return;
+
+    const cleanEmail = (email || '').trim();
+    const cleanPassword = (password || '').trim();
+
+    if (!cleanEmail || !cleanPassword) {
+      toast('Please enter both email and password.', 'warning');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       if (mode === 'login') {
-        const { user } = await signIn(email, password);
+        const { user } = await signIn(cleanEmail, cleanPassword);
         onClose();
         navigate(user?.role === 'admin' ? '/admin-dashboard' : (user?.role === 'doctor' ? '/doctor-dashboard' : '/patient-dashboard'));
       } else if (mode === 'register') {
-        const { user } = await signUp(email, password, role, {
-          fullName,
+        const { user } = await signUp(cleanEmail, cleanPassword, role, {
+          fullName: fullName?.trim(),
           specialty: role === 'doctor' ? 'General' : undefined,
-          registrationNo: role === 'doctor' ? regNo : undefined,
+          registrationNo: role === 'doctor' ? regNo?.trim() : undefined,
         });
         onClose();
         navigate(user?.role === 'admin' ? '/admin-dashboard' : (user?.role === 'doctor' ? '/doctor-dashboard' : '/patient-dashboard'));
@@ -41,7 +52,7 @@ function AuthModal({ onClose }) {
           await apiFetch('/auth/forgot-password', {
             method: 'POST',
             skipAuth: true,
-            body: { email }
+            body: { email: cleanEmail }
           });
         } catch {
           // Graceful fallback: for security & privacy, always reassure the user
@@ -50,7 +61,7 @@ function AuthModal({ onClose }) {
         toast('Password recovery instructions sent to your email.', 'success');
       }
     } catch (err) {
-      toast(err?.message || 'Authentication error. Please check your details and try again.', 'error');
+      toast(err?.message || 'Invalid email or password. Please verify your credentials and try again.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -220,14 +231,22 @@ function AuthModal({ onClose }) {
                     </div>
                     <input
                       id="auth-password"
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       required
                       autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-aubergine-500 focus:ring-2 focus:ring-aubergine-200 outline-none transition-all text-sm"
+                      className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-aubergine-500 focus:ring-2 focus:ring-aubergine-200 outline-none transition-all text-sm"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-sm`}></i>
+                    </button>
                   </div>
                 </div>
               )}

@@ -262,7 +262,7 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
 
       {/* Modal Card */}
       <div className="relative w-full max-w-xl bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[96dvh] sm:max-h-[92vh] border-0 sm:border border-slate-100">
-        
+
         {/* Header */}
         <div className="px-4 sm:px-8 py-4 sm:py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-aubergine-900 to-slate-950 text-white">
           <div className="flex items-center gap-3">
@@ -596,11 +596,10 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
                             processFile(e.dataTransfer.files[0]);
                           }
                         }}
-                        className={`border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition-all duration-200 select-none ${
-                          isDragging
-                            ? 'border-aubergine-600 bg-aubergine-50/80 scale-[1.01] ring-4 ring-aubergine-100'
-                            : 'border-slate-300 hover:border-aubergine-500 bg-slate-50/60 hover:bg-aubergine-50/30'
-                        }`}
+                        className={`border-2 border-dashed rounded-2xl p-6 sm:p-8 text-center cursor-pointer transition-all duration-200 select-none ${isDragging
+                          ? 'border-aubergine-600 bg-aubergine-50/80 scale-[1.01] ring-4 ring-aubergine-100'
+                          : 'border-slate-300 hover:border-aubergine-500 bg-slate-50/60 hover:bg-aubergine-50/30'
+                          }`}
                       >
                         <div className="w-14 h-14 mx-auto rounded-2xl bg-aubergine-100 text-aubergine-600 flex items-center justify-center text-2xl mb-3 shadow-2xs">
                           <i className="fas fa-cloud-arrow-up"></i>

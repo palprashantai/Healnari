@@ -91,9 +91,11 @@ export class AuthService {
   }
 
   async login(email: string, password: string) {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanPassword = (password || '').trim();
     const { data, error } = await this.supabase.anon.auth.signInWithPassword({
-      email,
-      password,
+      email: cleanEmail,
+      password: cleanPassword,
     });
     if (error || !data?.session || !data?.user)
       throw new UnauthorizedException(ERROR_MESSAGES.INVALID_CREDENTIALS);

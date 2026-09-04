@@ -19,6 +19,7 @@ import {
   ApiProperty,
   ApiConsumes,
 } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsIn,
@@ -39,9 +40,11 @@ const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export class RegisterDto {
   @ApiProperty({ example: 'priya.sharma@example.com' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
   @IsEmail()
   email: string;
   @ApiProperty({ example: 'password123' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(6)
   password: string;
@@ -65,15 +68,20 @@ export class RegisterDto {
 
 export class ForgotPasswordDto {
   @ApiProperty({ example: 'priya.sharma@example.com' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
   @IsEmail()
   email: string;
 }
 
 export class LoginDto {
   @ApiProperty({ example: 'priya.sharma@example.com' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
   @IsEmail()
   email: string;
-  @ApiProperty({ example: 'password123' }) @IsString() password: string;
+  @ApiProperty({ example: 'password123' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  password: string;
 }
 
 export class RefreshDto {

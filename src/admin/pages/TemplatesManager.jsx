@@ -454,13 +454,20 @@ function AdminTemplates() {
                           <div className="h-1.5 bg-gradient-to-r from-[#2A1647] via-[#6B46C1] to-[#EC4899]"></div>
                           
                           {/* Master Header */}
-                          <div className="p-6 text-center border-b border-slate-100">
-                            <span className="text-2xl font-black text-[#2A1647] tracking-tight">
-                              Heal<span className="text-[#6B46C1]">Nari</span>
-                            </span>
-                            <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                              Women's Specialized Telemedicine & Care
-                            </span>
+                          <div className="p-5 text-center border-b border-slate-100 flex items-center justify-center gap-3.5">
+                            <img 
+                              src="/brand/logo-icon.png" 
+                              alt="HealNari Logo" 
+                              className="w-12 h-12 rounded-full object-contain shrink-0" 
+                            />
+                            <div className="text-left">
+                              <span className="text-2xl font-black text-[#2A1647] font-serif tracking-tight leading-none block">
+                                Heal<span className="text-[#E23E8C]">Nari</span>
+                              </span>
+                              <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 font-sans">
+                                Women's Specialized Telemedicine & Care
+                              </span>
+                            </div>
                           </div>
 
                           {/* Inner Email Body Content */}

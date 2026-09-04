@@ -125,11 +125,13 @@ export function AuthProvider({ children }) {
   }, [setAndCacheUser]);
 
   const signIn = useCallback(async (email, password) => {
+    const cleanEmail = typeof email === 'string' ? email.trim() : email;
+    const cleanPassword = typeof password === 'string' ? password.trim() : password;
     try {
       const data = await apiFetch('/auth/login', {
         method: 'POST',
         skipAuth: true,
-        body: { email, password },
+        body: { email: cleanEmail, password: cleanPassword },
       });
       setTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
       setAndCacheUser(data.user);

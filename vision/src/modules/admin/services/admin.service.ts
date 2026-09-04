@@ -1493,9 +1493,11 @@ export class AdminService {
             // Generate initial doctor credentials & account
             const tempPassword = `HealNari#${Math.floor(1000 + Math.random() * 9000)}`;
 
+            let doctorUserId: string | undefined;
+
             // Create Supabase Auth User if not existing
             const { data: authUser, error: authError } = await this.supabase.admin.auth.admin.createUser({
-              email: app.email,
+              email: app.email.trim(),
               password: tempPassword,
               email_confirm: true,
               user_metadata: {
@@ -1505,7 +1507,32 @@ export class AdminService {
               },
             });
 
-            const doctorUserId = authUser?.user?.id;
+            if (authUser?.user?.id) {
+              doctorUserId = authUser.user.id;
+            } else {
+              // User might already exist in Supabase Auth — locate and update password
+              try {
+                const { data: userList } = await this.supabase.admin.auth.admin.listUsers();
+                const existing = (userList?.users || []).find(
+                  (u: any) => u.email?.toLowerCase() === app.email.trim().toLowerCase()
+                );
+                if (existing) {
+                  doctorUserId = existing.id;
+                  await this.supabase.admin.auth.admin.updateUserById(existing.id, {
+                    password: tempPassword,
+                    email_confirm: true,
+                    user_metadata: {
+                      ...(existing.user_metadata || {}),
+                      role: 'doctor',
+                      full_name: app.full_name || existing.user_metadata?.full_name,
+                      specialty: app.specialty || existing.user_metadata?.specialty,
+                    },
+                  });
+                }
+              } catch (e) {
+                this.logger.warn(`Could not sync existing user password: ${e?.message}`);
+              }
+            }
 
             if (doctorUserId) {
               await this.supabase.admin
@@ -1514,7 +1541,7 @@ export class AdminService {
                   id: doctorUserId,
                   role: ProfileRole.DOCTOR,
                   full_name: app.full_name,
-                  email: app.email,
+                  email: app.email.trim(),
                   phone: app.phone,
                   specialty: app.specialty,
                   registration_no: app.registration_no,
@@ -1526,12 +1553,12 @@ export class AdminService {
             this.email
               .sendTemplateEmail({
                 templateKey: 'doctor_welcome_credentials',
-                to: app.email,
+                to: app.email.trim(),
                 variables: {
                   doctorName: app.full_name || 'Doctor',
-                  email: app.email,
+                  email: app.email.trim(),
                   password: tempPassword,
-                  loginUrl: this.email.getUrl('/login'),
+                  loginUrl: this.email.getUrl(`/for-doctors?auth=login&email=${encodeURIComponent(app.email.trim())}`),
                 },
                 entityType: 'provider_application',
                 entityId: id,
