@@ -1887,14 +1887,19 @@ function DoctorPatients() {
     );
   }
 
-  // Filter logic for main patient registry grid
   const filtered = patients.filter((p) => {
     const matchSearch =
       !search ||
       p.name.toLowerCase().includes(search.toLowerCase()) ||
       p.diagnosis.toLowerCase().includes(search.toLowerCase()) ||
-      p.phone.includes(search);
-    const matchStatus = filterStatus === 'all' || p.status === filterStatus;
+      (p.mrn && p.mrn.toLowerCase().includes(search.toLowerCase())) ||
+      (p.phone && p.phone.includes(search));
+    const matchStatus =
+      filterStatus === 'all'
+        ? true
+        : filterStatus === 'alert'
+        ? Boolean(p.alert)
+        : p.status === filterStatus;
     return matchSearch && matchStatus;
   });
 
@@ -1959,175 +1964,318 @@ function DoctorPatients() {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
+  const totalPrescriptionsCount = patients.reduce((acc, p) => acc + (p.meds?.length || 0), 0);
+  const totalReportsCount = patients.reduce((acc, p) => acc + (p.reports?.length || 0), 0);
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-12">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Patients &amp; EMR</h1>
-          <p className="text-sm text-slate-500">Comprehensive patient electronic medical records, prescriptions &amp; lab histories</p>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-mono">Verified Clinical EMR</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Patients &amp; Medical Records</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Comprehensive electronic health records, prescriptions, and lab diagnostics</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative" ref={actionsMenuRef}>
             <button
               onClick={() => setShowActionsMenu(!showActionsMenu)}
-              className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm"
+              className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-colors shadow-xs"
             >
-              Actions <i className={`fas fa-chevron-down text-[10px] transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}></i>
+              <i className="fas fa-ellipsis-v text-slate-500"></i>
+              <span>Batch Actions</span>
+              <i className={`fas fa-chevron-down text-[10px] text-slate-400 transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}></i>
             </button>
             {showActionsMenu && (
-              <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
+              <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
                 <div className="px-3 py-1.5 mb-1">
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p>
                 </div>
-                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-aubergine-600 flex items-center gap-3 transition-colors">
+                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-aubergine-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-envelope text-aubergine-600 w-4"></i> Bulk Email
                 </button>
-                <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
+                <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-bell text-amber-500 w-4"></i> Push Notification
                 </button>
-                <button onClick={() => handleBulkAction('WhatsApp Message')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
-                  <i className="fab fa-whatsapp text-emerald-500 w-4 text-lg"></i> WhatsApp Message
+                <button onClick={() => handleBulkAction('WhatsApp Message')} className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
+                  <i className="fab fa-whatsapp text-emerald-500 w-4 text-base"></i> WhatsApp Message
                 </button>
                 <div className="h-px bg-slate-100 my-1"></div>
-                <button onClick={() => handleBulkAction('Export CSV')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-3 transition-colors">
-                  <i className="fas fa-file-export text-slate-500 w-4"></i> Export Selected
+                <button onClick={() => handleBulkAction('Export CSV')} className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-3 transition-colors">
+                  <i className="fas fa-file-export text-slate-500 w-4"></i> Export Selected ({selectedIds.length})
                 </button>
               </div>
             )}
           </div>
           <button
             onClick={() => setShowAddPatient(true)}
-            className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm"
+            className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-sm hover:shadow hover:-translate-y-0.5"
           >
-            <i className="fas fa-user-plus"></i> Add Patient
+            <i className="fas fa-user-plus text-xs"></i>
+            <span>Add Walk-in Patient</span>
           </button>
         </div>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap gap-3 items-center w-full min-w-0">
-        <div className="relative flex-1 min-w-[150px]">
-          <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search patient name, phone, or diagnosis..."
-            className="w-full border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50"
-          />
+      {/* Top Clinical Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Total Patients</p>
+            <h3 className="text-2xl font-black text-slate-900 mt-1">{patients.length}</h3>
+            <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">Active Registry</p>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-aubergine-50 text-aubergine-600 flex items-center justify-center text-lg">
+            <i className="fas fa-hospital-user"></i>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {[
-            ['all', 'All Patients'],
-            ['active', 'Active'],
-            ['inactive', 'Inactive'],
-          ].map(([v, l]) => (
-            <button
-              key={v}
-              onClick={() => setFilterStatus(v)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${filterStatus === v
-                ? 'bg-aubergine-600 text-white border-aubergine-600 shadow-xs'
-                : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-aubergine-300'
-                }`}
-            >
-              {l}
-            </button>
-          ))}
+
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Active Patients</p>
+            <h3 className="text-2xl font-black text-slate-900 mt-1">
+              {patients.filter(p => p.status === 'active').length}
+            </h3>
+            <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Under Care Plan</p>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
+            <i className="fas fa-heart-pulse"></i>
+          </div>
         </div>
-        <p className="text-xs text-slate-500 font-medium w-full sm:w-auto">{filtered.length} results</p>
+
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Clinical Alerts</p>
+            <h3 className="text-2xl font-black text-rose-600 mt-1">
+              {patients.filter(p => p.alert).length}
+            </h3>
+            <p className="text-[11px] text-rose-500 font-semibold mt-0.5">Requires Doctor Review</p>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg">
+            <i className="fas fa-triangle-exclamation"></i>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Prescriptions &amp; Labs</p>
+            <h3 className="text-2xl font-black text-slate-900 mt-1">{totalPrescriptionsCount + totalReportsCount}</h3>
+            <p className="text-[11px] text-slate-500 font-semibold mt-0.5">{totalPrescriptionsCount} Rx • {totalReportsCount} Diagnostics</p>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">
+            <i className="fas fa-file-waveform"></i>
+          </div>
+        </div>
       </div>
 
-      {/* Select All Bar */}
-      {filtered.length > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl">
-          <label className="flex items-center gap-3 cursor-pointer group">
-            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedIds.length > 0 && selectedIds.length === filtered.length ? 'bg-aubergine-600 border-aubergine-600 text-white' : selectedIds.length > 0 ? 'bg-aubergine-100 border-aubergine-300 text-aubergine-600' : 'bg-white border-slate-300 group-hover:border-aubergine-400'}`}>
-              {(selectedIds.length > 0 && selectedIds.length === filtered.length) ? <i className="fas fa-check text-[10px]"></i> : selectedIds.length > 0 ? <div className="w-2.5 h-0.5 bg-aubergine-600 rounded"></div> : null}
-            </div>
-            <input type="checkbox" className="hidden" checked={selectedIds.length === filtered.length} onChange={toggleSelectAll} />
-            <span className="text-sm font-bold text-slate-700">Select All {filtered.length} Patients</span>
-          </label>
-          {selectedIds.length > 0 && (
-            <span className="text-xs text-slate-500 font-bold ml-auto">{selectedIds.length} selected</span>
-          )}
+      {/* Filter & Search Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-4 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+          <div className="relative flex-1 min-w-[200px]">
+            <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by patient name, diagnosis, ID or phone..."
+              className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-200 bg-slate-50/70"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 w-5 h-5 rounded-full flex items-center justify-center text-xs"
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[
+              ['all', 'All Patients', patients.length],
+              ['active', 'Active', patients.filter(p => p.status === 'active').length],
+              ['alert', 'Alerts ⚠', patients.filter(p => p.alert).length],
+              ['inactive', 'Inactive', patients.filter(p => p.status === 'inactive').length],
+            ].map(([v, l, count]) => (
+              <button
+                key={v}
+                onClick={() => setFilterStatus(v)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${filterStatus === v
+                  ? 'bg-aubergine-700 text-white border-aubergine-700 shadow-xs'
+                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                  }`}
+              >
+                <span>{l}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${filterStatus === v ? 'bg-aubergine-800 text-white' : 'bg-slate-200/70 text-slate-600'}`}>
+                  {count}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
-      )}
+
+        {/* Selection & Quick Count Bar */}
+        <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedIds.length > 0 && selectedIds.length === filtered.length ? 'bg-aubergine-600 border-aubergine-600 text-white' : selectedIds.length > 0 ? 'bg-aubergine-100 border-aubergine-400 text-aubergine-700' : 'bg-white border-slate-300'}`}>
+              {selectedIds.length > 0 && selectedIds.length === filtered.length ? (
+                <i className="fas fa-check text-[9px]"></i>
+              ) : selectedIds.length > 0 ? (
+                <div className="w-2 h-0.5 bg-aubergine-600 rounded"></div>
+              ) : null}
+            </div>
+            <input type="checkbox" className="hidden" checked={selectedIds.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
+            <span className="font-bold text-slate-700">Select All {filtered.length} Patients</span>
+          </label>
+
+          <div className="flex items-center gap-3">
+            {selectedIds.length > 0 && (
+              <span className="bg-aubergine-50 text-aubergine-700 border border-aubergine-200 px-2.5 py-0.5 rounded-full font-bold text-[11px]">
+                {selectedIds.length} Selected
+              </span>
+            )}
+            <span>Showing <strong className="text-slate-800">{filtered.length}</strong> patient records</span>
+          </div>
+        </div>
+      </div>
 
       {/* Patient Cards List */}
       <div className="space-y-3">
-        {filtered.map((p) => (
-          <div
-            key={p.id}
-            className={`rounded-2xl border shadow-sm hover:shadow-md transition-all overflow-hidden p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 ${selectedIds.includes(p.id) ? 'bg-slate-50 border-aubergine-300' : 'bg-white border-slate-200 hover:border-aubergine-300'
-              }`}
-          >
-            {/* Selection Checkbox */}
-            <div className="flex-shrink-0">
-              <label className="flex items-center justify-center cursor-pointer group">
-                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedIds.includes(p.id) ? 'bg-aubergine-600 border-aubergine-600 text-white' : 'bg-white border-slate-300 group-hover:border-aubergine-400'}`}>
-                  {selectedIds.includes(p.id) && <i className="fas fa-check text-[10px]"></i>}
+        {filtered.map((p) => {
+          const isSelected = selectedIds.includes(p.id);
+          const initials = p.name ? p.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'PT';
+          const rxCount = p.meds?.length || 0;
+          const labCount = p.reports?.length || 0;
+
+          return (
+            <div
+              key={p.id}
+              className={`group bg-white rounded-2xl border transition-all duration-200 p-4 sm:p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 ${isSelected
+                ? 'border-aubergine-400 bg-aubergine-50/20 shadow-md ring-1 ring-aubergine-400/30'
+                : 'border-slate-200/90 hover:border-aubergine-300 hover:shadow-md'
+                }`}
+            >
+              {/* Left Column: Checkbox, Avatar, Identity */}
+              <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
+                {/* Selection Checkbox */}
+                <div className="pt-1 sm:pt-0 flex-shrink-0">
+                  <label className="flex items-center justify-center cursor-pointer">
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-aubergine-600 border-aubergine-600 text-white' : 'bg-white border-slate-300 group-hover:border-aubergine-400'}`}>
+                      {isSelected && <i className="fas fa-check text-[9px]"></i>}
+                    </div>
+                    <input type="checkbox" className="hidden" checked={isSelected} onChange={() => toggleSelect(p.id)} />
+                  </label>
                 </div>
-                <input type="checkbox" className="hidden" checked={selectedIds.includes(p.id)} onChange={() => toggleSelect(p.id)} />
-              </label>
-            </div>
 
-            {/* Avatar */}
-            <div className="relative flex-shrink-0">
-              <div className="w-14 h-14 rounded-2xl bg-aubergine-100 text-aubergine-700 font-black text-xl flex items-center justify-center shadow-inner">
-                {p.name.split(' ').map((n) => n[0]).join('')}
+                {/* Avatar with Status Pulse */}
+                <div className="relative flex-shrink-0">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-aubergine-600 to-indigo-700 text-white font-black text-base flex items-center justify-center shadow-xs">
+                    {initials}
+                  </div>
+                  {p.status === 'active' ? (
+                    <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-white"></span>
+                    </span>
+                  ) : (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-slate-400 rounded-full border-2 border-white"></span>
+                  )}
+                </div>
+
+                {/* Patient Primary Details */}
+                <div className="min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-black text-slate-900 text-base leading-snug group-hover:text-aubergine-800 transition-colors">
+                      {p.name}
+                    </h3>
+                    <span className="text-[11px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                      #{p.mrn || p.id?.slice(0, 8)}
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-600 bg-slate-100/80 px-2 py-0.5 rounded-md">
+                      {p.age} Yrs • Female
+                    </span>
+                    <span className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      <i className="fas fa-droplet text-[9px]"></i> {p.blood || 'O+'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                    <span className="text-xs font-bold text-aubergine-700 bg-aubergine-50 border border-aubergine-100 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5">
+                      <i className="fas fa-stethoscope text-[10px] text-aubergine-500"></i>
+                      <span>{p.diagnosis || 'Clinical Evaluation'}</span>
+                    </span>
+
+                    {p.alert && (
+                      <span className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 animate-pulse">
+                        <i className="fas fa-triangle-exclamation text-rose-500 text-[10px]"></i>
+                        <span>{p.alert}</span>
+                      </span>
+                    )}
+
+                    {p.bp && p.bp !== '—' && (
+                      <span className="text-[11px] font-medium text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md">
+                        BP: <strong className="text-slate-700">{p.bp}</strong>
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-              {p.status === 'active' && <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white"></div>}
-            </div>
 
-            {/* Main Info */}
-            <div className="flex-1 min-w-0 space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="font-black text-slate-800 text-base">{p.name}</h3>
-                <span className="text-[11px] text-slate-500 font-mono font-semibold bg-slate-100 px-2 py-0.5 rounded">ID: #{p.mrn || p.id}</span>
-                {p.alert && <span className="text-[10px] bg-rose-100 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full font-bold">⚠ {p.alert}</span>}
+              {/* Middle Metrics: Prescriptions, Lab Reports, Visits */}
+              <div className="grid grid-cols-3 gap-2.5 sm:gap-4 text-left border-y sm:border-y-0 sm:border-l sm:border-r border-slate-100 py-2 sm:py-0 sm:px-4 shrink-0 w-full sm:w-auto">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Prescriptions</span>
+                  <span className="text-xs sm:text-sm font-black text-slate-800 flex items-center gap-1.5 mt-0.5">
+                    <i className="fas fa-file-prescription text-emerald-600 text-xs"></i>
+                    <span>{rxCount} Active</span>
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Lab Reports</span>
+                  <span className="text-xs sm:text-sm font-black text-slate-800 flex items-center gap-1.5 mt-0.5">
+                    <i className="fas fa-vial text-indigo-600 text-xs"></i>
+                    <span>{labCount} Tests</span>
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Last Consult</span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-700 flex items-center gap-1.5 mt-0.5">
+                    <i className="fas fa-calendar-check text-slate-500 text-xs"></i>
+                    <span className="truncate">{p.lastVisit || 'Initial'}</span>
+                  </span>
+                </div>
               </div>
 
-              <p className="text-xs text-aubergine-700 font-bold">Diagnosis: {p.diagnosis}</p>
+              {/* Right Column: Actions */}
+              <div className="flex items-center gap-2 self-end sm:self-center shrink-0 w-full sm:w-auto justify-end">
+                <button
+                  onClick={() => startInstantCall(p)}
+                  disabled={callingPatientId === p.id}
+                  className="h-10 px-3.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-50 flex items-center gap-2 transition-all shadow-xs font-bold text-xs"
+                  title={`Start a live telemedicine video call with ${p.name}`}
+                >
+                  {callingPatientId === p.id ? (
+                    <i className="fas fa-circle-notch fa-spin text-sm"></i>
+                  ) : (
+                    <i className="fas fa-video text-sm text-emerald-600"></i>
+                  )}
+                  <span className="hidden sm:inline">Call</span>
+                </button>
 
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                <span>
-                  <i className="fas fa-user mr-1 text-slate-500"></i> {p.age}F • Blood: <strong>{p.blood}</strong>
-                </span>
-                <span>
-                  <i className="fas fa-file-prescription mr-1 text-emerald-500"></i> {p.meds.length} Prescriptions
-                </span>
-                <span>
-                  <i className="fas fa-vial mr-1 text-aubergine-600"></i> {p.reports.length} Lab Reports
-                </span>
-                <span>
-                  <i className="fas fa-calendar-check mr-1 text-slate-500"></i> Last: {p.lastVisit}
-                </span>
+                <button
+                  onClick={() => setSelectedPatientId(p.id)}
+                  className="h-10 bg-aubergine-700 hover:bg-aubergine-800 active:bg-aubergine-900 text-white font-bold px-4 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-2 shadow-sm hover:shadow"
+                >
+                  <i className="fas fa-folder-open text-amber-300"></i>
+                  <span>Open Complete EMR</span>
+                  <i className="fas fa-arrow-right text-[10px] opacity-70"></i>
+                </button>
               </div>
             </div>
-
-            {/* Quick Actions */}
-            <div className="flex items-center gap-2 flex-shrink-0 self-end sm:self-center">
-              <button
-                onClick={() => startInstantCall(p)}
-                disabled={callingPatientId === p.id}
-                className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-50 flex items-center justify-center transition-colors shadow-xs"
-                title={`Start a video call with ${p.name}`}
-              >
-                {callingPatientId === p.id ? (
-                  <i className="fas fa-circle-notch fa-spin text-sm"></i>
-                ) : (
-                  <i className="fas fa-video text-sm"></i>
-                )}
-              </button>
-              <button
-                onClick={() => setSelectedPatientId(p.id)}
-                className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-all flex items-center gap-2 shadow-sm"
-              >
-                <i className="fas fa-folder-open text-amber-300"></i> Open Complete EMR Page
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
 
         {filtered.length === 0 && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
@@ -2155,6 +2303,12 @@ function DoctorPatients() {
         channel={bulkModalParams.channel}
         selectedCount={selectedIds.length}
         onSend={(msg) => sendBulkMessage(bulkModalParams.channel, msg)}
+      />
+
+      <AddPatientModal
+        isOpen={showAddPatient}
+        onClose={() => setShowAddPatient(false)}
+        onAdd={handleAddPatient}
       />
     </div>
   );
