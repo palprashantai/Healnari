@@ -5,14 +5,31 @@ import { Modal } from '../../components/Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { formatCurrency } from '../../lib/currency.js';
 import { GlobalCommissionModal } from '../components/GlobalCommissionModal.jsx';
+import { useAdminScope } from '../../context/AdminScopeContext.jsx';
 
 function AdminDoctorManager() {
   const toast = useToast();
+  const { scope, resetScope } = useAdminScope();
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterSpecialty, setFilterSpecialty] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
+
+  // Synchronize doctor directory with active facility/practice scope
+  useEffect(() => {
+    if (!scope) return;
+    if (scope.type === 'clinic') {
+      setSearch(scope.label || '');
+      setFilterSpecialty('All');
+    } else if (scope.type === 'specialty') {
+      setFilterSpecialty(scope.specialty || scope.id || 'All');
+      setSearch('');
+    } else if (scope.type === 'global') {
+      setFilterSpecialty('All');
+      setSearch('');
+    }
+  }, [scope]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
   const [messageText, setMessageText] = useState('');
@@ -247,6 +264,35 @@ function AdminDoctorManager() {
           </button>
         </div>
       </div>
+
+      {/* Active Scoped Facility Banner */}
+      {scope && scope.type !== 'global' && (
+        <div className="bg-aubergine-50/90 border border-aubergine-200/90 rounded-2xl p-3 px-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs text-aubergine-950 shadow-xs animate-fade-in">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-xl bg-aubergine-700 text-white flex items-center justify-center text-xs shadow-2xs">
+              <i className={`fas ${scope.icon || 'fa-building-circle-check'}`}></i>
+            </div>
+            <div>
+              <span className="text-slate-500 font-bold uppercase text-[10px] tracking-wider block">
+                Scoped Facility Domain
+              </span>
+              <span className="font-extrabold text-sm text-aubergine-950">
+                {scope.label}
+              </span>
+              {scope.sublabel && (
+                <span className="text-slate-500 font-medium ml-2">({scope.sublabel})</span>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={resetScope}
+            className="bg-white hover:bg-aubergine-100 text-aubergine-800 border border-aubergine-200 font-bold px-3 py-1.5 rounded-xl transition-colors shadow-2xs text-xs flex items-center gap-1.5"
+          >
+            <i className="fas fa-xmark text-[10px]"></i> Reset to All Facilities (Global)
+          </button>
+        </div>
+      )}
 
       {/* Overview Stat Tiles */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

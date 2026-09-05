@@ -6,6 +6,8 @@ import { useToast } from '../../components/Toast.jsx';
 import { PageTransition } from '../../components/PageTransition.jsx';
 import { NavHoverRail } from '../../components/NavHoverRail.jsx';
 import { ModuleAccentBar } from '../../components/ModuleAccentBar.jsx';
+import { AdminScopeProvider } from '../../context/AdminScopeContext.jsx';
+import { FacilityScopeSelector } from '../components/FacilityScopeSelector.jsx';
 
 function timeAgo(iso) {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -206,7 +208,7 @@ function SidebarContent({ user, onClose, onItemHover }) {
 }
 
 /* ─── Main Layout ────────────────────────────── */
-function AdminLayout() {
+function AdminLayoutInner() {
   const { user } = useAuth();
   const navigate  = useNavigate();
   const location  = useLocation();
@@ -228,17 +230,6 @@ function AdminLayout() {
     markAllReadRemote();
     toast('All notifications marked as read.', 'success');
   };
-
-  const [selectedFacility, setSelectedFacility] = useState('All Enterprise Facilities (Global)');
-  const [facilityMenuOpen, setFacilityMenuOpen]   = useState(false);
-
-  const FACILITIES = [
-    'All Enterprise Facilities (Global)',
-    'HealNari Central Hospital — Main Campus',
-    'HealNari Women & Child Care — West Wing',
-    'HealNari Reproductive Health — North Center',
-    'HealNari Diagnostics & Imaging — East Facility'
-  ];
 
   // Breadcrumb
   const crumbs = ['Admin', ...location.pathname.split('/').filter(Boolean).slice(1)];
@@ -296,32 +287,8 @@ function AdminLayout() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Multi-Facility Tenant Scope Switcher */}
-            <div className="relative">
-              <button onClick={() => setFacilityMenuOpen(!facilityMenuOpen)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 sm:px-3 py-1.5 rounded-xl text-xs flex items-center gap-2 border border-slate-200 transition-colors">
-                <i className="fas fa-building-circle-check text-slate-500"></i>
-                <span className="hidden sm:block max-w-[140px] md:max-w-[200px] truncate">{selectedFacility}</span>
-                <i className="fas fa-chevron-down text-[10px] text-slate-400"></i>
-              </button>
-              {facilityMenuOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-64 sm:w-72 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-fade-in">
-                  <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Select Facility Domain Scope
-                  </div>
-                  {FACILITIES.map(fac => (
-                    <button key={fac} onClick={() => {
-                      setSelectedFacility(fac);
-                      setFacilityMenuOpen(false);
-                      toast(`Tenant Scope changed to: ${fac}`, 'info');
-                    }}
-                    className={`w-full px-3 py-2.5 text-left text-xs flex items-center justify-between transition-colors ${selectedFacility === fac ? 'bg-slate-100 font-bold text-slate-900' : 'hover:bg-slate-50 text-slate-600'}`}>
-                      <span className="truncate">{fac}</span>
-                      {selectedFacility === fac && <i className="fas fa-check text-emerald-600 text-xs"></i>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* Multi-Facility & Practice Scope Switcher */}
+            <FacilityScopeSelector />
 
             {/* Notifications */}
             <div className="relative">
@@ -356,6 +323,14 @@ function AdminLayout() {
         </main>
       </div>
     </div>
+  );
+}
+
+function AdminLayout() {
+  return (
+    <AdminScopeProvider>
+      <AdminLayoutInner />
+    </AdminScopeProvider>
   );
 }
 

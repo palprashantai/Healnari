@@ -10,6 +10,7 @@ import { DashboardEmptyState } from '../../components/dashboard/DashboardEmptySt
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ChartTooltip } from '../../components/charts/ChartTooltip.jsx';
 import { standardCartesianGrid, standardXAxis, standardYAxis } from '../../components/charts/chartTheme.js';
+import { useAdminScope } from '../../context/AdminScopeContext.jsx';
 
 const COUNTRY_FLAGS = {
   IN: '🇮🇳',
@@ -148,12 +149,30 @@ function AdminDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  const { scope, resetScope } = useAdminScope();
+
   // Filters & Reporting Currency
   const [reportingCurrency, setReportingCurrency] = useState('INR');
   const [dateRange, setDateRange] = useState('30D');
   const [selectedRegion, setSelectedRegion] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeQueueTab, setActiveQueueTab] = useState('verifications'); // 'verifications' | 'refunds' | 'tickets'
+
+  // Synchronize dashboard with active facility / practice domain scope
+  useEffect(() => {
+    if (!scope) return;
+    if (scope.type === 'region') {
+      setSelectedRegion(scope.country || 'ALL');
+      if (scope.currency) setReportingCurrency(scope.currency);
+    } else if (scope.type === 'specialty') {
+      setSearchQuery(scope.label || '');
+    } else if (scope.type === 'clinic') {
+      setSearchQuery(scope.label || '');
+    } else if (scope.type === 'global') {
+      setSelectedRegion('ALL');
+      setSearchQuery('');
+    }
+  }, [scope]);
 
   // Data states from backend API
   const [stats, setStats] = useState(null);
@@ -335,6 +354,35 @@ function AdminDashboard() {
           </button>
         </div>
       </div>
+
+      {/* Active Scoped Facility Banner */}
+      {scope && scope.type !== 'global' && (
+        <div className="bg-aubergine-50/90 border border-aubergine-200/90 rounded-2xl p-3 px-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs text-aubergine-950 shadow-xs animate-fade-in">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-xl bg-aubergine-700 text-white flex items-center justify-center text-xs shadow-2xs">
+              <i className={`fas ${scope.icon || 'fa-building-circle-check'}`}></i>
+            </div>
+            <div>
+              <span className="text-slate-500 font-bold uppercase text-[10px] tracking-wider block">
+                Scoped Facility Domain
+              </span>
+              <span className="font-extrabold text-sm text-aubergine-950">
+                {scope.label}
+              </span>
+              {scope.sublabel && (
+                <span className="text-slate-500 font-medium ml-2">({scope.sublabel})</span>
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={resetScope}
+            className="bg-white hover:bg-aubergine-100 text-aubergine-800 border border-aubergine-200 font-bold px-3 py-1.5 rounded-xl transition-colors shadow-2xs text-xs flex items-center gap-1.5"
+          >
+            <i className="fas fa-xmark text-[10px]"></i> Reset to All Facilities (Global)
+          </button>
+        </div>
+      )}
 
       {/* Global Filter Bar */}
       <DashboardFilterBar
