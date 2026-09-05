@@ -2021,25 +2021,90 @@ function DoctorPatients() {
   const totalPrescriptionsCount = patients.reduce((acc, p) => acc + (p.meds?.length || 0), 0);
   const totalReportsCount = patients.reduce((acc, p) => acc + (p.reports?.length || 0), 0);
 
+  const AVATAR_GRADIENTS = [
+    'from-aubergine-600 via-indigo-700 to-purple-800 text-white',
+    'from-teal-600 via-emerald-600 to-teal-800 text-white',
+    'from-rose-500 via-pink-600 to-rose-700 text-white',
+    'from-violet-600 via-purple-700 to-indigo-800 text-white',
+    'from-amber-500 via-orange-600 to-amber-700 text-white',
+    'from-sky-600 via-blue-600 to-indigo-700 text-white',
+  ];
+
+  const getDiagnosisStyle = (diagnosis = '') => {
+    const d = diagnosis.toLowerCase();
+    if (d.includes('pcos') || d.includes('ovary') || d.includes('ovarian')) {
+      return {
+        bg: 'bg-purple-50',
+        text: 'text-purple-900',
+        border: 'border-purple-200',
+        icon: 'fa-dna text-purple-600',
+        dot: 'bg-purple-500',
+      };
+    }
+    if (d.includes('thyroid') || d.includes('hypothyroid') || d.includes('hashimoto')) {
+      return {
+        bg: 'bg-amber-50',
+        text: 'text-amber-900',
+        border: 'border-amber-200',
+        icon: 'fa-sun text-amber-600',
+        dot: 'bg-amber-500',
+      };
+    }
+    if (d.includes('pregnan') || d.includes('prenatal') || d.includes('trimester') || d.includes('fertility')) {
+      return {
+        bg: 'bg-emerald-50',
+        text: 'text-emerald-900',
+        border: 'border-emerald-200',
+        icon: 'fa-baby text-emerald-600',
+        dot: 'bg-emerald-500',
+      };
+    }
+    if (d.includes('endo') || d.includes('fibroid') || d.includes('pelvic') || d.includes('dysmenorrhea')) {
+      return {
+        bg: 'bg-rose-50',
+        text: 'text-rose-900',
+        border: 'border-rose-200',
+        icon: 'fa-shield-halved text-rose-600',
+        dot: 'bg-rose-500',
+      };
+    }
+    return {
+      bg: 'bg-indigo-50',
+      text: 'text-indigo-900',
+      border: 'border-indigo-200',
+      icon: 'fa-stethoscope text-indigo-600',
+      dot: 'bg-indigo-500',
+    };
+  };
+
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-purple-900/5 via-aubergine-900/5 to-transparent p-4 sm:p-6 rounded-3xl border border-purple-100/60 shadow-2xs">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-mono">Verified Clinical EMR</span>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="flex h-2.5 w-2.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span className="text-xs font-extrabold uppercase tracking-wider text-aubergine-800 font-mono bg-aubergine-100/70 px-2.5 py-0.5 rounded-md border border-aubergine-200/50">
+              Verified Clinical EMR Registry
+            </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Patients &amp; Medical Records</h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Comprehensive electronic health records, prescriptions, and lab diagnostics</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight font-display">
+            Patients &amp; Medical Records
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-600 mt-1 font-medium">
+            Electronic health records, hormonal profiles, active prescriptions, and diagnostic lab monitoring
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative" ref={actionsMenuRef}>
             <button
               onClick={() => setShowActionsMenu(!showActionsMenu)}
-              className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-colors shadow-xs"
+              className="bg-white border border-slate-200/90 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-xs hover:border-slate-300"
             >
-              <i className="fas fa-ellipsis-v text-slate-500"></i>
+              <i className="fas fa-layer-group text-aubergine-600"></i>
               <span>Batch Actions</span>
               <i className={`fas fa-chevron-down text-[10px] text-slate-400 transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}></i>
             </button>
@@ -2066,80 +2131,118 @@ function DoctorPatients() {
           </div>
           <button
             onClick={() => setShowAddPatient(true)}
-            className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-sm hover:shadow hover:-translate-y-0.5"
+            className="bg-gradient-to-r from-aubergine-700 via-aubergine-800 to-indigo-900 hover:from-aubergine-600 hover:to-indigo-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-md shadow-aubergine-900/20 hover:shadow-lg hover:-translate-y-0.5"
           >
-            <i className="fas fa-user-plus text-xs"></i>
+            <i className="fas fa-user-plus text-xs text-aubergine-200"></i>
             <span>Add Walk-in Patient</span>
           </button>
         </div>
       </div>
 
       {/* Top Clinical Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Total Patients</p>
-            <h3 className="text-2xl font-black text-slate-900 mt-1">{patients.length}</h3>
-            <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">Active Registry</p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+        {/* Card 1: Total Registry */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-white via-purple-50/40 to-indigo-50/30 rounded-2xl border border-purple-100/80 p-4 sm:p-5 shadow-xs hover:shadow-md hover:border-purple-300 hover:-translate-y-0.5 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-purple-700 uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                Total Registry
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1.5 tracking-tight font-display">{patients.length}</h3>
+              <p className="text-[11px] text-purple-600 font-semibold mt-0.5 flex items-center gap-1">
+                <i className="fas fa-check-circle text-[10px]"></i> Synchronized EMR
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-aubergine-600 via-aubergine-700 to-indigo-800 text-white flex items-center justify-center text-lg shadow-md shadow-purple-900/20">
+              <i className="fas fa-hospital-user"></i>
+            </div>
           </div>
-          <div className="w-11 h-11 rounded-lg bg-slate-50 text-slate-500 flex items-center justify-center text-lg border border-slate-100">
-            <i className="fas fa-hospital-user"></i>
-          </div>
+          <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-purple-400/10 rounded-full blur-xl pointer-events-none"></div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Active Patients</p>
-            <h3 className="text-2xl font-black text-slate-900 mt-1">
-              {patients.filter(p => p.status === 'active').length}
-            </h3>
-            <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Under Care Plan</p>
+        {/* Card 2: Active Care Pathways */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/30 rounded-2xl border border-emerald-100/80 p-4 sm:p-5 shadow-xs hover:shadow-md hover:border-emerald-300 hover:-translate-y-0.5 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-emerald-700 uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                Active Pathways
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1.5 tracking-tight font-display">
+                {patients.filter(p => p.status === 'active').length}
+              </h3>
+              <p className="text-[11px] text-emerald-600 font-semibold mt-0.5 flex items-center gap-1">
+                <i className="fas fa-heart-pulse text-[10px]"></i> Under Care Management
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 text-white flex items-center justify-center text-lg shadow-md shadow-emerald-700/20">
+              <i className="fas fa-heart-pulse"></i>
+            </div>
           </div>
-          <div className="w-11 h-11 rounded-lg bg-slate-50 text-slate-500 flex items-center justify-center text-lg border border-slate-100">
-            <i className="fas fa-heart-pulse"></i>
-          </div>
+          <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-emerald-400/10 rounded-full blur-xl pointer-events-none"></div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Clinical Alerts</p>
-            <h3 className="text-2xl font-black text-slate-900 mt-1">
-              {patients.filter(p => p.alert).length}
-            </h3>
-            <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Requires Doctor Review</p>
+        {/* Card 3: Clinical Alerts */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-white via-rose-50/50 to-pink-50/30 rounded-2xl border border-rose-200/80 p-4 sm:p-5 shadow-xs hover:shadow-md hover:border-rose-300 hover:-translate-y-0.5 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-rose-700 uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+                Clinical Alerts
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-black text-rose-950 mt-1.5 tracking-tight font-display">
+                {patients.filter(p => p.alert).length}
+              </h3>
+              <p className="text-[11px] text-rose-600 font-semibold mt-0.5 flex items-center gap-1">
+                <i className="fas fa-bell text-[10px]"></i> Requires Doctor Review
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 via-rose-600 to-red-700 text-white flex items-center justify-center text-lg shadow-md shadow-rose-700/20 animate-pulse">
+              <i className="fas fa-triangle-exclamation"></i>
+            </div>
           </div>
-          <div className="w-11 h-11 rounded-lg bg-slate-50 text-slate-500 flex items-center justify-center text-lg border border-slate-100">
-            <i className="fas fa-triangle-exclamation"></i>
-          </div>
+          <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-rose-400/10 rounded-full blur-xl pointer-events-none"></div>
         </div>
 
-        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Prescriptions &amp; Labs</p>
-            <h3 className="text-2xl font-black text-slate-900 mt-1">{totalPrescriptionsCount + totalReportsCount}</h3>
-            <p className="text-[11px] text-slate-500 font-semibold mt-0.5">{totalPrescriptionsCount} Rx • {totalReportsCount} Diagnostics</p>
+        {/* Card 4: Prescriptions & Diagnostics */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-white via-violet-50/40 to-fuchsia-50/30 rounded-2xl border border-violet-100/80 p-4 sm:p-5 shadow-xs hover:shadow-md hover:border-violet-300 hover:-translate-y-0.5 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-violet-700 uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-violet-500"></span>
+                Rx &amp; Diagnostics
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1.5 tracking-tight font-display">
+                {totalPrescriptionsCount + totalReportsCount}
+              </h3>
+              <p className="text-[11px] text-violet-600 font-semibold mt-0.5 flex items-center gap-1">
+                <span>{totalPrescriptionsCount} Rx</span> • <span>{totalReportsCount} Labs</span>
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-700 text-white flex items-center justify-center text-lg shadow-md shadow-violet-700/20">
+              <i className="fas fa-file-waveform"></i>
+            </div>
           </div>
-          <div className="w-11 h-11 rounded-lg bg-slate-50 text-slate-500 flex items-center justify-center text-lg border border-slate-100">
-            <i className="fas fa-file-waveform"></i>
-          </div>
+          <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-violet-400/10 rounded-full blur-xl pointer-events-none"></div>
         </div>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 space-y-3">
+      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-3.5 sm:p-4 space-y-3.5">
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-          <div className="relative flex-1 min-w-[200px]">
-            <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
+          <div className="relative flex-1 min-w-[220px]">
+            <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by patient name, diagnosis, ID or phone..."
-              className="w-full border border-slate-200 rounded-lg pl-10 pr-10 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-300 bg-slate-50"
+              placeholder="Search by patient name, diagnosis, MRN, or phone number..."
+              className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-400/30 focus:border-aubergine-500 bg-slate-50/70 hover:bg-slate-50 transition-all font-medium"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 w-5 h-5 rounded-full flex items-center justify-center text-xs"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 w-6 h-6 rounded-full flex items-center justify-center text-xs hover:bg-slate-200/60 transition-colors"
               >
                 <i className="fas fa-times"></i>
               </button>
@@ -2148,21 +2251,22 @@ function DoctorPatients() {
 
           <div className="flex flex-wrap items-center gap-1.5">
             {[
-              ['all', 'All Patients', patients.length],
-              ['active', 'Active', patients.filter(p => p.status === 'active').length],
-              ['alert', 'Alerts ⚠', patients.filter(p => p.alert).length],
-              ['inactive', 'Inactive', patients.filter(p => p.status === 'inactive').length],
-            ].map(([v, l, count]) => (
+              { id: 'all', label: 'All Patients', count: patients.length, activeClass: 'bg-gradient-to-r from-aubergine-800 to-[#2A1647] text-white shadow-sm shadow-aubergine-900/20 border-aubergine-900', icon: 'fa-users' },
+              { id: 'active', label: 'Active Care', count: patients.filter(p => p.status === 'active').length, activeClass: 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-sm shadow-emerald-700/20 border-emerald-700', icon: 'fa-heart-pulse' },
+              { id: 'alert', label: 'Clinical Alerts', count: patients.filter(p => p.alert).length, activeClass: 'bg-gradient-to-r from-rose-600 to-red-700 text-white shadow-sm shadow-rose-700/20 border-rose-700', icon: 'fa-triangle-exclamation' },
+              { id: 'inactive', label: 'Inactive', count: patients.filter(p => p.status === 'inactive').length, activeClass: 'bg-slate-700 text-white border-slate-700', icon: 'fa-clock-rotate-left' },
+            ].map(({ id, label, count, activeClass, icon }) => (
               <button
-                key={v}
-                onClick={() => setFilterStatus(v)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors flex items-center gap-1.5 ${filterStatus === v
-                  ? 'bg-slate-800 text-white border-slate-800'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                key={id}
+                onClick={() => setFilterStatus(id)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all duration-200 flex items-center gap-2 ${filterStatus === id
+                  ? activeClass
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
                   }`}
               >
-                <span>{l}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${filterStatus === v ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                <i className={`fas ${icon} text-[11px] ${filterStatus === id ? 'text-white' : 'text-slate-400'}`}></i>
+                <span>{label}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono font-bold ${filterStatus === id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
                   {count}
                 </span>
               </button>
@@ -2171,94 +2275,124 @@ function DoctorPatients() {
         </div>
 
         {/* Selection & Quick Count Bar */}
-        <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+        <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs text-slate-500">
           <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" className="rounded border-slate-300 text-slate-800 focus:ring-slate-400" checked={selectedIds.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
-            <span className="font-medium text-slate-700">Select All ({filtered.length})</span>
+            <input
+              type="checkbox"
+              className="rounded border-slate-300 text-aubergine-700 focus:ring-aubergine-400 h-4 w-4"
+              checked={selectedIds.length === filtered.length && filtered.length > 0}
+              onChange={toggleSelectAll}
+            />
+            <span className="font-semibold text-slate-700">Select All ({filtered.length})</span>
           </label>
 
           <div className="flex items-center gap-3">
             {selectedIds.length > 0 && (
-              <span className="text-slate-800 font-medium">
+              <span className="text-aubergine-800 font-bold bg-aubergine-50 px-2.5 py-0.5 rounded-md border border-aubergine-200">
                 {selectedIds.length} Selected
               </span>
             )}
-            <span>Showing <strong className="text-slate-800">{filtered.length}</strong> patients</span>
+            <span>Showing <strong className="text-slate-800 font-bold">{filtered.length}</strong> patient{filtered.length === 1 ? '' : 's'}</span>
           </div>
         </div>
       </div>
 
       {/* Patient Cards List */}
-      <div className="space-y-3">
-        {filtered.map((p) => {
+      <div className="space-y-3.5">
+        {filtered.map((p, idx) => {
           const isSelected = selectedIds.includes(p.id);
           const initials = p.name ? p.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'PT';
           const rxCount = p.meds?.length || 0;
           const labCount = p.reports?.length || 0;
+          const diagStyle = getDiagnosisStyle(p.diagnosis);
+          const avatarGradient = AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length];
 
           return (
             <div
               key={p.id}
-              className={`group bg-white rounded-xl border transition-colors p-4 sm:p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 ${isSelected
-                ? 'border-slate-400 bg-slate-50'
-                : 'border-slate-200 hover:border-slate-300'
+              className={`group bg-white rounded-2xl border transition-all duration-200 p-4 sm:p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 shadow-xs hover:shadow-md ${isSelected
+                ? 'border-aubergine-400 bg-aubergine-50/20 ring-2 ring-aubergine-400/20'
+                : 'border-slate-200 hover:border-aubergine-200'
                 }`}
             >
               {/* Left Column: Checkbox, Avatar, Identity */}
               <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
                 {/* Selection Checkbox */}
-                <div className="pt-1 sm:pt-0 flex-shrink-0">
+                <div className="pt-1.5 sm:pt-0 flex-shrink-0">
                   <label className="flex items-center justify-center cursor-pointer">
-                    <input type="checkbox" className="rounded border-slate-300 text-slate-800 focus:ring-slate-400" checked={isSelected} onChange={() => toggleSelect(p.id)} />
+                    <input
+                      type="checkbox"
+                      className="rounded border-slate-300 text-aubergine-700 focus:ring-aubergine-400 h-4 w-4"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(p.id)}
+                    />
                   </label>
                 </div>
 
-                {/* Avatar with Status Pulse */}
+                {/* Vibrant Gradient Avatar with Status Pulse */}
                 <div className="relative flex-shrink-0">
-                  <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-bold text-sm flex items-center justify-center">
+                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${avatarGradient} font-black text-sm flex items-center justify-center shadow-sm tracking-wider border border-white/20`}>
                     {initials}
                   </div>
                   {p.status === 'active' ? (
-                    <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
+                    <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5" title="Active Patient">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-white"></span>
+                      <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-white shadow-xs"></span>
                     </span>
                   ) : (
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-slate-400 rounded-full border-2 border-white"></span>
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-slate-400 rounded-full border-2 border-white shadow-xs" title="Inactive"></span>
                   )}
                 </div>
+
                 {/* Patient Primary Details */}
-                <div className="min-w-0 space-y-1">
+                <div className="min-w-0 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-black text-slate-900 text-base leading-snug group-hover:text-aubergine-800 transition-colors">
                       {p.name}
                     </h3>
-                    <span className="text-[11px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                    <span className="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-md">
                       #{p.mrn || p.id?.slice(0, 8)}
                     </span>
-                    <span className="text-[11px] font-bold text-slate-600 bg-slate-100/80 px-2 py-0.5 rounded-md">
+                    <span className="text-[11px] font-bold text-slate-700 bg-purple-50/70 border border-purple-100 px-2 py-0.5 rounded-md">
                       {p.age} Yrs • Female
                     </span>
-                    <span className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-md flex items-center gap-1">
-                      <i className="fas fa-droplet text-[9px]"></i> {p.blood || 'O+'}
+                    <span className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-2xs">
+                      <i className="fas fa-droplet text-[9px] text-rose-500"></i> {p.blood || 'O+'}
                     </span>
+                    {p.status === 'active' && (
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                        Active Care
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap pt-0.5">
-                    <span className="text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded flex items-center gap-1.5">
+                    {/* Rich Condition Badge */}
+                    <span className={`text-xs font-bold ${diagStyle.bg} ${diagStyle.text} border ${diagStyle.border} px-2.5 py-0.5 rounded-lg flex items-center gap-1.5 shadow-2xs`}>
+                      <i className={`fas ${diagStyle.icon} text-[11px]`}></i>
                       <span>{p.diagnosis || 'Clinical Evaluation'}</span>
                     </span>
 
+                    {/* Prominent Clinical Alert */}
                     {p.alert && (
-                      <span className="text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded flex items-center gap-1.5">
-                        <i className="fas fa-triangle-exclamation text-[10px]"></i>
+                      <span className="text-xs font-bold text-rose-800 bg-rose-50 border border-rose-300 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5 shadow-2xs animate-pulse">
+                        <i className="fas fa-triangle-exclamation text-[11px] text-rose-600"></i>
                         <span>{p.alert}</span>
                       </span>
                     )}
 
+                    {/* Vitals: BP, Pulse, etc. */}
                     {p.bp && p.bp !== '—' && (
-                      <span className="text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
-                        BP: <strong className="text-slate-700">{p.bp}</strong>
+                      <span className="text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <i className="fas fa-gauge-high text-[10px] text-slate-400"></i>
+                        <span>BP: <strong className="text-slate-800 font-bold">{p.bp}</strong></span>
+                      </span>
+                    )}
+
+                    {p.city && (
+                      <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+                        <i className="fas fa-location-dot text-[10px] text-slate-400"></i>
+                        <span>{p.city}</span>
                       </span>
                     )}
                   </div>
@@ -2266,25 +2400,25 @@ function DoctorPatients() {
               </div>
 
               {/* Middle Metrics: Prescriptions, Lab Reports, Visits */}
-              <div className="grid grid-cols-3 gap-2.5 sm:gap-4 text-left border-y sm:border-y-0 sm:border-l sm:border-r border-slate-100 py-2 sm:py-0 sm:px-4 shrink-0 w-full sm:w-auto">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Prescriptions</span>
-                  <span className="text-xs sm:text-sm font-black text-slate-800 flex items-center gap-1.5 mt-0.5">
+              <div className="grid grid-cols-3 gap-2.5 sm:gap-3 text-left border-y sm:border-y-0 sm:border-l sm:border-r border-slate-100 py-2.5 sm:py-0 sm:px-5 shrink-0 w-full sm:w-auto">
+                <div className="bg-emerald-50/60 border border-emerald-100/90 rounded-xl px-3 py-2 text-center min-w-[95px]">
+                  <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider block">Rx Orders</span>
+                  <span className="text-xs sm:text-sm font-black text-emerald-950 flex items-center justify-center gap-1 mt-0.5">
                     <i className="fas fa-file-prescription text-emerald-600 text-xs"></i>
                     <span>{rxCount} Active</span>
                   </span>
                 </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Lab Reports</span>
-                  <span className="text-xs sm:text-sm font-black text-slate-800 flex items-center gap-1.5 mt-0.5">
+                <div className="bg-indigo-50/60 border border-indigo-100/90 rounded-xl px-3 py-2 text-center min-w-[95px]">
+                  <span className="text-[10px] font-extrabold text-indigo-800 uppercase tracking-wider block">Lab Tests</span>
+                  <span className="text-xs sm:text-sm font-black text-indigo-950 flex items-center justify-center gap-1 mt-0.5">
                     <i className="fas fa-vial text-indigo-600 text-xs"></i>
                     <span>{labCount} Tests</span>
                   </span>
                 </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Last Consult</span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-700 flex items-center gap-1.5 mt-0.5">
-                    <i className="fas fa-calendar-check text-slate-500 text-xs"></i>
+                <div className="bg-purple-50/60 border border-purple-100/90 rounded-xl px-3 py-2 text-center min-w-[95px]">
+                  <span className="text-[10px] font-extrabold text-purple-800 uppercase tracking-wider block">Last Visit</span>
+                  <span className="text-xs sm:text-sm font-black text-purple-950 flex items-center justify-center gap-1 mt-0.5">
+                    <i className="fas fa-calendar-check text-purple-600 text-xs"></i>
                     <span className="truncate">{p.lastVisit || 'Initial'}</span>
                   </span>
                 </div>
@@ -2295,21 +2429,22 @@ function DoctorPatients() {
                 <button
                   onClick={() => startInstantCall(p)}
                   disabled={callingPatientId === p.id}
-                  className="h-9 px-3.5 rounded-lg bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 disabled:opacity-50 flex items-center gap-2 transition-colors font-medium text-xs shadow-xs"
+                  className="h-10 px-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 disabled:opacity-50 flex items-center gap-2 transition-all font-bold text-xs shadow-xs hover:shadow"
                   title={`Start a live telemedicine video call with ${p.name}`}
                 >
                   {callingPatientId === p.id ? (
                     <i className="fas fa-circle-notch fa-spin"></i>
                   ) : (
-                    <i className="fas fa-video text-slate-400"></i>
+                    <i className="fas fa-video text-emerald-600 group-hover:text-white"></i>
                   )}
-                  <span className="hidden sm:inline">Call</span>
+                  <span>Call</span>
                 </button>
 
                 <button
                   onClick={() => setSelectedPatientId(p.id)}
-                  className="h-9 bg-slate-800 hover:bg-slate-900 text-white font-medium px-4 rounded-lg text-xs transition-colors flex items-center gap-2"
+                  className="h-10 bg-gradient-to-r from-aubergine-800 via-aubergine-900 to-[#231139] hover:from-aubergine-700 hover:to-aubergine-800 text-white font-bold px-4 sm:px-5 rounded-xl text-xs transition-all flex items-center gap-2 shadow-sm hover:shadow-md hover:-translate-y-0.5"
                 >
+                  <i className="fas fa-notes-medical text-xs text-aubergine-200"></i>
                   <span>View EMR</span>
                 </button>
               </div>
@@ -2318,20 +2453,22 @@ function DoctorPatients() {
         })}
 
         {filtered.length === 0 && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
-            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100 shadow-xs">
-              <i className="fas fa-users-slash text-3xl text-slate-300"></i>
+          <div className="bg-white rounded-3xl shadow-xs border border-purple-100 p-12 text-center">
+            <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-purple-200/60 shadow-xs">
+              <i className="fas fa-users-slash text-3xl text-aubergine-600"></i>
             </div>
-            <h3 className="text-lg font-black text-slate-800 mb-1">No Patients Found</h3>
-            <p className="text-sm text-slate-500 max-w-sm mx-auto mb-5">We couldn't find any patient record matching your search filter.</p>
+            <h3 className="text-xl font-black text-slate-900 mb-1 font-display">No Patients Matching Filter</h3>
+            <p className="text-sm text-slate-500 max-w-md mx-auto mb-5 font-medium">
+              We couldn't find any patient record matching your search query or status filter. Try clearing your filters or searching by phone number or MRN.
+            </p>
             <button
               onClick={() => {
                 setSearch('');
                 setFilterStatus('all');
               }}
-              className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold px-5 py-2.5 rounded-xl text-xs shadow-xs"
+              className="bg-gradient-to-r from-aubergine-700 to-aubergine-800 hover:from-aubergine-600 hover:to-aubergine-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-sm hover:shadow transition-all"
             >
-              Clear Filters
+              Reset Search &amp; Filters
             </button>
           </div>
         )}

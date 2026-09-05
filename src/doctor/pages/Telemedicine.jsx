@@ -2832,7 +2832,8 @@ function DoctorTelemedicine() {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { updateAppointmentStatus } = useClinicData();
+  const { user } = useAuth();
+  const { updateAppointmentStatus, addRx, requestLabReport } = useClinicData();
   const [activeCall, setActiveCall] = useState(null);
   // Calls arrived at via an already-answered ring screen (instant call, or
   // "Accept" on the incoming-call overlay) skip the device pre-check below —
@@ -2858,28 +2859,7 @@ function DoctorTelemedicine() {
 
   const todayStr = todayLocalStr();
 
-  const defaultHistory = DEFAULT_DOCTOR_PATIENTS.map(p => {
-    const lastNote = p.clinicalNotes?.[0];
-    return {
-      id: `hist-${p.id}`,
-      patient_id: p.id,
-      patientName: p.name,
-      patientPhone: p.phone,
-      patientAge: p.age,
-      blood: p.blood || 'B+',
-      reason: p.diagnosis || 'Clinical Consultation',
-      scheduled_date: p.lastVisit || '02 Sep 2026',
-      scheduled_time: '11:00 AM',
-      duration: '45 Mins',
-      status: 'Done',
-      note: lastNote?.text || `Reviewed clinical symptoms and hormonal panel for ${p.diagnosis}. Prescribed personalized protocol.`,
-      meds: p.meds || [],
-      labs: p.labs || [],
-      patientObj: p,
-    };
-  });
-
-  const [rawHistory, setRawHistory] = useState(defaultHistory);
+  const [rawHistory, setRawHistory] = useState([]);
 
   const loadQueue = ({ silent = false, alertChanges = false } = {}) => {
     if (silent) setRefreshing(true);
@@ -2901,11 +2881,7 @@ function DoctorTelemedicine() {
         }
         knownSessionsRef.current = new Map(queueList.map(s => [s.id, s.status]));
         setRawSessions(queueList);
-        if (histList && histList.length > 0) {
-          setRawHistory(histList);
-        } else {
-          setRawHistory(defaultHistory);
-        }
+        setRawHistory(Array.isArray(histList) ? histList : []);
         setLastUpdated(Date.now());
       })
       .catch(err => { if (!silent) toast(err.message || 'Failed to load queue', 'error'); })

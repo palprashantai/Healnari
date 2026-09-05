@@ -28,6 +28,7 @@ const METHOD_ICON = { UPI: 'fa-mobile-screen-button', Card: 'fa-credit-card', 'N
 function PatientBilling() {
   const { user } = useAuth();
   const toast = useToast();
+  const defaultCurrency = getUserCurrency(user);
   // transactions is shared via ClinicDataContext (not fetched locally) so a
   // payment made from the Appointments page shows up here immediately, and
   // vice versa, instead of each page tracking its own stale copy.

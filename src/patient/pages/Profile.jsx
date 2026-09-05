@@ -113,6 +113,12 @@ function PatientProfile() {
     toast(`Discreet Mode ${next ? 'enabled' : 'disabled'}.`, 'info');
   };
 
+  const validateForm = () => {
+    if (!form.name || form.name.trim().length < 2) return 'Please enter a valid full name.';
+    if (form.phone && !/^[0-9+\s\-()]{7,20}$/.test(form.phone.trim())) return 'Please enter a valid contact phone number.';
+    return null;
+  };
+
   const handleSave = async () => {
     const validationError = validateForm();
     if (validationError) { toast(validationError, 'error'); return; }
@@ -436,15 +442,15 @@ function PatientProfile() {
                 </div>
                 <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200/80 rounded-2xl max-w-md">
                   <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-xl shadow-sm">
-                    {profile?.country === 'IN' ? '🇮🇳' : '🌍'}
+                    {user?.country === 'IN' ? '🇮🇳' : '🌍'}
                   </div>
                   <div>
                     <p className="text-xs font-bold text-slate-800">
-                      {profile?.country === 'IN' ? 'India (Domestic Patient)' : 'International Patient'}
+                      {user?.country === 'IN' ? 'India (Domestic Patient)' : 'International Patient'}
                     </p>
                     <p className="text-xs text-emerald-700 font-bold flex items-center gap-1.5 mt-0.5">
                       <i className="fas fa-shield-alt text-[11px]"></i>
-                      <span>Auto-Assigned Currency: {profile?.country === 'IN' ? 'INR (₹) — Indian Rupee' : 'USD ($) — US Dollar'}</span>
+                      <span>Auto-Assigned Currency: {user?.country === 'IN' ? 'INR (₹) — Indian Rupee' : 'USD ($) — US Dollar'}</span>
                     </p>
                   </div>
                 </div>

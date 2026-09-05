@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { ToastProvider } from './components/Toast.jsx';
 import { IosInstallPrompt } from './components/IosInstallPrompt.jsx';
+import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 
 const queryClient = new QueryClient();
 
@@ -148,113 +149,115 @@ function App() {
           <PWASplashScreen />
           <NetworkStatusIndicator />
           <IosInstallPrompt />
-          <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-slate-50">
-              <div className="text-center">
-                <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-sm text-slate-500 font-bold tracking-wider uppercase animate-pulse">Loading Platform...</p>
+          <ErrorBoundary>
+            <Suspense fallback={
+              <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <div className="text-center">
+                  <div className="w-12 h-12 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-4"></div>
+                  <p className="text-sm text-slate-500 font-bold tracking-wider uppercase animate-pulse">Loading Platform...</p>
+                </div>
               </div>
-            </div>
-          }>
-            <Routes>
-              <Route path="/" element={<RootRoute />} />
-              <Route path="/for-doctors" element={<DoctorLandingPage />} />
-              <Route path="/login" element={<Navigate to="/for-doctors?auth=login" replace />} />
-              <Route path="/dr/:doctorId" element={<DoctorPublicProfile />} />
-              <Route path="/book/:doctorId" element={<DoctorPublicProfile />} />
-              <Route path="/doctor/:doctorId" element={<DoctorPublicProfile />} />
-              <Route path="/conditions/:slug" element={<ConditionPage />} />
-              <Route path="/glossary/:slug" element={<GlossaryArticle />} />
-              <Route path="/guides/:slug" element={<GuidePage />} />
-              <Route path="/legal/:slug" element={<LegalPage />} />
+            }>
+              <Routes>
+                <Route path="/" element={<RootRoute />} />
+                <Route path="/for-doctors" element={<DoctorLandingPage />} />
+                <Route path="/login" element={<Navigate to="/for-doctors?auth=login" replace />} />
+                <Route path="/dr/:doctorId" element={<DoctorPublicProfile />} />
+                <Route path="/book/:doctorId" element={<DoctorPublicProfile />} />
+                <Route path="/doctor/:doctorId" element={<DoctorPublicProfile />} />
+                <Route path="/conditions/:slug" element={<ConditionPage />} />
+                <Route path="/glossary/:slug" element={<GlossaryArticle />} />
+                <Route path="/guides/:slug" element={<GuidePage />} />
+                <Route path="/legal/:slug" element={<LegalPage />} />
 
-              <Route element={<AuthenticatedLayout />}>
+                <Route element={<AuthenticatedLayout />}>
+                  <Route
+                    path="/patient-dashboard"
+                    element={
+                    <ProtectedRoute allowedRole="patient">
+                      <PatientLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<PatientDashboard />} />
+                  <Route path="find-doctor" element={<PatientDiscovery />} />
+                  <Route path="tracking" element={<PatientTracking />} />
+                  <Route path="fertility" element={<PatientFertility />} />
+                  <Route path="appointments" element={<PatientAppointments />} />
+                  <Route path="prescriptions" element={<PatientPrescriptions />} />
+                  <Route path="records" element={<PatientRecords />} />
+                  <Route path="family" element={<PatientFamily />} />
+                  <Route path="billing" element={<PatientBilling />} />
+                  <Route path="profile" element={<PatientProfile />} />
+                  <Route path="ai" element={<PatientAiProduct />} />
+                  <Route path="ai-billing" element={<AIUsageUpgradePage role="patient" />} />
+                </Route>
+
                 <Route
-                  path="/patient-dashboard"
+                  path="/doctor-dashboard"
                   element={
-                  <ProtectedRoute allowedRole="patient">
-                    <PatientLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<PatientDashboard />} />
-                <Route path="find-doctor" element={<PatientDiscovery />} />
-                <Route path="tracking" element={<PatientTracking />} />
-                <Route path="fertility" element={<PatientFertility />} />
-                <Route path="appointments" element={<PatientAppointments />} />
-                <Route path="prescriptions" element={<PatientPrescriptions />} />
-                <Route path="records" element={<PatientRecords />} />
-                <Route path="family" element={<PatientFamily />} />
-                <Route path="billing" element={<PatientBilling />} />
-                <Route path="profile" element={<PatientProfile />} />
-                <Route path="ai" element={<PatientAiProduct />} />
-                <Route path="ai-billing" element={<AIUsageUpgradePage role="patient" />} />
-              </Route>
+                    <ProtectedRoute allowedRole="doctor">
+                      <DoctorLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<DoctorDashboard />} />
+                  <Route path="analytics" element={<DoctorAnalytics />} />
+                  <Route path="appointments" element={<DoctorAppointments />} />
+                  <Route path="appointments/summary/:appointmentId" element={<DoctorConsultationSummary />} />
+                  <Route path="schedule" element={<DoctorSchedule />} />
+                  <Route path="requests" element={<DoctorPatientRequests />} />
+                  <Route path="patients" element={<DoctorPatients />} />
+                  <Route path="prescriptions" element={<DoctorPrescriptions />} />
+                  <Route path="telemedicine" element={<DoctorTelemedicine />} />
+                  <Route path="reports" element={<DoctorReports />} />
+                  <Route path="billing" element={<DoctorBilling />} />
+                  <Route path="staff" element={<DoctorStaff />} />
+                  <Route path="profile" element={<DoctorProfile />} />
+                  <Route path="communications" element={<DoctorCommunications />} />
+                  <Route path="ai" element={<DoctorAiProduct />} />
+                  <Route path="ai-billing" element={<AIUsageUpgradePage role="doctor" />} />
+                </Route>
 
-              <Route
-                path="/doctor-dashboard"
-                element={
-                  <ProtectedRoute allowedRole="doctor">
-                    <DoctorLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<DoctorDashboard />} />
-                <Route path="analytics" element={<DoctorAnalytics />} />
-                <Route path="appointments" element={<DoctorAppointments />} />
-                <Route path="appointments/summary/:appointmentId" element={<DoctorConsultationSummary />} />
-                <Route path="schedule" element={<DoctorSchedule />} />
-                <Route path="requests" element={<DoctorPatientRequests />} />
-                <Route path="patients" element={<DoctorPatients />} />
-                <Route path="prescriptions" element={<DoctorPrescriptions />} />
-                <Route path="telemedicine" element={<DoctorTelemedicine />} />
-                <Route path="reports" element={<DoctorReports />} />
-                <Route path="billing" element={<DoctorBilling />} />
-                <Route path="staff" element={<DoctorStaff />} />
-                <Route path="profile" element={<DoctorProfile />} />
-                <Route path="communications" element={<DoctorCommunications />} />
-                <Route path="ai" element={<DoctorAiProduct />} />
-                <Route path="ai-billing" element={<AIUsageUpgradePage role="doctor" />} />
-              </Route>
-
-              <Route
-                path="/admin-dashboard"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <AdminLayout />
-                  </ProtectedRoute>
-                }
-              >
-                <Route index element={<AdminDashboard />} />
-                <Route path="analytics" element={<AdminAnalytics />} />
-                <Route path="landing" element={<AdminLandingManager />} />
-                <Route path="doctors" element={<AdminDoctorManager />} />
-                <Route path="doctors/:id" element={<AdminDoctorDetails />} />
-                <Route path="doctors/:id/ledger" element={<AdminDoctorLedger />} />
-                <Route path="doctors/:id/ledger/:ledgerId" element={<AdminLedgerDetail />} />
-                <Route path="doctors/:id/payouts" element={<AdminDoctorPayouts />} />
-                <Route path="doctors/:id/payouts/:payoutId" element={<AdminPayoutDetail />} />
-                <Route path="users" element={<AdminUsers />} />
-                <Route path="users/:id" element={<AdminPatientDetails />} />
-                <Route path="users/:id/consultations" element={<AdminPatientConsultations />} />
-                <Route path="users/:id/consultations/:consultationId" element={<AdminPatientConsultationDetail />} />
-                <Route path="verification" element={<AdminVerification />} />
-                <Route path="revenue" element={<AdminRevenue />} />
-                <Route path="cms" element={<AdminCMS />} />
-                <Route path="reports" element={<AdminReports />} />
-                <Route path="audit-logs" element={<AdminAuditLogs />} />
-                <Route path="communications" element={<AdminCommunications />} />
-                <Route path="templates" element={<AdminTemplates />} />
-                <Route path="leads" element={<AdminLeads />} />
-                <Route path="crons" element={<AdminCronManager />} />
-                <Route path="specialties" element={<AdminSpecialties />} />
-                <Route path="ai" element={<AdminAIControl />} />
-              </Route>
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <CookieBanner />
-          </Suspense>
+                <Route
+                  path="/admin-dashboard"
+                  element={
+                    <ProtectedRoute allowedRole="admin">
+                      <AdminLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="analytics" element={<AdminAnalytics />} />
+                  <Route path="landing" element={<AdminLandingManager />} />
+                  <Route path="doctors" element={<AdminDoctorManager />} />
+                  <Route path="doctors/:id" element={<AdminDoctorDetails />} />
+                  <Route path="doctors/:id/ledger" element={<AdminDoctorLedger />} />
+                  <Route path="doctors/:id/ledger/:ledgerId" element={<AdminLedgerDetail />} />
+                  <Route path="doctors/:id/payouts" element={<AdminDoctorPayouts />} />
+                  <Route path="doctors/:id/payouts/:payoutId" element={<AdminPayoutDetail />} />
+                  <Route path="users" element={<AdminUsers />} />
+                  <Route path="users/:id" element={<AdminPatientDetails />} />
+                  <Route path="users/:id/consultations" element={<AdminPatientConsultations />} />
+                  <Route path="users/:id/consultations/:consultationId" element={<AdminPatientConsultationDetail />} />
+                  <Route path="verification" element={<AdminVerification />} />
+                  <Route path="revenue" element={<AdminRevenue />} />
+                  <Route path="cms" element={<AdminCMS />} />
+                  <Route path="reports" element={<AdminReports />} />
+                  <Route path="audit-logs" element={<AdminAuditLogs />} />
+                  <Route path="communications" element={<AdminCommunications />} />
+                  <Route path="templates" element={<AdminTemplates />} />
+                  <Route path="leads" element={<AdminLeads />} />
+                  <Route path="crons" element={<AdminCronManager />} />
+                  <Route path="specialties" element={<AdminSpecialties />} />
+                  <Route path="ai" element={<AdminAIControl />} />
+                </Route>
+                </Route>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+              <CookieBanner />
+            </Suspense>
+          </ErrorBoundary>
         </Router>
       </ToastProvider>
     </AuthProvider>
