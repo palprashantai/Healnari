@@ -110,10 +110,55 @@ export class CreateExceptionDto {
   reason?: string;
 }
 
+export class CreateReviewDto {
+  @ApiProperty({ example: 5, minimum: 1, maximum: 5 })
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  rating: number;
+
+  @ApiProperty({ required: false, example: 'Dr. Sarah Mitchell was thorough and listened carefully to my symptoms.' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  comment?: string;
+
+  @ApiProperty({ required: false, example: ['Empathetic', 'Accurate Diagnosis', 'Highly Recommended'] })
+  @IsOptional()
+  @IsArray()
+  tags?: string[];
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  appointmentId?: string;
+}
+
 @ApiTags('Doctors')
 @Controller('api/doctors')
 export class DoctorsController {
   constructor(private readonly doctorsService: DoctorsService) {}
+
+  @Public()
+  @ApiOperation({ summary: 'Get doctor reviews and overall rating metrics' })
+  @ApiParam({ name: 'doctorId' })
+  @Get(':doctorId/reviews')
+  async getDoctorReviews(@Param('doctorId') doctorId: string) {
+    const data = await this.doctorsService.getDoctorReviews(doctorId);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({ summary: 'Submit a patient review and rating for a doctor' })
+  @ApiParam({ name: 'doctorId' })
+  @Post(':doctorId/reviews')
+  async submitDoctorReview(
+    @CurrentUser() user: AuthUser,
+    @Param('doctorId') doctorId: string,
+    @Body() body: CreateReviewDto,
+  ) {
+    const data = await this.doctorsService.submitDoctorReview(user, doctorId, body);
+    return ResponseHelper.success(data, 'Review submitted successfully');
+  }
 
   @Public()
   @ApiOperation({ summary: 'Search verified doctors (public directory)' })

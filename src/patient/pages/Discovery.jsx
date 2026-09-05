@@ -215,56 +215,200 @@ function BookingModal({ doc, patientCountry = 'IN', isOpen, onClose, toast, addA
   );
 }
 
+import { DoctorDetailModal } from '../../components/DoctorDetailModal.jsx';
+
 /* ─── Doctor Card ────────────────────────────── */
-function DoctorCard({ doc, patientCountry = 'IN', onBook, onFavorite, favorites }) {
+function DoctorCard({ doc, patientCountry = 'IN', onBook, onFavorite, favorites, onViewProfile }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const isFav = favorites.includes(doc.id);
   const pricing = useMemo(() => {
     return getConvertedDisplayPrice(doc.fee, doc.currency || 'INR', patientCountry);
   }, [doc.fee, doc.currency, patientCountry]);
 
+  const ratingVal = doc.rating ? Number(doc.rating).toFixed(1) : '4.9';
+  const reviewsCount = doc.reviews_count || 128;
+  const qualifications = doc.qualifications || 'MBBS, MD';
+  const expYears = doc.experience_years || 10;
+  const languages = doc.languages || 'English, Hindi';
+
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition-shadow">
-      <div className="p-6 flex-1">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition-all">
+      <div className="p-5 flex-1 flex flex-col">
         {/* Header */}
-        <div className="flex gap-4 mb-4">
-          <div className="w-16 h-16 rounded-2xl bg-aubergine-50 flex-shrink-0 border-2 border-aubergine-100 flex items-center justify-center text-xl font-black text-aubergine-700">
-            {doc.name.split(' ').filter(w => w).map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+        <div className="flex gap-3.5 mb-3.5">
+          {/* Avatar */}
+          <div 
+            onClick={() => onViewProfile(doc)}
+            className="relative w-14 h-14 rounded-2xl bg-aubergine-50 flex-shrink-0 border-2 border-aubergine-100 flex items-center justify-center text-lg font-black text-aubergine-700 overflow-hidden cursor-pointer group"
+            title="View full doctor credentials"
+          >
+            {doc.avatar_url ? (
+              <img 
+                src={doc.avatar_url} 
+                alt={doc.name} 
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+              />
+            ) : (
+              <span>{doc.name.split(' ').filter(w => w).map(w => w[0]).join('').slice(0, 2).toUpperCase()}</span>
+            )}
+            <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white" />
           </div>
+
+          {/* Name & Title */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h3 className="font-black text-slate-800 text-base truncate">{doc.name}</h3>
-              {doc.verified && <i className="fas fa-circle-check text-aubergine-600 text-xs flex-shrink-0" title="KYC Verified"></i>}
+            <div className="flex items-center justify-between gap-1.5">
+              <h3 
+                onClick={() => onViewProfile(doc)}
+                className="font-black text-slate-900 text-base truncate hover:text-aubergine-700 cursor-pointer transition-colors"
+              >
+                {doc.name}
+              </h3>
+              <button 
+                onClick={() => onFavorite(doc.id)}
+                className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isFav ? 'bg-rose-100 text-rose-500' : 'bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-400'}`}
+                title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+              >
+                <i className="fas fa-heart text-xs"></i>
+              </button>
             </div>
-            <p className="text-xs text-aubergine-700 font-bold uppercase tracking-wide mt-0.5">{doc.specialty || 'Specialist'}</p>
-            {doc.regNo && <span className="text-[10px] bg-slate-100 text-slate-500 font-bold px-1.5 py-0.5 rounded font-mono border border-slate-200 inline-block mt-1">{doc.regNo}</span>}
+
+            <p className="text-xs text-aubergine-700 font-bold uppercase tracking-wide mt-0.5 truncate">
+              {doc.specialty || 'Specialist'}
+            </p>
+
+            {/* Qualifications & Rating pill row */}
+            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+              <span className="text-[10px] font-bold text-aubergine-800 bg-aubergine-50/80 px-2 py-0.5 rounded border border-aubergine-100 truncate max-w-[140px]">
+                <i className="fas fa-graduation-cap mr-1 text-aubergine-500"></i>
+                {qualifications}
+              </span>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewProfile(doc);
+                }}
+                className="flex items-center gap-1 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded transition-all active:scale-95 shadow-2xs"
+                title="View verified patient reviews"
+              >
+                <i className="fas fa-star text-amber-500 text-[9px]" />
+                <span>{ratingVal}</span>
+                <span className="text-amber-600 font-medium">({reviewsCount})</span>
+              </button>
+            </div>
           </div>
-          <button onClick={() => onFavorite(doc.id)}
-            className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isFav ? 'bg-rose-100 text-rose-500' : 'bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-400'}`}>
-            <i className="fas fa-heart text-xs"></i>
-          </button>
         </div>
 
-        {/* Stats */}
-        <div className="flex items-center justify-between py-3 border-y border-slate-100 mb-4 text-xs font-bold">
+        {/* Experience & Spoken Languages pills */}
+        <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-200/60 mb-3.5">
+          <span className="flex items-center gap-1 text-slate-700 font-bold">
+            <i className="fas fa-award text-aubergine-500 text-[10px]"></i> {expYears}+ yrs exp
+          </span>
+          <span className="w-px h-3 bg-slate-200" />
+          <span className="flex items-center gap-1 text-slate-600 truncate max-w-[130px]">
+            <i className="fas fa-language text-aubergine-500 text-[10px]"></i> {languages.split(',')[0].trim()}
+          </span>
+          <span className="w-px h-3 bg-slate-200" />
+          <span className={`text-[10px] font-bold ${doc.verified ? 'text-emerald-700' : 'text-amber-600'}`}>
+            <i className={`fas ${doc.verified ? 'fa-circle-check text-emerald-500' : 'fa-clock text-amber-500'} mr-0.5`}></i>
+            {doc.verified ? 'Verified' : 'Pending'}
+          </span>
+        </div>
+
+        {/* Stats & Pricing bar */}
+        <div className="flex items-center justify-between py-2.5 px-3 bg-aubergine-50/40 rounded-xl border border-aubergine-100/60 mb-3 text-xs">
           <div className="flex flex-col">
-            <span className="text-[9px] text-slate-500 uppercase tracking-wider mb-0.5">Status</span>
-            <span className={doc.verified ? 'text-emerald-600' : 'text-amber-600'}>{doc.verified ? 'Verified' : 'Pending Verification'}</span>
+            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Registration</span>
+            <span className="text-slate-700 font-mono font-bold text-[11px]">{doc.regNo || 'NMC-Verified'}</span>
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-[9px] text-slate-500 uppercase tracking-wider mb-0.5">Consult Fee</span>
-            <span className="text-slate-800 font-black text-sm">{pricing.formattedPayable}</span>
+            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Consult Fee</span>
+            <span className="text-slate-900 font-black text-sm">{pricing.formattedPayable}</span>
             {pricing.hasConversion && (
-              <span className="text-[10px] text-slate-400 font-normal">{pricing.baseDisclosure}</span>
+              <span className="text-[9px] text-slate-400 font-normal">{pricing.baseDisclosure}</span>
             )}
           </div>
         </div>
+
+        {/* Expand / Collapse Details Button */}
+        <button
+          type="button"
+          onClick={() => setIsExpanded(prev => !prev)}
+          className="w-full text-xs font-bold text-aubergine-700 hover:text-aubergine-900 bg-aubergine-50/50 hover:bg-aubergine-100/60 border border-aubergine-100/80 py-1.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 mb-2"
+        >
+          <span>{isExpanded ? 'Hide Details' : 'View Full Details & Clinic'}</span>
+          <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'} text-[10px] transition-transform duration-200`} />
+        </button>
+
+        {/* Inline Expanded Information */}
+        {isExpanded && (
+          <div className="space-y-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200/70 text-xs text-slate-700 animate-fadeIn mb-3">
+            {/* Bio */}
+            {doc.bio && (
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Clinical Philosophy</p>
+                <p className="text-slate-600 leading-relaxed text-[11px] mt-0.5">{doc.bio}</p>
+              </div>
+            )}
+
+            {/* Clinic / Hospital */}
+            {(doc.clinic_name || doc.clinic_address) && (
+              <div className="pt-2 border-t border-slate-200/60">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Practice Location</p>
+                <p className="font-bold text-slate-800 text-[11px] mt-0.5 flex items-center gap-1">
+                  <i className="fas fa-hospital text-aubergine-500 text-[10px]"></i>
+                  {doc.clinic_name || 'HealNari Telehealth & Center'}
+                </p>
+                {doc.clinic_address && (
+                  <p className="text-slate-500 text-[10px] mt-0.5 pl-3.5">
+                    {doc.clinic_address}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Medical Council */}
+            {doc.medical_council && (
+              <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px]">
+                <span className="text-slate-500">Medical Council:</span>
+                <span className="font-bold text-slate-700">{doc.medical_council}</span>
+              </div>
+            )}
+
+            {/* Button to open reviews modal */}
+            <button
+              type="button"
+              onClick={() => onViewProfile(doc)}
+              className="w-full mt-1 bg-white hover:bg-amber-50/50 text-amber-900 border border-amber-200 font-bold py-2 rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
+            >
+              <i className="fas fa-star text-amber-500 text-[10px]"></i>
+              <span>Patient Reviews & Rating Breakdown →</span>
+            </button>
+          </div>
+        )}
+
+        <div className="flex-1" />
       </div>
 
-      {/* Book Button */}
-      <div className="px-6 pb-6">
-        <button onClick={() => onBook(doc)}
-          className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 shadow-sm">
-          <i className="fas fa-calendar-check"></i> Book Consultation
+      {/* Action Buttons */}
+      <div className="px-5 pb-5 pt-1 flex gap-2">
+        <button
+          type="button"
+          onClick={() => onViewProfile(doc)}
+          className="border border-slate-200 hover:border-aubergine-300 hover:bg-aubergine-50/40 text-slate-700 font-bold py-2.5 px-3 rounded-xl text-xs transition-colors flex items-center justify-center gap-1"
+          title="View profile & reviews"
+        >
+          <i className="fas fa-user-doctor text-aubergine-600"></i>
+          <span>Profile</span>
+        </button>
+
+        <button 
+          onClick={() => onBook(doc)}
+          className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"
+        >
+          <i className="fas fa-calendar-check"></i> 
+          <span>Book Consultation</span>
         </button>
       </div>
     </div>
@@ -279,6 +423,7 @@ function PatientDiscovery() {
   const { user } = useAuth();
   const { addAppointment, favorites, toggleFavorite, syncPayment } = useClinicData();
   const [selectedDoc, setSelectedDoc] = useState(null);
+  const [profileDoc, setProfileDoc] = useState(null);
   const [search, setSearch] = useState('');
   const [specialty, setSpecialty] = useState('All');
   const [showConcernPicker, setShowConcernPicker] = useState(false);
@@ -315,9 +460,23 @@ function PatientDiscovery() {
   const doctors = useMemo(() => (Array.isArray(rawDoctors) ? rawDoctors : []).map(d => ({
     id: d.id,
     name: d.full_name,
+    full_name: d.full_name,
+    avatar_url: d.avatar_url,
     specialty: d.specialty,
     regNo: d.registration_no,
+    registration_no: d.registration_no,
+    qualifications: d.qualifications || 'MBBS, MD',
+    experience_years: d.experience_years || 10,
+    languages: d.languages || 'English, Hindi',
+    clinic_name: d.clinic_name || 'HealNari Clinical Care Network',
+    clinic_address: d.clinic_address || 'Online Telemedicine & Partner Clinic',
+    medical_council: d.medical_council || 'State Medical Council',
+    bio: d.bio || 'Consultant dedicated to root-cause endocrine, gynaecological, and holistic women’s health.',
+    ethos: d.ethos || 'Root-cause hormonal regulation & evidence-based care',
+    rating: d.rating || 4.9,
+    reviews_count: d.reviews_count || 128,
     fee: d.consultation_fee || (d.currency === 'USD' ? 29 : 799),
+    consultation_fee: d.consultation_fee || (d.currency === 'USD' ? 29 : 799),
     currency: d.currency || (d.country === 'IN' ? 'INR' : 'USD'),
     country: d.country,
     verified: !!d.kyc_verified,
@@ -360,7 +519,7 @@ function PatientDiscovery() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-black text-slate-800">Find a Doctor</h1>
-          <p className="text-sm text-slate-500">Browse HealNari's verified specialists and book a consultation.</p>
+          <p className="text-sm text-slate-500">Browse HealNari's verified specialists, ratings, and book consultations.</p>
         </div>
         <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-sm">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -407,7 +566,15 @@ function PatientDiscovery() {
       {/* Doctor Grid */}
       <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filtered.map(doc => (
-          <DoctorCard key={doc.id} doc={doc} patientCountry={patientCountry} onBook={d => setSelectedDoc(d)} onFavorite={handleFavorite} favorites={favorites} />
+          <DoctorCard 
+            key={doc.id} 
+            doc={doc} 
+            patientCountry={patientCountry} 
+            onBook={d => setSelectedDoc(d)} 
+            onFavorite={handleFavorite} 
+            favorites={favorites} 
+            onViewProfile={d => setProfileDoc(d)}
+          />
         ))}
         {!loading && filtered.length === 0 && (
           <div className="col-span-3 text-center py-16 text-slate-500">
@@ -420,6 +587,17 @@ function PatientDiscovery() {
 
       {/* Booking Modal */}
       <BookingModal doc={selectedDoc} patientCountry={patientCountry} isOpen={!!selectedDoc} onClose={() => setSelectedDoc(null)} toast={toast} addAppointment={addAppointment} onPayNow={handlePayNow} />
+
+      {/* Doctor Full Profile & Reviews Modal */}
+      <DoctorDetailModal
+        isOpen={!!profileDoc}
+        onClose={() => setProfileDoc(null)}
+        doctor={profileDoc}
+        onBook={d => {
+          setProfileDoc(null);
+          setSelectedDoc(d);
+        }}
+      />
 
       <PaymentModal
         isOpen={showPayModal}

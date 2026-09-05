@@ -231,6 +231,10 @@ function LandingPage() {
             <Conditions />
           )}
 
+          {adminSettings?.toggles?.showFeaturedDoctors !== false && (
+            <Doctors onSelectDoctor={openBooking} />
+          )}
+
           {adminSettings?.toggles?.showPcosDiagram !== false && (
             <Reveal><PcosDiagram /></Reveal>
           )}
@@ -249,10 +253,6 @@ function LandingPage() {
               onStartConsult={() => openBooking('')} 
               onOpenChecker={() => setIsSymptomOpen(true)} 
             />
-          )}
-
-          {adminSettings?.toggles?.showFeaturedDoctors !== false && (
-            <Doctors onSelectDoctor={openBooking} />
           )}
 
           {adminSettings?.toggles?.showOutcomes !== false && (

@@ -3,12 +3,12 @@ import { triggerHaptic } from '../../lib/haptics.js';
 
 function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
   return (
-    <section className="relative pt-6 pb-32 md:pt-10 lg:pt-12 md:pb-20 max-w-6xl mx-auto px-4 sm:px-5 md:px-8">
+    <section className="relative pt-6 pb-6 md:pt-8 lg:pt-10 md:pb-8 max-w-6xl mx-auto px-4 sm:px-5 md:px-8">
       {/* Decorative blurry background highlights */}
       <div className="absolute top-1/4 left-1/10 w-72 h-72 rounded-full bg-indigo-200/40 blur-3xl -z-10"></div>
       <div className="absolute top-1/3 right-1/10 w-80 h-80 rounded-full bg-violet-200/30 blur-3xl -z-10"></div>
 
-      <div className="grid lg:grid-cols-12 gap-6 lg:gap-12 items-center lg:items-stretch">
+      <div className="grid lg:grid-cols-12 gap-6 lg:gap-12 items-start">
         {/* Left Column: Copy & Actions */}
         <div className="lg:col-span-7 space-y-4 sm:space-y-7 text-center lg:text-left order-2 lg:order-1 min-w-0">
           
@@ -135,10 +135,10 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
 
         </div>
 
-        {/* Right Column: Visual Component */}
-        <div className="lg:col-span-5 relative order-1 lg:order-2 mt-2 sm:mt-0">
-          {/* Main Visual Frame */}
-          <div className="relative w-44 h-44 sm:w-72 sm:h-72 lg:w-96 lg:h-96 mx-auto lg:ml-auto lg:mr-0 lg:mt-8 lg:sticky lg:top-32">
+        {/* Right Column: Visual Component & Live Care Highlights */}
+        <div className="lg:col-span-5 relative order-1 lg:order-2 mt-2 sm:mt-0 flex flex-col items-center lg:items-end">
+          {/* Main Visual Frame - slightly lowered for harmonious alignment with heading */}
+          <div className="relative w-44 h-44 sm:w-72 sm:h-72 lg:w-80 lg:h-80 mx-auto lg:ml-auto lg:mr-0 lg:mt-4">
             <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-aubergine-600 via-magenta-400 to-indigo-300 opacity-25 blur-2xl animate-pulse-subtle"></div>
             
             {/* Beautiful Profile Image */}
@@ -178,6 +178,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
               <span className="text-[9px] sm:text-[11px] font-bold text-slate-800">100% Doctor-Led</span>
             </div>
           </div>
+
         </div>
       </div>
     </section>

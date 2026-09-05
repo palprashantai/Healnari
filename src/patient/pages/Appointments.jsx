@@ -15,6 +15,7 @@ import { formatCurrency } from '../../lib/currency.js';
 import { AIButton } from '../../components/AiButton.jsx';
 import { AIPaywallModal } from '../../components/ai/AIPaywallModal.jsx';
 import { AISubscriptionCard } from '../../components/ai/AISubscriptionCard.jsx';
+import { RateDoctorModal } from '../../components/RateDoctorModal.jsx';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
  * for srcObject, so this stays a thin imperative wrapper. */
@@ -913,6 +914,7 @@ function PatientAppointments() {
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
   const [videoTarget, setVideoTarget] = useState(null);
   const [aiPrepTarget, setAiPrepTarget] = useState(null);
+  const [ratingDoctor, setRatingDoctor] = useState(null);
   const [autoJoinTarget, setAutoJoinTarget] = useState(false);
   const [successApt, setSuccessApt] = useState(null);
   const [search, setSearch] = useState('');
@@ -1270,6 +1272,19 @@ function PatientAppointments() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
+                        setRatingDoctor({
+                          id: apt.doctorId,
+                          full_name: apt.doctor,
+                          specialty: apt.specialty,
+                        });
+                      }}
+                      className="crm-btn-secondary text-xs py-2 px-3 text-amber-800 hover:text-amber-950 hover:bg-amber-50 border-amber-200 flex items-center justify-center gap-1 font-bold"
+                      title="Rate your doctor & share feedback"
+                    >
+                      <i className="fas fa-star text-amber-500"></i> Rate
+                    </button>
+                    <button
+                      onClick={() => {
                         const docSlug = (apt.doctor || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
                         const docUrl = `${window.location.origin}/dr/${apt.doctorId || docSlug}`;
                         const msg = encodeURIComponent(
@@ -1385,6 +1400,20 @@ function PatientAppointments() {
                       </div>
                     ) : (
                       <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setRatingDoctor({
+                              id: apt.doctorId,
+                              full_name: apt.doctor,
+                              specialty: apt.specialty,
+                            });
+                          }}
+                          className="crm-btn-secondary text-[11px] h-8 px-2.5 text-amber-800 hover:text-amber-950 hover:bg-amber-50 border-amber-200 font-bold flex items-center gap-1"
+                          title={`Rate & Review Dr. ${apt.doctor}`}
+                        >
+                          <i className="fas fa-star text-amber-500 text-xs"></i>
+                          <span className="hidden sm:inline">Rate Doctor</span>
+                        </button>
                         <button
                           onClick={() => {
                             const docSlug = (apt.doctor || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -1510,6 +1539,14 @@ function PatientAppointments() {
         isOpen={!!aiPrepTarget}
         onClose={() => setAiPrepTarget(null)}
         appointment={aiPrepTarget}
+      />
+      <RateDoctorModal
+        isOpen={!!ratingDoctor}
+        onClose={() => setRatingDoctor(null)}
+        doctor={ratingDoctor}
+        onReviewed={() => {
+          toast('Thank you! Your verified rating and review have been submitted.', 'success');
+        }}
       />
     </div>
   );

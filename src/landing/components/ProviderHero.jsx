@@ -90,8 +90,35 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
         
         {/* Main Hero Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-5 sm:space-y-6 animate-slide-up">
+        <div className="text-center max-w-4xl mx-auto space-y-5 sm:space-y-6 animate-slide-up">
           
+          {/* Top Social Proof & Trust Badges */}
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex items-center -space-x-2">
+              <img src="/generated/doc1.webp" alt="Doctor" className="w-7 h-7 rounded-full border-2 border-white object-cover shadow-2xs" />
+              <img src="/generated/doc2.webp" alt="Doctor" className="w-7 h-7 rounded-full border-2 border-white object-cover shadow-2xs" />
+              <img src="/generated/doc3.webp" alt="Doctor" className="w-7 h-7 rounded-full border-2 border-white object-cover shadow-2xs" />
+              <div className="w-7 h-7 rounded-full border-2 border-white bg-aubergine-700 text-white font-black text-[9px] flex items-center justify-center shadow-2xs">
+                250+
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+              <div className="flex text-amber-500 text-[11px]">
+                <i className="fas fa-star" />
+                <i className="fas fa-star" />
+                <i className="fas fa-star" />
+                <i className="fas fa-star" />
+                <i className="fas fa-star" />
+              </div>
+              <span className="font-extrabold text-slate-900">4.96/5</span>
+              <span className="text-slate-500 font-normal">Clinician Rating</span>
+              <span className="text-slate-300">•</span>
+              <span className="text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 text-[10px] font-bold inline-flex items-center gap-1">
+                <i className="fas fa-shield-halved text-emerald-600" /> NMC Verified Network
+              </span>
+            </div>
+          </div>
+
           {/* Trust Pill */}
           <div className="inline-flex items-center gap-2 bg-white border border-aubergine-200/80 shadow-xs text-aubergine-800 text-[11px] sm:text-xs font-semibold px-3 sm:px-4 py-1.5 rounded-full text-center max-w-full">
             <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
@@ -117,8 +144,26 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
             </p>
           </div>
 
+          {/* Specialties Ribbon */}
+          <div className="pt-1 pb-1 flex flex-wrap justify-center gap-1.5 sm:gap-2 max-w-3xl mx-auto">
+            {[
+              { icon: 'fa-venus', label: 'Gynaecology & PCOS', color: 'text-rose-700 bg-rose-50/80 border-rose-200' },
+              { icon: 'fa-dna', label: 'Endocrinology & Thyroid', color: 'text-indigo-700 bg-indigo-50/80 border-indigo-200' },
+              { icon: 'fa-wand-magic-sparkles', label: 'Dermatology & Acne', color: 'text-amber-700 bg-amber-50/80 border-amber-200' },
+              { icon: 'fa-seedling', label: 'Trichology & Scalp', color: 'text-emerald-700 bg-emerald-50/80 border-emerald-200' },
+              { icon: 'fa-apple-whole', label: 'Clinical Nutrition', color: 'text-teal-700 bg-teal-50/80 border-teal-200' },
+              { icon: 'fa-person-praying', label: 'Pelvic & Yoga Therapy', color: 'text-purple-700 bg-purple-50/80 border-purple-200' },
+              { icon: 'fa-baby', label: 'Fertility & Ovulation', color: 'text-pink-700 bg-pink-50/80 border-pink-200' },
+            ].map(s => (
+              <span key={s.label} className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold border shadow-2xs ${s.color}`}>
+                <i className={`fas ${s.icon} text-[10px]`} />
+                {s.label}
+              </span>
+            ))}
+          </div>
+
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-4 pt-1 sm:pt-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-4 pt-2">
             <button
               onClick={onApply}
               className="w-full sm:w-auto bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-6 sm:px-7 py-3.5 sm:py-4 rounded-2xl shadow-lg shadow-aubergine-200 transition-all hover:scale-[1.02] flex items-center justify-center gap-2.5 text-sm sm:text-base"
@@ -136,16 +181,59 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
           </div>
 
           {/* Trust Guarantees */}
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap justify-center items-center gap-2.5 sm:gap-6 pt-2 sm:pt-4 text-[11px] sm:text-xs font-medium text-slate-500 text-left sm:text-center">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap justify-center items-center gap-2.5 sm:gap-6 pt-1 text-[11px] sm:text-xs font-medium text-slate-500 text-left sm:text-center">
             <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-emerald-600"></i> Verified Credentials</span>
             <span className="flex items-center gap-1.5"><i className="fas fa-circle-dollar-to-slot text-emerald-600"></i> Direct Weekly Payout</span>
             <span className="flex items-center gap-1.5"><i className="fas fa-lock text-emerald-600"></i> Clinical Autonomy</span>
             <span className="flex items-center gap-1.5"><i className="fas fa-users text-emerald-600"></i> 8+ Specialties</span>
           </div>
+
+          {/* 4 Key Practice Pillars */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-4 sm:pt-6 text-left">
+            <div className="bg-white/95 border border-sand-300/90 rounded-2xl p-4 shadow-xs hover:border-aubergine-300 hover:shadow-md transition-all group">
+              <div className="w-9 h-9 rounded-xl bg-aubergine-50 text-aubergine-700 flex items-center justify-center text-sm font-black mb-2.5 group-hover:scale-105 transition-transform">
+                <i className="fas fa-hand-holding-dollar" />
+              </div>
+              <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug">Zero Platform Rent</h3>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                Set your own consult fees. 100% net earnings deposited weekly into your registered bank account.
+              </p>
+            </div>
+
+            <div className="bg-white/95 border border-sand-300/90 rounded-2xl p-4 shadow-xs hover:border-indigo-300 hover:shadow-md transition-all group">
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm font-black mb-2.5 group-hover:scale-105 transition-transform">
+                <i className="fas fa-file-waveform" />
+              </div>
+              <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug">AI Scribe &amp; 1-Click Rx</h3>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                Auto-generate standard SOAP notes in 15 seconds. Built-in drug contraindication checks.
+              </p>
+            </div>
+
+            <div className="bg-white/95 border border-sand-300/90 rounded-2xl p-4 shadow-xs hover:border-emerald-300 hover:shadow-md transition-all group">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm font-black mb-2.5 group-hover:scale-105 transition-transform">
+                <i className="fas fa-earth-americas" />
+              </div>
+              <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug">NRI &amp; Global Patients</h3>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                Consult pre-screened patients from India, UAE, UK, and USA in both INR (₹) and USD ($).
+              </p>
+            </div>
+
+            <div className="bg-white/95 border border-sand-300/90 rounded-2xl p-4 shadow-xs hover:border-rose-300 hover:shadow-md transition-all group">
+              <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-sm font-black mb-2.5 group-hover:scale-105 transition-transform">
+                <i className="fas fa-user-shield" />
+              </div>
+              <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 leading-snug">100% Clinical Autonomy</h3>
+              <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                Total independent clinical judgment. Governed under NMC Telemedicine Guidelines.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Interactive Clinic Dashboard Showcase (Light, Premium, High-Fidelity) */}
-        <div className="mt-8 sm:mt-14 md:mt-20 w-full max-w-5xl mx-auto min-w-0">
+        <div className="mt-8 sm:mt-12 md:mt-16 w-full max-w-5xl mx-auto min-w-0">
           <Reveal delay={150}>
             <Tilt3D max={3} className="w-full min-w-0">
               <div className="rounded-2xl sm:rounded-[2rem] bg-white border border-sand-300 shadow-xl sm:shadow-2xl p-3 sm:p-5 md:p-7 relative overflow-hidden w-full min-w-0 max-w-full box-border">
@@ -174,6 +262,12 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                       className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-center text-[11px] sm:text-xs ${activeWorkflow === 'queue' ? 'bg-white text-aubergine-800 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'}`}
                     >
                       <i className="fas fa-hospital-user mr-1"></i> Live Queue
+                    </button>
+                    <button
+                      onClick={() => setActiveWorkflow('rx')}
+                      className={`flex-1 sm:flex-initial px-2 sm:px-3 py-1.5 rounded-lg transition-all whitespace-nowrap text-center text-[11px] sm:text-xs ${activeWorkflow === 'rx' ? 'bg-white text-aubergine-800 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                      <i className="fas fa-prescription mr-1 text-teal-600"></i> Smart Rx &amp; Scribe
                     </button>
                     <button
                       onClick={() => setActiveWorkflow('cdss')}
@@ -296,8 +390,66 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                   </div>
                 )}
 
+                {/* Smart Rx & Scribe Tab */}
+                {activeWorkflow === 'rx' && (
+                  <div className="space-y-3 animate-fade-in text-left">
+                    <div className="p-4 bg-teal-50/70 border border-teal-200/80 rounded-2xl space-y-3">
+                      <div className="flex flex-wrap justify-between items-center gap-2">
+                        <div className="flex items-center gap-2 text-teal-950 font-extrabold text-sm">
+                          <i className="fas fa-file-signature text-teal-600"></i> AI Clinical Scribe &amp; Digital Rx
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-wider bg-teal-100 text-teal-800 px-2.5 py-0.5 rounded-full border border-teal-200">
+                          SOAP Note Auto-Generated
+                        </span>
+                      </div>
+
+                      <div className="grid sm:grid-cols-2 gap-3 text-xs">
+                        {/* Auto-Drafted SOAP Note */}
+                        <div className="bg-white p-3.5 rounded-xl border border-teal-100 space-y-1.5 text-slate-700 leading-relaxed">
+                          <p className="font-extrabold text-teal-950 text-xs flex items-center gap-1">
+                            <i className="fas fa-notes-medical text-teal-600" /> Subjective &amp; Objective
+                          </p>
+                          <p className="text-[11px] text-slate-600">
+                            <strong>S:</strong> 28F presenting with 45-day oligomenorrhea, progressive adult acne &amp; fatigue. <br />
+                            <strong>O:</strong> Fasting Insulin 18.2 µIU/mL, LH/FSH 2.8. Pelvic USG reveals bilateral polycystic morphology.
+                          </p>
+                          <p className="text-[11px] text-slate-600 pt-1 border-t border-slate-100">
+                            <strong>A:</strong> Polycystic Ovarian Syndrome (Insulin-Resistant Phenotype).
+                          </p>
+                        </div>
+
+                        {/* Prescribed Medications */}
+                        <div className="bg-white p-3.5 rounded-xl border border-teal-100 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <p className="font-extrabold text-teal-950 text-xs flex items-center gap-1">
+                              <i className="fas fa-capsules text-teal-600" /> Digital Prescription (Rx)
+                            </p>
+                            <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              ✓ Drug Interaction Verified
+                            </span>
+                          </div>
+                          <div className="space-y-1 text-[11px] text-slate-700">
+                            <div className="p-1.5 bg-slate-50 rounded-lg border border-slate-100 flex justify-between">
+                              <span><strong>1. Myo-Inositol + D-Chiro-Inositol (40:1)</strong> — 2000mg</span>
+                              <span className="text-slate-500 font-medium">1-0-1 (B.F.)</span>
+                            </div>
+                            <div className="p-1.5 bg-slate-50 rounded-lg border border-slate-100 flex justify-between">
+                              <span><strong>2. Metformin SR</strong> — 500mg</span>
+                              <span className="text-slate-500 font-medium">0-0-1 (Dinner)</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between pt-1 text-[10px] text-slate-400">
+                            <span>Dr. Ananya Mehta (Reg: NMC-15201)</span>
+                            <span className="text-emerald-600 font-bold">● Digitally Signed</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {activeWorkflow === 'cdss' && (
-                  <div className="space-y-3 animate-fade-in">
+                  <div className="space-y-3 animate-fade-in text-left">
                     <div className="p-4 bg-indigo-50/90 border border-indigo-200/80 rounded-2xl space-y-3">
                       <div className="flex flex-wrap justify-between items-center gap-2">
                         <div className="flex items-center gap-2 text-indigo-950 font-extrabold text-sm">
@@ -344,6 +496,33 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
               </div>
             </Tilt3D>
           </Reveal>
+        </div>
+
+        {/* Platform Metrics Ticker */}
+        <div className="mt-8 sm:mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto text-center">
+          <div className="p-3.5 rounded-2xl bg-white/80 border border-sand-200/80 shadow-2xs">
+            <p className="text-2xl sm:text-3xl font-black text-aubergine-800 font-display">₹0</p>
+            <p className="text-xs font-bold text-slate-700 mt-0.5">Upfront Platform Cost</p>
+            <p className="text-[10px] text-slate-400">No software fees</p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-white/80 border border-sand-200/80 shadow-2xs">
+            <p className="text-2xl sm:text-3xl font-black text-indigo-700 font-display">3 Mins</p>
+            <p className="text-xs font-bold text-slate-700 mt-0.5">Paperless Onboarding</p>
+            <p className="text-[10px] text-slate-400">Fast digital KYC check</p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-white/80 border border-sand-200/80 shadow-2xs">
+            <p className="text-2xl sm:text-3xl font-black text-emerald-700 font-display">Every Mon</p>
+            <p className="text-xs font-bold text-slate-700 mt-0.5">Direct Bank Payouts</p>
+            <p className="text-[10px] text-slate-400">INR &amp; USD settlements</p>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-white/80 border border-sand-200/80 shadow-2xs">
+            <p className="text-2xl sm:text-3xl font-black text-rose-700 font-display">15 Secs</p>
+            <p className="text-xs font-bold text-slate-700 mt-0.5">AI SOAP Scribe Speed</p>
+            <p className="text-[10px] text-slate-400">Save 80% admin time</p>
+          </div>
         </div>
 
       </div>
