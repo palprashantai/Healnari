@@ -107,7 +107,8 @@ export function formatMoney(amount, currency = 'INR', options = {}) {
   });
 
   const sign = isNegative ? '-' : (options.showPlus && rawNum > 0 ? '+' : '');
-  return `${sign}${meta.symbol}${formattedValue} ${meta.code}`;
+  const codeSuffix = options.hideCode ? '' : ` ${meta.code}`;
+  return `${sign}${meta.symbol}${formattedValue}${codeSuffix}`;
 }
 
 // Alias for backward compatibility across existing components

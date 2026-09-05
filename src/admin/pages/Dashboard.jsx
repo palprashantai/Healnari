@@ -148,7 +148,8 @@ function AdminDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Filters
+  // Filters & Reporting Currency
+  const [reportingCurrency, setReportingCurrency] = useState('INR');
   const [dateRange, setDateRange] = useState('30D');
   const [selectedRegion, setSelectedRegion] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -169,14 +170,18 @@ function AdminDashboard() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
+      const qParams = new URLSearchParams({
+        reportingCurrency,
+        ...(dateRange && dateRange !== 'All' ? { range: dateRange } : {}),
+      });
       const [dashStats, sysHealth, pendingVerifs, refundList, ticketList, analytics, scData] = await Promise.all([
-        apiFetch('/admin/dashboard'),
+        apiFetch(`/admin/dashboard?${qParams}`),
         apiFetch('/admin/system-health'),
         apiFetch('/admin/verifications'),
         apiFetch('/admin/refunds'),
         apiFetch('/admin/tickets'),
-        apiFetch('/admin/analytics').catch(() => null),
-        apiFetch('/admin/analytics/scorecard').catch(() => null),
+        apiFetch(`/admin/analytics?${qParams}`).catch(() => null),
+        apiFetch(`/admin/analytics/scorecard?${qParams}`).catch(() => null),
       ]);
       setStats(dashStats);
       setHealth(sysHealth || []);
@@ -192,7 +197,7 @@ function AdminDashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [toast]);
+  }, [toast, reportingCurrency, dateRange]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -289,14 +294,43 @@ function AdminDashboard() {
           <div className="flex items-center gap-2">
             <span className="text-2xl">🌐</span>
             <h1 className="text-2xl font-black text-slate-900">Global Telehealth Operations Center</h1>
+            <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              {reportingCurrency === 'INR' ? '🇮🇳 INR Active' : '🇺🇸 USD Active'}
+            </span>
           </div>
           <p className="text-sm text-slate-500 mt-0.5">
             Cross-border clinical telemetry, physician credentialing, and multi-currency operations.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Real-time Reporting Currency Switcher */}
+          <div className="bg-slate-100 p-1 rounded-xl border border-slate-200/90 flex items-center shadow-xs">
+            <button
+              type="button"
+              onClick={() => setReportingCurrency('INR')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                reportingCurrency === 'INR'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <span>🇮🇳</span> INR (₹)
+            </button>
+            <button
+              type="button"
+              onClick={() => setReportingCurrency('USD')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                reportingCurrency === 'USD'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <span>🇺🇸</span> USD ($)
+            </button>
+          </div>
+
           <button onClick={handleRefresh} disabled={refreshing}
-            className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-sm disabled:opacity-50">
+            className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-xs disabled:opacity-50">
             <i className={`fas fa-rotate-right ${refreshing ? 'animate-spin' : ''}`}></i> Refresh Telemetry
           </button>
         </div>
@@ -310,6 +344,16 @@ function AdminDashboard() {
         onSearchChange={setSearchQuery}
         searchPlaceholder="Search across verification queue, refunds, or support inquiries..."
         filters={[
+          {
+            key: 'currency',
+            label: 'Currency',
+            value: reportingCurrency,
+            onChange: setReportingCurrency,
+            options: [
+              { label: '🇮🇳 India Base (INR ₹)', value: 'INR' },
+              { label: '🇺🇸 US & Global (USD $)', value: 'USD' },
+            ],
+          },
           {
             key: 'region',
             label: 'Region',
@@ -325,6 +369,7 @@ function AdminDashboard() {
         onReset={() => {
           setDateRange('30D');
           setSelectedRegion('ALL');
+          setReportingCurrency('INR');
           setSearchQuery('');
         }}
       />
@@ -415,11 +460,12 @@ function AdminDashboard() {
 
         <KPITrendCard
           title="Gross Platform Volume"
-          value={formatCurrency(stats?.grossVolume || totalRevenueNumber, stats?.grossVolumeCurrency || 'INR')}
-          period={`Consultations & AI Plans (${stats?.grossVolumeCurrency || 'INR'})`}
+          value={formatCurrency(stats?.grossVolume ?? totalRevenueNumber, stats?.grossVolumeCurrency || reportingCurrency, { hideCode: true })}
+          unit={stats?.grossVolumeCurrency || reportingCurrency}
+          period={`Consultations & AI Plans (${stats?.grossVolumeCurrency || reportingCurrency})`}
           icon="fa-money-bill-trend-up"
           colorScheme="dark"
-          badgeText={stats?.aiSubscriptionRevenue ? `+${formatCurrency(stats.aiSubscriptionRevenue, stats?.grossVolumeCurrency || 'INR')} AI` : undefined}
+          badgeText={stats?.aiSubscriptionRevenue ? `+${formatCurrency(stats.aiSubscriptionRevenue, stats?.grossVolumeCurrency || reportingCurrency, { hideCode: true })} AI` : undefined}
           drillDownLabel="View Revenue"
           onDrillDown={() => navigate('/admin-dashboard/revenue')}
           loading={loading}
@@ -427,8 +473,9 @@ function AdminDashboard() {
 
         <KPITrendCard
           title="Platform Retained Revenue"
-          value={formatCurrency(stats?.platformRevenue || 0, stats?.platformRevenueCurrency || 'INR')}
-          period={`Commission & 100% AI Plans (${stats?.platformRevenueCurrency || 'INR'})`}
+          value={formatCurrency(stats?.platformRevenue ?? 0, stats?.platformRevenueCurrency || reportingCurrency, { hideCode: true })}
+          unit={stats?.platformRevenueCurrency || reportingCurrency}
+          period={`Commission & 100% AI Plans (${stats?.platformRevenueCurrency || reportingCurrency})`}
           icon="fa-sack-dollar"
           colorScheme="magenta"
           drillDownLabel="View Settlements"

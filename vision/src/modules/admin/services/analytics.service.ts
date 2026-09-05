@@ -157,8 +157,8 @@ export class AnalyticsService {
   /**
    * ADMIN: Platform Overview & High-Level KPIs
    */
-  async getAdminOverview(range?: string, reportingCurrency = 'USD') {
-    const repCurr = reportingCurrency.toUpperCase();
+  async getAdminOverview(range?: string, reportingCurrency = 'INR') {
+    const repCurr = (reportingCurrency || 'INR').toUpperCase();
     const dateFilter = this.parseDateRange(range);
     const cacheKey = `admin_overview_${cleanKey(range)}_${repCurr}`;
 
@@ -383,8 +383,8 @@ export class AnalyticsService {
   /**
    * ADMIN: Detailed Revenue Analytics with Multi-Currency & Reconciliation
    */
-  async getAdminRevenue(range?: string, reportingCurrency = 'USD') {
-    const repCurr = reportingCurrency.toUpperCase();
+  async getAdminRevenue(range?: string, reportingCurrency = 'INR') {
+    const repCurr = (reportingCurrency || 'INR').toUpperCase();
     const dateFilter = this.parseDateRange(range);
     const cacheKey = `admin_rev_${cleanKey(range)}_${repCurr}`;
 
@@ -769,8 +769,8 @@ export class AnalyticsService {
    * ADMIN: Automated Revenue Reconciliation Audit
    * Validates consistency between payments, payouts, refunds, and appointments.
    */
-  async getRevenueReconciliation(reportingCurrency = 'USD') {
-    const repCurr = reportingCurrency.toUpperCase();
+  async getRevenueReconciliation(reportingCurrency = 'INR') {
+    const repCurr = (reportingCurrency || 'INR').toUpperCase();
     try {
       const [
         { data: payments },
@@ -1203,8 +1203,8 @@ export class AnalyticsService {
    * ADMIN & PRODUCT: Executive Product Health Scorecard & Marketplace Diagnosis
    * Diagnoses whether marketplace bottleneck is Demand, Supply, Conversion, or Retention.
    */
-  async getProductHealthScorecard(reportingCurrency = 'USD') {
-    const repCurr = reportingCurrency.toUpperCase();
+  async getProductHealthScorecard(reportingCurrency = 'INR') {
+    const repCurr = (reportingCurrency || 'INR').toUpperCase();
     try {
       const [
         { data: profiles },

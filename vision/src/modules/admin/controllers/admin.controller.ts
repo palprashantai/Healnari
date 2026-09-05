@@ -422,7 +422,7 @@ export class AdminController {
   ) {
     this.checkAdmin(user);
     const data = await this.adminService.getDashboardStats(
-      reportingCurrency || 'USD',
+      reportingCurrency || 'INR',
     );
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
@@ -712,7 +712,7 @@ export class AdminController {
   ) {
     this.checkAdmin(user);
     const data = await this.adminService.getRevenueData(
-      reportingCurrency || 'USD',
+      reportingCurrency || 'INR',
     );
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }

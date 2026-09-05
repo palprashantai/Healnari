@@ -86,9 +86,9 @@ export class AdminService {
   }
 
   // ─── Dashboard ───────────────────────────────────────────────────
-  async getDashboardStats(reportingCurrency = 'USD') {
+  async getDashboardStats(reportingCurrency = 'INR') {
     try {
-      const repCurr = (reportingCurrency || 'USD').toUpperCase();
+      const repCurr = (reportingCurrency || 'INR').toUpperCase();
       const cacheKey = repCurr;
       const cached = this.statsCache.get(cacheKey);
       if (cached && Date.now() - cached.timestamp < this.STATS_CACHE_TTL_MS) {
@@ -176,6 +176,7 @@ export class AdminService {
           repCurr,
           p.fx_rate,
           p.reporting_currency,
+          p.reporting_amount,
         );
         const convertedFee = this.fxRateService.reproduceReportingValue(
           feeAmt,
@@ -1971,9 +1972,9 @@ export class AdminService {
   }
 
   // ─── Revenue & Multi-Currency Accounting ─────────────────────────
-  async getRevenueData(reportingCurrency = 'USD') {
+  async getRevenueData(reportingCurrency = 'INR') {
     try {
-      const repCurr = (reportingCurrency || 'USD').toUpperCase();
+      const repCurr = (reportingCurrency || 'INR').toUpperCase();
 
       const [
         { count: completedCount },
@@ -2114,6 +2115,7 @@ export class AdminService {
             repCurr,
             p.fx_rate,
             p.reporting_currency,
+            p.reporting_amount,
           );
           const convertedFee = this.fxRateService.reproduceReportingValue(
             platformFee,

@@ -107,9 +107,10 @@ export class FXRateService {
   reproduceReportingValue(
     originalAmount: number,
     originalCurrency: string,
-    targetReportingCurrency = 'USD',
+    targetReportingCurrency = 'INR',
     storedFxRate?: number,
     storedReportingCurrency?: string,
+    storedReportingAmount?: number,
   ): number {
     const from = this.validateCurrency(originalCurrency);
     const target = this.validateCurrency(targetReportingCurrency);
@@ -118,11 +119,25 @@ export class FXRateService {
       return originalAmount;
     }
 
-    // If already stored in the requested target currency, reuse exact stored value
+    // If an exact immutable snapshot amount was recorded in the database for this target currency
     if (
       storedReportingCurrency &&
       storedReportingCurrency.toUpperCase() === target &&
-      storedFxRate
+      storedReportingAmount !== undefined &&
+      storedReportingAmount !== null &&
+      Number(storedReportingAmount) > 0
+    ) {
+      return Number(storedReportingAmount);
+    }
+
+    // If already stored in the requested target currency, reuse exact stored value
+    // Guard against internal domestic doctor-patient exchange rate (e.g. 1.0) being misapplied as currency FX
+    if (
+      storedReportingCurrency &&
+      storedReportingCurrency.toUpperCase() === target &&
+      storedFxRate &&
+      !(from === 'INR' && target === 'USD' && storedFxRate >= 0.5) &&
+      !(from === 'USD' && target === 'INR' && storedFxRate <= 2)
     ) {
       return this.roundAmount(DecimalMath.multiply(originalAmount, storedFxRate, 2), target);
     }
