@@ -20,6 +20,7 @@ import {
   CreateCatalogItemDto,
   CreateClinicalNoteDto,
   CreatePrescriptionDto,
+  FinalizePrescriptionDto,
   RequestLabReportDto,
   ReviewLabReportDto,
   UploadLabReportDto,
@@ -132,17 +133,42 @@ export class RecordsService {
       .maybeSingle();
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
 
+    // Validate appointmentId if provided
+    if (body.appointmentId) {
+      const { data: appt } = await this.supabase.admin
+        .from('appointments')
+        .select('id, patient_id, doctor_id, status')
+        .eq('id', body.appointmentId)
+        .is('deleted_at', null)
+        .maybeSingle();
+
+      if (!appt || appt.patient_id !== body.patientId || appt.doctor_id !== user.id) {
+        throw new BadRequestException('Invalid appointmentId for this patient and doctor consultation.');
+      }
+    }
+
+    // If updating an existing draft, delete old rows first
     if (body.idempotencyKey) {
       const { data: existing } = await this.supabase.admin
         .from('prescriptions')
-        .select()
+        .select('status')
         .is('deleted_at', null)
         .eq('group_id', body.idempotencyKey);
-      if (existing && existing.length > 0) return existing;
+      
+      if (existing && existing.length > 0) {
+        if (existing.some(r => r.status === 'Finalized')) {
+          throw new BadRequestException('Cannot edit a finalized prescription. Please cancel it or create a new one.');
+        }
+        await this.supabase.admin
+          .from('prescriptions')
+          .delete()
+          .eq('group_id', body.idempotencyKey);
+      }
     }
 
     const groupId = body.idempotencyKey || randomUUID();
     const prescribedAt = new Date().toISOString().slice(0, 10);
+    const rxStatus = body.isDraft ? 'Draft' : 'Finalized';
 
     // Deduplicate medicine lines if same medicine is entered multiple times in the same payload
     const seenMeds = new Set<string>();
@@ -157,6 +183,7 @@ export class RecordsService {
       patient_id: body.patientId,
       doctor_id: user.id,
       group_id: groupId,
+      appointment_id: body.appointmentId || null,
       diagnosis: body.diagnosis,
       med_name: m.medName.trim(),
       dosage: m.dosage,
@@ -164,6 +191,7 @@ export class RecordsService {
       duration: m.duration,
       instructions: body.instructions,
       prescribed_at: prescribedAt,
+      status: rxStatus,
     }));
 
     const { data: prescriptions } = await this.supabase.admin
@@ -172,6 +200,90 @@ export class RecordsService {
       .select()
       .is('deleted_at', null);
 
+    if (rxStatus === 'Finalized') {
+      await this.notifyPatientOfPrescription(user, patient, body, groupId);
+
+      // Auto-advance appointment to Done if this was an active consultation
+      if (body.appointmentId) {
+        await this.supabase.admin
+          .from('appointments')
+          .update({ status: 'Done' })
+          .eq('id', body.appointmentId)
+          .in('status', ['In Progress', 'Waiting', 'Upcoming']);
+      }
+    }
+
+    return prescriptions;
+  }
+
+  async finalizePrescription(user: AuthUser, groupId: string) {
+    this.requireVerifiedDoctor(user);
+    const { data: existing } = await this.supabase.admin
+      .from('prescriptions')
+      .select()
+      .is('deleted_at', null)
+      .eq('group_id', groupId);
+
+    if (!existing || existing.length === 0) throw new NotFoundException(ERROR_MESSAGES.PRESCRIPTION_NOT_FOUND);
+    if (existing[0].doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    if (existing[0].status === 'Finalized') throw new BadRequestException('Prescription is already finalized.');
+
+    const { data: updated } = await this.supabase.admin
+      .from('prescriptions')
+      .update({ status: 'Finalized' })
+      .eq('group_id', groupId)
+      .select()
+      .is('deleted_at', null);
+
+    // Auto-advance appointment to Done if attached to an appointment
+    if (existing[0].appointment_id) {
+      await this.supabase.admin
+        .from('appointments')
+        .update({ status: 'Done' })
+        .eq('id', existing[0].appointment_id)
+        .in('status', ['In Progress', 'Waiting', 'Upcoming']);
+    }
+
+    // Notification requires patient profile
+    const { data: patient } = await this.supabase.admin
+      .from('profiles')
+      .select()
+      .eq('id', existing[0].patient_id)
+      .maybeSingle();
+
+    if (patient) {
+      await this.notifyPatientOfPrescription(user, patient, {
+        diagnosis: existing[0].diagnosis,
+        medicines: existing,
+        patientId: patient.id
+      } as any, groupId);
+    }
+
+    return updated;
+  }
+
+  async cancelPrescription(user: AuthUser, groupId: string) {
+    this.requireVerifiedDoctor(user);
+    const { data: existing } = await this.supabase.admin
+      .from('prescriptions')
+      .select()
+      .is('deleted_at', null)
+      .eq('group_id', groupId);
+
+    if (!existing || existing.length === 0) throw new NotFoundException(ERROR_MESSAGES.PRESCRIPTION_NOT_FOUND);
+    if (existing[0].doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+
+    const { data: updated } = await this.supabase.admin
+      .from('prescriptions')
+      .update({ status: 'Cancelled' })
+      .eq('group_id', groupId)
+      .select()
+      .is('deleted_at', null);
+
+    return updated;
+  }
+
+  private async notifyPatientOfPrescription(user: AuthUser, patient: any, body: CreatePrescriptionDto, groupId: string) {
     this.notifications
       .create(body.patientId, {
         type: 'prescription_issued',
@@ -182,35 +294,22 @@ export class RecordsService {
       })
       .catch(() => {});
 
-    // Fetch patient email and send email notification
-    this.supabase.admin
-      .from('profiles')
-      .select('email, full_name')
-      .eq('id', body.patientId)
-      .maybeSingle()
-      .then(
-        ({ data: patient }) => {
-          if (patient?.email) {
-            this.email.sendTemplateEmail({
-              templateKey: 'prescription_issued',
-              to: patient.email,
-              variables: {
-                patientName: patient.full_name || 'Patient',
-                doctorName: user.profile.full_name || 'Doctor',
-                diagnosis: body.diagnosis || 'General Consultation Plan',
-                medicineCount: body.medicines?.length || 1,
-                recordsUrl: this.email.getUrl('/patient-dashboard/prescriptions'),
-              },
-              entityType: 'prescription_group',
-              entityId: groupId,
-              event: 'prescription_issued',
-            });
-          }
+    if (patient?.email) {
+      this.email.sendTemplateEmail({
+        templateKey: 'prescription_issued',
+        to: patient.email,
+        variables: {
+          patientName: patient.full_name || 'Patient',
+          doctorName: user.profile.full_name || 'Doctor',
+          diagnosis: body.diagnosis || 'General Consultation Plan',
+          medicineCount: body.medicines?.length || 1,
+          recordsUrl: this.email.getUrl('/patient-dashboard/prescriptions'),
         },
-        (err) => console.error('Failed to notify patient of prescription:', err)
-      );
-
-    return prescriptions;
+        entityType: 'prescription_group',
+        entityId: groupId,
+        event: 'prescription_issued',
+      });
+    }
   }
 
   async requestRefill(user: AuthUser, id: string) {
@@ -375,7 +474,7 @@ export class RecordsService {
         test_name: testName,
         lab_name: body.labName,
         urgent: body.urgent ?? false,
-        status: 'Uploaded',
+        status: 'Report Available',
         results: {},
         file_path: path,
         original_filename: file.originalname,
@@ -383,6 +482,7 @@ export class RecordsService {
         report_date: body.reportDate || null,
         notes: body.notes || null,
         request_id: body.requestId || null,
+        appointment_id: body.appointmentId || request?.appointment_id || null,
       })
       .select()
       .maybeSingle();
@@ -424,7 +524,6 @@ export class RecordsService {
             idempotencyKey: `lab_upload_${report.id}`,
             data: {
               labReportId: report.id,
-              patientId: body.patientId,
               path: '/doctor-dashboard/reports',
             },
           })
@@ -472,17 +571,18 @@ export class RecordsService {
     const { data: report } = await this.supabase.admin
       .from('lab_reports')
       .select()
-      .is('deleted_at', null)
       .eq('id', id)
+      .is('deleted_at', null)
       .maybeSingle();
     if (!report)
       throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
+
     if (
-      user.profile.role !== ProfileRole.PATIENT ||
+      user.profile.role !== ProfileRole.ADMIN &&
       report.patient_id !== user.id
     )
       throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
-    if (report.status !== 'Uploaded')
+    if (report.status !== 'Report Available')
       throw new ForbiddenException(ERROR_MESSAGES.LAB_REPORT_ALREADY_REVIEWED);
 
     if (report.file_path)
@@ -508,6 +608,18 @@ export class RecordsService {
     if (!(await this.hasCareRelationship(user.id, body.patientId)))
       throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
 
+    if (body.appointmentId) {
+      const { data: appt } = await this.supabase.admin
+        .from('appointments')
+        .select('id, patient_id, doctor_id')
+        .eq('id', body.appointmentId)
+        .is('deleted_at', null)
+        .maybeSingle();
+      if (!appt || appt.patient_id !== body.patientId || appt.doctor_id !== user.id) {
+        throw new BadRequestException('Invalid appointmentId for this patient and doctor order.');
+      }
+    }
+
     const { data: patient } = await this.supabase.admin
       .from('profiles')
       .select()
@@ -525,6 +637,7 @@ export class RecordsService {
         due_date: body.dueDate || null,
         notes: body.notes || null,
         status: 'Pending',
+        appointment_id: body.appointmentId || null,
       })
       .select()
       .maybeSingle();

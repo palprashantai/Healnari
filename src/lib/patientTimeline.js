@@ -20,28 +20,32 @@ export function buildPatientTimeline(patient, appointments) {
 
   const rxByGroup = new Map();
   (patient.meds || []).forEach(m => {
+    // Clinical safety: Draft prescriptions must NEVER appear in official patient medical history
+    if (m.status === 'Draft') return;
     if (!rxByGroup.has(m.groupId)) rxByGroup.set(m.groupId, []);
     rxByGroup.get(m.groupId).push(m);
   });
   rxByGroup.forEach(meds => {
+    const linkedApt = (appointments || []).find(a => a.id === meds[0].appointmentId);
     events.push({
       key: `rx-${meds[0].groupId}`,
       dateRaw: meds[0].prescribedOnRaw,
       icon: 'fa-file-prescription',
       color: 'bg-rose-50 text-rose-600 border-rose-100',
       title: meds[0].diagnosis ? `Prescription — ${meds[0].diagnosis}` : 'Prescription issued',
-      detail: `${meds.map(m => m.name).join(', ')} • ${meds[0].doctor}`,
+      detail: `${meds.map(m => m.name).join(', ')} • ${meds[0].doctor}${linkedApt ? ` • Linked to ${linkedApt.type || 'Visit'}` : ''}`,
     });
   });
 
   (patient.reports || []).forEach(r => {
+    const linkedApt = (appointments || []).find(a => a.id === r.appointmentId);
     events.push({
       key: `lab-${r.id}`,
       dateRaw: r.dateRaw,
       icon: 'fa-flask',
       color: 'bg-emerald-50 text-emerald-600 border-emerald-100',
       title: r.testName,
-      detail: `${r.status}${r.urgent ? ' • Urgent' : ''}${r.labName ? ` • ${r.labName}` : ''}`,
+      detail: `${r.status}${r.urgent ? ' • Urgent' : ''}${r.labName ? ` • ${r.labName}` : ''}${linkedApt ? ` • Linked to Visit` : ''}`,
     });
   });
 

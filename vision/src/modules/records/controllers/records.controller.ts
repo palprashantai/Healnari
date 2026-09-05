@@ -102,6 +102,16 @@ export class CreatePrescriptionDto {
   @IsString()
   handwrittenImage?: string;
 
+  @ApiProperty({ required: false, default: true })
+  @IsOptional()
+  @IsBoolean()
+  isDraft?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsUUID()
+  appointmentId?: string;
+
   @ApiProperty({
     type: [MedicineLineDto],
     description:
@@ -113,6 +123,12 @@ export class CreatePrescriptionDto {
   @ValidateNested({ each: true })
   @Type(() => MedicineLineDto)
   medicines: MedicineLineDto[];
+}
+
+export class FinalizePrescriptionDto {
+  @ApiProperty()
+  @IsUUID()
+  groupId: string;
 }
 
 export class HandleRefillDto {
@@ -187,6 +203,11 @@ export class UploadLabReportDto {
   @IsOptional()
   @IsUUID()
   requestId?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsUUID()
+  appointmentId?: string;
 }
 
 export class RequestLabReportDto {
@@ -213,6 +234,11 @@ export class RequestLabReportDto {
   @IsString()
   @MaxLength(1000)
   notes?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsUUID()
+  appointmentId?: string;
 }
 
 export class CreateClinicalNoteDto {
@@ -488,14 +514,39 @@ export class RecordsController {
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
-  @ApiOperation({ summary: 'Write a new prescription (doctor only)' })
+  @ApiOperation({ summary: 'Write a new prescription or save a draft' })
   @Post('prescriptions')
   async createPrescription(
     @CurrentUser() user: AuthUser,
     @Body() body: CreatePrescriptionDto,
   ) {
-    const data = await this.recordsService.createPrescription(user, body);
-    return ResponseHelper.success(data, SUCCESS_MESSAGES.PRESCRIPTION_ADDED);
+    const rx = await this.recordsService.createPrescription(user, body);
+    return ResponseHelper.success(
+      rx,
+      body.isDraft ? 'Prescription draft saved successfully' : 'Prescription finalized successfully',
+    );
+  }
+
+  @Put('prescriptions/:groupId/finalize')
+  @ApiOperation({ summary: 'Finalize a draft prescription' })
+  @ApiParam({ name: 'groupId', description: 'Group ID of the prescription' })
+  async finalizePrescription(
+    @CurrentUser() user: AuthUser,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+  ) {
+    const rx = await this.recordsService.finalizePrescription(user, groupId);
+    return ResponseHelper.success(rx, 'Prescription finalized successfully');
+  }
+
+  @Put('prescriptions/:groupId/cancel')
+  @ApiOperation({ summary: 'Cancel a prescription' })
+  @ApiParam({ name: 'groupId', description: 'Group ID of the prescription' })
+  async cancelPrescription(
+    @CurrentUser() user: AuthUser,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+  ) {
+    const rx = await this.recordsService.cancelPrescription(user, groupId);
+    return ResponseHelper.success(rx, 'Prescription cancelled successfully');
   }
 
   @ApiOperation({

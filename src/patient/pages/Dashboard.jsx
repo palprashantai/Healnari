@@ -593,8 +593,8 @@ function DailyMedicationChecklist({ meds, requestRefill, toast, discreet }) {
     }
   };
 
-  const list = (meds || []).slice(0, 3);
-
+  const list = (meds || []).filter(m => m.status !== 'Draft' && m.status !== 'Cancelled').slice(0, 3);
+  if (list.length === 0) return null;
   return (
     <div className={`glass-panel rounded-3xl p-6 ${discreet ? 'discreet-blur' : ''}`}>
       <div className="flex items-center justify-between mb-4">

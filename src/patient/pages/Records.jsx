@@ -642,7 +642,7 @@ function PatientRecords() {
                         <button onClick={() => viewLabReport(r)} className="w-8 h-8 rounded-xl bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-600 flex items-center justify-center text-xs transition-colors border border-aubergine-200/60" title="View Document">
                           <i className="fas fa-eye"></i>
                         </button>
-                        {r.status === 'Uploaded' && (
+                        {r.status === 'Report Available' && (
                           <button onClick={() => setDeleteLabTarget(r)} className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-500 flex items-center justify-center text-xs transition-colors border border-rose-200/60" title="Delete">
                             <i className="fas fa-trash"></i>
                           </button>

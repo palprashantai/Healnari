@@ -950,7 +950,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
       id: items[0].groupId || items[0].id,
       date: items[0].date,
       prescribedBy: items[0].prescribedBy,
-      status: items.some(m => m.status === 'Active') ? 'Active' : 'Expired',
+      status: items[0].status || 'Active', // Now uses the status from backend
       instructions: items.find(m => m.instructions)?.instructions || '',
       medicines: items.map(m => ({
         id: m.id,
@@ -987,13 +987,36 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
   const handleAddRx = async (patientId, newRx) => {
     try {
+      const activeAppt = appointments?.find(a => a.patientId === patientId && ['In Progress', 'Waiting', 'Upcoming'].includes(a.status));
       await addRx(patientId, {
+        appointmentId: newRx.appointmentId || activeAppt?.id,
         instructions: newRx.instructions,
+        isDraft: true,
         medicines: [{ name: newRx.medName, dosage: newRx.dosage, frequency: newRx.schedule, duration: newRx.duration }],
       });
-      toast(`Prescription added for ${patient.name}.`, 'success');
+      toast(`Prescription draft added for ${patient.name}.`, 'success');
     } catch (err) {
       toast(err.message || `Failed to add prescription for ${patient.name}`, 'error');
+    }
+  };
+
+  const { finalizeRx, cancelRx } = useClinicData();
+
+  const handleFinalizeRx = async (groupId) => {
+    try {
+      await finalizeRx(groupId);
+      toast('Prescription finalized and signed. Patient has been notified.', 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to finalize prescription', 'error');
+    }
+  };
+
+  const handleCancelRx = async (groupId) => {
+    try {
+      await cancelRx(groupId);
+      toast('Prescription cancelled successfully.', 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to cancel prescription', 'error');
     }
   };
 
@@ -1003,7 +1026,8 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
   const handleRequestLab = async (patientId, request) => {
     try {
-      await requestLabReport(patientId, request);
+      const activeAppt = appointments?.find(a => a.patientId === patientId && ['In Progress', 'Waiting', 'Upcoming'].includes(a.status));
+      await requestLabReport(patientId, { ...request, appointmentId: request.appointmentId || activeAppt?.id });
       toast(`Report request sent to ${patient.name}.`, 'success');
       loadLabRequests();
     } catch (err) {
@@ -1049,7 +1073,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
   };
   const filteredReports = patient.reports.filter((r) => {
     if (labFilter === 'all') return true;
-    if (labFilter === 'awaiting') return r.status === 'Uploaded';
+    if (labFilter === 'awaiting') return r.status === 'Report Available';
     return r.status === 'Reviewed';
   });
 
@@ -1388,8 +1412,12 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                       <div className="flex items-center gap-3">
                         <span className="font-black text-slate-900 text-base">Prescription on {rxGroup.date}</span>
                         <span
-                          className={`px-3 py-0.5 rounded-full text-[11px] font-bold ${rxGroup.status === 'Active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-slate-200 text-slate-600'
-                            }`}
+                          className={`px-3 py-0.5 rounded-full text-[11px] font-bold ${
+                            rxGroup.status === 'Finalized' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                            rxGroup.status === 'Draft' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                            rxGroup.status === 'Cancelled' ? 'bg-rose-100 text-rose-800 border border-rose-200' :
+                            'bg-slate-200 text-slate-600'
+                          }`}
                         >
                           ● {rxGroup.status}
                         </span>
@@ -1399,12 +1427,38 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                       </p>
                     </div>
 
-                    <button
-                      onClick={() => setSelectedRxDoc(rxGroup)}
-                      className="bg-white hover:bg-slate-100 text-slate-700 font-bold px-3.5 py-2 rounded-xl border border-slate-200 text-xs transition-colors flex items-center gap-1.5 shadow-xs"
-                    >
-                      <i className="fas fa-file-prescription text-aubergine-600"></i> View Rx
-                    </button>
+                      <div className="flex gap-2">
+                        {rxGroup.status === 'Draft' && (
+                          <>
+                            <button
+                              onClick={() => handleFinalizeRx(rxGroup.id)}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs transition-colors flex items-center gap-1.5 shadow-xs"
+                            >
+                              <i className="fas fa-file-signature"></i> Sign & Finalize
+                            </button>
+                            <button
+                              onClick={() => handleCancelRx(rxGroup.id)}
+                              className="bg-white hover:bg-rose-50 text-rose-600 font-bold px-3.5 py-2 rounded-xl border border-rose-200 text-xs transition-colors flex items-center gap-1.5 shadow-xs"
+                            >
+                              <i className="fas fa-trash"></i> Discard Draft
+                            </button>
+                          </>
+                        )}
+                        {rxGroup.status === 'Finalized' && (
+                          <button
+                            onClick={() => handleCancelRx(rxGroup.id)}
+                            className="bg-white hover:bg-rose-50 text-rose-600 font-bold px-3.5 py-2 rounded-xl border border-rose-200 text-xs transition-colors flex items-center gap-1.5 shadow-xs"
+                          >
+                            <i className="fas fa-ban"></i> Cancel Finalized
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setSelectedRxDoc(rxGroup)}
+                          className="bg-white hover:bg-slate-100 text-slate-700 font-bold px-3.5 py-2 rounded-xl border border-slate-200 text-xs transition-colors flex items-center gap-1.5 shadow-xs"
+                        >
+                          <i className="fas fa-file-prescription text-aubergine-600"></i> View Rx
+                        </button>
+                      </div>
                   </div>
 
                   <div className="space-y-3">
@@ -2022,18 +2076,18 @@ function DoctorPatients() {
 
       {/* Top Clinical Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs flex items-center justify-between">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Total Patients</p>
             <h3 className="text-2xl font-black text-slate-900 mt-1">{patients.length}</h3>
             <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">Active Registry</p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-aubergine-50 text-aubergine-600 flex items-center justify-center text-lg">
+          <div className="w-11 h-11 rounded-lg bg-slate-50 text-slate-500 flex items-center justify-center text-lg border border-slate-100">
             <i className="fas fa-hospital-user"></i>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs flex items-center justify-between">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Active Patients</p>
             <h3 className="text-2xl font-black text-slate-900 mt-1">
@@ -2041,38 +2095,38 @@ function DoctorPatients() {
             </h3>
             <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Under Care Plan</p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
+          <div className="w-11 h-11 rounded-lg bg-slate-50 text-slate-500 flex items-center justify-center text-lg border border-slate-100">
             <i className="fas fa-heart-pulse"></i>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs flex items-center justify-between">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Clinical Alerts</p>
-            <h3 className="text-2xl font-black text-rose-600 mt-1">
+            <h3 className="text-2xl font-black text-slate-900 mt-1">
               {patients.filter(p => p.alert).length}
             </h3>
-            <p className="text-[11px] text-rose-500 font-semibold mt-0.5">Requires Doctor Review</p>
+            <p className="text-[11px] text-slate-500 font-semibold mt-0.5">Requires Doctor Review</p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg">
+          <div className="w-11 h-11 rounded-lg bg-slate-50 text-slate-500 flex items-center justify-center text-lg border border-slate-100">
             <i className="fas fa-triangle-exclamation"></i>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs flex items-center justify-between">
+        <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Prescriptions &amp; Labs</p>
             <h3 className="text-2xl font-black text-slate-900 mt-1">{totalPrescriptionsCount + totalReportsCount}</h3>
             <p className="text-[11px] text-slate-500 font-semibold mt-0.5">{totalPrescriptionsCount} Rx • {totalReportsCount} Diagnostics</p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">
+          <div className="w-11 h-11 rounded-lg bg-slate-50 text-slate-500 flex items-center justify-center text-lg border border-slate-100">
             <i className="fas fa-file-waveform"></i>
           </div>
         </div>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-4 shadow-xs space-y-3">
+      <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 space-y-3">
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
           <div className="relative flex-1 min-w-[200px]">
             <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
@@ -2080,12 +2134,12 @@ function DoctorPatients() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by patient name, diagnosis, ID or phone..."
-              className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-200 bg-slate-50/70"
+              className="w-full border border-slate-200 rounded-lg pl-10 pr-10 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-slate-300 bg-slate-50"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 w-5 h-5 rounded-full flex items-center justify-center text-xs"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 w-5 h-5 rounded-full flex items-center justify-center text-xs"
               >
                 <i className="fas fa-times"></i>
               </button>
@@ -2102,13 +2156,13 @@ function DoctorPatients() {
               <button
                 key={v}
                 onClick={() => setFilterStatus(v)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${filterStatus === v
-                  ? 'bg-aubergine-700 text-white border-aubergine-700 shadow-xs'
-                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors flex items-center gap-1.5 ${filterStatus === v
+                  ? 'bg-slate-800 text-white border-slate-800'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                   }`}
               >
                 <span>{l}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${filterStatus === v ? 'bg-aubergine-800 text-white' : 'bg-slate-200/70 text-slate-600'}`}>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${filterStatus === v ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-500'}`}>
                   {count}
                 </span>
               </button>
@@ -2118,25 +2172,18 @@ function DoctorPatients() {
 
         {/* Selection & Quick Count Bar */}
         <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
-          <label className="flex items-center gap-2.5 cursor-pointer select-none">
-            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedIds.length > 0 && selectedIds.length === filtered.length ? 'bg-aubergine-600 border-aubergine-600 text-white' : selectedIds.length > 0 ? 'bg-aubergine-100 border-aubergine-400 text-aubergine-700' : 'bg-white border-slate-300'}`}>
-              {selectedIds.length > 0 && selectedIds.length === filtered.length ? (
-                <i className="fas fa-check text-[9px]"></i>
-              ) : selectedIds.length > 0 ? (
-                <div className="w-2 h-0.5 bg-aubergine-600 rounded"></div>
-              ) : null}
-            </div>
-            <input type="checkbox" className="hidden" checked={selectedIds.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
-            <span className="font-bold text-slate-700">Select All {filtered.length} Patients</span>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" className="rounded border-slate-300 text-slate-800 focus:ring-slate-400" checked={selectedIds.length === filtered.length && filtered.length > 0} onChange={toggleSelectAll} />
+            <span className="font-medium text-slate-700">Select All ({filtered.length})</span>
           </label>
 
           <div className="flex items-center gap-3">
             {selectedIds.length > 0 && (
-              <span className="bg-aubergine-50 text-aubergine-700 border border-aubergine-200 px-2.5 py-0.5 rounded-full font-bold text-[11px]">
+              <span className="text-slate-800 font-medium">
                 {selectedIds.length} Selected
               </span>
             )}
-            <span>Showing <strong className="text-slate-800">{filtered.length}</strong> patient records</span>
+            <span>Showing <strong className="text-slate-800">{filtered.length}</strong> patients</span>
           </div>
         </div>
       </div>
@@ -2152,9 +2199,9 @@ function DoctorPatients() {
           return (
             <div
               key={p.id}
-              className={`group bg-white rounded-2xl border transition-all duration-200 p-4 sm:p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 ${isSelected
-                ? 'border-aubergine-400 bg-aubergine-50/20 shadow-md ring-1 ring-aubergine-400/30'
-                : 'border-slate-200/90 hover:border-aubergine-300 hover:shadow-md'
+              className={`group bg-white rounded-xl border transition-colors p-4 sm:p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 ${isSelected
+                ? 'border-slate-400 bg-slate-50'
+                : 'border-slate-200 hover:border-slate-300'
                 }`}
             >
               {/* Left Column: Checkbox, Avatar, Identity */}
@@ -2162,28 +2209,24 @@ function DoctorPatients() {
                 {/* Selection Checkbox */}
                 <div className="pt-1 sm:pt-0 flex-shrink-0">
                   <label className="flex items-center justify-center cursor-pointer">
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-aubergine-600 border-aubergine-600 text-white' : 'bg-white border-slate-300 group-hover:border-aubergine-400'}`}>
-                      {isSelected && <i className="fas fa-check text-[9px]"></i>}
-                    </div>
-                    <input type="checkbox" className="hidden" checked={isSelected} onChange={() => toggleSelect(p.id)} />
+                    <input type="checkbox" className="rounded border-slate-300 text-slate-800 focus:ring-slate-400" checked={isSelected} onChange={() => toggleSelect(p.id)} />
                   </label>
                 </div>
 
                 {/* Avatar with Status Pulse */}
                 <div className="relative flex-shrink-0">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-aubergine-600 to-indigo-700 text-white font-black text-base flex items-center justify-center shadow-xs">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 text-slate-600 font-bold text-sm flex items-center justify-center">
                     {initials}
                   </div>
                   {p.status === 'active' ? (
-                    <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
+                    <span className="absolute -bottom-0.5 -right-0.5 flex h-2.5 w-2.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-white"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-white"></span>
                     </span>
                   ) : (
-                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-slate-400 rounded-full border-2 border-white"></span>
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-slate-400 rounded-full border-2 border-white"></span>
                   )}
                 </div>
-
                 {/* Patient Primary Details */}
                 <div className="min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -2202,20 +2245,19 @@ function DoctorPatients() {
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap pt-0.5">
-                    <span className="text-xs font-bold text-aubergine-700 bg-aubergine-50 border border-aubergine-100 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5">
-                      <i className="fas fa-stethoscope text-[10px] text-aubergine-500"></i>
+                    <span className="text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded flex items-center gap-1.5">
                       <span>{p.diagnosis || 'Clinical Evaluation'}</span>
                     </span>
 
                     {p.alert && (
-                      <span className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 animate-pulse">
-                        <i className="fas fa-triangle-exclamation text-rose-500 text-[10px]"></i>
+                      <span className="text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded flex items-center gap-1.5">
+                        <i className="fas fa-triangle-exclamation text-[10px]"></i>
                         <span>{p.alert}</span>
                       </span>
                     )}
 
                     {p.bp && p.bp !== '—' && (
-                      <span className="text-[11px] font-medium text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md">
+                      <span className="text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded">
                         BP: <strong className="text-slate-700">{p.bp}</strong>
                       </span>
                     )}
@@ -2253,24 +2295,22 @@ function DoctorPatients() {
                 <button
                   onClick={() => startInstantCall(p)}
                   disabled={callingPatientId === p.id}
-                  className="h-10 px-3.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-50 flex items-center gap-2 transition-all shadow-xs font-bold text-xs"
+                  className="h-9 px-3.5 rounded-lg bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 disabled:opacity-50 flex items-center gap-2 transition-colors font-medium text-xs shadow-xs"
                   title={`Start a live telemedicine video call with ${p.name}`}
                 >
                   {callingPatientId === p.id ? (
-                    <i className="fas fa-circle-notch fa-spin text-sm"></i>
+                    <i className="fas fa-circle-notch fa-spin"></i>
                   ) : (
-                    <i className="fas fa-video text-sm text-emerald-600"></i>
+                    <i className="fas fa-video text-slate-400"></i>
                   )}
                   <span className="hidden sm:inline">Call</span>
                 </button>
 
                 <button
                   onClick={() => setSelectedPatientId(p.id)}
-                  className="h-10 bg-aubergine-700 hover:bg-aubergine-800 active:bg-aubergine-900 text-white font-bold px-4 rounded-xl text-xs sm:text-sm transition-all flex items-center gap-2 shadow-sm hover:shadow"
+                  className="h-9 bg-slate-800 hover:bg-slate-900 text-white font-medium px-4 rounded-lg text-xs transition-colors flex items-center gap-2"
                 >
-                  <i className="fas fa-folder-open text-amber-300"></i>
-                  <span>Open Complete EMR</span>
-                  <i className="fas fa-arrow-right text-[10px] opacity-70"></i>
+                  <span>View EMR</span>
                 </button>
               </div>
             </div>

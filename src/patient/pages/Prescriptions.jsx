@@ -153,10 +153,12 @@ const STATUS_CARD_STYLE = {
 function toRxCards(myPatient) {
   if (!myPatient) return [];
   const byGroup = new Map();
-  myPatient.meds.forEach(m => {
-    if (!byGroup.has(m.groupId)) byGroup.set(m.groupId, []);
-    byGroup.get(m.groupId).push(m);
-  });
+  myPatient.meds
+    .filter(m => m.status !== 'Draft' && m.status !== 'Cancelled')
+    .forEach(m => {
+      if (!byGroup.has(m.groupId)) byGroup.set(m.groupId, []);
+      byGroup.get(m.groupId).push(m);
+    });
   return [...byGroup.entries()].map(([groupId, meds]) => ({
     id: groupId,
     doctor: meds[0]?.doctor || 'Your Doctor',

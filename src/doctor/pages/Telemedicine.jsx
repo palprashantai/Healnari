@@ -14,7 +14,6 @@ import { AIButton } from '../../components/AiButton.jsx';
 import { AIPaywallModal } from '../../components/ai/AIPaywallModal.jsx';
 import { AIUsageBadge } from '../../components/ai/AIUsageBadge.jsx';
 import { triggerHaptic } from '../../lib/haptics.js';
-import { DEFAULT_DOCTOR_PATIENTS } from '../../data/defaultPatients.js';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
  * for srcObject, so this stays a thin imperative wrapper. */
@@ -3121,6 +3120,7 @@ function DoctorTelemedicine() {
       
       if (draftMeds && draftMeds.length > 0) {
         await addRx(activeCall.patientId, {
+          appointmentId: activeCall.id,
           diagnosis: activeCall.type || 'Teleconsultation',
           instructions: notes || '',
           medicines: draftMeds.map(m => ({
@@ -3133,7 +3133,10 @@ function DoctorTelemedicine() {
       }
       
       if (draftLabs && draftLabs.length > 0) {
-        await requestLabReport(activeCall.patientId, { requestedTests: draftLabs.join(', ') });
+        await requestLabReport(activeCall.patientId, { 
+          requestedTests: draftLabs.join(', '),
+          appointmentId: activeCall.id,
+        });
         await apiFetch('/communications/broadcasts', {
           method: 'POST',
           body: {

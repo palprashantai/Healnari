@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext.jsx';
 import { apiFetch } from '../lib/apiClient.js';
-import { DEFAULT_DOCTOR_PATIENTS } from '../data/defaultPatients.js';
-
 const ClinicDataContext = createContext(null);
 
 export function useClinicData() {
@@ -63,7 +61,9 @@ export function ClinicDataProvider({ children }) {
       prescribedOnRaw: p.created_at || '',
       refillsLeft: p.refills_left || 0,
       validTill: p.valid_till || '',
-      refillRequested: p.refill_requested || false
+      refillRequested: p.refill_requested || false,
+      status: p.status || 'Active',
+      appointmentId: p.appointment_id || null,
     }));
 
     return {
@@ -101,6 +101,7 @@ export function ClinicDataProvider({ children }) {
         urgent: r.urgent,
         interpretation: r.interpretation,
         doctorAction: r.doctor_action,
+        appointmentId: r.appointment_id || null,
       })),
       consultations: [],
       medicalHistory: { chronicConditions: record?.chronic_conditions || [], surgeries: [], familyHistory: [], lifestyle: '' },
@@ -182,39 +183,7 @@ export function ClinicDataProvider({ children }) {
       // up to 8-9 sequential round trips before the loading spinner cleared.
       if (user.role === 'doctor') {
         const pts = await apiFetch('/patients').catch(() => []);
-        const loaded = Array.isArray(pts) ? pts.map(adaptPatient).filter(Boolean) : [];
-
-        // Enrich loaded records so that pending/empty fields display authentic clinical data
-        const enriched = loaded.map((p, idx) => {
-          const fallbackRef = DEFAULT_DOCTOR_PATIENTS[idx] || DEFAULT_DOCTOR_PATIENTS[0];
-          return {
-            ...p,
-            name: (!p.name || p.name === 'Unknown') ? fallbackRef.name : p.name,
-            diagnosis: (!p.diagnosis || p.diagnosis === 'Pending') ? fallbackRef.diagnosis : p.diagnosis,
-            age: (!p.age || p.age === '—') ? fallbackRef.age : p.age,
-            blood: (!p.blood || p.blood === '—') ? fallbackRef.blood : p.blood,
-            lastVisit: p.lastVisit || fallbackRef.lastVisit,
-            nextVisit: p.nextVisit || fallbackRef.nextVisit,
-            alert: p.alert !== undefined ? p.alert : fallbackRef.alert,
-            meds: (p.meds && p.meds.length > 0) ? p.meds : fallbackRef.meds,
-            reports: (p.reports && p.reports.length > 0) ? p.reports : fallbackRef.reports,
-            clinicalNotes: (p.clinicalNotes && p.clinicalNotes.length > 0) ? p.clinicalNotes : fallbackRef.clinicalNotes,
-            visits: p.visits || fallbackRef.visits,
-            mrn: (p.mrn && !p.mrn.includes('undefined')) ? p.mrn : fallbackRef.mrn,
-            bp: (!p.bp || p.bp === '—') ? fallbackRef.bp : p.bp,
-            bmi: (!p.bmi || p.bmi === '—') ? fallbackRef.bmi : p.bmi,
-          };
-        });
-
-        // Ensure at least 10-12 records are always available for clinical workflows
-        const merged = [...enriched];
-        DEFAULT_DOCTOR_PATIENTS.forEach((dp) => {
-          if (merged.length < 12 && !merged.some((m) => m.name.toLowerCase() === dp.name.toLowerCase() || m.id === dp.id)) {
-            merged.push(dp);
-          }
-        });
-
-        setPatients(merged);
+        setPatients(Array.isArray(pts) ? pts.map(adaptPatient).filter(Boolean) : []);
       } else if (user.role === 'patient') {
         const [me, logs, vitalsData, lifestyle, connections, favs, wait, txns] = await Promise.all([
           apiFetch('/patients/me'),
@@ -355,9 +324,12 @@ export function ClinicDataProvider({ children }) {
         method: 'POST',
         body: {
           patientId,
+          appointmentId: rx.appointmentId,
           diagnosis: rx.diagnosis,
           instructions: rx.instructions,
           handwrittenImage: rx.handwrittenImage,
+          isDraft: rx.isDraft !== undefined ? rx.isDraft : true,
+          idempotencyKey: rx.idempotencyKey,
           medicines: rx.medicines.map(m => ({
             medName: m.name,
             dosage: m.dosage,
@@ -367,6 +339,28 @@ export function ClinicDataProvider({ children }) {
         }
       });
       refreshPatientsOnly(); // Scoped reload instead of 8-endpoint full platform fetch
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }, [refreshPatientsOnly]);
+
+  const finalizeRx = useCallback(async (groupId) => {
+    try {
+      const res = await apiFetch(`/records/prescriptions/${groupId}/finalize`, { method: 'PUT' });
+      refreshPatientsOnly();
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }, [refreshPatientsOnly]);
+
+  const cancelRx = useCallback(async (groupId) => {
+    try {
+      const res = await apiFetch(`/records/prescriptions/${groupId}/cancel`, { method: 'PUT' });
+      refreshPatientsOnly();
       return res;
     } catch (err) {
       console.error(err);
@@ -386,6 +380,7 @@ export function ClinicDataProvider({ children }) {
       if (meta.notes) formData.append('notes', meta.notes);
       if (meta.urgent) formData.append('urgent', 'true');
       if (meta.requestId) formData.append('requestId', meta.requestId);
+      if (meta.appointmentId) formData.append('appointmentId', meta.appointmentId);
 
       const res = await apiFetch('/records/lab-reports/upload', { method: 'POST', body: formData });
       refreshPatientsOnly();
@@ -409,11 +404,11 @@ export function ClinicDataProvider({ children }) {
 
   const getLabReportUrl = useCallback((id) => apiFetch(`/records/lab-reports/${id}/url`), []);
 
-  const requestLabReport = useCallback(async (patientId, { requestedTests, dueDate, notes } = {}) => {
+  const requestLabReport = useCallback(async (patientId, { requestedTests, dueDate, notes, appointmentId } = {}) => {
     try {
       const res = await apiFetch('/records/lab-report-requests', {
         method: 'POST',
-        body: { patientId, requestedTests, dueDate, notes },
+        body: { patientId, requestedTests, dueDate, notes, appointmentId },
       });
       return res;
     } catch (err) {
@@ -760,8 +755,8 @@ export function ClinicDataProvider({ children }) {
   }, []);
 
   const value = useMemo(() => ({
-    patients, updatePatient, addPatient, addRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
-    uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, refreshPatients: fetchData,
+    patients, updatePatient, addPatient, addRx, finalizeRx, cancelRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
+    uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, refreshPatients: fetchData, fetchData,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment, rescheduleAppointment, refreshAppointments,
     approveRequest, rejectRequest, callNextForDoctor,
     transactions, syncPayment,
@@ -772,9 +767,10 @@ export function ClinicDataProvider({ children }) {
     favorites, toggleFavorite,
     waitlist, joinWaitlist, leaveWaitlist,
     kycVerified, kycSubmitted, verifyKyc,
+    fetchCommunications, sendBroadcast, fetchBroadcasts, sendDirectMessage, createChannel, updateChannel,
     loading, loadError, retryLoad: fetchData,
   }), [
-    patients, updatePatient, addPatient, addRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
+    patients, updatePatient, addPatient, addRx, finalizeRx, cancelRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
     uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, fetchData,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment, rescheduleAppointment, refreshAppointments,
     approveRequest, rejectRequest, callNextForDoctor,
