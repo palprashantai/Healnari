@@ -108,15 +108,15 @@ function LabTests({ onBook }) {
       </div>
 
       {/* Concern Selector */}
-      <div className="flex overflow-x-auto hide-scrollbar gap-2 mb-10 pb-1 px-5 md:px-8 sm:overflow-visible">
+      <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-2.5 mb-10 pb-1 px-5 md:px-8">
         {concerns.map((concern) => (
           <button
             key={concern}
             onClick={() => setSelectedConcern(concern)}
-            className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 btn-interactive border ${
+            className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 btn-interactive border ${
               selectedConcern === concern
-                ? 'bg-brand-700 border-brand-700 text-white shadow-md'
-                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                ? 'bg-brand-700 border-brand-700 text-white shadow-md scale-105'
+                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300'
             }`}
           >
             {concern}

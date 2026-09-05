@@ -77,7 +77,7 @@ function HowItWorks() {
   const active = steps[activeStep];
 
   return (
-    <section id="how-it-works" className="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24">
+    <section id="how-it-works" className="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24 scroll-mt-20">
 
       {/* ── Title ── */}
       <div className="text-center max-w-2xl mx-auto mb-12 md:mb-16 space-y-3">

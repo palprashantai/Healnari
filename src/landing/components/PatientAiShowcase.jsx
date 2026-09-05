@@ -60,7 +60,7 @@ export default function PatientAiShowcase({ onStartConsult, onOpenChecker }) {
   ];
 
   return (
-    <section id="ai-features" className="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6 md:px-8 relative">
+    <section id="ai-features" className="py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6 md:px-8 relative scroll-mt-20">
       {/* Background Ambience */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-96 bg-gradient-to-r from-aubergine-200/20 via-pink-200/20 to-indigo-200/20 blur-3xl pointer-events-none -z-10 rounded-full"></div>
 

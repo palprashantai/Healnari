@@ -5,6 +5,9 @@ import { NavLink } from 'react-router-dom';
 function Header({ onStartConsult, onOpenAuth }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDiscreet, setIsDiscreet] = useState(() => {
+    return document.body.classList.contains('discreet-blur') || localStorage.getItem('discreet_mode') === 'true';
+  });
 
   useEffect(() => {
     const handleScroll = () => {
@@ -18,42 +21,87 @@ function Header({ onStartConsult, onOpenAuth }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (localStorage.getItem('discreet_mode') === 'true') {
+      document.body.classList.add('discreet-blur');
+      setIsDiscreet(true);
+    }
+    const handleDiscreetChange = () => {
+      setIsDiscreet(document.body.classList.contains('discreet-blur') || localStorage.getItem('discreet_mode') === 'true');
+    };
+    window.addEventListener('discreet_mode_changed', handleDiscreetChange);
+    return () => window.removeEventListener('discreet_mode_changed', handleDiscreetChange);
+  }, []);
+
+  const toggleDiscreet = () => {
+    const next = !isDiscreet;
+    setIsDiscreet(next);
+    if (next) {
+      document.body.classList.add('discreet-blur');
+      localStorage.setItem('discreet_mode', 'true');
+    } else {
+      document.body.classList.remove('discreet-blur');
+      localStorage.setItem('discreet_mode', 'false');
+    }
+    window.dispatchEvent(new Event('discreet_mode_changed'));
+  };
+
   const navLinks = [
     { label: 'AI Health Suite', href: '#ai-features', isAi: true },
     { label: 'Conditions', href: '#conditions' },
     { label: 'How it works', href: '#how-it-works' },
-    { label: 'Our doctors', href: '#doctors' },
+    { label: 'Doctors', href: '#doctors' },
     { label: 'Cycle Tracker', href: '#cycle-tracker' },
     { label: 'Lab Tests', href: '#lab-tests' },
     { label: 'FAQ', href: '#faq' },
   ];
 
+  const handleNavClick = (e, href) => {
+    setIsMobileMenuOpen(false);
+
+    // If currently on a different page (e.g. /for-doctors, /conditions/pcos), navigate to /#hash
+    if (window.location.pathname !== '/') {
+      e.preventDefault();
+      window.location.href = `/${href}`;
+      return;
+    }
+
+    // If already on the home page, scroll directly and smoothly to the section
+    const targetId = href.replace('#', '');
+    const element = document.getElementById(targetId);
+    if (element) {
+      e.preventDefault();
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.history.pushState(null, '', href);
+    }
+  };
 
   return (
     <header 
       className={`sticky top-0 z-50 transition-all duration-300 ${
         isScrolled
           ? 'border-b border-sand-200/80 shadow-md py-2.5'
-          : 'border-b border-transparent py-3.5'
+          : 'border-b border-transparent py-3'
       }`}
       style={{ backgroundColor: isScrolled ? 'rgba(253,251,247,0.93)' : 'rgba(253,251,247,0.98)', backdropFilter: 'blur(12px)' }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-3 lg:gap-4">
         
         {/* Left Section: Logo + Nav */}
-        <div className="flex items-center gap-3 lg:gap-4 xl:gap-6 min-w-0">
+        <div className="flex items-center gap-3 lg:gap-5 xl:gap-6 shrink-0">
           {/* Brand Logo */}
           <NavLink to="/" className="shrink-0">
             <HealNariLogo size="md" />
           </NavLink>
 
           {/* Desktop Navigation */}
-          <nav className="hidden xl:flex items-center gap-2.5 xl:gap-3.5 2xl:gap-4">
+          <nav className="hidden xl:flex items-center gap-2 xl:gap-2.5 2xl:gap-3.5">
             {navLinks.map((link) => (
               <a 
                 key={link.label}
                 href={link.href} 
-                className={`text-xs 2xl:text-sm font-semibold transition-colors relative py-1 whitespace-nowrap shrink-0 after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:transition-all hover:after:w-full flex items-center gap-1 ${
+                onClick={(e) => handleNavClick(e, link.href)}
+                className={`text-xs 2xl:text-[13px] font-semibold transition-colors relative py-1 px-1 whitespace-nowrap shrink-0 after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:transition-all hover:after:w-full flex items-center gap-1 ${
                   link.isAi
                     ? 'text-magenta-600 hover:text-magenta-700 font-bold after:bg-magenta-500'
                     : 'text-slate-600 hover:text-aubergine-600 after:bg-aubergine-500'
@@ -68,25 +116,31 @@ function Header({ onStartConsult, onOpenAuth }) {
                 )}
               </a>
             ))}
-
-            <NavLink
-              to="/for-doctors"
-              className="text-xs font-bold text-aubergine-700 bg-aubergine-50 hover:bg-aubergine-100 border border-aubergine-200 px-2.5 py-1 rounded-xl transition-all shadow-2xs items-center gap-1 whitespace-nowrap shrink-0 ml-1"
-            >
-              <i className="fas fa-stethoscope text-[10px]"></i> For Doctors
-            </NavLink>
           </nav>
         </div>
 
         {/* Right Section: Actions */}
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          <NavLink
+            to="/for-doctors"
+            className="hidden xl:inline-flex text-xs font-bold text-aubergine-700 bg-aubergine-50/90 hover:bg-aubergine-100 border border-aubergine-200/80 px-2.5 py-1.5 rounded-xl transition-all shadow-2xs items-center gap-1.5 whitespace-nowrap shrink-0"
+            title="Join or login as a Healthcare Provider"
+          >
+            <i className="fas fa-stethoscope text-[11px] text-aubergine-600"></i>
+            <span>For Doctors</span>
+          </NavLink>
+
           <button 
-            onClick={() => document.body.classList.toggle('discreet-blur')}
-            className="hidden xl:flex bg-slate-50 hover:bg-slate-100 text-slate-500 font-bold p-2 rounded-xl text-xs border border-slate-200 transition-all btn-interactive items-center justify-center shrink-0"
-            title="Discreet Mode (Blur screen for privacy)"
+            onClick={toggleDiscreet}
+            className={`hidden xl:flex w-8 h-8 rounded-xl font-bold text-xs border transition-all btn-interactive items-center justify-center shrink-0 ${
+              isDiscreet 
+                ? 'bg-aubergine-100 border-aubergine-300 text-aubergine-700 shadow-inner' 
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-500 border-slate-200'
+            }`}
+            title={isDiscreet ? "Disable Discreet Mode" : "Discreet Mode (Blur screen for privacy)"}
             aria-label="Toggle discreet mode"
           >
-            <i className="fas fa-eye-slash"></i>
+            <i className={`fas ${isDiscreet ? 'fa-eye' : 'fa-eye-slash'}`}></i>
           </button>
           <button 
             onClick={onOpenAuth}
@@ -132,7 +186,7 @@ function Header({ onStartConsult, onOpenAuth }) {
             <a 
               key={link.label}
               href={link.href} 
-              onClick={() => setIsMobileMenuOpen(false)}
+              onClick={(e) => handleNavClick(e, link.href)}
               className={`text-base font-semibold transition-colors py-2 px-1 border-b border-slate-50 flex items-center justify-between ${
                 link.isAi ? 'text-magenta-600 font-bold' : 'text-slate-700 hover:text-aubergine-600'
               }`}

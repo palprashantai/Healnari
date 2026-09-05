@@ -4,6 +4,7 @@ import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { DoctorShareModal } from '../../components/DoctorShareModal.jsx';
+import PhotoAdjustModal from '../../components/PhotoAdjustModal.jsx';
 import { formatCurrency } from '../../lib/currency.js';
 import { apiFetch } from '../../lib/apiClient.js';
 import NotificationSettingsTab from '../../components/NotificationSettingsTab.jsx';
@@ -223,27 +224,7 @@ function DoctorProfile() {
     }
   };
 
-  const handlePhotoUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      await uploadAvatar(file);
-      toast('Profile photo updated!', 'success');
-      setShowPhotoModal(false);
-    } catch (err) {
-      toast(err.message || 'Failed to upload photo', 'error');
-    }
-  };
 
-  const handlePhotoRemove = async () => {
-    try {
-      await removeAvatar();
-      toast('Photo removed.', 'info');
-      setShowPhotoModal(false);
-    } catch (err) {
-      toast(err.message || 'Failed to remove photo', 'error');
-    }
-  };
 
   const initials = form.name.split(' ').filter(w => w).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
@@ -723,22 +704,32 @@ function DoctorProfile() {
       {/* Share Modal */}
       <DoctorShareModal isOpen={showShareModal} onClose={() => setShowShareModal(false)} doctor={doc} />
 
-      {/* Photo Modal */}
-      <Modal isOpen={showPhotoModal} onClose={() => setShowPhotoModal(false)} title="Change Profile Photo" size="sm">
-        <div className="text-center space-y-4">
-          <div className="w-24 h-24 rounded-3xl bg-aubergine-100 text-aubergine-700 text-3xl font-black flex items-center justify-center mx-auto overflow-hidden">
-            {user?.avatarUrl ? <img src={user.avatarUrl} alt={form.name} className="w-full h-full object-cover" /> : initials}
-          </div>
-          <input type="file" accept="image/*" className="hidden" id="doctor-photo-upload" onChange={handlePhotoUpload} />
-          <label htmlFor="doctor-photo-upload" className="block w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-sm cursor-pointer transition-colors">
-            <i className="fas fa-upload mr-2"></i> Upload Photo
-          </label>
-          <button onClick={handlePhotoRemove}
-            className="w-full border border-rose-200 text-rose-600 hover:bg-rose-50 font-bold py-2.5 rounded-xl text-sm transition-colors">
-            Remove Photo
-          </button>
-        </div>
-      </Modal>
+      {/* Photo Adjust & Upload Modal */}
+      <PhotoAdjustModal
+        isOpen={showPhotoModal}
+        onClose={() => setShowPhotoModal(false)}
+        currentAvatarUrl={user?.avatarUrl}
+        userName={form.name}
+        initials={initials}
+        onSave={async (file) => {
+          try {
+            await uploadAvatar(file);
+            toast('Profile photo updated successfully!', 'success');
+          } catch (err) {
+            toast(err.message || 'Failed to update photo', 'error');
+            throw err;
+          }
+        }}
+        onRemove={async () => {
+          try {
+            await removeAvatar();
+            toast('Profile photo removed.', 'info');
+          } catch (err) {
+            toast(err.message || 'Failed to remove photo', 'error');
+            throw err;
+          }
+        }}
+      />
 
       <ConfirmModal isOpen={showLogout} onClose={() => setShowLogout(false)}
         onConfirm={() => { logout(); toast('Signed out.', 'info'); }}

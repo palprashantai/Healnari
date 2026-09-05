@@ -177,6 +177,25 @@ function LandingPage() {
     setIsSuccessOpen(false);
   };
 
+  // Smoothly scroll to anchor if URL has hash (e.g. /#conditions or /#how-it-works)
+  useEffect(() => {
+    const scrollToHash = () => {
+      if (window.location.hash) {
+        const targetId = window.location.hash.replace('#', '');
+        const element = document.getElementById(targetId);
+        if (element) {
+          setTimeout(() => {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 150);
+        }
+      }
+    };
+
+    scrollToHash();
+    window.addEventListener('hashchange', scrollToHash);
+    return () => window.removeEventListener('hashchange', scrollToHash);
+  }, []);
+
   const dynamicPricing = adminSettings?.pricingAmount || 799;
 
   return (
@@ -205,114 +224,110 @@ function LandingPage() {
         
         <Suspense fallback={<div className="h-32 flex items-center justify-center text-slate-400 text-sm">Loading...</div>}>
           {adminSettings?.toggles?.showStats !== false && (
-            <LazyRender><Reveal><Stats /></Reveal></LazyRender>
+            <Reveal><Stats /></Reveal>
           )}
 
           {adminSettings?.toggles?.showConditions !== false && (
-            <LazyRender><Conditions /></LazyRender>
+            <Conditions />
           )}
 
           {adminSettings?.toggles?.showPcosDiagram !== false && (
-            <LazyRender><Reveal><PcosDiagram /></Reveal></LazyRender>
+            <Reveal><PcosDiagram /></Reveal>
           )}
 
           {adminSettings?.toggles?.showHolisticApproach !== false && (
-            <LazyRender><Reveal><HolisticApproach /></Reveal></LazyRender>
+            <Reveal><HolisticApproach /></Reveal>
           )}
 
           {adminSettings?.toggles?.showHowItWorks !== false && (
-            <LazyRender><Reveal><HowItWorks /></Reveal></LazyRender>
+            <Reveal><HowItWorks /></Reveal>
           )}
 
           {/* Dedicated AI Health Suite Showcase */}
           {adminSettings?.toggles?.showAiShowcase !== false && (
-            <LazyRender>
-              <PatientAiShowcase 
-                onStartConsult={() => openBooking('')} 
-                onOpenChecker={() => setIsSymptomOpen(true)} 
-              />
-            </LazyRender>
+            <PatientAiShowcase 
+              onStartConsult={() => openBooking('')} 
+              onOpenChecker={() => setIsSymptomOpen(true)} 
+            />
           )}
 
           {adminSettings?.toggles?.showFeaturedDoctors !== false && (
-            <LazyRender><Doctors onSelectDoctor={openBooking} /></LazyRender>
+            <Doctors onSelectDoctor={openBooking} />
           )}
 
           {adminSettings?.toggles?.showOutcomes !== false && (
-            <LazyRender><Reveal><Outcomes /></Reveal></LazyRender>
+            <Reveal><Outcomes /></Reveal>
           )}
 
           {adminSettings?.toggles?.showTestimonials !== false && (
-            <LazyRender><Reveal><Testimonials reviews={adminSettings?.testimonials?.patient} /></Reveal></LazyRender>
+            <Reveal><Testimonials reviews={adminSettings?.testimonials?.patient} /></Reveal>
           )}
 
           {adminSettings?.toggles?.showCycleTracker !== false && (
-            <LazyRender><Reveal><CycleTracker /></Reveal></LazyRender>
+            <Reveal><CycleTracker /></Reveal>
           )}
 
           {adminSettings?.toggles?.showLabTests !== false && (
-            <LazyRender><Reveal><LabTests onBook={openBooking} /></Reveal></LazyRender>
+            <Reveal><LabTests onBook={openBooking} /></Reveal>
           )}
 
           {adminSettings?.toggles?.showHealthTips !== false && (
-            <LazyRender><Reveal><HealthTips onStartConsult={() => openBooking('')} /></Reveal></LazyRender>
+            <Reveal><HealthTips onStartConsult={() => openBooking('')} /></Reveal>
           )}
 
           {/* Customized Premium Inline CTA Section */}
           {adminSettings?.toggles?.showPricing !== false && (
             <section className="max-w-6xl mx-auto px-5 md:px-8 py-10">
-            <LazyRender>
-            <Reveal>
-              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-600 to-brand-700 px-5 py-10 sm:px-8 sm:py-12 md:p-16 text-center text-white shadow-xl glow-purple">
-                {/* Background design accents */}
-                <div className="absolute top-0 right-0 -mt-12 -mr-12 w-48 h-48 rounded-full bg-violet-600/10 blur-2xl"></div>
-                <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-48 h-48 rounded-full bg-indigo-500/15 blur-2xl"></div>
-                
-                <div className="relative z-10 space-y-6 max-w-3xl mx-auto">
-                  <span className="inline-flex items-center gap-1.5 bg-brand-800/60 backdrop-blur border border-brand-700 text-brand-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                    <i className="fas fa-percent text-emerald-400"></i> Introductory Offer
-                  </span>
-                  <div className="text-2xl sm:text-3xl md:text-4xl font-black leading-tight text-white font-display">
-                    Discuss your concerns with an expert for just <span className="underline decoration-white/40 decoration-wavy">₹{dynamicPricing}</span>
-                  </div>
-                  <p className="text-white/90 text-base max-w-xl mx-auto leading-relaxed font-medium">
-                    Includes: <strong>45-min video call</strong> with a specialist doctor + personalised <strong>lab-test roadmap</strong> + <strong>diet & lifestyle protocol</strong> + <strong>digital prescription</strong> + 14-day free chat follow-up. No surprise charges. <br/> <span className="text-brand-100 text-sm mt-1 inline-block"><i className="fas fa-globe-americas"></i> Available globally across all timezones.</span>
-                  </p>
+              <Reveal>
+                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-600 to-brand-700 px-5 py-10 sm:px-8 sm:py-12 md:p-16 text-center text-white shadow-xl glow-purple">
+                  {/* Background design accents */}
+                  <div className="absolute top-0 right-0 -mt-12 -mr-12 w-48 h-48 rounded-full bg-violet-600/10 blur-2xl"></div>
+                  <div className="absolute bottom-0 left-0 -mb-12 -ml-12 w-48 h-48 rounded-full bg-indigo-500/15 blur-2xl"></div>
                   
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-2">
-                    <button 
-                      onClick={() => openBooking('')}
-                      className="w-full sm:w-auto bg-white text-brand-900 hover:bg-indigo-50 font-bold px-8 py-3.5 rounded-xl shadow-lg transition-all btn-interactive flex items-center justify-center gap-2 text-base md:text-lg"
-                    >
-                      <i className="fas fa-calendar-check"></i> Book My ₹{dynamicPricing} Consult
-                    </button>
-                    <button
-                      onClick={() => setIsSymptomOpen(true)}
-                      className="w-full sm:w-auto bg-brand-800/40 hover:bg-brand-800/60 border border-brand-700 text-white font-semibold px-8 py-3.5 rounded-xl transition-all btn-interactive flex items-center justify-center gap-2 text-base md:text-lg"
-                    >
-                      <i className="fas fa-heart-pulse"></i> Not sure? Check symptoms free
-                    </button>
-                  </div>
+                  <div className="relative z-10 space-y-6 max-w-3xl mx-auto">
+                    <span className="inline-flex items-center gap-1.5 bg-brand-800/60 backdrop-blur border border-brand-700 text-brand-200 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                      <i className="fas fa-percent text-emerald-400"></i> Introductory Offer
+                    </span>
+                    <div className="text-2xl sm:text-3xl md:text-4xl font-black leading-tight text-white font-display">
+                      Discuss your concerns with an expert for just <span className="underline decoration-white/40 decoration-wavy">₹{dynamicPricing}</span>
+                    </div>
+                    <p className="text-white/90 text-base max-w-xl mx-auto leading-relaxed font-medium">
+                      Includes: <strong>45-min video call</strong> with a specialist doctor + personalised <strong>lab-test roadmap</strong> + <strong>diet & lifestyle protocol</strong> + <strong>digital prescription</strong> + 14-day free chat follow-up. No surprise charges. <br/> <span className="text-brand-100 text-sm mt-1 inline-block"><i className="fas fa-globe-americas"></i> Available globally across all timezones.</span>
+                    </p>
+                    
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-2">
+                      <button 
+                        onClick={() => openBooking('')}
+                        className="w-full sm:w-auto bg-white text-brand-900 hover:bg-indigo-50 font-bold px-8 py-3.5 rounded-xl shadow-lg transition-all btn-interactive flex items-center justify-center gap-2 text-base md:text-lg"
+                      >
+                        <i className="fas fa-calendar-check"></i> Book My ₹{dynamicPricing} Consult
+                      </button>
+                      <button
+                        onClick={() => setIsSymptomOpen(true)}
+                        className="w-full sm:w-auto bg-brand-800/40 hover:bg-brand-800/60 border border-brand-700 text-white font-semibold px-8 py-3.5 rounded-xl transition-all btn-interactive flex items-center justify-center gap-2 text-base md:text-lg"
+                      >
+                        <i className="fas fa-heart-pulse"></i> Not sure? Check symptoms free
+                      </button>
+                    </div>
 
-                  <div className="flex flex-wrap justify-center gap-6 pt-4 text-xs font-semibold text-white/90">
-                    <span className="flex items-center gap-1.5"><i className="fas fa-video text-brand-100"></i> 45-Min Video Consult</span>
-                    <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-brand-100"></i> Encrypted & Confidential</span>
-                    <span className="flex items-center gap-1.5"><i className="fas fa-comment-medical text-brand-100"></i> 14-Day Free Chat Follow-Up</span>
-                  </div>
+                    <div className="flex flex-wrap justify-center gap-6 pt-4 text-xs font-semibold text-white/90">
+                      <span className="flex items-center gap-1.5"><i className="fas fa-video text-brand-100"></i> 45-Min Video Consult</span>
+                      <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-brand-100"></i> Encrypted & Confidential</span>
+                      <span className="flex items-center gap-1.5"><i className="fas fa-comment-medical text-brand-100"></i> 14-Day Free Chat Follow-Up</span>
+                    </div>
 
+                  </div>
                 </div>
-              </div>
-            </Reveal>
-            </LazyRender>
+              </Reveal>
             </section>
           )}
 
           {adminSettings?.toggles?.showFaq !== false && (
-            <LazyRender><Reveal><Faq faqs={adminSettings?.faqs?.patient} /></Reveal></LazyRender>
+            <Reveal><Faq faqs={adminSettings?.faqs?.patient} /></Reveal>
           )}
 
           {adminSettings?.toggles?.showNewsletter !== false && (
-            <LazyRender><Reveal><NewsletterSignup /></Reveal></LazyRender>
+            <Reveal><NewsletterSignup /></Reveal>
           )}
         </Suspense>
       </main>

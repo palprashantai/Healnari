@@ -180,6 +180,9 @@ export function AuthProvider({ children }) {
     if (updates.consultFee !== undefined) patch.consultationFee = Number(updates.consultFee);
     if (updates.videoFee !== undefined) patch.consultationFee = Number(updates.videoFee);
     if (updates.clinicConsultationFee !== undefined) patch.clinicConsultationFee = Number(updates.clinicConsultationFee);
+    if (updates.clinicName !== undefined) patch.clinicName = updates.clinicName;
+    if (updates.clinicAddress !== undefined) patch.clinicAddress = updates.clinicAddress;
+    if (updates.medicalCouncil !== undefined) patch.medicalCouncil = updates.medicalCouncil;
     if (updates.languages !== undefined) patch.languages = updates.languages;
     if (updates.address !== undefined) patch.address = updates.address;
     if (updates.city !== undefined) patch.city = updates.city;

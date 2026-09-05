@@ -40,7 +40,7 @@ function ProviderCalculator({ onApply, commissionRate }) {
     }
   };
 
-  const feePresets = isUSD ? [25, 40, 60, 80, 100] : [500, 800, 1000, 1500, 2000];
+  const feePresets = isUSD ? [25, 40, 60, 80, 100, 150] : [500, 800, 1000, 1500, 2000, 2500];
   const consultPresets = [2, 4, 6, 8, 12];
   const daysOptions = [
     { label: '2 Days (Weekends)', value: 2 },
@@ -59,10 +59,33 @@ function ProviderCalculator({ onApply, commissionRate }) {
             Practice Economics
           </span>
 
-          {/* Currency Badge */}
-          <span className="text-xs font-bold text-slate-700 bg-white border border-sand-300 px-3 py-1 rounded-full shadow-xs">
-            {currency === 'INR' ? '₹ INR (India)' : '$ USD (Global)'}
-          </span>
+          {/* Interactive Currency Switcher */}
+          <div className="inline-flex items-center p-1 bg-slate-100 border border-slate-200 rounded-full shadow-xs">
+            <button
+              type="button"
+              onClick={() => handleCurrencyChange('INR')}
+              className={`flex items-center gap-1.5 px-3.5 py-1 text-xs font-bold rounded-full transition-all duration-200 ${
+                currency === 'INR'
+                  ? 'bg-aubergine-700 text-white shadow-xs font-extrabold'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+              }`}
+              title="Calculate in Indian Rupees (INR)"
+            >
+              <span>🇮🇳</span> ₹ INR (India)
+            </button>
+            <button
+              type="button"
+              onClick={() => handleCurrencyChange('USD')}
+              className={`flex items-center gap-1.5 px-3.5 py-1 text-xs font-bold rounded-full transition-all duration-200 ${
+                currency === 'USD'
+                  ? 'bg-aubergine-700 text-white shadow-xs font-extrabold'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+              }`}
+              title="Calculate in US Dollars (USD)"
+            >
+              <span>🌐</span> $ USD (Global)
+            </button>
+          </div>
         </div>
 
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-900 font-display tracking-tight">
@@ -81,6 +104,42 @@ function ProviderCalculator({ onApply, commissionRate }) {
             
             {/* Left Column: Input Controls */}
             <div className="lg:col-span-7 space-y-8">
+
+              {/* Currency Selector Bar inside Card for quick switching */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                    Select Currency:
+                  </span>
+                  <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => handleCurrencyChange('INR')}
+                      className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                        currency === 'INR'
+                          ? 'bg-white text-aubergine-800 shadow-xs ring-1 ring-slate-200 font-extrabold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>🇮🇳</span> ₹ INR
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCurrencyChange('USD')}
+                      className={`flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                        currency === 'USD'
+                          ? 'bg-white text-aubergine-800 shadow-xs ring-1 ring-slate-200 font-extrabold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>🌐</span> $ USD
+                    </button>
+                  </div>
+                </div>
+                <span className="text-[11px] text-slate-500 font-medium bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
+                  {currency === 'USD' ? 'Global consulting rates' : 'Domestic India consulting rates'}
+                </span>
+              </div>
               
               {/* Input 1: Consultation Fee */}
               <div className="space-y-3">
@@ -99,8 +158,8 @@ function ProviderCalculator({ onApply, commissionRate }) {
                 <input
                   type="range"
                   aria-label="Set Consultation Fee"
-                  min={isUSD ? 20 : 300}
-                  max={isUSD ? 150 : 3000}
+                  min={isUSD ? 15 : 300}
+                  max={isUSD ? 250 : 3000}
                   step={isUSD ? 5 : 50}
                   value={fee}
                   onChange={e => setFee(Number(e.target.value))}
@@ -271,7 +330,7 @@ function ProviderCalculator({ onApply, commissionRate }) {
               <div className="space-y-2 text-xs text-slate-200 font-medium">
                 <div className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-2"><i className="fas fa-check-circle text-emerald-400"></i> Platform Service Fee:</span>
-                  <strong className="text-white font-bold">Applied Per Consultation</strong>
+                  <strong className="text-white font-bold">{PLATFORM_FEE_PERCENT}% Per Consultation</strong>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-2"><i className="fas fa-check-circle text-emerald-400"></i> Monthly Fixed Rent:</span>

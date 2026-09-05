@@ -28,6 +28,7 @@ import {
   IsOptional,
   IsString,
   Matches,
+  Max,
   MaxLength,
   Min,
   MinLength,
@@ -191,6 +192,103 @@ export class UpdateMeDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
+  @MaxLength(200)
+  qualifications?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  experienceYears?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  clinicName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  clinicAddress?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  medicalCouncil?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  clinicConsultationFee?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  bloodGroup?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  languages?: any;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  address?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  city?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  state?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  pincode?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  gender?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  age?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  emergencyContact?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  allergies?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  chronicConditions?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   @MaxLength(2000)
   bio?: string;
 
@@ -240,7 +338,7 @@ export class UpdatePasswordDto {
 @ApiTags('Auth')
 @Controller('api/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   // AUDIT_REPORT.md SEC-3 — the only other rate limit anywhere is a flat
   // 100 req/min/IP applied to every route; that's far too permissive for

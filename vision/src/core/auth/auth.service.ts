@@ -42,9 +42,25 @@ export class AuthService {
       avatarUrl: p.avatar_url || '',
       specialty: p.specialty || '',
       regNo: p.registration_no || '',
+      registrationNo: p.registration_no || '',
+      qualification: meta.qualifications || (p as any).qualifications || '',
+      qualifications: meta.qualifications || (p as any).qualifications || '',
+      experience: meta.experienceYears || (p as any).experience_years || 0,
+      experienceYears: meta.experienceYears || (p as any).experience_years || 0,
+      clinicName: meta.clinicName || '',
+      clinicAddress: meta.clinicAddress || '',
+      medicalCouncil: p.medical_council || meta.medicalCouncil || '',
       consultationFee: p.consultation_fee || 799,
       consultFee: p.consultation_fee || 799,
+      videoFee: p.consultation_fee || 799,
+      clinicConsultationFee: meta.clinicConsultationFee || p.consultation_fee || 799,
       bio: p.bio || '',
+      languages: meta.languages || [],
+      city: meta.city || '',
+      state: meta.state || '',
+      pincode: meta.pincode || '',
+      address: meta.address || '',
+      bloodGroup: meta.bloodGroup || '',
       currency: (p.currency || 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR',
       country: p.country || meta.country || ((p.currency || 'INR').toUpperCase() === 'USD' ? 'US' : 'IN'),
       age: age ? Number(age) : null,
@@ -249,9 +265,10 @@ export class AuthService {
     if (body.specialty !== undefined) patch.specialty = body.specialty;
     if (body.registrationNo !== undefined)
       patch.registration_no = body.registrationNo;
+    if (body.medicalCouncil !== undefined)
+      patch.medical_council = body.medicalCouncil;
 
-    // Persist dob: sync to patient_records table and store in user_metadata so
-    // toAppUser can always read it back consistently for both roles.
+    // Persist dob: sync to patient_records table
     if (body.dob !== undefined && body.dob) {
       try {
         await this.supabase.admin
@@ -263,14 +280,39 @@ export class AuthService {
       } catch (e: any) {
         this.logger.warn(`Could not sync dob to patient_records for ${userId}: ${e?.message}`);
       }
-      try {
-        await this.supabase.admin.auth.admin.updateUserById(userId, {
-          user_metadata: { dob: body.dob },
-        });
-      } catch (e: any) {
-        this.logger.warn(`Could not sync dob to user_metadata for ${userId}: ${e?.message}`);
-      }
     }
+
+    // Sync extended metadata fields to Supabase user_metadata
+    try {
+      const metaUpdates: Record<string, any> = {};
+      if (body.dob !== undefined) metaUpdates.dob = body.dob;
+      if (body.gender !== undefined) metaUpdates.gender = body.gender;
+      if (body.age !== undefined) metaUpdates.age = body.age;
+      if (body.qualifications !== undefined) metaUpdates.qualifications = body.qualifications;
+      if (body.experienceYears !== undefined) metaUpdates.experienceYears = body.experienceYears;
+      if (body.clinicName !== undefined) metaUpdates.clinicName = body.clinicName;
+      if (body.clinicAddress !== undefined) metaUpdates.clinicAddress = body.clinicAddress;
+      if (body.clinicConsultationFee !== undefined) metaUpdates.clinicConsultationFee = body.clinicConsultationFee;
+      if (body.medicalCouncil !== undefined) metaUpdates.medicalCouncil = body.medicalCouncil;
+      if (body.bloodGroup !== undefined) metaUpdates.bloodGroup = body.bloodGroup;
+      if (body.languages !== undefined) metaUpdates.languages = body.languages;
+      if (body.city !== undefined) metaUpdates.city = body.city;
+      if (body.state !== undefined) metaUpdates.state = body.state;
+      if (body.pincode !== undefined) metaUpdates.pincode = body.pincode;
+      if (body.address !== undefined) metaUpdates.address = body.address;
+      if (body.emergencyContact !== undefined) metaUpdates.emergencyContact = body.emergencyContact;
+      if (body.allergies !== undefined) metaUpdates.allergies = body.allergies;
+      if (body.chronicConditions !== undefined) metaUpdates.chronicConditions = body.chronicConditions;
+
+      if (Object.keys(metaUpdates).length > 0) {
+        await this.supabase.admin.auth.admin.updateUserById(userId, {
+          user_metadata: metaUpdates,
+        });
+      }
+    } catch (e: any) {
+      this.logger.warn(`Could not sync user_metadata for ${userId}: ${e?.message}`);
+    }
+
     if (body.consultationFee !== undefined)
       patch.consultation_fee = Number(body.consultationFee);
     if (body.bio !== undefined) patch.bio = body.bio;
