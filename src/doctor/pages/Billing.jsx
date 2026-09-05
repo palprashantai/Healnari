@@ -243,6 +243,58 @@ function DoctorBilling() {
 
   const totalSettled = filtered.reduce((s, t) => s + (t.status === 'settled' ? t.amount : 0), 0);
 
+  // Compute live fallback summary directly from verified transaction ledger & payouts
+  const effectiveSummary = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    let computedThisMonth = 0;
+    let computedThisMonthCount = 0;
+    let computedTotalYtd = 0;
+    let computedPending = 0;
+    let computedPendingCount = 0;
+    let computedTotalSettled = 0;
+
+    rows.forEach(r => {
+      const isSettled = r.status === 'settled' || r.status === 'Paid';
+      const isPending = r.status === 'pending';
+      const d = r.rawDate instanceof Date && !isNaN(r.rawDate) ? r.rawDate : new Date();
+
+      if (isSettled) {
+        computedTotalSettled += r.amount;
+        if (d.getFullYear() === currentYear) {
+          computedTotalYtd += r.amount;
+          if (d.getMonth() === currentMonth) {
+            computedThisMonth += r.amount;
+            computedThisMonthCount++;
+          }
+        }
+      } else if (isPending) {
+        computedPending += r.amount;
+        computedPendingCount++;
+      }
+    });
+
+    const totalPaidOut = (payouts || []).reduce((sum, p) => {
+      if (p.status !== 'rejected' && p.status !== 'failed') {
+        return sum + Number(p.amount || 0);
+      }
+      return sum;
+    }, 0);
+
+    const computedAvailable = Math.max(0, computedTotalSettled - totalPaidOut);
+
+    return {
+      available: (summary?.available && summary.available > 0) ? summary.available : Number(computedAvailable.toFixed(2)),
+      pending: (summary?.pending && summary.pending > 0) ? summary.pending : Number(computedPending.toFixed(2)),
+      pendingCount: summary?.pendingCount || computedPendingCount,
+      thisMonth: (summary?.thisMonth && summary.thisMonth > 0) ? summary.thisMonth : Number(computedThisMonth.toFixed(2)),
+      thisMonthCount: summary?.thisMonthCount || computedThisMonthCount,
+      totalYtd: (summary?.totalYtd && summary.totalYtd > 0) ? summary.totalYtd : Number(computedTotalYtd.toFixed(2)),
+    };
+  }, [summary, rows, payouts]);
+
   const exportEarnings = () => {
     if (filtered.length === 0) { toast('No transactions to export.', 'error'); return; }
     const header = ['ID', 'Patient', 'Date', 'Type', 'Method', 'Amount', 'Currency', 'Status'];
@@ -319,7 +371,7 @@ function DoctorBilling() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPITrendCard
           title="Available for Payout"
-          value={formatCurrency(summary.available || 0, userCurrency)}
+          value={formatCurrency(effectiveSummary.available || 0, userCurrency)}
           period="Ready for direct wire withdrawal"
           icon="fa-wallet"
           colorScheme="dark"
@@ -331,8 +383,8 @@ function DoctorBilling() {
 
         <KPITrendCard
           title="Pending Clearing"
-          value={formatCurrency(summary.pending || 0, userCurrency)}
-          period={`${summary.pendingCount || 0} consultations in clearing window`}
+          value={formatCurrency(effectiveSummary.pending || 0, userCurrency)}
+          period={`${effectiveSummary.pendingCount || 0} consultations in clearing window`}
           icon="fa-clock"
           colorScheme="amber"
           loading={loading}
@@ -340,8 +392,8 @@ function DoctorBilling() {
 
         <KPITrendCard
           title="Earnings This Month"
-          value={formatCurrency(summary.thisMonth || 0, userCurrency)}
-          period={`${summary.thisMonthCount || 0} sessions this month`}
+          value={formatCurrency(effectiveSummary.thisMonth || 0, userCurrency)}
+          period={`${effectiveSummary.thisMonthCount || 0} sessions this month`}
           icon="fa-chart-line"
           colorScheme="emerald"
           loading={loading}
@@ -349,7 +401,7 @@ function DoctorBilling() {
 
         <KPITrendCard
           title="Total Earnings (YTD)"
-          value={formatCurrency(summary.totalYtd || 0, userCurrency)}
+          value={formatCurrency(effectiveSummary.totalYtd || 0, userCurrency)}
           period="Cumulative earnings this calendar year"
           icon="fa-calendar-check"
           colorScheme="purple"
@@ -541,7 +593,7 @@ function DoctorBilling() {
         </div>
       </div>
 
-      <PayoutModal isOpen={showPayout} onClose={() => setShowPayout(false)} toast={toast} available={summary.available} currency={userCurrency} onRequest={requestPayout} />
+      <PayoutModal isOpen={showPayout} onClose={() => setShowPayout(false)} toast={toast} available={effectiveSummary.available} currency={userCurrency} onRequest={requestPayout} />
       <InvoiceModal txn={invoiceTxn} isOpen={!!invoiceTxn} onClose={() => setInvoiceTxn(null)} doctorName={user?.name} toast={toast} />
     </div>
   );
