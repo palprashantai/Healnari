@@ -767,7 +767,6 @@ export function ClinicDataProvider({ children }) {
     favorites, toggleFavorite,
     waitlist, joinWaitlist, leaveWaitlist,
     kycVerified, kycSubmitted, verifyKyc,
-    fetchCommunications, sendBroadcast, fetchBroadcasts, sendDirectMessage, createChannel, updateChannel,
     loading, loadError, retryLoad: fetchData,
   }), [
     patients, updatePatient, addPatient, addRx, finalizeRx, cancelRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
