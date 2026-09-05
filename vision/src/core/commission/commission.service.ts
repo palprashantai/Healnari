@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { DecimalMath } from '@/core/utils/decimal.util';
+import { CommissionCalculator } from '@/core/utils/commission.util';
 
 export interface PayoutBreakdown {
   /** Original consultation / charge gross amount */
@@ -14,7 +15,7 @@ export interface PayoutBreakdown {
 }
 
 @Injectable()
-export class CommissionService {
+export class CommissionService implements OnModuleInit {
   private readonly logger = new Logger(CommissionService.name);
 
   // In-memory cache for dynamic global commission rate (TTL 60s)
@@ -23,6 +24,15 @@ export class CommissionService {
 
   constructor(private readonly supabase: SupabaseService) {}
 
+  async onModuleInit() {
+    try {
+      const rate = await this.getGlobalCommissionRate();
+      this.logger.log(`Initialized platform commission rate: ${rate}%`);
+    } catch (err: any) {
+      this.logger.warn(`Could not initialize commission rate on startup: ${err.message}`);
+    }
+  }
+
   /**
    * Fetches the dynamic active global platform commission rate directly from the database.
    * NEVER hardcodes the percentage.
@@ -30,6 +40,7 @@ export class CommissionService {
   async getGlobalCommissionRate(): Promise<number> {
     const now = Date.now();
     if (this.cachedRate !== null && now < this.cacheExpiresAt) {
+      CommissionCalculator.GLOBAL_COMMISSION_RATE = this.cachedRate;
       return this.cachedRate;
     }
 
@@ -51,6 +62,7 @@ export class CommissionService {
       this.cachedRate = 10;
     }
 
+    CommissionCalculator.GLOBAL_COMMISSION_RATE = this.cachedRate;
     this.cacheExpiresAt = now + 60_000; // Cache for 60 seconds
     return this.cachedRate;
   }

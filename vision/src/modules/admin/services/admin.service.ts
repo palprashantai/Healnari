@@ -947,6 +947,8 @@ export class AdminService {
         );
       });
 
+      const globalCommissionRate = await this.commissionService.getGlobalCommissionRate();
+
       const revenueByDoctor = new Map<string, number>();
       const platformFeeByDoctor = new Map<string, number>();
       const doctorNetByDoctor = new Map<string, number>();
@@ -955,7 +957,7 @@ export class AdminService {
         .filter((p) => p.status === 'Paid')
         .forEach((p) => {
           const amt = Number(p.amount || 0);
-          const fee = Number(p.platform_fee_amount ?? (amt * (CommissionCalculator.GLOBAL_COMMISSION_RATE / 100)));
+          const fee = Number(p.platform_fee_amount ?? (amt * (globalCommissionRate / 100)));
           const net = Number(p.provider_payout_amount ?? (amt - fee));
 
           revenueByDoctor.set(p.doctor_id, (revenueByDoctor.get(p.doctor_id) || 0) + amt);
@@ -971,7 +973,10 @@ export class AdminService {
         const totalDoctorNet = doctorNetByDoctor.get(d.id) || 0;
         const totalConsults = aptCountByDoctor.get(d.id) || 0;
         const isVerified = Boolean(d.kyc_verified);
-        const commissionRate = CommissionCalculator.GLOBAL_COMMISSION_RATE;
+        const docCommissionRate =
+          d.commission_rate !== null && d.commission_rate !== undefined
+            ? Number(d.commission_rate)
+            : globalCommissionRate;
 
         return {
           id: d.id,
@@ -988,8 +993,9 @@ export class AdminService {
           totalPlatformFee: totalPlatformFee,
           totalDoctorNet: totalDoctorNet,
           consultation_fee: d.consultation_fee || 0,
-          commission_rate: commissionRate,
-          commissionRate: commissionRate,
+          commission_rate: docCommissionRate,
+          commissionRate: docCommissionRate,
+          global_commission_rate: globalCommissionRate,
           phone: d.phone || '',
           aiPlan: {
             id: planId,
@@ -1010,6 +1016,7 @@ export class AdminService {
 
   async getDoctorDetail(id: string) {
     try {
+      const globalRate = await this.commissionService.getGlobalCommissionRate();
       const { data: doctor } = await this.supabase.admin
         .from('profiles')
         .select('*')
@@ -1017,7 +1024,12 @@ export class AdminService {
         .eq('role', ProfileRole.DOCTOR)
         .maybeSingle();
       if (!doctor) throw new NotFoundException(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
-      doctor.commission_rate = CommissionCalculator.GLOBAL_COMMISSION_RATE;
+
+      doctor.commission_rate =
+        doctor.commission_rate !== null && doctor.commission_rate !== undefined
+          ? Number(doctor.commission_rate)
+          : globalRate;
+      doctor.global_commission_rate = globalRate;
 
       const [{ data: appointments }, { data: payments }, { data: aiSub }, { data: aiTransactions }] =
         await Promise.all([
@@ -1285,16 +1297,26 @@ export class AdminService {
         throw new BadRequestException('Commission rate must be between 0 and 100');
       }
 
-      // Update singleton landing_settings table
+      // Upsert singleton landing_settings table
       const { error: updateError } = await this.supabase.admin
         .from('landing_settings')
-        .update({ platform_commission_rate: safeNewRate })
-        .eq('id', 1);
+        .upsert({ id: 1, platform_commission_rate: safeNewRate });
 
       if (updateError) {
         throw new InternalServerErrorException(
           `Failed to update global commission: ${updateError.message}`,
         );
+      }
+
+      // Verify if admin.id is present in profiles before using as foreign key
+      let changedBy: string | null = null;
+      if (admin?.id) {
+        const { data: prof } = await this.supabase.admin
+          .from('profiles')
+          .select('id')
+          .eq('id', admin.id)
+          .maybeSingle();
+        if (prof?.id) changedBy = prof.id;
       }
 
       // Insert audit history record
@@ -1304,7 +1326,7 @@ export class AdminService {
           previous_rate: previousRate,
           new_rate: safeNewRate,
           effective_from: new Date().toISOString(),
-          changed_by: admin.id,
+          changed_by: changedBy,
           change_reason: reason || `Admin updated global platform commission from ${previousRate}% to ${safeNewRate}%`,
         });
 
@@ -1318,8 +1340,9 @@ export class AdminService {
         { platform_commission_rate: safeNewRate },
       );
 
-      // Invalidate dynamic cache
+      // Invalidate dynamic cache & sync static calculator
       this.commissionService.invalidateCache();
+      CommissionCalculator.GLOBAL_COMMISSION_RATE = safeNewRate;
       this.invalidateStatsCache();
 
       return {
@@ -1330,7 +1353,7 @@ export class AdminService {
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
       throw new InternalServerErrorException(
-        ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
+        error?.message || ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -2899,10 +2922,15 @@ export class AdminService {
     }
   }
 
-  async updateLandingSettings(settings: any) {
+  async updateLandingSettings(settings: any, admin?: AuthUser) {
     try {
       // First try to fetch the existing settings
       const existingSettings = await this.getLandingSettings();
+      const previousRate = existingSettings.platformCommissionRate;
+      const newRate =
+        settings.platformCommissionRate !== undefined
+          ? Number(settings.platformCommissionRate)
+          : previousRate;
 
       const updatedSettings = {
         hero_title:
@@ -2925,10 +2953,7 @@ export class AdminService {
           settings.pricingAmount !== undefined
             ? settings.pricingAmount
             : existingSettings.pricingAmount,
-        platform_commission_rate:
-          settings.platformCommissionRate !== undefined
-            ? Number(settings.platformCommissionRate)
-            : existingSettings.platformCommissionRate,
+        platform_commission_rate: newRate,
         promo_text:
           settings.promoText !== undefined
             ? settings.promoText
@@ -2950,6 +2975,33 @@ export class AdminService {
         throw new InternalServerErrorException(
           ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
         );
+      }
+
+      // If commission rate changed via Landing Settings, record audit history & sync calculator
+      if (settings.platformCommissionRate !== undefined && newRate !== previousRate) {
+        let changedBy: string | null = null;
+        if (admin?.id) {
+          const { data: prof } = await this.supabase.admin
+            .from('profiles')
+            .select('id')
+            .eq('id', admin.id)
+            .maybeSingle();
+          if (prof?.id) changedBy = prof.id;
+        }
+
+        await this.supabase.admin
+          .from('platform_commission_history')
+          .insert({
+            previous_rate: previousRate,
+            new_rate: newRate,
+            effective_from: new Date().toISOString(),
+            changed_by: changedBy,
+            change_reason: 'Admin updated platform commission via Landing Page Settings',
+          });
+
+        this.commissionService.invalidateCache();
+        CommissionCalculator.GLOBAL_COMMISSION_RATE = newRate;
+        this.invalidateStatsCache();
       }
 
       return {

@@ -142,6 +142,9 @@ function DoctorLandingPage() {
     setActiveFaq(prev => (prev === idx ? null : idx));
   };
 
+  const commRate = Number(adminSettings?.platformCommissionRate ?? 10);
+  const doctorShare = 100 - commRate;
+
   const doctorFaqs = [
     {
       q: "What exactly is HealNari and which specialists can join?",
@@ -149,7 +152,7 @@ function DoctorLandingPage() {
     },
     {
       q: "How much can I earn and how does the payout model work?",
-      a: "You set your own consultation fee (starting ₹799). You keep 90% of every completed consultation — the 10% platform fee covers HIPAA video servers, payment gateway processing, and EMR/AI infrastructure. Earnings are tracked in real-time in your dashboard and paid directly to your registered bank account every Monday. There are no hidden commissions, deductions, or caps."
+      a: `You set your own consultation fee (starting ₹799). You keep ${doctorShare}% of every completed consultation — the ${commRate}% platform fee covers HIPAA video servers, payment gateway processing, and EMR/AI infrastructure. Earnings are tracked in real-time in your dashboard and paid directly to your registered bank account every Monday. There are no hidden commissions, deductions, or caps.`
     },
     {
       q: "Are there any upfront fees, monthly software subscriptions, or lock-in contracts?",
@@ -217,7 +220,10 @@ function DoctorLandingPage() {
 
           {/* Interactive Earnings Calculator */}
           {adminSettings?.toggles?.showProviderCalculator !== false && (
-            <ProviderCalculator onApply={() => setIsApplyOpen(true)} />
+            <ProviderCalculator 
+              onApply={() => setIsApplyOpen(true)} 
+              commissionRate={commRate}
+            />
           )}
 
           {/* Comparison Matrix: Physical Clinic vs HealNari Digital Practice */}

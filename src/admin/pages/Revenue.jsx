@@ -10,6 +10,7 @@ import { KPITrendCard } from '../../components/dashboard/KPITrendCard.jsx';
 import { DashboardEmptyState } from '../../components/dashboard/DashboardEmptyState.jsx';
 import { ChartTooltip } from '../../components/charts/ChartTooltip.jsx';
 import { standardCartesianGrid, standardXAxis, standardYAxis } from '../../components/charts/chartTheme.js';
+import { GlobalCommissionModal } from '../components/GlobalCommissionModal.jsx';
 
 function ProcessPayoutModal({ payout, isOpen, onClose, onProcess }) {
   const toast = useToast();
@@ -70,100 +71,6 @@ function ProcessPayoutModal({ payout, isOpen, onClose, onProcess }) {
         >
           {loading ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-check-double"></i>} Confirm &amp; Mark Processed
         </button>
-      </div>
-    </Modal>
-  );
-}
-
-function GlobalCommissionModal({ isOpen, onClose, currentRate, history, onUpdate }) {
-  const toast = useToast();
-  const [rate, setRate] = useState(currentRate || 10);
-  const [reason, setReason] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      setRate(currentRate || 10);
-      setReason('');
-    }
-  }, [isOpen, currentRate]);
-
-  const handleSave = async () => {
-    setLoading(true);
-    try {
-      await onUpdate(Number(rate), reason);
-      toast(`Global platform commission updated to ${rate}%. Effective for all new transactions.`, 'success');
-      onClose();
-    } catch {
-      toast('Failed to update global commission rate', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Global Platform Commission Settings" size="md">
-      <div className="space-y-5">
-        <div className="bg-aubergine-50/70 border border-aubergine-100 rounded-2xl p-5 text-center">
-          <p className="text-xs text-slate-500 font-bold mb-1">Active Global Platform Take Rate</p>
-          <p className="text-4xl font-black text-aubergine-900 font-sans tracking-tight">{rate}%</p>
-          <p className="text-xs text-slate-500 font-medium mt-1">
-            Doctors receive <strong>{100 - Number(rate)}%</strong> of gross settled earnings
-          </p>
-        </div>
-
-        <div>
-          <label className="text-xs font-black text-slate-700 mb-1.5 block">Adjust Global Take Rate (%)</label>
-          <div className="flex items-center gap-4">
-            <input 
-              type="range" 
-              min="5" 
-              max="30" 
-              step="1" 
-              value={rate} 
-              onChange={e => setRate(Number(e.target.value))} 
-              className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-aubergine-600" 
-            />
-            <span className="font-mono font-black text-slate-900 text-lg w-14 text-right">{rate}%</span>
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs font-black text-slate-700 mb-1.5 block">Audit Change Reason (Optional)</label>
-          <input 
-            value={reason} 
-            onChange={e => setReason(e.target.value)} 
-            placeholder="e.g. Q3 platform take rate review adjustment"
-            className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-aubergine-500 bg-white" 
-          />
-        </div>
-
-        <button 
-          onClick={handleSave} 
-          disabled={loading}
-          className="w-full bg-slate-900 hover:bg-aubergine-700 text-white font-bold py-3 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
-        >
-          {loading ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-save"></i>} Save Global Commission
-        </button>
-
-        {history && history.length > 0 && (
-          <div className="pt-3 border-t border-slate-100">
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Audit History Trail</p>
-            <div className="max-h-36 overflow-y-auto space-y-2 pr-1">
-              {history.map(h => (
-                <div key={h.id} className="text-xs p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex justify-between items-center">
-                  <div>
-                    <span className="font-bold text-slate-800">{h.previous_rate ?? '—'}% → <strong className="text-aubergine-700 font-black">{h.new_rate}%</strong></span>
-                    {h.change_reason && <p className="text-[10px] text-slate-500 mt-0.5">{h.change_reason}</p>}
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    {new Date(h.effective_from || h.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </Modal>
   );

@@ -164,13 +164,21 @@ export function AuthProvider({ children }) {
     // Map UI user object back to the backend Profile entity columns
     const patch = {};
     if (updates.name !== undefined) patch.fullName = updates.name;
+    if (updates.fullName !== undefined) patch.fullName = updates.fullName;
     if (updates.phone !== undefined) patch.phone = updates.phone;
     if (updates.dob !== undefined) patch.dob = updates.dob;
     if (updates.bloodGroup !== undefined) patch.bloodGroup = updates.bloodGroup;
     if (updates.specialty !== undefined) patch.specialty = updates.specialty;
     if (updates.qualifications !== undefined) patch.qualifications = updates.qualifications;
+    if (updates.qualification !== undefined) patch.qualifications = updates.qualification;
     if (updates.experienceYears !== undefined) patch.experienceYears = Number(updates.experienceYears);
+    if (updates.experience !== undefined) patch.experienceYears = parseInt(updates.experience, 10) || 0;
+    if (updates.registrationNo !== undefined) patch.registrationNo = updates.registrationNo;
+    if (updates.regNo !== undefined) patch.registrationNo = updates.regNo;
+    if (updates.bio !== undefined) patch.bio = updates.bio;
     if (updates.consultationFee !== undefined) patch.consultationFee = Number(updates.consultationFee);
+    if (updates.consultFee !== undefined) patch.consultationFee = Number(updates.consultFee);
+    if (updates.videoFee !== undefined) patch.consultationFee = Number(updates.videoFee);
     if (updates.clinicConsultationFee !== undefined) patch.clinicConsultationFee = Number(updates.clinicConsultationFee);
     if (updates.languages !== undefined) patch.languages = updates.languages;
     if (updates.address !== undefined) patch.address = updates.address;

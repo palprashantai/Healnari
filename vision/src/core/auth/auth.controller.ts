@@ -24,10 +24,12 @@ import {
   IsBoolean,
   IsEmail,
   IsIn,
+  IsNumber,
   IsOptional,
   IsString,
   Matches,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
 import { AuthService } from '@/core/auth/auth.service';
@@ -143,6 +145,12 @@ export class UpdateMeDto {
   @IsString()
   @MaxLength(2000)
   bio?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  consultationFee?: number;
 
   @ApiProperty({ required: false, enum: ['INR', 'USD'] })
   @IsOptional()

@@ -25,19 +25,23 @@ export class AuthService {
     const p = user.profile;
     return {
       id: p.id,
-      email: user.email,
+      email: user.email || (p as any).email || '',
       role: p.role,
       name: p.full_name,
       phone: p.phone || '',
       avatarUrl: p.avatar_url || '',
       specialty: p.specialty || '',
       regNo: p.registration_no || '',
+      consultationFee: p.consultation_fee || 799,
+      consultFee: p.consultation_fee || 799,
+      bio: p.bio || '',
       currency: (p.currency || 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR',
       country: p.country || ((p.currency || 'INR').toUpperCase() === 'USD' ? 'US' : 'IN'),
       kycVerified: p.kyc_verified,
       kycSubmittedAt: p.kyc_submitted_at || null,
-      emailNotifications: p.email_notifications,
-      smsNotifications: p.sms_notifications,
+      emailNotifications: true,
+      smsNotifications: true,
+      profile: p,
     };
   }
 
@@ -204,6 +208,9 @@ export class AuthService {
     if (body.specialty !== undefined) patch.specialty = body.specialty;
     if (body.registrationNo !== undefined)
       patch.registration_no = body.registrationNo;
+    if (body.consultationFee !== undefined)
+      patch.consultation_fee = Number(body.consultationFee);
+    if (body.bio !== undefined) patch.bio = body.bio;
     if (body.currency !== undefined) {
       const cleanCurrency = body.currency.toUpperCase() === 'USD' ? 'USD' : 'INR';
       patch.currency = cleanCurrency;
@@ -212,12 +219,22 @@ export class AuthService {
       }
     }
     if (body.country !== undefined) patch.country = body.country.toUpperCase() === 'US' ? 'US' : 'IN';
-    // Temporarily disabled until the 'bio' column is added to the production DB
-    // if (body.bio !== undefined) patch.bio = body.bio;
-    if (body.emailNotifications !== undefined)
-      patch.email_notifications = body.emailNotifications;
-    if (body.smsNotifications !== undefined)
-      patch.sms_notifications = body.smsNotifications;
+
+    // Safely sync notification preferences to notification_preferences table (not profiles table)
+    if (body.emailNotifications !== undefined || body.smsNotifications !== undefined) {
+      try {
+        const notifPatch: any = { user_id: userId, updated_at: new Date().toISOString() };
+        if (body.emailNotifications !== undefined) {
+          notifPatch.appointment_reminders = body.emailNotifications;
+          notifPatch.consultation_updates = body.emailNotifications;
+        }
+        await this.supabase.admin
+          .from('notification_preferences')
+          .upsert(notifPatch, { onConflict: 'user_id' });
+      } catch (err: any) {
+        this.logger.warn(`Could not sync notification preferences for ${userId}: ${err?.message}`);
+      }
+    }
 
     if (Object.keys(patch).length > 0) {
       const { error } = await this.supabase.admin
@@ -247,7 +264,7 @@ export class AuthService {
       });
     }
 
-    return this.toAppUser({ id: profile.id, email: '', profile });
+    return this.toAppUser({ id: profile.id, email: profile.email || '', profile });
   }
 
   /** Re-verifies the current password via a real sign-in before allowing the change. */

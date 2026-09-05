@@ -32,20 +32,37 @@ function DoctorProfile() {
 
   const [tab, setTab] = useState('profile');
   const [form, setForm] = useState({
-    name:         doc.name         || 'Dr. Sarah Mitchell',
-    email:        doc.email        || 'sarah@healnari.app',
-    phone:        doc.phone        || '+91 98765 00001',
-    specialty:    doc.specialty    || 'Gynaecology & Obstetrics',
-    qualification:doc.qualification|| 'MBBS, MD (OBG)',
-    regNo:        doc.regNo        || 'MCI-29402',
-    experience:   doc.experience   || '12 Years',
-    clinicName:   doc.clinicName   || 'HealNari Women\'s Clinic — Bandra',
-    clinicAddress:doc.clinicAddress|| 'Shop 4, Mehta Plaza, Bandra West, Mumbai',
-    bio:          doc.bio          || '',
-    consultFee:   String(doc.consultFee || 799),
-    videoFee:     '799',
-    clinicFee:    '999',
+    name: doc.name || doc.profile?.full_name,
+    email: doc.email || doc.profile?.email,
+    phone: doc.phone || doc.profile?.phone,
+    specialty: doc.specialty || doc.profile?.specialty,
+    qualification: doc.qualification || 'MBBS, MD (OBG)',
+    regNo: doc.regNo || doc.profile?.registration_no,
+    experience: doc.experience || '12 Years',
+    clinicName: doc.clinicName || 'HealNari Women\'s Clinic — Bandra',
+    clinicAddress: doc.clinicAddress || 'Shop 4, Mehta Plaza, Bandra West, Mumbai',
+    bio: doc.bio || doc.profile?.bio || '',
+    consultFee: String(doc.consultationFee || doc.consultFee || doc.profile?.consultation_fee || 799),
+    videoFee: String(doc.consultationFee || doc.consultFee || doc.profile?.consultation_fee || 799),
+    clinicFee: '999',
   });
+
+  React.useEffect(() => {
+    if (user) {
+      setForm(prev => ({
+        ...prev,
+        name: user.name || user.profile?.full_name || prev.name,
+        email: user.email || user.profile?.email || prev.email,
+        phone: user.phone || user.profile?.phone || prev.phone,
+        specialty: user.specialty || user.profile?.specialty || prev.specialty,
+        regNo: user.regNo || user.profile?.registration_no || prev.regNo,
+        bio: user.bio || user.profile?.bio || prev.bio,
+        consultFee: String(user.consultationFee || user.consultFee || user.profile?.consultation_fee || prev.consultFee || 799),
+        videoFee: String(user.consultationFee || user.consultFee || user.profile?.consultation_fee || prev.videoFee || 799),
+      }));
+    }
+  }, [user]);
+
   const [saved, setSaved] = useState(false);
   const [pwdForm, setPwdForm] = useState({ current: '', newPwd: '', confirm: '' });
   const [showLogout, setShowLogout] = useState(false);
@@ -57,15 +74,49 @@ function DoctorProfile() {
   const [availability, setAvailability] = useState({
     Mon: true, Tue: true, Wed: true, Thu: true, Fri: true, Sat: false, Sun: false,
   });
+  const [scheduleTimes, setScheduleTimes] = useState({
+    startTime: '09:00',
+    endTime: '17:00',
+    lunchStart: '13:00',
+    lunchEnd: '14:00',
+    slotDuration: '30',
+  });
+  const [savingSchedule, setSavingSchedule] = useState(false);
+  const [savingFees, setSavingFees] = useState(false);
   const [leaveMode, setLeaveMode] = useState(false);
   const [specialtyOptions, setSpecialtyOptions] = useState([]);
 
   const [auditLogs, setAuditLogs] = useState([]);
   const [auditLogsLoading, setAuditLogsLoading] = useState(false);
 
+  const INDEX_DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
   React.useEffect(() => {
     apiFetch('/admin/public/specialties')
       .then(res => setSpecialtyOptions(res || []))
+      .catch(console.error);
+
+    apiFetch('/doctors/me/schedule')
+      .then(res => {
+        if (res?.schedule && Array.isArray(res.schedule)) {
+          const avail = { Mon: false, Tue: false, Wed: false, Thu: false, Fri: false, Sat: false, Sun: false };
+          res.schedule.forEach(s => {
+            const dayKey = INDEX_DAY[s.day_of_week];
+            if (dayKey) avail[dayKey] = true;
+          });
+          setAvailability(avail);
+          if (res.schedule.length > 0) {
+            const first = res.schedule[0];
+            setScheduleTimes({
+              startTime: first.start_time ? first.start_time.slice(0, 5) : '09:00',
+              endTime: first.end_time ? first.end_time.slice(0, 5) : '17:00',
+              lunchStart: first.lunch_start ? first.lunch_start.slice(0, 5) : '13:00',
+              lunchEnd: first.lunch_end ? first.lunch_end.slice(0, 5) : '14:00',
+              slotDuration: String(first.slot_duration_minutes || 30),
+            });
+          }
+        }
+      })
       .catch(console.error);
   }, []);
 
@@ -79,15 +130,78 @@ function DoctorProfile() {
     }
   }, [tab]);
 
-
   const handleSave = async () => {
     try {
-      await updateUser?.({ ...form, emailNotifications: emailNotif, smsNotifications: smsNotif });
+      await updateUser?.({
+        name: form.name,
+        fullName: form.name,
+        phone: form.phone,
+        specialty: form.specialty,
+        regNo: form.regNo,
+        registrationNo: form.regNo,
+        qualification: form.qualification,
+        experience: form.experience,
+        clinicName: form.clinicName,
+        clinicAddress: form.clinicAddress,
+        bio: form.bio,
+        consultationFee: Number(form.videoFee || form.consultFee || 799),
+        consultFee: Number(form.videoFee || form.consultFee || 799),
+        videoFee: Number(form.videoFee || form.consultFee || 799),
+        emailNotifications: emailNotif,
+        smsNotifications: smsNotif,
+      });
       setSaved(true);
       toast('Profile updated successfully!', 'success');
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
       toast(err.message || 'Failed to update profile', 'error');
+    }
+  };
+
+  const handleSaveSchedule = async () => {
+    setSavingSchedule(true);
+    try {
+      const schedulePayload = [];
+      INDEX_DAY.forEach((dayKey, idx) => {
+        if (availability[dayKey]) {
+          schedulePayload.push({
+            dayOfWeek: idx,
+            startTime: scheduleTimes.startTime || '09:00',
+            endTime: scheduleTimes.endTime || '17:00',
+            lunchStart: scheduleTimes.lunchStart || '13:00',
+            lunchEnd: scheduleTimes.lunchEnd || '14:00',
+            slotDurationMinutes: Number(scheduleTimes.slotDuration) || 30,
+            bufferMinutes: 0,
+          });
+        }
+      });
+      await apiFetch('/doctors/me/schedule', {
+        method: 'PUT',
+        body: { schedule: schedulePayload },
+      });
+      toast('Weekly availability schedule saved and synced with booking slots!', 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to update schedule', 'error');
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
+
+  const handleSaveFees = async () => {
+    setSavingFees(true);
+    try {
+      const fee = Number(form.videoFee || form.consultFee || 799);
+      await updateUser?.({
+        consultationFee: fee,
+        consultFee: fee,
+        videoFee: fee,
+      });
+      setForm(p => ({ ...p, consultFee: String(fee), videoFee: String(fee) }));
+      toast('Fee structure saved and updated on your public profile!', 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to update fee structure', 'error');
+    } finally {
+      setSavingFees(false);
     }
   };
 
@@ -217,9 +331,9 @@ function DoctorProfile() {
                       <i className={`fas ${f.icon} mr-1.5 text-aubergine-400`}></i>{f.label}
                     </label>
                     {f.key === 'specialty' ? (
-                      <select 
-                        id={`doctor-profile-${f.key}`} 
-                        value={form[f.key]} 
+                      <select
+                        id={`doctor-profile-${f.key}`}
+                        value={form[f.key]}
                         onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
                         className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50 outline-none"
                       >
@@ -388,17 +502,55 @@ function DoctorProfile() {
               </div>
 
               <div className="grid md:grid-cols-2 gap-5">
-                {[
-                  { label: 'Clinic Start Time', value: '09:00 AM' },
-                  { label: 'Clinic End Time', value: '05:00 PM' },
-                  { label: 'Lunch Break', value: '01:00 PM – 02:00 PM' },
-                  { label: 'Slot Duration', value: '30 Minutes' },
-                ].map(f => (
-                  <div key={f.label}>
-                    <label htmlFor={`doctor-schedule-${f.label.replace(/\s+/g, '-')}`} className="text-xs font-bold text-slate-500 mb-1.5 block">{f.label}</label>
-                    <input id={`doctor-schedule-${f.label.replace(/\s+/g, '-')}`} defaultValue={f.value} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50" />
+                <div>
+                  <label className="text-xs font-bold text-slate-500 mb-1.5 block">Clinic Start Time</label>
+                  <input
+                    type="time"
+                    value={scheduleTimes.startTime}
+                    onChange={e => setScheduleTimes(p => ({ ...p, startTime: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 mb-1.5 block">Clinic End Time</label>
+                  <input
+                    type="time"
+                    value={scheduleTimes.endTime}
+                    onChange={e => setScheduleTimes(p => ({ ...p, endTime: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 mb-1.5 block">Lunch Break (Start - End)</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="time"
+                      value={scheduleTimes.lunchStart}
+                      onChange={e => setScheduleTimes(p => ({ ...p, lunchStart: e.target.value }))}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white"
+                    />
+                    <input
+                      type="time"
+                      value={scheduleTimes.lunchEnd}
+                      onChange={e => setScheduleTimes(p => ({ ...p, lunchEnd: e.target.value }))}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white"
+                    />
                   </div>
-                ))}
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 mb-1.5 block">Slot Duration</label>
+                  <select
+                    value={scheduleTimes.slotDuration}
+                    onChange={e => setScheduleTimes(p => ({ ...p, slotDuration: e.target.value }))}
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white"
+                  >
+                    <option value="15">15 Minutes</option>
+                    <option value="20">20 Minutes</option>
+                    <option value="30">30 Minutes</option>
+                    <option value="45">45 Minutes</option>
+                    <option value="60">60 Minutes</option>
+                  </select>
+                </div>
               </div>
 
               <div className="flex items-center justify-between p-4 bg-amber-50 border border-amber-200 rounded-xl">
@@ -412,9 +564,13 @@ function DoctorProfile() {
                 </button>
               </div>
 
-              <button onClick={() => toast('Schedule updated and synced!', 'success')}
-                className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors">
-                <i className="fas fa-floppy-disk"></i> Save Schedule
+              <button
+                onClick={handleSaveSchedule}
+                disabled={savingSchedule}
+                className="bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-50 text-white font-bold px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm"
+              >
+                <i className={`fas ${savingSchedule ? 'fa-spinner fa-spin' : 'fa-floppy-disk'}`}></i>
+                {savingSchedule ? 'Saving Schedule...' : 'Save Schedule'}
               </button>
             </div>
           )}
@@ -452,9 +608,13 @@ function DoctorProfile() {
                 </div>
               </div>
 
-              <button onClick={() => toast('Fee structure saved and updated on your public profile.', 'success')}
-                className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors">
-                <i className="fas fa-floppy-disk"></i> Save Fee Structure
+              <button
+                onClick={handleSaveFees}
+                disabled={savingFees}
+                className="bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-50 text-white font-bold px-6 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm"
+              >
+                <i className={`fas ${savingFees ? 'fa-spinner fa-spin' : 'fa-floppy-disk'}`}></i>
+                {savingFees ? 'Saving Fees...' : 'Save Fee Structure'}
               </button>
             </div>
           )}
@@ -500,7 +660,7 @@ function DoctorProfile() {
                 <p className="text-xs text-slate-500 mb-4">
                   A compliance trail of your access to patient health information.
                 </p>
-                
+
                 <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden max-h-64 overflow-y-auto">
                   {auditLogsLoading ? (
                     <div className="p-6 text-center text-slate-400">

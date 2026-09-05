@@ -26,8 +26,24 @@ export interface PayoutBreakdown {
  *    no inline `amount * rate / 100` anywhere else in the codebase.
  */
 export class CommissionCalculator {
-  /** The standard global platform commission rate (10% platform fee, 90% doctor payout) */
-  static readonly GLOBAL_COMMISSION_RATE = 10;
+  private static _globalRate = 10;
+
+  /** The dynamic global platform commission rate */
+  static get GLOBAL_COMMISSION_RATE(): number {
+    return CommissionCalculator._globalRate;
+  }
+
+  static set GLOBAL_COMMISSION_RATE(rate: number) {
+    const safe = Number(rate);
+    if (!isNaN(safe) && safe >= 0 && safe <= 100) {
+      CommissionCalculator._globalRate = safe;
+    }
+  }
+
+  static setGlobalRate(rate: number): void {
+    CommissionCalculator.GLOBAL_COMMISSION_RATE = rate;
+  }
+
   static readonly DEFAULT_COMMISSION_RATE = 10;
 
   /**

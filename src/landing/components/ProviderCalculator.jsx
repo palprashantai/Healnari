@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import Reveal from '../../components/Reveal.jsx';
 import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
 
-function ProviderCalculator({ onApply }) {
+function ProviderCalculator({ onApply, commissionRate }) {
   const isIndian = typeof window !== 'undefined' ? detectUserCountry() === 'IN' : true;
   const [currency, setCurrency] = useState(isIndian ? 'INR' : 'USD'); // 'INR' or 'USD'
   const [fee, setFee] = useState(isIndian ? 800 : 40);
@@ -13,9 +13,9 @@ function ProviderCalculator({ onApply }) {
   const isUSD = currency === 'USD';
   const currencySymbol = isUSD ? '$' : '₹';
 
-  // Math Logic (10% platform fee, 90% doctor take-home)
-  const PLATFORM_FEE_PERCENT = 10;
-  const DOCTOR_SHARE_PERCENT = 90;
+  // Math Logic (Dynamic platform fee, doctor take-home)
+  const PLATFORM_FEE_PERCENT = Number(commissionRate ?? 10);
+  const DOCTOR_SHARE_PERCENT = 100 - PLATFORM_FEE_PERCENT;
 
   const weeklyConsults = consultsPerDay * daysPerWeek;
   const monthlyConsults = weeklyConsults * 4;

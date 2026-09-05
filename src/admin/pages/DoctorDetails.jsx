@@ -7,6 +7,7 @@ import { apiFetch } from '../../lib/apiClient.js';
 import { formatCurrency, formatCompactCurrency } from '../../lib/currency.js';
 import { ChartTooltip } from '../../components/charts/ChartTooltip.jsx';
 import { standardCartesianGrid, standardXAxis, standardYAxis } from '../../components/charts/chartTheme.js';
+import { GlobalCommissionModal } from '../components/GlobalCommissionModal.jsx';
 
 const STATUS_COLORS = {
   Done: '#10b981',
@@ -55,6 +56,7 @@ function AdminDoctorDetails() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [selectedPlanToAssign, setSelectedPlanToAssign] = useState('doctor_plan_2');
   const [savingPlan, setSavingPlan] = useState(false);
+  const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -148,6 +150,15 @@ function AdminDoctorDetails() {
     } finally {
       setSavingCommission(false);
     }
+  };
+
+  const handleUpdateGlobalCommission = async (newRate, reason) => {
+    await apiFetch('/admin/commission', {
+      method: 'PUT',
+      body: { commissionRate: newRate, reason },
+    });
+    setDoctor(prev => prev ? { ...prev, commission_rate: newRate } : prev);
+    toast(`Global platform commission updated to ${newRate}%.`, 'success');
   };
 
   const handleSendMessage = async () => {
@@ -316,6 +327,15 @@ function AdminDoctorDetails() {
             <p className="text-xs text-slate-500 leading-relaxed">
               HealNari applies a centralized <strong>{Number(doctor?.commission_rate) || 10}% global platform fee</strong> across all network physicians. The doctor retains <strong>{100 - (Number(doctor?.commission_rate) || 10)}%</strong> of gross settled earnings.
             </p>
+            <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsCommissionModalOpen(true)}
+                className="text-xs font-bold text-aubergine-700 hover:text-aubergine-800 bg-aubergine-50 hover:bg-aubergine-100 border border-aubergine-200 px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-xs"
+              >
+                <i className="fas fa-sliders text-[10px]"></i> Adjust Platform Commission
+              </button>
+            </div>
           </div>
         </div>
 
@@ -684,6 +704,13 @@ function AdminDoctorDetails() {
           </div>
         </div>
       </Modal>
+
+      <GlobalCommissionModal
+        isOpen={isCommissionModalOpen}
+        onClose={() => setIsCommissionModalOpen(false)}
+        currentRate={Number(doctor?.commission_rate) || 10}
+        onUpdate={handleUpdateGlobalCommission}
+      />
     </div>
   );
 }

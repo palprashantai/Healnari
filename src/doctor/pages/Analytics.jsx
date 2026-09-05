@@ -107,7 +107,7 @@ function DoctorAnalytics() {
         <KPITrendCard
           title="Net Practice Earnings"
           value={data?.totalRevenue !== undefined ? formatCurrency(data.totalRevenue, userCurrency) : formatCurrency(0, userCurrency)}
-          period={data?.grossBillings ? `Gross: ${formatCurrency(data.grossBillings, userCurrency)} (10% fee: ${formatCurrency(data.platformCommission || 0, userCurrency)})` : `${timeRange} Net Earned`}
+          period={data?.grossBillings ? `Gross: ${formatCurrency(data.grossBillings, userCurrency)} (Platform fee: ${formatCurrency(data.platformCommission || 0, userCurrency)})` : `${timeRange} Net Earned`}
           icon={['USD','CAD','AUD'].includes(userCurrency) ? 'fa-dollar-sign' : userCurrency === 'EUR' ? 'fa-euro-sign' : userCurrency === 'GBP' ? 'fa-sterling-sign' : userCurrency === 'INR' ? 'fa-indian-rupee-sign' : 'fa-money-bill-wave'}
           colorScheme="purple"
           loading={loading}

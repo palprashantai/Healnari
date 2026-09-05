@@ -843,7 +843,7 @@ export class AdminController {
     @Body() dto: UpdateLandingSettingsDto,
   ) {
     this.checkAdmin(user);
-    const data = await this.adminService.updateLandingSettings(dto);
+    const data = await this.adminService.updateLandingSettings(dto, user);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
   }
 

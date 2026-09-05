@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
+import { GlobalCommissionModal } from '../components/GlobalCommissionModal.jsx';
 
 function AdminDoctorManager() {
   const toast = useToast();
@@ -19,19 +20,55 @@ function AdminDoctorManager() {
   const [templates, setTemplates] = useState([]);
   const [dbSpecialties, setDbSpecialties] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [commissionInfo, setCommissionInfo] = useState({ currentRate: 10, history: [] });
+  const [isCommissionModalOpen, setIsCommissionModalOpen] = useState(false);
 
-  useEffect(() => {
+  const fetchDoctors = useCallback(() => {
+    setLoading(true);
     apiFetch('/admin/clinics')
       .then(d => setDoctors(d || []))
       .catch(() => toast('Failed to load doctors', 'error'))
       .finally(() => setLoading(false));
+  }, [toast]);
+
+  const fetchCommission = useCallback(() => {
+    apiFetch('/admin/commission')
+      .then(d => { if (d) setCommissionInfo(d); })
+      .catch(() => setCommissionInfo({ currentRate: 10, history: [] }));
+  }, []);
+
+  useEffect(() => {
+    fetchDoctors();
+    fetchCommission();
     apiFetch('/admin/communications/templates')
       .then(d => setTemplates(d || []))
       .catch(console.error);
     apiFetch('/admin/specialties')
       .then(d => setDbSpecialties(d || []))
       .catch(console.error);
-  }, []);
+  }, [fetchDoctors, fetchCommission]);
+
+  const handleUpdateCommission = async (newRate, reason) => {
+    await apiFetch('/admin/commission', {
+      method: 'PUT',
+      body: { commissionRate: newRate, reason },
+    });
+    setCommissionInfo(prev => ({
+      ...prev,
+      currentRate: newRate,
+      history: [
+        {
+          id: `h-${Date.now()}`,
+          previous_rate: prev.currentRate,
+          new_rate: newRate,
+          effective_from: new Date().toISOString(),
+          change_reason: reason,
+        },
+        ...(prev.history || []),
+      ],
+    }));
+    fetchDoctors();
+  };
 
   const specialties = ['All', ...dbSpecialties.map(s => s.name)];
 
@@ -125,7 +162,14 @@ function AdminDoctorManager() {
           <h1 className="text-2xl font-black text-slate-800">Doctor Network & Commission</h1>
           <p className="text-sm text-slate-500">Manage registered doctors, view performance reports, and track platform revenue.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button 
+            onClick={() => setIsCommissionModalOpen(true)}
+            className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all shadow-sm"
+          >
+            <i className="fas fa-sliders text-xs"></i> Set Global Commission ({commissionInfo.currentRate}%)
+          </button>
+
           <div className="relative">
             <button onClick={() => setIsActionsDropdownOpen(!isActionsDropdownOpen)} className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm">
               Actions <i className="fas fa-chevron-down text-xs ml-1"></i>
@@ -277,6 +321,14 @@ function AdminDoctorManager() {
           </button>
         </div>
       </Modal>
+
+      <GlobalCommissionModal
+        isOpen={isCommissionModalOpen}
+        onClose={() => setIsCommissionModalOpen(false)}
+        currentRate={commissionInfo.currentRate}
+        history={commissionInfo.history}
+        onUpdate={handleUpdateCommission}
+      />
     </div>
   );
 }
