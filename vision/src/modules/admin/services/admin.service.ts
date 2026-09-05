@@ -948,29 +948,48 @@ export class AdminService {
       });
 
       const revenueByDoctor = new Map<string, number>();
+      const platformFeeByDoctor = new Map<string, number>();
+      const doctorNetByDoctor = new Map<string, number>();
+
       (payments || [])
         .filter((p) => p.status === 'Paid')
         .forEach((p) => {
-          revenueByDoctor.set(
-            p.doctor_id,
-            (revenueByDoctor.get(p.doctor_id) || 0) + Number(p.amount || 0),
-          );
+          const amt = Number(p.amount || 0);
+          const fee = Number(p.platform_fee_amount ?? (amt * (CommissionCalculator.GLOBAL_COMMISSION_RATE / 100)));
+          const net = Number(p.provider_payout_amount ?? (amt - fee));
+
+          revenueByDoctor.set(p.doctor_id, (revenueByDoctor.get(p.doctor_id) || 0) + amt);
+          platformFeeByDoctor.set(p.doctor_id, (platformFeeByDoctor.get(p.doctor_id) || 0) + fee);
+          doctorNetByDoctor.set(p.doctor_id, (doctorNetByDoctor.get(p.doctor_id) || 0) + net);
         });
 
       return data.map((d) => {
         const sub = subByDoctorId.get(d.id);
         const planId = sub?.plan_id || 'doctor_plan_1';
+        const totalGross = revenueByDoctor.get(d.id) || 0;
+        const totalPlatformFee = platformFeeByDoctor.get(d.id) || 0;
+        const totalDoctorNet = doctorNetByDoctor.get(d.id) || 0;
+        const totalConsults = aptCountByDoctor.get(d.id) || 0;
+        const isVerified = Boolean(d.kyc_verified);
+        const commissionRate = CommissionCalculator.GLOBAL_COMMISSION_RATE;
+
         return {
           id: d.id,
           name: d.full_name || 'Dr. Unknown',
           email: d.email || '',
           specialty: d.specialty || 'General Practitioner',
           status: d.status || 'Active',
-          kyc_verified: d.kyc_verified || false,
-          totalAppointments: aptCountByDoctor.get(d.id) || 0,
-          totalRevenue: revenueByDoctor.get(d.id) || 0,
+          kyc_verified: isVerified,
+          verified: isVerified,
+          totalAppointments: totalConsults,
+          totalConsults: totalConsults,
+          totalRevenue: totalGross,
+          totalGross: totalGross,
+          totalPlatformFee: totalPlatformFee,
+          totalDoctorNet: totalDoctorNet,
           consultation_fee: d.consultation_fee || 0,
-          commission_rate: CommissionCalculator.GLOBAL_COMMISSION_RATE,
+          commission_rate: commissionRate,
+          commissionRate: commissionRate,
           phone: d.phone || '',
           aiPlan: {
             id: planId,
@@ -1146,9 +1165,9 @@ export class AdminService {
           ),
           totalPlatformFee,
           totalDoctorNet,
-          totalConsults: apts.filter((a) => a.status === AppointmentStatus.DONE)
-            .length,
+          totalConsults: apts.filter((a) => a.status === AppointmentStatus.DONE).length || apts.length,
           totalAppointments: apts.length,
+          completedConsults: apts.filter((a) => a.status === AppointmentStatus.DONE).length,
         },
         revenueTrend,
         appointmentStatusBreakdown,

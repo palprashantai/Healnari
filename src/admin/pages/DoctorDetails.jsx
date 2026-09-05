@@ -80,7 +80,11 @@ function AdminDoctorDetails() {
 
   useEffect(() => {
     if (doctor?.full_name) {
-      window.dispatchEvent(new CustomEvent('set-breadcrumb', { detail: { id, label: `Dr. ${doctor.full_name}` } }));
+      const trimmed = doctor.full_name.trim();
+      const label = trimmed.toLowerCase().startsWith('dr.') || trimmed.toLowerCase().startsWith('dr ')
+        ? trimmed
+        : `Dr. ${trimmed}`;
+      window.dispatchEvent(new CustomEvent('set-breadcrumb', { detail: { id, label } }));
     }
   }, [id, doctor?.full_name]);
 
@@ -323,7 +327,7 @@ function AdminDoctorDetails() {
             <div className="bg-white border border-slate-200 rounded-xl p-5 text-center shadow-sm">
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Gross Billing</p>
               <p className="text-2xl font-black text-slate-800">₹{Math.round(totalGross).toLocaleString('en-IN')}</p>
-              <p className="text-xs text-slate-500 font-bold mt-1">{kpis?.totalConsults || 0} Consults</p>
+              <p className="text-xs text-slate-500 font-bold mt-1">{kpis?.totalConsults || kpis?.totalAppointments || 0} Consults</p>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl p-5 text-center shadow-sm">
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Doctor Net Earned</p>

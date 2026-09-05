@@ -87,18 +87,22 @@ function AdminDoctorManager() {
     }
     const headers = ['ID', 'Name', 'Email', 'Specialty', 'Status', 'Verified', 'Consultations', 'Commission Rate (%)', 'Platform Earnings', 'Total Gross Revenue'];
     const rows = filteredDoctors.map(d => {
-      const platformEarnings = d.totalPlatformFee || 0;
+      const totalGross = Number(d.totalGross ?? d.totalRevenue ?? 0);
+      const commissionRate = Number(d.commissionRate ?? d.commission_rate ?? 10);
+      const platformEarnings = Number(d.totalPlatformFee ?? (totalGross * (commissionRate / 100)));
+      const isVerified = Boolean(d.verified ?? d.kyc_verified);
+      const totalConsults = d.totalConsults ?? d.totalAppointments ?? 0;
       return [
         d.id,
         `"${d.name || ''}"`,
         `"${d.email || ''}"`,
         `"${d.specialty || ''}"`,
         d.status,
-        d.verified ? 'Yes' : 'No',
-        d.totalConsults,
-        d.commissionRate || 10,
+        isVerified ? 'Yes' : 'No',
+        totalConsults,
+        commissionRate,
         Math.round(platformEarnings),
-        Math.round(d.totalGross || 0)
+        Math.round(totalGross)
       ].join(',');
     });
     
@@ -185,7 +189,11 @@ function AdminDoctorManager() {
                 <tr><td colSpan="8" className="px-5 py-8 text-center text-slate-400">No doctors found.</td></tr>
               ) : (
                 filteredDoctors.map(d => {
-                  const platformEarnings = d.totalPlatformFee || 0;
+                  const totalGross = Number(d.totalGross ?? d.totalRevenue ?? 0);
+                  const commissionRate = Number(d.commissionRate ?? d.commission_rate ?? 10);
+                  const platformEarnings = Number(d.totalPlatformFee ?? (totalGross * (commissionRate / 100)));
+                  const isVerified = Boolean(d.verified ?? d.kyc_verified);
+                  const totalConsults = d.totalConsults ?? d.totalAppointments ?? 0;
                   return (
                     <tr key={d.id} className={`hover:bg-slate-50/50 transition-colors group ${selectedIds.includes(d.id) ? 'bg-aubergine-50/40' : ''}`}>
                       <td className="px-5 py-4 w-10 text-center">
@@ -215,22 +223,22 @@ function AdminDoctorManager() {
                       <td className="px-5 py-4">
                         <div className="flex flex-col gap-1.5 items-start">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${d.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}`}>{d.status}</span>
-                          {d.verified ? (
+                          {isVerified ? (
                             <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1"><i className="fas fa-certificate"></i> Verified</span>
                           ) : (
                             <span className="text-[10px] text-amber-600 font-bold flex items-center gap-1"><i className="fas fa-clock"></i> Pending KYC</span>
                           )}
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-center font-bold text-slate-700">{d.totalConsults}</td>
+                      <td className="px-5 py-4 text-center font-bold text-slate-700">{totalConsults}</td>
                       <td className="px-5 py-4 text-right">
                         <span className="bg-aubergine-50 text-aubergine-700 border border-aubergine-100 font-bold px-2.5 py-1 rounded-full text-xs">
-                          {d.commissionRate || 10}%
+                          {commissionRate}%
                         </span>
                       </td>
                       <td className="px-5 py-4 text-right">
                         <p className="font-black text-emerald-600 text-lg">₹{Math.round(platformEarnings).toLocaleString('en-IN')}</p>
-                        <p className="text-[10px] text-slate-400 font-bold">From ₹{Math.round(d.totalGross || 0).toLocaleString('en-IN')} Gross</p>
+                        <p className="text-[10px] text-slate-400 font-bold">From ₹{Math.round(totalGross).toLocaleString('en-IN')} Gross</p>
                       </td>
                       <td className="px-5 py-4 text-right">
                         <Link to={`/admin-dashboard/doctors/${d.id}`} className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors shadow-sm whitespace-nowrap">
