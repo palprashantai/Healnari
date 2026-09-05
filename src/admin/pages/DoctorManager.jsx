@@ -295,7 +295,7 @@ function AdminDoctorManager() {
       )}
 
       {/* Overview Stat Tiles */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3.5">
           <div className="w-11 h-11 rounded-xl bg-aubergine-50 border border-aubergine-100 flex items-center justify-center text-aubergine-700 text-lg shrink-0">
             <i className="fas fa-users-medical"></i>
@@ -391,8 +391,8 @@ function AdminDoctorManager() {
         </div>
 
         {/* Responsive Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm border-collapse">
+        <div className="overflow-x-auto min-w-0">
+          <table className="w-full min-w-[720px] text-left text-sm border-collapse">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-black uppercase tracking-wider text-slate-500">
                 <th className="px-5 py-3.5 w-10 text-center">

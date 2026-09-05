@@ -452,7 +452,7 @@ function AdminDashboard() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 pt-3 border-t border-white/10 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5 pt-3 border-t border-white/10 text-xs">
             <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
               <span className="text-slate-400 text-[10px] font-bold block">Patient/Doc Ratio</span>
               <span className="font-mono font-black text-white text-sm">{scorecard.dimensions.acquisition.patientToDoctorRatio}:1</span>
@@ -482,7 +482,7 @@ function AdminDashboard() {
       )}
 
       {/* Level 1: Tier-1 Critical KPI Cards Grid (Real Backend Data) */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <KPITrendCard
           title="Global Patients"
           value={(stats?.totalPatients ?? 0).toLocaleString()}

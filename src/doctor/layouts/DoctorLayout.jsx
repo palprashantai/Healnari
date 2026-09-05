@@ -473,47 +473,47 @@ function DoctorLayout() {
             it collapses to one line so it stops outweighing the page's own content.
             Hidden on /doctor-dashboard/telemedicine to give full screen to the active video/Rx studio. */}
         {!location.pathname.startsWith('/doctor-dashboard/telemedicine') && (
-          <div className={`bg-gradient-to-r from-aubergine-900 via-slate-900 to-aubergine-900 text-white px-4 md:px-6 flex flex-wrap items-center justify-between gap-3 text-xs z-10 border-b border-aubergine-800/40 shadow-xs transition-all w-full min-w-0 ${isPatientScoped ? 'py-2' : 'py-1.5'}`}>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto min-w-0 flex-1">
-              <span className="bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-500/30 flex items-center gap-1 whitespace-nowrap shrink-0">
-                <i className="fas fa-lock text-[9px]"></i> Active Patient
+          <div className={`bg-gradient-to-r from-aubergine-900 via-slate-900 to-aubergine-900 text-white px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 text-xs z-10 border-b border-aubergine-800/40 shadow-xs transition-all w-full min-w-0 overflow-x-auto hide-scrollbar ${isPatientScoped ? 'py-1.5' : 'py-1'}`}>
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 overflow-hidden">
+              <span className="bg-emerald-500/20 text-emerald-300 font-bold px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] border border-emerald-500/30 flex items-center gap-1 whitespace-nowrap shrink-0">
+                <i className="fas fa-lock text-[8px] sm:text-[9px]"></i> <span className="hidden sm:inline">Active</span>
               </span>
-              <div className="flex flex-wrap items-center gap-2 font-bold min-w-0 max-w-full">
-                <span className="text-white text-sm tracking-wide font-medium whitespace-nowrap truncate">{activePatient.name}</span>
-                <span className="text-aubergine-300 font-mono text-[11px] whitespace-nowrap shrink-0">[{activePatient.mrn}]</span>
+              <div className="flex items-center gap-1.5 sm:gap-2 font-bold min-w-0 overflow-hidden">
+                <span className="text-white text-xs sm:text-sm tracking-wide font-medium whitespace-nowrap truncate">{activePatient.name}</span>
+                <span className="text-aubergine-300 font-mono text-[10px] sm:text-[11px] whitespace-nowrap shrink-0">[{activePatient.mrn}]</span>
                 {isPatientScoped && (
-                  <div className="flex items-center gap-2 flex-wrap min-w-0">
-                    <span className="text-slate-400 whitespace-nowrap">• DOB: {activePatient.dob} ({activePatient.age})</span>
-                    <span className="text-slate-400 whitespace-nowrap">• Blood: {activePatient.bloodGroup}</span>
+                  <div className="hidden sm:flex items-center gap-2 min-w-0">
+                    <span className="text-slate-400 whitespace-nowrap text-[11px]">• DOB: {activePatient.dob} ({activePatient.age})</span>
+                    <span className="text-slate-400 whitespace-nowrap text-[11px]">• Blood: {activePatient.bloodGroup}</span>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 min-w-0">
+            <div className="flex items-center gap-2 min-w-0 shrink-0">
               {isPatientScoped && (
                 <>
                   {/* Allergy Flag */}
-                  <div className="flex items-center gap-1.5 bg-rose-950/80 border border-rose-600/40 px-2.5 py-1 rounded-lg text-rose-300 font-medium">
-                    <i className="fas fa-hand-dots text-rose-400"></i>
-                    <span className="font-bold text-[11px]">Allergies:</span> {activePatient.allergies.join(', ')}
+                  <div className="flex items-center gap-1 bg-rose-950/80 border border-rose-600/40 px-2 py-0.5 rounded-lg text-rose-300 font-medium text-[10px] sm:text-[11px] whitespace-nowrap">
+                    <i className="fas fa-hand-dots text-rose-400 text-[9px]"></i>
+                    <span className="hidden sm:inline font-bold">Allergies:</span> {activePatient.allergies.join(', ')}
                   </div>
 
                   {/* Risk Flag */}
-                  <div className="flex items-center gap-1.5 bg-amber-950/80 border border-amber-600/40 px-2.5 py-1 rounded-lg text-amber-300 font-medium hidden lg:flex">
-                    <i className="fas fa-triangle-exclamation text-amber-400"></i>
-                    <span className="font-bold text-[11px]">Clinical Flag:</span> {activePatient.alerts[0]}
+                  <div className="hidden md:flex items-center gap-1 bg-amber-950/80 border border-amber-600/40 px-2 py-0.5 rounded-lg text-amber-300 font-medium text-[10px] sm:text-[11px] whitespace-nowrap">
+                    <i className="fas fa-triangle-exclamation text-amber-400 text-[9px]"></i>
+                    <span className="font-bold">Flag:</span> {activePatient.alerts[0]}
                   </div>
                 </>
               )}
 
               {/* Quick Switch */}
               <div className="relative">
-                <button onClick={() => setActivePatientMenu(!activePatientMenu)} className="bg-white/10 hover:bg-white/20 text-white font-bold px-2.5 py-1 rounded-lg text-[11px] transition-colors flex items-center gap-1.5 border border-white/20">
-                  <i className="fas fa-clock-rotate-left text-[10px]"></i> Recent
+                <button onClick={() => setActivePatientMenu(!activePatientMenu)} className="bg-white/10 hover:bg-white/20 text-white font-bold px-2 sm:px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] transition-colors flex items-center gap-1 border border-white/20 shrink-0">
+                  <i className="fas fa-clock-rotate-left text-[9px]"></i> <span className="hidden sm:inline">Recent</span>
                 </button>
                 {activePatientMenu && (
-                  <div className="absolute right-0 top-full mt-1 w-64 bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
+                  <div className="absolute right-0 top-full mt-1 w-64 bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-fade-in">
                     <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                       Recently Opened Charts
                     </div>

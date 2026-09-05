@@ -321,11 +321,11 @@ function PatientLayout() {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <ModuleAccentBar color={hoveredColor || DEFAULT_ACCENT} className="rounded-none" />
         {/* Topbar */}
-        <header className="h-16 border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0" style={{ backgroundColor: 'var(--color-surface-page)' }}>
+        <header className="h-16 border-b border-slate-200 flex items-center justify-between px-3 sm:px-4 md:px-6 shrink-0" style={{ backgroundColor: 'var(--color-surface-page)' }}>
           {/* Mobile hamburger */}
           <button
             aria-label="Open navigation menu"
-            className="md:hidden w-11 h-11 min-w-[44px] min-h-[44px] rounded-xl flex items-center justify-center text-aubergine-700 hover:bg-aubergine-50 active:scale-95 transition-all mr-2 touch-target"
+            className="md:hidden w-10 h-10 min-w-[40px] min-h-[40px] rounded-xl flex items-center justify-center text-aubergine-700 hover:bg-aubergine-50 active:scale-95 transition-all mr-1.5 touch-target"
             onClick={() => setMobileSidebarOpen(true)}
           >
             <i className="fas fa-bars text-lg"></i>
@@ -344,7 +344,7 @@ function PatientLayout() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 md:gap-3 ml-auto">
+          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 ml-auto shrink-0">
             {/* Discreet mode (desktop only) */}
             <button
               onClick={() => {
@@ -409,7 +409,7 @@ function PatientLayout() {
         </header>
 
         {/* Dynamic Content */}
-        <main className={`flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full p-4 md:p-6 pb-28 md:pb-6 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}>
+        <main className={`flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full p-3.5 sm:p-5 md:p-6 pb-28 md:pb-6 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}>
           {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
           <PageTransition />
         </main>

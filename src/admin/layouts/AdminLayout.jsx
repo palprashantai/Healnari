@@ -9,6 +9,8 @@ import { ModuleAccentBar } from '../../components/ModuleAccentBar.jsx';
 import { AdminScopeProvider } from '../../context/AdminScopeContext.jsx';
 import { FacilityScopeSelector } from '../components/FacilityScopeSelector.jsx';
 
+import { triggerHaptic } from '../../lib/haptics.js';
+
 function timeAgo(iso) {
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diffMs / 60000);
@@ -21,6 +23,15 @@ function timeAgo(iso) {
 }
 
 const DEFAULT_ACCENT = '#6B46C1';
+
+// Ergonomic 5 mobile bottom tabs for Admin
+const ADMIN_BOTTOM_TABS = [
+  { name: 'Dashboard', icon: 'fa-chart-pie',         path: '/admin-dashboard',         end: true },
+  { name: 'Doctors',   icon: 'fa-user-doctor',       path: '/admin-dashboard/doctors', end: false },
+  { name: 'AI Hub',    icon: 'fa-wand-magic-sparkles',path:'/admin-dashboard/ai',      end: false, isFab: true },
+  { name: 'Patients',  icon: 'fa-users-gear',        path: '/admin-dashboard/users',   end: false },
+  { name: 'Revenue',   icon: 'fa-money-bill-transfer',path:'/admin-dashboard/revenue', end: false },
+];
 
 const NAV_CATEGORIES = [
   {
@@ -260,13 +271,17 @@ function AdminLayoutInner() {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <ModuleAccentBar color={hoveredColor || DEFAULT_ACCENT} className="rounded-none" />
         {/* Topbar */}
-        <header className="h-16 border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0 bg-white">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setDrawerOpen(true)} className="md:hidden text-slate-500 hover:text-slate-800 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
-              <i className="fas fa-bars text-xl"></i>
+        <header className="h-16 border-b border-slate-200 flex items-center justify-between px-3 sm:px-4 md:px-6 shrink-0 bg-white">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button 
+              onClick={() => setDrawerOpen(true)} 
+              aria-label="Open Admin Menu"
+              className="md:hidden text-slate-600 hover:text-slate-900 p-2 rounded-xl hover:bg-slate-100 transition-colors w-10 h-10 min-w-[40px] flex items-center justify-center touch-target"
+            >
+              <i className="fas fa-bars text-lg"></i>
             </button>
             {/* Breadcrumb */}
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 font-medium truncate">
               {crumbs.map((c, i) => {
                 const isLast = i === crumbs.length - 1;
                 let label = dynamicCrumbs[c] || c;
@@ -286,7 +301,7 @@ function AdminLayoutInner() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Multi-Facility & Practice Scope Switcher */}
             <FacilityScopeSelector />
 
@@ -305,7 +320,7 @@ function AdminLayoutInner() {
             </div>
 
             {/* Admin Avatar */}
-            <div className="flex items-center gap-2 border-l border-slate-200 pl-3">
+            <div className="flex items-center gap-2 border-l border-slate-200 pl-2 sm:pl-3">
               <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center font-black text-xs">
                 {user?.name?.charAt(0) || 'A'}
               </div>
@@ -318,10 +333,56 @@ function AdminLayoutInner() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full p-4 md:p-8">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full p-3.5 sm:p-5 md:p-8 pb-28 md:pb-8">
           <PageTransition />
         </main>
       </div>
+
+      {/* iOS/Android Styled Floating Frosted-Glass Mobile Bottom Dock for Admin */}
+      <nav className="md:hidden fixed bottom-[max(0.75rem,env(safe-area-inset-bottom,0.75rem))] inset-x-2 sm:inset-x-4 z-50 pointer-events-none">
+        <div className="mobile-floating-dock pointer-events-auto rounded-3xl border border-white/60 px-1 py-1.5 flex items-center justify-around shadow-[0_12px_35px_rgba(42,22,71,0.18)] gap-1">
+          {ADMIN_BOTTOM_TABS.map(tab => (
+            <NavLink
+              key={tab.path}
+              to={tab.path}
+              end={tab.end}
+              onClick={() => triggerHaptic(tab.isFab ? 'medium' : 'light')}
+              className={({ isActive }) =>
+                `relative flex flex-col items-center justify-center transition-all duration-200 ${
+                  tab.isFab ? '-mt-6' : 'flex-1 py-1 px-0.5'
+                } ${isActive ? 'text-aubergine-700 font-extrabold' : 'text-slate-500 font-medium'}`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  {tab.isFab ? (
+                    <div className="flex flex-col items-center group">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-700 via-aubergine-700 to-magenta-600 text-white flex items-center justify-center text-lg shadow-lg shadow-purple-600/30 ring-4 ring-white transition-transform active:scale-90">
+                        <i className={`fas ${tab.icon}`}></i>
+                      </div>
+                      <span className="text-[10px] font-black text-aubergine-800 mt-1 tracking-tight whitespace-nowrap">
+                        {tab.name}
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className={`w-10 h-8 rounded-xl flex items-center justify-center transition-all ${
+                        isActive ? 'bg-aubergine-100/90 text-aubergine-700 scale-105 shadow-2xs' : 'text-slate-500 active:scale-95'
+                      }`}>
+                        <i className={`fas ${tab.icon} text-[15px]`}></i>
+                      </div>
+                      <span className="text-[9px] sm:text-[10px] tracking-tight leading-none mt-0.5 whitespace-nowrap truncate w-full text-center">{tab.name}</span>
+                      {isActive && (
+                        <div className="w-1 h-1 rounded-full bg-aubergine-600 mt-0.5"></div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }

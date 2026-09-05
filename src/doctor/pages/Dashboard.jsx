@@ -773,9 +773,9 @@ function DoctorDashboard() {
           style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
         </div>
 
-        <div className="relative z-10 p-8">
+        <div className="relative z-10 p-4 sm:p-6 md:p-8">
           {/* Top status bar */}
-          <div className="flex items-center gap-3 mb-5 flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5 flex-wrap">
             <div className="flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/30 rounded-full px-3 py-1">
               <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
               <span className="text-[10px] font-black text-emerald-300 uppercase tracking-widest">Clinic Active</span>
@@ -792,13 +792,13 @@ function DoctorDashboard() {
             )}
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 sm:gap-6">
             <div>
-              <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mb-2">
                 {greeting},
                 <span className="block text-emerald-400">{user?.name || 'Doctor'}.</span>
               </h1>
-              <p className="text-slate-400 text-sm leading-relaxed">
+              <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
                 <span className="text-white font-bold">{queue.filter(q => q.status !== 'Done').length}</span> patients remaining today
                 {queue.filter(q => q.status === 'Done').length > 0 && (
                   <> · <span className="text-emerald-400 font-bold">{queue.filter(q => q.status === 'Done').length} seen</span></>
@@ -809,10 +809,10 @@ function DoctorDashboard() {
               </p>
             </div>
 
-            <div className="flex gap-2.5 sm:gap-3 flex-wrap">
+            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 w-full sm:w-auto">
               <button
                 onClick={() => setShowShareModal(true)}
-                className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-md hover:scale-105 active:scale-95"
+                className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md hover:scale-105 active:scale-95"
               >
                 <i className="fas fa-share-nodes text-aubergine-300"></i>
                 <span>Share Booking Link</span>
@@ -821,7 +821,7 @@ function DoctorDashboard() {
               <button
                 onClick={() => navigate(`/doctor-dashboard/telemedicine?startCall=${currentPatient.id}`)}
                 disabled={!currentPatient}
-                className="bg-emerald-500 disabled:opacity-40 hover:bg-emerald-400 text-white font-bold px-4 py-2.5 rounded-2xl text-sm flex items-center gap-2 transition-all shadow-lg shadow-emerald-900/50">
+                className="bg-emerald-500 disabled:opacity-40 hover:bg-emerald-400 text-white font-bold px-4 py-2.5 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/50">
                 <i className="fas fa-video"></i>
                 {currentPatient ? `Start Call — ${currentPatient.name.split(' ')[0]}` : 'No Active Patient'}
               </button>
@@ -867,7 +867,7 @@ function DoctorDashboard() {
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {todayStats.map(stat => (
           <div key={stat.label} onClick={stat.onClick}
             className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg hover:border-transparent cursor-pointer transition-all group relative overflow-hidden">

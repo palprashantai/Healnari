@@ -1798,17 +1798,17 @@ function PatientDashboard() {
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       {/* Dynamic Header */}
-      <div className="relative rounded-3xl overflow-hidden shadow-soft border border-aubergine-100 p-5 sm:p-8 md:p-10 bg-gradient-to-br from-white via-white to-aubergine-50/60">
+      <div className="relative rounded-3xl overflow-hidden shadow-soft border border-aubergine-100 p-4 sm:p-6 md:p-8 bg-gradient-to-br from-white via-white to-aubergine-50/60">
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-magenta-100 via-aubergine-50 to-transparent rounded-full mix-blend-multiply opacity-70 transform translate-x-1/4 -translate-y-1/4 pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-aubergine-50 via-magenta-50 to-transparent rounded-full mix-blend-multiply opacity-60 transform -translate-x-1/4 translate-y-1/4 pointer-events-none"></div>
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5 sm:gap-6">
           <div>
-            <p className="text-[10px] font-black text-aubergine-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><i className="fas fa-calendar-day"></i> {todayLabel}</p>
+            <p className="text-[10px] font-black text-aubergine-500 uppercase tracking-widest mb-1.5 sm:mb-2 flex items-center gap-1.5"><i className="fas fa-calendar-day"></i> {todayLabel}</p>
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif-brand font-black text-slate-800 mb-2 tracking-tight">
               {greeting}, {user?.name?.split(' ')[0] || 'there'}.
             </h1>
-            <p className="text-slate-500 text-sm max-w-md leading-relaxed">
+            <p className="text-slate-500 text-xs sm:text-sm max-w-md leading-relaxed">
               {nextAppointment
                 ? <>Your next visit with Dr. {nextAppointment.doctorName} is <strong className="text-aubergine-700">{daysToNext === 0 ? 'today' : `in ${daysToNext} day${daysToNext === 1 ? '' : 's'}`}</strong>. Rest and recharge.</>
                 : fertilityData?.nextPeriodEstimate 
@@ -1826,10 +1826,10 @@ function PatientDashboard() {
               </div>
             )}
           </div>
-          <div className="flex gap-2.5 sm:gap-3 flex-wrap">
+          <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 w-full sm:w-auto">
             <button
               onClick={() => setShowCarePassModal(true)}
-              className="bg-white/80 hover:bg-white border border-aubergine-200 text-aubergine-800 font-bold px-4 py-3 rounded-2xl transition-all shadow-sm text-sm flex items-center gap-2 btn-interactive"
+              className="bg-white/80 hover:bg-white border border-aubergine-200 text-aubergine-800 font-bold px-4 py-2.5 sm:py-3 rounded-2xl transition-all shadow-sm text-xs sm:text-sm flex items-center justify-center gap-2 btn-interactive w-full sm:w-auto"
               title="View your Emergency Care Card & QR Pass"
             >
               <i className="fas fa-id-card text-aubergine-600"></i>
@@ -1837,7 +1837,7 @@ function PatientDashboard() {
             </button>
 
             <button onClick={() => navigate(`/patient-dashboard/appointments?joinCall=${nextAppointment.id}`)} disabled={!nextAppointment || nextAppointment.type !== 'Video Consult' || daysToNext !== 0}
-              className="bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:from-aubergine-700 hover:to-magenta-700 disabled:opacity-40 disabled:grayscale text-white font-bold px-6 py-3 rounded-2xl transition-all shadow-lg shadow-aubergine-500/20 text-sm flex items-center gap-2 btn-interactive">
+              className="bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:from-aubergine-700 hover:to-magenta-700 disabled:opacity-40 disabled:grayscale text-white font-bold px-5 sm:px-6 py-2.5 sm:py-3 rounded-2xl transition-all shadow-lg shadow-aubergine-500/20 text-xs sm:text-sm flex items-center justify-center gap-2 btn-interactive w-full sm:w-auto">
               <i className="fas fa-video"></i> Join Call
             </button>
           </div>
@@ -1845,7 +1845,7 @@ function PatientDashboard() {
       </div>
 
       {/* 5-Stage Life Mode Switcher Bar */}
-      <div className="bg-white/80 backdrop-blur-md rounded-2xl p-2 border border-slate-200/80 shadow-sm flex items-center gap-1.5 overflow-x-auto">
+      <div className="bg-white/80 backdrop-blur-md rounded-2xl p-2 border border-slate-200/80 shadow-sm flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
         <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-3 flex-shrink-0">Life Stage:</span>
         {LIFE_MODES.map(mode => {
           const isActive = activeLifeMode === mode.id;

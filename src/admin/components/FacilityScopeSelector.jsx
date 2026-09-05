@@ -98,7 +98,7 @@ export function FacilityScopeSelector() {
 
       {/* Floating Dropdown Modal */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-slate-200/90 z-50 overflow-hidden animate-fade-in text-slate-800">
+        <div className="absolute -right-8 sm:right-0 top-full mt-2 w-[calc(100vw-1.5rem)] sm:w-96 max-w-[380px] bg-white rounded-2xl shadow-2xl border border-slate-200/90 z-50 overflow-hidden animate-fade-in text-slate-800">
           {/* Header */}
           <div className="p-3.5 bg-slate-50/90 border-b border-slate-100 space-y-2.5">
             <div className="flex items-center justify-between">

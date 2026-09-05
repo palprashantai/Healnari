@@ -107,9 +107,9 @@ function AdminUsers() {
           <h1 className="text-2xl font-black text-slate-800">Patient Management</h1>
           <p className="text-sm text-slate-500">Manage all registered patients on the platform.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="relative">
-            <button onClick={() => setIsActionsDropdownOpen(!isActionsDropdownOpen)} className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm">
+            <button onClick={() => setIsActionsDropdownOpen(!isActionsDropdownOpen)} className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-colors shadow-sm">
               Actions <i className="fas fa-chevron-down text-xs ml-1"></i>
             </button>
             {isActionsDropdownOpen && (
@@ -121,28 +121,28 @@ function AdminUsers() {
             )}
           </div>
           <button onClick={() => toast('Exporting user list to CSV...', 'info')}
-            className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm">
+            className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-colors shadow-sm">
             <i className="fas fa-download"></i> Export CSV
           </button>
         </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-        <div className="p-5 border-b border-slate-100 flex flex-wrap gap-4 items-center justify-between bg-slate-50/50">
-          <div className="relative flex-1 min-w-[250px] max-w-sm">
-            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+        <div className="p-3.5 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-slate-50/50">
+          <div className="relative flex-1 min-w-0 max-w-sm">
+            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search patient name or email..."
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100" />
+              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100" />
           </div>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-white border border-slate-200 text-slate-600 text-xs font-bold px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-100">
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="bg-white border border-slate-200 text-slate-600 text-xs font-bold px-3 py-2 rounded-xl outline-none focus:ring-2 focus:ring-slate-100 self-start sm:self-auto">
             <option value="All">All Statuses</option>
             <option value="Active">Active</option>
             <option value="Suspended">Suspended</option>
           </select>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="overflow-x-auto min-w-0">
+          <table className="w-full min-w-[680px] text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-100 text-xs text-slate-500 uppercase tracking-wider">
                 <th className="px-5 py-3 w-10 text-center">
