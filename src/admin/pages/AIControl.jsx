@@ -131,11 +131,12 @@ export function AIControl() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [fData, plData, alData, cpData] = await Promise.all([
+      const [fData, plData, alData, cpData, coupData] = await Promise.all([
         apiFetch('/admin/ai/features').catch(() => []),
         apiFetch('/admin/ai/plans?includeInactive=true').catch(() => []),
         apiFetch('/admin/ai/audit-logs').catch(() => []),
         apiFetch('/admin/ai/credit-packs').catch(() => []),
+        apiFetch('/admin/ai/coupons').catch(() => []),
       ]);
 
       const featuresList = Array.isArray(fData) ? fData : [];
@@ -147,14 +148,15 @@ export function AIControl() {
       setCreditPacks(Array.isArray(cpData) ? cpData : []);
       setCoupons(Array.isArray(coupData) ? coupData : []);
 
-      const subPlans = plansList.filter((p) => p.billingCycle !== 'credit_pack' && p.billing_cycle !== 'credit_pack' && !p.planId?.startsWith('pack_') && !p.id?.startsWith('pack_'));
+      const subPlans = plansList.filter((p) => p && p.billingCycle !== 'credit_pack' && p.billing_cycle !== 'credit_pack' && !p.planId?.startsWith('pack_') && !p.id?.startsWith('pack_'));
       if (subPlans.length > 0 && !selectedPlanId) {
         selectPlan(subPlans[0]);
       } else if (selectedPlanId) {
-        const current = plansList.find((p) => p.planId === selectedPlanId);
+        const current = plansList.find((p) => p && p.planId === selectedPlanId);
         if (current) selectPlan(current);
       }
-    } catch {
+    } catch (err) {
+      console.error('Failed to load AI control data:', err);
       notify('Failed to load AI control data', 'error');
     } finally {
       setLoading(false);
