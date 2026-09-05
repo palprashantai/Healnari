@@ -69,7 +69,7 @@ function ProviderCalculator({ onApply, commissionRate }) {
           Calculate Your Practice Earnings
         </h2>
         <p className="text-slate-600 text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
-          You receive <strong className="text-slate-900 font-bold">90% net payout</strong> of every completed consultation. The 10% platform fee covers HIPAA video hosting, payment gateway processing, and AI EMR maintenance.
+          You receive transparent net payouts on every completed consultation. The platform fee covers HIPAA video hosting, payment gateway processing, and AI EMR maintenance.
         </p>
       </Reveal>
 
@@ -88,7 +88,7 @@ function ProviderCalculator({ onApply, commissionRate }) {
                   <div className="min-w-0">
                     <label className="text-sm font-extrabold text-slate-900">1. Your Consultation Fee (Per Patient)</label>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Your 90% Take-Home: <strong className="text-emerald-700 font-black">{currencySymbol}{netPerConsultFee}</strong> · Platform: {currencySymbol}{Math.round(fee * 0.1)}
+                      Your Take-Home: <strong className="text-emerald-700 font-black">{currencySymbol}{netPerConsultFee}</strong> · Platform: {currencySymbol}{Math.round((fee * PLATFORM_FEE_PERCENT) / 100)}
                     </p>
                   </div>
                   <span className="text-base sm:text-xl font-black text-white bg-aubergine-700 px-3 sm:px-4 py-1 sm:py-1.5 rounded-2xl shadow-md font-sans shrink-0">
@@ -206,14 +206,14 @@ function ProviderCalculator({ onApply, commissionRate }) {
                   </div>
                   
                   <div className="bg-amber-50/60 p-2.5 rounded-xl border border-amber-200">
-                    <span className="text-[10px] uppercase font-bold text-amber-700 block">Platform Fee (10%)</span>
+                    <span className="text-[10px] uppercase font-bold text-amber-700 block">Platform Fee</span>
                     <strong className="text-sm font-black text-amber-800 font-sans block mt-0.5">
                       -{currencySymbol}{platformFeeMonthly.toLocaleString()}
                     </strong>
                   </div>
 
                   <div className="bg-emerald-50 p-2.5 rounded-xl border border-emerald-300 shadow-xs">
-                    <span className="text-[10px] uppercase font-black text-emerald-700 block">Your Take-Home (90%)</span>
+                    <span className="text-[10px] uppercase font-black text-emerald-700 block">Your Net Take-Home</span>
                     <strong className="text-sm font-black text-emerald-800 font-sans block mt-0.5">
                       {currencySymbol}{netMonthlyIncome.toLocaleString()}
                     </strong>
@@ -233,7 +233,7 @@ function ProviderCalculator({ onApply, commissionRate }) {
                     Net Take-Home Monthly Income
                   </span>
                   <span className="bg-emerald-400/20 text-emerald-300 text-[10px] font-black px-2.5 py-1 rounded-full border border-emerald-400/40 shadow-xs">
-                    90% Direct Payout
+                    Weekly Direct Payout
                   </span>
                 </div>
 
@@ -270,8 +270,8 @@ function ProviderCalculator({ onApply, commissionRate }) {
               {/* Transparency Callout Checks */}
               <div className="space-y-2 text-xs text-slate-200 font-medium">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-2"><i className="fas fa-check-circle text-emerald-400"></i> Platform Deduction:</span>
-                  <strong className="text-white font-bold">10% per consultation</strong>
+                  <span className="flex items-center gap-2"><i className="fas fa-check-circle text-emerald-400"></i> Platform Service Fee:</span>
+                  <strong className="text-white font-bold">Applied Per Consultation</strong>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-2"><i className="fas fa-check-circle text-emerald-400"></i> Monthly Fixed Rent:</span>

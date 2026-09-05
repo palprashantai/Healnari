@@ -22,7 +22,7 @@ function ProviderBenefits() {
     {
       title: 'Global Multi-Currency Practice',
       subtitle: 'India, US, UK & UAE Telehealth',
-      description: 'Consult patients worldwide with automatic currency localization (INR, USD, EUR, GBP, AED). Receive your 90% net earnings deposited directly into your bank every Monday.',
+      description: 'Consult patients worldwide with automatic currency localization (INR, USD, EUR, GBP, AED). Receive your net earnings deposited directly into your bank every Monday.',
       icon: 'fa-globe',
       badge: 'Multi-Currency',
       color: 'text-indigo-600 bg-indigo-50 border-indigo-200'

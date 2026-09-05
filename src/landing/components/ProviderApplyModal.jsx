@@ -536,7 +536,7 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
                         <span>Target Video Consult Fee</span>
-                        <span className="text-[10px] text-emerald-600 font-bold">You keep 90%</span>
+                        <span className="text-[10px] text-emerald-600 font-bold">Direct Weekly Payout</span>
                       </label>
                       <input
                         type="text"

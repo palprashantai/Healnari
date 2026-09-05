@@ -304,7 +304,7 @@ function AdminDoctorDetails() {
               </div>
               <div>
                 <p className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">Contract Terms</p>
-                <p className="text-sm font-semibold text-slate-700"><i className="fas fa-handshake w-5 text-aubergine-400"></i> 10% Global Platform Cut</p>
+                <p className="text-sm font-semibold text-slate-700"><i className="fas fa-handshake w-5 text-aubergine-400"></i> Platform Provider Agreement</p>
                 <p className="text-sm font-semibold text-slate-700 mt-1"><i className="fas fa-calendar-check w-5 text-slate-400"></i> Joined: {joined}</p>
               </div>
             </div>
@@ -317,15 +317,15 @@ function AdminDoctorDetails() {
                 <i className="fas fa-globe text-aubergine-600"></i> Platform Commission
               </h3>
               <span className="bg-emerald-50 border border-emerald-200 text-emerald-700 font-extrabold text-xs px-2.5 py-1 rounded-full">
-                Global Standard
+                Platform Take Rate
               </span>
             </div>
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-center my-3">
-              <p className="text-3xl font-black text-slate-900 font-sans">{Number(doctor?.commission_rate) || 10}%</p>
+              <p className="text-3xl font-black text-slate-900 font-sans">{doctor?.commission_rate !== undefined ? `${doctor.commission_rate}%` : 'Standard'}</p>
               <p className="text-xs font-bold text-slate-500 mt-0.5">Platform Take Rate</p>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
-              HealNari applies a centralized <strong>{Number(doctor?.commission_rate) || 10}% global platform fee</strong> across all network physicians. The doctor retains <strong>{100 - (Number(doctor?.commission_rate) || 10)}%</strong> of gross settled earnings.
+              Active platform take rate applied across settled consultations. Physician receives net earnings deposited directly via automated settlement.
             </p>
             <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end">
               <button
@@ -352,13 +352,13 @@ function AdminDoctorDetails() {
             <div className="bg-white border border-slate-200 rounded-xl p-5 text-center shadow-sm">
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Doctor Net Earned</p>
               <p className="text-2xl font-black text-emerald-600">{formatCurrency(doctorNet, doctor?.currency || 'INR')}</p>
-              <p className="text-xs text-slate-500 font-bold mt-1">{100 - (Number(doctor?.commission_rate) || 10)}% Net Share</p>
+              <p className="text-xs text-slate-500 font-bold mt-1">Net Physician Share</p>
             </div>
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 text-center shadow-md relative overflow-hidden">
               <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl"></div>
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Platform Earnings</p>
               <p className="text-2xl font-black text-white">{formatCurrency(adminCommission, doctor?.currency || 'INR')}</p>
-              <p className="text-xs text-slate-400 font-bold mt-1">From {Number(doctor?.commission_rate) || 10}% Global Platform Fee</p>
+              <p className="text-xs text-slate-400 font-bold mt-1">Platform Service Fee</p>
             </div>
           </div>
 

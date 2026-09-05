@@ -593,13 +593,19 @@ function DoctorProfile() {
               </div>
 
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                <h4 className="font-bold text-slate-700 text-sm mb-2">Platform Deductions & Take-Home</h4>
+                <h4 className="font-bold text-slate-700 text-sm mb-2">Platform Deductions &amp; Take-Home</h4>
                 <div className="space-y-2 text-xs">
-                  {[
-                    ['Video Consult Gross', formatCurrency(form.videoFee, doc?.profile?.currency || 'INR')],
-                    ['Platform & Clinical Infrastructure Fee (10%)', `-${formatCurrency(Math.round(form.videoFee * 0.10), doc?.profile?.currency || 'INR')}`],
-                    ['Your Direct Net Take-Home (90%)', formatCurrency(Math.round(form.videoFee * 0.90), doc?.profile?.currency || 'INR')]
-                  ].map(([k, v]) => (
+                  {(() => {
+                    const commRate = Number(doc?.profile?.commission_rate ?? doc?.commission_rate ?? 10);
+                    const feeAmount = Math.round(Number(form.videoFee || 0) * (commRate / 100));
+                    const netPayout = Math.max(0, Number(form.videoFee || 0) - feeAmount);
+                    const curr = doc?.profile?.currency || 'INR';
+                    return [
+                      ['Video Consult Gross', formatCurrency(form.videoFee, curr)],
+                      ['Platform & Clinical Infrastructure Fee', `-${formatCurrency(feeAmount, curr)}`],
+                      ['Your Estimated Net Take-Home', formatCurrency(netPayout, curr)]
+                    ];
+                  })().map(([k, v]) => (
                     <div key={k} className="flex justify-between">
                       <span className="text-slate-500">{k}</span>
                       <span className={`font-bold ${k.startsWith('Your') ? 'text-emerald-700 text-sm' : 'text-slate-800'}`}>{v}</span>

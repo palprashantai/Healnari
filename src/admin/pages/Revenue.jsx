@@ -529,11 +529,11 @@ function AdminRevenue() {
 
                   <div className="mt-3 pt-3 border-t border-slate-200/60 space-y-1 text-[11px]">
                     <div className="flex justify-between">
-                      <span className="text-slate-500 font-medium">Platform Take (10%):</span>
+                      <span className="text-slate-500 font-medium">Platform Fee:</span>
                       <span className="font-bold text-aubergine-700">{formatCurrency(item.platformFeeAmount, item.currency)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-500 font-medium">Provider Share (90%):</span>
+                      <span className="text-slate-500 font-medium">Provider Share:</span>
                       <span className="font-bold text-emerald-700">{formatCurrency(item.providerPayoutAmount, item.currency)}</span>
                     </div>
                     {item.refundAmount > 0 && (
@@ -870,7 +870,7 @@ function AdminRevenue() {
                       <td className="px-6 py-4 text-slate-500 text-xs font-medium">{p.date}</td>
                       <td className="px-6 py-4">
                         <span className="text-[10px] font-black px-2 py-0.5 rounded-full border border-aubergine-200 bg-aubergine-50 text-aubergine-700 w-fit">
-                          {p.feeCut || '10%'} take-rate
+                          {p.feeCut ? `${p.feeCut} take-rate` : 'Platform fee'}
                         </span>
                       </td>
                       <td className="px-6 py-4 font-black text-emerald-700 font-sans text-base">

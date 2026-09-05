@@ -39,8 +39,8 @@ function DoctorLandingPage() {
     });
 
     const originalTitle = document.title;
-    const docTitle = "Telemedicine Platform for Gynecologists & Doctors | 90% Net Payout + AI EMR | HealNari";
-    const docDesc = "Grow your clinical practice with zero clinic overhead. HealNari connects verified Gynecologists, Endocrinologists, Dermatologists, Dietitians & Yoga Therapists with high-intent patients. Built-in AI EMR, digital Rx & weekly 90% payouts.";
+    const docTitle = "Telemedicine Platform for Gynecologists & Doctors | Direct Net Payouts + AI EMR | HealNari";
+    const docDesc = "Grow your clinical practice with zero clinic overhead. HealNari connects verified Gynecologists, Endocrinologists, Dermatologists, Dietitians & Yoga Therapists with high-intent patients. Built-in AI EMR, digital Rx & weekly direct payouts.";
     const docUrl = "https://healnari.care/for-doctors";
 
     document.title = docTitle;
@@ -152,7 +152,7 @@ function DoctorLandingPage() {
     },
     {
       q: "How much can I earn and how does the payout model work?",
-      a: `You set your own consultation fee (starting ₹799). You keep ${doctorShare}% of every completed consultation — the ${commRate}% platform fee covers HIPAA video servers, payment gateway processing, and EMR/AI infrastructure. Earnings are tracked in real-time in your dashboard and paid directly to your registered bank account every Monday. There are no hidden commissions, deductions, or caps.`
+      a: "You set your own consultation fee (starting ₹799). You retain your net earnings from every completed consultation — the platform fee covers HIPAA-compliant video servers, payment gateway processing, and EMR/AI infrastructure. Earnings are tracked in real-time in your dashboard and paid directly to your registered bank account every Monday. There are no hidden deductions or caps."
     },
     {
       q: "Are there any upfront fees, monthly software subscriptions, or lock-in contracts?",
@@ -172,7 +172,7 @@ function DoctorLandingPage() {
     },
     {
       q: "Can I consult international patients and how are multi-currency payments settled?",
-      a: "Yes! HealNari provides international telemedicine with built-in multi-currency conversion (USD, AED, EUR, GBP, INR). Patients abroad pay in their preferred currency, and you receive your full 90% net earnings deposited directly into your Indian bank account every Monday."
+      a: "Yes! HealNari provides international telemedicine with built-in multi-currency conversion (USD, AED, EUR, GBP, INR). Patients abroad pay in their preferred currency, and you receive your full net consultation earnings deposited directly into your Indian bank account every Monday."
     },
     {
       q: "What documents do I need to get verified?",
@@ -332,7 +332,7 @@ function DoctorLandingPage() {
                     Start Your Digital Clinic Today
                   </h2>
                   <p className="text-pink-100 text-base md:text-lg leading-relaxed font-normal">
-                    No upfront fees. No monthly subscriptions. Apply in 3 minutes, get verified in 48 hours, and start seeing pre-screened patients from Day 1. Keep 90% of every consultation — paid weekly.
+                    No upfront fees. No monthly subscriptions. Apply in 3 minutes, get verified in 48 hours, and start seeing pre-screened patients from Day 1. Keep your consultation earnings — paid weekly.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
                     <button 
@@ -361,7 +361,7 @@ function DoctorLandingPage() {
         <div className="md:hidden fixed bottom-4 inset-x-4 z-40 animate-slide-up">
           <div className="bg-slate-950/90 backdrop-blur-lg border border-purple-500/40 rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-3 text-white">
             <div className="min-w-0 pl-1">
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 block">90% Net Payout</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 block">Direct Net Payout</span>
               <p className="text-xs font-bold text-slate-200 truncate">Zero Clinic Rent</p>
             </div>
             <button

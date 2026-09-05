@@ -50,7 +50,7 @@ export default function DoctorAiShowcase({ onApply, onOpenLogin }) {
     {
       icon: 'fa-globe',
       title: 'Global Multi-Currency Practice',
-      desc: 'Consult patients from India, USA, UK, UAE and Europe. Patients pay in local currencies (INR, USD, AED, GBP); you receive weekly 90% payouts.',
+      desc: 'Consult patients from India, USA, UK, UAE and Europe. Patients pay in local currencies (INR, USD, AED, GBP); you receive weekly direct payouts.',
       badge: 'Global Telehealth',
       color: 'text-emerald-600 bg-emerald-50 border-emerald-200',
     },

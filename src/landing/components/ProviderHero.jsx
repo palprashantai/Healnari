@@ -26,7 +26,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
     'Automated SOAP Notes & Scribe',
     'Smart Rx & Drug Safety Checks',
     'Global Multi-Currency Practice',
-    '90% Net Weekly Payouts',
+    'Direct Net Weekly Payouts',
     'Full Clinical Autonomy',
   ];
 
@@ -113,7 +113,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
               )}
             </h1>
             <p className="text-slate-600 text-sm sm:text-lg md:text-xl leading-relaxed max-w-2xl mx-auto font-normal px-1">
-              {subtitle || "Run your multi-specialty digital clinic on HealNari — zero rent, zero staff overhead, zero commute. Connect with pre-screened patients across Gynecology, PCOS, Endocrinology, Dermatology, Nutrition, and Movement with built-in AI EMR, digital Rx, and 90% net weekly payouts."}
+              {subtitle || "Run your multi-specialty digital clinic on HealNari — zero rent, zero staff overhead, zero commute. Connect with pre-screened patients across Gynecology, PCOS, Endocrinology, Dermatology, Nutrition, and Movement with built-in AI EMR, digital Rx, and direct weekly payouts."}
             </p>
           </div>
 
@@ -138,7 +138,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
           {/* Trust Guarantees */}
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap justify-center items-center gap-2.5 sm:gap-6 pt-2 sm:pt-4 text-[11px] sm:text-xs font-medium text-slate-500 text-left sm:text-center">
             <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-emerald-600"></i> Verified Credentials</span>
-            <span className="flex items-center gap-1.5"><i className="fas fa-circle-dollar-to-slot text-emerald-600"></i> 90% Net Payout</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-circle-dollar-to-slot text-emerald-600"></i> Direct Weekly Payout</span>
             <span className="flex items-center gap-1.5"><i className="fas fa-lock text-emerald-600"></i> Clinical Autonomy</span>
             <span className="flex items-center gap-1.5"><i className="fas fa-users text-emerald-600"></i> 8+ Specialties</span>
           </div>
@@ -324,7 +324,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                 {activeWorkflow === 'earnings' && (
                   <div className="grid sm:grid-cols-3 gap-4 animate-fade-in text-center">
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 hover:border-aubergine-200 transition-all">
-                      <p className="text-xs text-slate-500 font-extrabold uppercase">This Month (90% Net)</p>
+                      <p className="text-xs text-slate-500 font-extrabold uppercase">This Month (Net Payout)</p>
                       <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-1 font-sans">₹1,48,500</p>
                       <p className="text-[11px] text-indigo-600 font-bold mt-0.5">Incl. $1,420 from US/NRI Patients</p>
                     </div>
