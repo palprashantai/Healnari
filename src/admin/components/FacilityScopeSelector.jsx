@@ -242,7 +242,7 @@ export function FacilityScopeSelector() {
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-aubergine-600 to-indigo-600 text-white font-black text-[10px] flex items-center justify-center shrink-0 shadow-2xs">
+                          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-aubergine-600 to-indigo-600 text-white font-semibold text-[10px] flex items-center justify-center shrink-0 shadow-2xs">
                             {initials}
                           </div>
                           <div className="min-w-0 truncate">

@@ -104,7 +104,7 @@ function NotificationPanel({ isOpen, onClose, notifications, onMarkAll, onMarkOn
   return (
     <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/90 shadow-[0_20px_50px_rgba(42,22,71,0.25)] z-[100] animate-fade-in overflow-hidden">
       <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white/90">
-        <h3 className="font-bold text-slate-800 text-sm">Notifications {unread > 0 && <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ml-1">{unread}</span>}</h3>
+        <h3 className="font-bold text-slate-800 text-sm">Notifications {unread > 0 && <span className="bg-rose-500 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full ml-1">{unread}</span>}</h3>
         {unread > 0 && <button onClick={onMarkAll} className="text-xs text-aubergine-600 font-bold hover:underline">Mark all read</button>}
       </div>
       <div className="divide-y divide-slate-50 max-h-80 overflow-y-auto">
@@ -171,18 +171,18 @@ function SidebarContent({ user, onClose, onItemHover }) {
         <NavLink to="/doctor-dashboard" className="flex items-center">
           <HealNariLogo showTagline={false} size="sm" variant="dark" />
         </NavLink>
-        <span className="ml-auto text-[9px] text-aubergine-300 font-bold uppercase tracking-widest border border-aubergine-500/30 bg-aubergine-500/10 px-2 py-0.5 rounded-full shadow-inner">Provider</span>
+        <span className="ml-auto text-[10px] text-aubergine-300 font-semibold uppercase tracking-wider border border-aubergine-500/30 bg-aubergine-500/10 px-2 py-0.5 rounded-full shadow-inner">Provider</span>
       </div>
 
       {/* Doctor Badge */}
       <div className="mx-4 mt-6 mb-4 py-2 px-3 bg-white/[0.03] hover:bg-white/[0.06] transition-colors rounded-xl border border-white/5 flex items-center gap-3 cursor-pointer group">
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-aubergine-500 to-magenta-600 shadow-lg flex items-center justify-center text-white text-xs font-black shrink-0 relative">
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-aubergine-500 to-magenta-600 shadow-lg flex items-center justify-center text-white text-xs font-bold shrink-0 relative">
           {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'DR'}
           <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
         </div>
         <div className="min-w-0">
-          <p className="text-slate-200 text-xs font-bold leading-tight truncate group-hover:text-white transition-colors">{user?.name || 'Dr. Sarah Mitchell'}</p>
-          <p className="text-slate-500 text-[10px] truncate">{user?.specialty || 'Gynaecologist'}</p>
+          <p className="text-slate-200 text-xs font-semibold leading-tight truncate group-hover:text-white transition-colors">{user?.name || 'Dr. Sarah Mitchell'}</p>
+          <p className="text-slate-400 text-xs truncate">{user?.specialty || 'Gynaecologist'}</p>
         </div>
       </div>
 
@@ -191,9 +191,9 @@ function SidebarContent({ user, onClose, onItemHover }) {
         <NavHoverRail indicatorClassName="bg-aubergine-800/40 rounded-xl">
           {NAV_CATEGORIES.map((category, catIdx) => (
             <details key={category.title} className={`group/nav-cat ${catIdx > 0 ? "mt-4" : ""}`} open>
-              <summary className="text-[10px] font-bold text-aubergine-300/60 uppercase tracking-widest mb-1.5 px-3 cursor-pointer list-none flex items-center justify-between hover:text-white transition-colors select-none">
+              <summary className="text-xs font-semibold text-aubergine-300/70 uppercase tracking-wider mb-1.5 px-3 cursor-pointer list-none flex items-center justify-between hover:text-white transition-colors select-none">
                 {category.title}
-                <i className="fas fa-chevron-down text-[8px] transition-transform group-open/nav-cat:-rotate-180"></i>
+                <i className="fas fa-chevron-down text-[9px] transition-transform group-open/nav-cat:-rotate-180"></i>
               </summary>
               <div className="space-y-0.5">
                 {category.items.map(item => (
@@ -202,7 +202,7 @@ function SidebarContent({ user, onClose, onItemHover }) {
                     onMouseLeave={() => onItemHover?.(null)}
                     data-nav-item
                     className={({ isActive }) =>
-                      `group flex items-center gap-3.5 px-4 py-2.5 rounded-xl font-medium text-[13.5px] tracking-wide transition-all duration-300 ${
+                      `group flex items-center gap-3.5 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-300 ${
                         isActive
                           ? 'bg-gradient-to-r from-aubergine-600/90 to-aubergine-700/50 text-white shadow-md shadow-aubergine-900/40 border border-aubergine-500/30'
                           : 'text-aubergine-200/70 hover:text-white border border-transparent'
@@ -215,7 +215,7 @@ function SidebarContent({ user, onClose, onItemHover }) {
                         </div>
                         <span className="flex-1 truncate">{item.name}</span>
                         {item.badge && (
-                          <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-200 border border-purple-400/30">
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-200 border border-purple-400/30">
                             {item.badge}
                           </span>
                         )}
@@ -233,7 +233,7 @@ function SidebarContent({ user, onClose, onItemHover }) {
       <div className="p-4 shrink-0 pb-28 md:pb-4 safe-area-pb border-t border-aubergine-800/40">
         <button 
           onClick={handleLogout}
-          className="flex items-center justify-center gap-2.5 px-4 py-3 rounded-xl font-bold text-sm bg-rose-500/20 text-rose-300 hover:bg-rose-600 hover:text-white border border-rose-500/30 transition-all w-full shadow-sm active:scale-95"
+          className="flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl font-medium text-sm bg-rose-500/20 text-rose-300 hover:bg-rose-600 hover:text-white border border-rose-500/30 transition-all w-full shadow-sm active:scale-95"
         >
           <i className="fas fa-arrow-right-from-bracket"></i>
           <span>Sign Out / Logout</span>
@@ -424,7 +424,7 @@ function DoctorLayout() {
               <i className="fas fa-triangle-exclamation"></i>
               <span className="hidden sm:inline">Clinical Alerts</span>
               {urgentAlerts.length > 0 && (
-                <span className="bg-rose-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-black">{urgentAlerts.length}</span>
+                <span className="bg-rose-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-semibold">{urgentAlerts.length}</span>
               )}
             </button>
 
@@ -434,7 +434,7 @@ function DoctorLayout() {
                 className="relative w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-slate-600 hover:bg-aubergine-50 hover:text-aubergine-600 transition-colors flex items-center justify-center">
                 <i className="fas fa-bell text-sm"></i>
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-semibold rounded-full flex items-center justify-center border-2 border-white">
                     {unreadCount}
                   </span>
                 )}
@@ -457,7 +457,7 @@ function DoctorLayout() {
 
             {/* Doctor Avatar */}
             <div className="flex items-center gap-2 border-l border-slate-200 pl-3 cursor-pointer group" onClick={() => navigate('/doctor-dashboard/profile')}>
-              <div className="w-8 h-8 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-black text-xs group-hover:bg-aubergine-200 transition-colors">
+              <div className="w-8 h-8 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-semibold text-xs group-hover:bg-aubergine-200 transition-colors">
                 {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'DR'}
               </div>
               <div className="hidden lg:block text-xs">
@@ -472,15 +472,19 @@ function DoctorLayout() {
             Full detail (allergy/risk chips) only on patient-scoped screens — elsewhere
             it collapses to one line so it stops outweighing the page's own content.
             Hidden on /doctor-dashboard/telemedicine to give full screen to the active video/Rx studio. */}
+        {/* Persistent 2-Identifier Patient Header Bar (Clinical Safety).
+            Full detail (allergy/risk chips) only on patient-scoped screens — elsewhere
+            it collapses to one line so it stops outweighing the page's own content.
+            Hidden on /doctor-dashboard/telemedicine to give full screen to the active video/Rx studio. */}
         {!location.pathname.startsWith('/doctor-dashboard/telemedicine') && (
           <div className={`bg-gradient-to-r from-aubergine-900 via-slate-900 to-aubergine-900 text-white px-4 md:px-6 flex flex-wrap items-center justify-between gap-3 text-xs z-10 border-b border-aubergine-800/40 shadow-xs transition-all w-full min-w-0 ${isPatientScoped ? 'py-2' : 'py-1.5'}`}>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto min-w-0 flex-1">
-              <span className="bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-500/30 flex items-center gap-1 whitespace-nowrap shrink-0">
+              <span className="bg-emerald-500/20 text-emerald-300 font-medium px-2 py-0.5 rounded text-xs border border-emerald-500/30 flex items-center gap-1 whitespace-nowrap shrink-0">
                 <i className="fas fa-lock text-[9px]"></i> Active Patient
               </span>
-              <div className="flex flex-wrap items-center gap-2 font-bold min-w-0 max-w-full">
-                <span className="text-white text-sm tracking-wide font-medium whitespace-nowrap truncate">{activePatient.name}</span>
-                <span className="text-aubergine-300 font-mono text-[11px] whitespace-nowrap shrink-0">[{activePatient.mrn}]</span>
+              <div className="flex flex-wrap items-center gap-2 font-semibold min-w-0 max-w-full">
+                <span className="text-white text-sm font-semibold whitespace-nowrap truncate">{activePatient.name}</span>
+                <span className="text-aubergine-300 font-mono text-xs whitespace-nowrap shrink-0">[{activePatient.mrn}]</span>
                 {isPatientScoped && (
                   <div className="flex items-center gap-2 flex-wrap min-w-0">
                     <span className="text-slate-400 whitespace-nowrap">• DOB: {activePatient.dob} ({activePatient.age})</span>
@@ -490,31 +494,31 @@ function DoctorLayout() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5 min-w-0">
               {isPatientScoped && (
                 <>
                   {/* Allergy Flag */}
                   <div className="flex items-center gap-1.5 bg-rose-950/80 border border-rose-600/40 px-2.5 py-1 rounded-lg text-rose-300 font-medium">
                     <i className="fas fa-hand-dots text-rose-400"></i>
-                    <span className="font-bold text-[11px]">Allergies:</span> {activePatient.allergies.join(', ')}
+                    <span className="font-semibold text-xs">Allergies:</span> {activePatient.allergies.join(', ')}
                   </div>
 
                   {/* Risk Flag */}
                   <div className="flex items-center gap-1.5 bg-amber-950/80 border border-amber-600/40 px-2.5 py-1 rounded-lg text-amber-300 font-medium hidden lg:flex">
                     <i className="fas fa-triangle-exclamation text-amber-400"></i>
-                    <span className="font-bold text-[11px]">Clinical Flag:</span> {activePatient.alerts[0]}
+                    <span className="font-semibold text-xs">Clinical Flag:</span> {activePatient.alerts[0]}
                   </div>
                 </>
               )}
 
               {/* Quick Switch */}
               <div className="relative">
-                <button onClick={() => setActivePatientMenu(!activePatientMenu)} className="bg-white/10 hover:bg-white/20 text-white font-bold px-2.5 py-1 rounded-lg text-[11px] transition-colors flex items-center gap-1.5 border border-white/20">
+                <button onClick={() => setActivePatientMenu(!activePatientMenu)} className="bg-white/10 hover:bg-white/20 text-white font-medium px-2.5 py-1 rounded-lg text-xs transition-colors flex items-center gap-1.5 border border-white/20">
                   <i className="fas fa-clock-rotate-left text-[10px]"></i> Recent
                 </button>
                 {activePatientMenu && (
                   <div className="absolute right-0 top-full mt-1 w-64 bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
-                    <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 tracking-normal">
                       Recently Opened Charts
                     </div>
                     {recentPatients.map(name => {
@@ -528,8 +532,8 @@ function DoctorLayout() {
                           toast(`Switched active context to ${p.name}`, 'info');
                         }}
                         className="w-full px-3 py-2 text-left text-xs hover:bg-aubergine-50 flex justify-between items-center transition-colors">
-                          <span className="font-bold text-slate-700">{p.name}</span>
-                          <span className="text-[10px] text-slate-500">Select</span>
+                          <span className="font-semibold text-slate-700">{p.name}</span>
+                          <span className="text-xs text-slate-400">Select</span>
                         </button>
                       );
                     })}
@@ -547,7 +551,7 @@ function DoctorLayout() {
             <div className="p-4 bg-rose-900 text-white flex justify-between items-center shrink-0">
               <div className="flex items-center gap-2">
                 <i className="fas fa-triangle-exclamation text-rose-300"></i>
-                <h3 className="font-bold text-sm">Urgent Clinical Alerts (CDSS)</h3>
+                <h3 className="font-semibold text-sm">Urgent Clinical Alerts (CDSS)</h3>
               </div>
               <button onClick={() => setAlertDrawerOpen(false)} className="text-white/80 hover:text-white p-1">
                 <i className="fas fa-xmark"></i>
@@ -557,16 +561,16 @@ function DoctorLayout() {
               {urgentAlerts.map(lab => (
                 <div key={lab.id} className="p-4 rounded-xl border transition-all bg-rose-50 border-rose-200">
                   <div className="flex justify-between items-start mb-1">
-                    <span className="font-bold text-slate-800 text-sm">{lab.patient}</span>
-                    <span className="text-[10px] text-slate-500 font-medium">{lab.received}</span>
+                    <span className="font-semibold text-slate-800 text-sm">{lab.patient}</span>
+                    <span className="text-xs text-slate-500 font-medium">{lab.received}</span>
                   </div>
-                  <p className="text-xs font-bold text-rose-700">{lab.test}</p>
+                  <p className="text-xs font-semibold text-rose-700">{lab.test}</p>
                   <p className="text-xs text-slate-600 mt-1 bg-white/70 p-2 rounded-lg border border-slate-200/60 font-mono">{lab.values}</p>
                   <div className="mt-3 flex gap-2">
-                    <button onClick={() => toast(`Contacting ${lab.patient} via secure SMS/Call...`, 'success')} className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-1.5 rounded-lg text-xs transition-colors">
+                    <button onClick={() => toast(`Contacting ${lab.patient} via secure SMS/Call...`, 'success')} className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-medium py-2 rounded-lg text-xs transition-colors">
                       <i className="fas fa-phone mr-1"></i> Contact Patient
                     </button>
-                    <button onClick={() => toast(`Alert acknowledged for ${lab.patient}`, 'info')} className="px-3 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold py-1.5 rounded-lg text-xs transition-colors">
+                    <button onClick={() => toast(`Alert acknowledged for ${lab.patient}`, 'info')} className="px-3 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-medium py-2 rounded-lg text-xs transition-colors">
                       Acknowledge
                     </button>
                   </div>
@@ -576,7 +580,7 @@ function DoctorLayout() {
                 <div className="text-center py-10 text-slate-500">
                   <i className="fas fa-circle-check text-2xl mb-2 block text-emerald-400"></i>
                   <p className="text-xs font-medium">No urgent values right now.</p>
-                  <p className="text-[11px] text-slate-400 mt-1">Routine pending labs are in the dashboard's Lab Reports card.</p>
+                  <p className="text-xs text-slate-400 mt-1">Routine pending labs are in the dashboard's Lab Reports card.</p>
                 </div>
               )}
             </div>
@@ -585,8 +589,10 @@ function DoctorLayout() {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full p-4 md:p-6 pb-28 md:pb-6">
-          {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
-          <PageTransition />
+          <div className="max-w-[1600px] mx-auto w-full min-w-0">
+            {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
+            <PageTransition />
+          </div>
         </main>
       </div>
 
@@ -602,7 +608,7 @@ function DoctorLayout() {
               className={({ isActive }) =>
                 `relative flex flex-col items-center justify-center transition-all duration-200 ${
                   tab.isFab ? '-mt-6' : 'flex-1 py-1 px-0.5'
-                } ${isActive ? 'text-aubergine-700 font-extrabold' : 'text-slate-500 font-medium'}`
+                } ${isActive ? 'text-aubergine-700 font-semibold' : 'text-slate-500 font-normal'}`
               }
             >
               {({ isActive }) => (
@@ -612,7 +618,7 @@ function DoctorLayout() {
                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-aubergine-700 via-aubergine-600 to-magenta-600 text-white flex items-center justify-center text-lg shadow-lg shadow-aubergine-500/30 ring-4 ring-white transition-transform active:scale-90">
                         <i className={`fas ${tab.icon}`}></i>
                       </div>
-                      <span className="text-[10px] font-black text-aubergine-700 mt-1 tracking-tight whitespace-nowrap">
+                      <span className="text-[11px] font-semibold text-aubergine-700 mt-1 tracking-tight whitespace-nowrap">
                         {tab.name}
                       </span>
                     </div>
@@ -623,7 +629,7 @@ function DoctorLayout() {
                       }`}>
                         <i className={`fas ${tab.icon} text-[15px]`}></i>
                       </div>
-                      <span className="text-[9px] sm:text-[10px] tracking-tight leading-none mt-0.5 whitespace-nowrap truncate w-full text-center">{tab.name}</span>
+                      <span className="text-[10px] sm:text-xs tracking-tight leading-none mt-0.5 whitespace-nowrap truncate w-full text-center">{tab.name}</span>
                       {isActive && (
                         <div className="w-1 h-1 rounded-full bg-aubergine-600 mt-0.5"></div>
                       )}

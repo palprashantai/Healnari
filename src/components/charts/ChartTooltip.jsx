@@ -29,7 +29,7 @@ export function ChartTooltip({ active, payload, label, currency = null, unit = '
                 />
                 <span className="text-slate-400 font-medium truncate">{item.name || 'Value'}:</span>
               </div>
-              <span className="font-mono font-black text-white">{formattedVal}</span>
+              <span className="font-mono font-semibold text-white">{formattedVal}</span>
             </div>
           );
         })}

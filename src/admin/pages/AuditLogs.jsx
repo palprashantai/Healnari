@@ -34,7 +34,7 @@ export function AuditLogs() {
     <div className="max-w-6xl mx-auto space-y-8 animate-fade-in pb-20">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight font-display flex items-center gap-3">
+          <h1 className="text-3xl font-semibold text-slate-800 tracking-tight font-display flex items-center gap-3">
             <i className="fas fa-shield-halved text-aubergine-600"></i> PHI Audit Logs
           </h1>
           <p className="text-slate-500 mt-2 font-medium">
@@ -71,12 +71,12 @@ export function AuditLogs() {
                     <p className="text-xs text-slate-500">{log.actor_id}</p>
                   </td>
                   <td className="px-6 py-4">
-                    <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-wider">
+                    <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-semibold uppercase tracking-wider">
                       {log.actor_role}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold uppercase tracking-wider ${
                       log.action === 'GET' ? 'bg-aubergine-50 text-aubergine-700' :
                       log.action === 'POST' ? 'bg-emerald-50 text-emerald-600' :
                       log.action === 'PUT' || log.action === 'PATCH' ? 'bg-amber-50 text-amber-600' :
@@ -89,7 +89,7 @@ export function AuditLogs() {
                     {log.resource}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold uppercase tracking-wider ${
                       log.status === 'SUCCESS' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
                     }`}>
                       {log.status}

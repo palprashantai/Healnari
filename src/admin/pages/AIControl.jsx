@@ -672,7 +672,7 @@ export function AIControl() {
             <i className="fas fa-sliders text-purple-300"></i>
             <span>AI Product Control &amp; Entitlements</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">AI Product Control</h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">AI Product Control</h1>
           <p className="text-slate-300 text-xs sm:text-sm mt-1 max-w-2xl">
             Control which AI features are available in your product, which subscription plans include them, and set usage limits (Limited vs Unlimited).
           </p>
@@ -780,7 +780,7 @@ export function AIControl() {
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+                <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">
                   Active AI Capabilities
                 </h2>
                 <p className="text-xs text-slate-400">
@@ -929,7 +929,7 @@ export function AIControl() {
           {/* Plan Selector Sidebar */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+              <h2 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">
                 Select Subscription Plan
               </h2>
               <button
@@ -957,7 +957,7 @@ export function AIControl() {
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-black text-sm">{p.planName}</span>
+                      <span className="font-semibold text-sm">{p.planName}</span>
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
                           isSelected
@@ -980,7 +980,7 @@ export function AIControl() {
                       <span className={isSelected ? 'text-purple-300' : 'text-slate-500'}>
                         {p.features?.length || 0} Features Included
                       </span>
-                      <span className="font-black">
+                      <span className="font-semibold">
                         {p.currencySymbol || '₹'}
                         {p.price_inr !== undefined ? p.price_inr : (p.baseAmount ?? 0)}
                       </span>
@@ -998,7 +998,7 @@ export function AIControl() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-black text-slate-900">{planForm.name}</h2>
+                    <h2 className="text-xl font-semibold text-slate-900">{planForm.name}</h2>
                     <span className="font-mono text-xs text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
                       {planForm.id}
                     </span>
@@ -1032,7 +1032,7 @@ export function AIControl() {
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                    <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">
                       Plan Identity &amp; Pricing
                     </h3>
                     <p className="text-[11px] text-slate-500">
@@ -1147,7 +1147,7 @@ export function AIControl() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 focus-within:border-purple-600 focus-within:bg-white focus-within:ring-2 focus-within:ring-purple-100 transition-all">
-                      <span className="text-sm font-black text-slate-600">₹</span>
+                      <span className="text-sm font-semibold text-slate-600">₹</span>
                       <input
                         type="number"
                         min="0"
@@ -1160,7 +1160,7 @@ export function AIControl() {
                             price_inr: e.target.value,
                           })
                         }
-                        className="w-full text-sm font-black text-slate-900 bg-transparent focus:outline-none"
+                        className="w-full text-sm font-semibold text-slate-900 bg-transparent focus:outline-none"
                       />
                     </div>
                     <span className="text-[10px] text-slate-400 block">
@@ -1179,7 +1179,7 @@ export function AIControl() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 focus-within:border-purple-600 focus-within:bg-white focus-within:ring-2 focus-within:ring-purple-100 transition-all">
-                      <span className="text-sm font-black text-slate-600">$</span>
+                      <span className="text-sm font-semibold text-slate-600">$</span>
                       <input
                         type="number"
                         min="0"
@@ -1192,7 +1192,7 @@ export function AIControl() {
                             price_usd: e.target.value,
                           })
                         }
-                        className="w-full text-sm font-black text-slate-900 bg-transparent focus:outline-none"
+                        className="w-full text-sm font-semibold text-slate-900 bg-transparent focus:outline-none"
                       />
                     </div>
                     <span className="text-[10px] text-slate-400 block">
@@ -1223,7 +1223,7 @@ export function AIControl() {
                             included_monthly_credits: e.target.value,
                           })
                         }
-                        className="w-full text-sm font-black text-purple-950 bg-transparent focus:outline-none"
+                        className="w-full text-sm font-semibold text-purple-950 bg-transparent focus:outline-none"
                       />
                       <span className="text-[11px] font-bold text-purple-700 shrink-0">Credits</span>
                     </div>
@@ -1255,7 +1255,7 @@ export function AIControl() {
                             bonus_credits: e.target.value,
                           })
                         }
-                        className="w-full text-sm font-black text-amber-950 bg-transparent focus:outline-none"
+                        className="w-full text-sm font-semibold text-amber-950 bg-transparent focus:outline-none"
                       />
                       <span className="text-[11px] font-bold text-amber-700 shrink-0">Bonus</span>
                     </div>
@@ -1282,7 +1282,7 @@ export function AIControl() {
               ) : (
                 <div className="space-y-3">
                   <div>
-                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                    <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">
                       Feature Inclusions (Unified Credit Pool)
                     </h3>
                     <p className="text-xs text-slate-400">
@@ -1379,10 +1379,10 @@ export function AIControl() {
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center font-black text-sm">
+                <span className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center font-semibold text-sm">
                   <i className="fas fa-bolt"></i>
                 </span>
-                <h2 className="text-base font-black text-slate-900">
+                <h2 className="text-base font-semibold text-slate-900">
                   AI Credit Top-Up Packs
                 </h2>
               </div>
@@ -1430,7 +1430,7 @@ export function AIControl() {
                     </div>
 
                     <div>
-                      <h3 className="text-sm font-black text-slate-900">{pack.name}</h3>
+                      <h3 className="text-sm font-semibold text-slate-900">{pack.name}</h3>
                       <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
                         {pack.description || 'Instant AI credit booster pack.'}
                       </p>
@@ -1440,7 +1440,7 @@ export function AIControl() {
                       <div className="text-xs text-purple-700 font-bold uppercase tracking-wider text-[10px]">
                         Included AI Credits
                       </div>
-                      <div className="text-2xl font-black text-purple-950 mt-0.5 flex items-baseline gap-1">
+                      <div className="text-2xl font-semibold text-purple-950 mt-0.5 flex items-baseline gap-1">
                         <span>{pack.credits}</span>
                         <span className="text-xs font-semibold text-purple-600">credits</span>
                       </div>
@@ -1449,11 +1449,11 @@ export function AIControl() {
                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
                       <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
                         <div className="text-[10px] text-slate-400 font-semibold uppercase">India (INR)</div>
-                        <div className="text-sm font-black text-slate-800 mt-0.5">₹{pack.price_inr}</div>
+                        <div className="text-sm font-semibold text-slate-800 mt-0.5">₹{pack.price_inr}</div>
                       </div>
                       <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
                         <div className="text-[10px] text-slate-400 font-semibold uppercase">Global (USD)</div>
-                        <div className="text-sm font-black text-slate-800 mt-0.5">${pack.price_usd}</div>
+                        <div className="text-sm font-semibold text-slate-800 mt-0.5">${pack.price_usd}</div>
                       </div>
                     </div>
                   </div>
@@ -1492,7 +1492,7 @@ export function AIControl() {
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+              <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">
                 Immutable AI Control Audit Trail
               </h2>
               <p className="text-xs text-slate-400">
@@ -1563,7 +1563,7 @@ export function AIControl() {
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
                   Global AI Revenue
                 </span>
-                <div className="text-2xl font-black text-slate-900 mt-1">
+                <div className="text-2xl font-semibold text-slate-900 mt-1">
                   {formatCurrency(profitability.metrics?.totalRevenue || 0, reportingCurrency)}
                 </div>
                 <div className="text-[11px] text-emerald-600 font-bold mt-1">
@@ -1575,7 +1575,7 @@ export function AIControl() {
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
                   Total AI Token Cost
                 </span>
-                <div className="text-2xl font-black text-rose-600 mt-1">
+                <div className="text-2xl font-semibold text-rose-600 mt-1">
                   {formatCurrency(profitability.metrics?.totalAiCost || 0, reportingCurrency)}
                 </div>
                 <div className="text-[11px] text-slate-500 font-bold mt-1">
@@ -1587,7 +1587,7 @@ export function AIControl() {
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
                   Gross Margin
                 </span>
-                <div className="text-2xl font-black text-emerald-700 mt-1">
+                <div className="text-2xl font-semibold text-emerald-700 mt-1">
                   {profitability.metrics?.grossMarginPercent || 0}%
                 </div>
                 <div className="text-[11px] text-emerald-600 font-bold mt-1">
@@ -1616,7 +1616,7 @@ export function AIControl() {
 
           {/* Pricing Simulator */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-            <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+            <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">
               AI Unit Profitability Simulator
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
@@ -1929,7 +1929,7 @@ export function AIControl() {
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Price India (₹ INR)</label>
                 <div className="flex items-center gap-1.5 border border-slate-300 rounded-xl px-3 py-2 bg-slate-50 focus-within:bg-white focus-within:border-purple-600">
-                  <span className="font-black text-slate-600">₹</span>
+                  <span className="font-semibold text-slate-600">₹</span>
                   <input
                     type="number"
                     min="0"
@@ -1937,7 +1937,7 @@ export function AIControl() {
                     placeholder="999"
                     value={newPlanForm.price_inr}
                     onChange={(e) => setNewPlanForm({ ...newPlanForm, price_inr: e.target.value })}
-                    className="w-full bg-transparent font-black text-slate-900 focus:outline-none"
+                    className="w-full bg-transparent font-semibold text-slate-900 focus:outline-none"
                   />
                 </div>
               </div>
@@ -1945,7 +1945,7 @@ export function AIControl() {
               <div>
                 <label className="font-bold text-slate-700 block mb-1">International ($ USD)</label>
                 <div className="flex items-center gap-1.5 border border-slate-300 rounded-xl px-3 py-2 bg-slate-50 focus-within:bg-white focus-within:border-purple-600">
-                  <span className="font-black text-slate-600">$</span>
+                  <span className="font-semibold text-slate-600">$</span>
                   <input
                     type="number"
                     min="0"
@@ -1953,7 +1953,7 @@ export function AIControl() {
                     placeholder="19"
                     value={newPlanForm.price_usd}
                     onChange={(e) => setNewPlanForm({ ...newPlanForm, price_usd: e.target.value })}
-                    className="w-full bg-transparent font-black text-slate-900 focus:outline-none"
+                    className="w-full bg-transparent font-semibold text-slate-900 focus:outline-none"
                   />
                 </div>
               </div>
@@ -2045,7 +2045,7 @@ export function AIControl() {
                   value={packForm.credits}
                   onChange={(e) => setPackForm({ ...packForm, credits: e.target.value })}
                   placeholder="100"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600 font-black text-purple-950 text-right"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:outline-none focus:border-purple-600 font-semibold text-purple-950 text-right"
                 />
               </div>
             </div>
@@ -2077,7 +2077,7 @@ export function AIControl() {
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Price India (₹ INR) *</label>
                 <div className="flex items-center gap-1.5 border border-slate-300 rounded-xl px-3 py-2 bg-slate-50 focus-within:bg-white focus-within:border-purple-600">
-                  <span className="font-black text-slate-600">₹</span>
+                  <span className="font-semibold text-slate-600">₹</span>
                   <input
                     type="number"
                     min="0"
@@ -2086,7 +2086,7 @@ export function AIControl() {
                     placeholder="200"
                     value={packForm.price_inr}
                     onChange={(e) => setPackForm({ ...packForm, price_inr: e.target.value })}
-                    className="w-full bg-transparent font-black text-slate-900 focus:outline-none"
+                    className="w-full bg-transparent font-semibold text-slate-900 focus:outline-none"
                   />
                 </div>
               </div>
@@ -2094,7 +2094,7 @@ export function AIControl() {
               <div>
                 <label className="font-bold text-slate-700 block mb-1">International ($ USD) *</label>
                 <div className="flex items-center gap-1.5 border border-slate-300 rounded-xl px-3 py-2 bg-slate-50 focus-within:bg-white focus-within:border-purple-600">
-                  <span className="font-black text-slate-600">$</span>
+                  <span className="font-semibold text-slate-600">$</span>
                   <input
                     type="number"
                     min="0"
@@ -2103,7 +2103,7 @@ export function AIControl() {
                     placeholder="3.00"
                     value={packForm.price_usd}
                     onChange={(e) => setPackForm({ ...packForm, price_usd: e.target.value })}
-                    className="w-full bg-transparent font-black text-slate-900 focus:outline-none"
+                    className="w-full bg-transparent font-semibold text-slate-900 focus:outline-none"
                   />
                 </div>
               </div>

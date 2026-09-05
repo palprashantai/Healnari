@@ -54,10 +54,10 @@ export function GlobalCommissionModal({ isOpen, onClose, currentRate, history, o
         {/* Active Rate Display */}
         <div className="bg-gradient-to-br from-aubergine-900 to-slate-900 text-white rounded-2xl p-5 text-center shadow-sm relative overflow-hidden">
           <div className="absolute -right-6 -top-6 w-20 h-20 bg-white/10 rounded-full blur-xl"></div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-aubergine-300">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-aubergine-300">
             Universal Single Source of Truth
           </span>
-          <p className="text-4xl font-black text-amber-300 font-sans tracking-tight mt-1">{rate}%</p>
+          <p className="text-4xl font-semibold text-amber-300 font-sans tracking-tight mt-1">{rate}%</p>
           <p className="text-xs text-slate-300 font-medium mt-1">
             Doctors receive <strong className="text-white">{100 - Number(rate || 0)}%</strong> of gross settled earnings
           </p>
@@ -71,14 +71,14 @@ export function GlobalCommissionModal({ isOpen, onClose, currentRate, history, o
           </div>
           <div className="text-right">
             <span className="text-slate-500 font-bold block text-[10px] uppercase">Physician Net Payout</span>
-            <span className="font-black text-emerald-700 text-sm">₹{sampleDoctorPayout} ({100 - Number(rate || 0)}%)</span>
+            <span className="font-semibold text-emerald-700 text-sm">₹{sampleDoctorPayout} ({100 - Number(rate || 0)}%)</span>
           </div>
         </div>
 
         {/* Adjust Slider & Number Input */}
         <div className="space-y-2">
           <div className="flex justify-between items-center">
-            <label className="text-xs font-black text-slate-700">Set Platform Take Rate (%)</label>
+            <label className="text-xs font-semibold text-slate-700">Set Platform Take Rate (%)</label>
             <div className="flex items-center gap-1">
               <input
                 type="number"
@@ -87,7 +87,7 @@ export function GlobalCommissionModal({ isOpen, onClose, currentRate, history, o
                 step="0.5"
                 value={rate}
                 onChange={e => setRate(e.target.value === '' ? '' : Number(e.target.value))}
-                className="w-16 text-right font-mono font-black text-sm border border-slate-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-aubergine-500 focus:outline-none"
+                className="w-16 text-right font-mono font-semibold text-sm border border-slate-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-aubergine-500 focus:outline-none"
               />
               <span className="font-bold text-slate-500 text-sm">%</span>
             </div>
@@ -125,7 +125,7 @@ export function GlobalCommissionModal({ isOpen, onClose, currentRate, history, o
 
         {/* Change Reason for Audit */}
         <div>
-          <label className="text-xs font-black text-slate-700 mb-1.5 block">Audit Change Reason (Optional)</label>
+          <label className="text-xs font-semibold text-slate-700 mb-1.5 block">Audit Change Reason (Optional)</label>
           <input 
             value={reason} 
             onChange={e => setReason(e.target.value)} 
@@ -146,13 +146,13 @@ export function GlobalCommissionModal({ isOpen, onClose, currentRate, history, o
         {/* Audit History Trail */}
         {history && history.length > 0 && (
           <div className="pt-3 border-t border-slate-100">
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-400 mb-2">Audit History Trail</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">Audit History Trail</p>
             <div className="max-h-36 overflow-y-auto space-y-2 pr-1">
               {history.map(h => (
                 <div key={h.id} className="text-xs p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex justify-between items-center">
                   <div>
                     <span className="font-bold text-slate-800">
-                      {h.previous_rate ?? '—'}% → <strong className="text-aubergine-700 font-black">{h.new_rate}%</strong>
+                      {h.previous_rate ?? '—'}% → <strong className="text-aubergine-700 font-semibold">{h.new_rate}%</strong>
                     </span>
                     {h.change_reason && <p className="text-[10px] text-slate-500 mt-0.5">{h.change_reason}</p>}
                   </div>

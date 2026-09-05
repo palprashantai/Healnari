@@ -173,12 +173,12 @@ export function AIPaywallModal({
             <i className={`fas ${isDoctor ? 'fa-user-md' : 'fa-wand-magic-sparkles'} text-xl`}></i>
           </div>
 
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-purple-100/80 border border-purple-200 text-purple-800 text-[11px] font-black uppercase tracking-wider mb-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-purple-100/80 border border-purple-200 text-purple-800 text-[11px] font-semibold uppercase tracking-wider mb-2">
             <span>{ISO_CURRENCIES[currentQuote.currency]?.flag || '🌍'}</span>
             <span>{currentQuote.countryName} Market Edition</span>
           </div>
 
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+          <h2 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight">
             {paywallData?.title || (isDoctor ? 'Accelerate Clinical Documentation' : 'Unlock Intelligent Health Insights')}
           </h2>
           <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-md mx-auto leading-relaxed">
@@ -209,7 +209,7 @@ export function AIPaywallModal({
                     {formatCurrency(currentQuote.baseAmount, currentQuote.currency)}
                   </span>
                 )}
-                <span className="text-2xl sm:text-3xl font-black text-slate-900">
+                <span className="text-2xl sm:text-3xl font-semibold text-slate-900">
                   {formatCurrency(finalAmount, currentQuote.currency)}
                 </span>
                 <span className="text-xs font-bold text-slate-500">
@@ -259,7 +259,7 @@ export function AIPaywallModal({
           <button
             onClick={handleUpgrade}
             disabled={loading}
-            className="w-full bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-900 hover:from-purple-950 hover:to-indigo-950 text-white font-black py-3.5 rounded-2xl text-sm shadow-md shadow-purple-900/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
+            className="w-full bg-gradient-to-r from-purple-900 via-indigo-900 to-purple-900 hover:from-purple-950 hover:to-indigo-950 text-white font-semibold py-3.5 rounded-2xl text-sm shadow-md shadow-purple-900/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
           >
             {loading ? (
               <>

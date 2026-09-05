@@ -31,7 +31,7 @@ function AdminPatientConsultations() {
     <div className="max-w-5xl mx-auto py-8 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Patient Consultations</h1>
+          <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Patient Consultations</h1>
           <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest">Complete History</p>
         </div>
         <Link to={`/admin-dashboard/users/${id}`} className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-aubergine-600 transition-colors bg-white border border-slate-200 px-4 py-2 rounded-xl shadow-sm hover:shadow-md">
@@ -45,7 +45,7 @@ function AdminPatientConsultations() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50/80 border-b border-slate-100 text-xs uppercase tracking-widest text-slate-400 font-black">
+              <thead className="bg-slate-50/80 border-b border-slate-100 text-xs uppercase tracking-widest text-slate-400 font-semibold">
                 <tr>
                   <th className="px-6 py-4">Doctor & Date</th>
                   <th className="px-6 py-4">Type</th>
@@ -69,7 +69,7 @@ function AdminPatientConsultations() {
                     </td>
                     <td className="px-6 py-4 text-slate-600 font-medium">{c.type} Consult</td>
                     <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border ${
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider border ${
                         c.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                         c.status === 'Cancelled' ? 'bg-rose-50 text-rose-700 border-rose-200' :
                         c.status === 'In Progress' ? 'bg-amber-50 text-amber-700 border-amber-200' :
@@ -80,7 +80,7 @@ function AdminPatientConsultations() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex flex-col items-end gap-1">
-                        <p className="font-black text-slate-800 text-lg">₹{c.cost?.toLocaleString()}</p>
+                        <p className="font-semibold text-slate-800 text-lg">₹{c.cost?.toLocaleString()}</p>
                         <button onClick={(e) => { e.stopPropagation(); setSelectedInvoice(c); setActiveModal('invoice'); }} className="text-xs text-aubergine-600 hover:text-aubergine-700 font-bold flex items-center gap-1 transition-colors">
                           <i className="fas fa-file-invoice"></i> Invoice
                         </button>
@@ -116,7 +116,7 @@ function AdminPatientConsultations() {
               <p className="text-xs text-slate-500">support@healnari.app | +1 (800) 000-0000</p>
             </div>
             <div className="text-right">
-              <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-4">TAX INVOICE</h2>
+              <h2 className="text-2xl font-semibold text-slate-800 tracking-tight mb-4">TAX INVOICE</h2>
               <div className="flex justify-end gap-4 text-sm mb-1">
                 <span className="text-slate-500">Invoice No:</span>
                 <span className="font-bold text-slate-800 font-mono w-32 text-right">HEAL-{(selectedInvoice?.id?.slice(0, 5) || '00000').toUpperCase()}</span>
@@ -131,11 +131,11 @@ function AdminPatientConsultations() {
           {/* Watermark */}
           {selectedInvoice?.status === 'Completed' || selectedInvoice?.status === 'Done' ? (
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -rotate-12 pointer-events-none opacity-[0.03]">
-              <span className="text-[120px] font-black text-emerald-500">PAID</span>
+              <span className="text-[120px] font-semibold text-emerald-500">PAID</span>
             </div>
           ) : selectedInvoice?.status === 'Cancelled' ? (
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -rotate-12 pointer-events-none opacity-[0.03]">
-              <span className="text-[100px] font-black text-rose-500">CANCELLED</span>
+              <span className="text-[100px] font-semibold text-rose-500">CANCELLED</span>
             </div>
           ) : null}
 
@@ -188,7 +188,7 @@ function AdminPatientConsultations() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="font-bold text-slate-800">Total Amount</span>
-                <span className="text-2xl font-black text-[#6B46C1]">₹{selectedInvoice?.cost?.toLocaleString()}</span>
+                <span className="text-2xl font-semibold text-[#6B46C1]">₹{selectedInvoice?.cost?.toLocaleString()}</span>
               </div>
             </div>
           </div>

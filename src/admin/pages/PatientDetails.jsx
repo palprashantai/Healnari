@@ -154,7 +154,7 @@ function AdminPatientDetails() {
           <Link to="/admin-dashboard/users" className="text-sm font-bold text-slate-400 hover:text-aubergine-600 transition-colors flex items-center gap-2 mb-2">
             <i className="fas fa-arrow-left"></i> Back to Patients
           </Link>
-          <h1 className="text-2xl font-black text-slate-800">Patient File: {profile.full_name}</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">Patient File: {profile.full_name}</h1>
           <p className="text-sm text-slate-500">ID: {profile.id} • Joined {joined}</p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
@@ -187,7 +187,7 @@ function AdminPatientDetails() {
         {/* Left Column: Profile */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center">
-            <div className="w-24 h-24 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center text-3xl font-black mx-auto mb-4 border-4 border-white shadow-md">
+            <div className="w-24 h-24 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center text-3xl font-semibold mx-auto mb-4 border-4 border-white shadow-md">
               {(profile.full_name || 'P').charAt(0)}
             </div>
             <h2 className="text-xl font-bold text-slate-800">{profile.full_name}</h2>
@@ -212,17 +212,17 @@ function AdminPatientDetails() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5 text-center shadow-sm">
               <p className="text-[10px] uppercase font-bold text-emerald-600 mb-1">Lifetime Value (LTV)</p>
-              <p className="text-2xl font-black text-emerald-700">{formatCurrency(kpis?.lifetimeValue || 0, profile?.currency || 'INR')}</p>
+              <p className="text-2xl font-semibold text-emerald-700">{formatCurrency(kpis?.lifetimeValue || 0, profile?.currency || 'INR')}</p>
               <p className="text-xs text-emerald-600 font-bold mt-1">Total Completed Payments</p>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl p-5 text-center shadow-sm">
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Consultations</p>
-              <p className="text-2xl font-black text-slate-800">{kpis?.consultationsCompleted || 0}</p>
+              <p className="text-2xl font-semibold text-slate-800">{kpis?.consultationsCompleted || 0}</p>
               <p className="text-xs text-slate-500 font-bold mt-1">Completed</p>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl p-5 text-center shadow-sm">
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Total Bookings</p>
-              <p className="text-2xl font-black text-aubergine-700">{consultations.length}</p>
+              <p className="text-2xl font-semibold text-aubergine-700">{consultations.length}</p>
               <p className="text-xs text-slate-500 font-bold mt-1">All Time</p>
             </div>
           </div>
@@ -289,7 +289,7 @@ function AdminPatientDetails() {
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <span className="font-black text-slate-800">₹{c.cost.toLocaleString()}</span>
+                    <span className="font-semibold text-slate-800">₹{c.cost.toLocaleString()}</span>
                     <button onClick={() => { setSelectedInvoice(c); setActiveModal('invoice'); }} className="text-xs text-aubergine-600 hover:text-aubergine-700 font-bold flex items-center gap-1 transition-colors">
                       <i className="fas fa-file-invoice"></i> Invoice
                     </button>
@@ -316,7 +316,7 @@ function AdminPatientDetails() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`text-xs font-black px-3 py-1 rounded-full border ${
+                <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${
                   aiSubscription?.planId === 'patient_plan_3'
                     ? 'bg-amber-50 text-amber-800 border-amber-200'
                     : aiSubscription?.planId === 'patient_plan_2'
@@ -335,19 +335,19 @@ function AdminPatientDetails() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 border-b border-slate-100 bg-slate-50/50">
               <div className="bg-white p-4 rounded-xl border border-slate-200">
                 <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Active Plan Tier</p>
-                <p className="text-lg font-black text-slate-800">{aiSubscription?.planName || 'Patient Basic'}</p>
+                <p className="text-lg font-semibold text-slate-800">{aiSubscription?.planName || 'Patient Basic'}</p>
                 <p className="text-[11px] text-slate-500 mt-1">Billing Cycle: {aiSubscription?.billingCycle || 'Monthly'}</p>
               </div>
               <div className="bg-white p-4 rounded-xl border border-slate-200">
                 <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Monthly Queries Quota</p>
-                <p className="text-lg font-black text-aubergine-700">
+                <p className="text-lg font-semibold text-aubergine-700">
                   {aiSubscription?.creditsRemaining ?? 15} <span className="text-xs text-slate-400 font-normal">/ {aiSubscription?.monthlyCredits || 15} left</span>
                 </p>
                 <p className="text-[11px] text-slate-500 mt-1">Consumed: {aiSubscription?.creditsUsed || 0} queries this month</p>
               </div>
               <div className="bg-white p-4 rounded-xl border border-slate-200">
                 <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Plan Validity</p>
-                <p className="text-lg font-black text-slate-800">
+                <p className="text-lg font-semibold text-slate-800">
                   {aiSubscription?.renewalDate ? new Date(aiSubscription.renewalDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Continuous (Free Tier)'}
                 </p>
                 <p className="text-[11px] text-slate-500 mt-1">Plan: {aiSubscription?.isPremium ? 'Prepaid (30 Days)' : 'Standard Free'}</p>
@@ -381,7 +381,7 @@ function AdminPatientDetails() {
                         <td className="px-5 py-3.5 text-xs font-bold text-slate-800">
                           {t.planName}
                         </td>
-                        <td className="px-5 py-3.5 text-xs text-right font-black text-emerald-600">
+                        <td className="px-5 py-3.5 text-xs text-right font-semibold text-emerald-600">
                           {t.currency === 'USD' ? '$' : '₹'}{t.finalAmount?.toLocaleString('en-IN')}
                         </td>
                         <td className="px-5 py-3.5 text-xs text-slate-600 font-medium">
@@ -457,7 +457,7 @@ function AdminPatientDetails() {
                 <p className="text-[10px] text-slate-400">{new Date(p.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
               </div>
               <div className="text-right">
-                <p className="font-black text-slate-800">₹{Number(p.amount).toLocaleString()}</p>
+                <p className="font-semibold text-slate-800">₹{Number(p.amount).toLocaleString()}</p>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${p.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{p.status}</span>
               </div>
             </div>
@@ -490,7 +490,7 @@ function AdminPatientDetails() {
         <div className="space-y-4">
           <div className="bg-emerald-50 rounded-xl p-6 text-center border border-emerald-100">
              <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-1">{selectedInvoice?.status === 'Done' ? 'Paid in Full' : selectedInvoice?.status}</p>
-             <p className="text-4xl font-black text-emerald-800">₹{selectedInvoice?.cost?.toLocaleString()}</p>
+             <p className="text-4xl font-semibold text-emerald-800">₹{selectedInvoice?.cost?.toLocaleString()}</p>
              <p className="text-sm text-emerald-700 mt-2">{selectedInvoice?.doctor} • {selectedInvoice?.date}</p>
           </div>
           <button onClick={() => { toast('Downloading PDF...', 'success'); setActiveModal(null); }} className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition-colors"><i className="fas fa-file-pdf mr-2"></i>Download PDF</button>

@@ -44,7 +44,7 @@ function ReviewModal({ doctor, isOpen, onClose, onAction, loading }) {
       <div className="space-y-6">
         <div className="flex gap-4 items-center bg-slate-50 p-4 rounded-xl border border-slate-200 justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-black text-lg">
+            <div className="w-12 h-12 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-semibold text-lg">
               {(doctor.name || 'D').charAt(0)}
             </div>
             <div>
@@ -61,7 +61,7 @@ function ReviewModal({ doctor, isOpen, onClose, onAction, loading }) {
         <div className="bg-gradient-to-r from-aubergine-500/10 via-magenta-500/10 to-aubergine-500/10 border border-aubergine-200 rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="text-xs font-black text-aubergine-900 uppercase tracking-wider">AI Medical Credential & NMC Verification</h4>
+              <h4 className="text-xs font-semibold text-aubergine-900 uppercase tracking-wider">AI Medical Credential & NMC Verification</h4>
               <p className="text-xs text-slate-500 mt-0.5">Auto-extracts State Council Registration and qualification validity.</p>
             </div>
             <AIButton
@@ -223,7 +223,7 @@ function ReviewModal({ doctor, isOpen, onClose, onAction, loading }) {
                     <i className="fas fa-award"></i>
                   </div>
                   <div>
-                    <h3 className="font-black text-slate-800 text-lg">Medical Council Registration Certificate</h3>
+                    <h3 className="font-semibold text-slate-800 text-lg">Medical Council Registration Certificate</h3>
                     <p className="text-xs text-slate-500 mt-1 font-mono">Reg No: {doctor.regNo || doctor.registration_no || 'MCI-88421-DELHI'}</p>
                     <p className="text-xs text-slate-500 font-semibold mt-0.5">{doctor.medical_council || 'State Medical Council Board'}</p>
                   </div>
@@ -290,7 +290,7 @@ function AdminVerification() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-black text-slate-800">Doctor Verification</h1>
+        <h1 className="text-2xl font-semibold text-slate-800">Doctor Verification</h1>
         <p className="text-sm text-slate-500">Review KYC documents and approve new doctor signups.</p>
       </div>
 
@@ -299,7 +299,7 @@ function AdminVerification() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col" style={{ minHeight: '480px' }}>
           <div className="px-5 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
             <h2 className="font-bold text-slate-800">Pending Review</h2>
-            <span className="bg-amber-100 text-amber-700 text-xs font-black px-2 py-0.5 rounded-full">{pending.length}</span>
+            <span className="bg-amber-100 text-amber-700 text-xs font-semibold px-2 py-0.5 rounded-full">{pending.length}</span>
           </div>
           <div className="divide-y divide-slate-50 flex-1 overflow-y-auto">
             {loading ? (

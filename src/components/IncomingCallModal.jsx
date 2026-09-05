@@ -155,7 +155,7 @@ export function IncomingCallModal() {
               className="relative w-28 h-28 rounded-full object-cover border border-white/20 shadow-2xl"
             />
           ) : (
-            <div className="relative w-28 h-28 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-4xl font-black text-white shadow-2xl">
+            <div className="relative w-28 h-28 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-4xl font-semibold text-white shadow-2xl">
               {initials}
             </div>
           )}
@@ -165,7 +165,7 @@ export function IncomingCallModal() {
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             Incoming Video Call
           </p>
-          <h2 className="text-white font-black text-2xl leading-tight">{incomingCall.title}</h2>
+          <h2 className="text-white font-semibold text-2xl leading-tight">{incomingCall.title}</h2>
           <p className="text-white/70 text-sm max-w-xs mx-auto leading-relaxed">{incomingCall.message}</p>
         </div>
       </div>

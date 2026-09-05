@@ -460,11 +460,11 @@ function DoctorAppointments() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Queue Management</h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-800 tracking-tight">Queue Management</h1>
           <p className="text-sm text-slate-500 mt-1">Manage your daily tokens, approvals, and call history.</p>
         </div>
         <button onClick={callNext}
-          className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl shadow-lg shadow-emerald-600/30 transition-all hover:-translate-y-0.5 flex items-center gap-2 text-sm">
+          className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium px-6 py-2.5 rounded-xl shadow-lg shadow-emerald-600/30 transition-all hover:-translate-y-0.5 flex items-center gap-2 text-sm">
           <i className="fas fa-bullhorn animate-pulse"></i> Call Next Patient
         </button>
       </div>
@@ -479,8 +479,8 @@ function DoctorAppointments() {
         ].map(s => (
           <div key={s.label} className={`${s.bg} rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition-all hover:-translate-y-1 relative overflow-hidden group`}>
             <div className="relative z-10">
-              <div className={`text-3xl font-black ${s.color}`}>{s.value}</div>
-              <div className="text-xs text-slate-500 font-bold mt-1 uppercase tracking-wider">{s.label}</div>
+              <div className={`text-2xl sm:text-3xl font-semibold ${s.color}`}>{s.value}</div>
+              <div className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wider">{s.label}</div>
             </div>
             <i className={`fas ${s.icon} absolute -right-2 -bottom-2 text-6xl ${s.iconColor} opacity-50 group-hover:scale-110 transition-transform duration-300`}></i>
           </div>
@@ -497,9 +497,9 @@ function DoctorAppointments() {
             ['past',     'Past Consults', past.length],
           ].map(([key, label, count]) => (
             <button key={key} onClick={() => setTab(key)}
-              className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center gap-2 ${tab === key ? 'bg-white text-aubergine-700 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
+              className={`px-5 py-2.5 text-sm font-semibold rounded-xl transition-all flex items-center gap-2 ${tab === key ? 'bg-white text-aubergine-700 shadow-sm ring-1 ring-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'}`}>
               {label}
-              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${tab === key ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-200 text-slate-500'}`}>{count}</span>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${tab === key ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-200 text-slate-500'}`}>{count}</span>
             </button>
           ))}
         </div>
@@ -533,28 +533,28 @@ function DoctorAppointments() {
             <div className="relative w-full sm:w-auto" ref={actionsMenuRef}>
               <button 
                 onClick={() => setShowActionsMenu(!showActionsMenu)}
-                className="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
+                className="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-medium px-5 py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
               >
                 Bulk Actions <i className={`fas fa-chevron-down text-[10px] transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}></i>
               </button>
               {showActionsMenu && (
                 <div className="absolute right-0 sm:right-0 left-0 sm:left-auto top-full mt-2 w-full sm:w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-fade-in origin-top-right">
                   <div className="px-4 py-2 mb-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Messaging Channels</p>
+                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Messaging Channels</p>
                   </div>
-                  <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-aubergine-50 hover:text-aubergine-700 flex items-center gap-3 transition-colors group">
+                  <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-aubergine-50 hover:text-aubergine-700 flex items-center gap-3 transition-colors group">
                     <div className="w-8 h-8 rounded-full bg-aubergine-100 flex items-center justify-center group-hover:bg-white transition-colors">
                       <i className="fas fa-envelope text-aubergine-600"></i>
                     </div>
                     Bulk Email
                   </button>
-                  <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors group">
+                  <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-3 transition-colors group">
                     <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center group-hover:bg-white transition-colors">
                       <i className="fas fa-bell text-amber-500"></i>
                     </div>
                     Push Notification
                   </button>
-                  <button onClick={() => handleBulkAction('WhatsApp Message')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-3 transition-colors group">
+                  <button onClick={() => handleBulkAction('WhatsApp Message')} className="w-full text-left px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-3 transition-colors group">
                     <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-white transition-colors">
                       <i className="fab fa-whatsapp text-emerald-500 text-lg"></i>
                     </div>
@@ -563,7 +563,7 @@ function DoctorAppointments() {
                   {tab === 'requests' && (
                     <>
                       <div className="h-px bg-slate-100 my-2 mx-4"></div>
-                      <button onClick={() => handleBulkAction('Approve Selected')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-3 transition-colors group">
+                      <button onClick={() => handleBulkAction('Approve Selected')} className="w-full text-left px-5 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 flex items-center gap-3 transition-colors group">
                         <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-white transition-colors">
                           <i className="fas fa-check-double text-emerald-600"></i>
                         </div>
@@ -579,7 +579,7 @@ function DoctorAppointments() {
           {/* ── 1-Click Delay Broadcast Toolbar (Queue only) ── */}
           {tab === 'queue' && (
             <div className="flex flex-wrap items-center gap-2.5 pt-1">
-              <div className="flex items-center gap-1.5 text-[11px] font-black text-slate-500 uppercase tracking-widest">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 <i className="fas fa-clock-rotate-left text-amber-500"></i>
                 Delay Alert:
               </div>
@@ -615,13 +615,13 @@ function DoctorAppointments() {
               <div key={p.id} className={`responsive-table-card ${p.status === 'In Progress' ? 'ring-2 ring-emerald-400 bg-emerald-50/20' : ''}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded font-mono tracking-wider ${p.status === 'In Progress' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-white'}`}>{p.token}</span>
+                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded font-mono tracking-wider ${p.status === 'In Progress' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-white'}`}>{p.token}</span>
                     <div>
-                      <h4 className="font-extrabold text-slate-800 text-sm leading-snug">{p.name}</h4>
-                      <p className="text-[11px] text-slate-500">{p.age} • {p.type}</p>
+                      <h4 className="font-semibold text-slate-800 text-sm leading-snug">{p.name}</h4>
+                      <p className="text-xs text-slate-500">{p.age} • {p.type}</p>
                     </div>
                   </div>
-                  <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${STATUS_BADGE[p.status] || 'bg-slate-100 text-slate-500'}`}>
+                  <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${STATUS_BADGE[p.status] || 'bg-slate-100 text-slate-500'}`}>
                     {p.status}
                   </span>
                 </div>
@@ -716,10 +716,10 @@ function DoctorAppointments() {
             <div key={r.id} className="responsive-table-card">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h4 className="font-extrabold text-slate-800 text-sm">{r.name}</h4>
-                  <p className="text-[11px] text-slate-500">{r.age} • {r.type}</p>
+                  <h4 className="font-semibold text-slate-800 text-sm">{r.name}</h4>
+                  <p className="text-xs text-slate-500">{r.age} • {r.type}</p>
                 </div>
-                <span className="text-[10px] font-bold text-aubergine-700 bg-aubergine-50 border border-aubergine-200 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-semibold text-aubergine-700 bg-aubergine-50 border border-aubergine-200 px-2.5 py-0.5 rounded-full">
                   {r.mode}
                 </span>
               </div>
@@ -792,8 +792,8 @@ function DoctorAppointments() {
         <div className="hidden sm:block overflow-x-auto px-4 pb-4">
           <table className="w-full text-left text-sm border-separate border-spacing-y-3">
             <thead>
-              <tr className="text-[10px] text-slate-400 uppercase tracking-widest">
-                <th className="px-4 py-2 font-bold w-12 whitespace-nowrap">
+              <tr className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
+                <th className="px-4 py-2 font-semibold w-12 whitespace-nowrap">
                   <label className="flex items-center justify-center cursor-pointer">
                     <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${selectedIds.length > 0 && selectedIds.length === filteredData.length ? 'bg-aubergine-600 shadow-sm text-white' : selectedIds.length > 0 ? 'bg-aubergine-200 text-aubergine-700 ring-1 ring-aubergine-400' : 'bg-slate-100/80 hover:bg-slate-200 ring-1 ring-slate-200/80 ring-inset'}`}>
                       {(selectedIds.length > 0 && selectedIds.length === filteredData.length) ? <i className="fas fa-check text-[9px]"></i> : selectedIds.length > 0 ? <div className="w-2 h-0.5 bg-aubergine-700 rounded-full"></div> : null}
@@ -801,14 +801,14 @@ function DoctorAppointments() {
                     <input type="checkbox" className="hidden" checked={selectedIds.length === filteredData.length} onChange={toggleSelectAll} />
                   </label>
                 </th>
-                {tab === 'queue' && <th className="px-4 py-2 font-bold whitespace-nowrap">Token</th>}
-                <th className="px-4 py-2 font-bold whitespace-nowrap">Patient</th>
-                <th className="px-4 py-2 font-bold whitespace-nowrap">Purpose</th>
-                <th className="px-4 py-2 font-bold whitespace-nowrap">{tab === 'past' ? 'Date' : 'Time'}</th>
-                {tab === 'queue' && <th className="px-4 py-2 font-bold whitespace-nowrap">Est. Wait</th>}
-                <th className="px-4 py-2 font-bold whitespace-nowrap">Format</th>
-                {tab === 'queue' && <th className="px-4 py-2 font-bold whitespace-nowrap">Status</th>}
-                <th className="px-4 py-2 font-bold text-right whitespace-nowrap">Actions</th>
+                {tab === 'queue' && <th className="px-4 py-2 font-semibold whitespace-nowrap">Token</th>}
+                <th className="px-4 py-2 font-semibold whitespace-nowrap">Patient</th>
+                <th className="px-4 py-2 font-semibold whitespace-nowrap">Purpose</th>
+                <th className="px-4 py-2 font-semibold whitespace-nowrap">{tab === 'past' ? 'Date' : 'Time'}</th>
+                {tab === 'queue' && <th className="px-4 py-2 font-semibold whitespace-nowrap">Est. Wait</th>}
+                <th className="px-4 py-2 font-semibold whitespace-nowrap">Format</th>
+                {tab === 'queue' && <th className="px-4 py-2 font-semibold whitespace-nowrap">Status</th>}
+                <th className="px-4 py-2 font-semibold text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -829,35 +829,35 @@ function DoctorAppointments() {
                       </label>
                     </td>
                     <td className="px-4 py-3 align-middle">
-                      <span className={`text-[11px] font-black px-2.5 py-1 rounded-lg font-mono tracking-widest ${p.status === 'In Progress' ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30' : 'bg-slate-800 text-white shadow-sm shadow-slate-800/30'}`}>{p.token}</span>
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg font-mono tracking-wider ${p.status === 'In Progress' ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30' : 'bg-slate-800 text-white shadow-sm shadow-slate-800/30'}`}>{p.token}</span>
                     </td>
                     <td className="px-4 py-3 align-middle">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-aubergine-100 flex items-center justify-center text-aubergine-700 font-bold text-sm shadow-inner shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-100 to-aubergine-100 flex items-center justify-center text-aubergine-700 font-semibold text-sm shadow-inner shrink-0">
                           {p.name.charAt(0)}
                         </div>
                         <div>
-                          <div className="font-bold text-slate-800 tracking-tight">{p.name}</div>
-                          <div className="text-[11px] text-slate-500 font-medium">{p.age}</div>
+                          <div className="font-semibold text-slate-800 tracking-tight">{p.name}</div>
+                          <div className="text-xs text-slate-500 font-normal">{p.age}</div>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3 align-middle">
-                      <span className="text-[11px] font-bold text-slate-600 bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200/50 inline-block">{p.type}</span>
+                      <span className="text-xs font-medium text-slate-600 bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200/50 inline-block">{p.type}</span>
                     </td>
-                    <td className="px-4 py-3 align-middle font-bold text-aubergine-700 text-[13px] whitespace-nowrap">{p.time}</td>
+                    <td className="px-4 py-3 align-middle font-semibold text-aubergine-700 text-sm whitespace-nowrap">{p.time}</td>
                     {/* Dynamic Wait-Time Projection */}
                     <td className="px-4 py-3 align-middle">
                       {p.status === 'In Progress' ? (
-                        <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                        <span className="flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
                           <i className="fas fa-stethoscope text-[9px] animate-pulse"></i> In Session
                         </span>
                       ) : p.status === 'Done' ? (
-                        <span className="text-[11px] font-bold text-slate-400">Done</span>
+                        <span className="text-xs font-medium text-slate-400">Done</span>
                       ) : estWait ? (
                         <div className="space-y-0.5">
-                          <div className="text-[12px] font-black text-slate-800">{estWait.timeStr}</div>
-                          <div className="text-[10px] font-bold text-amber-600 flex items-center gap-1">
+                          <div className="text-xs font-semibold text-slate-800">{estWait.timeStr}</div>
+                          <div className="text-[11px] font-medium text-amber-600 flex items-center gap-1">
                             <i className="fas fa-hourglass-half text-[8px]"></i>
                             ~{estWait.waitMins}m wait
                           </div>

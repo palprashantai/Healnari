@@ -27,7 +27,7 @@ function AdminDoctorPayouts() {
           <Link to={`/admin-dashboard/doctors/${id}`} className="text-sm font-bold text-slate-400 hover:text-aubergine-600 transition-colors flex items-center gap-2 mb-2">
             <i className="fas fa-arrow-left"></i> Back to Doctor Profile
           </Link>
-          <h1 className="text-2xl font-black text-slate-800">Complete Payout History</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">Complete Payout History</h1>
           <p className="text-sm text-slate-500">Detailed record of all withdrawal requests for this doctor.</p>
         </div>
       </div>
@@ -58,7 +58,7 @@ function AdminDoctorPayouts() {
                       <td className="px-5 py-4 text-slate-600 font-medium truncate max-w-[200px]" title={JSON.stringify(p.destination_details)}>
                         {p.destination_details?.account_holder || '—'}
                       </td>
-                      <td className="px-5 py-4 text-right font-black text-slate-900">
+                      <td className="px-5 py-4 text-right font-semibold text-slate-900">
                         {p.amount ? `₹${p.amount.toLocaleString()}` : '—'}
                       </td>
                       <td className="px-5 py-4 text-right">

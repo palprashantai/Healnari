@@ -109,7 +109,7 @@ function MfgAssessmentModal({ isOpen, onClose, onSave, currentScores }) {
             <h4 className="font-bold text-slate-800 text-sm">Clinical 9-Area Body Hair Mapping</h4>
             <p className="text-xs text-slate-500 mt-0.5">This is a self-assessment guide. Share this with your gynaecologist for clinical interpretation.</p>
           </div>
-          <div className={`px-3.5 py-1.5 rounded-xl border text-xs font-black flex items-center gap-2 ${staging.color}`}>
+          <div className={`px-3.5 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-2 ${staging.color}`}>
             <span>Total Score: <strong className="text-base">{totalScore}</strong>/36</span>
             <span>• {staging.label}</span>
           </div>
@@ -127,7 +127,7 @@ function MfgAssessmentModal({ isOpen, onClose, onSave, currentScores }) {
                     </div>
                     <span className="font-bold text-xs text-slate-800">{area.name}</span>
                   </div>
-                  <span className="text-xs font-black text-aubergine-700 bg-aubergine-50 px-2 py-0.5 rounded-md">
+                  <span className="text-xs font-semibold text-aubergine-700 bg-aubergine-50 px-2 py-0.5 rounded-md">
                     Grade {currentVal}
                   </span>
                 </div>
@@ -217,7 +217,7 @@ function LogVitalModal({ vitalKey, config, currentValue, isOpen, onClose, onSave
             {...register('value')}
             inputMode={vitalKey === 'bp' ? 'text' : 'decimal'}
             placeholder={`e.g. ${VITAL_EXAMPLES[vitalKey] || ''}`}
-            className={`w-full border ${errors.value ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-4 py-3 text-lg font-black text-center focus:outline-none focus:ring-2 focus:ring-aubergine-300`}
+            className={`w-full border ${errors.value ? 'border-rose-500' : 'border-slate-200'} rounded-xl px-4 py-3 text-lg font-semibold text-center focus:outline-none focus:ring-2 focus:ring-aubergine-300`}
             autoFocus
           />
           {errors.value && <p className="text-xs text-rose-500 text-center mt-1">{errors.value.message}</p>}
@@ -486,7 +486,7 @@ function PatientTracking() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Health & Endocrine Tracking</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">Health & Endocrine Tracking</h1>
           <p className="text-sm text-slate-500">Log vitals, cycle, and lifestyle parameters for your care team.</p>
         </div>
         <div className="flex items-center gap-2.5 flex-wrap">
@@ -539,7 +539,7 @@ function PatientTracking() {
               </div>
               <h3 className="text-slate-500 font-semibold text-xs mb-1">{config.label}</h3>
               <div className={`flex items-end gap-1.5 transition-all ${discreet ? 'discreet-blur' : ''}`}>
-                <span className="text-3xl font-black text-slate-800">{reading?.value ?? '—'}</span>
+                <span className="text-3xl font-semibold text-slate-800">{reading?.value ?? '—'}</span>
                 <span className="text-sm font-bold text-slate-500 mb-1">{config.unit}</span>
               </div>
               <div className={`mt-3 text-xs font-bold ${trend.color} flex items-center gap-1`}>{trend.text}</div>
@@ -557,7 +557,7 @@ function PatientTracking() {
               <p className="text-xs text-slate-500 mt-0.5">Track hirsutism progression for PCOS & endocrine monitoring.</p>
             </div>
             {vitals.mfg_score?.value && (
-              <span className="text-[11px] font-black text-aubergine-700 bg-aubergine-50 px-2.5 py-1 rounded-xl border border-aubergine-200">
+              <span className="text-[11px] font-semibold text-aubergine-700 bg-aubergine-50 px-2.5 py-1 rounded-xl border border-aubergine-200">
                 mFG: {vitals.mfg_score.value}/36
               </span>
             )}
@@ -599,7 +599,7 @@ function PatientTracking() {
               <p className="text-xs text-slate-500 mt-0.5">Mark the healthy habits you completed today</p>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-black text-aubergine-600">{completedCount}<span className="text-sm text-slate-500">/{LIFESTYLE_ITEMS.length}</span></div>
+              <div className="text-2xl font-semibold text-aubergine-600">{completedCount}<span className="text-sm text-slate-500">/{LIFESTYLE_ITEMS.length}</span></div>
               <div className="text-[10px] text-slate-500 font-bold">Completed</div>
             </div>
           </div>
@@ -675,8 +675,8 @@ function PatientTracking() {
               <>
                 <div className="bg-gradient-to-r from-aubergine-50 to-magenta-50 border border-aubergine-200 rounded-2xl p-4 flex items-center justify-between">
                   <div>
-                    <span className="text-[10px] font-black text-aubergine-700 uppercase tracking-wider block">Next Menstrual Cycle</span>
-                    <h4 className="text-lg font-black text-aubergine-900 mt-0.5">{forecastData?.nextPeriod || 'Predicting...'}</h4>
+                    <span className="text-[10px] font-semibold text-aubergine-700 uppercase tracking-wider block">Next Menstrual Cycle</span>
+                    <h4 className="text-lg font-semibold text-aubergine-900 mt-0.5">{forecastData?.nextPeriod || 'Predicting...'}</h4>
                   </div>
                   <span className="bg-aubergine-100 text-aubergine-800 font-bold px-3 py-1 rounded-xl text-xs border border-aubergine-200 text-right">
                     {forecastData?.cycleRegularityScore || 'Analyzing'}
@@ -689,14 +689,14 @@ function PatientTracking() {
                       <i className="fas fa-seedling" />
                     </div>
                     <div>
-                      <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider block">Estimated Fertile Window</span>
-                      <p className="text-sm font-black text-emerald-900">{forecastData.fertileWindow}</p>
+                      <span className="text-[10px] font-semibold text-emerald-700 uppercase tracking-wider block">Estimated Fertile Window</span>
+                      <p className="text-sm font-semibold text-emerald-900">{forecastData.fertileWindow}</p>
                     </div>
                   </div>
                 )}
 
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Cycle Pattern & AI Insight</span>
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Cycle Pattern & AI Insight</span>
                   <p className="text-xs text-slate-700 leading-relaxed font-medium">
                     {forecastData?.hormonePattern}
                   </p>
@@ -704,7 +704,7 @@ function PatientTracking() {
 
                 {forecastData?.recommendations && (
                   <div className="space-y-2">
-                    <span className="text-[10px] font-black text-purple-700 uppercase tracking-wider block">Personalised Care Recommendations</span>
+                    <span className="text-[10px] font-semibold text-purple-700 uppercase tracking-wider block">Personalised Care Recommendations</span>
                     <div className="space-y-1.5">
                       {forecastData.recommendations.map((rec, i) => (
                         <div key={i} className="flex items-start gap-2 text-xs text-slate-600 bg-white p-2.5 rounded-xl border border-slate-100 shadow-sm">

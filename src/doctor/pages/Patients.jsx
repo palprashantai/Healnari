@@ -111,11 +111,11 @@ function WriteRxPage({ patient, onBack, onSaveRx }) {
 
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm max-w-2xl">
         <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-black text-lg flex-shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-semibold text-lg flex-shrink-0">
             {patient.name.split(' ').map((n) => n[0]).join('')}
           </div>
           <div>
-            <h1 className="font-black text-slate-800 text-lg">Write Prescription</h1>
+            <h1 className="font-semibold text-slate-800 text-lg">Write Prescription</h1>
             <p className="text-xs text-slate-500">For {patient.name} • {patient.age} Yrs • {patient.blood}</p>
           </div>
         </div>
@@ -385,7 +385,7 @@ function RequestLabReportModal({ isOpen, onClose, patient, onRequest }) {
             {/* Prefix-Ranked Dropdown Menu */}
             {isDropdownOpen && (
               <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-60 overflow-y-auto custom-scrollbar z-50 p-1.5 space-y-0.5">
-                <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
+                <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
                   <span>Diagnostic Tests ({filteredTests.length})</span>
                   <span className="text-[9px] text-aubergine-700 font-bold">Prefix &amp; Keyword Match</span>
                 </div>
@@ -406,7 +406,7 @@ function RequestLabReportModal({ isOpen, onClose, patient, onRequest }) {
                         <span className="truncate">
                           {labSearchInput && item.name.toLowerCase().startsWith(labSearchInput.trim().toLowerCase()) ? (
                             <>
-                              <span className="text-aubergine-700 bg-aubergine-100 px-0.5 rounded font-black">{item.name.slice(0, labSearchInput.trim().length)}</span>
+                              <span className="text-aubergine-700 bg-aubergine-100 px-0.5 rounded font-semibold">{item.name.slice(0, labSearchInput.trim().length)}</span>
                               <span>{item.name.slice(labSearchInput.trim().length)}</span>
                             </>
                           ) : (
@@ -628,7 +628,7 @@ function ViewInvoiceModal({ invoice, patient, isOpen, onClose }) {
         {/* Header */}
         <div className="flex justify-between items-start border-b border-slate-200 pb-4">
           <div>
-            <h2 className="text-xl font-black text-aubergine-900 tracking-tight">HealNari Clinic</h2>
+            <h2 className="text-xl font-semibold text-aubergine-900 tracking-tight">HealNari Clinic</h2>
             <p className="text-xs text-slate-500">Medical Billing &amp; Payment Receipt</p>
             <p className="text-[11px] text-slate-500 mt-0.5">GSTIN: 29AAAAA0000A1Z5</p>
           </div>
@@ -645,7 +645,7 @@ function ViewInvoiceModal({ invoice, patient, isOpen, onClose }) {
         <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 text-xs grid grid-cols-2 gap-3">
           <div>
             <p className="text-slate-500 font-bold uppercase text-[10px]">Billed To</p>
-            <p className="font-black text-slate-800 text-sm mt-0.5">{patient.name}</p>
+            <p className="font-semibold text-slate-800 text-sm mt-0.5">{patient.name}</p>
             <p className="text-slate-600">{patient.phone}</p>
           </div>
           <div>
@@ -669,13 +669,13 @@ function ViewInvoiceModal({ invoice, patient, isOpen, onClose }) {
               <tr>
                 <td className="font-bold text-slate-800">{invoice.service}</td>
                 <td>{invoice.category}</td>
-                <td className="text-right font-black text-slate-900">{formatCurrency(invoice.amount, invoice.currency || userCurrency)}</td>
+                <td className="text-right font-semibold text-slate-900">{formatCurrency(invoice.amount, invoice.currency || userCurrency)}</td>
               </tr>
             </tbody>
           </table>
           <div className="bg-slate-50 p-4 border-t border-slate-200 flex justify-between items-center text-[14px]">
             <span className="font-bold text-slate-700">Total Billed Amount Paid</span>
-            <span className="font-black text-aubergine-900 text-[16px]">{formatCurrency(invoice.amount, invoice.currency || userCurrency)}</span>
+            <span className="font-semibold text-aubergine-900 text-[16px]">{formatCurrency(invoice.amount, invoice.currency || userCurrency)}</span>
           </div>
         </div>
 
@@ -707,13 +707,13 @@ function ViewRxDocModal({ rx, patient, labRequests, isOpen, onClose }) {
         {/* Clinic Header */}
         <div className="flex justify-between items-start border-b border-slate-200 pb-4">
           <div>
-            <h2 className="text-xl font-black text-aubergine-900 tracking-tight">HealNari Women's Health Clinic</h2>
+            <h2 className="text-xl font-semibold text-aubergine-900 tracking-tight">HealNari Women's Health Clinic</h2>
             <p className="text-xs text-slate-500">Center for Gynaecology, PCOS & Advanced Reproductive Medicine</p>
-            <p className="text-[11px] text-slate-500 mt-1">102 Medical Hub, Indiranagar, Bengaluru • Phone: +91 80 4567 8900</p>
+            <p className="text-xs text-slate-400 mt-1">102 Medical Hub, Indiranagar, Bengaluru • Phone: +91 80 4567 8900</p>
           </div>
           <div className="text-right">
-            <span className="text-2xl font-serif text-aubergine-800 font-bold">Rx</span>
-            <p className="text-xs font-mono font-bold text-slate-500">{rx.id}</p>
+            <span className="text-2xl font-sans text-aubergine-800 font-bold">Rx</span>
+            <p className="text-xs font-mono font-semibold text-slate-500">{rx.id}</p>
             <p className="text-xs text-slate-500">{rx.date}</p>
           </div>
         </div>
@@ -721,14 +721,14 @@ function ViewRxDocModal({ rx, patient, labRequests, isOpen, onClose }) {
         {/* Doctor & Patient Bar */}
         <div className="grid grid-cols-2 gap-4 bg-slate-50 rounded-xl p-4 border border-slate-100 text-xs">
           <div>
-            <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Patient Information</p>
-            <p className="font-black text-slate-800 text-sm mt-0.5">{patient.name}</p>
+            <p className="text-slate-500 font-semibold uppercase tracking-wider text-xs">Patient Information</p>
+            <p className="font-semibold text-slate-800 text-sm mt-0.5">{patient.name}</p>
             <p className="text-slate-600">{patient.age} Yrs / {patient.blood} • {patient.phone}</p>
-            <p className="text-aubergine-700 font-bold mt-1">Diagnosis: {patient.diagnosis}</p>
+            <p className="text-aubergine-700 font-semibold mt-1">Diagnosis: {patient.diagnosis}</p>
           </div>
           <div className="text-right sm:text-left">
-            <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Prescribing Doctor</p>
-            <p className="font-black text-slate-800 text-sm mt-0.5">{rx.prescribedBy}</p>
+            <p className="text-slate-500 font-semibold uppercase tracking-wider text-xs">Prescribing Doctor</p>
+            <p className="font-semibold text-slate-800 text-sm mt-0.5">{rx.prescribedBy}</p>
             <p className="text-slate-600">MD, DGO (Obstetrics & Gynaecology)</p>
             <p className="text-slate-500">Reg No: KMC-84920</p>
           </div>
@@ -736,7 +736,7 @@ function ViewRxDocModal({ rx, patient, labRequests, isOpen, onClose }) {
 
         {/* Prescription Table */}
         <div>
-          <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-2">Prescribed Medications</h4>
+          <h4 className="font-semibold text-slate-800 text-xs uppercase tracking-wider mb-2">Prescribed Medications</h4>
           <div className="crm-table-container">
             <table className="crm-table">
               <thead>
@@ -750,8 +750,8 @@ function ViewRxDocModal({ rx, patient, labRequests, isOpen, onClose }) {
               <tbody>
                 {rx.medicines?.map((m, i) => (
                   <tr key={i}>
-                    <td className="font-black text-slate-800">{m.medName}</td>
-                    <td className="font-semibold text-slate-700">{m.dosage || 'Standard'}</td>
+                    <td className="font-medium text-slate-800">{m.medName}</td>
+                    <td className="font-normal text-slate-700">{m.dosage || 'Standard'}</td>
                     <td>
                       <span className="crm-badge bg-aubergine-50 text-aubergine-700 border border-aubergine-200">
                         {m.schedule}
@@ -767,7 +767,7 @@ function ViewRxDocModal({ rx, patient, labRequests, isOpen, onClose }) {
 
         {matchingLabTests.length > 0 && (
           <div>
-            <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider mb-2 mt-4">Suggested Lab Tests</h4>
+            <h4 className="font-semibold text-slate-800 text-xs uppercase tracking-wider mb-2 mt-4">Suggested Lab Tests</h4>
             <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-3.5 text-xs">
               <ul className="list-disc pl-4 space-y-1 text-aubergine-900 font-medium">
                 {matchingLabTests.map((req, i) => (
@@ -780,20 +780,20 @@ function ViewRxDocModal({ rx, patient, labRequests, isOpen, onClose }) {
 
         {/* Special Instructions */}
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs">
-          <p className="font-bold text-amber-900 mb-1"><i className="fas fa-info-circle mr-1"></i> Special Doctor Instructions:</p>
+          <p className="font-semibold text-amber-900 mb-1"><i className="fas fa-info-circle mr-1"></i> Special Doctor Instructions:</p>
           <p className="text-amber-800">{rx.instructions}</p>
         </div>
 
         {/* Signature & Footer */}
         <div className="flex justify-between items-end pt-4 border-t border-slate-200">
           <div>
-            <p className="text-[10px] text-slate-500">Digitally signed & stored in EMR encrypted registry.</p>
-            <p className="text-[10px] text-slate-500">Valid until: {rx.duration}</p>
+            <p className="text-xs text-slate-500">Digitally signed & stored in EMR encrypted registry.</p>
+            <p className="text-xs text-slate-500">Valid until: {rx.duration}</p>
           </div>
           <div className="text-center">
-            <div className="font-serif italic text-aubergine-800 text-lg font-bold">Dr. Sarah Mitchell</div>
+            <div className="font-sans text-aubergine-800 text-base font-semibold">Dr. Sarah Mitchell</div>
             <div className="w-32 border-b border-slate-400 my-1 mx-auto"></div>
-            <p className="text-[10px] font-bold text-slate-500">Authorized Medical Practitioner Signature</p>
+            <p className="text-xs font-medium text-slate-500">Authorized Medical Practitioner Signature</p>
           </div>
         </div>
 
@@ -873,7 +873,7 @@ function ViewLabDocModal({ report, patient, isOpen, onClose }) {
         {/* Header */}
         <div className="flex justify-between items-start border-b border-slate-200 pb-4">
           <div>
-            <h2 className="text-lg font-black text-aubergine-900 tracking-tight">{report.testName}</h2>
+            <h2 className="text-lg font-semibold text-aubergine-900 tracking-tight">{report.testName}</h2>
             <p className="text-xs text-slate-500">{report.testCategory} • {report.labName || 'Lab not specified'}</p>
           </div>
           <div className="text-right">
@@ -887,12 +887,12 @@ function ViewLabDocModal({ report, patient, isOpen, onClose }) {
         <div className="grid grid-cols-2 gap-4 bg-slate-50 rounded-xl p-4 border border-slate-100 text-xs">
           <div>
             <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Patient</p>
-            <p className="font-black text-slate-800 text-sm">{patient.name}</p>
+            <p className="font-semibold text-slate-800 text-sm">{patient.name}</p>
             <p className="text-slate-600">{patient.age}Y / {patient.blood} • {patient.phone}</p>
           </div>
           <div>
             <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">File</p>
-            <button onClick={openFile} disabled={opening} className="font-black text-aubergine-700 text-sm hover:underline disabled:opacity-50 flex items-center gap-1.5">
+            <button onClick={openFile} disabled={opening} className="font-semibold text-aubergine-700 text-sm hover:underline disabled:opacity-50 flex items-center gap-1.5">
               <i className="fas fa-file-arrow-up"></i> {opening ? 'Opening…' : 'Open Uploaded Report'}
             </button>
           </div>
@@ -1094,12 +1094,12 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
       <div className="rounded-2xl p-5 text-white shadow-lg space-y-5 bg-gradient-to-br from-aubergine-900 via-aubergine-600 to-magenta-500">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-white/15 text-white font-black text-xl flex items-center justify-center border-2 border-white/20 shadow-inner flex-shrink-0">
+            <div className="w-14 h-14 rounded-2xl bg-white/15 text-white font-semibold text-xl flex items-center justify-center border-2 border-white/20 shadow-inner flex-shrink-0">
               {patient.name.split(' ').map((n) => n[0]).join('')}
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-white font-black text-xl tracking-tight">{patient.name}</h1>
+                <h1 className="text-white font-semibold text-xl tracking-tight">{patient.name}</h1>
                 <span className="bg-white/20 text-white text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border border-white/20" title={patient.id}>
                   #{String(patient.id).slice(0, 8).toUpperCase()}
                 </span>
@@ -1110,7 +1110,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                 )}
               </div>
               <p className="text-aubergine-100 text-xs">
-                {patient.age} Yrs • Blood Group <strong className="text-white font-black">{patient.blood}</strong> • {patient.phone}
+                {patient.age} Yrs • Blood Group <strong className="text-white font-semibold">{patient.blood}</strong> • {patient.phone}
               </p>
               <p className="text-aubergine-200 text-xs font-semibold flex items-center gap-1.5">
                 <i className="fas fa-stethoscope text-magenta-200"></i> {patient.diagnosis}
@@ -1163,23 +1163,23 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-4 border-t border-white/10 text-xs">
           <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
             <span className="text-white/60 text-[10px] block font-medium">Visits</span>
-            <span className="font-black text-white text-base">{patient.visits}</span>
+            <span className="font-semibold text-white text-base">{patient.visits}</span>
           </div>
           <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
             <span className="text-white/60 text-[10px] block font-medium">Active Rx</span>
-            <span className="font-black text-white text-base">{patient.meds.filter((m) => m.status === 'Active').length}</span>
+            <span className="font-semibold text-white text-base">{patient.meds.filter((m) => m.status === 'Active').length}</span>
           </div>
           <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
             <span className="text-white/60 text-[10px] block font-medium">Reports</span>
-            <span className="font-black text-white text-base">{patient.reports.length}</span>
+            <span className="font-semibold text-white text-base">{patient.reports.length}</span>
           </div>
           <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
             <span className="text-white/60 text-[10px] block font-medium">Billed</span>
-            <span className="font-black text-white text-base">{formatCurrency(totalPaid + totalPending, userCurrency)}</span>
+            <span className="font-semibold text-white text-base">{formatCurrency(totalPaid + totalPending, userCurrency)}</span>
           </div>
           <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
             <span className="text-white/60 text-[10px] block font-medium">Last Visit</span>
-            <span className="font-black text-white text-base">{patient.lastVisit}</span>
+            <span className="font-semibold text-white text-base">{patient.lastVisit}</span>
           </div>
         </div>
       </div>
@@ -1189,7 +1189,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
         <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-start gap-3 text-xs shadow-xs">
           <i className="fas fa-triangle-exclamation text-rose-500 text-lg mt-0.5 flex-shrink-0"></i>
           <div>
-            <p className="font-black text-rose-900 text-sm">Clinical Alert</p>
+            <p className="font-semibold text-rose-900 text-sm">Clinical Alert</p>
             <p className="text-rose-800 mt-0.5">{patient.alert}</p>
           </div>
         </div>
@@ -1261,30 +1261,30 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
           <div className="space-y-5">
             {/* Vitals Cards */}
             <div>
-              <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider mb-2.5">Vitals</h3>
+              <h3 className="font-semibold text-slate-800 text-sm uppercase tracking-wider mb-2.5">Vitals</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
                   <p className="text-slate-500 font-bold text-[10px] uppercase">Blood Pressure</p>
-                  <p className="font-black text-slate-900 text-lg mt-1">{patient.bp}</p>
+                  <p className="font-semibold text-slate-900 text-lg mt-1">{patient.bp}</p>
                   <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
                     <i className="fas fa-circle-check"></i> Optimal BP Range
                   </span>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
                   <p className="text-slate-500 font-bold text-[10px] uppercase">Body Mass Index (BMI)</p>
-                  <p className="font-black text-slate-900 text-lg mt-1">{patient.bmi} <span className="text-xs font-normal text-slate-500">({patient.weight})</span></p>
+                  <p className="font-semibold text-slate-900 text-lg mt-1">{patient.bmi} <span className="text-xs font-normal text-slate-500">({patient.weight})</span></p>
                   <span className="text-[10px] text-slate-500 font-medium block mt-1">Height: {patient.height}</span>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
                   <p className="text-slate-500 font-bold text-[10px] uppercase">Pulse / SpO2</p>
-                  <p className="font-black text-slate-900 text-lg mt-1">{patient.pulse} <span className="text-xs font-normal text-slate-500">/ {patient.spo2}</span></p>
+                  <p className="font-semibold text-slate-900 text-lg mt-1">{patient.pulse} <span className="text-xs font-normal text-slate-500">/ {patient.spo2}</span></p>
                   <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
                     <i className="fas fa-heart-pulse"></i> Normal Resting Rate
                   </span>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
                   <p className="text-slate-500 font-bold text-[10px] uppercase">Fasting Glucose</p>
-                  <p className="font-black text-slate-900 text-lg mt-1">{patient.bloodSugar}</p>
+                  <p className="font-semibold text-slate-900 text-lg mt-1">{patient.bloodSugar}</p>
                   <span className="text-[10px] text-amber-600 font-bold block mt-1">Monitored Metric</span>
                 </div>
               </div>
@@ -1316,11 +1316,11 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                 <div className="grid grid-cols-2 gap-3 bg-white p-3 rounded-xl border border-slate-200">
                   <div>
                     <span className="text-slate-500 font-bold text-[10px] block uppercase">Total Settled Paid</span>
-                    <span className="font-black text-emerald-700 text-base">{formatCurrency(totalPaid, userCurrency)}</span>
+                    <span className="font-semibold text-emerald-700 text-base">{formatCurrency(totalPaid, userCurrency)}</span>
                   </div>
                   <div>
                     <span className="text-slate-500 font-bold text-[10px] block uppercase">Outstanding Due</span>
-                    <span className={`font-black text-base ${totalPending > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
+                    <span className={`font-semibold text-base ${totalPending > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
                       {formatCurrency(totalPending, userCurrency)}
                     </span>
                   </div>
@@ -1331,7 +1331,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
             {/* Active Prescriptions Preview */}
             <div>
               <div className="flex justify-between items-center mb-2.5">
-                <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Active Prescriptions</h3>
+                <h3 className="font-semibold text-slate-800 text-sm uppercase tracking-wider">Active Prescriptions</h3>
                 <button onClick={() => setTab('prescriptions')} className="text-xs text-aubergine-700 font-bold hover:underline">
                   View all ({patient.meds.length}) →
                 </button>
@@ -1340,7 +1340,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                 {patient.meds.slice(0, 2).map((m) => (
                   <div key={m.id} className="flex justify-between items-center bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs">
                     <div>
-                      <p className="font-black text-slate-900 text-sm">{m.medName}</p>
+                      <p className="font-semibold text-slate-900 text-sm">{m.medName}</p>
                       <p className="text-slate-500 mt-1">{m.instructions}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
@@ -1357,7 +1357,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
             {/* Recent Lab Findings Snapshot */}
             <div>
               <div className="flex justify-between items-center mb-2.5">
-                <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Latest Lab Report</h3>
+                <h3 className="font-semibold text-slate-800 text-sm uppercase tracking-wider">Latest Lab Report</h3>
                 <button onClick={() => setTab('reports')} className="text-xs text-aubergine-700 font-bold hover:underline">
                   View all ({patient.reports.length}) →
                 </button>
@@ -1366,7 +1366,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-3">
                   <div className="flex justify-between items-center">
                     <div>
-                      <span className="font-black text-slate-900 text-sm">{patient.reports[0].testName}</span>
+                      <span className="font-semibold text-slate-900 text-sm">{patient.reports[0].testName}</span>
                       <p className="text-slate-500 mt-0.5">{patient.reports[0].testCategory} • {patient.reports[0].date}</p>
                     </div>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${patient.reports[0].status === 'Reviewed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -1395,7 +1395,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
         {tab === 'prescriptions' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="font-black text-slate-800 text-base">Prescriptions</h3>
+              <h3 className="font-semibold text-slate-800 text-base">Prescriptions</h3>
               <button
                 onClick={() => setShowWriteRx(true)}
                 className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-sm"
@@ -1410,7 +1410,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-200">
                     <div>
                       <div className="flex items-center gap-3">
-                        <span className="font-black text-slate-900 text-base">Prescription on {rxGroup.date}</span>
+                        <span className="font-semibold text-slate-900 text-base">Prescription on {rxGroup.date}</span>
                         <span
                           className={`px-3 py-0.5 rounded-full text-[11px] font-bold ${
                             rxGroup.status === 'Finalized' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
@@ -1465,7 +1465,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                     {rxGroup.medicines.map((m, i) => (
                       <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white rounded-xl p-3.5 border border-slate-100 text-slate-700 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                         <div>
-                          <p className="font-black text-slate-800 text-sm mb-1">{m.medName}</p>
+                          <p className="font-semibold text-slate-800 text-sm mb-1">{m.medName}</p>
                           <p className="text-[11px] text-slate-500 font-medium">
                             {m.schedule} • {m.duration} • {m.refillsLeft} refills left
                           </p>
@@ -1498,7 +1498,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
         {tab === 'reports' && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <h3 className="font-black text-slate-800 text-base">Lab Reports</h3>
+              <h3 className="font-semibold text-slate-800 text-base">Lab Reports</h3>
 
               <div className="flex items-center gap-3">
                 <div className="flex gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold">
@@ -1547,7 +1547,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                   <div className="flex justify-between items-start flex-wrap gap-2">
                     <div>
                       <div className="flex items-center gap-3">
-                        <span className="font-black text-slate-900 text-base">{r.testName}</span>
+                        <span className="font-semibold text-slate-900 text-base">{r.testName}</span>
                         {r.urgent && <span className="bg-rose-100 text-rose-700 font-bold px-3 py-0.5 rounded-full text-[11px]">⚡ Urgent</span>}
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r.status === 'Reviewed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{r.status}</span>
                       </div>
@@ -1584,7 +1584,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
         {tab === 'payments' && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <h3 className="font-black text-slate-800 text-base">Billing History</h3>
+              <h3 className="font-semibold text-slate-800 text-base">Billing History</h3>
 
               <button
                 onClick={() => setShowRecordPayment(true)}
@@ -1598,18 +1598,18 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                 <span className="text-slate-500 font-bold text-[10px] uppercase">Total Billed</span>
-                <p className="font-black text-slate-900 text-xl mt-1">{formatCurrency(totalPaid + totalPending, userCurrency)}</p>
+                <p className="font-semibold text-slate-900 text-xl mt-1">{formatCurrency(totalPaid + totalPending, userCurrency)}</p>
               </div>
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                 <span className="text-slate-500 font-bold text-[10px] uppercase">Total Settled Payments</span>
-                <p className="font-black text-emerald-700 text-xl mt-1">{formatCurrency(totalPaid, userCurrency)}</p>
+                <p className="font-semibold text-emerald-700 text-xl mt-1">{formatCurrency(totalPaid, userCurrency)}</p>
                 <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
                   <i className="fas fa-check-circle"></i> Successfully Received
                 </span>
               </div>
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                 <span className="text-slate-500 font-bold text-[10px] uppercase">Outstanding Due</span>
-                <p className={`font-black text-xl mt-1 ${totalPending > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
+                <p className={`font-semibold text-xl mt-1 ${totalPending > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
                   {formatCurrency(totalPending, userCurrency)}
                 </p>
               </div>
@@ -1642,7 +1642,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                         </span>
                       </td>
                       <td className="font-medium">{pay.method}</td>
-                      <td className="font-black text-slate-900">{formatCurrency(pay.amount, pay.currency || userCurrency)}</td>
+                      <td className="font-semibold text-slate-900">{formatCurrency(pay.amount, pay.currency || userCurrency)}</td>
                       <td>
                         <span
                           className={`crm-badge border ${pay.status === 'Paid'
@@ -1678,11 +1678,11 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
         {/* Tab 5: CONSULTATIONS */}
         {tab === 'consultations' && (
           <div className="space-y-3 text-xs">
-            <h3 className="font-black text-slate-800 text-base mb-1">Consultation History</h3>
+            <h3 className="font-semibold text-slate-800 text-base mb-1">Consultation History</h3>
             {patient.consultations.map((c, i) => (
               <div key={i} className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-xs hover:border-aubergine-200 transition-all space-y-3">
                 <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-                  <span className="font-black text-slate-900 text-base">{c.type}</span>
+                  <span className="font-semibold text-slate-900 text-base">{c.type}</span>
                   <span className="text-slate-500 font-medium">{c.date}</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1707,7 +1707,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
         {/* Tab 6: MEDICAL HISTORY */}
         {tab === 'history' && (
           <div className="space-y-4 text-xs">
-            <h3 className="font-black text-slate-800 text-base mb-1">Medical History</h3>
+            <h3 className="font-semibold text-slate-800 text-base mb-1">Medical History</h3>
 
             <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
               <h4 className="font-bold text-slate-800 text-sm mb-1.5 flex items-center gap-2">
@@ -1750,7 +1750,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
         {/* Tab 7: CLINICAL NOTES */}
         {tab === 'notes' && (
           <div className="space-y-4">
-            <h3 className="font-black text-slate-800 text-base mb-1">Clinical Notes</h3>
+            <h3 className="font-semibold text-slate-800 text-base mb-1">Clinical Notes</h3>
 
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
               <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">Add a Progress Note</h4>
@@ -2021,88 +2021,46 @@ function DoctorPatients() {
   const totalPrescriptionsCount = patients.reduce((acc, p) => acc + (p.meds?.length || 0), 0);
   const totalReportsCount = patients.reduce((acc, p) => acc + (p.reports?.length || 0), 0);
 
-  const AVATAR_GRADIENTS = [
-    'from-aubergine-600 via-indigo-700 to-purple-800 text-white',
-    'from-teal-600 via-emerald-600 to-teal-800 text-white',
-    'from-rose-500 via-pink-600 to-rose-700 text-white',
-    'from-violet-600 via-purple-700 to-indigo-800 text-white',
-    'from-amber-500 via-orange-600 to-amber-700 text-white',
-    'from-sky-600 via-blue-600 to-indigo-700 text-white',
-  ];
-
   const getDiagnosisStyle = (diagnosis = '') => {
     const d = diagnosis.toLowerCase();
-    if (d.includes('pcos') || d.includes('ovary') || d.includes('ovarian')) {
+    if (d.includes('pcos') || d.includes('ovary') || d.includes('ovarian') || d.includes('pregnan') || d.includes('prenatal') || d.includes('fertility')) {
       return {
-        bg: 'bg-purple-50',
-        text: 'text-purple-900',
-        border: 'border-purple-200',
-        icon: 'fa-dna text-purple-600',
-        dot: 'bg-purple-500',
-      };
-    }
-    if (d.includes('thyroid') || d.includes('hypothyroid') || d.includes('hashimoto')) {
-      return {
-        bg: 'bg-amber-50',
-        text: 'text-amber-900',
-        border: 'border-amber-200',
-        icon: 'fa-sun text-amber-600',
-        dot: 'bg-amber-500',
-      };
-    }
-    if (d.includes('pregnan') || d.includes('prenatal') || d.includes('trimester') || d.includes('fertility')) {
-      return {
-        bg: 'bg-emerald-50',
-        text: 'text-emerald-900',
-        border: 'border-emerald-200',
-        icon: 'fa-baby text-emerald-600',
-        dot: 'bg-emerald-500',
-      };
-    }
-    if (d.includes('endo') || d.includes('fibroid') || d.includes('pelvic') || d.includes('dysmenorrhea')) {
-      return {
-        bg: 'bg-rose-50',
-        text: 'text-rose-900',
-        border: 'border-rose-200',
-        icon: 'fa-shield-halved text-rose-600',
-        dot: 'bg-rose-500',
+        bg: 'bg-aubergine-50',
+        text: 'text-aubergine-800',
+        border: 'border-aubergine-200/80',
+        icon: d.includes('pregnan') ? 'fa-baby text-aubergine-600' : 'fa-dna text-aubergine-600',
       };
     }
     return {
-      bg: 'bg-indigo-50',
-      text: 'text-indigo-900',
-      border: 'border-indigo-200',
-      icon: 'fa-stethoscope text-indigo-600',
-      dot: 'bg-indigo-500',
+      bg: 'bg-slate-100',
+      text: 'text-slate-700',
+      border: 'border-slate-200',
+      icon: 'fa-stethoscope text-slate-500',
     };
   };
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-purple-900/5 via-aubergine-900/5 to-transparent p-4 sm:p-6 rounded-3xl border border-purple-100/60 shadow-2xs">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="flex h-2.5 w-2.5 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
-            <span className="text-xs font-extrabold uppercase tracking-wider text-aubergine-800 font-mono bg-aubergine-100/70 px-2.5 py-0.5 rounded-md border border-aubergine-200/50">
-              Verified Clinical EMR Registry
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-aubergine-700 bg-aubergine-50 px-2.5 py-0.5 rounded-md border border-aubergine-200/70">
+              Clinical EMR Registry
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight font-display">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight font-display">
             Patients &amp; Medical Records
           </h1>
-          <p className="text-xs sm:text-sm text-slate-600 mt-1 font-medium">
-            Electronic health records, hormonal profiles, active prescriptions, and diagnostic lab monitoring
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
+            Electronic health records, active prescriptions, and diagnostic lab monitoring
           </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative" ref={actionsMenuRef}>
             <button
               onClick={() => setShowActionsMenu(!showActionsMenu)}
-              className="bg-white border border-slate-200/90 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-xs hover:border-slate-300"
+              className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-xs hover:border-slate-300"
             >
               <i className="fas fa-layer-group text-aubergine-600"></i>
               <span>Batch Actions</span>
@@ -2111,16 +2069,16 @@ function DoctorPatients() {
             {showActionsMenu && (
               <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
                 <div className="px-3 py-1.5 mb-1">
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Bulk Messaging</p>
                 </div>
-                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-aubergine-600 flex items-center gap-3 transition-colors">
+                <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-aubergine-700 flex items-center gap-3 transition-colors">
                   <i className="fas fa-envelope text-aubergine-600 w-4"></i> Bulk Email
                 </button>
-                <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-amber-600 flex items-center gap-3 transition-colors">
-                  <i className="fas fa-bell text-amber-500 w-4"></i> Push Notification
+                <button onClick={() => handleBulkAction('Push Notification')} className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-aubergine-700 flex items-center gap-3 transition-colors">
+                  <i className="fas fa-bell text-aubergine-600 w-4"></i> Push Notification
                 </button>
                 <button onClick={() => handleBulkAction('WhatsApp Message')} className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
-                  <i className="fab fa-whatsapp text-emerald-500 w-4 text-base"></i> WhatsApp Message
+                  <i className="fab fa-whatsapp text-emerald-600 w-4 text-base"></i> WhatsApp Message
                 </button>
                 <div className="h-px bg-slate-100 my-1"></div>
                 <button onClick={() => handleBulkAction('Export CSV')} className="w-full text-left px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 flex items-center gap-3 transition-colors">
@@ -2131,10 +2089,10 @@ function DoctorPatients() {
           </div>
           <button
             onClick={() => setShowAddPatient(true)}
-            className="bg-gradient-to-r from-aubergine-700 via-aubergine-800 to-indigo-900 hover:from-aubergine-600 hover:to-indigo-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-md shadow-aubergine-900/20 hover:shadow-lg hover:-translate-y-0.5"
+            className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-xs"
           >
             <i className="fas fa-user-plus text-xs text-aubergine-200"></i>
-            <span>Add Walk-in Patient</span>
+            <span>Add Patient</span>
           </button>
         </div>
       </div>
@@ -2142,94 +2100,86 @@ function DoctorPatients() {
       {/* Top Clinical Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
         {/* Card 1: Total Registry */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-white via-purple-50/40 to-indigo-50/30 rounded-2xl border border-purple-100/80 p-4 sm:p-5 shadow-xs hover:shadow-md hover:border-purple-300 hover:-translate-y-0.5 transition-all duration-300">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 transition-all hover:border-aubergine-300">
           <div className="flex items-center justify-between">
             <div>
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-purple-700 uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
                 Total Registry
               </span>
-              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1.5 tracking-tight font-display">{patients.length}</h3>
-              <p className="text-[11px] text-purple-600 font-semibold mt-0.5 flex items-center gap-1">
+              <h3 className="text-2xl sm:text-3xl font-semibold text-slate-900 mt-1 tracking-tight font-display">{patients.length}</h3>
+              <p className="text-[11px] text-aubergine-700 font-semibold mt-1 flex items-center gap-1">
                 <i className="fas fa-check-circle text-[10px]"></i> Synchronized EMR
               </p>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-aubergine-600 via-aubergine-700 to-indigo-800 text-white flex items-center justify-center text-lg shadow-md shadow-purple-900/20">
+            <div className="w-11 h-11 rounded-xl bg-aubergine-50 border border-aubergine-100 text-aubergine-700 flex items-center justify-center text-base shrink-0">
               <i className="fas fa-hospital-user"></i>
             </div>
           </div>
-          <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-purple-400/10 rounded-full blur-xl pointer-events-none"></div>
         </div>
 
         {/* Card 2: Active Care Pathways */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-white via-emerald-50/40 to-teal-50/30 rounded-2xl border border-emerald-100/80 p-4 sm:p-5 shadow-xs hover:shadow-md hover:border-emerald-300 hover:-translate-y-0.5 transition-all duration-300">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 transition-all hover:border-aubergine-300">
           <div className="flex items-center justify-between">
             <div>
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-emerald-700 uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-                Active Pathways
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                Active Care
               </span>
-              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1.5 tracking-tight font-display">
+              <h3 className="text-2xl sm:text-3xl font-semibold text-slate-900 mt-1 tracking-tight font-display">
                 {patients.filter(p => p.status === 'active').length}
               </h3>
-              <p className="text-[11px] text-emerald-600 font-semibold mt-0.5 flex items-center gap-1">
-                <i className="fas fa-heart-pulse text-[10px]"></i> Under Care Management
+              <p className="text-[11px] text-slate-500 font-semibold mt-1 flex items-center gap-1">
+                <i className="fas fa-heart-pulse text-[10px] text-aubergine-600"></i> In Active Management
               </p>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 text-white flex items-center justify-center text-lg shadow-md shadow-emerald-700/20">
+            <div className="w-11 h-11 rounded-xl bg-aubergine-50 border border-aubergine-100 text-aubergine-700 flex items-center justify-center text-base shrink-0">
               <i className="fas fa-heart-pulse"></i>
             </div>
           </div>
-          <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-emerald-400/10 rounded-full blur-xl pointer-events-none"></div>
         </div>
 
         {/* Card 3: Clinical Alerts */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-white via-rose-50/50 to-pink-50/30 rounded-2xl border border-rose-200/80 p-4 sm:p-5 shadow-xs hover:shadow-md hover:border-rose-300 hover:-translate-y-0.5 transition-all duration-300">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 transition-all hover:border-rose-300">
           <div className="flex items-center justify-between">
             <div>
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-rose-700 uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span>
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
                 Clinical Alerts
               </span>
-              <h3 className="text-2xl sm:text-3xl font-black text-rose-950 mt-1.5 tracking-tight font-display">
+              <h3 className={`text-2xl sm:text-3xl font-semibold mt-1 tracking-tight font-display ${patients.filter(p => p.alert).length > 0 ? 'text-rose-700' : 'text-slate-900'}`}>
                 {patients.filter(p => p.alert).length}
               </h3>
-              <p className="text-[11px] text-rose-600 font-semibold mt-0.5 flex items-center gap-1">
-                <i className="fas fa-bell text-[10px]"></i> Requires Doctor Review
+              <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
+                <i className="fas fa-bell text-[10px]"></i> Requires Attention
               </p>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-rose-500 via-rose-600 to-red-700 text-white flex items-center justify-center text-lg shadow-md shadow-rose-700/20 animate-pulse">
+            <div className="w-11 h-11 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center text-base shrink-0">
               <i className="fas fa-triangle-exclamation"></i>
             </div>
           </div>
-          <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-rose-400/10 rounded-full blur-xl pointer-events-none"></div>
         </div>
 
         {/* Card 4: Prescriptions & Diagnostics */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-white via-violet-50/40 to-fuchsia-50/30 rounded-2xl border border-violet-100/80 p-4 sm:p-5 shadow-xs hover:shadow-md hover:border-violet-300 hover:-translate-y-0.5 transition-all duration-300">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 transition-all hover:border-aubergine-300">
           <div className="flex items-center justify-between">
             <div>
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-violet-700 uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-violet-500"></span>
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
                 Rx &amp; Diagnostics
               </span>
-              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1.5 tracking-tight font-display">
+              <h3 className="text-2xl sm:text-3xl font-semibold text-slate-900 mt-1 tracking-tight font-display">
                 {totalPrescriptionsCount + totalReportsCount}
               </h3>
-              <p className="text-[11px] text-violet-600 font-semibold mt-0.5 flex items-center gap-1">
-                <span>{totalPrescriptionsCount} Rx</span> • <span>{totalReportsCount} Labs</span>
+              <p className="text-[11px] text-slate-500 font-semibold mt-1 flex items-center gap-1">
+                <span>{totalPrescriptionsCount} Prescriptions</span> • <span>{totalReportsCount} Labs</span>
               </p>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-700 text-white flex items-center justify-center text-lg shadow-md shadow-violet-700/20">
+            <div className="w-11 h-11 rounded-xl bg-aubergine-50 border border-aubergine-100 text-aubergine-700 flex items-center justify-center text-base shrink-0">
               <i className="fas fa-file-waveform"></i>
             </div>
           </div>
-          <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-violet-400/10 rounded-full blur-xl pointer-events-none"></div>
         </div>
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-3.5 sm:p-4 space-y-3.5">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-3.5 sm:p-4 space-y-3.5">
         <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
           <div className="relative flex-1 min-w-[220px]">
             <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
@@ -2237,12 +2187,13 @@ function DoctorPatients() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by patient name, diagnosis, MRN, or phone number..."
-              className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-400/30 focus:border-aubergine-500 bg-slate-50/70 hover:bg-slate-50 transition-all font-medium"
+              className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-500/20 focus:border-aubergine-600 bg-slate-50/50 hover:bg-white transition-all font-medium text-slate-800"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 w-6 h-6 rounded-full flex items-center justify-center text-xs hover:bg-slate-200/60 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 w-6 h-6 rounded-full flex items-center justify-center text-xs hover:bg-slate-200 transition-colors"
+                title="Clear search"
               >
                 <i className="fas fa-times"></i>
               </button>
@@ -2251,26 +2202,32 @@ function DoctorPatients() {
 
           <div className="flex flex-wrap items-center gap-1.5">
             {[
-              { id: 'all', label: 'All Patients', count: patients.length, activeClass: 'bg-gradient-to-r from-aubergine-800 to-[#2A1647] text-white shadow-sm shadow-aubergine-900/20 border-aubergine-900', icon: 'fa-users' },
-              { id: 'active', label: 'Active Care', count: patients.filter(p => p.status === 'active').length, activeClass: 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-sm shadow-emerald-700/20 border-emerald-700', icon: 'fa-heart-pulse' },
-              { id: 'alert', label: 'Clinical Alerts', count: patients.filter(p => p.alert).length, activeClass: 'bg-gradient-to-r from-rose-600 to-red-700 text-white shadow-sm shadow-rose-700/20 border-rose-700', icon: 'fa-triangle-exclamation' },
-              { id: 'inactive', label: 'Inactive', count: patients.filter(p => p.status === 'inactive').length, activeClass: 'bg-slate-700 text-white border-slate-700', icon: 'fa-clock-rotate-left' },
-            ].map(({ id, label, count, activeClass, icon }) => (
-              <button
-                key={id}
-                onClick={() => setFilterStatus(id)}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all duration-200 flex items-center gap-2 ${filterStatus === id
-                  ? activeClass
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+              { id: 'all', label: 'All Patients', count: patients.length, icon: 'fa-users' },
+              { id: 'active', label: 'Active Care', count: patients.filter(p => p.status === 'active').length, icon: 'fa-heart-pulse' },
+              { id: 'alert', label: 'Clinical Alerts', count: patients.filter(p => p.alert).length, icon: 'fa-triangle-exclamation' },
+              { id: 'inactive', label: 'Inactive', count: patients.filter(p => p.status === 'inactive').length, icon: 'fa-clock-rotate-left' },
+            ].map(({ id, label, count, icon }) => {
+              const isActive = filterStatus === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setFilterStatus(id)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-2 ${
+                    isActive
+                      ? 'bg-aubergine-700 text-white border-aubergine-700 shadow-xs'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-800 hover:border-slate-300'
                   }`}
-              >
-                <i className={`fas ${icon} text-[11px] ${filterStatus === id ? 'text-white' : 'text-slate-400'}`}></i>
-                <span>{label}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono font-bold ${filterStatus === id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
-                  {count}
-                </span>
-              </button>
-            ))}
+                >
+                  <i className={`fas ${icon} text-[11px] ${isActive ? 'text-white' : 'text-slate-400'}`}></i>
+                  <span>{label}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-mono font-bold ${
+                    isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -2279,7 +2236,7 @@ function DoctorPatients() {
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
-              className="rounded border-slate-300 text-aubergine-700 focus:ring-aubergine-400 h-4 w-4"
+              className="rounded border-slate-300 text-aubergine-700 focus:ring-aubergine-400 h-4 w-4 cursor-pointer"
               checked={selectedIds.length === filtered.length && filtered.length > 0}
               onChange={toggleSelectAll}
             />
@@ -2288,190 +2245,263 @@ function DoctorPatients() {
 
           <div className="flex items-center gap-3">
             {selectedIds.length > 0 && (
-              <span className="text-aubergine-800 font-bold bg-aubergine-50 px-2.5 py-0.5 rounded-md border border-aubergine-200">
-                {selectedIds.length} Selected
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-aubergine-800 font-bold bg-aubergine-50 px-2.5 py-0.5 rounded-md border border-aubergine-200">
+                  {selectedIds.length} Selected
+                </span>
+                <button
+                  onClick={() => setSelectedIds([])}
+                  className="text-xs text-slate-500 hover:text-slate-800 underline font-semibold"
+                >
+                  Clear Selection
+                </button>
+              </div>
             )}
-            <span>Showing <strong className="text-slate-800 font-bold">{filtered.length}</strong> patient{filtered.length === 1 ? '' : 's'}</span>
+            <span>Showing <strong className="text-slate-800 font-bold">{filtered.length}</strong> of <strong className="text-slate-800 font-bold">{patients.length}</strong> patient{patients.length === 1 ? '' : 's'}</span>
           </div>
         </div>
       </div>
 
-      {/* Patient Cards List */}
-      <div className="space-y-3.5">
-        {filtered.map((p, idx) => {
-          const isSelected = selectedIds.includes(p.id);
-          const initials = p.name ? p.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'PT';
-          const rxCount = p.meds?.length || 0;
-          const labCount = p.reports?.length || 0;
-          const diagStyle = getDiagnosisStyle(p.diagnosis);
-          const avatarGradient = AVATAR_GRADIENTS[idx % AVATAR_GRADIENTS.length];
+      {/* Patient Listing Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50/75 text-xs font-semibold text-slate-500 tracking-normal select-none">
+                <th className="py-3.5 pl-4 pr-2 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    className="rounded border-slate-300 text-aubergine-700 focus:ring-aubergine-400 h-4 w-4 cursor-pointer"
+                    checked={selectedIds.length === filtered.length && filtered.length > 0}
+                    onChange={toggleSelectAll}
+                    aria-label="Select all patients"
+                  />
+                </th>
+                <th className="px-4 py-3.5">Patient Details</th>
+                <th className="px-4 py-3.5">Contact</th>
+                <th className="px-4 py-3.5">Condition &amp; Alerts</th>
+                <th className="px-4 py-3.5">Vitals / Blood</th>
+                <th className="px-4 py-3.5">Care Records</th>
+                <th className="px-4 py-3.5">Status</th>
+                <th className="px-4 py-3.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filtered.map((p) => {
+                const isSelected = selectedIds.includes(p.id);
+                const initials = p.name ? p.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'PT';
+                const rxCount = p.meds?.length || 0;
+                const labCount = p.reports?.length || 0;
+                const diagStyle = getDiagnosisStyle(p.diagnosis);
 
-          return (
-            <div
-              key={p.id}
-              className={`group bg-white rounded-2xl border transition-all duration-200 p-4 sm:p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 shadow-xs hover:shadow-md ${isSelected
-                ? 'border-aubergine-400 bg-aubergine-50/20 ring-2 ring-aubergine-400/20'
-                : 'border-slate-200 hover:border-aubergine-200'
-                }`}
-            >
-              {/* Left Column: Checkbox, Avatar, Identity */}
-              <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
-                {/* Selection Checkbox */}
-                <div className="pt-1.5 sm:pt-0 flex-shrink-0">
-                  <label className="flex items-center justify-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="rounded border-slate-300 text-aubergine-700 focus:ring-aubergine-400 h-4 w-4"
-                      checked={isSelected}
-                      onChange={() => toggleSelect(p.id)}
-                    />
-                  </label>
-                </div>
+                return (
+                  <tr
+                    key={p.id}
+                    className={`transition-colors ${
+                      isSelected
+                        ? 'bg-aubergine-50/40 hover:bg-aubergine-50/60'
+                        : 'hover:bg-slate-50/70'
+                    }`}
+                  >
+                    {/* Checkbox */}
+                    <td className="py-3.5 pl-4 pr-2 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300 text-aubergine-700 focus:ring-aubergine-400 h-4 w-4 cursor-pointer"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(p.id)}
+                        aria-label={`Select ${p.name}`}
+                      />
+                    </td>
 
-                {/* Vibrant Gradient Avatar with Status Pulse */}
-                <div className="relative flex-shrink-0">
-                  <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${avatarGradient} font-black text-sm flex items-center justify-center shadow-sm tracking-wider border border-white/20`}>
-                    {initials}
-                  </div>
-                  {p.status === 'active' ? (
-                    <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5" title="Active Patient">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border-2 border-white shadow-xs"></span>
-                    </span>
-                  ) : (
-                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-slate-400 rounded-full border-2 border-white shadow-xs" title="Inactive"></span>
-                  )}
-                </div>
+                    {/* Patient Details */}
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-aubergine-100 text-aubergine-800 font-extrabold text-xs flex items-center justify-center border border-aubergine-200/80 shrink-0">
+                          {initials}
+                        </div>
+                        <div className="min-w-0">
+                          <button
+                            onClick={() => setSelectedPatientId(p.id)}
+                            className="font-bold text-slate-900 hover:text-aubergine-700 text-sm text-left transition-colors truncate block max-w-[200px]"
+                            title="View EMR"
+                          >
+                            {p.name}
+                          </button>
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5 flex-wrap">
+                            <span className="font-mono text-[11px] font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60">
+                              #{p.mrn || p.id?.slice(0, 8)}
+                            </span>
+                            <span>•</span>
+                            <span>{p.age ? `${p.age} Yrs` : '—'}</span>
+                            <span>•</span>
+                            <span>{p.gender || 'Female'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
 
-                {/* Patient Primary Details */}
-                <div className="min-w-0 space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-black text-slate-900 text-base leading-snug group-hover:text-aubergine-800 transition-colors">
-                      {p.name}
-                    </h3>
-                    <span className="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 border border-slate-200/80 px-2 py-0.5 rounded-md">
-                      #{p.mrn || p.id?.slice(0, 8)}
-                    </span>
-                    <span className="text-[11px] font-bold text-slate-700 bg-purple-50/70 border border-purple-100 px-2 py-0.5 rounded-md">
-                      {p.age} Yrs • Female
-                    </span>
-                    <span className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md flex items-center gap-1 shadow-2xs">
-                      <i className="fas fa-droplet text-[9px] text-rose-500"></i> {p.blood || 'O+'}
-                    </span>
-                    {p.status === 'active' && (
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                        Active Care
-                      </span>
-                    )}
-                  </div>
+                    {/* Contact */}
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <div className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                        <i className="fas fa-phone text-[10px] text-slate-400"></i>
+                        <span>{p.phone || '—'}</span>
+                      </div>
+                      {p.email && (
+                        <div className="text-[11px] text-slate-500 truncate max-w-[170px] mt-0.5 font-medium">
+                          {p.email}
+                        </div>
+                      )}
+                      {p.city && !p.email && (
+                        <div className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
+                          <i className="fas fa-location-dot text-[9px]"></i>
+                          <span>{p.city}</span>
+                        </div>
+                      )}
+                    </td>
 
-                  <div className="flex items-center gap-2 flex-wrap pt-0.5">
-                    {/* Rich Condition Badge */}
-                    <span className={`text-xs font-bold ${diagStyle.bg} ${diagStyle.text} border ${diagStyle.border} px-2.5 py-0.5 rounded-lg flex items-center gap-1.5 shadow-2xs`}>
-                      <i className={`fas ${diagStyle.icon} text-[11px]`}></i>
-                      <span>{p.diagnosis || 'Clinical Evaluation'}</span>
-                    </span>
+                    {/* Condition & Alerts */}
+                    <td className="px-4 py-3.5">
+                      <div className="space-y-1">
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-lg border ${diagStyle.bg} ${diagStyle.text} ${diagStyle.border}`}>
+                          <i className={`fas ${diagStyle.icon} text-[10px]`}></i>
+                          <span className="truncate max-w-[180px]">{p.diagnosis || 'Clinical Evaluation'}</span>
+                        </span>
+                        {p.alert && (
+                          <div>
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
+                              <i className="fas fa-triangle-exclamation text-[10px] text-rose-500"></i>
+                              <span className="truncate max-w-[180px]">{p.alert}</span>
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
 
-                    {/* Prominent Clinical Alert */}
-                    {p.alert && (
-                      <span className="text-xs font-bold text-rose-800 bg-rose-50 border border-rose-300 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5 shadow-2xs animate-pulse">
-                        <i className="fas fa-triangle-exclamation text-[11px] text-rose-600"></i>
-                        <span>{p.alert}</span>
-                      </span>
-                    )}
+                    {/* Vitals / Blood */}
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <div className="text-xs space-y-0.5">
+                        <div className="text-slate-700 font-medium">
+                          <span className="text-slate-400 text-[11px]">BP: </span>
+                          <strong className="text-slate-800 font-semibold">{p.bp || '—'}</strong>
+                        </div>
+                        <div className="text-slate-500 text-[11px]">
+                          <span>Blood: </span>
+                          <strong className="text-slate-700 font-semibold">{p.blood || '—'}</strong>
+                        </div>
+                      </div>
+                    </td>
 
-                    {/* Vitals: BP, Pulse, etc. */}
-                    {p.bp && p.bp !== '—' && (
-                      <span className="text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md flex items-center gap-1">
-                        <i className="fas fa-gauge-high text-[10px] text-slate-400"></i>
-                        <span>BP: <strong className="text-slate-800 font-bold">{p.bp}</strong></span>
-                      </span>
-                    )}
+                    {/* Care Records */}
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      <div className="text-xs space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold text-[11px] border border-slate-200/80">
+                            <i className="fas fa-file-prescription text-aubergine-600 text-[10px]"></i>
+                            <span>{rxCount} Rx</span>
+                          </span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold text-[11px] border border-slate-200/80">
+                            <i className="fas fa-vial text-slate-500 text-[10px]"></i>
+                            <span>{labCount} Labs</span>
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-400">
+                          Visit: <span className="text-slate-600 font-medium">{p.lastVisit || 'Initial'}</span>
+                        </div>
+                      </div>
+                    </td>
 
-                    {p.city && (
-                      <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
-                        <i className="fas fa-location-dot text-[10px] text-slate-400"></i>
-                        <span>{p.city}</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+                    {/* Status */}
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      {p.status === 'active' ? (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                          Active Care
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                          Inactive
+                        </span>
+                      )}
+                    </td>
 
-              {/* Middle Metrics: Prescriptions, Lab Reports, Visits */}
-              <div className="grid grid-cols-3 gap-2.5 sm:gap-3 text-left border-y sm:border-y-0 sm:border-l sm:border-r border-slate-100 py-2.5 sm:py-0 sm:px-5 shrink-0 w-full sm:w-auto">
-                <div className="bg-emerald-50/60 border border-emerald-100/90 rounded-xl px-3 py-2 text-center min-w-[95px]">
-                  <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider block">Rx Orders</span>
-                  <span className="text-xs sm:text-sm font-black text-emerald-950 flex items-center justify-center gap-1 mt-0.5">
-                    <i className="fas fa-file-prescription text-emerald-600 text-xs"></i>
-                    <span>{rxCount} Active</span>
-                  </span>
-                </div>
-                <div className="bg-indigo-50/60 border border-indigo-100/90 rounded-xl px-3 py-2 text-center min-w-[95px]">
-                  <span className="text-[10px] font-extrabold text-indigo-800 uppercase tracking-wider block">Lab Tests</span>
-                  <span className="text-xs sm:text-sm font-black text-indigo-950 flex items-center justify-center gap-1 mt-0.5">
-                    <i className="fas fa-vial text-indigo-600 text-xs"></i>
-                    <span>{labCount} Tests</span>
-                  </span>
-                </div>
-                <div className="bg-purple-50/60 border border-purple-100/90 rounded-xl px-3 py-2 text-center min-w-[95px]">
-                  <span className="text-[10px] font-extrabold text-purple-800 uppercase tracking-wider block">Last Visit</span>
-                  <span className="text-xs sm:text-sm font-black text-purple-950 flex items-center justify-center gap-1 mt-0.5">
-                    <i className="fas fa-calendar-check text-purple-600 text-xs"></i>
-                    <span className="truncate">{p.lastVisit || 'Initial'}</span>
-                  </span>
-                </div>
-              </div>
+                    {/* Actions */}
+                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => startInstantCall(p)}
+                          disabled={callingPatientId === p.id}
+                          className="h-8 px-2.5 rounded-xl border border-slate-200 hover:border-aubergine-300 hover:bg-aubergine-50 text-slate-700 hover:text-aubergine-800 disabled:opacity-50 flex items-center gap-1.5 transition-colors font-bold text-xs"
+                          title={`Start telemedicine call with ${p.name}`}
+                        >
+                          {callingPatientId === p.id ? (
+                            <i className="fas fa-circle-notch fa-spin text-xs"></i>
+                          ) : (
+                            <i className="fas fa-video text-aubergine-600 text-xs"></i>
+                          )}
+                          <span className="hidden sm:inline">Call</span>
+                        </button>
 
-              {/* Right Column: Actions */}
-              <div className="flex items-center gap-2 self-end sm:self-center shrink-0 w-full sm:w-auto justify-end">
-                <button
-                  onClick={() => startInstantCall(p)}
-                  disabled={callingPatientId === p.id}
-                  className="h-10 px-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 disabled:opacity-50 flex items-center gap-2 transition-all font-bold text-xs shadow-xs hover:shadow"
-                  title={`Start a live telemedicine video call with ${p.name}`}
-                >
-                  {callingPatientId === p.id ? (
-                    <i className="fas fa-circle-notch fa-spin"></i>
-                  ) : (
-                    <i className="fas fa-video text-emerald-600 group-hover:text-white"></i>
-                  )}
-                  <span>Call</span>
-                </button>
+                        <button
+                          onClick={() => setSelectedPatientId(p.id)}
+                          className="h-8 bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-3.5 rounded-xl text-xs transition-colors flex items-center gap-1.5 shadow-xs"
+                          title="Open full patient EMR"
+                        >
+                          <i className="fas fa-notes-medical text-xs text-aubergine-200"></i>
+                          <span>View EMR</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
 
-                <button
-                  onClick={() => setSelectedPatientId(p.id)}
-                  className="h-10 bg-gradient-to-r from-aubergine-800 via-aubergine-900 to-[#231139] hover:from-aubergine-700 hover:to-aubergine-800 text-white font-bold px-4 sm:px-5 rounded-xl text-xs transition-all flex items-center gap-2 shadow-sm hover:shadow-md hover:-translate-y-0.5"
-                >
-                  <i className="fas fa-notes-medical text-xs text-aubergine-200"></i>
-                  <span>View EMR</span>
-                </button>
-              </div>
-            </div>
-          );
-        })}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center">
+                    <div className="w-14 h-14 bg-aubergine-50 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-aubergine-100 text-aubergine-600 text-xl">
+                      <i className="fas fa-users-slash"></i>
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900 mb-1">No Patients Matching Filter</h3>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto mb-4">
+                      Couldn't find any patient matching your search query or filter. Try clearing your search or status filter.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setSearch('');
+                        setFilterStatus('all');
+                      }}
+                      className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-xs transition-colors"
+                    >
+                      Reset Search &amp; Filters
+                    </button>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
-        {filtered.length === 0 && (
-          <div className="bg-white rounded-3xl shadow-xs border border-purple-100 p-12 text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-indigo-100 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-purple-200/60 shadow-xs">
-              <i className="fas fa-users-slash text-3xl text-aubergine-600"></i>
-            </div>
-            <h3 className="text-xl font-black text-slate-900 mb-1 font-display">No Patients Matching Filter</h3>
-            <p className="text-sm text-slate-500 max-w-md mx-auto mb-5 font-medium">
-              We couldn't find any patient record matching your search query or status filter. Try clearing your filters or searching by phone number or MRN.
-            </p>
-            <button
-              onClick={() => {
-                setSearch('');
-                setFilterStatus('all');
-              }}
-              className="bg-gradient-to-r from-aubergine-700 to-aubergine-800 hover:from-aubergine-600 hover:to-aubergine-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs shadow-sm hover:shadow transition-all"
-            >
-              Reset Search &amp; Filters
-            </button>
+        {/* Table Footer */}
+        <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+          <div>
+            Showing <strong className="text-slate-800 font-bold">{filtered.length}</strong> of <strong className="text-slate-800 font-bold">{patients.length}</strong> registered patients
           </div>
-        )}
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-aubergine-800 bg-aubergine-50 border border-aubergine-200 px-2.5 py-0.5 rounded-md">
+                {selectedIds.length} Selected
+              </span>
+              <button
+                onClick={() => setSelectedIds([])}
+                className="text-xs text-slate-500 hover:text-slate-800 underline font-semibold"
+              >
+                Deselect All
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <BulkMessageModal

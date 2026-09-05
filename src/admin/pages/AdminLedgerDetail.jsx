@@ -32,7 +32,7 @@ function AdminLedgerDetail() {
       </Link>
       
       <div>
-        <h1 className="text-2xl font-black text-slate-800">Ledger Entry Details</h1>
+        <h1 className="text-2xl font-semibold text-slate-800">Ledger Entry Details</h1>
         <p className="text-sm text-slate-500">#{record.id}</p>
       </div>
 
@@ -40,15 +40,15 @@ function AdminLedgerDetail() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
             <p className="text-xs text-slate-500 font-bold mb-1">Gross Amount</p>
-            <p className="text-2xl font-black text-slate-900 font-sans">₹{record.amount?.toLocaleString()}</p>
+            <p className="text-2xl font-semibold text-slate-900 font-sans">₹{record.amount?.toLocaleString()}</p>
           </div>
           <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
             <p className="text-xs text-emerald-600 font-bold mb-1">Doctor Net</p>
-            <p className="text-2xl font-black text-emerald-700 font-sans">₹{record.doctorNet?.toLocaleString()}</p>
+            <p className="text-2xl font-semibold text-emerald-700 font-sans">₹{record.doctorNet?.toLocaleString()}</p>
           </div>
           <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-4">
             <p className="text-xs text-aubergine-600 font-bold mb-1">Platform Fee ({record.commissionRate}%)</p>
-            <p className="text-2xl font-black text-aubergine-700 font-sans">₹{record.platformFee?.toLocaleString()}</p>
+            <p className="text-2xl font-semibold text-aubergine-700 font-sans">₹{record.platformFee?.toLocaleString()}</p>
           </div>
         </div>
 

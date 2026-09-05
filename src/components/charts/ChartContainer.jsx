@@ -28,7 +28,7 @@ export function ChartContainer({
       <div>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
           <div>
-            <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
               {icon && <i className={`fas ${icon} text-aubergine-600`}></i>}
               {title}
             </h2>
@@ -37,7 +37,7 @@ export function ChartContainer({
 
           <div className="flex items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-end">
             {badgeText && (
-              <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${badgeClasses}`}>
+              <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${badgeClasses}`}>
                 {badgeText}
               </span>
             )}

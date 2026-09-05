@@ -11,7 +11,7 @@ export function StepIndicator({ step, total, labels }) {
       <div className="flex items-center">
         {Array.from({ length: total }, (_, i) => i + 1).map(n => (
           <React.Fragment key={n}>
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 transition-colors ${
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 transition-colors ${
               n < step ? 'bg-emerald-500 text-white' : n === step ? 'bg-aubergine-600 text-white' : 'bg-slate-100 text-slate-500'
             }`}>
               {n < step ? <i className="fas fa-check text-[9px]"></i> : n}

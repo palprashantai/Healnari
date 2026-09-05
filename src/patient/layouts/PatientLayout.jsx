@@ -115,9 +115,9 @@ function Sidebar({ onClose, onItemHover }) {
         <NavHoverRail indicatorClassName="bg-aubergine-800/40 rounded-xl">
           {MENU_CATEGORIES.map((category, catIdx) => (
             <details key={category.title} className={`group/nav-cat ${catIdx > 0 ? "mt-4" : ""}`} open>
-              <summary className="text-[10px] font-bold text-aubergine-300/60 uppercase tracking-widest mb-1.5 px-3 cursor-pointer list-none flex items-center justify-between hover:text-white transition-colors select-none">
+              <summary className="text-xs font-semibold text-aubergine-300/70 uppercase tracking-wider mb-1.5 px-3 cursor-pointer list-none flex items-center justify-between hover:text-white transition-colors select-none">
                 {category.title}
-                <i className="fas fa-chevron-down text-[8px] transition-transform group-open/nav-cat:-rotate-180"></i>
+                <i className="fas fa-chevron-down text-[9px] transition-transform group-open/nav-cat:-rotate-180"></i>
               </summary>
               <div className="space-y-0.5">
                 {category.items.map(item => (
@@ -127,7 +127,7 @@ function Sidebar({ onClose, onItemHover }) {
                     onMouseLeave={() => onItemHover?.(null)}
                     data-nav-item
                     className={({ isActive }) =>
-                      `group flex items-center gap-3.5 px-4 py-2.5 rounded-xl font-medium text-[13.5px] tracking-wide transition-all duration-300 ${
+                      `group flex items-center gap-3.5 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-300 ${
                         isActive
                           ? 'bg-gradient-to-r from-aubergine-600/90 to-aubergine-700/50 text-white shadow-md shadow-aubergine-900/40 border border-aubergine-500/30'
                           : 'text-aubergine-200/70 hover:text-white border border-transparent'
@@ -140,7 +140,7 @@ function Sidebar({ onClose, onItemHover }) {
                         </div>
                         <span className="flex-1 truncate">{item.name}</span>
                         {item.badge && (
-                          <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-200 border border-purple-400/30">
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-200 border border-purple-400/30">
                             {item.badge}
                           </span>
                         )}
@@ -158,17 +158,17 @@ function Sidebar({ onClose, onItemHover }) {
       <div className="p-4 border-t border-aubergine-700/40 shrink-0 space-y-2.5 pb-28 md:pb-4 safe-area-pb">
         {/* Discreet mode */}
         <button onClick={toggleDiscreet}
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all w-full ${discreet ? 'bg-aubergine-600/50 text-white' : 'text-aubergine-100/60 hover:bg-aubergine-700/40 hover:text-white'}`}>
+          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all w-full ${discreet ? 'bg-aubergine-600/50 text-white' : 'text-aubergine-100/60 hover:bg-aubergine-700/40 hover:text-white'}`}>
           <div className="w-5 text-center"><i className={`fas ${discreet ? 'fa-eye-slash' : 'fa-eye'}`}></i></div>
           {discreet ? 'Discreet: ON' : 'Discreet Mode'}
         </button>
 
         {/* Privacy badges */}
         <div className="bg-aubergine-950/60 p-2.5 rounded-xl border border-aubergine-700/40">
-          <div className="flex items-center gap-2 text-[10px] font-semibold text-aubergine-200/70 uppercase tracking-wide">
+          <div className="flex items-center gap-2 text-xs font-medium text-aubergine-200/80">
             <i className="fas fa-shield-halved text-emerald-400"></i> DPDP Act, 2023 Compliant
           </div>
-          <div className="flex items-center gap-2 text-[10px] font-semibold text-aubergine-200/70 uppercase tracking-wide mt-1">
+          <div className="flex items-center gap-2 text-xs font-medium text-aubergine-200/80 mt-1">
             <i className="fas fa-lock text-emerald-400"></i> Private, Doctor-Only Access
           </div>
         </div>
@@ -176,7 +176,7 @@ function Sidebar({ onClose, onItemHover }) {
         {/* High-Visibility Logout Button */}
         <button 
           onClick={handleLogout}
-          className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-sm bg-rose-500/20 text-rose-300 hover:bg-rose-600 hover:text-white border border-rose-500/30 transition-all w-full shadow-sm active:scale-95"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm bg-rose-500/20 text-rose-300 hover:bg-rose-600 hover:text-white border border-rose-500/30 transition-all w-full shadow-sm active:scale-95"
         >
           <i className="fas fa-arrow-right-from-bracket"></i>
           <span>Sign Out / Logout</span>
@@ -221,7 +221,7 @@ function NotificationsPanel({ notifications, onMarkAllRead, onMarkRead, onClose,
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
         <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
           Notifications
-          {unread > 0 && <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{unread}</span>}
+          {unread > 0 && <span className="bg-rose-500 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">{unread}</span>}
         </h3>
         <div className="flex items-center gap-2">
           {unread > 0 && <button onClick={onMarkAllRead} className="text-xs text-aubergine-600 font-bold hover:underline">Mark all read</button>}
@@ -375,7 +375,7 @@ function PatientLayout() {
                 className="relative w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-slate-600 hover:bg-aubergine-50 hover:text-aubergine-600 transition-colors flex items-center justify-center">
                 <i className="fas fa-bell text-sm"></i>
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 text-white rounded-full border-2 border-white text-[9px] font-black flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 text-white rounded-full border-2 border-white text-[9px] font-semibold flex items-center justify-center">
                     {unreadCount}
                   </span>
                 )}
@@ -410,8 +410,10 @@ function PatientLayout() {
 
         {/* Dynamic Content */}
         <main className={`flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full p-4 md:p-6 pb-28 md:pb-6 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}>
-          {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
-          <PageTransition />
+          <div className="max-w-7xl mx-auto w-full min-w-0">
+            {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
+            <PageTransition />
+          </div>
         </main>
       </div>
 
@@ -427,7 +429,7 @@ function PatientLayout() {
               className={({ isActive }) =>
                 `relative flex flex-col items-center justify-center transition-all duration-200 ${
                   tab.isFab ? '-mt-6' : 'flex-1 py-1 px-0.5'
-                } ${isActive ? 'text-aubergine-700 font-extrabold' : 'text-slate-500 font-medium'}`
+                } ${isActive ? 'text-aubergine-700 font-semibold' : 'text-slate-500 font-normal'}`
               }
             >
               {({ isActive }) => (
@@ -437,7 +439,7 @@ function PatientLayout() {
                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-aubergine-600 via-magenta-600 to-aubergine-700 text-white flex items-center justify-center text-lg shadow-lg shadow-magenta-500/30 ring-4 ring-white transition-transform active:scale-90">
                         <i className={`fas ${tab.icon}`}></i>
                       </div>
-                      <span className="text-[10px] font-black text-aubergine-700 mt-1 tracking-tight whitespace-nowrap">
+                      <span className="text-[11px] font-semibold text-aubergine-700 mt-1 tracking-tight whitespace-nowrap">
                         {tab.name}
                       </span>
                     </div>
@@ -448,7 +450,7 @@ function PatientLayout() {
                       }`}>
                         <i className={`fas ${tab.icon} text-[15px]`}></i>
                       </div>
-                      <span className="text-[9px] sm:text-[10px] tracking-tight leading-none mt-0.5 whitespace-nowrap truncate w-full text-center">{tab.name}</span>
+                      <span className="text-[10px] sm:text-xs tracking-tight leading-none mt-0.5 whitespace-nowrap truncate w-full text-center">{tab.name}</span>
                       {isActive && (
                         <div className="w-1 h-1 rounded-full bg-aubergine-600 mt-0.5"></div>
                       )}

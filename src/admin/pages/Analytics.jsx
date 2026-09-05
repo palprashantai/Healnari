@@ -119,7 +119,7 @@ function AdminAnalytics() {
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xl">📊</span>
-            <h1 className="text-2xl font-black text-slate-900">Global Telehealth Performance Analytics</h1>
+            <h1 className="text-2xl font-semibold text-slate-900">Global Telehealth Performance Analytics</h1>
           </div>
           <p className="text-sm text-slate-500 mt-1">
             Real-time telemetry on cross-border patient acquisition, multi-currency yield, and provider capacity from backend database.
@@ -223,7 +223,7 @@ function AdminAnalytics() {
           <div>
             <div className="flex justify-between items-center mb-4">
               <div>
-                <h2 className="font-black text-slate-900 text-base">Patient Geographic Distribution</h2>
+                <h2 className="font-semibold text-slate-900 text-base">Patient Geographic Distribution</h2>
                 <p className="text-xs text-slate-500">Distribution of enrolled patients across countries in the database.</p>
               </div>
               <span className="text-xs font-bold text-aubergine-700 bg-aubergine-50 px-2.5 py-1 rounded-full border border-aubergine-100">
@@ -247,7 +247,7 @@ function AdminAnalytics() {
                         <span className="font-extrabold text-slate-800">{geo.name}</span>
                       </div>
                       <div className="flex items-center gap-2 font-mono">
-                        <span className="font-black text-slate-900">{geo.patientCount} members</span>
+                        <span className="font-semibold text-slate-900">{geo.patientCount} members</span>
                         <span className="font-bold text-slate-400">({geo.percentage}%)</span>
                       </div>
                     </div>
@@ -266,11 +266,11 @@ function AdminAnalytics() {
           <div className="mt-6 pt-4 border-t border-slate-100 grid grid-cols-2 gap-3 text-center">
             <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
               <p className="text-[10px] uppercase font-bold text-slate-400">International Enrolled</p>
-              <p className="text-sm font-black text-slate-900">{crossBorderSplit.international} members</p>
+              <p className="text-sm font-semibold text-slate-900">{crossBorderSplit.international} members</p>
             </div>
             <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
               <p className="text-[10px] uppercase font-bold text-slate-400">Domestic Enrolled</p>
-              <p className="text-sm font-black text-slate-900">{crossBorderSplit.domestic} members</p>
+              <p className="text-sm font-semibold text-slate-900">{crossBorderSplit.domestic} members</p>
             </div>
           </div>
         </div>
@@ -280,7 +280,7 @@ function AdminAnalytics() {
           <div>
             <div className="flex justify-between items-center mb-4">
               <div>
-                <h2 className="font-black text-slate-900 text-base">Multi-Currency Gross Split</h2>
+                <h2 className="font-semibold text-slate-900 text-base">Multi-Currency Gross Split</h2>
                 <p className="text-xs text-slate-500">Inflow shares normalized to USD purchasing power.</p>
               </div>
             </div>
@@ -318,7 +318,7 @@ function AdminAnalytics() {
                             <p className="font-bold flex items-center gap-1.5">
                               <span>{d.flag}</span> <span>{d.name || d.currency}</span>
                             </p>
-                            <p className="font-mono text-emerald-400 font-black">
+                            <p className="font-mono text-emerald-400 font-semibold">
                               {formatCurrency(d.amount, d.currency)}
                             </p>
                             <p className="text-[10px] text-slate-400">
@@ -355,7 +355,7 @@ function AdminAnalytics() {
           <div>
             <div className="flex justify-between items-center mb-4">
               <div>
-                <h2 className="font-black text-slate-900 text-base">Telehealth Booking Funnel</h2>
+                <h2 className="font-semibold text-slate-900 text-base">Telehealth Booking Funnel</h2>
                 <p className="text-xs text-slate-500">Real platform conversion from user registrations to completed sessions.</p>
               </div>
             </div>
@@ -395,7 +395,7 @@ function AdminAnalytics() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h2 className="font-black text-slate-900 text-base">Patient Growth (International vs Domestic)</h2>
+              <h2 className="font-semibold text-slate-900 text-base">Patient Growth (International vs Domestic)</h2>
               <p className="text-xs text-slate-500">Real historical enrollment trends aggregated from database.</p>
             </div>
             <span className="text-xs font-bold text-aubergine-700 bg-aubergine-50 px-2.5 py-1 rounded-full border border-aubergine-100">
@@ -441,7 +441,7 @@ function AdminAnalytics() {
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Revenue by Specialty */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <h2 className="font-black text-slate-900 text-sm mb-1">Clinical Specialty Breakdown</h2>
+          <h2 className="font-semibold text-slate-900 text-sm mb-1">Clinical Specialty Breakdown</h2>
           <p className="text-xs text-slate-500 mb-4">Patient volume across medical verticals.</p>
           {specialtyRevenue.length === 0 ? (
             <DashboardEmptyState
@@ -477,7 +477,7 @@ function AdminAnalytics() {
 
         {/* Appointment Status Breakdown */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <h2 className="font-black text-slate-900 text-sm mb-1">Consultation Status Breakdown</h2>
+          <h2 className="font-semibold text-slate-900 text-sm mb-1">Consultation Status Breakdown</h2>
           <p className="text-xs text-slate-500 mb-4">Real-time status of scheduled sessions.</p>
           {statusBreakdown.length === 0 ? (
             <DashboardEmptyState
@@ -506,7 +506,7 @@ function AdminAnalytics() {
 
         {/* Consultation Delivery Modes */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <h2 className="font-black text-slate-900 text-sm mb-1">Delivery Modality</h2>
+          <h2 className="font-semibold text-slate-900 text-sm mb-1">Delivery Modality</h2>
           <p className="text-xs text-slate-500 mb-4">Encrypted WebRTC Video vs In-Person.</p>
           {consultTypeData.length === 0 ? (
             <DashboardEmptyState

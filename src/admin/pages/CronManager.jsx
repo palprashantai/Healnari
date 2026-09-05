@@ -246,8 +246,8 @@ export default function CronManager() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Cron Jobs & Background Automations</h1>
-            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-emerald-200">
+            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Cron Jobs & Background Automations</h1>
+            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-semibold px-2.5 py-0.5 rounded-full border border-emerald-200">
               Admin Engine
             </span>
           </div>
@@ -315,8 +315,8 @@ export default function CronManager() {
             <i className="fas fa-cubes-stacked"></i>
           </div>
           <div>
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Total Services</span>
-            <span className="text-lg font-black text-slate-800">{crons.length} Jobs</span>
+            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Total Services</span>
+            <span className="text-lg font-semibold text-slate-800">{crons.length} Jobs</span>
           </div>
         </div>
 
@@ -325,8 +325,8 @@ export default function CronManager() {
             <i className="fas fa-circle-play"></i>
           </div>
           <div>
-            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-wider block">Active (Running)</span>
-            <span className="text-lg font-black text-slate-800">{activeCount} Jobs</span>
+            <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider block">Active (Running)</span>
+            <span className="text-lg font-semibold text-slate-800">{activeCount} Jobs</span>
           </div>
         </div>
 
@@ -335,8 +335,8 @@ export default function CronManager() {
             <i className="fas fa-circle-pause"></i>
           </div>
           <div>
-            <span className="text-[10px] font-black text-amber-600 uppercase tracking-wider block">Paused (Stopped)</span>
-            <span className="text-lg font-black text-slate-800">{pausedCount} Jobs</span>
+            <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider block">Paused (Stopped)</span>
+            <span className="text-lg font-semibold text-slate-800">{pausedCount} Jobs</span>
           </div>
         </div>
 
@@ -345,7 +345,7 @@ export default function CronManager() {
             <i className="fas fa-shield-halved"></i>
           </div>
           <div>
-            <span className="text-[10px] font-black text-aubergine-600 uppercase tracking-wider block">Concurrency Guard</span>
+            <span className="text-[10px] font-semibold text-aubergine-600 uppercase tracking-wider block">Concurrency Guard</span>
             <span className="text-xs font-bold text-slate-700">Atomic Claims Active</span>
           </div>
         </div>
@@ -383,7 +383,7 @@ export default function CronManager() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm border-collapse">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-black text-slate-500 uppercase tracking-wider">
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                   <th className="px-5 py-3.5 font-bold">Automation / Service</th>
                   <th className="px-4 py-3.5 font-bold">Category</th>
                   <th className="px-4 py-3.5 font-bold">Cron Schedule</th>
@@ -461,7 +461,7 @@ export default function CronManager() {
 
                         {/* Category */}
                         <td className="px-4 py-4 whitespace-nowrap align-top pt-5">
-                          <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider border ${getCategoryBadgeClass(cron.category)}`}>
+                          <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-lg uppercase tracking-wider border ${getCategoryBadgeClass(cron.category)}`}>
                             {cron.category}
                           </span>
                         </td>
@@ -513,7 +513,7 @@ export default function CronManager() {
                         {/* Status Badge */}
                         <td className="px-4 py-4 align-top pt-5 text-center whitespace-nowrap">
                           <span
-                            className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${cron.running ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}
+                            className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border ${cron.running ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}
                           >
                             {cron.running ? 'Active' : 'Paused'}
                           </span>
@@ -588,7 +588,7 @@ export default function CronManager() {
                       <span className="text-[10px] font-mono text-slate-400 block mt-0.5">{cron.name}</span>
                     </div>
 
-                    <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-lg uppercase tracking-wider border ${getCategoryBadgeClass(cron.category)}`}>
+                    <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-lg uppercase tracking-wider border ${getCategoryBadgeClass(cron.category)}`}>
                       {cron.category}
                     </span>
                   </div>
@@ -687,7 +687,7 @@ export default function CronManager() {
               </p>
 
               {/* Preset Chips */}
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">
                 Quick Frequency Presets
               </label>
               <div className="flex flex-wrap gap-2 mb-4">
@@ -703,7 +703,7 @@ export default function CronManager() {
               </div>
 
               {/* Custom Expression Input */}
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1.5">
+              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">
                 Cron Expression (Standard 5-part)
               </label>
               <input
@@ -761,7 +761,7 @@ export default function CronManager() {
             <div className="max-h-96 overflow-y-auto rounded-xl border border-slate-200">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
                     <th className="px-4 py-2.5">Executed At</th>
                     <th className="px-4 py-2.5">Job Name</th>
                     <th className="px-4 py-2.5">Trigger</th>

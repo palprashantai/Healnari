@@ -62,7 +62,7 @@ function DoctorPatientRequests() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Patient Requests</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">Patient Requests</h1>
           <p className="text-sm text-slate-500">Public consultation requests submitted via your booking link.</p>
         </div>
         <div className="flex gap-1.5 sm:gap-2 overflow-x-auto hide-scrollbar w-full sm:w-auto pb-1 sm:pb-0">

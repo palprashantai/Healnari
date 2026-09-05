@@ -223,7 +223,7 @@ function AdminDoctorDetails() {
           <Link to="/admin-dashboard/doctors" className="text-sm font-bold text-slate-400 hover:text-aubergine-600 transition-colors flex items-center gap-2 mb-2">
             <i className="fas fa-arrow-left"></i> Back to Doctor Network
           </Link>
-          <h1 className="text-2xl font-black text-slate-800">Doctor Profile: {doctor.full_name}</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">Doctor Profile: {doctor.full_name}</h1>
           <p className="text-sm text-slate-500">ID: {doctor.id} • {doctor.specialty || 'General'}</p>
         </div>
         <div className="flex gap-2">
@@ -255,7 +255,7 @@ function AdminDoctorDetails() {
         {/* Left Column: Profile & Status */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center">
-            <div className="w-24 h-24 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center text-3xl font-black mx-auto mb-4 border-4 border-white shadow-md">
+            <div className="w-24 h-24 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center text-3xl font-semibold mx-auto mb-4 border-4 border-white shadow-md">
               {(doctor.full_name || 'D').charAt(0)}
             </div>
             <h2 className="text-xl font-bold text-slate-800">{doctor.full_name}</h2>
@@ -321,7 +321,7 @@ function AdminDoctorDetails() {
               </span>
             </div>
             <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 text-center my-3">
-              <p className="text-3xl font-black text-slate-900 font-sans">{doctor?.commission_rate !== undefined ? `${doctor.commission_rate}%` : 'Standard'}</p>
+              <p className="text-3xl font-semibold text-slate-900 font-sans">{doctor?.commission_rate !== undefined ? `${doctor.commission_rate}%` : 'Standard'}</p>
               <p className="text-xs font-bold text-slate-500 mt-0.5">Platform Take Rate</p>
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
@@ -346,18 +346,18 @@ function AdminDoctorDetails() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white border border-slate-200 rounded-xl p-5 text-center shadow-sm">
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Gross Billing</p>
-              <p className="text-2xl font-black text-slate-800">₹{Math.round(totalGross).toLocaleString('en-IN')}</p>
+              <p className="text-2xl font-semibold text-slate-800">₹{Math.round(totalGross).toLocaleString('en-IN')}</p>
               <p className="text-xs text-slate-500 font-bold mt-1">{kpis?.totalConsults || kpis?.totalAppointments || 0} Consults</p>
             </div>
             <div className="bg-white border border-slate-200 rounded-xl p-5 text-center shadow-sm">
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Doctor Net Earned</p>
-              <p className="text-2xl font-black text-emerald-600">{formatCurrency(doctorNet, doctor?.currency || 'INR')}</p>
+              <p className="text-2xl font-semibold text-emerald-600">{formatCurrency(doctorNet, doctor?.currency || 'INR')}</p>
               <p className="text-xs text-slate-500 font-bold mt-1">Net Physician Share</p>
             </div>
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 text-center shadow-md relative overflow-hidden">
               <div className="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl"></div>
               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Platform Earnings</p>
-              <p className="text-2xl font-black text-white">{formatCurrency(adminCommission, doctor?.currency || 'INR')}</p>
+              <p className="text-2xl font-semibold text-white">{formatCurrency(adminCommission, doctor?.currency || 'INR')}</p>
               <p className="text-xs text-slate-400 font-bold mt-1">Platform Service Fee</p>
             </div>
           </div>
@@ -446,7 +446,7 @@ function AdminDoctorDetails() {
                           <td className="px-5 py-4 text-slate-600">{b.service || '—'}</td>
                           <td className="px-5 py-4 text-right font-bold text-slate-800">₹{b.amount.toLocaleString()}</td>
                           <td className="px-5 py-4 text-right font-semibold text-emerald-600">₹{docAmount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
-                          <td className="px-5 py-4 text-right font-black text-aubergine-700">₹{cut.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
+                          <td className="px-5 py-4 text-right font-semibold text-aubergine-700">₹{cut.toLocaleString(undefined, { maximumFractionDigits: 0 })}</td>
                           <td className="px-5 py-4 text-right">
                             <span className={`text-[10px] font-bold px-2 py-1 rounded border ${b.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                               {b.status}
@@ -494,7 +494,7 @@ function AdminDoctorDetails() {
                           <td className="px-5 py-4 text-slate-600 font-medium truncate max-w-[200px]" title={JSON.stringify(p.destination_details)}>
                             {p.destination_details?.account_holder || '—'}
                           </td>
-                          <td className="px-5 py-4 text-right font-black text-slate-900">
+                          <td className="px-5 py-4 text-right font-semibold text-slate-900">
                             {p.amount ? `₹${p.amount.toLocaleString()}` : '—'}
                           </td>
                           <td className="px-5 py-4 text-right">
@@ -528,7 +528,7 @@ function AdminDoctorDetails() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`text-xs font-black px-3 py-1 rounded-full border ${
+                <span className={`text-xs font-semibold px-3 py-1 rounded-full border ${
                   aiSubscription?.planId === 'doctor_plan_3'
                     ? 'bg-amber-50 text-amber-800 border-amber-200'
                     : aiSubscription?.planId === 'doctor_plan_2'
@@ -553,19 +553,19 @@ function AdminDoctorDetails() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 border-b border-slate-100 bg-slate-50/50">
               <div className="bg-white p-4 rounded-xl border border-slate-200">
                 <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Active Plan Tier</p>
-                <p className="text-lg font-black text-slate-800">{aiSubscription?.planName || 'Doctor Starter'}</p>
+                <p className="text-lg font-semibold text-slate-800">{aiSubscription?.planName || 'Doctor Starter'}</p>
                 <p className="text-[11px] text-slate-500 mt-1">Billing Cycle: {aiSubscription?.billingCycle || 'Monthly'}</p>
               </div>
               <div className="bg-white p-4 rounded-xl border border-slate-200">
                 <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Monthly Uses Quota</p>
-                <p className="text-lg font-black text-aubergine-700">
+                <p className="text-lg font-semibold text-aubergine-700">
                   {aiSubscription?.creditsRemaining ?? 25} <span className="text-xs text-slate-400 font-normal">/ {aiSubscription?.monthlyCredits || 25} left</span>
                 </p>
                 <p className="text-[11px] text-slate-500 mt-1">Consumed: {aiSubscription?.creditsUsed || 0} uses this month</p>
               </div>
               <div className="bg-white p-4 rounded-xl border border-slate-200">
                 <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Plan Validity</p>
-                <p className="text-lg font-black text-slate-800">
+                <p className="text-lg font-semibold text-slate-800">
                   {aiSubscription?.renewalDate ? new Date(aiSubscription.renewalDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Continuous (Free Tier)'}
                 </p>
                 <p className="text-[11px] text-slate-500 mt-1">Plan: {aiSubscription?.isPremium ? 'Prepaid (30 Days)' : 'Standard Free'}</p>
@@ -599,7 +599,7 @@ function AdminDoctorDetails() {
                         <td className="px-5 py-3.5 text-xs font-bold text-slate-800">
                           {t.planName}
                         </td>
-                        <td className="px-5 py-3.5 text-xs text-right font-black text-emerald-600">
+                        <td className="px-5 py-3.5 text-xs text-right font-semibold text-emerald-600">
                           {t.currency === 'USD' ? '$' : '₹'}{t.finalAmount?.toLocaleString('en-IN')}
                         </td>
                         <td className="px-5 py-3.5 text-xs text-slate-600 font-medium">
@@ -679,7 +679,7 @@ function AdminDoctorDetails() {
               >
                 <div className="flex justify-between items-center mb-1">
                   <span className="font-bold text-sm text-slate-800">{p.name}</span>
-                  <span className="text-xs font-black text-emerald-700">{p.price}</span>
+                  <span className="text-xs font-semibold text-emerald-700">{p.price}</span>
                 </div>
                 <p className="text-xs text-slate-500">{p.desc}</p>
                 <p className="text-[11px] font-bold text-aubergine-700 mt-1">Monthly Quota: {p.credits} uses</p>

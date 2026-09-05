@@ -450,7 +450,7 @@ function PatientRecords() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Medical Vault</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">Medical Vault</h1>
           <p className="text-sm text-slate-500">Securely store your health profile, records, and insurance details.</p>
         </div>
         <div className="flex items-center gap-2 bg-aubergine-50 border border-aubergine-200 px-4 py-2 rounded-xl text-aubergine-700 text-xs font-bold">
@@ -754,7 +754,7 @@ function PatientRecords() {
               <div className="bg-aubergine-50/60 border border-aubergine-100 rounded-2xl p-6 relative overflow-hidden">
                 <i className="fas fa-shield-heart absolute -right-4 -bottom-4 text-8xl text-aubergine-500/10"></i>
                 <div className="flex justify-between items-start mb-5">
-                  <h3 className="font-black text-aubergine-900 text-lg">Health Insurance</h3>
+                  <h3 className="font-semibold text-aubergine-900 text-lg">Health Insurance</h3>
                   <span className="bg-slate-400 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Not on File</span>
                 </div>
                 <p className="text-sm text-slate-600 relative z-10 mb-5">
@@ -870,7 +870,7 @@ function PatientRecords() {
                   <i className="fas fa-triangle-exclamation"></i>
                 </div>
                 <div className="space-y-1">
-                  <h4 className="font-black text-rose-950 text-sm">Urgent Clinical Notification</h4>
+                  <h4 className="font-semibold text-rose-950 text-sm">Urgent Clinical Notification</h4>
                   <p className="text-xs text-rose-900 font-bold leading-relaxed">{aiLabData.criticalAlert}</p>
                 </div>
               </div>
@@ -882,7 +882,7 @@ function PatientRecords() {
                 <i className="fas fa-sparkles"></i>
               </div>
               <div className="space-y-1">
-                <h4 className="font-black text-purple-950 text-sm">Clinical Overview</h4>
+                <h4 className="font-semibold text-purple-950 text-sm">Clinical Overview</h4>
                 <p className="text-xs text-purple-900 leading-relaxed">{aiLabData.summary}</p>
               </div>
             </div>
@@ -890,7 +890,7 @@ function PatientRecords() {
             {/* Biomarker Breakdown */}
             {aiLabData.biomarkers?.length > 0 && (
               <div>
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-3">Key Biomarkers &amp; Reference Ranges</h4>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Key Biomarkers &amp; Reference Ranges</h4>
                 <div className="space-y-2.5">
                   {aiLabData.biomarkers.map((b, idx) => (
                     <div key={idx} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
@@ -901,7 +901,7 @@ function PatientRecords() {
                             {b.value} {b.unit}
                           </span>
                         </div>
-                        <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                        <span className={`text-[10px] font-semibold uppercase px-2.5 py-0.5 rounded-full border ${
                           b.status === 'HIGH' ? 'bg-amber-100 text-amber-800 border-amber-300' :
                           b.status === 'LOW' ? 'bg-aubergine-100 text-aubergine-800 border-aubergine-300' :
                           'bg-emerald-100 text-emerald-800 border-emerald-300'
@@ -926,7 +926,7 @@ function PatientRecords() {
             {/* Questions to Ask Doctor */}
             {aiLabData.questionsForDoctor?.length > 0 && (
               <div className="bg-aubergine-50/60 border border-aubergine-200 rounded-2xl p-4 space-y-2">
-                <h4 className="text-xs font-black uppercase tracking-wider text-aubergine-800 flex items-center gap-1.5">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-aubergine-800 flex items-center gap-1.5">
                   <i className="fas fa-comments text-aubergine-600"></i> 3 Questions to Ask Your Doctor
                 </h4>
                 <ul className="space-y-1.5">

@@ -115,7 +115,7 @@ export function Modal({ isOpen, onClose, title, ariaLabel, children, size = 'md'
       >
         {title && (
           <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 bg-gradient-to-r from-aubergine-900 to-aubergine-700 shrink-0">
-            <h3 id={titleId} className="font-black text-base sm:text-lg text-white truncate pr-2">{title}</h3>
+            <h3 id={titleId} className="font-semibold text-base sm:text-lg text-white truncate pr-2">{title}</h3>
             <button
               onClick={onClose}
               aria-label="Close dialog"
@@ -167,19 +167,19 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confi
           <i className={`fas ${confirmStyle === 'danger' ? 'fa-triangle-exclamation' : 'fa-circle-question'}`}></i>
         </div>
         <div>
-          <h3 className="font-black text-slate-800 text-lg">{title}</h3>
-          <p className="text-sm text-slate-500 mt-1 leading-relaxed">{message}</p>
+          <h3 className="font-semibold text-slate-800 text-base sm:text-lg">{title}</h3>
+          <p className="text-sm text-slate-500 mt-1 leading-relaxed font-normal">{message}</p>
         </div>
         <div className="flex gap-3 justify-center pt-2">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+            className="px-5 py-2.5 rounded-xl text-sm font-medium border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={() => { onConfirm(); onClose(); }}
-            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-colors ${STYLE[confirmStyle]}`}
+            className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-colors ${STYLE[confirmStyle]}`}
           >
             {confirmLabel}
           </button>

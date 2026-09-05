@@ -145,7 +145,7 @@ function AiConsultPrepModal({ isOpen, onClose, appointment }) {
                     <i className="fas fa-triangle-exclamation"></i>
                   </div>
                   <div>
-                    <h4 className="font-black text-rose-950 text-sm">Emergency Medical Notice</h4>
+                    <h4 className="font-semibold text-rose-950 text-sm">Emergency Medical Notice</h4>
                     <p className="text-xs text-rose-900 font-bold mt-1 leading-relaxed">{prepData.emergencyAlert}</p>
                   </div>
                 </div>
@@ -161,13 +161,13 @@ function AiConsultPrepModal({ isOpen, onClose, appointment }) {
               {/* Questions for Doctor */}
               {prepData.questionsForDoctor?.length > 0 && (
                 <div className="space-y-2">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-500">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                     High-Yield Questions to Ask Your Doctor
                   </h4>
                   <div className="space-y-2">
                     {prepData.questionsForDoctor.map((q, idx) => (
                       <div key={idx} className="bg-white border border-slate-200 hover:border-purple-300 rounded-xl p-3 text-xs text-slate-700 font-medium flex items-start gap-2.5 shadow-2xs">
-                        <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 font-black text-[10px] flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 font-semibold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
                           {idx + 1}
                         </span>
                         <span className="leading-relaxed flex-1 font-semibold">{q}</span>
@@ -180,7 +180,7 @@ function AiConsultPrepModal({ isOpen, onClose, appointment }) {
               {/* Checklist */}
               {prepData.checklistBeforeCall?.length > 0 && (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
-                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
                     <i className="fas fa-clipboard-check text-aubergine-600"></i> Pre-Call Checklist
                   </h4>
                   <div className="space-y-1.5">
@@ -534,7 +534,7 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
             <div className="flex justify-between"><span className="font-bold text-slate-600">Date & Time</span><span className="text-slate-800">{form.date} • {form.slot || '—'}</span></div>
             <div className="flex justify-between">
               <span className="font-bold text-slate-600">Consult Fee</span>
-              <span className="text-aubergine-700 font-black">
+              <span className="text-aubergine-700 font-semibold">
                 {formatCurrency(
                   Number(selectedDoctor?.consultation_fee) > 0
                     ? Number(selectedDoctor.consultation_fee)
@@ -671,7 +671,7 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
       <Modal isOpen={isOpen} onClose={onClose} title="Video Consultation" size="lg">
         <div className="text-center space-y-5 py-2">
           <div>
-            <h4 className="font-black text-slate-800 text-xl">{doctor}</h4>
+            <h4 className="font-semibold text-slate-800 text-xl">{doctor}</h4>
             <p className="text-sm text-emerald-600 font-semibold mt-1 flex items-center justify-center gap-1.5">
               <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Ready to connect
             </p>
@@ -681,7 +681,7 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
             <div className="flex items-center gap-2 text-slate-600"><i className="fas fa-shield-halved text-emerald-500"></i> Private, doctor-only session</div>
             <div className="flex items-center gap-2 text-slate-600"><i className="fas fa-lock text-emerald-500"></i> DPDP Act, 2023 compliant</div>
           </div>
-          <button onClick={join} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-2xl text-base transition-all flex items-center justify-center gap-3 shadow-lg">
+          <button onClick={join} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-4 rounded-2xl text-base transition-all flex items-center justify-center gap-3 shadow-lg">
             <i className="fas fa-video"></i> Join Now
           </button>
         </div>
@@ -726,7 +726,7 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-aubergine-950 via-slate-950 to-slate-950">
             <div className="text-center text-white px-6">
-              <div className="w-24 h-24 rounded-full bg-aubergine-700/80 mx-auto mb-4 flex items-center justify-center text-3xl font-black shadow-2xl">
+              <div className="w-24 h-24 rounded-full bg-aubergine-700/80 mx-auto mb-4 flex items-center justify-center text-3xl font-semibold shadow-2xl">
                 {initials}
               </div>
               <p className="font-bold text-lg">{doctor}</p>
@@ -853,11 +853,11 @@ function PatientAppointments() {
 
   const STATUS_BADGE = {
     'Pending Doctor Acceptance': 'bg-aubergine-50 text-aubergine-700 border border-aubergine-200',
-    'Action Required: Pay to Confirm': 'bg-amber-50 text-amber-800 border border-amber-300 font-black',
+    'Action Required: Pay to Confirm': 'bg-amber-50 text-amber-800 border border-amber-300 font-semibold',
     'Slot Reserved': 'bg-purple-50 text-purple-700 border border-purple-200',
     Confirmed: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
     'In Waiting Room': 'bg-blue-50 text-blue-700 border border-blue-200',
-    'Consultation Live': 'bg-rose-50 text-rose-700 border border-rose-200 font-black',
+    'Consultation Live': 'bg-rose-50 text-rose-700 border border-rose-200 font-semibold',
     Completed: 'bg-slate-100 text-slate-600 border border-slate-200',
     Cancelled: 'bg-rose-50 text-rose-600 border border-rose-200',
     Missed: 'bg-slate-100 text-slate-500 border border-slate-200',
@@ -1087,7 +1087,7 @@ function PatientAppointments() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">My Appointments</h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-800 tracking-tight">My Appointments</h1>
           <p className="text-sm text-slate-500">Manage your appointment requests, payments, and consultations.</p>
         </div>
         <button onClick={() => { setBookPrefill({}); setShowBook(true); }}
@@ -1143,9 +1143,9 @@ function PatientAppointments() {
             ['past', 'Past History', past.length, false]
           ].map(([key, label, count, hasAlert]) => (
             <button key={key} onClick={() => setTab(key)}
-              className={`px-5 py-4 text-xs sm:text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${tab === key ? 'bg-white text-aubergine-700 border-t-2 border-t-aubergine-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+              className={`px-5 py-4 text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${tab === key ? 'bg-white text-aubergine-700 border-t-2 border-t-aubergine-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
               {label}
-              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${hasAlert ? 'bg-amber-500 text-white animate-pulse' : tab === key ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-200 text-slate-500'}`}>{count}</span>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${hasAlert ? 'bg-amber-500 text-white animate-pulse' : tab === key ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-200 text-slate-500'}`}>{count}</span>
             </button>
           ))}
         </div>
@@ -1416,7 +1416,7 @@ function PatientAppointments() {
                     <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100 shadow-sm">
                       <i className={`fas ${tab === 'upcoming' ? 'fa-calendar-plus text-aubergine-300' : 'fa-clock-rotate-left text-slate-300'} text-4xl`}></i>
                     </div>
-                    <h3 className="text-lg font-black text-slate-800 mb-1">
+                    <h3 className="text-lg font-semibold text-slate-800 mb-1">
                       No Appointments Found
                     </h3>
                     <p className="text-sm text-slate-500 max-w-sm mx-auto mb-6">
@@ -1455,7 +1455,7 @@ function PatientAppointments() {
               </div>
               <div className="flex flex-col items-end gap-2">
                 <div className="text-right">
-                  <div className="text-2xl font-black text-amber-600">#{entry.position}</div>
+                  <div className="text-2xl font-semibold text-amber-600">#{entry.position}</div>
                   <div className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">In Queue</div>
                 </div>
                 <button onClick={() => handleWaitlistCancel(entry)}

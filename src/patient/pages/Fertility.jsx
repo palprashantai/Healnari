@@ -37,15 +37,15 @@ function NumberStepper({ value, onChange, min, max, suffix }) {
   return (
     <div className="flex items-center gap-3">
       <button type="button" onClick={dec} aria-label="Decrease"
-        className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-black flex items-center justify-center flex-shrink-0 active:scale-95 transition-all shadow-sm">
+        className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold flex items-center justify-center flex-shrink-0 active:scale-95 transition-all shadow-sm">
         <i className="fas fa-minus"></i>
       </button>
       <div className="flex-1 text-center bg-white border-2 border-slate-100 rounded-xl py-1.5 shadow-inner">
-        <div className="text-xl font-black text-slate-800">{value}</div>
+        <div className="text-xl font-semibold text-slate-800">{value}</div>
         <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">{suffix}</div>
       </div>
       <button type="button" onClick={inc} aria-label="Increase"
-        className="w-10 h-10 rounded-xl bg-aubergine-100 hover:bg-aubergine-200 text-aubergine-700 text-sm font-black flex items-center justify-center flex-shrink-0 active:scale-95 transition-all shadow-sm">
+        className="w-10 h-10 rounded-xl bg-aubergine-100 hover:bg-aubergine-200 text-aubergine-700 text-sm font-semibold flex items-center justify-center flex-shrink-0 active:scale-95 transition-all shadow-sm">
         <i className="fas fa-plus"></i>
       </button>
     </div>
@@ -113,7 +113,7 @@ function MonthCalendar({ year, month, getDayType, activeDay, onDayHover, onDayPi
           <i className="fas fa-chevron-left group-hover:-translate-x-0.5 transition-transform"></i>
           {prevHasMarks && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-400 border border-white"></span>}
         </button>
-        <p className="text-[15px] font-black text-slate-800 tracking-tight">{monthLabel}</p>
+        <p className="text-[15px] font-semibold text-slate-800 tracking-tight">{monthLabel}</p>
         <button onClick={onNext} aria-label="Next month"
           className="relative w-8 h-8 rounded-xl hover:bg-white shadow-sm flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all text-sm group">
           <i className="fas fa-chevron-right group-hover:translate-x-0.5 transition-transform"></i>
@@ -122,7 +122,7 @@ function MonthCalendar({ year, month, getDayType, activeDay, onDayHover, onDayPi
       </div>
       <div className="grid grid-cols-7 gap-y-2 mb-2">
         {WEEKDAY_LABELS.map((w, i) => (
-          <div key={i} className="text-center text-[10px] font-black text-slate-400 uppercase tracking-wider">{w.slice(0, 3)}</div>
+          <div key={i} className="text-center text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{w.slice(0, 3)}</div>
         ))}
       </div>
       <div className="grid grid-cols-7 gap-y-2 gap-x-1" onMouseLeave={() => onDayHover(null)}>
@@ -151,10 +151,10 @@ function DayInfoPanel({ dateStr, type, cycleDay, onLogPeriod, logging }) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <p className="font-black text-slate-800 text-sm">{formatDate(dateStr)}</p>
+            <p className="font-semibold text-slate-800 text-sm">{formatDate(dateStr)}</p>
             {cycleDay != null && <span className="text-[11px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">Day {cycleDay}</span>}
           </div>
-          <p className={`text-[11px] font-black uppercase tracking-wider mt-1 ${info.iconColor}`}>{info.label}</p>
+          <p className={`text-[11px] font-semibold uppercase tracking-wider mt-1 ${info.iconColor}`}>{info.label}</p>
           <p className="text-[13px] text-slate-600 mt-1 leading-snug">{info.description}</p>
           {isLogged ? (
             <div className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
@@ -224,7 +224,7 @@ function SetupWizard({ defaultLastPeriodStart, onComplete }) {
             <i className="fas fa-wand-magic-sparkles"></i>
           </div>
           <div>
-            <h3 className="text-xl font-black text-slate-800">Let's set up your calendar</h3>
+            <h3 className="text-xl font-semibold text-slate-800">Let's set up your calendar</h3>
             <p className="text-sm text-slate-500 mt-2">How would you like to calculate your predictions?</p>
           </div>
           <div className="space-y-3">
@@ -234,7 +234,7 @@ function SetupWizard({ defaultLastPeriodStart, onComplete }) {
                 <i className={`fas ${checkingTrackRecord ? 'fa-spinner fa-spin' : 'fa-clock-rotate-left'}`}></i>
               </div>
               <div className="ml-4 flex-1">
-                <p className="font-black text-slate-800 text-sm">Use my track record</p>
+                <p className="font-semibold text-slate-800 text-sm">Use my track record</p>
                 <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">{checkingTrackRecord ? 'Checking your logged cycles…' : "Analyze cycles I've already logged."}</p>
               </div>
               <i className="fas fa-chevron-right text-slate-300 group-hover:text-emerald-500"></i>
@@ -245,7 +245,7 @@ function SetupWizard({ defaultLastPeriodStart, onComplete }) {
                 <i className="fas fa-keyboard"></i>
               </div>
               <div className="ml-4 flex-1">
-                <p className="font-black text-slate-800 text-sm">Enter details manually</p>
+                <p className="font-semibold text-slate-800 text-sm">Enter details manually</p>
                 <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">Answer 3 quick questions for an estimate.</p>
               </div>
               <i className="fas fa-chevron-right text-slate-300 group-hover:text-aubergine-500"></i>
@@ -260,7 +260,7 @@ function SetupWizard({ defaultLastPeriodStart, onComplete }) {
             <button type="button" onClick={() => setStep('source')} className="text-slate-400 hover:text-slate-600 absolute left-5 top-5">
               <i className="fas fa-arrow-left"></i>
             </button>
-            <h3 className="text-xl font-black text-slate-800">Your Cycle Details</h3>
+            <h3 className="text-xl font-semibold text-slate-800">Your Cycle Details</h3>
             <p className="text-xs text-slate-500 mt-1">We'll use this to build your calendar.</p>
           </div>
 
@@ -269,7 +269,7 @@ function SetupWizard({ defaultLastPeriodStart, onComplete }) {
               <label className="text-xs font-bold text-slate-700 mb-2 block">1. When did your last period start?</label>
               <input type="date" required value={lastPeriodStart} max={todayLocalStr()}
                 onChange={e => setLastPeriodStart(e.target.value)}
-                className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-black text-slate-800 text-center focus:outline-none focus:border-aubergine-400 focus:ring-4 focus:ring-aubergine-100 transition-all bg-white" />
+                className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-800 text-center focus:outline-none focus:border-aubergine-400 focus:ring-4 focus:ring-aubergine-100 transition-all bg-white" />
             </div>
 
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
@@ -287,7 +287,7 @@ function SetupWizard({ defaultLastPeriodStart, onComplete }) {
           </div>
 
           <button type="submit" disabled={submitting}
-            className="w-full bg-gradient-to-r from-aubergine-500 to-aubergine-600 hover:from-aubergine-600 hover:to-aubergine-700 text-white font-black py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-aubergine-200 hover:shadow-xl hover:-translate-y-0.5">
+            className="w-full bg-gradient-to-r from-aubergine-500 to-aubergine-600 hover:from-aubergine-600 hover:to-aubergine-700 text-white font-semibold py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-aubergine-200 hover:shadow-xl hover:-translate-y-0.5">
             {submitting ? <i className="fas fa-spinner fa-spin"></i> : <><i className="fas fa-calculator mr-2"></i>Calculate</>}
           </button>
         </form>
@@ -321,7 +321,7 @@ function CycleRing({ prediction, todayCycleDay }) {
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 flex flex-col items-center">
-      <h3 className="text-sm font-black text-slate-800 mb-1">Cycle Status</h3>
+      <h3 className="text-sm font-semibold text-slate-800 mb-1">Cycle Status</h3>
       <p className="text-[11px] text-slate-500 mb-6">Day {cappedCurrentDay} of {cycleLen}</p>
 
       <div className="relative w-48 h-48 flex items-center justify-center">
@@ -356,17 +356,17 @@ function CycleRing({ prediction, todayCycleDay }) {
           {currentDay <= periodLen ? (
             <>
               <i className="fas fa-droplet text-rose-500 text-xl mb-1 drop-shadow-sm"></i>
-              <span className="text-[10px] font-black uppercase text-rose-600 tracking-wider">Period</span>
+              <span className="text-[10px] font-semibold uppercase text-rose-600 tracking-wider">Period</span>
             </>
           ) : currentDay >= fwStart && currentDay <= fwEnd ? (
              <>
                <i className="fas fa-egg text-aubergine-600 text-xl mb-1 drop-shadow-sm"></i>
-               <span className="text-[10px] font-black uppercase text-aubergine-700 tracking-wider">Fertile</span>
+               <span className="text-[10px] font-semibold uppercase text-aubergine-700 tracking-wider">Fertile</span>
              </>
           ) : (
             <>
                <i className="fas fa-leaf text-slate-400 text-xl mb-1"></i>
-               <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Follicular/<br/>Luteal</span>
+               <span className="text-[10px] font-semibold uppercase text-slate-500 tracking-wider">Follicular/<br/>Luteal</span>
             </>
           )}
         </div>
@@ -466,7 +466,7 @@ function AccordionCard({ topic, isOpen, onToggle }) {
           <i className={`fas ${topic.icon}`}></i>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-black text-slate-800 text-[13px]">{topic.title}</p>
+          <p className="font-semibold text-slate-800 text-[13px]">{topic.title}</p>
           <p className="text-[11px] text-slate-500 mt-0.5">{topic.summary}</p>
         </div>
         <i className={`fas fa-chevron-down text-slate-400 text-xs transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`}></i>
@@ -502,7 +502,7 @@ function LearnSection() {
     <div className="bg-white/80 backdrop-blur-md rounded-3xl border border-slate-200 overflow-hidden shadow-sm mt-8">
       <button onClick={() => setExpanded(!expanded)} aria-expanded={expanded}
         className="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors">
-        <span className="text-sm font-black text-slate-700 flex items-center gap-2">
+        <span className="text-sm font-semibold text-slate-700 flex items-center gap-2">
           <i className="fas fa-book-open text-slate-400"></i> Learn About Your Cycle & Fertility
         </span>
         <i className={`fas fa-chevron-${expanded ? 'up' : 'down'} text-slate-400 text-sm`}></i>
@@ -672,7 +672,7 @@ function PatientFertility() {
              <i className="fas fa-calendar-heart"></i>
            </div>
            <div>
-             <h1 className="text-xl font-black text-slate-800 tracking-tight">Your Fertility Calendar</h1>
+             <h1 className="text-xl font-semibold text-slate-800 tracking-tight">Your Fertility Calendar</h1>
              <p className="text-[13px] text-slate-500 font-medium">Track your cycles, predict your best days.</p>
            </div>
         </div>
@@ -684,7 +684,7 @@ function PatientFertility() {
             </button>
           )}
           <button onClick={load} disabled={loading}
-            className="bg-white border-2 border-slate-100 hover:border-aubergine-200 disabled:opacity-60 text-aubergine-700 font-black px-4 py-2 rounded-xl text-[13px] flex items-center gap-2 transition-all shadow-sm group">
+            className="bg-white border-2 border-slate-100 hover:border-aubergine-200 disabled:opacity-60 text-aubergine-700 font-semibold px-4 py-2 rounded-xl text-[13px] flex items-center gap-2 transition-all shadow-sm group">
             <i className={`fas fa-arrows-rotate ${loading ? 'fa-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`}></i> Refresh
           </button>
         </div>
@@ -700,7 +700,7 @@ function PatientFertility() {
             <p className="text-[11px] text-slate-600 leading-snug">Calculated for conception planning and cycle awareness. Not an FDA/CE-certified contraceptive device — do not use as birth control.</p>
           </div>
         </div>
-        <span className="text-[10px] font-black uppercase tracking-wider text-aubergine-700 bg-aubergine-100 px-2.5 py-1 rounded-lg border border-aubergine-200 flex-shrink-0">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-aubergine-700 bg-aubergine-100 px-2.5 py-1 rounded-lg border border-aubergine-200 flex-shrink-0">
           Multi-Modal Engine
         </span>
       </div>
@@ -711,7 +711,7 @@ function PatientFertility() {
             <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
             <div className="absolute inset-0 border-4 border-aubergine-500 rounded-full border-t-transparent animate-spin"></div>
           </div>
-          <p className="font-black text-base text-slate-700">Analyzing your cycle history…</p>
+          <p className="font-semibold text-base text-slate-700">Analyzing your cycle history…</p>
         </div>
       )}
 
@@ -720,7 +720,7 @@ function PatientFertility() {
           <div className="w-16 h-16 bg-rose-100 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-sm">
              <i className="fas fa-triangle-exclamation"></i>
           </div>
-          <p className="text-base text-rose-800 font-black">{error}</p>
+          <p className="text-base text-rose-800 font-semibold">{error}</p>
         </div>
       )}
       
@@ -735,7 +735,7 @@ function PatientFertility() {
           <div className="lg:col-span-7 space-y-6">
             <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white shadow-xl shadow-slate-200/40 p-4 sm:p-6 transition-all">
               <div className="flex justify-between items-center mb-6">
-                 <h2 className="text-base font-black text-slate-800">Your Calendar</h2>
+                 <h2 className="text-base font-semibold text-slate-800">Your Calendar</h2>
                  <p className="text-[11px] font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100">
                    <i className="fas fa-arrow-pointer mr-1.5"></i>Tap to log
                  </p>
@@ -748,7 +748,7 @@ function PatientFertility() {
               {nextPeriodElsewhere && (
                 <div className="flex justify-center mt-4">
                   <button onClick={() => goToDate(prediction.nextPeriodEstimate)}
-                    className="text-[11px] font-black text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-100 px-4 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-sm hover:shadow-md">
+                    className="text-[11px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-100 px-4 py-1.5 rounded-xl transition-all inline-flex items-center gap-1.5 shadow-sm hover:shadow-md">
                     Jump to next period <i className="fas fa-arrow-right"></i>
                   </button>
                 </div>
@@ -764,7 +764,7 @@ function PatientFertility() {
                 ].map(l => (
                   <div key={l.label} className="flex items-center gap-2">
                     <div className={`w-3.5 h-3.5 rounded-full flex-shrink-0 ${l.swatch}`}></div>
-                    <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider">{l.label}</span>
+                    <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{l.label}</span>
                   </div>
                 ))}
               </div>
@@ -787,10 +787,10 @@ function PatientFertility() {
                         <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md text-xl flex items-center justify-center mx-auto mb-4 shadow-inner ring-1 ring-white/30 group-hover:rotate-12 transition-transform duration-500">
                         <i className="fas fa-egg"></i>
                         </div>
-                        <p className="text-emerald-50/80 font-black text-[11px] uppercase tracking-widest mb-1">Your Best Days To Try</p>
-                        <p className="text-2xl sm:text-3xl font-black mb-1 drop-shadow-md">{formatShort(prediction.fertileWindow[0])} – {formatShort(prediction.fertileWindow[1])}</p>
+                        <p className="text-emerald-50/80 font-semibold text-[11px] uppercase tracking-widest mb-1">Your Best Days To Try</p>
+                        <p className="text-2xl sm:text-3xl font-semibold mb-1 drop-shadow-md">{formatShort(prediction.fertileWindow[0])} – {formatShort(prediction.fertileWindow[1])}</p>
                         <div className="bg-black/10 inline-block px-3 py-1.5 rounded-xl mt-2 backdrop-blur-sm border border-white/10">
-                           <p className="text-emerald-50 text-[13px] font-medium">Peak day: <strong className="text-white font-black">{formatDate(prediction.estimatedOvulationDate)}</strong></p>
+                           <p className="text-emerald-50 text-[13px] font-medium">Peak day: <strong className="text-white font-semibold">{formatDate(prediction.estimatedOvulationDate)}</strong></p>
                         </div>
                     </div>
                   </div>
@@ -801,7 +801,7 @@ function PatientFertility() {
                     <div className={`rounded-2xl border p-4 flex items-center gap-3 ${conf.bg} shadow-sm`}>
                       <i className={`fas ${conf.icon} ${conf.color} text-2xl flex-shrink-0 drop-shadow-sm`}></i>
                       <div>
-                        <p className={`font-black text-sm ${conf.color}`}>{conf.word}</p>
+                        <p className={`font-semibold text-sm ${conf.color}`}>{conf.word}</p>
                         <p className="text-[10px] text-slate-500 mt-0.5 font-bold uppercase tracking-wide">Confidence</p>
                       </div>
                     </div>
@@ -810,7 +810,7 @@ function PatientFertility() {
                          <i className="fas fa-droplet text-xl"></i>
                       </div>
                       <div>
-                        <p className="font-black text-aubergine-800 text-sm">{formatDate(prediction.nextPeriodEstimate)}</p>
+                        <p className="font-semibold text-aubergine-800 text-sm">{formatDate(prediction.nextPeriodEstimate)}</p>
                         <p className="text-[10px] text-slate-500 mt-0.5 font-bold uppercase tracking-wide">Next Period</p>
                       </div>
                     </div>

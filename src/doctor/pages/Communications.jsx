@@ -122,7 +122,7 @@ function DoctorCommunications() {
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       <div>
-        <h1 className="text-2xl font-black text-slate-800">Communication Center</h1>
+        <h1 className="text-2xl font-semibold text-slate-800">Communication Center</h1>
         <p className="text-sm text-slate-500">Send direct messages, reminders, and updates to your patients.</p>
       </div>
 
@@ -131,21 +131,21 @@ function DoctorCommunications() {
         <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-5 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-[10px] uppercase font-bold text-aubergine-600 mb-1">Messages Sent (Month)</p>
-            <p className="text-2xl font-black text-aubergine-700">{messagesSentCount}</p>
+            <p className="text-2xl font-semibold text-aubergine-700">{messagesSentCount}</p>
           </div>
           <i className="fas fa-paper-plane text-4xl text-aubergine-200"></i>
         </div>
         <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-[10px] uppercase font-bold text-emerald-600 mb-1">Patient Open Rate</p>
-            <p className="text-2xl font-black text-emerald-700">{openRate}</p>
+            <p className="text-2xl font-semibold text-emerald-700">{openRate}</p>
           </div>
           <i className="fas fa-envelope-open-text text-4xl text-emerald-200"></i>
         </div>
         <div className="bg-amber-50 border border-amber-100 rounded-xl p-5 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-[10px] uppercase font-bold text-amber-600 mb-1">WhatsApp Delivered</p>
-            <p className="text-2xl font-black text-amber-700">{whatsappDeliveredCount}</p>
+            <p className="text-2xl font-semibold text-amber-700">{whatsappDeliveredCount}</p>
           </div>
           <i className="fas fa-mobile-screen-button text-4xl text-amber-200"></i>
         </div>

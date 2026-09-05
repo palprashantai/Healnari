@@ -308,7 +308,7 @@ function StylusHandwritingCanvas({ strokes = [], setStrokes, onExport, className
       <div className="bg-[#F1ECE4] px-4 py-2.5 border-b border-[#E0D8CC] flex items-center justify-between gap-3 flex-wrap text-xs">
         {/* Ink Colors & Stylus Pen */}
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1">
+          <span className="text-[10px] font-semibold uppercase text-slate-500 tracking-wider flex items-center gap-1">
             <i className="fas fa-pen-fancy text-[#1D4ED8]"></i> Ink:
           </span>
           <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#D5CBBF]">
@@ -337,7 +337,7 @@ function StylusHandwritingCanvas({ strokes = [], setStrokes, onExport, className
 
         {/* Stroke Thickness */}
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Nib:</span>
+          <span className="text-[10px] font-semibold uppercase text-slate-500 tracking-wider">Nib:</span>
           <div className="flex items-center bg-white p-0.5 rounded-xl border border-[#D5CBBF]">
             {[
               { w: 2, label: 'Fine' },
@@ -351,7 +351,7 @@ function StylusHandwritingCanvas({ strokes = [], setStrokes, onExport, className
                   setStrokeWidth(n.w);
                   setIsEraser(false);
                 }}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${!isEraser && strokeWidth === n.w ? 'bg-[#1D4ED8] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all ${!isEraser && strokeWidth === n.w ? 'bg-[#1D4ED8] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 {n.label}
               </button>
@@ -1049,15 +1049,15 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
           <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-gradient-to-tr from-[#A78BFA]/15 to-[#EDE7FF] rounded-full blur-3xl pointer-events-none"></div>
 
           <div className="relative z-10">
-            <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#6B46C1] to-[#E23E8C] text-white flex items-center justify-center text-3xl font-black mx-auto mb-5 shadow-xl shadow-[#6B46C1]/25 ring-4 ring-white">
+            <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#6B46C1] to-[#E23E8C] text-white flex items-center justify-center text-3xl font-semibold mx-auto mb-5 shadow-xl shadow-[#6B46C1]/25 ring-4 ring-white">
               {session.patient.split(' ').map(n => n[0]).join('')}
             </div>
 
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider bg-[#EDE7FF] text-[#6B46C1] mb-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-[#EDE7FF] text-[#6B46C1] mb-2">
               <i className="fas fa-video text-[10px]"></i> Ready to Connect
             </span>
 
-            <h3 className="font-serif-brand font-black text-2xl text-slate-800 tracking-tight">{session.patient}</h3>
+            <h3 className="font-semibold text-xl sm:text-2xl text-slate-800 tracking-tight">{session.patient}</h3>
             <p className="text-slate-500 font-medium text-sm mt-1">{session.type} • {session.age || 'Female'}</p>
 
             <div className="bg-slate-50 rounded-2xl p-4 my-6 border border-slate-100 flex items-center justify-around text-xs font-bold text-slate-600">
@@ -1086,7 +1086,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
               </button>
               <button
                 onClick={() => setJoined(true)}
-                className="flex-[2] bg-gradient-to-r from-[#6B46C1] to-[#E23E8C] hover:from-[#522F9E] hover:to-[#C72E75] text-white font-black py-4 rounded-2xl transition-all text-sm shadow-xl shadow-[#6B46C1]/25 hover:shadow-2xl hover:-translate-y-0.5 flex items-center justify-center gap-2.5"
+                className="flex-[2] bg-gradient-to-r from-[#6B46C1] to-[#E23E8C] hover:from-[#522F9E] hover:to-[#C72E75] text-white font-semibold py-4 rounded-2xl transition-all text-sm shadow-xl shadow-[#6B46C1]/25 hover:shadow-2xl hover:-translate-y-0.5 flex items-center justify-center gap-2.5"
               >
                 <i className="fas fa-video"></i> Start Consultation
               </button>
@@ -1106,12 +1106,12 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             {/* Patient Details & Live Call Status */}
             <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-[#6B46C1] to-[#E23E8C] text-white flex items-center justify-center font-black text-xs sm:text-sm shadow-md shrink-0 ring-2 ring-white/10">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-[#6B46C1] to-[#E23E8C] text-white flex items-center justify-center font-semibold text-xs sm:text-sm shadow-md shrink-0 ring-2 ring-white/10">
                 {session.patient.split(' ').map(n => n[0]).join('')}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 sm:gap-2">
-                  <h2 className="font-black text-xs sm:text-sm text-white tracking-tight truncate max-w-[120px] sm:max-w-[200px]">{session.patient}</h2>
+                  <h2 className="font-semibold text-xs sm:text-sm text-white tracking-tight truncate max-w-[120px] sm:max-w-[200px]">{session.patient}</h2>
                   <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded-full border border-slate-700 shrink-0">{session.age || '28F'}</span>
                 </div>
                 <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium flex items-center gap-1.5 sm:gap-2 mt-0.5">
@@ -1177,13 +1177,13 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
               {/* Review & Finalize Button */}
               <button
                 onClick={() => setShowSignModal(true)}
-                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all shrink-0"
+                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-semibold px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all shrink-0"
               >
                 <i className="fas fa-file-signature text-xs"></i>
                 <span className="hidden xs:inline">Review & Sign</span>
                 <span className="xs:hidden">Sign</span>
                 {(draftMeds.length > 0 || draftLabs.length > 0 || freehandRx) && (
-                  <span className="bg-emerald-950/60 text-emerald-200 px-1.5 py-0.2 rounded-full text-[9px] font-black">
+                  <span className="bg-emerald-950/60 text-emerald-200 px-1.5 py-0.2 rounded-full text-[9px] font-semibold">
                     {freehandRx ? '🖊️' : `${draftMeds.length + draftLabs.length}`}
                   </span>
                 )}
@@ -1195,7 +1195,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
           <div className="flex items-center gap-1.5 flex-wrap mt-2 pt-2 border-t border-slate-800/80">
             {/* ⚠️ Dynamic Patient Allergy Alert Badge */}
             {patientRecord?.allergies?.length > 0 ? (
-              <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/50 text-rose-300 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black animate-pulse">
+              <span className="inline-flex items-center gap-1 bg-rose-500/20 border border-rose-500/50 text-rose-300 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-semibold animate-pulse">
                 <i className="fas fa-triangle-exclamation text-rose-400 text-[8px]"></i>
                 <span className="truncate max-w-[180px]">Allergy: {patientRecord.allergies.join(', ')}</span>
               </span>
@@ -1205,7 +1205,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
               </span>
             )}
 
-            <span className="text-[9px] sm:text-[10px] font-black text-[#F98BD2] bg-[#E23E8C]/15 px-2 py-0.5 rounded-full border border-[#E23E8C]/30 flex items-center gap-1 truncate max-w-[160px] sm:max-w-none">
+            <span className="text-[9px] sm:text-[10px] font-semibold text-[#F98BD2] bg-[#E23E8C]/15 px-2 py-0.5 rounded-full border border-[#E23E8C]/30 flex items-center gap-1 truncate max-w-[160px] sm:max-w-none">
               <i className="fas fa-notes-medical text-[8px]"></i> {diagnosis}
             </span>
           </div>
@@ -1220,7 +1220,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-800 shrink-0">
                 <div>
-                  <h3 className="text-sm font-black text-white flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
                     <i className="fas fa-notes-medical text-[#A78BFA]"></i> Quick EMR
                   </h3>
                   <p className="text-[11px] text-slate-400 font-medium mt-0.5">{session.patient}</p>
@@ -1238,7 +1238,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
 
                 {/* Allergies */}
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
                     <i className="fas fa-triangle-exclamation text-rose-400"></i> Known Allergies
                   </p>
                   {patientRecord?.allergies?.length > 0 ? (
@@ -1256,7 +1256,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
 
                 {/* Vitals */}
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
                     <i className="fas fa-heart-pulse text-pink-400"></i> Latest Vitals
                   </p>
                   <div className="grid grid-cols-2 gap-2">
@@ -1270,7 +1270,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                         <p className={`text-[9px] font-bold uppercase tracking-wide ${v.color} flex items-center gap-1 mb-0.5`}>
                           <i className={`fas ${v.icon} text-[8px]`}></i> {v.label}
                         </p>
-                        <p className="text-sm font-black text-white">{v.value}</p>
+                        <p className="text-sm font-semibold text-white">{v.value}</p>
                       </div>
                     ))}
                   </div>
@@ -1279,14 +1279,14 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                 {/* Past Lab Reports */}
                 {patientRecord?.reports?.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
                       <i className="fas fa-flask text-teal-400"></i> Recent Lab Results
                     </p>
                     <div className="space-y-2">
                       {patientRecord.reports.map((r, i) => (
                         <div key={i} className="bg-slate-800/60 rounded-xl p-3 border border-slate-700/40">
                           <div className="flex items-center justify-between gap-1 mb-1">
-                            <p className="text-[11px] font-black text-white line-clamp-1">{r.testName}</p>
+                            <p className="text-[11px] font-semibold text-white line-clamp-1">{r.testName}</p>
                             <span className="text-[9px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0">{r.status}</span>
                           </div>
                           <p className="text-[11px] text-slate-400 leading-relaxed line-clamp-2">{r.results}</p>
@@ -1300,7 +1300,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                 {/* Current Medications */}
                 {patientRecord?.meds?.length > 0 && (
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
                       <i className="fas fa-pills text-[#E23E8C]"></i> Active Medications
                     </p>
                     <div className="space-y-1.5">
@@ -1317,7 +1317,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                 {/* Clinical Notes Preview */}
                 {clinicalNotes && (
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
                       <i className="fas fa-file-medical text-amber-400"></i> Current Session Notes
                     </p>
                     <div className="bg-slate-800/60 rounded-xl p-3 border border-slate-700/40">
@@ -1337,10 +1337,10 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                 <VideoTile stream={call.remoteStream} className="absolute inset-0 object-cover w-full h-full" />
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900">
-                  <div className="w-24 h-24 rounded-3xl bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-4xl font-black text-slate-300 mb-4 shadow-inner">
+                  <div className="w-24 h-24 rounded-3xl bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-4xl font-semibold text-slate-300 mb-4 shadow-inner">
                     {session.patient.split(' ').map(n => n[0]).join('')}
                   </div>
-                  <h3 className="font-serif-brand font-black text-xl text-white tracking-tight">{session.patient}</h3>
+                  <h3 className="font-semibold text-xl text-white tracking-tight">{session.patient}</h3>
                   <p className="text-slate-400 text-xs mt-2 flex items-center gap-2">
                     {call.connectionState !== 'failed' && call.connectionState !== 'peer-left' && call.connectionState !== 'ended' && (
                       <i className="fas fa-circle-notch fa-spin text-[#A78BFA]"></i>
@@ -1418,7 +1418,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                 >
                   <i className="fas fa-file-prescription"></i>
                   {(draftMeds.length > 0 || draftLabs.length > 0) && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-slate-900">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-white text-[9px] font-semibold rounded-full flex items-center justify-center border-2 border-slate-900">
                       {draftMeds.length + draftLabs.length}
                     </span>
                   )}
@@ -1448,7 +1448,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
             <div className="lg:hidden w-full pt-3 pb-2 flex flex-col items-center justify-center bg-slate-950/80 cursor-pointer border-b border-slate-800/80" onClick={() => setMobileDrawerOpen(false)}>
               <div className="w-12 h-1.5 rounded-full bg-slate-700"></div>
               <div className="flex items-center justify-between w-full px-5 mt-2">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
                   <i className="fas fa-stethoscope text-aubergine-400"></i> Clinical Workspace ({session.patient})
                 </span>
                 <button onClick={() => setMobileDrawerOpen(false)} className="text-slate-400 hover:text-white text-xs px-2 py-0.5 rounded-lg bg-slate-800">
@@ -1459,7 +1459,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
             
             {/* 1-Click Smart Protocols Ribbon */}
             <div className="p-3 bg-slate-900/90 border-b border-slate-800 flex items-center gap-2 overflow-x-auto hide-scrollbar shrink-0">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#A78BFA] flex items-center gap-1.5 shrink-0 pl-1">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-[#A78BFA] flex items-center gap-1.5 shrink-0 pl-1">
                 <i className="fas fa-bolt text-amber-400"></i> Smart Packs:
               </span>
               {CLINICAL_PROTOCOLS.map(proto => (
@@ -1482,7 +1482,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
               >
                 <i className="fas fa-pills text-[#E23E8C]"></i>
                 <span>Smart Rx</span>
-                {draftMeds.length > 0 && <span className="bg-[#E23E8C]/20 text-[#F98BD2] text-[10px] px-1.5 py-0.5 rounded-full font-black">{draftMeds.length}</span>}
+                {draftMeds.length > 0 && <span className="bg-[#E23E8C]/20 text-[#F98BD2] text-[10px] px-1.5 py-0.5 rounded-full font-semibold">{draftMeds.length}</span>}
               </button>
 
               <button
@@ -1500,7 +1500,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
               >
                 <i className="fas fa-flask text-[#A78BFA]"></i>
                 <span>Lab Requests</span>
-                {draftLabs.length > 0 && <span className="bg-aubergine-500/30 text-aubergine-200 text-[10px] px-1.5 py-0.5 rounded-full font-black">{draftLabs.length}</span>}
+                {draftLabs.length > 0 && <span className="bg-aubergine-500/30 text-aubergine-200 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">{draftLabs.length}</span>}
               </button>
 
               <button
@@ -1529,7 +1529,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                   {/* Medicine Input Console */}
                   <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 shadow-inner space-y-3.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                      <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                         <i className="fas fa-magnifying-glass text-[#A78BFA]"></i> Search / Enter Medicine
                       </label>
                       <button
@@ -1566,7 +1566,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                       {/* Dropdown Suggestions */}
                       {isMedDropdownOpen && (
                         <div className="absolute left-0 right-0 top-full mt-1.5 bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl max-h-64 overflow-y-auto custom-scrollbar z-50 p-1.5 space-y-0.5">
-                          <div className="flex items-center justify-between px-3 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-800 mb-1">
+                          <div className="flex items-center justify-between px-3 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800 mb-1">
                             <span>Matches ({filterAndRankCatalog(medCatalog, medSearch).length})</span>
                             <span className="text-[9px] text-[#A78BFA] font-bold">Prefix &amp; Keyword Match</span>
                           </div>
@@ -1578,11 +1578,11 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                               className="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-800 text-xs font-bold text-slate-200 hover:text-white flex items-center justify-between transition-colors group"
                             >
                               <span className="flex items-center gap-1.5 flex-1 min-w-0 pr-2">
-                                {item.isCustom && <span className="text-[9px] bg-purple-900/60 text-purple-300 border border-purple-700/60 px-1.5 py-0.2 rounded font-black shrink-0">Custom</span>}
+                                {item.isCustom && <span className="text-[9px] bg-purple-900/60 text-purple-300 border border-purple-700/60 px-1.5 py-0.2 rounded font-semibold shrink-0">Custom</span>}
                                 <span className="truncate">
                                   {medSearch && item.name.toLowerCase().startsWith(medSearch.trim().toLowerCase()) ? (
                                     <>
-                                      <span className="text-[#F98BD2] bg-[#E23E8C]/20 px-0.5 rounded font-black">{item.name.slice(0, medSearch.trim().length)}</span>
+                                      <span className="text-[#F98BD2] bg-[#E23E8C]/20 px-0.5 rounded font-semibold">{item.name.slice(0, medSearch.trim().length)}</span>
                                       <span>{item.name.slice(medSearch.trim().length)}</span>
                                     </>
                                   ) : (
@@ -1626,7 +1626,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                     {/* Dosage & Frequency Matrix */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Dosage</label>
+                        <label className="text-[10px] font-semibold text-slate-400 uppercase mb-1 block">Dosage</label>
                         <input
                           type="text"
                           value={medDosage}
@@ -1637,7 +1637,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Schedule</label>
+                        <label className="text-[10px] font-semibold text-slate-400 uppercase mb-1 block">Schedule</label>
                         <select
                           value={medFrequency}
                           onChange={(e) => setMedFrequency(e.target.value)}
@@ -1653,7 +1653,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Timing</label>
+                        <label className="text-[10px] font-semibold text-slate-400 uppercase mb-1 block">Timing</label>
                         <select
                           value={medTiming}
                           onChange={(e) => setMedTiming(e.target.value)}
@@ -1667,7 +1667,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Duration</label>
+                        <label className="text-[10px] font-semibold text-slate-400 uppercase mb-1 block">Duration</label>
                         <input
                           type="text"
                           value={medDuration}
@@ -1681,7 +1681,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                     <button
                       type="button"
                       onClick={handleAddMed}
-                      className="w-full bg-[#6B46C1] hover:bg-[#522F9E] text-white font-black py-2.5 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all hover:shadow-lg"
+                      className="w-full bg-[#6B46C1] hover:bg-[#522F9E] text-white font-semibold py-2.5 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all hover:shadow-lg"
                     >
                       <i className="fas fa-plus"></i> Add to Prescription
                     </button>
@@ -1690,7 +1690,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                   {/* Drafted Medications List */}
                   <div>
                     <div className="flex items-center justify-between mb-2.5">
-                      <p className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                         <i className="fas fa-prescription-bottle-medical text-emerald-400"></i> Prescribed Medicines ({draftMeds.length})
                       </p>
                       <div className="flex items-center gap-2">
@@ -1729,9 +1729,9 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                           >
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-serif-brand font-black text-slate-200 text-sm tracking-tight">{med.name}</span>
+                                <span className="font-semibold text-slate-200 text-sm tracking-tight">{med.name}</span>
                                 {med.dosage && (
-                                  <span className="text-[10px] font-black text-[#F98BD2] bg-[#E23E8C]/15 px-2 py-0.5 rounded-md border border-[#E23E8C]/30">
+                                  <span className="text-[10px] font-bold text-[#F98BD2] bg-[#E23E8C]/15 px-2 py-0.5 rounded-md border border-[#E23E8C]/30">
                                     {med.dosage}
                                   </span>
                                 )}
@@ -1763,7 +1763,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                 <div className="space-y-4 animate-fade-in">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
-                      <h4 className="font-serif-brand font-black text-white text-sm tracking-tight flex items-center gap-2">
+                      <h4 className="font-semibold text-white text-sm tracking-tight flex items-center gap-2">
                         <i className="fas fa-pen-fancy text-[#A78BFA]"></i> Tablet Stylus & Prescription Pad
                       </h4>
                       <p className="text-[11px] text-slate-400 font-medium">Write directly with tablet pen — your handwriting will be captured on the official prescription.</p>
@@ -1887,7 +1887,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                     {/* Smart Lab Search Dropdown */}
                     {isLabDropdownOpen && (
                       <div className="absolute left-0 right-0 top-full mt-1.5 bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl max-h-64 overflow-y-auto custom-scrollbar z-50 p-1.5 space-y-0.5">
-                        <div className="flex items-center justify-between px-3 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-800 mb-1">
+                        <div className="flex items-center justify-between px-3 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800 mb-1">
                           <span>Diagnostic Tests ({filterAndRankCatalog(labCatalog, customLabInput).length})</span>
                           <span className="text-[9px] text-aubergine-400 font-bold">Prefix &amp; Keyword Match</span>
                         </div>
@@ -1908,7 +1908,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                                 <span className="truncate">
                                   {customLabInput && item.name.toLowerCase().startsWith(customLabInput.trim().toLowerCase()) ? (
                                     <>
-                                      <span className="text-aubergine-300 bg-aubergine-500/30 px-0.5 rounded font-black">{item.name.slice(0, customLabInput.trim().length)}</span>
+                                      <span className="text-aubergine-300 bg-aubergine-500/30 px-0.5 rounded font-semibold">{item.name.slice(0, customLabInput.trim().length)}</span>
                                       <span>{item.name.slice(customLabInput.trim().length)}</span>
                                     </>
                                   ) : (
@@ -1961,7 +1961,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                           className={`p-3 rounded-2xl border text-left transition-all flex items-start justify-between gap-2.5 ${isSelected ? 'bg-aubergine-500/20 border-aubergine-400/80 text-white shadow-lg shadow-aubergine-500/10 ring-1 ring-aubergine-400/50' : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900'}`}
                         >
                           <div>
-                            <span className="text-[10px] font-black text-aubergine-400 uppercase tracking-widest">{item.badge}</span>
+                            <span className="text-[10px] font-semibold text-aubergine-400 uppercase tracking-widest">{item.badge}</span>
                             <h5 className="font-bold text-xs mt-0.5 leading-snug">{item.name}</h5>
                           </div>
                           <div className={`w-5 h-5 rounded-lg flex items-center justify-center text-xs shrink-0 mt-0.5 transition-colors ${isSelected ? 'bg-aubergine-600 text-white' : 'bg-slate-800 text-transparent'}`}>
@@ -1975,7 +1975,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                   {/* Selected Labs Summary */}
                   {draftLabs.length > 0 && (
                     <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 space-y-2">
-                      <p className="text-[11px] font-black text-aubergine-400 uppercase tracking-wider">
+                      <p className="text-[11px] font-semibold text-aubergine-400 uppercase tracking-wider">
                         Requested Investigations ({draftLabs.length})
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -2001,7 +2001,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                 <div className="space-y-4 animate-fade-in">
                   <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                      <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                         <i className="fas fa-microphone-lines text-amber-400"></i> SOAP Clinical Notes
                       </label>
                       <AIButton
@@ -2042,7 +2042,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                   {/* Diet & Nutrition Plan Box */}
                   <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                      <label className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
                         <i className="fas fa-seedling text-emerald-400"></i> Diet & Nutrition Plan
                       </label>
                     </div>
@@ -2070,7 +2070,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                   {/* Yoga & Mindful Movement Protocol Box */}
                   <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-black text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                      <label className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-2">
                         <i className="fas fa-om text-amber-400"></i> Yoga &amp; Mindful Movement Protocol
                       </label>
                     </div>
@@ -2098,7 +2098,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                   {/* 📅 1-Tap Follow-Up Recommendation Box */}
                   <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                      <label className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
                         <i className="fas fa-calendar-check"></i> Recommended Next Follow-Up
                       </label>
                       <span className="text-[10px] text-slate-400 font-medium">Auto-adds to patient prescription & portal</span>
@@ -2143,7 +2143,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                   {/* Vitals Summary Strip */}
                   <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 shadow-inner">
                     <div className="flex items-center justify-between mb-3">
-                      <h5 className="text-[11px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                      <h5 className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
                         <i className="fas fa-heart-pulse"></i> Patient Recorded Vitals & Metrics
                       </h5>
                       <AIButton
@@ -2160,7 +2160,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
 
                     {chartSummary && (
                       <div className="mb-3 p-3 bg-purple-950/40 border border-purple-800/80 rounded-xl text-xs text-purple-200 leading-relaxed space-y-1">
-                        <span className="text-[10px] font-black text-purple-300 uppercase tracking-wider block">✨ AI Longitudinal Chart Synthesis:</span>
+                        <span className="text-[10px] font-semibold text-purple-300 uppercase tracking-wider block">✨ AI Longitudinal Chart Synthesis:</span>
                         <div className="whitespace-pre-line text-[11px] text-slate-200">{chartSummary}</div>
                       </div>
                     )}
@@ -2186,14 +2186,14 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
 
                   {/* 🩺 Complete Medical, Gynecological & Family History */}
                   <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 space-y-3">
-                    <h5 className="text-[11px] font-black text-[#A78BFA] uppercase tracking-wider flex items-center gap-2">
+                    <h5 className="text-[11px] font-semibold text-[#A78BFA] uppercase tracking-wider flex items-center gap-2">
                       <i className="fas fa-file-waveform"></i> Medical & Gynecological History
                     </h5>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                       {/* Chronic Conditions */}
                       <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Chronic Conditions / Diagnosis</span>
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Chronic Conditions / Diagnosis</span>
                         <div className="flex flex-wrap gap-1.5 mt-1">
                           {(patientRecord?.medicalHistory?.chronicConditions?.length ? patientRecord.medicalHistory.chronicConditions : ['PCOS Phenotype B (Oligo-ovulatory)', 'Mild Insulin Resistance']).map((cond, i) => (
                             <span key={i} className="bg-purple-950/60 text-purple-200 border border-purple-800/80 px-2.5 py-0.5 rounded-lg text-[11px] font-bold">
@@ -2205,7 +2205,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
 
                       {/* Menstrual & Cycle Profile */}
                       <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Gynecological & Menstrual Cycle</span>
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Gynecological & Menstrual Cycle</span>
                         <p className="text-slate-300 text-xs font-medium">
                           <span className="text-slate-400">Cycle Length:</span> 38–45 Days (Irregular) • <span className="text-slate-400">Flow:</span> Heavy with dysmenorrhea (Day 1-2) • <span className="text-slate-400">LMP:</span> 14 Days Ago
                         </p>
@@ -2213,7 +2213,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
 
                       {/* Surgeries & Procedures */}
                       <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Past Surgeries & Procedures</span>
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Past Surgeries & Procedures</span>
                         <p className="text-slate-300 text-xs font-medium">
                           {patientRecord?.medicalHistory?.surgeries?.length ? patientRecord.medicalHistory.surgeries.join(', ') : 'Diagnostic Pelvic Laparoscopy (2023 - Uncomplicated)'}
                         </p>
@@ -2221,7 +2221,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
 
                       {/* Family History */}
                       <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block mb-1">Family Medical History</span>
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">Family Medical History</span>
                         <p className="text-slate-300 text-xs font-medium">
                           {patientRecord?.medicalHistory?.familyHistory?.length ? patientRecord.medicalHistory.familyHistory.join(', ') : 'Maternal Type 2 Diabetes • Hypothyroidism (Mother)'}
                         </p>
@@ -2232,7 +2232,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                   {/* 💊 Past Prescriptions & Old Rx (With 1-Click Repeat/Import) */}
                   <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 space-y-3">
                     <div className="flex items-center justify-between">
-                      <h5 className="text-[11px] font-black text-purple-400 uppercase tracking-wider flex items-center gap-2">
+                      <h5 className="text-[11px] font-semibold text-purple-400 uppercase tracking-wider flex items-center gap-2">
                         <i className="fas fa-prescription-bottle-medical"></i> Past Prescriptions & Old Rx History
                       </h5>
                       <span className="text-[10px] text-slate-500 font-bold">1-Click Import into current consult</span>
@@ -2269,7 +2269,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="font-serif-brand font-black text-white text-sm">{oldRx.diagnosis}</span>
+                                <span className="font-semibold text-white text-sm">{oldRx.diagnosis}</span>
                                 <span className="text-[10px] font-mono text-[#A78BFA] bg-[#6B46C1]/20 px-2 py-0.5 rounded-md">{oldRx.date}</span>
                               </div>
                               <p className="text-[11px] text-slate-400 mt-0.5">Prescribed by {oldRx.doctor}</p>
@@ -2313,7 +2313,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
 
                   {/* Previous Lab Reports & Scans */}
                   <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 space-y-3">
-                    <h5 className="text-[11px] font-black text-aubergine-400 uppercase tracking-wider flex items-center gap-2">
+                    <h5 className="text-[11px] font-semibold text-aubergine-400 uppercase tracking-wider flex items-center gap-2">
                       <i className="fas fa-file-medical"></i> Previous Lab Reports & Scans
                     </h5>
                     
@@ -2357,11 +2357,11 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
           <div className="space-y-4 p-2">
             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex justify-between items-center text-xs">
               <div>
-                <span className="text-[10px] text-slate-400 uppercase font-black block">Test Date</span>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Test Date</span>
                 <span className="font-bold text-slate-800">{previewReportModal.date}</span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 uppercase font-black block">Status</span>
+                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Status</span>
                 <span className="font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">{previewReportModal.status || 'Verified'}</span>
               </div>
             </div>
@@ -2530,7 +2530,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                 <i className="fas fa-file-signature"></i>
               </div>
               <div>
-                <h3 className="font-serif-brand font-black text-xl tracking-tight">Review & Sign Prescription</h3>
+                <h3 className="font-semibold text-lg sm:text-xl tracking-tight text-white">Review & Sign Prescription</h3>
                 <p className="text-xs text-slate-400 font-medium">Verify clinical orders before digital delivery</p>
               </div>
             </div>
@@ -2544,10 +2544,10 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
             {/* Letterhead */}
             <div className="border-b-2 border-slate-200 pb-5 flex flex-col sm:flex-row justify-between items-start gap-4">
               <div>
-                <h2 className="font-serif font-black text-3xl text-slate-900 tracking-tight">
+                <h2 className="font-serif font-semibold text-3xl text-slate-900 tracking-tight">
                   Healnari<span className="text-[#E23E8C]">.</span>
                 </h2>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5">Women's Specialized Telehealth Clinic</p>
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mt-0.5">Women's Specialized Telehealth Clinic</p>
               </div>
               <div className="text-right text-xs">
                 <p className="font-bold text-slate-900">{user?.name || 'Dr. Consultant Gynecologist'}</p>
@@ -2559,19 +2559,19 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
             {/* Patient Meta Strip */}
             <div className="bg-slate-100/80 rounded-2xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <div>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Patient</span>
-                <span className="font-black text-slate-800">{session.patient}</span>
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Patient</span>
+                <span className="font-semibold text-slate-800">{session.patient}</span>
               </div>
               <div>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Age / Gender</span>
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Age / Gender</span>
                 <span className="font-bold text-slate-700">{session.age || '28F'}</span>
               </div>
               <div>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Consultation Type</span>
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Consultation Type</span>
                 <span className="font-bold text-[#6B46C1]">{diagnosis}</span>
               </div>
               <div>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Ref ID</span>
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Ref ID</span>
                 <span className="font-mono font-bold text-slate-600">HN-TELE-{session.id?.slice(0, 6).toUpperCase()}</span>
               </div>
             </div>
@@ -2579,7 +2579,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
             {/* Medications & Handwriting Section ℞ */}
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl font-serif font-black text-[#6B46C1]">℞</span>
+                <span className="text-2xl font-serif font-semibold text-[#6B46C1]">℞</span>
                 <h4 className="font-serif font-bold text-sm text-slate-900 uppercase tracking-wider">
                   {freehandRx && freehandRx.startsWith('data:image') ? "Doctor's Handwritten Prescription" : "Prescribed Medications"}
                 </h4>
@@ -2609,7 +2609,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
               ) : draftMeds.length > 0 ? (
                 <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
                   <table className="w-full text-left text-xs border-collapse">
-                    <thead className="bg-slate-100 text-slate-600 font-black uppercase text-[10px] tracking-wider border-b border-slate-200">
+                    <thead className="bg-slate-100 text-slate-600 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-200">
                       <tr>
                         <th className="p-3 whitespace-nowrap">#</th>
                         <th className="p-3 whitespace-nowrap">Medication & Dosage</th>
@@ -2623,7 +2623,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                         <tr key={i} className="hover:bg-slate-50/80">
                           <td className="p-3 font-mono font-bold text-slate-400">{i + 1}</td>
                           <td className="p-3">
-                            <span className="font-black text-slate-800">{m.name}</span>
+                            <span className="font-semibold text-slate-800">{m.name}</span>
                             {m.dosage && <span className="ml-2 font-bold text-[#6B46C1] bg-[#EDE7FF] px-2 py-0.5 rounded">{m.dosage}</span>}
                           </td>
                           <td className="p-3 font-mono font-bold text-emerald-700">{m.frequency || '1-0-1'}</td>
@@ -2676,7 +2676,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
             {/* Digital Signature Footer */}
             <div className="border-t-2 border-slate-200 pt-5 flex justify-between items-end">
               <div className="text-[10px] text-slate-500 max-w-xs space-y-1">
-                <p className="font-black text-slate-700 uppercase tracking-wider">🔒 Digital Healthcare Verification</p>
+                <p className="font-semibold text-slate-700 uppercase tracking-wider">🔒 Digital Healthcare Verification</p>
                 <p>This prescription is electronically generated and digitally signed as per Telemedicine Practice Guidelines.</p>
               </div>
 
@@ -2685,7 +2685,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                   {user?.name || 'Dr. Consultant'}
                 </div>
                 <div className="h-0.5 w-36 bg-[#6B46C1]/40 ml-auto my-1"></div>
-                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center justify-end gap-1">
+                <p className="text-[9px] font-semibold text-emerald-600 uppercase tracking-widest flex items-center justify-end gap-1">
                   <i className="fas fa-badge-check"></i> Digitally Verified & Signed
                 </p>
               </div>
@@ -2725,7 +2725,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                 setShowSignModal(false);
                 finalizeConsult();
               }}
-              className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black py-3.5 px-6 rounded-2xl transition-all shadow-xl shadow-emerald-500/25 hover:shadow-2xl hover:-translate-y-0.5 flex items-center justify-center gap-2 text-sm ml-auto"
+              className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-semibold py-3.5 px-6 rounded-2xl transition-all shadow-xl shadow-emerald-500/25 hover:shadow-2xl hover:-translate-y-0.5 flex items-center justify-center gap-2 text-sm ml-auto"
             >
               <i className="fas fa-paper-plane"></i> Sign & Send to Patient Portal
             </button>
@@ -2753,7 +2753,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
             </div>
 
             <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Checked Medications</span>
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Checked Medications</span>
               <div className="flex flex-wrap gap-1.5">
                 {safetyModal.medsChecked.map(m => (
                   <span key={m} className="bg-white border border-slate-200 px-2.5 py-0.5 rounded-md font-bold text-slate-700">
@@ -2762,7 +2762,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                 ))}
               </div>
               <div className="pt-2 border-t border-slate-200/80">
-                <span className="text-[10px] font-black text-purple-700 uppercase tracking-wider block">Pharmacology & Synergy Note:</span>
+                <span className="text-[10px] font-semibold text-purple-700 uppercase tracking-wider block">Pharmacology & Synergy Note:</span>
                 <p className="text-slate-600 mt-0.5">{safetyModal.interactions}</p>
               </div>
             </div>
@@ -3192,7 +3192,7 @@ function DoctorTelemedicine() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Telemedicine</h1>
+          <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Telemedicine</h1>
           <p className="text-sm text-slate-500 mt-1">Private, doctor-only video consultations.</p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
@@ -3203,7 +3203,7 @@ function DoctorTelemedicine() {
             </button>
             {showActionsMenu && (
               <div className="absolute right-0 sm:right-0 left-0 sm:left-auto top-full mt-2 w-full sm:w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-fade-in origin-top-right">
-                <div className="px-4 py-2 mb-1"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Messaging Channels</p></div>
+                <div className="px-4 py-2 mb-1"><p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Messaging Channels</p></div>
                 <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-5 py-2.5 text-sm font-bold text-slate-700 hover:bg-aubergine-50 hover:text-aubergine-700 flex items-center gap-3 transition-colors group">
                   <div className="w-8 h-8 rounded-full bg-aubergine-100 flex items-center justify-center group-hover:bg-white transition-colors">
                     <i className="fas fa-envelope text-aubergine-600"></i>
@@ -3258,10 +3258,10 @@ function DoctorTelemedicine() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Today's Queue</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Today's Queue</span>
                 <span className={`w-2.5 h-2.5 rounded-full ${todaySessions.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></span>
               </div>
-              <div className="text-2xl font-black text-slate-800 mt-1">{todaySessions.length}</div>
+              <div className="text-2xl font-semibold text-slate-800 mt-1">{todaySessions.length}</div>
               <p className="text-[11px] text-slate-500 mt-0.5">
                 {waitingSessions.length > 0 ? `${waitingSessions.length} waiting in lobby` : 'Scheduled for today'}
               </p>
@@ -3276,10 +3276,10 @@ function DoctorTelemedicine() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Telemedicine History</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Telemedicine History</span>
                 <i className="fas fa-clock-rotate-left text-aubergine-600 text-xs"></i>
               </div>
-              <div className="text-2xl font-black text-slate-800 mt-1">{historySessions.length}</div>
+              <div className="text-2xl font-semibold text-slate-800 mt-1">{historySessions.length}</div>
               <p className="text-[11px] text-slate-500 mt-0.5">Completed video consults</p>
             </button>
 
@@ -3292,19 +3292,19 @@ function DoctorTelemedicine() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Upcoming Consults</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Upcoming Consults</span>
                 <i className="fas fa-calendar-days text-indigo-500 text-xs"></i>
               </div>
-              <div className="text-2xl font-black text-slate-800 mt-1">{upcomingSessions.length}</div>
+              <div className="text-2xl font-semibold text-slate-800 mt-1">{upcomingSessions.length}</div>
               <p className="text-[11px] text-slate-500 mt-0.5">Future booked slots</p>
             </button>
 
             <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Session Protocol</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Session Protocol</span>
                 <i className="fas fa-shield-halved text-emerald-500 text-xs"></i>
               </div>
-              <div className="text-2xl font-black text-slate-800 mt-1">45 Mins</div>
+              <div className="text-2xl font-semibold text-slate-800 mt-1">45 Mins</div>
               <p className="text-[11px] text-slate-500 mt-0.5">Encrypted • NMC Compliant</p>
             </div>
           </div>
@@ -3321,7 +3321,7 @@ function DoctorTelemedicine() {
             >
               <i className="fas fa-video text-[11px]"></i>
               Today's Queue
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                 activeTab === 'queue' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
               }`}>
                 {todaySessions.length}
@@ -3338,7 +3338,7 @@ function DoctorTelemedicine() {
             >
               <i className="fas fa-history text-[11px]"></i>
               Telemedicine History
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                 activeTab === 'history' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
               }`}>
                 {historySessions.length}
@@ -3355,7 +3355,7 @@ function DoctorTelemedicine() {
             >
               <i className="fas fa-calendar-check text-[11px]"></i>
               Upcoming Consultations
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                 activeTab === 'upcoming' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
               }`}>
                 {upcomingSessions.length}
@@ -3374,7 +3374,7 @@ function DoctorTelemedicine() {
                     <div className="absolute inset-0 bg-emerald-400 rounded-2xl animate-ping opacity-20"></div>
                   </div>
                   <div className="flex-1">
-                    <p className="font-black text-emerald-900 text-base">
+                    <p className="font-semibold text-emerald-900 text-base">
                       {waitingSessions.length === 1 ? `${waitingSessions[0].patient} is waiting in the virtual lobby.` : `${waitingSessions.length} patients are waiting.`}
                     </p>
                     <p className="text-xs text-emerald-700 mt-0.5 font-medium">Join now to avoid keeping them waiting.</p>
@@ -3393,7 +3393,7 @@ function DoctorTelemedicine() {
                     <i className="fas fa-calendar-plus"></i>
                   </div>
                   <div className="flex-1">
-                    <p className="font-black text-amber-900 text-base">
+                    <p className="font-semibold text-amber-900 text-base">
                       {newRequestSessions.length === 1 ? '1 new video consultation request' : `${newRequestSessions.length} new video consultation requests`}
                     </p>
                     <p className="text-xs text-amber-700 mt-0.5 font-medium">Accept or reject below to confirm the patient's slot.</p>
@@ -3441,8 +3441,8 @@ function DoctorTelemedicine() {
                         <div>
                           <div className="flex items-center gap-2 mb-0.5">
                             <h3 className="font-bold text-slate-800 tracking-tight">{s.patient}</h3>
-                            {s.waiting && <span className="text-[9px] bg-gradient-to-r from-emerald-100 to-emerald-50 text-emerald-700 font-black px-2 py-0.5 rounded-md border border-emerald-200 shadow-sm">WAITING</span>}
-                            {!s.accepted && <span className="text-[9px] bg-gradient-to-r from-amber-100 to-amber-50 text-amber-700 font-black px-2 py-0.5 rounded-md border border-amber-200 shadow-sm">NEW REQUEST</span>}
+                            {s.waiting && <span className="text-[9px] bg-gradient-to-r from-emerald-100 to-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded-md border border-emerald-200 shadow-sm">WAITING</span>}
+                            {!s.accepted && <span className="text-[9px] bg-gradient-to-r from-amber-100 to-amber-50 text-amber-700 font-semibold px-2 py-0.5 rounded-md border border-amber-200 shadow-sm">NEW REQUEST</span>}
                           </div>
                           <p className="text-[11px] text-slate-500 font-medium">{s.age} • {s.type}</p>
                           <p className="text-[11px] text-emerald-700 font-bold mt-1 bg-emerald-50 px-2.5 py-0.5 rounded-md inline-block border border-emerald-100/50">
@@ -3485,7 +3485,7 @@ function DoctorTelemedicine() {
                       <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-200 shadow-sm">
                         <i className="fas fa-calendar-check text-2xl text-emerald-500"></i>
                       </div>
-                      <h3 className="text-base font-black text-slate-800 mb-1">No Video Consultations Scheduled for Today</h3>
+                      <h3 className="text-base font-semibold text-slate-800 mb-1">No Video Consultations Scheduled for Today</h3>
                       <p className="text-xs text-slate-500 max-w-md mx-auto mb-4">
                         You have no appointments booked for today. Future bookings are safely listed under Upcoming Consultations.
                       </p>
@@ -3518,7 +3518,7 @@ function DoctorTelemedicine() {
               <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
                   <div>
-                    <h2 className="font-black text-slate-800 tracking-tight text-base flex items-center gap-2">
+                    <h2 className="font-semibold text-slate-800 tracking-tight text-base flex items-center gap-2">
                       <i className="fas fa-clock-rotate-left text-aubergine-600"></i>
                       Telemedicine Consultation History
                     </h2>
@@ -3553,7 +3553,7 @@ function DoctorTelemedicine() {
                       className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-aubergine-200"
                     >
                       <div className="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
-                        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-aubergine-100 to-aubergine-200 text-aubergine-700 font-black flex items-center justify-center shadow-inner text-xs flex-shrink-0">
+                        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-aubergine-100 to-aubergine-200 text-aubergine-700 font-semibold flex items-center justify-center shadow-inner text-xs flex-shrink-0">
                           {item.patient.split(' ').map(n => n[0]).join('')}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -3630,7 +3630,7 @@ function DoctorTelemedicine() {
                       <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-200 shadow-sm">
                         <i className="fas fa-magnifying-glass text-2xl text-slate-300"></i>
                       </div>
-                      <h3 className="text-base font-black text-slate-800 mb-1">No Past Consultations Found</h3>
+                      <h3 className="text-base font-semibold text-slate-800 mb-1">No Past Consultations Found</h3>
                       <p className="text-xs text-slate-500 max-w-sm mx-auto">
                         No telemedicine history matched your search criteria. Try a different query.
                       </p>
@@ -3647,7 +3647,7 @@ function DoctorTelemedicine() {
               <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between bg-slate-50/50 gap-2">
                   <div>
-                    <h2 className="font-black text-slate-800 tracking-tight text-base flex items-center gap-2">
+                    <h2 className="font-semibold text-slate-800 tracking-tight text-base flex items-center gap-2">
                       <i className="fas fa-calendar-days text-indigo-600"></i>
                       Upcoming Scheduled Telemedicine Consultations
                     </h2>
@@ -3677,7 +3677,7 @@ function DoctorTelemedicine() {
                               {s.age}
                             </span>
                             {!s.accepted && (
-                              <span className="text-[9px] bg-amber-100 text-amber-700 font-black px-2 py-0.5 rounded-md border border-amber-200 shadow-sm">
+                              <span className="text-[9px] bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-md border border-amber-200 shadow-sm">
                                 NEW REQUEST
                               </span>
                             )}
@@ -3711,7 +3711,7 @@ function DoctorTelemedicine() {
                       <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-200 shadow-sm">
                         <i className="fas fa-calendar-plus text-2xl text-slate-300"></i>
                       </div>
-                      <h3 className="text-base font-black text-slate-800 mb-1">No Upcoming Consultations</h3>
+                      <h3 className="text-base font-semibold text-slate-800 mb-1">No Upcoming Consultations</h3>
                       <p className="text-xs text-slate-500 max-w-sm mx-auto">
                         There are no future video consultations booked at this time.
                       </p>
@@ -3734,7 +3734,7 @@ function DoctorTelemedicine() {
                   <i className={`fas ${tip.icon} text-lg`}></i>
                 </div>
                 <div>
-                  <h4 className="font-black text-slate-800 text-sm tracking-tight">{tip.title}</h4>
+                  <h4 className="font-semibold text-slate-800 text-sm tracking-tight">{tip.title}</h4>
                   <p className="text-xs text-slate-500 mt-0.5">{tip.sub}</p>
                 </div>
               </div>
@@ -3799,7 +3799,7 @@ function DoctorTelemedicine() {
             {/* Patient Header Summary */}
             <div className="bg-gradient-to-r from-aubergine-50 to-slate-50 border border-aubergine-100 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-aubergine-600 text-white font-black flex items-center justify-center text-sm shadow-md">
+                <div className="w-12 h-12 rounded-2xl bg-aubergine-600 text-white font-semibold flex items-center justify-center text-sm shadow-md">
                   {selectedHistoryItem.patient.split(' ').map(n => n[0]).join('')}
                 </div>
                 <div>
@@ -3832,7 +3832,7 @@ function DoctorTelemedicine() {
             {/* Clinical SOAP Notes */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                   <i className="fas fa-file-medical text-aubergine-600"></i> Clinical Notes & Assessment (SOAP)
                 </h4>
                 <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
@@ -3847,7 +3847,7 @@ function DoctorTelemedicine() {
             {/* Prescribed Medications */}
             {selectedHistoryItem.meds && selectedHistoryItem.meds.length > 0 && (
               <div className="space-y-2">
-                <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                   <i className="fas fa-pills text-purple-600"></i> Prescribed Medications ({selectedHistoryItem.meds.length})
                 </h4>
                 <div className="grid sm:grid-cols-2 gap-2.5">
@@ -3875,7 +3875,7 @@ function DoctorTelemedicine() {
             {/* Requested Lab Tests */}
             {selectedHistoryItem.labs && selectedHistoryItem.labs.length > 0 && (
               <div className="space-y-2">
-                <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                   <i className="fas fa-vial text-rose-500"></i> Requested Lab Tests ({selectedHistoryItem.labs.length})
                 </h4>
                 <div className="flex flex-wrap gap-1.5">

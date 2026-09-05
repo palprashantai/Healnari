@@ -27,7 +27,7 @@ function AdminDoctorLedger() {
           <Link to={`/admin-dashboard/doctors/${id}`} className="text-sm font-bold text-slate-400 hover:text-aubergine-600 transition-colors flex items-center gap-2 mb-2">
             <i className="fas fa-arrow-left"></i> Back to Doctor Profile
           </Link>
-          <h1 className="text-2xl font-black text-slate-800">Complete Commission Ledger</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">Complete Commission Ledger</h1>
           <p className="text-sm text-slate-500">Detailed history of all payments and platform fees for this doctor.</p>
         </div>
       </div>
@@ -58,7 +58,7 @@ function AdminDoctorLedger() {
                     <td className="px-5 py-4 text-slate-600">{b.service || '—'}</td>
                     <td className="px-5 py-4 text-right font-bold text-slate-800">₹{b.amount?.toLocaleString()}</td>
                     <td className="px-5 py-4 text-right font-semibold text-emerald-600">₹{b.doctorNet?.toLocaleString()}</td>
-                    <td className="px-5 py-4 text-right font-black text-aubergine-700">₹{b.platformFee?.toLocaleString()}</td>
+                    <td className="px-5 py-4 text-right font-semibold text-aubergine-700">₹{b.platformFee?.toLocaleString()}</td>
                     <td className="px-5 py-4 text-right">
                       <span className={`text-[10px] font-bold px-2 py-1 rounded border ${b.status === 'Paid' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'}`}>
                         {b.status}

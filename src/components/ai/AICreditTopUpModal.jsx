@@ -114,7 +114,7 @@ export function AICreditTopUpModal({ isOpen, onClose, onTopUpSuccess, currentCre
           </div>
           <div className="text-right shrink-0">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Current Balance</span>
-            <span className="text-lg font-black text-slate-900 font-mono">{currentCredits} uses</span>
+            <span className="text-lg font-semibold text-slate-900 font-mono">{currentCredits} uses</span>
           </div>
         </div>
 
@@ -134,12 +134,12 @@ export function AICreditTopUpModal({ isOpen, onClose, onTopUpSuccess, currentCre
                 }`}
               >
                 {pack.popular && (
-                  <span className="absolute -top-2 right-3 text-[9px] font-black uppercase tracking-wider bg-purple-600 text-white px-2 py-0.5 rounded-full shadow-xs">
+                  <span className="absolute -top-2 right-3 text-[9px] font-semibold uppercase tracking-wider bg-purple-600 text-white px-2 py-0.5 rounded-full shadow-xs">
                     Popular
                   </span>
                 )}
                 <div>
-                  <span className="text-base font-black text-slate-900 font-mono block">
+                  <span className="text-base font-semibold text-slate-900 font-mono block">
                     {pack.credits} Credits
                   </span>
                   <span className="text-xs text-slate-500 mt-0.5 block">
@@ -147,7 +147,7 @@ export function AICreditTopUpModal({ isOpen, onClose, onTopUpSuccess, currentCre
                   </span>
                 </div>
                 <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-sm font-black text-purple-950 font-mono">
+                  <span className="text-sm font-semibold text-purple-950 font-mono">
                     {pack.priceFormatted}
                   </span>
                   <span className={`w-4 h-4 rounded-full border flex items-center justify-center ${

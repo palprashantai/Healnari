@@ -331,7 +331,7 @@ export function AIUsageUpgradeModal({
             <i className={`fas ${isDoctor ? 'fa-user-md' : 'fa-wand-magic-sparkles'} text-lg`}></i>
           </div>
 
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+          <h2 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight">
             {tokensRemaining <= 0 ? 'Monthly AI Allowance Reached' : 'Add AI Credits or Upgrade Plan'}
           </h2>
           <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto">
@@ -403,16 +403,16 @@ export function AIUsageUpgradeModal({
                     }`}
                   >
                     {pack.popular && (
-                      <span className="absolute -top-2.5 right-4 text-[9px] font-black uppercase tracking-wider bg-purple-600 text-white px-2 py-0.5 rounded-full shadow-xs">
+                      <span className="absolute -top-2.5 right-4 text-[9px] font-semibold uppercase tracking-wider bg-purple-600 text-white px-2 py-0.5 rounded-full shadow-xs">
                         Most Popular
                       </span>
                     )}
                     <div>
                       <div className="flex items-center justify-between">
-                        <span className="text-base font-black text-slate-900 font-mono">
+                        <span className="text-base font-semibold text-slate-900 font-mono">
                           {pack.credits} Credits
                         </span>
-                        <span className="text-base font-black text-purple-950 font-mono">
+                        <span className="text-base font-semibold text-purple-950 font-mono">
                           {pack.price}
                         </span>
                       </div>
@@ -470,7 +470,7 @@ export function AIUsageUpgradeModal({
                 }`}
               >
                 {plan.highlight && (
-                  <span className="absolute -top-3 right-5 bg-purple-600 text-white text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs">
+                  <span className="absolute -top-3 right-5 bg-purple-600 text-white text-[9px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-xs">
                     {plan.badge}
                   </span>
                 )}
@@ -481,7 +481,7 @@ export function AIUsageUpgradeModal({
                       <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wider">
                         Plan {plan.tier}
                       </span>
-                      <h3 className="font-black text-lg text-slate-900 leading-tight mt-0.5">{plan.name}</h3>
+                      <h3 className="font-semibold text-lg text-slate-900 leading-tight mt-0.5">{plan.name}</h3>
                     </div>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
                       {plan.monthlyUses} uses/mo
@@ -495,7 +495,7 @@ export function AIUsageUpgradeModal({
                   {/* Price Strip */}
                   <div className="my-3 pb-3 border-b border-slate-100">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-black text-slate-900">{price}</span>
+                      <span className="text-2xl font-semibold text-slate-900">{price}</span>
                       <span className="text-xs text-slate-400 font-medium">/ month</span>
                     </div>
                     <p className="text-[11px] text-purple-700 font-bold mt-0.5">
@@ -505,7 +505,7 @@ export function AIUsageUpgradeModal({
 
                   {/* Benefits: "What's included in this plan" */}
                   <div>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block mb-2">
                       What's included in this plan:
                     </span>
                     <ul className="space-y-2 text-[11.5px] text-slate-700">

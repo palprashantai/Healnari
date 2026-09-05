@@ -249,7 +249,7 @@ function AdminCMS() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 font-display">Content Management System</h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 font-display">Content Management System</h1>
           <p className="text-sm text-slate-500 mt-0.5">Author, publish, and manage evidence-based clinical guides and public health content.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -282,7 +282,7 @@ function AdminCMS() {
           <Tilt3D key={s.label} max={4}>
             <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between">
               <div>
-                <div className="text-3xl font-black text-slate-900 font-display">{s.value}</div>
+                <div className="text-3xl font-semibold text-slate-900 font-display">{s.value}</div>
                 <div className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-wider">{s.label}</div>
               </div>
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg border ${s.color}`}>
@@ -622,7 +622,7 @@ function AdminCMS() {
               /* Live Preview Mode */
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl max-h-[68vh] overflow-y-auto space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-black uppercase tracking-wider bg-brand-100 text-brand-800 px-2.5 py-0.5 rounded-full">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider bg-brand-100 text-brand-800 px-2.5 py-0.5 rounded-full">
                     {editingArticle.category}
                   </span>
                   <span className="text-xs font-semibold text-slate-500">
@@ -633,7 +633,7 @@ function AdminCMS() {
                   </span>
                 </div>
 
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 font-display">
+                <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 font-display">
                   {editingArticle.title || 'Untitled Article'}
                 </h1>
 
@@ -720,7 +720,7 @@ function AdminCMS() {
           {aiGeneratedArticle && (
             <div className="mt-4 pt-4 border-t border-slate-200 space-y-4 animate-fade-in">
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 bg-purple-100 px-2 py-0.5 rounded">Generated Draft Preview</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-purple-700 bg-purple-100 px-2 py-0.5 rounded">Generated Draft Preview</span>
                 <h3 className="font-bold text-slate-800 text-base">{aiGeneratedArticle.title}</h3>
                 <p className="text-xs text-slate-600 italic">{aiGeneratedArticle.summary}</p>
                 <div 

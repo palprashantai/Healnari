@@ -40,7 +40,7 @@ function AdminLeads() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-black text-slate-800">Leads</h1>
+        <h1 className="text-2xl font-semibold text-slate-800">Leads</h1>
         <p className="text-sm text-slate-500">Consultation requests and newsletter signups from the public site — nobody creates an account for these, so the care team follows up by phone/email.</p>
       </div>
 

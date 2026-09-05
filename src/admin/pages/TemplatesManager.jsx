@@ -235,7 +235,7 @@ function AdminTemplates() {
               <i className="fas fa-arrow-left"></i> Back to Templates
             </button>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-black text-slate-800">
+              <h1 className="text-2xl font-semibold text-slate-800">
                 {view === 'create' ? 'Create New Template' : `Edit Template: ${formData.name || selectedTemplate?.name}`}
               </h1>
               {selectedTemplate?.is_system && (
@@ -461,7 +461,7 @@ function AdminTemplates() {
                               className="w-12 h-12 rounded-full object-contain shrink-0" 
                             />
                             <div className="text-left">
-                              <span className="text-2xl font-black text-[#2A1647] font-serif tracking-tight leading-none block">
+                              <span className="text-2xl font-semibold text-[#2A1647] font-serif tracking-tight leading-none block">
                                 Heal<span className="text-[#E23E8C]">Nari</span>
                               </span>
                               <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 font-sans">
@@ -512,7 +512,7 @@ function AdminTemplates() {
     <div className="space-y-6 animate-fade-in pb-10">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Communication & Email Templates</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">Communication & Email Templates</h1>
           <p className="text-sm text-slate-500">Manage all automated system emails, push notifications, and broadcast layouts from the database.</p>
         </div>
         <button onClick={openCreate} className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all shadow-sm">
@@ -585,7 +585,7 @@ function AdminTemplates() {
                       <div className="flex items-center gap-2">
                         <p className="font-bold text-slate-800 text-sm">{t.name}</p>
                         {t.is_system && (
-                          <span className="bg-purple-50 text-purple-700 text-[10px] font-black px-2 py-0.5 rounded border border-purple-200">
+                          <span className="bg-purple-50 text-purple-700 text-[10px] font-semibold px-2 py-0.5 rounded border border-purple-200">
                             SYSTEM
                           </span>
                         )}

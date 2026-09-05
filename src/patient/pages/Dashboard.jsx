@@ -107,7 +107,7 @@ function SymptomCheckerModal({ isOpen, onClose, toast }) {
             <p className="text-sm font-bold text-slate-700 mb-1">Overall Pain / Discomfort Level</p>
             <input type="range" min={1} max={10} value={severity} onChange={e => setSeverity(+e.target.value)}
               className="w-full accent-aubergine-600" />
-            <div className="flex justify-between text-xs text-slate-500 mt-1"><span>1 - Minimal</span><span className="font-black text-aubergine-600 text-base">{severity}</span><span>10 - Severe</span></div>
+            <div className="flex justify-between text-xs text-slate-500 mt-1"><span>1 - Minimal</span><span className="font-semibold text-aubergine-600 text-base">{severity}</span><span>10 - Severe</span></div>
           </div>
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 font-medium">
             <i className="fas fa-circle-info mr-1.5"></i>
@@ -124,7 +124,7 @@ function SymptomCheckerModal({ isOpen, onClose, toast }) {
       {step === 3 && (
         <div className="text-center space-y-4 py-4">
           <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 text-3xl flex items-center justify-center mx-auto"><i className="fas fa-circle-check"></i></div>
-          <h4 className="font-black text-slate-800 text-lg">Symptoms Logged</h4>
+          <h4 className="font-semibold text-slate-800 text-lg">Symptoms Logged</h4>
           <p className="text-sm text-slate-500">
             Saved to today's cycle log.{' '}
             {severity >= 8 ? 'Given the severity you reported, consider booking an appointment.' : 'You can review this anytime on the Tracking or Fertility pages.'}
@@ -511,7 +511,7 @@ function WellnessScoreWidget({ vitals, lifestyle, waterCount, moodLogged, discre
           </defs>
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-aubergine-700 to-magenta-600">{score}</span>
+          <span className="text-3xl font-semibold text-transparent bg-clip-text bg-gradient-to-r from-aubergine-700 to-magenta-600">{score}</span>
         </div>
       </div>
       <p className="text-xs text-slate-500 font-medium relative z-10">
@@ -741,7 +741,7 @@ function PregnancyJourneyCard({ navigate, toast }) {
             <i className="fas fa-baby"></i>
           </div>
           <div>
-            <h3 className="font-black text-slate-800 text-base">Pregnancy Journey</h3>
+            <h3 className="font-semibold text-slate-800 text-base">Pregnancy Journey</h3>
             <div className="flex items-center gap-2">
               <p className="text-xs text-amber-800 font-semibold">
                 {lmpDate ? `Week ${gestationalWeek} of 40` : 'Set your dates to track progress'}
@@ -751,7 +751,7 @@ function PregnancyJourneyCard({ navigate, toast }) {
           </div>
         </div>
         <button onClick={() => navigate('/patient-dashboard/appointments')}
-          className="text-[11px] font-black text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-xl transition-all">
+          className="text-xs font-semibold text-amber-700 bg-amber-100 hover:bg-amber-200 px-3 py-1.5 rounded-xl transition-all">
           Antenatal Visits
         </button>
       </div>
@@ -759,8 +759,8 @@ function PregnancyJourneyCard({ navigate, toast }) {
       <div className="grid sm:grid-cols-3 gap-3 my-4">
         <div className="p-3.5 rounded-2xl bg-white border border-amber-100 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-bold text-slate-400 uppercase">Fetal Kick Counter</p>
-            <p className="text-xl font-black text-slate-800 mt-0.5">{kicksToday} <span className="text-xs text-slate-400 font-bold">kicks today</span></p>
+            <p className="text-xs font-medium text-slate-400 uppercase">Fetal Kick Counter</p>
+            <p className="text-xl font-semibold text-slate-800 mt-0.5">{kicksToday} <span className="text-xs text-slate-400 font-normal">kicks today</span></p>
           </div>
           <button onClick={handleAddKick} className="w-9 h-9 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white flex items-center justify-center text-sm shadow-sm transition-all">
             <i className="fas fa-plus"></i>
@@ -768,15 +768,15 @@ function PregnancyJourneyCard({ navigate, toast }) {
         </div>
 
         <div className="p-3.5 rounded-2xl bg-white border border-amber-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase">Upcoming Screening</p>
-          <p className="text-xs font-black text-slate-800 mt-1 flex items-center gap-1.5 text-amber-800">
+          <p className="text-xs font-medium text-slate-400 uppercase">Upcoming Screening</p>
+          <p className="text-xs font-semibold text-slate-800 mt-1 flex items-center gap-1.5 text-amber-800">
             <i className="fas fa-ultrasound"></i> Anatomy Ultrasound (18–22w)
           </p>
         </div>
 
         <div className="p-3.5 rounded-2xl bg-white border border-amber-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase">Daily Maternal Rx</p>
-          <p className="text-xs font-black text-slate-800 mt-1 flex items-center gap-1.5 text-emerald-700">
+          <p className="text-xs font-medium text-slate-400 uppercase">Daily Maternal Rx</p>
+          <p className="text-xs font-semibold text-slate-800 mt-1 flex items-center gap-1.5 text-emerald-700">
             <i className="fas fa-pills"></i> Prenatal DHA + Folate
           </p>
         </div>
@@ -802,33 +802,33 @@ function PcosMetabolicCard({ navigate }) {
             <i className="fas fa-sliders"></i>
           </div>
           <div>
-            <h3 className="font-black text-slate-800 text-base">PCOS & Metabolic Tracker</h3>
+            <h3 className="font-semibold text-slate-800 text-base">PCOS & Metabolic Tracker</h3>
             <p className="text-xs text-aubergine-800 font-semibold">Manage your PCOS symptoms and insulin</p>
           </div>
         </div>
         <button onClick={() => navigate('/patient-dashboard/tracking')}
-          className="text-[11px] font-black text-aubergine-700 bg-aubergine-100 hover:bg-aubergine-200 px-3 py-1.5 rounded-xl transition-all">
+          className="text-xs font-semibold text-aubergine-700 bg-aubergine-100 hover:bg-aubergine-200 px-3 py-1.5 rounded-xl transition-all">
           Update Metrics
         </button>
       </div>
 
       <div className="grid sm:grid-cols-3 gap-3 my-4">
         <div className="p-3.5 rounded-2xl bg-white border border-purple-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase">Hirsutism mFG Score</p>
-          <p className="text-lg font-black text-slate-800 mt-0.5">{mfg ? `${mfg}/36 points` : 'Not evaluated'}</p>
-          <span className="text-[10px] text-aubergine-600 font-bold">{mfg && Number(mfg) >= 8 ? 'Androgen elevation noted' : 'Minimal androgen excess'}</span>
+          <p className="text-xs font-medium text-slate-400 uppercase">Hirsutism mFG Score</p>
+          <p className="text-lg font-semibold text-slate-800 mt-0.5">{mfg ? `${mfg}/36 points` : 'Not evaluated'}</p>
+          <span className="text-xs text-aubergine-600 font-medium">{mfg && Number(mfg) >= 8 ? 'Androgen elevation noted' : 'Minimal androgen excess'}</span>
         </div>
 
         <div className="p-3.5 rounded-2xl bg-white border border-purple-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase">Metabolic Target</p>
-          <p className="text-lg font-black text-slate-800 mt-0.5">&le; 95 mg/dL</p>
-          <span className="text-[10px] text-emerald-600 font-bold">Fasting glucose target</span>
+          <p className="text-xs font-medium text-slate-400 uppercase">Metabolic Target</p>
+          <p className="text-lg font-semibold text-slate-800 mt-0.5">&le; 95 mg/dL</p>
+          <span className="text-xs text-emerald-600 font-medium">Fasting glucose target</span>
         </div>
 
         <div className="p-3.5 rounded-2xl bg-white border border-purple-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase">First-Line Protocol</p>
-          <p className="text-xs font-black text-slate-800 mt-1 text-aubergine-700">Myo-Inositol 2g + Low-GI diet</p>
-          <span className="text-[10px] text-slate-400 font-bold">Improves ovulatory rate</span>
+          <p className="text-xs font-medium text-slate-400 uppercase">First-Line Protocol</p>
+          <p className="text-xs font-semibold text-slate-800 mt-1 text-aubergine-700">Myo-Inositol 2g + Low-GI diet</p>
+          <span className="text-xs text-slate-400 font-medium">Improves ovulatory rate</span>
         </div>
       </div>
 
@@ -853,33 +853,33 @@ function TtcFertilityCard({ navigate }) {
             <i className="fas fa-egg"></i>
           </div>
           <div>
-            <h3 className="font-black text-slate-800 text-base">Trying to Conceive (TTC) Hub</h3>
+            <h3 className="font-semibold text-slate-800 text-base">Trying to Conceive (TTC) Hub</h3>
             <p className="text-xs text-emerald-800 font-semibold">Multi-Modal Biomarker Window & Ovulation Peak</p>
           </div>
         </div>
         <button onClick={() => navigate('/patient-dashboard/fertility')}
-          className="text-[11px] font-black text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-xl transition-all">
+          className="text-xs font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-3 py-1.5 rounded-xl transition-all">
           Open Calendar
         </button>
       </div>
 
       <div className="grid sm:grid-cols-3 gap-3 my-4">
         <div className="p-3.5 rounded-2xl bg-white border border-emerald-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase">Basal Body Temp (BBT)</p>
-          <p className="text-lg font-black text-slate-800 mt-0.5">{bbt ? `${bbt} °C` : '36.55 °C'}</p>
-          <span className="text-[10px] text-emerald-600 font-bold">{bbt ? 'Biphasic tracking active' : 'Log morning temp'}</span>
+          <p className="text-xs font-medium text-slate-400 uppercase">Basal Body Temp (BBT)</p>
+          <p className="text-lg font-semibold text-slate-800 mt-0.5">{bbt ? `${bbt} °C` : '36.55 °C'}</p>
+          <span className="text-xs text-emerald-600 font-medium">{bbt ? 'Biphasic tracking active' : 'Log morning temp'}</span>
         </div>
 
         <div className="p-3.5 rounded-2xl bg-white border border-emerald-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase">LH Surge Strip</p>
-          <p className="text-lg font-black text-slate-800 mt-0.5">{lh ? `T/C: ${lh}` : 'Log LH'}</p>
-          <span className="text-[10px] text-teal-600 font-bold">{lh && Number(lh) >= 1 ? 'Peak LH Surge!' : 'Pre-surge window'}</span>
+          <p className="text-xs font-medium text-slate-400 uppercase">LH Surge Strip</p>
+          <p className="text-lg font-semibold text-slate-800 mt-0.5">{lh ? `T/C: ${lh}` : 'Log LH'}</p>
+          <span className="text-xs text-teal-600 font-medium">{lh && Number(lh) >= 1 ? 'Peak LH Surge!' : 'Pre-surge window'}</span>
         </div>
 
         <div className="p-3.5 rounded-2xl bg-white border border-emerald-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase">Optimal Timing</p>
-          <p className="text-xs font-black text-slate-800 mt-1 text-emerald-700">Days -2, -1, and Ovulation</p>
-          <span className="text-[10px] text-slate-400 font-bold">Highest conception window</span>
+          <p className="text-xs font-medium text-slate-400 uppercase">Optimal Timing</p>
+          <p className="text-xs font-semibold text-slate-800 mt-1 text-emerald-700">Days -2, -1, and Ovulation</p>
+          <span className="text-xs text-slate-400 font-medium">Highest conception window</span>
         </div>
       </div>
 
@@ -903,33 +903,33 @@ function PerimenopauseCard({ navigate }) {
             <i className="fas fa-fire-flame-curved"></i>
           </div>
           <div>
-            <h3 className="font-black text-slate-800 text-base">Perimenopause & Menopause Navigator</h3>
+            <h3 className="font-semibold text-slate-800 text-base">Perimenopause & Menopause Navigator</h3>
             <p className="text-xs text-purple-800 font-semibold">Vasomotor Symptoms, HRT Monitoring & Bone Health</p>
           </div>
         </div>
         <button onClick={() => navigate('/patient-dashboard/tracking')}
-          className="text-[11px] font-black text-purple-700 bg-purple-100 hover:bg-purple-200 px-3 py-1.5 rounded-xl transition-all">
+          className="text-xs font-semibold text-purple-700 bg-purple-100 hover:bg-purple-200 px-3 py-1.5 rounded-xl transition-all">
           Log Symptoms
         </button>
       </div>
 
       <div className="grid sm:grid-cols-3 gap-3 my-4">
         <div className="p-3.5 rounded-2xl bg-white border border-purple-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase">Vasomotor Frequency</p>
-          <p className="text-lg font-black text-slate-800 mt-0.5">{hotflashes ? `${hotflashes} episodes` : '0 logged today'}</p>
-          <span className="text-[10px] text-purple-600 font-bold">Hot flashes & night sweats</span>
+          <p className="text-xs font-medium text-slate-400 uppercase">Vasomotor Frequency</p>
+          <p className="text-lg font-semibold text-slate-800 mt-0.5">{hotflashes ? `${hotflashes} episodes` : '0 logged today'}</p>
+          <span className="text-xs text-purple-600 font-medium">Hot flashes & night sweats</span>
         </div>
 
         <div className="p-3.5 rounded-2xl bg-white border border-purple-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase">DEXA & Bone Density</p>
-          <p className="text-xs font-black text-slate-800 mt-1 text-rose-700">T-Score Screening Due</p>
-          <span className="text-[10px] text-slate-400 font-bold">Osteoporosis prevention</span>
+          <p className="text-xs font-medium text-slate-400 uppercase">DEXA & Bone Density</p>
+          <p className="text-xs font-semibold text-slate-800 mt-1 text-rose-700">T-Score Screening Due</p>
+          <span className="text-xs text-slate-400 font-medium">Osteoporosis prevention</span>
         </div>
 
         <div className="p-3.5 rounded-2xl bg-white border border-purple-100 shadow-sm">
-          <p className="text-[10px] font-bold text-slate-400 uppercase">Cardiovascular Health</p>
-          <p className="text-xs font-black text-slate-800 mt-1 text-emerald-700">{vitals.bp?.value ? `BP: ${vitals.bp.value}` : 'Log BP reading'}</p>
-          <span className="text-[10px] text-slate-400 font-bold">Heart health monitoring</span>
+          <p className="text-xs font-medium text-slate-400 uppercase">Cardiovascular Health</p>
+          <p className="text-xs font-semibold text-slate-800 mt-1 text-emerald-700">{vitals.bp?.value ? `BP: ${vitals.bp.value}` : 'Log BP reading'}</p>
+          <span className="text-xs text-slate-400 font-medium">Heart health monitoring</span>
         </div>
       </div>
 
@@ -997,7 +997,7 @@ function WeeklyCycleRibbon({ toast }) {
         {timeline.map(t => (
           <div key={t.dateStr} className="flex flex-col items-center gap-2 bg-white px-1 relative">
             <span className={`text-[10px] font-bold ${t.isToday ? 'text-aubergine-600' : 'text-slate-400'}`}>{t.label}</span>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black transition-all ${t.isToday ? 'bg-gradient-to-br from-aubergine-500 to-magenta-500 text-white shadow-lg shadow-aubergine-500/30 ring-4 ring-aubergine-50' : t.isFuture ? 'bg-slate-50 text-slate-400 border border-slate-200' : 'bg-slate-100 text-slate-600'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${t.isToday ? 'bg-gradient-to-br from-aubergine-500 to-magenta-500 text-white shadow-lg shadow-aubergine-500/30 ring-4 ring-aubergine-50' : t.isFuture ? 'bg-slate-50 text-slate-400 border border-slate-200' : 'bg-slate-100 text-slate-600'}`}>
               {t.dayNum}
             </div>
           </div>
@@ -1052,7 +1052,7 @@ function VitalsSnapshot({ vitals, discreet, navigate }) {
             return (
               <div key={key} className={`p-3 rounded-xl border border-slate-100 bg-white shadow-sm flex flex-col`}>
                 <span className="text-[10px] font-bold text-slate-500 mb-1 flex items-center gap-1"><i className={`fas ${cfg.icon} text-slate-400`}></i> {cfg.label}</span>
-                <span className="font-black text-slate-800 text-base">{reading.value} <span className="text-[10px] font-bold text-slate-400">{cfg.unit}</span></span>
+                <span className="font-semibold text-slate-800 text-base">{reading.value} <span className="text-xs font-normal text-slate-400">{cfg.unit}</span></span>
               </div>
             );
           })}
@@ -1237,7 +1237,7 @@ function PersonalizedNutritionWidget({ navigate, discreet }) {
           </div>
 
           <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-2xl">
-            <div className="flex items-center gap-1.5 text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
               <i className="fas fa-bullseye text-aubergine-600"></i> Active Focus:
             </div>
             <p className="text-xs text-slate-700 font-semibold">{preferences.goal}</p>
@@ -1287,7 +1287,7 @@ function MindfulMovementWidget({ toast, discreet }) {
             <p className="text-[11px] text-slate-400">This Week's Movement Goal</p>
           </div>
         </div>
-        <span className="text-xs font-mono font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-100">
+        <span className="text-xs font-mono font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-100">
           {weeklyMinutes} / {targetMinutes}m
         </span>
       </div>
@@ -1308,7 +1308,7 @@ function MindfulMovementWidget({ toast, discreet }) {
 
         {/* Quick Log Movement */}
         <div className="flex items-center gap-2 pt-1">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Quick Log:</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Quick Log:</span>
           <button
             onClick={() => addMinutes(15)}
             className="flex-1 py-1.5 bg-slate-50 hover:bg-emerald-50 hover:text-emerald-800 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
@@ -1331,7 +1331,7 @@ function MindfulMovementWidget({ toast, discreet }) {
 
         {/* Category Pills */}
         <div className="pt-2 border-t border-slate-100">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">6 Movement Pillars:</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1.5">6 Movement Pillars:</span>
           <div className="grid grid-cols-3 gap-1.5 text-[10px]">
             {MOVEMENT_CATEGORIES.map(cat => (
               <button
@@ -1411,7 +1411,7 @@ function WellbeingCheckinWidget({ toast, discreet }) {
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         {/* Stress */}
         <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl">
-          <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-600 block mb-1.5">
             Stress Today
           </label>
           <div className="flex gap-1">
@@ -1434,7 +1434,7 @@ function WellbeingCheckinWidget({ toast, discreet }) {
 
         {/* Sleep */}
         <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl">
-          <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-600 block mb-1.5">
             Sleep Quality
           </label>
           <div className="flex gap-1">
@@ -1457,7 +1457,7 @@ function WellbeingCheckinWidget({ toast, discreet }) {
 
         {/* Energy */}
         <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl">
-          <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-600 block mb-1.5">
             Energy Level
           </label>
           <div className="flex gap-1">
@@ -1480,7 +1480,7 @@ function WellbeingCheckinWidget({ toast, discreet }) {
 
         {/* Emotion */}
         <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl">
-          <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 block mb-1.5">
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-600 block mb-1.5">
             Feeling
           </label>
           <div className="flex gap-1">
@@ -1611,7 +1611,7 @@ function LifestylePlanWidget({ navigate, discreet }) {
               <div className="rounded-2xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100 p-4">
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="text-lg">🥗</span>
-                  <span className="text-xs font-black text-emerald-800 uppercase tracking-wider">Personalized Nutrition Plan</span>
+                  <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Personalized Nutrition Plan</span>
                 </div>
                 <p className="text-sm text-emerald-900 leading-relaxed whitespace-pre-wrap font-medium line-clamp-4">{plan.dietPlan}</p>
               </div>
@@ -1621,7 +1621,7 @@ function LifestylePlanWidget({ navigate, discreet }) {
               <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 p-4">
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="text-lg">🧘‍♀️</span>
-                  <span className="text-xs font-black text-amber-800 uppercase tracking-wider">Yoga &amp; Mindful Movement Protocol</span>
+                  <span className="text-xs font-semibold text-amber-800 uppercase tracking-wider">Yoga &amp; Mindful Movement Protocol</span>
                 </div>
                 <p className="text-sm text-amber-900 leading-relaxed whitespace-pre-wrap font-medium line-clamp-4">{plan.exercisePlan}</p>
               </div>
@@ -1663,7 +1663,7 @@ function PatientAiDashboardCard({ navigate }) {
         <div>
           <div className="flex items-center gap-2">
             <h4 className="text-sm font-bold text-slate-800">AI Health Companion</h4>
-            <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+            <span className="text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
               {aiStatus?.isPremium ? 'AI Premium' : 'Included Free'}
             </span>
           </div>
@@ -1675,7 +1675,7 @@ function PatientAiDashboardCard({ navigate }) {
 
       <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
         <div className="text-right">
-          <span className="text-xs font-black text-slate-800 font-mono">
+          <span className="text-xs font-semibold text-slate-800 font-mono">
             {remaining.toLocaleString()} <span className="text-slate-400 font-normal">/ {total.toLocaleString()}</span>
           </span>
           <div className="w-28 h-1.5 rounded-full bg-slate-100 overflow-hidden mt-1">
@@ -1804,8 +1804,8 @@ function PatientDashboard() {
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <p className="text-[10px] font-black text-aubergine-500 uppercase tracking-widest mb-2 flex items-center gap-1.5"><i className="fas fa-calendar-day"></i> {todayLabel}</p>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif-brand font-black text-slate-800 mb-2 tracking-tight">
+            <p className="text-xs font-semibold text-aubergine-600 uppercase tracking-wider mb-2 flex items-center gap-1.5"><i className="fas fa-calendar-day"></i> {todayLabel}</p>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-slate-800 mb-2 tracking-tight">
               {greeting}, {user?.name?.split(' ')[0] || 'there'}.
             </h1>
             <p className="text-slate-500 text-sm max-w-md leading-relaxed">
@@ -1829,7 +1829,7 @@ function PatientDashboard() {
           <div className="flex gap-2.5 sm:gap-3 flex-wrap">
             <button
               onClick={() => setShowCarePassModal(true)}
-              className="bg-white/80 hover:bg-white border border-aubergine-200 text-aubergine-800 font-bold px-4 py-3 rounded-2xl transition-all shadow-sm text-sm flex items-center gap-2 btn-interactive"
+              className="bg-white/80 hover:bg-white border border-aubergine-200 text-aubergine-800 font-medium px-4 py-3 rounded-2xl transition-all shadow-sm text-sm flex items-center gap-2 btn-interactive"
               title="View your Emergency Care Card & QR Pass"
             >
               <i className="fas fa-id-card text-aubergine-600"></i>
@@ -1837,7 +1837,7 @@ function PatientDashboard() {
             </button>
 
             <button onClick={() => navigate(`/patient-dashboard/appointments?joinCall=${nextAppointment.id}`)} disabled={!nextAppointment || nextAppointment.type !== 'Video Consult' || daysToNext !== 0}
-              className="bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:from-aubergine-700 hover:to-magenta-700 disabled:opacity-40 disabled:grayscale text-white font-bold px-6 py-3 rounded-2xl transition-all shadow-lg shadow-aubergine-500/20 text-sm flex items-center gap-2 btn-interactive">
+              className="bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:from-aubergine-700 hover:to-magenta-700 disabled:opacity-40 disabled:grayscale text-white font-medium px-6 py-3 rounded-2xl transition-all shadow-lg shadow-aubergine-500/20 text-sm flex items-center gap-2 btn-interactive">
               <i className="fas fa-video"></i> Join Call
             </button>
           </div>
@@ -1846,14 +1846,14 @@ function PatientDashboard() {
 
       {/* 5-Stage Life Mode Switcher Bar */}
       <div className="bg-white/80 backdrop-blur-md rounded-2xl p-2 border border-slate-200/80 shadow-sm flex items-center gap-1.5 overflow-x-auto">
-        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-3 flex-shrink-0">Life Stage:</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 px-3 flex-shrink-0">Life Stage:</span>
         {LIFE_MODES.map(mode => {
           const isActive = activeLifeMode === mode.id;
           return (
             <button
               key={mode.id}
               onClick={() => handleSelectLifeMode(mode.id)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all flex-shrink-0 ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all flex-shrink-0 ${
                 isActive
                   ? 'bg-gradient-to-r from-aubergine-600 to-magenta-600 text-white shadow-md shadow-aubergine-500/20 scale-[1.02]'
                   : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-100'
@@ -1929,10 +1929,10 @@ function PatientDashboard() {
             </div>
 
             <div onClick={() => setShowLabReports(true)} className="glass-panel card-premium rounded-3xl p-6 group cursor-pointer flex flex-col justify-between relative overflow-hidden">
-              {pendingReportCount > 0 && <span className="absolute top-4 right-4 bg-rose-500 text-white text-[10px] font-black px-2 py-1 rounded-full animate-bounce">{pendingReportCount} New</span>}
+              {pendingReportCount > 0 && <span className="absolute top-4 right-4 bg-rose-500 text-white text-xs font-semibold px-2 py-1 rounded-full animate-bounce">{pendingReportCount} New</span>}
               <div className="w-12 h-12 bg-gradient-to-br from-aubergine-500 to-magenta-600 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-aubergine-500/30 group-hover:scale-110 transition-transform"><i className="fas fa-flask text-xl"></i></div>
               <div>
-                <h3 className="font-bold text-slate-800 mb-1">Lab Reports</h3>
+                <h3 className="font-semibold text-slate-800 mb-1">Lab Reports</h3>
                 <p className="text-xs text-slate-500">Upload & track your reports.</p>
                 <span className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold text-aubergine-700 uppercase tracking-wide group-hover:gap-2 transition-all">View Results <i className="fas fa-arrow-right"></i></span>
               </div>
@@ -1940,7 +1940,7 @@ function PatientDashboard() {
           </div>
 
           <div className="glass-panel rounded-3xl p-6">
-            <h3 className="font-bold text-slate-800 text-sm mb-4 flex items-center justify-between">
+            <h3 className="font-semibold text-slate-800 text-sm mb-4 flex items-center justify-between">
               <span className="flex items-center gap-2"><i className="fas fa-calendar-check text-emerald-500"></i> Upcoming Visits</span>
               <button onClick={() => setShowQuickBook(true)} className="text-[10px] font-bold bg-aubergine-50 text-aubergine-700 hover:bg-aubergine-100 px-3 py-1.5 rounded-full transition-colors">+ Book</button>
             </h3>
@@ -1950,10 +1950,10 @@ function PatientDashboard() {
                   onClick={() => navigate('/patient-dashboard/appointments')}>
                   <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h4 className="font-bold text-sm text-slate-800 group-hover:text-aubergine-700 transition-colors">Dr. {apt.doctorName}</h4>
+                      <h4 className="font-semibold text-sm text-slate-800 group-hover:text-aubergine-700 transition-colors">Dr. {apt.doctorName}</h4>
                       <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">{apt.reason || 'Consultation'}</p>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-[9px] font-black tracking-wide ${apt.type === 'Video Consult' ? 'bg-aubergine-50 text-aubergine-700' : 'bg-slate-100 text-slate-600'}`}>
+                    <span className={`px-2 py-1 rounded-full text-[10px] font-semibold tracking-wide ${apt.type === 'Video Consult' ? 'bg-aubergine-50 text-aubergine-700' : 'bg-slate-100 text-slate-600'}`}>
                       {apt.type === 'Video Consult' ? 'VIDEO' : 'CLINIC'}
                     </span>
                   </div>
@@ -1975,14 +1975,14 @@ function PatientDashboard() {
             <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-pink-500/20 rounded-full blur-2xl pointer-events-none"></div>
 
             <div className="flex justify-between items-center">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+              <span className="text-xs font-semibold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
                 Emergency Health Pass
               </span>
               <i className="fas fa-qrcode text-purple-300 text-sm"></i>
             </div>
 
             <div>
-              <h3 className="font-black text-sm text-white">My Emergency Care Pass</h3>
+              <h3 className="font-semibold text-sm text-white">My Emergency Care Pass</h3>
               <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">
                 Instant access to your verified medical QR, blood group, drug allergies, and doctor referral pass.
               </p>

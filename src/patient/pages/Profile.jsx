@@ -216,13 +216,13 @@ function PatientProfile() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h1 className="text-2xl font-black text-slate-800">My Profile</h1>
+      <h1 className="text-2xl font-semibold text-slate-800">My Profile</h1>
 
       {/* Profile Header */}
       <div className={`bg-gradient-to-r ${FIELD_COLOR[activeTab]} rounded-3xl p-8 text-white flex flex-col sm:flex-row items-center sm:items-start gap-6 relative overflow-hidden transition-all duration-500`}>
         <div className="absolute -right-8 -top-8 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
         <div className="relative">
-          <div className="w-24 h-24 rounded-3xl bg-white/20 border-4 border-white/30 flex items-center justify-center text-3xl font-black text-white shrink-0 shadow-xl overflow-hidden">
+          <div className="w-24 h-24 rounded-3xl bg-white/20 border-4 border-white/30 flex items-center justify-center text-3xl font-semibold text-white shrink-0 shadow-xl overflow-hidden">
             {user?.avatarUrl ? <img src={user.avatarUrl} alt={form.name} className="w-full h-full object-cover" /> : initials}
           </div>
           <button onClick={() => setShowPhotoModal(true)}
@@ -231,7 +231,7 @@ function PatientProfile() {
           </button>
         </div>
         <div className="text-center sm:text-left">
-          <h2 className="text-2xl font-black">{form.name}</h2>
+          <h2 className="text-2xl font-semibold">{form.name}</h2>
           <p className="text-white/70 text-sm mt-1">{form.email}</p>
           <div className="flex flex-wrap gap-2 mt-3 justify-center sm:justify-start">
             <span className="bg-white/20 border border-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">Patient</span>
@@ -376,7 +376,7 @@ function PatientProfile() {
                   const catColor = category === 'Normal' ? 'text-emerald-600' : category === 'Underweight' ? 'text-amber-600' : 'text-rose-600';
                   return (
                     <div className="flex items-center gap-4">
-                      <div className="text-3xl font-black text-slate-800">{bmi ?? '—'}</div>
+                      <div className="text-3xl font-semibold text-slate-800">{bmi ?? '—'}</div>
                       <div>
                         <p className={`text-sm font-bold ${catColor}`}>{category}</p>
                         <p className="text-xs text-slate-500">BMI Index</p>
@@ -565,7 +565,7 @@ function PatientProfile() {
                           </div>
                           <div className="text-right shrink-0">
                             <p className="text-slate-400 text-[10px]">{new Date(log.created_at).toLocaleString()}</p>
-                            <span className="inline-block mt-1 px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded text-[9px] font-black uppercase">
+                            <span className="inline-block mt-1 px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded text-[9px] font-semibold uppercase">
                               {log.actor_role}
                             </span>
                           </div>
@@ -598,7 +598,7 @@ function PatientProfile() {
       {/* Modals */}
       <Modal isOpen={showPhotoModal} onClose={() => setShowPhotoModal(false)} title="Change Profile Photo" size="sm">
         <div className="space-y-4 text-center">
-          <div className="w-24 h-24 rounded-3xl bg-aubergine-100 text-aubergine-700 text-3xl font-black flex items-center justify-center mx-auto overflow-hidden">
+          <div className="w-24 h-24 rounded-3xl bg-aubergine-100 text-aubergine-700 text-3xl font-semibold flex items-center justify-center mx-auto overflow-hidden">
             {user?.avatarUrl ? <img src={user.avatarUrl} alt={form.name} className="w-full h-full object-cover" /> : initials}
           </div>
           <p className="text-sm text-slate-500">Upload a new profile photo (PNG, JPG up to 5MB)</p>

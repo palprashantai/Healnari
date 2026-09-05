@@ -278,8 +278,8 @@ export function PatientCarePassModal({ isOpen, onClose, patient, doctorName }) {
               
               <div className="flex justify-between items-center border-b border-white/10 pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="font-black text-white text-base tracking-tight font-display">Heal<span className="text-pink-400">Nari</span></span>
-                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-black px-2 py-0.5 rounded-full">
+                  <span className="font-semibold text-white text-base tracking-tight font-display">Heal<span className="text-pink-400">Nari</span></span>
+                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-semibold px-2 py-0.5 rounded-full">
                     DIGITAL CARE PASS
                   </span>
                 </div>
@@ -287,11 +287,11 @@ export function PatientCarePassModal({ isOpen, onClose, patient, doctorName }) {
               </div>
 
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-aubergine-600 border border-aubergine-400/40 text-white font-black text-xl flex items-center justify-center shrink-0 shadow-md">
+                <div className="w-14 h-14 rounded-2xl bg-aubergine-600 border border-aubergine-400/40 text-white font-semibold text-xl flex items-center justify-center shrink-0 shadow-md">
                   {patientName.split(' ').map(n => n[0]).join('').slice(0, 2)}
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-lg font-black text-white truncate">{patientName}</h3>
+                  <h3 className="text-lg font-semibold text-white truncate">{patientName}</h3>
                   <p className="text-xs text-purple-200">{age} yrs • Female • Blood Group: <strong className="text-white">{bloodGroup}</strong></p>
                 </div>
               </div>

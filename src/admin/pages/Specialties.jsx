@@ -101,7 +101,7 @@ function AdminSpecialties() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Specialty Management</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">Specialty Management</h1>
           <p className="text-sm text-slate-500">Configure hormonal and medical specialties for the HealNari doctor network.</p>
         </div>
         <button onClick={handleOpenAdd} className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-colors shadow-sm btn-interactive">

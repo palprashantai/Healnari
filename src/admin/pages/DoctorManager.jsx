@@ -207,7 +207,7 @@ function AdminDoctorManager() {
               <i className="fas fa-user-doctor"></i>
             </span>
             <div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Doctor Network Directory</h1>
+              <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Doctor Network Directory</h1>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
                 Manage credentialed healthcare providers, consultation metrics, and AI EMR tiers.
               </p>
@@ -236,7 +236,7 @@ function AdminDoctorManager() {
             </button>
             {isActionsDropdownOpen && (
               <div className="absolute right-0 top-full mt-2 w-52 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 py-1.5 animate-fade-in">
-                <p className="px-4 py-1.5 text-[10px] font-black text-slate-400 uppercase tracking-wider">Messaging</p>
+                <p className="px-4 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Messaging</p>
                 <button 
                   type="button"
                   onClick={() => openMessageModal('email')} 
@@ -302,7 +302,7 @@ function AdminDoctorManager() {
           </div>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Physicians</p>
-            <p className="text-xl font-black text-slate-900 font-sans mt-0.5">{totalClinicians}</p>
+            <p className="text-xl font-semibold text-slate-900 font-sans mt-0.5">{totalClinicians}</p>
           </div>
         </div>
 
@@ -312,7 +312,7 @@ function AdminDoctorManager() {
           </div>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Active Doctors</p>
-            <p className="text-xl font-black text-emerald-700 font-sans mt-0.5">{activeClinicians}</p>
+            <p className="text-xl font-semibold text-emerald-700 font-sans mt-0.5">{activeClinicians}</p>
           </div>
         </div>
 
@@ -322,7 +322,7 @@ function AdminDoctorManager() {
           </div>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">KYC Verified</p>
-            <p className="text-xl font-black text-slate-900 font-sans mt-0.5">{verifiedClinicians}</p>
+            <p className="text-xl font-semibold text-slate-900 font-sans mt-0.5">{verifiedClinicians}</p>
           </div>
         </div>
 
@@ -332,7 +332,7 @@ function AdminDoctorManager() {
           </div>
           <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Consultations</p>
-            <p className="text-xl font-black text-slate-900 font-sans mt-0.5">{totalNetworkConsults.toLocaleString()}</p>
+            <p className="text-xl font-semibold text-slate-900 font-sans mt-0.5">{totalNetworkConsults.toLocaleString()}</p>
           </div>
         </div>
       </div>
@@ -394,7 +394,7 @@ function AdminDoctorManager() {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm border-collapse">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-black uppercase tracking-wider text-slate-500">
+              <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                 <th className="px-5 py-3.5 w-10 text-center">
                   <input 
                     type="checkbox" 
@@ -481,7 +481,7 @@ function AdminDoctorManager() {
                               <p className="font-extrabold text-slate-900 text-sm truncate">{d.name}</p>
                             </div>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-aubergine-700 bg-aubergine-50 border border-aubergine-100 px-1.5 py-0.5 rounded">
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-aubergine-700 bg-aubergine-50 border border-aubergine-100 px-1.5 py-0.5 rounded">
                                 {d.specialty || 'General Practitioner'}
                               </span>
                               <span className="text-[10px] text-slate-400 font-mono">
@@ -535,7 +535,7 @@ function AdminDoctorManager() {
 
                       {/* Consultations */}
                       <td className="px-5 py-4 text-center">
-                        <span className="font-black text-slate-800 text-base block font-sans">
+                        <span className="font-semibold text-slate-800 text-base block font-sans">
                           {totalConsults}
                         </span>
                         <span className="text-[10px] text-slate-400 font-medium">consults</span>
@@ -543,7 +543,7 @@ function AdminDoctorManager() {
 
                       {/* Practice Revenue */}
                       <td className="px-5 py-4 text-right">
-                        <p className="font-black text-slate-900 font-sans text-sm">
+                        <p className="font-semibold text-slate-900 font-sans text-sm">
                           {formatCurrency(totalGross, 'INR')}
                         </p>
                         <p className="text-[10px] text-slate-500 font-medium mt-0.5">

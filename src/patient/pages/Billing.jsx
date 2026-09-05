@@ -178,7 +178,7 @@ function PatientBilling() {
   return (
     <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
       <div>
-        <h1 className="text-2xl font-black text-slate-800 font-display">Billing & Payments</h1>
+        <h1 className="text-2xl font-semibold text-slate-800 font-display">Billing & Payments</h1>
         <p className="text-sm text-slate-500">View payment history, invoices, and manage your consultations in {defaultCurrency}.</p>
       </div>
 
@@ -192,9 +192,9 @@ function PatientBilling() {
           <div className="absolute -right-4 -bottom-4 text-8xl opacity-10"><i className="fas fa-wallet"></i></div>
           <div className="text-sm text-aubergine-200 font-medium mb-1">Total Spent</div>
           <div className="space-y-0.5">
-            {totalPaidInr > 0 && <div className="text-2xl font-black">{formatCurrency(totalPaidInr, 'INR')}</div>}
-            {totalPaidUsd > 0 && <div className="text-2xl font-black">{formatCurrency(totalPaidUsd, 'USD')}</div>}
-            {totalPaidInr === 0 && totalPaidUsd === 0 && <div className="text-2xl font-black">{formatCurrency(0, 'INR')}</div>}
+            {totalPaidInr > 0 && <div className="text-2xl font-semibold">{formatCurrency(totalPaidInr, 'INR')}</div>}
+            {totalPaidUsd > 0 && <div className="text-2xl font-semibold">{formatCurrency(totalPaidUsd, 'USD')}</div>}
+            {totalPaidInr === 0 && totalPaidUsd === 0 && <div className="text-2xl font-semibold">{formatCurrency(0, 'INR')}</div>}
           </div>
           <div className="text-xs text-aubergine-300 mt-2">{transactions.filter(t => t.status === 'paid').length} transactions</div>
         </div>
@@ -204,7 +204,7 @@ function PatientBilling() {
           <div className="text-sm text-slate-500 font-medium mb-1">Next Consultation</div>
           {upcomingPayment ? (
             <>
-              <div className="text-2xl font-black text-slate-800">{formatCurrency(upcomingPayment.amount, upcomingPayment.currency)}</div>
+              <div className="text-2xl font-semibold text-slate-800">{formatCurrency(upcomingPayment.amount, upcomingPayment.currency)}</div>
               <div className="text-xs text-slate-500 mt-1">{upcomingPayment.doctor} • {upcomingPayment.date}</div>
               <button onClick={() => openPay(upcomingPayment.amount, `Consultation — ${upcomingPayment.doctor}`, upcomingPayment.appointmentId, upcomingPayment.currency)}
                 className="mt-3 w-full btn-brand !h-9 !text-xs">
@@ -258,7 +258,7 @@ function PatientBilling() {
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 block uppercase">Amount & Method</span>
-                  <span className="font-black text-slate-900 block text-sm">{formatCurrency(txn.amount, txn.currency)}</span>
+                  <span className="font-semibold text-slate-900 block text-sm">{formatCurrency(txn.amount, txn.currency)}</span>
                   <span className="text-slate-500 text-[11px] inline-flex items-center gap-1">
                     <i className={`fas ${METHOD_ICON[txn.method] || 'fa-money-bill'} text-[10px]`}></i> {txn.method}
                   </span>
@@ -310,7 +310,7 @@ function PatientBilling() {
                       <i className={`fas ${METHOD_ICON[txn.method] || 'fa-money-bill'}`}></i> {txn.method}
                     </span>
                   </td>
-                  <td className="font-black text-slate-800">{formatCurrency(txn.amount, txn.currency)}</td>
+                  <td className="font-semibold text-slate-800">{formatCurrency(txn.amount, txn.currency)}</td>
                   <td>
                     <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${STATUS_STYLE[txn.status]}`}>
                       {txn.status.charAt(0).toUpperCase() + txn.status.slice(1)}

@@ -380,7 +380,7 @@ function RequestReportModal({ isOpen, onClose, patients, onRequest }) {
             {/* Prefix-Ranked Dropdown Menu */}
             {isDropdownOpen && (
               <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-60 overflow-y-auto custom-scrollbar z-50 p-1.5 space-y-0.5">
-                <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
+                <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
                   <span>Diagnostic Tests ({filteredTests.length})</span>
                   <span className="text-[9px] text-aubergine-700 font-bold">Prefix &amp; Keyword Match</span>
                 </div>
@@ -401,7 +401,7 @@ function RequestReportModal({ isOpen, onClose, patients, onRequest }) {
                         <span className="truncate">
                           {labSearchInput && item.name.toLowerCase().startsWith(labSearchInput.trim().toLowerCase()) ? (
                             <>
-                              <span className="text-aubergine-700 bg-aubergine-100 px-0.5 rounded font-black">{item.name.slice(0, labSearchInput.trim().length)}</span>
+                              <span className="text-aubergine-700 bg-aubergine-100 px-0.5 rounded font-semibold">{item.name.slice(0, labSearchInput.trim().length)}</span>
                               <span>{item.name.slice(labSearchInput.trim().length)}</span>
                             </>
                           ) : (
@@ -614,7 +614,7 @@ function DoctorReports() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Lab & Reports</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">Lab & Reports</h1>
           <p className="text-sm text-slate-500">Review diagnostic reports and record clinical actions.</p>
         </div>
         <div className="flex gap-2">
@@ -625,7 +625,7 @@ function DoctorReports() {
             </button>
             {showActionsMenu && (
               <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
-                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p></div>
+                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Bulk Messaging</p></div>
                 <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-aubergine-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-envelope text-aubergine-600 w-4"></i> Bulk Email
                 </button>
@@ -639,7 +639,7 @@ function DoctorReports() {
             )}
           </div>
           {pending.some(l => l.urgent) && (
-            <span className="bg-rose-500 text-white text-xs font-black px-3 py-1.5 rounded-xl flex items-center gap-1.5 animate-pulse">
+            <span className="bg-rose-500 text-white text-xs font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1.5 animate-pulse">
               <i className="fas fa-circle-exclamation"></i> {pending.filter(l => l.urgent).length} Urgent
             </span>
           )}
@@ -706,7 +706,7 @@ function DoctorReports() {
               <button key={key} onClick={() => setTab(key)}
                 className={`px-6 py-4 text-sm font-bold transition-all flex items-center gap-2 ${tab === key ? 'bg-white text-aubergine-700 border-t-2 border-t-aubergine-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
                 {label}
-                <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${tab === key ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-200 text-slate-500'}`}>{count}</span>
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${tab === key ? 'bg-aubergine-100 text-aubergine-700' : 'bg-slate-200 text-slate-500'}`}>{count}</span>
               </button>
             ))}
           </div>
@@ -733,7 +733,7 @@ function DoctorReports() {
               </label>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1.5">
-                  <h3 className="font-black text-slate-800">{lab.patient}</h3>
+                  <h3 className="font-semibold text-slate-800">{lab.patient}</h3>
                   {lab.urgent && <span className="text-[10px] bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded-full border border-rose-200 flex items-center gap-1"><i className="fas fa-circle-exclamation text-[8px]"></i> Urgent</span>}
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-2">
@@ -765,7 +765,7 @@ function DoctorReports() {
               </label>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1.5">
-                  <h3 className="font-black text-slate-800">{r.patient}</h3>
+                  <h3 className="font-semibold text-slate-800">{r.patient}</h3>
                   <span className="text-[10px] bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">Reviewed</span>
                 </div>
                 <p className="text-xs text-slate-500 mb-1">{r.tests} • {r.lab} • {r.date}</p>

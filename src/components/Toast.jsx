@@ -61,13 +61,13 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={toastApi}>
       {children}
       {/* Toast Container */}
-      <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">
+      <div className="fixed bottom-[max(5.5rem,env(safe-area-inset-bottom,5.5rem))] sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[9999] flex flex-col gap-2.5 pointer-events-none">
         {toasts.map(toast => {
           const cfg = TYPE_CONFIG[toast.type] || TYPE_CONFIG.success;
           return (
             <div
               key={toast.id}
-              className={`toast-item pointer-events-auto flex items-center gap-3 px-5 py-3.5 rounded-2xl text-white text-sm font-semibold shadow-2xl border ${cfg.bg} ${cfg.border} max-w-xs`}
+              className={`toast-item pointer-events-auto flex items-center gap-3 px-4 sm:px-5 py-3 rounded-2xl text-white text-sm font-medium shadow-xl border ${cfg.bg} ${cfg.border} max-w-sm`}
               style={{ animation: toast.leaving ? `slideOutRight ${LEAVE_ANIM_MS}ms ease-in both` : 'slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) both' }}
             >
               <i className={`fas ${cfg.icon} text-base flex-shrink-0`}></i>

@@ -37,9 +37,9 @@ export function AIButton({
   const sizeClasses = {
     xs: 'px-2.5 py-1 text-[11px] rounded-lg gap-1.5 font-bold',
     sm: 'px-3.5 py-1.5 text-xs rounded-xl gap-2 font-bold',
-    md: 'px-4.5 py-2.5 text-xs rounded-xl gap-2 font-black',
-    lg: 'px-6 py-3 text-sm rounded-2xl gap-2.5 font-black tracking-wide',
-  }[size] || 'px-4.5 py-2.5 text-xs rounded-xl gap-2 font-black';
+    md: 'px-4.5 py-2.5 text-xs rounded-xl gap-2 font-semibold',
+    lg: 'px-6 py-3 text-sm rounded-2xl gap-2.5 font-semibold tracking-wide',
+  }[size] || 'px-4.5 py-2.5 text-xs rounded-xl gap-2 font-semibold';
 
   // Variant configurations
   const variantStyles = {
@@ -181,7 +181,7 @@ export function AIButton({
 
             {/* Optional Small Badge */}
             {badge && (
-              <span className="ml-1 text-[9px] uppercase px-1.5 py-0.5 rounded-md bg-white/20 text-white font-black tracking-wider border border-white/20">
+              <span className="ml-1 text-[9px] uppercase px-1.5 py-0.5 rounded-md bg-white/20 text-white font-semibold tracking-wider border border-white/20">
                 {badge}
               </span>
             )}

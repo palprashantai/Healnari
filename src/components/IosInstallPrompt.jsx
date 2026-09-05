@@ -51,7 +51,7 @@ export function IosInstallPrompt() {
         </div>
         
         <div className="flex-1 min-w-0 pr-4">
-          <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+          <h4 className="text-xs font-semibold text-slate-900 uppercase tracking-wider mb-1 flex items-center gap-1.5">
             <span>Install HealNari App</span>
             <span className="bg-aubergine-100 text-aubergine-700 text-[10px] font-extrabold px-1.5 py-0.2 rounded">iOS</span>
           </h4>

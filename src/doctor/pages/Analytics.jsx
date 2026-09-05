@@ -81,7 +81,7 @@ function DoctorAnalytics() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Practice Growth &amp; Clinical Analytics</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">Practice Growth &amp; Clinical Analytics</h1>
           <p className="text-sm text-slate-500 mt-0.5">Real-time consultation volume, patient demographics, and completion metrics from database.</p>
         </div>
 
@@ -146,7 +146,7 @@ function DoctorAnalytics() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-6">
           <div>
-            <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
               <i className="fas fa-chart-area text-aubergine-600"></i> Revenue &amp; Consultation Volume Trajectory
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">Monthly billing volume correlated with completed patient sessions.</p>
@@ -191,7 +191,7 @@ function DoctorAnalytics() {
         {/* Top Diagnoses */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
           <div>
-            <h2 className="text-sm font-black text-slate-900 mb-1 flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-slate-900 mb-1 flex items-center gap-2">
               <i className="fas fa-stethoscope text-aubergine-600"></i> Clinical Diagnoses Breakdown
             </h2>
             <p className="text-xs text-slate-500 mb-4">Patient cases grouped by diagnosis reason.</p>
@@ -226,7 +226,7 @@ function DoctorAnalytics() {
         {/* Appointment Status */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
           <div>
-            <h2 className="text-sm font-black text-slate-900 mb-1 flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-slate-900 mb-1 flex items-center gap-2">
               <i className="fas fa-calendar-check text-emerald-600"></i> Session Completion Rate
             </h2>
             <p className="text-xs text-slate-500 mb-4">Fulfilled vs cancelled sessions in practice schedule.</p>
@@ -249,7 +249,7 @@ function DoctorAnalytics() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-6">
-                  <span className="text-2xl font-black text-slate-800">{completedPct}%</span>
+                  <span className="text-2xl font-semibold text-slate-800">{completedPct}%</span>
                   <span className="text-[10px] text-slate-400 font-bold uppercase">Fulfilled</span>
                 </div>
               </div>
@@ -260,7 +260,7 @@ function DoctorAnalytics() {
         {/* Modality Delivery Split */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
           <div>
-            <h2 className="text-sm font-black text-slate-900 mb-1 flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-slate-900 mb-1 flex items-center gap-2">
               <i className="fas fa-video text-aubergine-600"></i> Consultation Modality
             </h2>
             <p className="text-xs text-slate-500 mb-4">WebRTC Video Consults vs In-Clinic Visits.</p>
@@ -291,7 +291,7 @@ function DoctorAnalytics() {
       {/* Row 4: Age Demographics & Weekly Appointment Load */}
       <div className="grid lg:grid-cols-2 gap-5">
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <h2 className="text-sm font-black text-slate-900 mb-1 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-slate-900 mb-1 flex items-center gap-2">
             <i className="fas fa-users text-aubergine-600"></i> Patient Age Demographics
           </h2>
           <p className="text-xs text-slate-500 mb-4">Distribution of patient roster by discrete age bracket.</p>
@@ -317,7 +317,7 @@ function DoctorAnalytics() {
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <h2 className="text-sm font-black text-slate-900 mb-1 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-slate-900 mb-1 flex items-center gap-2">
             <i className="fas fa-calendar-week text-amber-500"></i> Weekly Consultation Load
           </h2>
           <p className="text-xs text-slate-500 mb-4">Distribution of appointments across days of the week.</p>

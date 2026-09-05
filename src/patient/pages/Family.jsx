@@ -100,7 +100,7 @@ function PatientFamily() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Partner & Care Circle Support</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">Partner & Care Circle Support</h1>
           <p className="text-sm text-slate-500">Securely sync cycle phases with a partner while maintaining complete medical privacy.</p>
         </div>
         <button onClick={() => setShowInviteForm(!showInviteForm)}
@@ -186,7 +186,7 @@ function PatientFamily() {
             {/* Connection Header */}
             <div className="flex justify-between items-start mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-black text-base">
+                <div className="w-12 h-12 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-semibold text-base">
                   {c.avatar}
                 </div>
                 <div>

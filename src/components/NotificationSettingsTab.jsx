@@ -296,7 +296,7 @@ export function NotificationSettingsTab() {
 
           {/* Level 2: Standard */}
           <div className="p-3.5 rounded-xl border border-aubergine-200/80 bg-aubergine-50/30 flex flex-col justify-between space-y-3 relative">
-            <span className="absolute -top-2 right-3 bg-aubergine-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+            <span className="absolute -top-2 right-3 bg-aubergine-600 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider">
               Signature
             </span>
             <div>

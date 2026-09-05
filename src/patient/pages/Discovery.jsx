@@ -98,11 +98,11 @@ function BookingModal({ doc, patientCountry = 'IN', isOpen, onClose, toast, addA
       {/* Custom Header */}
       <div className="-mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 py-4 sm:py-5 bg-gradient-to-r from-aubergine-900 to-aubergine-700 text-white mb-5 rounded-t-[2rem] sm:rounded-t-3xl">
         <div className="flex items-center gap-3 sm:gap-4">
-          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl border-2 border-white/30 bg-white/10 flex items-center justify-center font-black text-base sm:text-lg flex-shrink-0">
+          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl border-2 border-white/30 bg-white/10 flex items-center justify-center font-semibold text-base sm:text-lg flex-shrink-0">
             {doc.name.split(' ').filter(w => w).map(w => w[0]).join('').slice(0, 2).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="font-black text-base sm:text-lg truncate">{doc.name}</h3>
+            <h3 className="font-semibold text-base sm:text-lg truncate">{doc.name}</h3>
             <p className="text-xs text-aubergine-200 truncate">{doc.specialty || 'Specialist'}</p>
           </div>
           <button
@@ -121,7 +121,7 @@ function BookingModal({ doc, patientCountry = 'IN', isOpen, onClose, toast, addA
           <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-3 text-xs flex flex-col gap-1">
             <div className="flex justify-between items-center">
               <span className="text-slate-600 font-medium">Standard Consult (30 mins)</span>
-              <span className="font-black text-aubergine-800 text-sm">{pricing.formattedPayable}</span>
+              <span className="font-semibold text-aubergine-800 text-sm">{pricing.formattedPayable}</span>
             </div>
             {pricing.hasConversion && (
               <p className="text-[10px] text-aubergine-600 font-medium text-right">{pricing.baseDisclosure}</p>
@@ -192,7 +192,7 @@ function BookingModal({ doc, patientCountry = 'IN', isOpen, onClose, toast, addA
             <div className="flex justify-between items-center">
               <span className="text-slate-500">Payable Fee</span>
               <div className="text-right">
-                <span className="font-black text-aubergine-800 text-sm">{pricing.formattedPayable}</span>
+                <span className="font-semibold text-aubergine-800 text-sm">{pricing.formattedPayable}</span>
                 {pricing.hasConversion && (
                   <p className="text-[10px] text-slate-400">{pricing.baseDisclosure}</p>
                 )}
@@ -227,12 +227,12 @@ function DoctorCard({ doc, patientCountry = 'IN', onBook, onFavorite, favorites 
       <div className="p-6 flex-1">
         {/* Header */}
         <div className="flex gap-4 mb-4">
-          <div className="w-16 h-16 rounded-2xl bg-aubergine-50 flex-shrink-0 border-2 border-aubergine-100 flex items-center justify-center text-xl font-black text-aubergine-700">
+          <div className="w-16 h-16 rounded-2xl bg-aubergine-50 flex-shrink-0 border-2 border-aubergine-100 flex items-center justify-center text-xl font-semibold text-aubergine-700">
             {doc.name.split(' ').filter(w => w).map(w => w[0]).join('').slice(0, 2).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <h3 className="font-black text-slate-800 text-base truncate">{doc.name}</h3>
+              <h3 className="font-semibold text-slate-800 text-base truncate">{doc.name}</h3>
               {doc.verified && <i className="fas fa-circle-check text-aubergine-600 text-xs flex-shrink-0" title="KYC Verified"></i>}
             </div>
             <p className="text-xs text-aubergine-700 font-bold uppercase tracking-wide mt-0.5">{doc.specialty || 'Specialist'}</p>
@@ -252,7 +252,7 @@ function DoctorCard({ doc, patientCountry = 'IN', onBook, onFavorite, favorites 
           </div>
           <div className="flex flex-col items-end">
             <span className="text-[9px] text-slate-500 uppercase tracking-wider mb-0.5">Consult Fee</span>
-            <span className="text-slate-800 font-black text-sm">{pricing.formattedPayable}</span>
+            <span className="text-slate-800 font-semibold text-sm">{pricing.formattedPayable}</span>
             {pricing.hasConversion && (
               <span className="text-[10px] text-slate-400 font-normal">{pricing.baseDisclosure}</span>
             )}
@@ -359,7 +359,7 @@ function PatientDiscovery() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Find a Doctor</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">Find a Doctor</h1>
           <p className="text-sm text-slate-500">Browse HealNari's verified specialists and book a consultation.</p>
         </div>
         <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-sm">

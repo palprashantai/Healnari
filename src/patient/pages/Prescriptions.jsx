@@ -47,7 +47,7 @@ function AiDrugSafetyModal({ rx, onClose }) {
               <i className="fas fa-shield-virus"></i>
             </div>
             <div>
-              <h3 className="font-black text-base">Clinical Safety Shield</h3>
+              <h3 className="font-semibold text-base">Clinical Safety Shield</h3>
               <p className="text-aubergine-200 text-xs">AI analysis for: {rx.diagnosis}</p>
             </div>
           </div>
@@ -70,7 +70,7 @@ function AiDrugSafetyModal({ rx, onClose }) {
                   <i className="fas fa-person-pregnant"></i>
                 </div>
                 <div>
-                  <h4 className="font-black text-xs uppercase tracking-wider text-rose-800">Pregnancy Safety Alert</h4>
+                  <h4 className="font-semibold text-xs uppercase tracking-wider text-rose-800">Pregnancy Safety Alert</h4>
                   <p className="text-xs font-semibold text-rose-900 mt-0.5 leading-relaxed">{safetyData.pregnancyWarning}</p>
                 </div>
               </div>
@@ -83,7 +83,7 @@ function AiDrugSafetyModal({ rx, onClose }) {
                   <i className="fas fa-baby"></i>
                 </div>
                 <div>
-                  <h4 className="font-black text-xs uppercase tracking-wider text-amber-800">Breastfeeding &amp; Lactation Notice</h4>
+                  <h4 className="font-semibold text-xs uppercase tracking-wider text-amber-800">Breastfeeding &amp; Lactation Notice</h4>
                   <p className="text-xs font-medium text-amber-900 mt-0.5 leading-relaxed">{safetyData.lactationWarning}</p>
                 </div>
               </div>
@@ -226,7 +226,7 @@ function PrescriptionModal({ rx, labRequests, onClose }) {
               <div key={i} className="border border-slate-200 rounded-xl p-4 bg-slate-50">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-black text-slate-800 mb-1.5">{m.name}</p>
+                    <p className="font-semibold text-slate-800 mb-1.5">{m.name}</p>
                     <DoseSchedule schedule={m.schedule} />
                     <p className="text-xs text-slate-500 mt-1.5">Duration: {m.duration}</p>
                   </div>
@@ -261,7 +261,7 @@ function PrescriptionModal({ rx, labRequests, onClose }) {
 
         {/* Instructions */}
         <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-          <p className="text-xs font-black text-amber-800 mb-1.5 uppercase tracking-wide flex items-center gap-1.5"><i className="fas fa-circle-info"></i> Doctor's Instructions</p>
+          <p className="text-xs font-semibold text-amber-800 mb-1.5 uppercase tracking-wide flex items-center gap-1.5"><i className="fas fa-circle-info"></i> Doctor's Instructions</p>
           <p className="text-xs text-amber-900 leading-relaxed">{rx.instructions}</p>
         </div>
 
@@ -427,7 +427,7 @@ function PatientPrescriptions() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">My Care Plan</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">My Care Plan</h1>
           <p className="text-sm text-slate-500">View your prescriptions, diet & yoga protocols, and request refills.</p>
         </div>
         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl text-emerald-700 text-xs font-bold">
@@ -461,7 +461,7 @@ function PatientPrescriptions() {
                       <i className="fas fa-file-prescription text-lg"></i>
                     </div>
                     <div>
-                      <h3 className="font-black text-slate-800">{rx.diagnosis}</h3>
+                      <h3 className="font-semibold text-slate-800">{rx.diagnosis}</h3>
                       <p className="text-xs text-slate-500">{rx.doctor} • {rx.date}</p>
                     </div>
                   </div>
@@ -502,7 +502,7 @@ function PatientPrescriptions() {
                         if (parsed.type === 'healnari-holistic-v1' && (parsed.dietPlan || parsed.exercisePlan)) {
                           return (
                             <div className="mb-5 space-y-3">
-                              <div className="flex items-center gap-2 text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                              <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
                                 <i className="fas fa-spa text-emerald-500"></i> Your Personalised Lifestyle Protocol
                               </div>
 
@@ -510,7 +510,7 @@ function PatientPrescriptions() {
                                 <div className="rounded-2xl bg-emerald-50/70 border border-emerald-100 p-4">
                                   <div className="flex items-center gap-2 mb-2">
                                     <span className="text-xl">🥗</span>
-                                    <span className="text-xs font-black text-emerald-800 uppercase tracking-wider">Personalized Nutrition Plan</span>
+                                    <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Personalized Nutrition Plan</span>
                                   </div>
                                   <p className="text-sm text-emerald-900 leading-relaxed whitespace-pre-wrap font-medium">{parsed.dietPlan}</p>
                                 </div>
@@ -520,7 +520,7 @@ function PatientPrescriptions() {
                                 <div className="rounded-2xl bg-amber-50/70 border border-amber-100 p-4">
                                   <div className="flex items-center gap-2 mb-2">
                                     <span className="text-xl">🧘‍♀️</span>
-                                    <span className="text-xs font-black text-amber-800 uppercase tracking-wider">Yoga &amp; Mindful Movement Protocol</span>
+                                    <span className="text-xs font-semibold text-amber-800 uppercase tracking-wider">Yoga &amp; Mindful Movement Protocol</span>
                                   </div>
                                   <p className="text-sm text-amber-900 leading-relaxed whitespace-pre-wrap font-medium">{parsed.exercisePlan}</p>
                                 </div>
@@ -610,7 +610,7 @@ function PatientPrescriptions() {
               <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100 shadow-sm">
                 <i className="fas fa-file-prescription text-4xl text-slate-300"></i>
               </div>
-              <h3 className="text-lg font-black text-slate-800 mb-1">No Active Prescriptions</h3>
+              <h3 className="text-lg font-semibold text-slate-800 mb-1">No Active Prescriptions</h3>
               <p className="text-sm text-slate-500 max-w-sm mx-auto mb-6">
                 You do not have any active medication records. Any new prescriptions issued by your doctor will automatically appear here.
               </p>
@@ -656,7 +656,7 @@ function PatientPrescriptions() {
                 ))}
               </div>
               <div className="text-xs text-slate-600 font-medium">
-                <span className="font-black text-emerald-600">{weekAdherence.pct}%</span> adherence this week, based on your daily health checklist.
+                <span className="font-semibold text-emerald-600">{weekAdherence.pct}%</span> adherence this week, based on your daily health checklist.
               </div>
             </div>
           )}
@@ -677,7 +677,7 @@ function PatientPrescriptions() {
                 <div key={pillar.label} className="flex items-center gap-3 bg-white/10 rounded-xl p-2.5 border border-white/10">
                   <span className="text-xl">{pillar.icon}</span>
                   <div>
-                    <div className="text-xs font-black">{pillar.label}</div>
+                    <div className="text-xs font-semibold">{pillar.label}</div>
                     <div className="text-[11px] text-emerald-300">{pillar.desc}</div>
                   </div>
                 </div>

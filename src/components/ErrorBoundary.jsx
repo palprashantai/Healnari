@@ -30,7 +30,7 @@ export class ErrorBoundary extends React.Component {
             <div className="w-16 h-16 bg-purple-100 text-aubergine-700 rounded-2xl flex items-center justify-center mx-auto mb-5 text-2xl shadow-xs">
               <i className="fas fa-stethoscope"></i>
             </div>
-            <h2 className="text-xl font-black text-slate-900 font-display mb-2">Something went wrong</h2>
+            <h2 className="text-xl font-semibold text-slate-900 font-display mb-2">Something went wrong</h2>
             <p className="text-xs sm:text-sm text-slate-500 mb-6 leading-relaxed">
               An unexpected display issue occurred in this section. Your clinical data and session remain secure.
             </p>

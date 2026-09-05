@@ -53,7 +53,7 @@ function PayoutModal({ isOpen, onClose, onRequest, available, currency = 'INR', 
         <div className="space-y-4">
           <div className="bg-aubergine-50 border border-aubergine-100 rounded-2xl p-5 text-center">
             <p className="text-xs text-slate-500 font-semibold mb-1">Available for Immediate Payout</p>
-            <p className="text-3xl font-black text-aubergine-900 font-sans tracking-tight">
+            <p className="text-3xl font-semibold text-aubergine-900 font-sans tracking-tight">
               {formatCurrency(available || 0, currency)}
             </p>
             <p className="text-[11px] text-slate-400 mt-1">Direct wire settlement via ACH / SWIFT / IMPS</p>
@@ -132,7 +132,7 @@ function InvoiceModal({ txn, isOpen, onClose, doctorName, toast }) {
       <div className="border border-slate-200 rounded-2xl p-5 space-y-4 font-sans">
         <div className="flex justify-between items-start border-b border-slate-100 pb-3">
           <div>
-            <h3 className="font-black text-slate-900 text-base">HealNari Telehealth</h3>
+            <h3 className="font-semibold text-slate-900 text-base">HealNari Telehealth</h3>
             <p className="text-xs text-slate-500">{doctorName ? `Dr. ${doctorName}` : 'Specialist'}</p>
           </div>
           <div className="text-right text-xs text-slate-500 font-mono">
@@ -146,11 +146,11 @@ function InvoiceModal({ txn, isOpen, onClose, doctorName, toast }) {
           <div className="flex justify-between"><span className="text-slate-500 font-medium">Payment Rail</span><span className="font-bold text-slate-800">{txn.method}</span></div>
           <div className="flex justify-between border-t border-slate-100 pt-2 mt-2">
             <span className="font-bold text-slate-700">Gross Settlement</span>
-            <span className="font-black text-slate-900 text-base">{formatCurrency(txn.grossAmount || txn.amount, txn.grossCurrency || txn.currency || 'INR')}</span>
+            <span className="font-semibold text-slate-900 text-base">{formatCurrency(txn.grossAmount || txn.amount, txn.grossCurrency || txn.currency || 'INR')}</span>
           </div>
           <div className="flex justify-between">
             <span className="font-bold text-emerald-700">Net Doctor Payout</span>
-            <span className="font-black text-emerald-700 text-base">{formatCurrency(txn.amount, txn.currency || 'INR')}</span>
+            <span className="font-semibold text-emerald-700 text-base">{formatCurrency(txn.amount, txn.currency || 'INR')}</span>
           </div>
         </div>
         <button onClick={() => downloadInvoicePdf(txn, toast)} className="w-full bg-slate-900 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-xs">
@@ -325,7 +325,7 @@ function DoctorBilling() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900">Doctor Earnings &amp; Settlements</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">Doctor Earnings &amp; Settlements</h1>
           <p className="text-sm text-slate-500 mt-0.5">Track consultation revenue and manage available disbursements in {userCurrency}.</p>
         </div>
         <button 
@@ -413,12 +413,12 @@ function DoctorBilling() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
               <i className="fas fa-chart-area text-aubergine-600"></i> Practice Net Earnings History
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">Daily consultation settlements after platform take-rate.</p>
           </div>
-          <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
             Net Take-Home
           </span>
         </div>
@@ -454,12 +454,12 @@ function DoctorBilling() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-slate-100 flex flex-wrap gap-4 items-center justify-between bg-slate-50/70">
           <div>
-            <h3 className="font-black text-slate-900 text-sm">Consultation Transaction Ledger</h3>
+            <h3 className="font-semibold text-slate-900 text-sm">Consultation Transaction Ledger</h3>
             <p className="text-xs text-slate-500">Record of patient billing, payment rail, and fee breakdown.</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-xs text-slate-600 font-semibold bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs">
-              Showing: <strong className="text-emerald-700 font-black">{formatCurrency(totalSettled, userCurrency)}</strong> settled
+              Showing: <strong className="text-emerald-700 font-semibold">{formatCurrency(totalSettled, userCurrency)}</strong> settled
             </div>
             <button onClick={exportEarnings} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold px-3 py-1.5 rounded-xl text-xs transition-colors shadow-xs flex items-center gap-1.5">
               <i className="fas fa-file-csv text-emerald-600"></i> Export CSV
@@ -494,7 +494,7 @@ function DoctorBilling() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-slate-500 text-xs font-medium">{t.method}</td>
-                  <td className="px-6 py-4 font-black text-slate-900 font-sans">
+                  <td className="px-6 py-4 font-semibold text-slate-900 font-sans">
                     {formatCurrency(t.amount, t.currency || userCurrency)}
                   </td>
                   <td className="px-6 py-4 text-slate-500 font-semibold font-sans text-xs">
@@ -535,7 +535,7 @@ function DoctorBilling() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-slate-100 flex flex-wrap gap-4 items-center justify-between bg-slate-50/70">
           <div>
-            <h3 className="font-black text-slate-900 text-sm">Payout &amp; Withdrawal History</h3>
+            <h3 className="font-semibold text-slate-900 text-sm">Payout &amp; Withdrawal History</h3>
             <p className="text-xs text-slate-500">Record of all requested disbursements to your bank or wallet.</p>
           </div>
         </div>
@@ -562,7 +562,7 @@ function DoctorBilling() {
                     <td className="px-6 py-4 text-slate-500 text-xs font-medium truncate max-w-[200px]" title={JSON.stringify(p.destination_details)}>
                       {p.destination_details?.account_holder || '—'}
                     </td>
-                    <td className="px-6 py-4 font-black text-slate-900 font-sans">
+                    <td className="px-6 py-4 font-semibold text-slate-900 font-sans">
                       {formatCurrency(p.amount, p.currency || userCurrency)}
                     </td>
                     <td className="px-6 py-4">

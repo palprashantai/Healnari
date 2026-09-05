@@ -441,15 +441,15 @@ export function AiHub({ role = 'doctor' }) {
       {/* ── TOP HEADER ── */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-slate-200 rounded-3xl p-6 shadow-xs">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-purple-100 flex items-center justify-center text-purple-700 text-xl font-black shrink-0 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-purple-100 flex items-center justify-center text-purple-700 text-xl font-semibold shrink-0 shadow-xs">
             <i className="fas fa-wand-magic-sparkles"></i>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-black text-slate-800 tracking-tight">
+              <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">
                 {isDoctor ? 'Clinical AI Hub' : 'AI Health Companion'}
               </h1>
-              <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+              <span className={`text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
                 isPremium
                   ? 'bg-purple-100 text-purple-800 border border-purple-200'
                   : 'bg-slate-100 text-slate-600 border border-slate-200'
@@ -473,7 +473,7 @@ export function AiHub({ role = 'doctor' }) {
 
           <div className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-1.5 text-right">
             <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">Uses Left</span>
-            <span className="text-sm font-black text-slate-800 font-mono">
+            <span className="text-sm font-semibold text-slate-800 font-mono">
               {tokensRemaining.toLocaleString()} <span className="text-[11px] font-normal text-slate-500">uses</span>
             </span>
           </div>
@@ -569,7 +569,7 @@ export function AiHub({ role = 'doctor' }) {
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Monthly Allowance</span>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl sm:text-4xl font-black text-slate-900 font-mono tracking-tight">
+                  <span className="text-3xl sm:text-4xl font-semibold text-slate-900 font-mono tracking-tight">
                     {creditsRemaining.toLocaleString()}
                   </span>
                   <span className="text-sm font-semibold text-slate-500">AI uses remaining</span>
@@ -806,7 +806,7 @@ export function AiHub({ role = 'doctor' }) {
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Current AI Plan</span>
                 <div className="flex items-center gap-3 mt-1">
-                  <h2 className="text-2xl font-black text-slate-800 tracking-tight">
+                  <h2 className="text-2xl font-semibold text-slate-800 tracking-tight">
                     {currentPlanName}
                   </h2>
                   <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
@@ -874,7 +874,7 @@ export function AiHub({ role = 'doctor' }) {
           <div id="plans-grid" className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div>
-                <h3 className="text-xl font-black text-slate-900">
+                <h3 className="text-xl font-semibold text-slate-900">
                   {isDoctor ? 'Doctor AI Plans' : 'Patient AI Plans'}
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -905,7 +905,7 @@ export function AiHub({ role = 'doctor' }) {
                     }`}
                   >
                     {plan.highlight && (
-                      <span className="absolute -top-3 right-6 bg-purple-600 text-white text-[10px] font-black uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
+                      <span className="absolute -top-3 right-6 bg-purple-600 text-white text-[10px] font-semibold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-xs">
                         {plan.badge}
                       </span>
                     )}
@@ -913,10 +913,10 @@ export function AiHub({ role = 'doctor' }) {
                     <div>
                       <div className="flex justify-between items-start">
                         <div>
-                          <span className="text-[10px] font-black text-purple-700 uppercase tracking-wider">
+                          <span className="text-[10px] font-semibold text-purple-700 uppercase tracking-wider">
                             Plan {plan.tier}
                           </span>
-                          <h4 className="font-black text-xl text-slate-900 mt-0.5">{plan.name}</h4>
+                          <h4 className="font-semibold text-xl text-slate-900 mt-0.5">{plan.name}</h4>
                         </div>
                         <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
                           isCurrent
@@ -932,7 +932,7 @@ export function AiHub({ role = 'doctor' }) {
                       {/* Price Tag */}
                       <div className="my-5 pb-4 border-b border-slate-100">
                         <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-black text-slate-900">{price}</span>
+                          <span className="text-3xl font-semibold text-slate-900">{price}</span>
                           <span className="text-xs text-slate-400 font-medium">/ month</span>
                         </div>
                         <p className="text-xs text-purple-700 font-bold mt-1">
@@ -942,7 +942,7 @@ export function AiHub({ role = 'doctor' }) {
 
                       {/* "What's included in this plan" Benefits Box */}
                       <div>
-                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-400 block mb-2.5">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block mb-2.5">
                           What's included in this plan:
                         </span>
                         <ul className="space-y-2.5 text-xs text-slate-700">
@@ -983,7 +983,7 @@ export function AiHub({ role = 'doctor' }) {
             {/* 5-10 Second Plan Comparison Table */}
             <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
               <div>
-                <h4 className="text-base font-black text-slate-900">5-Second Plan Comparison</h4>
+                <h4 className="text-base font-semibold text-slate-900">5-Second Plan Comparison</h4>
                 <p className="text-xs text-slate-500 mt-0.5">Quickly compare what is included in each plan at a glance.</p>
               </div>
 

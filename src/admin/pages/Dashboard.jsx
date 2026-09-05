@@ -40,7 +40,7 @@ function DocumentViewerModal({ isOpen, onClose, doctor, onResolve }) {
               <p className="text-[11px] text-aubergine-700 font-semibold">Council: {doctor.medical_council || 'State Medical Licensing Board'}</p>
             </div>
           </div>
-          <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-aubergine-50 text-aubergine-700 border border-aubergine-100">
+          <span className="text-[10px] font-semibold uppercase px-2.5 py-1 rounded-full bg-aubergine-50 text-aubergine-700 border border-aubergine-100">
             {doctor.currency || 'INR'} Settlement
           </span>
         </div>
@@ -86,7 +86,7 @@ function RefundModal({ isOpen, onClose, refund, onProcess }) {
         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3 text-sm">
           <div className="flex justify-between items-center">
             <span className="text-slate-500 text-xs font-bold">Refund Amount</span>
-            <span className="font-black text-lg text-slate-900 font-sans">
+            <span className="font-semibold text-lg text-slate-900 font-sans">
               {formatCurrency(refund.amount, refund.currency || 'INR')}
             </span>
           </div>
@@ -312,8 +312,8 @@ function AdminDashboard() {
         <div>
           <div className="flex items-center gap-2">
             <span className="text-2xl">🌐</span>
-            <h1 className="text-2xl font-black text-slate-900">Global Telehealth Operations Center</h1>
-            <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <h1 className="text-2xl font-semibold text-slate-900">Global Telehealth Operations Center</h1>
+            <span className="text-[10px] font-semibold uppercase px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
               {reportingCurrency === 'INR' ? '🇮🇳 INR Active' : '🇺🇸 USD Active'}
             </span>
           </div>
@@ -427,7 +427,7 @@ function AdminDashboard() {
         <div className="bg-gradient-to-r from-slate-900 via-aubergine-950 to-slate-900 border border-aubergine-800/80 rounded-2xl p-5 shadow-lg text-white space-y-4">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-black ${
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-semibold ${
                 scorecard.diagnosis.bottleneck === 'HEALTHY'
                   ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                   : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
@@ -436,14 +436,14 @@ function AdminDashboard() {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-aubergine-300">Marketplace Health Diagnosis</span>
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                  <span className="text-xs font-semibold uppercase tracking-wider text-aubergine-300">Marketplace Health Diagnosis</span>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                     scorecard.diagnosis.bottleneck === 'HEALTHY' ? 'bg-emerald-500 text-slate-950' : 'bg-amber-400 text-slate-950'
                   }`}>
                     {scorecard.diagnosis.bottleneck}
                   </span>
                 </div>
-                <h3 className="text-base font-black text-white mt-0.5">{scorecard.diagnosis.headline}</h3>
+                <h3 className="text-base font-semibold text-white mt-0.5">{scorecard.diagnosis.headline}</h3>
               </div>
             </div>
             <div className="bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/10 text-xs flex items-center gap-2 self-stretch md:self-auto">
@@ -455,27 +455,27 @@ function AdminDashboard() {
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 pt-3 border-t border-white/10 text-xs">
             <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
               <span className="text-slate-400 text-[10px] font-bold block">Patient/Doc Ratio</span>
-              <span className="font-mono font-black text-white text-sm">{scorecard.dimensions.acquisition.patientToDoctorRatio}:1</span>
+              <span className="font-mono font-semibold text-white text-sm">{scorecard.dimensions.acquisition.patientToDoctorRatio}:1</span>
             </div>
             <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
               <span className="text-slate-400 text-[10px] font-bold block">Payment Conv.</span>
-              <span className="font-mono font-black text-emerald-400 text-sm">{scorecard.dimensions.conversion.paymentConversionRate}</span>
+              <span className="font-mono font-semibold text-emerald-400 text-sm">{scorecard.dimensions.conversion.paymentConversionRate}</span>
             </div>
             <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
               <span className="text-slate-400 text-[10px] font-bold block">Clinical Completion</span>
-              <span className="font-mono font-black text-sky-400 text-sm">{scorecard.dimensions.quality.completionRate}</span>
+              <span className="font-mono font-semibold text-sky-400 text-sm">{scorecard.dimensions.quality.completionRate}</span>
             </div>
             <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
               <span className="text-slate-400 text-[10px] font-bold block">No-Show Rate</span>
-              <span className="font-mono font-black text-amber-300 text-sm">{scorecard.dimensions.quality.noShowRate}</span>
+              <span className="font-mono font-semibold text-amber-300 text-sm">{scorecard.dimensions.quality.noShowRate}</span>
             </div>
             <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
               <span className="text-slate-400 text-[10px] font-bold block">Repeat Patients</span>
-              <span className="font-mono font-black text-fuchsia-300 text-sm">{scorecard.dimensions.retention.repeatPatientRate}</span>
+              <span className="font-mono font-semibold text-fuchsia-300 text-sm">{scorecard.dimensions.retention.repeatPatientRate}</span>
             </div>
             <div className="bg-white/5 p-2.5 rounded-xl border border-white/5">
               <span className="text-slate-400 text-[10px] font-bold block">AI Credits Used</span>
-              <span className="font-mono font-black text-indigo-300 text-sm">{scorecard.dimensions.ai.totalCreditsConsumed.toLocaleString()}</span>
+              <span className="font-mono font-semibold text-indigo-300 text-sm">{scorecard.dimensions.ai.totalCreditsConsumed.toLocaleString()}</span>
             </div>
           </div>
         </div>
@@ -537,13 +537,13 @@ function AdminDashboard() {
         <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-aubergine-500/10 border border-amber-200/80 rounded-2xl p-4.5 shadow-sm">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-sm shadow-sm">
+              <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-semibold text-sm shadow-sm">
                 <i className="fas fa-bell animate-pulse"></i>
               </div>
               <div>
                 <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
                   Action Center Bottlenecks
-                  <span className="bg-amber-100 text-amber-800 text-[10px] font-black px-2 py-0.5 rounded-full">
+                  <span className="bg-amber-100 text-amber-800 text-[10px] font-semibold px-2 py-0.5 rounded-full">
                     {totalAlertsCount} Items Pending
                   </span>
                 </h3>
@@ -600,7 +600,7 @@ function AdminDashboard() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-aubergine-600 animate-pulse"></span>
-                <h2 className="font-black text-slate-900 text-base">Patient Enrollment Trajectory</h2>
+                <h2 className="font-semibold text-slate-900 text-base">Patient Enrollment Trajectory</h2>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">Monthly patient acquisition across international and domestic cohorts.</p>
             </div>
@@ -649,7 +649,7 @@ function AdminDashboard() {
         {/* Global SLA Health Nodes (1 Col) - Real from /admin/system-health */}
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col justify-between">
           <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/70">
-            <h2 className="font-black text-slate-900 text-sm">System Health &amp; Nodes</h2>
+            <h2 className="font-semibold text-slate-900 text-sm">System Health &amp; Nodes</h2>
             <span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100">
               <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div> OPERATIONAL
             </span>
@@ -666,7 +666,7 @@ function AdminDashboard() {
                     <span className="font-bold text-slate-700">{h.name}</span>
                   </div>
                   <div className="text-right">
-                    <span className="font-black text-slate-900 font-mono text-[11px]">{h.ping || h.status}</span>
+                    <span className="font-semibold text-slate-900 font-mono text-[11px]">{h.ping || h.status}</span>
                   </div>
                 </div>
               ))
@@ -745,7 +745,7 @@ function AdminDashboard() {
             {filteredVerifications.map(v => (
               <div key={v.id} className="px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-slate-50/70 transition-colors">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-11 h-11 rounded-2xl bg-aubergine-50 text-aubergine-700 flex items-center justify-center font-black text-sm border border-aubergine-100">
+                  <div className="w-11 h-11 rounded-2xl bg-aubergine-50 text-aubergine-700 flex items-center justify-center font-semibold text-sm border border-aubergine-100">
                     {COUNTRY_FLAGS[v.country] || '👩‍⚕️'}
                   </div>
                   <div>
@@ -798,7 +798,7 @@ function AdminDashboard() {
                 </div>
 
                 <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                  <span className="font-black text-rose-600 font-sans text-base">
+                  <span className="font-semibold text-rose-600 font-sans text-base">
                     {formatCurrency(r.amount, r.currency || 'INR')}
                   </span>
                   <button 

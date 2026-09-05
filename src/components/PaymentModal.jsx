@@ -129,7 +129,7 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency:
         <div className="space-y-4">
           <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-4 text-center">
             <p className="text-xs text-slate-500 font-medium mb-1">{description}</p>
-            <p className="text-3xl font-black text-aubergine-800">{formatCurrency(settledAmount ?? amount, currency)}</p>
+            <p className="text-3xl font-semibold text-aubergine-800">{formatCurrency(settledAmount ?? amount, currency)}</p>
           </div>
           <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs text-slate-600 flex items-center gap-2">
             <i className="fas fa-shield-halved text-emerald-500"></i> {currency === 'INR' ? 'Secured by Cashfree / Razorpay — UPI, Card, Net Banking & Wallets' : 'Secured by Stripe Global Checkout — Apple Pay, Google Pay, Visa & Mastercard'}

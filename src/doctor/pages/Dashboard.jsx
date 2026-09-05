@@ -75,7 +75,7 @@ function QuickNotesPad() {
           <i className="fas fa-note-sticky text-amber-600"></i> Clinical Quick Notes
         </h3>
         <button onClick={handleSave}
-          className={`text-[10px] font-black px-3 py-1 rounded-lg transition-all ${saved ? 'bg-emerald-500 text-white' : 'bg-amber-200 text-amber-800 hover:bg-amber-300'}`}>
+          className={`text-[10px] font-semibold px-3 py-1 rounded-lg transition-all ${saved ? 'bg-emerald-500 text-white' : 'bg-amber-200 text-amber-800 hover:bg-amber-300'}`}>
           {saved ? '✓ Saved' : 'Save'}
         </button>
       </div>
@@ -159,11 +159,11 @@ function PatientFileModal({ row, onClose, onWriteRx }) {
     <Modal isOpen={!!row} onClose={onClose} title={`Patient File — ${row.name}`} size="lg">
       <div className="space-y-4">
         <div className="flex items-center gap-4 bg-slate-50 rounded-2xl p-4 border border-slate-200">
-          <div className="w-14 h-14 rounded-2xl bg-aubergine-100 text-aubergine-700 flex items-center justify-center text-xl font-black">
+          <div className="w-14 h-14 rounded-2xl bg-aubergine-100 text-aubergine-700 flex items-center justify-center text-xl font-semibold">
             {row.name.split(' ').map(n => n[0]).join('')}
           </div>
           <div>
-            <h3 className="font-black text-slate-800 text-lg">{row.name}</h3>
+            <h3 className="font-semibold text-slate-800 text-lg">{row.name}</h3>
             <p className="text-sm text-slate-500">{row.age} • {row.type}</p>
             <div className="flex items-center gap-2 mt-1">
               <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[row.status]}`}>{row.status}</span>
@@ -289,7 +289,7 @@ function PatientTimelineCard({ patient, isActive, onReview, onCallNext, isNext, 
       <div className={`flex gap-4 p-4 flex-1 ${isActive ? 'bg-gradient-to-r from-emerald-50/80 to-white' : 'bg-white'}`}>
         {/* Token + Time */}
         <div className="flex flex-col items-center gap-1 flex-shrink-0 w-12">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-[11px] font-black font-mono
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-[11px] font-semibold font-mono
             ${isActive ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-300' : patient.status === 'Done' ? 'bg-slate-200 text-slate-500' : 'bg-slate-800 text-white'}`}>
             {patient.token}
           </div>
@@ -302,7 +302,7 @@ function PatientTimelineCard({ patient, isActive, onReview, onCallNext, isNext, 
             <div>
               <p className={`font-bold text-sm leading-tight ${isActive ? 'text-emerald-900' : patient.status === 'Done' ? 'text-slate-400' : 'text-slate-800'}`}>
                 {patient.name}
-                {isActive && <span className="ml-2 inline-flex items-center gap-1 text-[9px] font-black text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full animate-pulse">● LIVE</span>}
+                {isActive && <span className="ml-2 inline-flex items-center gap-1 text-[9px] font-semibold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full animate-pulse">● LIVE</span>}
               </p>
               <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
                 <span className="flex items-center gap-1"><i className="fas fa-user text-[9px] text-slate-400"></i>{patient.age}</span>
@@ -310,7 +310,7 @@ function PatientTimelineCard({ patient, isActive, onReview, onCallNext, isNext, 
                 <span className="flex items-center gap-1"><i className="fas fa-stethoscope text-[9px] text-slate-400"></i>{patient.type}</span>
               </p>
             </div>
-            <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border flex-shrink-0 flex items-center gap-1 ${STATUS_STYLE[patient.status]}`}>
+            <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border flex-shrink-0 flex items-center gap-1 ${STATUS_STYLE[patient.status]}`}>
               <i className={`fas ${STATUS_ICON[patient.status]} text-[8px]`}></i>
               {patient.status}
             </span>
@@ -376,7 +376,7 @@ function PriorityInbox({ labs, refillRequests, onReviewLab, onApproveRefill, onR
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-bold text-slate-800 flex items-center gap-2">
             <i className="fas fa-clipboard-list text-rose-500"></i> Clinical Action Items
-            {urgentCount > 0 && <span className="bg-rose-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full animate-pulse">{urgentCount} URGENT</span>}
+            {urgentCount > 0 && <span className="bg-rose-500 text-white text-[9px] font-semibold px-2 py-0.5 rounded-full animate-pulse">{urgentCount} URGENT</span>}
           </h3>
           <span className="text-[10px] font-bold text-slate-400">{filtered.length} pending</span>
         </div>
@@ -477,8 +477,8 @@ function PracticePerformanceCard({ earnings, navigate, queue, userCurrency }) {
         <div className="relative z-10">
           <div className="flex items-start justify-between mb-5">
             <div>
-              <p className="text-[10px] font-black text-aubergine-300 uppercase tracking-widest mb-1">This Month</p>
-              <h3 className="font-bold text-aubergine-100 text-sm">Practice Performance</h3>
+              <p className="text-xs font-semibold text-aubergine-300 uppercase tracking-wider mb-1">This Month</p>
+              <h3 className="font-semibold text-aubergine-100 text-sm">Practice Performance</h3>
             </div>
             <i className="fas fa-chart-line text-aubergine-300 text-lg"></i>
           </div>
@@ -497,19 +497,19 @@ function PracticePerformanceCard({ earnings, navigate, queue, userCurrency }) {
                 </defs>
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-xl font-black">{pct}%</span>
-                <span className="text-[8px] text-aubergine-300 font-bold">Today</span>
+                <span className="text-xl font-bold">{pct}%</span>
+                <span className="text-[10px] text-aubergine-300 font-medium">Today</span>
               </div>
             </div>
             <div className="space-y-2">
               <div>
-                <p className="text-3xl font-black">{formatCurrency(earnings?.thisMonth ?? 0, userCurrency)}</p>
+                <p className="text-2xl sm:text-3xl font-bold">{formatCurrency(earnings?.thisMonth ?? 0, userCurrency)}</p>
                 <p className="text-xs text-aubergine-200">{earnings ? `${earnings.thisMonthCount} consultations` : 'Loading...'}</p>
               </div>
               {momGrowth ? (
                 <div className={`flex items-center gap-1.5 ${momGrowth.direction === 'down' ? 'text-rose-300' : 'text-emerald-300'}`}>
                   <i className={`fas fa-arrow-trend-${momGrowth.direction === 'down' ? 'down' : 'up'} text-xs`}></i>
-                  <span className="text-xs font-bold">{momGrowth.display}</span>
+                  <span className="text-xs font-semibold">{momGrowth.display}</span>
                 </div>
               ) : (
                 <div className="flex items-center gap-1.5 text-aubergine-300 text-xs">
@@ -520,16 +520,16 @@ function PracticePerformanceCard({ earnings, navigate, queue, userCurrency }) {
           </div>
           <div className="grid grid-cols-2 gap-2 mb-4">
             <div className="bg-white/10 rounded-xl p-3 text-center">
-              <p className="text-lg font-black">{done}</p>
-              <p className="text-[10px] text-aubergine-200">Seen Today</p>
+              <p className="text-lg font-bold">{done}</p>
+              <p className="text-xs text-aubergine-200 font-normal">Seen Today</p>
             </div>
             <div className="bg-white/10 rounded-xl p-3 text-center">
-              <p className="text-lg font-black">{total - done}</p>
-              <p className="text-[10px] text-aubergine-200">Remaining</p>
+              <p className="text-lg font-bold">{total - done}</p>
+              <p className="text-xs text-aubergine-200 font-normal">Remaining</p>
             </div>
           </div>
           <button onClick={() => navigate('/doctor-dashboard/billing')}
-            className="w-full bg-white/20 hover:bg-white/30 text-white font-bold py-2.5 rounded-xl text-xs transition-colors border border-white/20 flex items-center justify-center gap-2">
+            className="w-full bg-white/20 hover:bg-white/30 text-white font-medium py-2.5 rounded-xl text-xs sm:text-sm transition-colors border border-white/20 flex items-center justify-center gap-2">
             <i className="fas fa-wallet"></i> View Payouts
           </button>
         </div>
@@ -572,7 +572,7 @@ function AIInsightStrip({ queue, labs, refillRequests }) {
           ))}
         </div>
       )}
-      <span className="text-[10px] font-black text-teal-700 bg-teal-100 px-2 py-1 rounded-lg flex-shrink-0">
+      <span className="text-[10px] font-semibold text-teal-700 bg-teal-100 px-2 py-1 rounded-lg flex-shrink-0">
         <i className="fas fa-wand-magic-sparkles mr-1"></i>AI
       </span>
     </div>
@@ -602,7 +602,7 @@ function AiDashboardCard({ navigate }) {
         <div>
           <div className="flex items-center gap-2">
             <h4 className="text-sm font-bold text-slate-800">AI Clinical Assistant</h4>
-            <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+            <span className="text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
               {aiStatus?.isPremium ? 'AI Pro' : 'Standard Free'}
             </span>
           </div>
@@ -614,7 +614,7 @@ function AiDashboardCard({ navigate }) {
 
       <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
         <div className="text-right">
-          <span className="text-xs font-black text-slate-800 font-mono">
+          <span className="text-xs font-semibold text-slate-800 font-mono">
             {remaining.toLocaleString()} <span className="text-slate-400 font-normal">/ {total.toLocaleString()}</span>
           </span>
           <div className="w-28 h-1.5 rounded-full bg-slate-100 overflow-hidden mt-1">
@@ -773,38 +773,38 @@ function DoctorDashboard() {
           style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
         </div>
 
-        <div className="relative z-10 p-8">
+        <div className="relative z-10 p-6 sm:p-8">
           {/* Top status bar */}
-          <div className="flex items-center gap-3 mb-5 flex-wrap">
+          <div className="flex items-center gap-2.5 sm:gap-3 mb-4 sm:mb-5 flex-wrap">
             <div className="flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/30 rounded-full px-3 py-1">
               <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
-              <span className="text-[10px] font-black text-emerald-300 uppercase tracking-widest">Clinic Active</span>
+              <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Clinic Active</span>
             </div>
             <div className="flex items-center gap-2 bg-white/10 border border-white/10 rounded-full px-3 py-1">
-              <i className="fas fa-calendar-day text-slate-400 text-[10px]"></i>
-              <span className="text-[10px] font-bold text-slate-300">{todayLabel}</span>
+              <i className="fas fa-calendar-day text-slate-400 text-xs"></i>
+              <span className="text-xs font-medium text-slate-300">{todayLabel}</span>
             </div>
             {currentPatient && (
               <div className="flex items-center gap-2 bg-amber-500/20 border border-amber-500/30 rounded-full px-3 py-1">
-                <i className="fas fa-user-clock text-amber-400 text-[10px]"></i>
-                <span className="text-[10px] font-bold text-amber-300">In Session: {currentPatient.name}</span>
+                <i className="fas fa-user-clock text-amber-400 text-xs"></i>
+                <span className="text-xs font-medium text-amber-300">In Session: {currentPatient.name}</span>
               </div>
             )}
           </div>
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
-              <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-2">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight mb-2">
                 {greeting},
-                <span className="block text-emerald-400">{user?.name || 'Doctor'}.</span>
+                <span className="block text-emerald-400 font-semibold">{user?.name || 'Doctor'}.</span>
               </h1>
-              <p className="text-slate-400 text-sm leading-relaxed">
-                <span className="text-white font-bold">{queue.filter(q => q.status !== 'Done').length}</span> patients remaining today
+              <p className="text-slate-300 text-sm leading-relaxed">
+                <span className="text-white font-semibold">{queue.filter(q => q.status !== 'Done').length}</span> patients remaining today
                 {queue.filter(q => q.status === 'Done').length > 0 && (
-                  <> · <span className="text-emerald-400 font-bold">{queue.filter(q => q.status === 'Done').length} seen</span></>
+                  <> · <span className="text-emerald-400 font-semibold">{queue.filter(q => q.status === 'Done').length} seen</span></>
                 )}
                 {queue.some(q => q.concern) && (
-                  <> · <span className="text-amber-400 font-bold">{queue.filter(q => q.concern).length} with alerts</span></>
+                  <> · <span className="text-amber-400 font-semibold">{queue.filter(q => q.concern).length} with alerts</span></>
                 )}
               </p>
             </div>
@@ -812,7 +812,7 @@ function DoctorDashboard() {
             <div className="flex gap-2.5 sm:gap-3 flex-wrap">
               <button
                 onClick={() => setShowShareModal(true)}
-                className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-md hover:scale-105 active:scale-95"
+                className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-medium px-4 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-md hover:scale-105 active:scale-95"
               >
                 <i className="fas fa-share-nodes text-aubergine-300"></i>
                 <span>Share Booking Link</span>
@@ -821,7 +821,7 @@ function DoctorDashboard() {
               <button
                 onClick={() => navigate(`/doctor-dashboard/telemedicine?startCall=${currentPatient.id}`)}
                 disabled={!currentPatient}
-                className="bg-emerald-500 disabled:opacity-40 hover:bg-emerald-400 text-white font-bold px-4 py-2.5 rounded-2xl text-sm flex items-center gap-2 transition-all shadow-lg shadow-emerald-900/50">
+                className="bg-emerald-500 disabled:opacity-40 hover:bg-emerald-400 text-white font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all shadow-lg shadow-emerald-900/50">
                 <i className="fas fa-video"></i>
                 {currentPatient ? `Start Call — ${currentPatient.name.split(' ')[0]}` : 'No Active Patient'}
               </button>
@@ -878,7 +878,7 @@ function DoctorDashboard() {
               </div>
               <i className="fas fa-arrow-right text-[10px] text-slate-300 group-hover:text-aubergine-400 group-hover:translate-x-0.5 transition-all"></i>
             </div>
-            <div className="text-3xl font-black text-slate-800 mb-0.5">{stat.value}</div>
+            <div className="text-3xl font-semibold text-slate-800 mb-0.5">{stat.value}</div>
             <div className="text-xs font-bold text-slate-600">{stat.label}</div>
             <div className="text-[10px] text-slate-400 mt-0.5">{stat.sub}</div>
           </div>
@@ -930,7 +930,7 @@ function DoctorDashboard() {
             <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-purple-500/20 rounded-full blur-2xl pointer-events-none"></div>
             
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+              <span className="text-[10px] font-semibold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
                 Direct Patient Booking Link
               </span>
               <i className="fas fa-qrcode text-aubergine-300 text-sm"></i>

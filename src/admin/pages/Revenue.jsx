@@ -43,7 +43,7 @@ function ProcessPayoutModal({ payout, isOpen, onClose, onProcess }) {
             <span>{payoutCurr} Provider Payout</span>
           </div>
           <p className="text-xs font-bold text-slate-500 mb-1">{payout.doctor}</p>
-          <p className="text-3xl font-black text-slate-900 font-sans tracking-tight">
+          <p className="text-3xl font-semibold text-slate-900 font-sans tracking-tight">
             {formatCurrency(payout.amount || payout.original_amount, payoutCurr)}
           </p>
           <p className="text-xs font-bold text-slate-400 mt-1 flex items-center justify-center gap-1">
@@ -275,7 +275,7 @@ function AdminRevenue() {
         <div>
           <div className="flex items-center gap-2.5">
             <span className="text-2xl">🌐</span>
-            <h1 className="text-2xl font-black text-slate-900">Multi-Currency Revenue &amp; Treasury</h1>
+            <h1 className="text-2xl font-semibold text-slate-900">Multi-Currency Revenue &amp; Treasury</h1>
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Bank-grade multi-currency accounting with immutable original collections and transaction-date FX normalization.
@@ -323,16 +323,16 @@ function AdminRevenue() {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-aubergine-300 uppercase tracking-wider">Universal Single Source of Truth</span>
-              <span className="bg-emerald-500 text-slate-950 font-black text-[10px] px-2 py-0.5 rounded-full">ACTIVE</span>
+              <span className="bg-emerald-500 text-slate-950 font-semibold text-[10px] px-2 py-0.5 rounded-full">ACTIVE</span>
             </div>
-            <p className="text-sm font-black text-white mt-0.5">
+            <p className="text-sm font-semibold text-white mt-0.5">
               Global Platform Take Rate: <span className="text-amber-300 text-base">{commissionInfo.currentRate}%</span> <span className="text-slate-400 font-normal text-xs">(Physicians retain {100 - commissionInfo.currentRate}%)</span>
             </p>
           </div>
         </div>
         <button 
           onClick={() => setIsCommissionModalOpen(true)}
-          className="bg-white hover:bg-aubergine-50 text-slate-900 font-black px-4 py-2 rounded-xl text-xs flex items-center gap-2 transition-all shadow-sm whitespace-nowrap"
+          className="bg-white hover:bg-aubergine-50 text-slate-900 font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-2 transition-all shadow-sm whitespace-nowrap"
         >
           <i className="fas fa-sliders text-aubergine-700"></i> Adjust Take Rate &amp; Audit Log
         </button>
@@ -346,8 +346,8 @@ function AdminRevenue() {
               <span className="text-xl">⚖️</span>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-black text-slate-900">Automated Ledger Reconciliation</h3>
-                  <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                  <h3 className="text-sm font-semibold text-slate-900">Automated Ledger Reconciliation</h3>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                     reconciliationData.reconciliationStatus === 'BALANCED'
                       ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                       : 'bg-amber-100 text-amber-800 border border-amber-300'
@@ -362,26 +362,26 @@ function AdminRevenue() {
             </div>
             <div className="text-right">
               <span className="text-xs font-bold text-slate-400">Ledger Variance: </span>
-              <span className="text-xs font-mono font-black text-slate-900">{formatCurrency(reconciliationData.financialEquation.variance, reportingCurrency)}</span>
+              <span className="text-xs font-mono font-semibold text-slate-900">{formatCurrency(reconciliationData.financialEquation.variance, reportingCurrency)}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-slate-100 text-xs">
             <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
               <span className="text-slate-400 font-bold block">Gross Revenue</span>
-              <span className="font-mono font-black text-slate-900 text-sm">{formatCurrency(reconciliationData.financialEquation.grossRevenue, reportingCurrency)}</span>
+              <span className="font-mono font-semibold text-slate-900 text-sm">{formatCurrency(reconciliationData.financialEquation.grossRevenue, reportingCurrency)}</span>
             </div>
             <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
               <span className="text-slate-400 font-bold block">Doctor Earned</span>
-              <span className="font-mono font-black text-emerald-700 text-sm">{formatCurrency(reconciliationData.payoutLedger.totalDoctorEarned, reportingCurrency)}</span>
+              <span className="font-mono font-semibold text-emerald-700 text-sm">{formatCurrency(reconciliationData.payoutLedger.totalDoctorEarned, reportingCurrency)}</span>
             </div>
             <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
               <span className="text-slate-400 font-bold block">Payouts Settled</span>
-              <span className="font-mono font-black text-slate-900 text-sm">{formatCurrency(reconciliationData.payoutLedger.totalSettled, reportingCurrency)}</span>
+              <span className="font-mono font-semibold text-slate-900 text-sm">{formatCurrency(reconciliationData.payoutLedger.totalSettled, reportingCurrency)}</span>
             </div>
             <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
               <span className="text-slate-400 font-bold block">Outstanding Doctor Payable</span>
-              <span className="font-mono font-black text-amber-600 text-sm">{formatCurrency(reconciliationData.payoutLedger.outstandingPayable, reportingCurrency)}</span>
+              <span className="font-mono font-semibold text-amber-600 text-sm">{formatCurrency(reconciliationData.payoutLedger.outstandingPayable, reportingCurrency)}</span>
             </div>
           </div>
         </div>
@@ -491,7 +491,7 @@ function AdminRevenue() {
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h2 className="font-black text-slate-900 text-sm flex items-center gap-2">
+            <h2 className="font-semibold text-slate-900 text-sm flex items-center gap-2">
               <i className="fas fa-coins text-aubergine-600"></i> Revenue by Original Transaction Currency (Immutable Ledger)
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
@@ -517,12 +517,12 @@ function AdminRevenue() {
                   <div>
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-2xl">{ISO_CURRENCIES[item.currency]?.flag || '🌍'}</span>
-                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 font-mono">
+                      <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 font-mono">
                         {item.currency}
                       </span>
                     </div>
                     <p className="text-xs font-bold text-slate-500">{item.count} Transactions</p>
-                    <p className="text-xl font-black text-slate-900 mt-1 font-sans">
+                    <p className="text-xl font-semibold text-slate-900 mt-1 font-sans">
                       {formatCurrency(item.grossAmount, item.currency)}
                     </p>
                   </div>
@@ -558,7 +558,7 @@ function AdminRevenue() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-aubergine-600 animate-pulse"></span>
-                <h2 className="font-black text-slate-900 text-base">
+                <h2 className="font-semibold text-slate-900 text-base">
                   Normalized Revenue Trajectory ({reportingCurrency})
                 </h2>
               </div>
@@ -642,8 +642,8 @@ function AdminRevenue() {
         <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h2 className="font-black text-slate-900 text-base">Specialty Revenue Share</h2>
-              <span className="text-[11px] font-black uppercase px-2 py-0.5 rounded bg-aubergine-50 text-aubergine-700">
+              <h2 className="font-semibold text-slate-900 text-base">Specialty Revenue Share</h2>
+              <span className="text-[11px] font-semibold uppercase px-2 py-0.5 rounded bg-aubergine-50 text-aubergine-700">
                 {reportingCurrency}
               </span>
             </div>
@@ -663,7 +663,7 @@ function AdminRevenue() {
                     <div key={item.specialty} className="space-y-1.5">
                       <div className="flex justify-between items-center text-xs font-bold">
                         <span className="text-slate-700 truncate pr-2">{item.specialty}</span>
-                        <span className="text-slate-900 font-mono font-black">{formatCurrency(item.revenue, reportingCurrency)} ({percentage}%)</span>
+                        <span className="text-slate-900 font-mono font-semibold">{formatCurrency(item.revenue, reportingCurrency)} ({percentage}%)</span>
                       </div>
                       <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden flex">
                         <div 
@@ -694,8 +694,8 @@ function AdminRevenue() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-black text-slate-900">AI Subscription Revenue Stream</h3>
-                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full">
+                <h3 className="text-sm font-semibold text-slate-900">AI Subscription Revenue Stream</h3>
+                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold px-2 py-0.5 rounded-full">
                   100% PLATFORM MARGIN
                 </span>
               </div>
@@ -709,8 +709,8 @@ function AdminRevenue() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-gradient-to-br from-slate-900 to-aubergine-950 text-white rounded-xl p-4 border border-slate-800 relative overflow-hidden shadow-xs">
-            <p className="text-[10px] uppercase font-black tracking-wider text-aubergine-300 mb-1">Total AI Subscription Earnings</p>
-            <p className="text-2xl font-black text-white font-sans">
+            <p className="text-[10px] uppercase font-semibold tracking-wider text-aubergine-300 mb-1">Total AI Subscription Earnings</p>
+            <p className="text-2xl font-semibold text-white font-sans">
               {formatCurrency(revenueData?.aiSubscriptionRevenue?.total || 0, reportingCurrency)}
             </p>
             <p className="text-[11px] text-emerald-400 font-bold mt-1 flex items-center gap-1">
@@ -720,7 +720,7 @@ function AdminRevenue() {
 
           <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
             <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Doctor AI Plans (Pro &amp; Premium)</p>
-            <p className="text-2xl font-black text-aubergine-900 font-sans">
+            <p className="text-2xl font-semibold text-aubergine-900 font-sans">
               {formatCurrency(revenueData?.aiSubscriptionRevenue?.doctorPlansRevenue || 0, reportingCurrency)}
             </p>
             <p className="text-[11px] text-slate-500 font-medium mt-1">Clinical Tools, SOAP Notes &amp; Rx Autocomplete</p>
@@ -728,7 +728,7 @@ function AdminRevenue() {
 
           <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
             <p className="text-[10px] uppercase font-bold text-slate-500 mb-1">Patient AI Plans (Pro &amp; Premium)</p>
-            <p className="text-2xl font-black text-magenta-700 font-sans">
+            <p className="text-2xl font-semibold text-magenta-700 font-sans">
               {formatCurrency(revenueData?.aiSubscriptionRevenue?.patientPlansRevenue || 0, reportingCurrency)}
             </p>
             <p className="text-[11px] text-slate-500 font-medium mt-1">Health Companion, Visit Prep &amp; Lab Report Decoder</p>
@@ -740,7 +740,7 @@ function AdminRevenue() {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
-            <h2 className="font-black text-slate-900 text-sm">Platform Collections &amp; AI Transactions Ledger</h2>
+            <h2 className="font-semibold text-slate-900 text-sm">Platform Collections &amp; AI Transactions Ledger</h2>
             <p className="text-xs text-slate-500">Live feed of consultation billings and AI plan subscription sales</p>
           </div>
           <span className="text-xs font-bold text-slate-500">
@@ -787,7 +787,7 @@ function AdminRevenue() {
                     <td className="px-6 py-4 text-right font-extrabold text-slate-800 font-sans text-xs">
                       {formatCurrency(t.originalAmount, t.originalCurrency)}
                     </td>
-                    <td className="px-6 py-4 text-right font-black text-emerald-600 font-sans text-xs">
+                    <td className="px-6 py-4 text-right font-semibold text-emerald-600 font-sans text-xs">
                       {formatCurrency(t.platformFeeAmount, reportingCurrency)}
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -811,7 +811,7 @@ function AdminRevenue() {
       <div id="payout-queue" className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
-            <h2 className="font-black text-slate-900 text-sm">Physician Payout Clearance Queue</h2>
+            <h2 className="font-semibold text-slate-900 text-sm">Physician Payout Clearance Queue</h2>
             <p className="text-xs text-slate-500">Cross-border payout settlement via local clearing rails (ACH / SWIFT / IMPS).</p>
           </div>
           <div className="flex items-center gap-2">
@@ -869,11 +869,11 @@ function AdminRevenue() {
                       </td>
                       <td className="px-6 py-4 text-slate-500 text-xs font-medium">{p.date}</td>
                       <td className="px-6 py-4">
-                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full border border-aubergine-200 bg-aubergine-50 text-aubergine-700 w-fit">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-aubergine-200 bg-aubergine-50 text-aubergine-700 w-fit">
                           {p.feeCut ? `${p.feeCut} take-rate` : 'Platform fee'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 font-black text-emerald-700 font-sans text-base">
+                      <td className="px-6 py-4 font-semibold text-emerald-700 font-sans text-base">
                         {formatCurrency(p.amount, pCurr)}
                       </td>
                       <td className="px-6 py-4">

@@ -114,7 +114,7 @@ function AdminReports() {
   return (
     <div className="space-y-6 animate-fade-in pb-12">
       <div>
-        <h1 className="text-2xl font-black text-slate-900">Reports &amp; Regulatory Audits</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">Reports &amp; Regulatory Audits</h1>
         <p className="text-sm text-slate-500 mt-0.5">Generate exportable compliance, financial, and clinical analytics dossiers from database.</p>
       </div>
 
@@ -182,7 +182,7 @@ function AdminReports() {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
           <div className="mb-4">
-            <h2 className="font-black text-slate-900 text-sm">Report Generation Cadence</h2>
+            <h2 className="font-semibold text-slate-900 text-sm">Report Generation Cadence</h2>
             <p className="text-xs text-slate-500">Volume of audit reports generated over the last 8 weeks.</p>
           </div>
           
@@ -215,7 +215,7 @@ function AdminReports() {
 
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
           <div className="mb-4">
-            <h2 className="font-black text-slate-900 text-sm">Reports by Vertical</h2>
+            <h2 className="font-semibold text-slate-900 text-sm">Reports by Vertical</h2>
             <p className="text-xs text-slate-500">Distribution of generated dossiers.</p>
           </div>
           
@@ -244,7 +244,7 @@ function AdminReports() {
       {/* Available Report Catalog */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/80 flex justify-between items-center">
-          <h2 className="font-black text-slate-900 text-sm">Available Audit &amp; Compliance Dossiers</h2>
+          <h2 className="font-semibold text-slate-900 text-sm">Available Audit &amp; Compliance Dossiers</h2>
           <span className="text-xs font-bold text-slate-500">{filteredCatalog.length} available dossiers</span>
         </div>
 
@@ -252,14 +252,14 @@ function AdminReports() {
           {filteredCatalog.map(r => (
             <div key={r.id} className="p-6 hover:bg-slate-50/70 transition-colors flex flex-col h-full">
               <div className="flex justify-between items-start mb-2">
-                <span className="text-[10px] font-black text-aubergine-700 bg-aubergine-50 px-2 py-0.5 rounded border border-aubergine-100 uppercase tracking-wider">
+                <span className="text-[10px] font-semibold text-aubergine-700 bg-aubergine-50 px-2 py-0.5 rounded border border-aubergine-100 uppercase tracking-wider">
                   {r.type}
                 </span>
                 <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                   {r.freq} Cadence
                 </span>
               </div>
-              <h3 className="font-black text-slate-900 text-base mb-1">{r.name}</h3>
+              <h3 className="font-semibold text-slate-900 text-base mb-1">{r.name}</h3>
               <p className="text-xs text-slate-500 leading-relaxed mb-6 flex-1">{r.desc}</p>
               
               <div className="flex gap-3 mt-auto">
@@ -288,7 +288,7 @@ function AdminReports() {
       {history.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/80 flex justify-between items-center">
-            <h2 className="font-black text-slate-900 text-sm">Generated Dossier Archive</h2>
+            <h2 className="font-semibold text-slate-900 text-sm">Generated Dossier Archive</h2>
             <span className="text-xs text-slate-500">{history.length} archived files</span>
           </div>
 
@@ -300,7 +300,7 @@ function AdminReports() {
                   <p className="text-xs text-slate-400 font-mono mt-0.5">{r.report_id || r.id} • {r.type} • {r.size || '1.2 MB'}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
+                  <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full border ${
                     r.status === 'Generated' 
                       ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                       : 'bg-amber-50 text-amber-700 border-amber-200'

@@ -254,7 +254,7 @@ export default function Schedule() {
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl font-semibold text-slate-800 tracking-tight flex items-center gap-2">
             <i className="fas fa-calendar-alt text-aubergine-600 text-xl"></i>
             My Schedule
           </h1>
@@ -279,7 +279,7 @@ export default function Schedule() {
               <i className="fas fa-calendar-check text-lg"></i>
             </div>
             <div>
-              <p className="text-2xl font-black text-slate-800">{stats.activeDays}</p>
+              <p className="text-2xl font-semibold text-slate-800">{stats.activeDays}</p>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Working Days</p>
             </div>
           </div>
@@ -290,7 +290,7 @@ export default function Schedule() {
               <i className="fas fa-clock text-lg"></i>
             </div>
             <div>
-              <p className="text-2xl font-black text-slate-800">{stats.totalHours}<span className="text-sm font-bold text-slate-400">h</span></p>
+              <p className="text-2xl font-semibold text-slate-800">{stats.totalHours}<span className="text-sm font-bold text-slate-400">h</span></p>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Weekly Hours</p>
             </div>
           </div>
@@ -301,7 +301,7 @@ export default function Schedule() {
               <i className="fas fa-user-clock text-lg"></i>
             </div>
             <div>
-              <p className="text-2xl font-black text-slate-800">{stats.totalSlots}</p>
+              <p className="text-2xl font-semibold text-slate-800">{stats.totalSlots}</p>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Slots / Week</p>
             </div>
           </div>
@@ -343,19 +343,19 @@ export default function Schedule() {
                   {isToday && (
                     <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${day.isActive ? 'bg-emerald-400' : 'bg-slate-400'}`}></span>
                   )}
-                  <span className={`text-[10px] font-black uppercase tracking-wider ${day.isActive ? (isToday ? 'text-white/80' : 'text-aubergine-500') : 'text-slate-400'}`}>
+                  <span className={`text-[10px] font-semibold uppercase tracking-wider ${day.isActive ? (isToday ? 'text-white/80' : 'text-aubergine-500') : 'text-slate-400'}`}>
                     {day.short}
                   </span>
                   {day.isActive ? (
                     <>
-                      <span className={`text-lg sm:text-xl font-black mt-0.5 ${isToday ? 'text-white' : 'text-aubergine-700'}`}>{hours}h</span>
+                      <span className={`text-lg sm:text-xl font-semibold mt-0.5 ${isToday ? 'text-white' : 'text-aubergine-700'}`}>{hours}h</span>
                       <span className={`text-[9px] font-bold mt-0.5 ${isToday ? 'text-white/70' : 'text-aubergine-400'}`}>
                         {slots} slots
                       </span>
                     </>
                   ) : (
                     <>
-                      <span className="text-lg sm:text-xl font-black mt-0.5 text-slate-300">—</span>
+                      <span className="text-lg sm:text-xl font-semibold mt-0.5 text-slate-300">—</span>
                       <span className="text-[9px] font-bold mt-0.5 text-slate-300">Off</span>
                     </>
                   )}

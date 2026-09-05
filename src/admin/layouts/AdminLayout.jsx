@@ -78,7 +78,7 @@ function NotificationPanel({ isOpen, onClose, notifications, onMarkAllRead, onMa
   return (
     <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 animate-fade-in overflow-hidden">
       <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
-        <h3 className="font-bold text-slate-800 text-sm">Alerts {unread > 0 && <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full ml-1">{unread}</span>}</h3>
+        <h3 className="font-bold text-slate-800 text-sm">Alerts {unread > 0 && <span className="bg-rose-500 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full ml-1">{unread}</span>}</h3>
         {unread > 0 && <button onClick={onMarkAllRead} className="text-xs text-aubergine-600 font-bold hover:underline">Mark all read</button>}
       </div>
       <div className="divide-y divide-slate-50 max-h-80 overflow-y-auto">
@@ -140,20 +140,20 @@ function SidebarContent({ user, onClose, onItemHover }) {
         <div className="w-8 h-8 rounded-lg overflow-hidden bg-white shadow-md border border-white/10">
           <img src="/brand/logo-icon.jpg" alt="HealNari" className="w-full h-full object-cover" />
         </div>
-        <span className="text-xl font-bold tracking-tight text-white font-display ml-2">
+        <span className="text-xl font-semibold tracking-tight text-white font-sans ml-2">
           Heal<span className="text-slate-400">Nari</span>
         </span>
-        <span className="ml-auto text-[9px] bg-rose-500 text-white px-2 py-0.5 rounded-full font-black uppercase shadow-sm">Admin</span>
+        <span className="ml-auto text-[10px] bg-rose-500 text-white px-2 py-0.5 rounded-full font-semibold uppercase shadow-sm">Admin</span>
       </div>
 
       {/* Admin Badge */}
       <div className="mx-4 mt-4 mb-1 py-2.5 px-3 bg-white/5 rounded-xl border border-white/10 flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-white text-xs font-black shrink-0">
+        <div className="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
           {user?.name?.charAt(0) || 'A'}
         </div>
         <div className="min-w-0">
-          <p className="text-white text-xs font-bold leading-tight truncate">{user?.name || 'System Admin'}</p>
-          <p className="text-slate-400 text-[10px] truncate">{user?.accessLevel || 'Super Admin'}</p>
+          <p className="text-white text-xs font-semibold leading-tight truncate">{user?.name || 'System Admin'}</p>
+          <p className="text-slate-400 text-xs truncate">{user?.accessLevel || 'Super Admin'}</p>
         </div>
       </div>
 
@@ -162,9 +162,9 @@ function SidebarContent({ user, onClose, onItemHover }) {
         <NavHoverRail indicatorClassName="bg-aubergine-800/40 rounded-xl">
           {NAV_CATEGORIES.map((category, catIdx) => (
             <details key={category.title} className={`group/nav-cat ${catIdx > 0 ? "mt-4" : ""}`} open>
-              <summary className="text-[10px] font-bold text-aubergine-300/60 uppercase tracking-widest mb-1.5 px-3 cursor-pointer list-none flex items-center justify-between hover:text-white transition-colors select-none">
+              <summary className="text-xs font-semibold text-aubergine-300/70 uppercase tracking-wider mb-1.5 px-3 cursor-pointer list-none flex items-center justify-between hover:text-white transition-colors select-none">
                 {category.title}
-                <i className="fas fa-chevron-down text-[8px] transition-transform group-open/nav-cat:-rotate-180"></i>
+                <i className="fas fa-chevron-down text-[9px] transition-transform group-open/nav-cat:-rotate-180"></i>
               </summary>
               <div className="space-y-0.5">
                 {category.items.map(item => (
@@ -173,7 +173,7 @@ function SidebarContent({ user, onClose, onItemHover }) {
                     onMouseLeave={() => onItemHover?.(null)}
                     data-nav-item
                     className={({ isActive }) =>
-                      `group flex items-center gap-3.5 px-4 py-2.5 rounded-xl font-medium text-[13.5px] tracking-wide transition-all duration-300 ${
+                      `group flex items-center gap-3.5 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-300 ${
                         isActive
                           ? 'bg-gradient-to-r from-aubergine-600/90 to-aubergine-700/50 text-white shadow-md shadow-aubergine-900/40 border border-aubergine-500/30'
                           : 'text-aubergine-200/70 hover:text-white border border-transparent'
@@ -198,7 +198,7 @@ function SidebarContent({ user, onClose, onItemHover }) {
       {/* Logout */}
       <div className="p-4 border-t border-white/10 shrink-0">
         <button onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm text-slate-400 hover:bg-rose-900/30 hover:text-rose-400 transition-all w-full border border-transparent hover:border-rose-900">
+          className="flex items-center gap-3 px-3 py-2 rounded-xl font-medium text-sm text-slate-400 hover:bg-rose-900/30 hover:text-rose-400 transition-all w-full border border-transparent hover:border-rose-900">
           <div className="w-5 text-center"><i className="fas fa-right-from-bracket"></i></div>
           Sign Out
         </button>
@@ -296,7 +296,7 @@ function AdminLayoutInner() {
                 className="relative w-9 h-9 rounded-full bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors flex items-center justify-center">
                 <i className="fas fa-bell text-sm"></i>
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-semibold rounded-full flex items-center justify-center border-2 border-white">
                     {unreadCount}
                   </span>
                 )}
@@ -306,12 +306,12 @@ function AdminLayoutInner() {
 
             {/* Admin Avatar */}
             <div className="flex items-center gap-2 border-l border-slate-200 pl-3">
-              <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center font-black text-xs">
+              <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs">
                 {user?.name?.charAt(0) || 'A'}
               </div>
               <div className="hidden lg:block text-xs">
-                <p className="font-bold text-slate-800 leading-tight">{user?.name || 'Admin'}</p>
-                <p className="text-slate-500">{user?.accessLevel || 'System'}</p>
+                <p className="font-semibold text-slate-800 leading-tight">{user?.name || 'Admin'}</p>
+                <p className="text-slate-400">{user?.accessLevel || 'System'}</p>
               </div>
             </div>
           </div>
@@ -319,7 +319,9 @@ function AdminLayoutInner() {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full p-4 md:p-8">
-          <PageTransition />
+          <div className="max-w-[1700px] mx-auto w-full min-w-0">
+            <PageTransition />
+          </div>
         </main>
       </div>
     </div>

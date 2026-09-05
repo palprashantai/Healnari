@@ -711,7 +711,7 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h4 className="font-extrabold text-white text-sm truncate">{docName}</h4>
-                <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-black px-2 py-0.5 rounded-full whitespace-nowrap">
+                <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap">
                   NMC VERIFIED
                 </span>
               </div>
@@ -880,11 +880,11 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
                       className="w-7 h-7 rounded-full object-contain"
                       onError={(e) => { e.target.style.display = 'none'; }}
                     />
-                    <span className="font-black text-sm tracking-tight text-aubergine-950 font-serif">
+                    <span className="font-semibold text-sm tracking-tight text-aubergine-950 font-serif">
                       Heal<span className="text-magenta-600">Nari</span>
                     </span>
                   </div>
-                  <span className="text-[9px] font-black uppercase text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <span className="text-[9px] font-semibold uppercase text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                     ● VERIFIED CLINIC
                   </span>
                 </div>
@@ -903,7 +903,7 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
                   </div>
 
                   <div>
-                    <h5 className="font-black text-slate-900 text-base">{docName}</h5>
+                    <h5 className="font-semibold text-slate-900 text-base">{docName}</h5>
                     <p className="text-[11px] text-slate-500 font-semibold">{docQual}</p>
                     <div className="inline-block bg-purple-50 text-aubergine-700 border border-purple-200 px-3 py-0.5 rounded-full text-[10.5px] font-bold mt-1">
                       {docSpecialty}
@@ -921,7 +921,7 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
                       className="w-36 h-36 rounded-lg object-contain mx-auto"
                     />
                   </div>
-                  <p className="text-xs font-black text-slate-800 mt-2 flex items-center justify-center gap-1">
+                  <p className="text-xs font-semibold text-slate-800 mt-2 flex items-center justify-center gap-1">
                     <i className="fas fa-camera text-aubergine-600"></i> Scan with Phone Camera to Book
                   </p>
                   <p className="text-[10px] text-slate-500">Instant HD video consultation &amp; prescription</p>

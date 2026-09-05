@@ -260,7 +260,7 @@ function StylusHandwritingPad({ patient, diagnosis, doctorName, doctorReg, onExp
       <div className="bg-[#F1ECE4] px-4 py-3 border-b border-[#E0D8CC] flex items-center justify-between gap-3 flex-wrap text-xs">
         {/* Ink Palette */}
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider flex items-center gap-1">
+          <span className="text-[10px] font-semibold uppercase text-slate-500 tracking-wider flex items-center gap-1">
             <i className="fas fa-pen-nib text-[#1D4ED8]"></i> Ink:
           </span>
           <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-[#D5CBBF]">
@@ -294,7 +294,7 @@ function StylusHandwritingPad({ patient, diagnosis, doctorName, doctorReg, onExp
                 key={sz.width}
                 type="button"
                 onClick={() => { setStrokeWidth(sz.width); setIsEraser(false); }}
-                className={`px-2 py-0.5 rounded-lg text-[10px] font-black transition-colors ${!isEraser && strokeWidth === sz.width ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-colors ${!isEraser && strokeWidth === sz.width ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
               >
                 {sz.label}
               </button>
@@ -344,7 +344,7 @@ function StylusHandwritingPad({ patient, diagnosis, doctorName, doctorReg, onExp
         {/* Prescription Pad Header */}
         <div className="border-b-2 border-[#D5CBBF] pb-3 mb-4 flex justify-between items-start pointer-events-none select-none">
           <div>
-            <h3 className="text-xl font-black text-slate-900 font-serif">HealNari Telemedicine Clinic</h3>
+            <h3 className="text-xl font-semibold text-slate-900 font-serif">HealNari Telemedicine Clinic</h3>
             <p className="text-xs text-slate-600 font-sans">Dr. {doctorName || 'Consultant Physician'}{doctorReg ? ` • Reg No: ${doctorReg}` : ''}</p>
           </div>
           <div className="text-right text-xs font-sans text-slate-600">
@@ -361,7 +361,7 @@ function StylusHandwritingPad({ patient, diagnosis, doctorName, doctorReg, onExp
 
         {/* Rx Watermark Background */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none opacity-5">
-          <span className="text-[180px] font-serif font-black text-slate-900">Rx</span>
+          <span className="text-[180px] font-serif font-semibold text-slate-900">Rx</span>
         </div>
 
         {/* Ruled Paper Guidelines */}
@@ -666,7 +666,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
             <i className={rxMode === 'handwritten' ? 'fas fa-pen-nib' : rxMode === 'upload' ? 'fas fa-camera' : 'fas fa-file-prescription'}></i>
           </div>
           <div>
-            <h1 className="font-black text-xl tracking-tight">
+            <h1 className="font-semibold text-xl tracking-tight">
               {rxMode === 'handwritten' ? 'Handwritten Stylus Prescription' : rxMode === 'upload' ? 'Upload Scanned Paper Rx' : 'Write Digital Prescription'}
             </h1>
             <p className="text-aubergine-100 text-sm mt-0.5">
@@ -680,21 +680,21 @@ function WriteRxPage({ onBack, onSave, patients }) {
           <button
             type="button"
             onClick={() => setRxMode('digital')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${rxMode === 'digital' ? 'bg-white text-aubergine-900 shadow-md' : 'text-white/90 hover:text-white'}`}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${rxMode === 'digital' ? 'bg-white text-aubergine-900 shadow-md' : 'text-white/90 hover:text-white'}`}
           >
             <i className="fas fa-keyboard"></i> Digital Form
           </button>
           <button
             type="button"
             onClick={() => setRxMode('handwritten')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${rxMode === 'handwritten' ? 'bg-white text-aubergine-900 shadow-md' : 'text-white/90 hover:text-white'}`}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${rxMode === 'handwritten' ? 'bg-white text-aubergine-900 shadow-md' : 'text-white/90 hover:text-white'}`}
           >
             <i className="fas fa-pen-nib"></i> Handwritten Pad
           </button>
           <button
             type="button"
             onClick={() => setRxMode('upload')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${rxMode === 'upload' ? 'bg-white text-aubergine-900 shadow-md' : 'text-white/90 hover:text-white'}`}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${rxMode === 'upload' ? 'bg-white text-aubergine-900 shadow-md' : 'text-white/90 hover:text-white'}`}
           >
             <i className="fas fa-camera"></i> Upload Paper Rx
           </button>
@@ -703,7 +703,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
 
       {/* Patient & Diagnosis Selector (Universal for all modes) */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4">
-        <h2 className="text-xs font-black text-slate-500 uppercase tracking-wide flex items-center gap-2">
+        <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2">
           <i className="fas fa-user text-aubergine-600"></i> Patient &amp; Clinical Diagnosis
         </h2>
         <div className="grid sm:grid-cols-2 gap-4">
@@ -826,7 +826,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
                 <div className="min-w-0 flex-1">
-                  <label className="text-xs font-black text-slate-700 uppercase tracking-wide flex items-center gap-2">
+                  <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide flex items-center gap-2">
                     <i className="fas fa-wand-magic-sparkles text-aubergine-600 shrink-0"></i> <span className="truncate">1-Click Clinical Protocol Bundles</span>
                   </label>
                   <p className="text-[11px] text-slate-500 mt-0.5 break-words">Pre-configured evidence-based medication bundles with standard dosages &amp; schedules</p>
@@ -865,7 +865,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
                       }`}
                     >
                       <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-700 font-mono">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white border border-slate-200 text-slate-700 font-mono">
                           {protocol.badge}
                         </span>
                         <span className="text-[10px] font-bold text-aubergine-700 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
@@ -899,7 +899,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
             {/* Medicines */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
               <div className="flex items-center justify-between">
-                <h2 className="text-xs font-black text-slate-500 uppercase tracking-wide flex items-center gap-2">
+                <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2">
                   <i className="fas fa-pills text-aubergine-600"></i> Medicines &amp; Dosage
                 </h2>
                 <button
@@ -922,14 +922,14 @@ function WriteRxPage({ onBack, onSave, patients }) {
                     <i className="fas fa-triangle-exclamation text-base"></i>
                   </div>
                   <div className="space-y-1">
-                    <p className="font-black text-sm text-rose-900 flex items-center gap-2">
+                    <p className="font-semibold text-sm text-rose-900 flex items-center gap-2">
                       <span>CRITICAL CONTRAINDICATION: ALLERGY DETECTED</span>
                       <span className="text-[10px] uppercase font-bold bg-rose-200 text-rose-900 px-2 py-0.5 rounded-full border border-rose-300">
                         {allergyConflicts.length} Conflict{allergyConflicts.length > 1 ? 's' : ''}
                       </span>
                     </p>
                     <p className="text-rose-800 text-[11px] leading-relaxed">
-                      Patient <strong>{form.patient || 'Selected Patient'}</strong> has documented allergies to: <strong className="underline font-black">{patientAllergies.join(', ')}</strong>.
+                      Patient <strong>{form.patient || 'Selected Patient'}</strong> has documented allergies to: <strong className="underline font-semibold">{patientAllergies.join(', ')}</strong>.
                     </p>
                     <ul className="text-rose-900 font-bold text-[11px] list-disc list-inside space-y-0.5 pt-0.5">
                       {allergyConflicts.map((c, i) => (
@@ -995,7 +995,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
                           {/* Smart Dynamic Dropdown */}
                           {activeDropdownIndex === i && (
                             <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-64 overflow-y-auto custom-scrollbar z-50 p-1.5 space-y-0.5">
-                              <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
+                              <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
                                 <span>Matches ({filterAndRankCatalog(medCatalog, med.name).length})</span>
                                 <span className="text-[9px] text-aubergine-600 font-bold">Prefix &amp; Keyword Match</span>
                               </div>
@@ -1008,13 +1008,13 @@ function WriteRxPage({ onBack, onSave, patients }) {
                                 >
                                   <span className="flex items-center gap-1.5 flex-1 min-w-0 pr-2">
                                     {item.isCustom && (
-                                      <span className="text-[9px] bg-purple-100 text-purple-800 border border-purple-200 px-1.5 py-0.2 rounded font-black shrink-0">Custom</span>
+                                      <span className="text-[9px] bg-purple-100 text-purple-800 border border-purple-200 px-1.5 py-0.2 rounded font-semibold shrink-0">Custom</span>
                                     )}
                                     <span className="truncate">
                                       {/* Highlight prefix match if typing */}
                                       {med.name && item.name.toLowerCase().startsWith(med.name.trim().toLowerCase()) ? (
                                         <>
-                                          <span className="text-aubergine-700 bg-aubergine-100/80 px-0.5 rounded font-black">{item.name.slice(0, med.name.trim().length)}</span>
+                                          <span className="text-aubergine-700 bg-aubergine-100/80 px-0.5 rounded font-semibold">{item.name.slice(0, med.name.trim().length)}</span>
                                           <span>{item.name.slice(med.name.trim().length)}</span>
                                         </>
                                       ) : (
@@ -1137,7 +1137,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
             {/* ── Recommended Lab & Diagnostic Investigations ── */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
               <div className="flex items-center justify-between min-w-0 gap-2">
-                <h2 className="text-xs font-black text-slate-500 uppercase tracking-wide flex items-center gap-2 min-w-0">
+                <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2 min-w-0">
                   <i className="fas fa-microscope text-aubergine-700 shrink-0"></i> <span className="truncate">Recommended Lab &amp; Diagnostic Tests ({selectedLabs.length})</span>
                 </h2>
                 {selectedLabs.length > 0 && (
@@ -1193,7 +1193,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
 
                 {isLabDropdownOpen && (
                   <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl border border-slate-200 shadow-xl max-h-64 overflow-y-auto custom-scrollbar z-50 p-1.5 space-y-0.5">
-                    <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
+                    <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
                       <span>Diagnostic Tests ({filterAndRankCatalog(labCatalog, labSearchQuery).length})</span>
                       <span className="text-[9px] text-aubergine-600 font-bold">Prefix &amp; Keyword Match</span>
                     </div>
@@ -1214,7 +1214,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
                             <span className="truncate">
                               {labSearchQuery && item.name.toLowerCase().startsWith(labSearchQuery.trim().toLowerCase()) ? (
                                 <>
-                                  <span className="text-aubergine-700 bg-aubergine-100 px-0.5 rounded font-black">{item.name.slice(0, labSearchQuery.trim().length)}</span>
+                                  <span className="text-aubergine-700 bg-aubergine-100 px-0.5 rounded font-semibold">{item.name.slice(0, labSearchQuery.trim().length)}</span>
                                   <span>{item.name.slice(labSearchQuery.trim().length)}</span>
                                 </>
                               ) : (
@@ -1260,7 +1260,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
 
             {/* Instructions */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <label className="text-xs font-black text-slate-500 uppercase tracking-wide mb-2 block">Special Instructions</label>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">Special Instructions</label>
               <textarea rows={3} value={form.instructions} onChange={e => setForm(p => ({ ...p, instructions: e.target.value }))} placeholder="Dietary advice, follow-up, warnings..."
                 className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
             </div>
@@ -1283,12 +1283,12 @@ function WriteRxPage({ onBack, onSave, patients }) {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden">
               <div className="bg-slate-800 px-4 py-2.5 flex items-center gap-2">
                 <i className="fas fa-eye text-slate-400 text-xs"></i>
-                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Live Preview</span>
+                <span className="text-[10px] font-semibold text-slate-300 uppercase tracking-widest">Live Preview</span>
               </div>
               <div className="p-6 space-y-4 text-sm" style={{ fontFamily: 'Georgia, serif' }}>
                 <div className="flex justify-between items-start border-b border-slate-200 pb-3">
                   <div>
-                    <h3 className="font-black text-slate-800 text-lg">HealNari Rx</h3>
+                    <h3 className="font-semibold text-slate-800 text-lg">HealNari Rx</h3>
                     <p className="text-xs text-slate-500">Dr. {user?.name}{user?.regNo ? ` • ${user.regNo}` : ''}</p>
                   </div>
                   <div className="text-right text-xs text-slate-500">
@@ -1704,7 +1704,7 @@ function DoctorPrescriptions() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Prescriptions</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">Prescriptions</h1>
           <p className="text-sm text-slate-500">Issue, manage, and approve patient prescriptions.</p>
         </div>
         <div className="flex items-center gap-3">
@@ -1715,7 +1715,7 @@ function DoctorPrescriptions() {
             </button>
             {showActionsMenu && (
               <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-fade-in">
-                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bulk Messaging</p></div>
+                <div className="px-3 py-1.5 mb-1"><p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Bulk Messaging</p></div>
                 <button onClick={() => handleBulkAction('Bulk Email')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-aubergine-600 flex items-center gap-3 transition-colors">
                   <i className="fas fa-envelope text-aubergine-600 w-4"></i> Bulk Email
                 </button>
@@ -1803,7 +1803,7 @@ function DoctorPrescriptions() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-black text-slate-800">{rx.patient}</h3>
+                    <h3 className="font-semibold text-slate-800">{rx.patient}</h3>
                     {rx.refillRequested && <span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 font-bold px-2 py-0.5 rounded-full">Refill Requested</span>}
                   </div>
                   <p className="text-xs text-aubergine-700 font-bold">{rx.diagnosis}</p>

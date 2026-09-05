@@ -436,7 +436,7 @@ function AdminLandingManager() {
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 font-mono">Public Portal Control Center</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Landing Page &amp; Portal Manager</h1>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">Landing Page &amp; Portal Manager</h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Control live content, section visibility, FAQs, testimonials, and SEO metadata</p>
         </div>
         <div className="flex items-center gap-3">
@@ -591,7 +591,7 @@ function AdminLandingManager() {
                           onChange={e => setPlatformCommissionRate(Number(e.target.value))}
                           className="w-full accent-aubergine-600"
                         />
-                        <span className="font-mono font-black text-slate-900 w-12 text-right">{platformCommissionRate}%</span>
+                        <span className="font-mono font-semibold text-slate-900 w-12 text-right">{platformCommissionRate}%</span>
                       </div>
                       <p className="text-[11px] text-slate-500 mt-1">Doctor keeps {100 - platformCommissionRate}% of consultation fee</p>
                     </div>
@@ -612,10 +612,10 @@ function AdminLandingManager() {
           {/* Live Preview Card */}
           <div className="space-y-4">
             <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-sm space-y-3">
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/60">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/60">
                 Live Preview Output
               </span>
-              <h3 className="text-lg font-black leading-snug">
+              <h3 className="text-lg font-semibold leading-snug">
                 {activePortal === 'patient' ? heroTitle : providerHeroTitle}
               </h3>
               <p className="text-xs text-slate-300 leading-relaxed">
@@ -710,7 +710,7 @@ function AdminLandingManager() {
               <div key={idx} className="bg-slate-50/70 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:border-aubergine-300 transition-colors">
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-aubergine-100 text-aubergine-700 font-black text-[10px] flex items-center justify-center shrink-0">
+                    <span className="w-5 h-5 rounded-full bg-aubergine-100 text-aubergine-700 font-semibold text-[10px] flex items-center justify-center shrink-0">
                       {idx + 1}
                     </span>
                     <h4 className="font-bold text-slate-800 text-sm">{f.q}</h4>

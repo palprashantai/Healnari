@@ -83,7 +83,7 @@ export function AISubscriptionCard({ userRole = 'patient', onRefresh }) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className={`font-black text-base tracking-tight ${isPremium ? 'text-white' : 'text-slate-900'}`}>
+              <h3 className={`font-semibold text-base tracking-tight ${isPremium ? 'text-white' : 'text-slate-900'}`}>
                 {currentPlanName}
               </h3>
               <span className={`text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full ${

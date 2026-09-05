@@ -145,7 +145,7 @@ function AdminCommunications() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Communications</h1>
+          <h1 className="text-2xl font-semibold text-slate-800">Communications</h1>
           <p className="text-sm text-slate-500">Broadcast messages to patients and doctors across the platform.</p>
         </div>
         <div className="flex items-center gap-3">

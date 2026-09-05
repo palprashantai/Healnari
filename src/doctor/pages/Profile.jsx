@@ -249,13 +249,13 @@ function DoctorProfile() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <h1 className="text-2xl font-black text-slate-800">Doctor Profile</h1>
+      <h1 className="text-2xl font-semibold text-slate-800">Doctor Profile</h1>
 
       {/* Profile Header */}
       <div className="bg-gradient-to-r from-aubergine-900 to-aubergine-800 rounded-3xl p-8 text-white flex flex-col sm:flex-row items-center sm:items-start gap-6 relative overflow-hidden">
         <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
         <div className="relative flex-shrink-0">
-          <div className="w-24 h-24 rounded-3xl bg-white/20 border-4 border-white/30 flex items-center justify-center text-3xl font-black shadow-xl overflow-hidden">
+          <div className="w-24 h-24 rounded-3xl bg-white/20 border-4 border-white/30 flex items-center justify-center text-3xl font-semibold shadow-xl overflow-hidden">
             {user?.avatarUrl ? <img src={user.avatarUrl} alt={form.name} className="w-full h-full object-cover" /> : initials}
           </div>
           <button onClick={() => setShowPhotoModal(true)}
@@ -264,7 +264,7 @@ function DoctorProfile() {
           </button>
         </div>
         <div className="text-center sm:text-left flex-1">
-          <h2 className="text-2xl font-black">{form.name}</h2>
+          <h2 className="text-2xl font-semibold">{form.name}</h2>
           <p className="text-aubergine-200 text-sm mt-1">{form.specialty} • {form.qualification}</p>
           <div className="flex flex-wrap gap-2 mt-3 justify-center sm:justify-start">
             <span className="bg-white/20 border border-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">
@@ -415,10 +415,10 @@ function DoctorProfile() {
               <div className="bg-gradient-to-r from-aubergine-900 via-slate-900 to-aubergine-900 rounded-2xl p-6 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-lg">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                    <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold uppercase px-2.5 py-0.5 rounded-full border border-emerald-500/30">
                       Live Telehealth Link
                     </span>
-                    <h3 className="text-lg font-black text-white">{form.name}</h3>
+                    <h3 className="text-lg font-semibold text-white">{form.name}</h3>
                   </div>
                   <p className="text-xs text-aubergine-200">
                     Your direct public profile allows patients to book video consultations specifically with you.
@@ -595,7 +595,7 @@ function DoctorProfile() {
                     <div className="text-base mb-2"><i className={`fas ${f.icon}`}></i></div>
                     <label htmlFor={`doctor-fee-${f.key}`} className="text-xs font-bold text-slate-500 mb-1.5 block">{f.label}</label>
                     <input id={`doctor-fee-${f.key}`} type="number" value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-lg font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-lg font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
                   </div>
                 ))}
               </div>
@@ -696,7 +696,7 @@ function DoctorProfile() {
                           </div>
                           <div className="text-right shrink-0">
                             <p className="text-slate-400 text-[10px]">{new Date(log.created_at).toLocaleString()}</p>
-                            <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${log.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                            <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase ${log.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
                               {log.status}
                             </span>
                           </div>
@@ -726,7 +726,7 @@ function DoctorProfile() {
       {/* Photo Modal */}
       <Modal isOpen={showPhotoModal} onClose={() => setShowPhotoModal(false)} title="Change Profile Photo" size="sm">
         <div className="text-center space-y-4">
-          <div className="w-24 h-24 rounded-3xl bg-aubergine-100 text-aubergine-700 text-3xl font-black flex items-center justify-center mx-auto overflow-hidden">
+          <div className="w-24 h-24 rounded-3xl bg-aubergine-100 text-aubergine-700 text-3xl font-semibold flex items-center justify-center mx-auto overflow-hidden">
             {user?.avatarUrl ? <img src={user.avatarUrl} alt={form.name} className="w-full h-full object-cover" /> : initials}
           </div>
           <input type="file" accept="image/*" className="hidden" id="doctor-photo-upload" onChange={handlePhotoUpload} />

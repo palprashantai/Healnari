@@ -22,7 +22,7 @@ export function DashboardEmptyState({
         <i className={`fas ${icon}`}></i>
       </div>
 
-      <h3 className={`text-base font-black mb-1 ${isError ? 'text-rose-900' : 'text-slate-800'}`}>
+      <h3 className={`text-base font-semibold mb-1 ${isError ? 'text-rose-900' : 'text-slate-800'}`}>
         {title}
       </h3>
 

@@ -37,7 +37,7 @@ function AdminPayoutDetail() {
       <div className="w-24 h-24 bg-rose-50/50 rounded-3xl flex items-center justify-center text-rose-500 mb-6 shadow-sm border border-rose-100 rotate-3">
         <i className="fas fa-exclamation-triangle text-4xl -rotate-3"></i>
       </div>
-      <h2 className="text-2xl font-black text-slate-800 mb-3">Payout Not Found</h2>
+      <h2 className="text-2xl font-semibold text-slate-800 mb-3">Payout Not Found</h2>
       <p className="text-slate-500 max-w-md font-medium">The payout details you are looking for could not be found or failed to load securely.</p>
       <Link to={`/admin-dashboard/doctors/${id}/payouts`} className="mt-8 text-sm font-bold text-slate-700 bg-white border border-slate-200 px-6 py-3 rounded-xl hover:bg-slate-50 hover:shadow-md hover:-translate-y-0.5 transition-all">
         Return to Payouts
@@ -84,7 +84,7 @@ function AdminPayoutDetail() {
                 </p>
                 <div className="flex items-baseline gap-1">
                   <span className="text-3xl font-medium text-slate-500 font-serif -mb-1">₹</span>
-                  <p className="text-6xl font-black text-white tracking-tighter">
+                  <p className="text-6xl font-semibold text-white tracking-tighter">
                     {payout.amount?.toLocaleString()}
                   </p>
                 </div>
@@ -108,7 +108,7 @@ function AdminPayoutDetail() {
                         <span className="absolute inset-0 rounded-full border border-amber-400/50 animate-ping opacity-75"></span>
                       )}
                     </div>
-                    <span className={`text-sm font-black uppercase tracking-wider ${
+                    <span className={`text-sm font-semibold uppercase tracking-wider ${
                       isPaid ? 'text-emerald-400' :
                       isFailed ? 'text-rose-400' : 'text-amber-400'
                     }`}>
@@ -128,7 +128,7 @@ function AdminPayoutDetail() {
           <div className="bg-white rounded-[2rem] border border-slate-200/60 shadow-lg shadow-slate-200/40 p-8 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-slate-50 to-transparent rounded-bl-full opacity-50"></div>
             
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-8 flex items-center gap-3">
+            <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-widest mb-8 flex items-center gap-3">
               <i className="fas fa-route text-slate-400"></i> Request Tracking
             </h3>
             
@@ -189,7 +189,7 @@ function AdminPayoutDetail() {
                 <i className="fas fa-building-columns text-xl"></i>
               </div>
               <div>
-                <h2 className="text-xl font-black text-slate-800 tracking-tight">Destination Account</h2>
+                <h2 className="text-xl font-semibold text-slate-800 tracking-tight">Destination Account</h2>
                 <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">Where the funds are going</p>
               </div>
             </div>
@@ -201,7 +201,7 @@ function AdminPayoutDetail() {
                     if (key === 'timestamp' || key === 'method') return null;
                     return (
                       <div key={key} className="group relative">
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-2">
+                        <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest mb-2">
                           {key.replace(/_/g, ' ')}
                         </p>
                         <div className="relative">
@@ -226,7 +226,7 @@ function AdminPayoutDetail() {
           <div className="bg-slate-50/50 rounded-[2rem] border border-slate-200/60 shadow-inner overflow-hidden">
             <div className="px-8 py-6 border-b border-slate-200/50 flex items-center gap-3">
               <i className="fas fa-server text-slate-400"></i>
-              <h2 className="text-xs font-black text-slate-600 uppercase tracking-widest">System Record</h2>
+              <h2 className="text-xs font-semibold text-slate-600 uppercase tracking-widest">System Record</h2>
             </div>
             <div className="p-8 grid grid-cols-1 sm:grid-cols-2 gap-8">
               <div>

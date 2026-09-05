@@ -37,10 +37,10 @@ function AdminPatientConsultationDetail() {
       <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden p-8 space-y-8">
         <div className="flex justify-between items-start border-b border-slate-100 pb-6">
           <div>
-            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Consultation Details</h1>
+            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">Consultation Details</h1>
             <p className="text-sm font-bold text-slate-400 mt-1 font-mono uppercase tracking-widest">ID: {consultation.id}</p>
           </div>
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider border ${
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider border ${
             consultation.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
             consultation.status === 'Cancelled' ? 'bg-rose-50 text-rose-700 border-rose-200' :
             consultation.status === 'In Progress' ? 'bg-amber-50 text-amber-700 border-amber-200' :
@@ -55,7 +55,7 @@ function AdminPatientConsultationDetail() {
             <div>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Doctor Information</p>
               <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                <div className="w-12 h-12 rounded-full bg-aubergine-100 text-aubergine-600 flex items-center justify-center font-black">
+                <div className="w-12 h-12 rounded-full bg-aubergine-100 text-aubergine-600 flex items-center justify-center font-semibold">
                   {consultation.doctor?.charAt(0) || 'D'}
                 </div>
                 <div>
@@ -88,7 +88,7 @@ function AdminPatientConsultationDetail() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-bold text-slate-500">Total Amount</span>
                   <div className="text-right">
-                    <span className="text-3xl font-black text-slate-900 block">₹{consultation.cost?.toLocaleString()}</span>
+                    <span className="text-3xl font-semibold text-slate-900 block">₹{consultation.cost?.toLocaleString()}</span>
                     <button onClick={() => setActiveModal('invoice')} className="mt-1 text-xs text-aubergine-600 hover:text-aubergine-700 font-bold flex items-center justify-end gap-1 transition-colors w-full">
                       <i className="fas fa-file-invoice"></i> Download Invoice
                     </button>
@@ -122,7 +122,7 @@ function AdminPatientConsultationDetail() {
               <p className="text-xs text-slate-500">support@healnari.app | +1 (800) 000-0000</p>
             </div>
             <div className="text-right">
-              <h2 className="text-2xl font-black text-slate-800 tracking-tight mb-4">TAX INVOICE</h2>
+              <h2 className="text-2xl font-semibold text-slate-800 tracking-tight mb-4">TAX INVOICE</h2>
               <div className="flex justify-end gap-4 text-sm mb-1">
                 <span className="text-slate-500">Invoice No:</span>
                 <span className="font-bold text-slate-800 font-mono w-32 text-right">HEAL-{(consultation?.id?.slice(0, 5) || '00000').toUpperCase()}</span>
@@ -137,11 +137,11 @@ function AdminPatientConsultationDetail() {
           {/* Watermark */}
           {consultation?.status === 'Completed' || consultation?.status === 'Done' ? (
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -rotate-12 pointer-events-none opacity-[0.03]">
-              <span className="text-[120px] font-black text-emerald-500">PAID</span>
+              <span className="text-[120px] font-semibold text-emerald-500">PAID</span>
             </div>
           ) : consultation?.status === 'Cancelled' ? (
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -rotate-12 pointer-events-none opacity-[0.03]">
-              <span className="text-[100px] font-black text-rose-500">CANCELLED</span>
+              <span className="text-[100px] font-semibold text-rose-500">CANCELLED</span>
             </div>
           ) : null}
 
@@ -194,7 +194,7 @@ function AdminPatientConsultationDetail() {
               </div>
               <div className="flex justify-between items-center">
                 <span className="font-bold text-slate-800">Total Amount</span>
-                <span className="text-2xl font-black text-[#6B46C1]">₹{consultation?.cost?.toLocaleString()}</span>
+                <span className="text-2xl font-semibold text-[#6B46C1]">₹{consultation?.cost?.toLocaleString()}</span>
               </div>
             </div>
           </div>

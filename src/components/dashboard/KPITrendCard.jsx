@@ -103,13 +103,13 @@ export function KPITrendCard({
             </div>
 
             {badgeText ? (
-              <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+              <span className={`text-[10px] font-semibold uppercase px-2.5 py-0.5 rounded-full border ${
                 isDark ? 'bg-white/10 text-aubergine-200 border-white/15' : 'bg-slate-100 text-slate-600 border-slate-200'
               }`}>
                 {badgeText}
               </span>
             ) : changePercent !== undefined && changePercent !== null ? (
-              <span className={`inline-flex items-center gap-1 text-[11px] font-black px-2 py-0.5 rounded-full border ${trendColor}`}>
+              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${trendColor}`}>
                 <i className={`fas ${trendIcon} text-[9px]`}></i>
                 {Math.abs(changePercent)}%
               </span>
@@ -119,7 +119,7 @@ export function KPITrendCard({
           {/* Metric Value */}
           <div className="mt-1">
             <div className="flex items-baseline gap-1">
-              <span className={`text-2xl sm:text-3xl font-black font-sans tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              <span className={`text-2xl sm:text-3xl font-semibold font-sans tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {value}
               </span>
               {unit && (
@@ -147,7 +147,7 @@ export function KPITrendCard({
             <button
               type="button"
               onClick={onDrillDown}
-              className={`font-black text-[11px] flex items-center gap-1 hover:underline ${
+              className={`font-semibold text-[11px] flex items-center gap-1 hover:underline ${
                 isDark ? 'text-aubergine-300 hover:text-white' : 'text-aubergine-700 hover:text-aubergine-900'
               }`}
             >
