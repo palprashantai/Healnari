@@ -9,6 +9,7 @@ import AuthModal from '../../tools/AuthModal.jsx';
 import FloatingCTA from '../../tools/FloatingCTA.jsx';
 import ScrollProgressBar from '../../components/ScrollProgressBar.jsx';
 import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
+import { apiFetch } from '../../lib/apiClient.js';
 
 function GuidePage() {
   const { guideId } = useParams();
@@ -19,7 +20,53 @@ function GuidePage() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [confirmedDetails, setConfirmedDetails] = useState(null);
 
-  const guide = guidesData.find((g) => g.id === guideId || g.slug === guideId) || guidesData[0];
+  const staticGuide = guidesData.find((g) => g.id === guideId || g.slug === guideId);
+  const [currentGuide, setCurrentGuide] = useState(staticGuide || null);
+  const [loadingGuide, setLoadingGuide] = useState(!staticGuide);
+
+  useEffect(() => {
+    if (staticGuide) {
+      setCurrentGuide(staticGuide);
+      setLoadingGuide(false);
+    } else {
+      setLoadingGuide(true);
+      apiFetch(`/admin/public/cms/${guideId}`)
+        .then(res => {
+          const article = res?.data || res;
+          if (article && article.title) {
+            setCurrentGuide({
+              id: article.slug || article.id,
+              slug: article.slug || article.id,
+              title: article.title,
+              summary: article.summary || '',
+              content: article.content || '',
+              tag: article.category || 'Clinical Guide',
+              readTime: article.read_time || article.readTime || '5 min read',
+              color: 'indigo',
+              author: {
+                name: article.author || 'HealNari Clinical Team',
+                role: 'Medical Advisory Board',
+                image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=200&h=200&fit=crop'
+              },
+              reviewedBy: {
+                name: 'Dr. Sarah Mitchell',
+                role: 'Lead Endocrinologist'
+              },
+              tip: article.summary || 'Follow clinical guidance and maintain continuous care with your specialist.',
+              bullets: Array.isArray(article.tags) ? article.tags : ['Evidence-Based Protocol', 'Clinically Monitored Care']
+            });
+          } else {
+            setCurrentGuide(guidesData[0]);
+          }
+        })
+        .catch(() => {
+          setCurrentGuide(guidesData[0]);
+        })
+        .finally(() => setLoadingGuide(false));
+    }
+  }, [guideId]);
+
+  const guide = currentGuide || guidesData[0];
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -302,17 +349,23 @@ function GuidePage() {
             </p>
           </div>
 
-          {/* Dynamic Article Sections */}
-          {guide.sections?.map((sec, idx) => (
-            <section key={idx} className="space-y-4 pt-2">
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 font-display break-words">
-                {sec.heading}
-              </h2>
-              <p className="text-base sm:text-lg text-slate-650 leading-relaxed font-normal break-words">
-                {sec.content}
-              </p>
+          {/* Dynamic Article Sections / Rich HTML Content */}
+          {guide.sections?.length > 0 ? (
+            guide.sections.map((sec, idx) => (
+              <section key={idx} className="space-y-4 pt-2">
+                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 font-display break-words">
+                  {sec.heading}
+                </h2>
+                <p className="text-base sm:text-lg text-slate-650 leading-relaxed font-normal break-words">
+                  {sec.content}
+                </p>
+              </section>
+            ))
+          ) : guide.content ? (
+            <section className="space-y-4 pt-2 prose prose-slate max-w-none text-slate-700 leading-relaxed">
+              <div dangerouslySetInnerHTML={{ __html: guide.content }} />
             </section>
-          ))}
+          ) : null}
 
           {/* Doctor's Tip Callout */}
           <div className={`border-l-4 rounded-2xl p-6 bg-slate-50/80 border ${theme.tipBorder} ${theme.accentBg} my-8`}>

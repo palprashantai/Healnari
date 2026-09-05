@@ -138,6 +138,23 @@ function DoctorLandingPage() {
       .catch(console.error);
   }, []);
 
+  // Update SEO dynamically if configured in admin landing manager
+  useEffect(() => {
+    if (!adminSettings) return;
+    const seo = adminSettings?.seoMetadata?.provider;
+    if (seo?.metaTitle) {
+      document.title = seo.metaTitle;
+      const ogTitle = document.querySelector('meta[property="og:title"]');
+      if (ogTitle) ogTitle.setAttribute('content', seo.metaTitle);
+    }
+    if (seo?.metaDesc) {
+      const desc = document.querySelector('meta[name="description"]');
+      if (desc) desc.setAttribute('content', seo.metaDesc);
+      const ogDesc = document.querySelector('meta[property="og:description"]');
+      if (ogDesc) ogDesc.setAttribute('content', seo.metaDesc);
+    }
+  }, [adminSettings]);
+
   const toggleFaq = (idx) => {
     setActiveFaq(prev => (prev === idx ? null : idx));
   };
@@ -145,7 +162,7 @@ function DoctorLandingPage() {
   const commRate = Number(adminSettings?.platformCommissionRate ?? 10);
   const doctorShare = 100 - commRate;
 
-  const doctorFaqs = [
+  const defaultDoctorFaqs = [
     {
       q: "What exactly is HealNari and which specialists can join?",
       a: "HealNari is a dedicated digital clinic ecosystem for women's health specialists. We actively onboard licensed Gynaecologists, Endocrinologists, Dermatologists, Trichologists, Clinical Dietitians, Yoga/Movement Therapists, and Fertility Experts. Patients with menstrual irregularities, PCOS, thyroid disorders, hormonal acne, hair loss, and metabolic concerns connect directly with you."
@@ -180,14 +197,22 @@ function DoctorLandingPage() {
     }
   ];
 
+  const rawDoctorFaqs = (adminSettings?.faqs?.provider && adminSettings?.faqs?.provider.length > 0)
+    ? adminSettings.faqs.provider
+    : defaultDoctorFaqs;
+  const doctorFaqs = rawDoctorFaqs.map(f => ({
+    q: f.q || f.question || '',
+    a: f.a || f.answer || ''
+  })).filter(f => f.q && f.a);
+
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-aubergine-100 selection:text-aubergine-900 overflow-x-hidden w-full max-w-[100vw] bg-[#FDFBF7]">
       <ScrollProgressBar />
 
       {adminSettings?.toggles?.showEmergencyBanner && (
-        <PromoBanner text="Emergency telemedicine slots are currently available." type="emergency" />
+        <PromoBanner text={adminSettings?.announcements?.emergencyText || "Emergency telemedicine slots are currently available."} type="emergency" />
       )}
-      {adminSettings?.promoText && (
+      {(adminSettings?.toggles?.showPromoBanner !== false && adminSettings?.promoText) && (
         <PromoBanner text={adminSettings.promoText} type="promo" />
       )}
 
@@ -210,13 +235,17 @@ function DoctorLandingPage() {
         <Suspense fallback={<div className="h-32 flex items-center justify-center text-slate-400 text-sm">Loading Platform Features...</div>}>
           
           {/* Authentic Codebase Features Grid */}
-          <ProviderBenefits />
+          {adminSettings?.toggles?.showProviderBenefits !== false && (
+            <ProviderBenefits />
+          )}
 
           {/* Dedicated AI Clinical Suite Showcase */}
-          <DoctorAiShowcase 
-            onApply={() => setIsApplyOpen(true)} 
-            onOpenLogin={() => setIsAuthOpen(true)} 
-          />
+          {adminSettings?.toggles?.showDoctorAiShowcase !== false && (
+            <DoctorAiShowcase 
+              onApply={() => setIsApplyOpen(true)} 
+              onOpenLogin={() => setIsAuthOpen(true)} 
+            />
+          )}
 
           {/* Interactive Earnings Calculator */}
           {adminSettings?.toggles?.showProviderCalculator !== false && (
@@ -236,88 +265,92 @@ function DoctorLandingPage() {
           {/* Peer Testimonials with Real Verified Doctors */}
           {adminSettings?.toggles?.showProviderTestimonials !== false && (
             <div id="testimonials" className="scroll-mt-20">
-              <ProviderTestimonials />
+              <ProviderTestimonials testimonials={adminSettings?.testimonials?.provider} />
             </div>
           )}
 
           {/* Clinical Security & Standards Section */}
-          <section id="security" className="max-w-7xl mx-auto px-5 md:px-8 py-12 md:py-16 scroll-mt-20">
-            <Reveal>
-              <div className="bg-gradient-to-br from-aubergine-900 via-slate-900 to-slate-950 rounded-[1.5rem] sm:rounded-[2.5rem] p-5 sm:p-8 md:p-14 text-white relative overflow-hidden shadow-2xl">
-                <div className="absolute -right-16 -top-16 w-80 h-80 bg-magenta-500/20 rounded-full blur-3xl pointer-events-none"></div>
-                <div className="max-w-3xl space-y-4 relative z-10">
-                  <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider bg-emerald-950/80 border border-emerald-700/60 px-3.5 py-1 rounded-full">
-                    Clinical Standards & Data Security
-                  </span>
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display leading-tight text-white">
-                    Engineered to the Highest Global Telemedicine Standards
-                  </h2>
-                  <p className="text-slate-300 text-sm md:text-base leading-relaxed font-normal">
-                    Patient confidentiality and medical compliance are non-negotiable. All telemedicine sessions, electronic health records, and laboratory data are protected with bank-grade 256-bit encryption.
-                  </p>
-                  
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-6 text-xs font-semibold text-slate-200">
-                    <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
-                      <i className="fas fa-lock text-emerald-400 text-xl mb-2 block"></i>
-                      <span>256-Bit TLS & AES Encryption</span>
-                    </div>
-                    <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
-                      <i className="fas fa-certificate text-indigo-400 text-xl mb-2 block"></i>
-                      <span>NMC, GMC &amp; Board Verified</span>
-                    </div>
-                    <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
-                      <i className="fas fa-file-shield text-amber-400 text-xl mb-2 block"></i>
-                      <span>HIPAA & GDPR Aligned</span>
-                    </div>
-                    <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
-                      <i className="fas fa-headset text-rose-400 text-xl mb-2 block"></i>
-                      <span>24/7 Dedicated Partner Care</span>
+          {adminSettings?.toggles?.showProviderSecurity !== false && (
+            <section id="security" className="max-w-7xl mx-auto px-5 md:px-8 py-12 md:py-16 scroll-mt-20">
+              <Reveal>
+                <div className="bg-gradient-to-br from-aubergine-900 via-slate-900 to-slate-950 rounded-[1.5rem] sm:rounded-[2.5rem] p-5 sm:p-8 md:p-14 text-white relative overflow-hidden shadow-2xl">
+                  <div className="absolute -right-16 -top-16 w-80 h-80 bg-magenta-500/20 rounded-full blur-3xl pointer-events-none"></div>
+                  <div className="max-w-3xl space-y-4 relative z-10">
+                    <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider bg-emerald-950/80 border border-emerald-700/60 px-3.5 py-1 rounded-full">
+                      Clinical Standards & Data Security
+                    </span>
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display leading-tight text-white">
+                      Engineered to the Highest Global Telemedicine Standards
+                    </h2>
+                    <p className="text-slate-300 text-sm md:text-base leading-relaxed font-normal">
+                      Patient confidentiality and medical compliance are non-negotiable. All telemedicine sessions, electronic health records, and laboratory data are protected with bank-grade 256-bit encryption.
+                    </p>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-6 text-xs font-semibold text-slate-200">
+                      <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
+                        <i className="fas fa-lock text-emerald-400 text-xl mb-2 block"></i>
+                        <span>256-Bit TLS & AES Encryption</span>
+                      </div>
+                      <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
+                        <i className="fas fa-certificate text-indigo-400 text-xl mb-2 block"></i>
+                        <span>NMC, GMC &amp; Board Verified</span>
+                      </div>
+                      <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
+                        <i className="fas fa-file-shield text-amber-400 text-xl mb-2 block"></i>
+                        <span>HIPAA & GDPR Aligned</span>
+                      </div>
+                      <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
+                        <i className="fas fa-headset text-rose-400 text-xl mb-2 block"></i>
+                        <span>24/7 Dedicated Partner Care</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </Reveal>
-          </section>
+              </Reveal>
+            </section>
+          )}
 
           {/* Provider FAQ Section */}
-          <section id="faq" className="max-w-4xl mx-auto px-5 md:px-8 py-16 scroll-mt-20">
-            <Reveal className="text-center max-w-2xl mx-auto mb-10 space-y-3">
-              <span className="text-xs font-semibold text-aubergine-700 uppercase tracking-wider bg-aubergine-50 px-3.5 py-1.5 rounded-full border border-aubergine-100">
-                Frequently Asked Questions
-              </span>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-slate-900 font-display">
-                Everything You Need to Know as a Provider
-              </h2>
-            </Reveal>
+          {adminSettings?.toggles?.showProviderFaq !== false && (
+            <section id="faq" className="max-w-4xl mx-auto px-5 md:px-8 py-16 scroll-mt-20">
+              <Reveal className="text-center max-w-2xl mx-auto mb-10 space-y-3">
+                <span className="text-xs font-semibold text-aubergine-700 uppercase tracking-wider bg-aubergine-50 px-3.5 py-1.5 rounded-full border border-aubergine-100">
+                  Frequently Asked Questions
+                </span>
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-slate-900 font-display">
+                  Everything You Need to Know as a Provider
+                </h2>
+              </Reveal>
 
-            <div className="space-y-3">
-              {doctorFaqs.map((faq, idx) => {
-                const isOpen = activeFaq === idx;
-                return (
-                  <Reveal key={idx} delay={idx * 50}>
-                    <div className={`border rounded-2xl transition-all duration-300 ${isOpen ? 'bg-white border-aubergine-300 shadow-md p-5' : 'bg-white/80 border-sand-200/80 p-4 hover:border-aubergine-200'}`}>
-                      <button
-                        onClick={() => toggleFaq(idx)}
-                        aria-expanded={isOpen}
-                        className="w-full flex justify-between items-center text-left font-bold text-slate-800 text-sm md:text-base leading-snug focus:outline-none"
-                      >
-                        <span className="pr-4">{faq.q}</span>
-                        <div className={`w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 transition-transform duration-300 shrink-0 ${isOpen ? 'rotate-180 bg-aubergine-100 text-aubergine-700' : ''}`}>
-                          <i className="fas fa-chevron-down text-xs"></i>
-                        </div>
-                      </button>
+              <div className="space-y-3">
+                {doctorFaqs.map((faq, idx) => {
+                  const isOpen = activeFaq === idx;
+                  return (
+                    <Reveal key={idx} delay={idx * 50}>
+                      <div className={`border rounded-2xl transition-all duration-300 ${isOpen ? 'bg-white border-aubergine-300 shadow-md p-5' : 'bg-white/80 border-sand-200/80 p-4 hover:border-aubergine-200'}`}>
+                        <button
+                          onClick={() => toggleFaq(idx)}
+                          aria-expanded={isOpen}
+                          className="w-full flex justify-between items-center text-left font-bold text-slate-800 text-sm md:text-base leading-snug focus:outline-none"
+                        >
+                          <span className="pr-4">{faq.q}</span>
+                          <div className={`w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 transition-transform duration-300 shrink-0 ${isOpen ? 'rotate-180 bg-aubergine-100 text-aubergine-700' : ''}`}>
+                            <i className="fas fa-chevron-down text-xs"></i>
+                          </div>
+                        </button>
 
-                      {isOpen && (
-                        <div className="mt-3 pt-3 border-t border-slate-100 text-slate-600 text-xs md:text-sm leading-relaxed animate-fade-in font-normal">
-                          {faq.a}
-                        </div>
-                      )}
-                    </div>
-                  </Reveal>
-                );
-              })}
-            </div>
-          </section>
+                        {isOpen && (
+                          <div className="mt-3 pt-3 border-t border-slate-100 text-slate-600 text-xs md:text-sm leading-relaxed animate-fade-in font-normal">
+                            {faq.a}
+                          </div>
+                        )}
+                      </div>
+                    </Reveal>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {/* Final Call to Action Card */}
           <section className="max-w-5xl mx-auto px-5 md:px-8 py-12 md:py-20 text-center">

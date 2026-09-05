@@ -2777,7 +2777,7 @@ export class AdminService {
     try {
       const { data } = await this.supabase.admin
         .from('cms_articles')
-        .select()
+        .select('*')
         .order('created_at', { ascending: false });
       return (data || []).map((a) => ({
         ...a,
@@ -2796,24 +2796,88 @@ export class AdminService {
     }
   }
 
-  async createCmsArticle(body: {
-    title: string;
-    author: string;
-    category: string;
-    status?: string;
-  }) {
+  async getPublicCmsArticles() {
     try {
-      const displayId = `C-${Math.floor(Math.random() * 9000) + 100}`;
       const { data } = await this.supabase.admin
         .from('cms_articles')
-        .insert({
-          ...body,
-          display_id: displayId,
-          status: body.status || 'Draft',
-        })
+        .select('*')
+        .eq('status', 'Published')
+        .order('created_at', { ascending: false });
+      return (data || []).map((a) => ({
+        ...a,
+        date: a.updated_at
+          ? new Date(a.updated_at).toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })
+          : '',
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  async getPublicCmsArticleBySlugOrId(slugOrId: string) {
+    try {
+      let query = this.supabase.admin
+        .from('cms_articles')
+        .select('*')
+        .eq('status', 'Published');
+
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId);
+      if (isUuid) {
+        query = query.or(`id.eq.${slugOrId},slug.eq.${slugOrId}`);
+      } else {
+        query = query.eq('slug', slugOrId);
+      }
+      const { data } = await query.maybeSingle();
+      return data;
+    } catch {
+      return null;
+    }
+  }
+
+  async createCmsArticle(body: any) {
+    try {
+      const displayId = `C-${Math.floor(Math.random() * 9000) + 100}`;
+      const slug = body.slug || (body.title ? body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : `guide-${Date.now()}`);
+
+      const payload: any = {
+        title: body.title,
+        author: body.author,
+        category: body.category,
+        status: body.status || 'Draft',
+        display_id: displayId,
+        summary: body.summary || '',
+        content: body.content || '',
+        slug,
+        read_time: body.readTime || body.read_time || '5 min read',
+        tags: Array.isArray(body.tags) ? body.tags : (body.tags ? [body.tags] : []),
+      };
+
+      let res = await this.supabase.admin
+        .from('cms_articles')
+        .insert(payload)
         .select()
         .maybeSingle();
-      return data;
+
+      if (res.error) {
+        const basicPayload = {
+          title: body.title,
+          author: body.author,
+          category: body.category,
+          status: body.status || 'Draft',
+          display_id: displayId,
+        };
+        res = await this.supabase.admin
+          .from('cms_articles')
+          .insert(basicPayload)
+          .select()
+          .maybeSingle();
+      }
+
+      return res.data;
     } catch (error) {
       throw new InternalServerErrorException(
         ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
@@ -2839,20 +2903,44 @@ export class AdminService {
 
   async updateCmsArticle(id: string, body: any) {
     try {
-      const { data } = await this.supabase.admin
+      const slug = body.slug || (body.title ? body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : undefined);
+      const payload: any = {
+        title: body.title,
+        author: body.author,
+        category: body.category,
+        summary: body.summary,
+        content: body.content,
+        status: body.status,
+        slug,
+        read_time: body.readTime || body.read_time,
+        tags: Array.isArray(body.tags) ? body.tags : (body.tags ? [body.tags] : undefined),
+      };
+
+      Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+
+      let res = await this.supabase.admin
         .from('cms_articles')
-        .update({
-          title: body.title,
-          author: body.author,
-          category: body.category,
-          summary: body.summary,
-          content: body.content,
-          status: body.status,
-        })
+        .update(payload)
         .eq('id', id)
         .select()
         .maybeSingle();
-      return data;
+
+      if (res.error) {
+        const basicPayload = {
+          title: body.title,
+          author: body.author,
+          category: body.category,
+          status: body.status,
+        };
+        res = await this.supabase.admin
+          .from('cms_articles')
+          .update(basicPayload)
+          .eq('id', id)
+          .select()
+          .maybeSingle();
+      }
+
+      return res.data;
     } catch (error) {
       throw new InternalServerErrorException(
         ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
@@ -2879,6 +2967,36 @@ export class AdminService {
         .select('*')
         .eq('id', 1)
         .maybeSingle();
+
+      const defaultToggles = {
+        showEmergencyBanner: false,
+        showPromoBanner: true,
+        showStats: true,
+        showConditions: true,
+        showPcosDiagram: true,
+        showHolisticApproach: true,
+        showHowItWorks: true,
+        showAiShowcase: true,
+        showFeaturedDoctors: true,
+        showOutcomes: true,
+        showTestimonials: true,
+        showCycleTracker: true,
+        showLabTests: true,
+        showHealthTips: true,
+        showPricing: true,
+        showFaq: true,
+        showNewsletter: true,
+        showFloatingCTA: true,
+        showProviderHero: true,
+        showProviderBenefits: true,
+        showDoctorAiShowcase: true,
+        showProviderCalculator: true,
+        showProviderComparison: true,
+        showProviderTestimonials: true,
+        showProviderSecurity: true,
+        showProviderFaq: true,
+      };
+
       if (error || !data) {
         return {
           heroTitle: "Your Premier Partner in Women's Health",
@@ -2889,32 +3007,34 @@ export class AdminService {
             "Join the leading digital platform for women's endocrinology and reproductive health. Focus on what you do best—delivering world-class clinical outcomes—while our AI EMR and automated patient acquisition handles the rest.",
           pricingAmount: 799,
           platformCommissionRate: 10,
-          toggles: {
-            showEmergencyBanner: false,
-            showFeaturedDoctors: true,
-            showTestimonials: true,
-            showPricing: false,
-            showNewsletter: true,
-            showProviderTestimonials: true,
-            showProviderCalculator: true,
-            showProviderComparison: true,
-          },
+          toggles: defaultToggles,
           promoText: 'Use code HEALTH20 for 20% off your first consultation!',
+          faqs: { patient: [], provider: [] },
+          testimonials: { patient: [], provider: [] },
+          seoMetadata: { patient: {}, provider: {} },
+          heroCta: { patient: {}, provider: {} },
+          announcements: [],
         };
       }
+
       return {
         heroTitle: data.hero_title,
         heroSubtitle: data.hero_subtitle,
         providerHeroTitle: data.provider_hero_title,
         providerHeroSubtitle: data.provider_hero_subtitle,
-        pricingAmount: data.pricing_amount,
+        pricingAmount: data.pricing_amount !== undefined ? data.pricing_amount : 799,
         platformCommissionRate:
           data.platform_commission_rate !== undefined &&
           data.platform_commission_rate !== null
             ? Number(data.platform_commission_rate)
             : 10,
-        toggles: data.toggles,
+        toggles: { ...defaultToggles, ...(data.toggles || {}) },
         promoText: data.promo_text,
+        faqs: data.faqs || data.toggles?._faqs || { patient: [], provider: [] },
+        testimonials: data.testimonials || data.toggles?._testimonials || { patient: [], provider: [] },
+        seoMetadata: data.seo_metadata || data.toggles?._seoMetadata || { patient: {}, provider: {} },
+        heroCta: data.hero_cta || data.toggles?._heroCta || { patient: {}, provider: {} },
+        announcements: data.announcements || data.toggles?._announcements || [],
       };
     } catch (error) {
       console.error('Failed to fetch landing settings:', error);
@@ -2926,7 +3046,6 @@ export class AdminService {
 
   async updateLandingSettings(settings: any, admin?: AuthUser) {
     try {
-      // First try to fetch the existing settings
       const existingSettings = await this.getLandingSettings();
       const previousRate = existingSettings.platformCommissionRate;
       const newRate =
@@ -2934,7 +3053,17 @@ export class AdminService {
           ? Number(settings.platformCommissionRate)
           : previousRate;
 
-      const updatedSettings = {
+      const mergedToggles = {
+        ...(existingSettings.toggles || {}),
+        ...(settings.toggles || {}),
+        _faqs: settings.faqs !== undefined ? settings.faqs : existingSettings.faqs,
+        _testimonials: settings.testimonials !== undefined ? settings.testimonials : existingSettings.testimonials,
+        _seoMetadata: settings.seoMetadata !== undefined ? settings.seoMetadata : existingSettings.seoMetadata,
+        _heroCta: settings.heroCta !== undefined ? settings.heroCta : existingSettings.heroCta,
+        _announcements: settings.announcements !== undefined ? settings.announcements : existingSettings.announcements,
+      };
+
+      const updatedSettings: any = {
         hero_title:
           settings.heroTitle !== undefined
             ? settings.heroTitle
@@ -2960,20 +3089,37 @@ export class AdminService {
           settings.promoText !== undefined
             ? settings.promoText
             : existingSettings.promoText,
-        toggles:
-          settings.toggles !== undefined
-            ? settings.toggles
-            : existingSettings.toggles,
+        toggles: mergedToggles,
       };
 
-      const { data, error } = await this.supabase.admin
+      if (settings.faqs !== undefined) updatedSettings.faqs = settings.faqs;
+      if (settings.testimonials !== undefined) updatedSettings.testimonials = settings.testimonials;
+      if (settings.seoMetadata !== undefined) updatedSettings.seo_metadata = settings.seoMetadata;
+      if (settings.heroCta !== undefined) updatedSettings.hero_cta = settings.heroCta;
+      if (settings.announcements !== undefined) updatedSettings.announcements = settings.announcements;
+
+      let res = await this.supabase.admin
         .from('landing_settings')
         .upsert({ id: 1, ...updatedSettings })
         .select()
         .maybeSingle();
 
-      if (error) {
-        console.error('Failed to update landing settings:', error);
+      if (res.error) {
+        delete updatedSettings.faqs;
+        delete updatedSettings.testimonials;
+        delete updatedSettings.seo_metadata;
+        delete updatedSettings.hero_cta;
+        delete updatedSettings.announcements;
+
+        res = await this.supabase.admin
+          .from('landing_settings')
+          .upsert({ id: 1, ...updatedSettings })
+          .select()
+          .maybeSingle();
+      }
+
+      if (res.error) {
+        console.error('Failed to update landing settings:', res.error);
         throw new InternalServerErrorException(
           ERROR_MESSAGES.INTERNAL_SERVER_ERROR,
         );
@@ -3006,16 +3152,7 @@ export class AdminService {
         this.invalidateStatsCache();
       }
 
-      return {
-        heroTitle: data.hero_title,
-        heroSubtitle: data.hero_subtitle,
-        providerHeroTitle: data.provider_hero_title,
-        providerHeroSubtitle: data.provider_hero_subtitle,
-        pricingAmount: data.pricing_amount,
-        platformCommissionRate: Number(data.platform_commission_rate ?? 10),
-        toggles: data.toggles,
-        promoText: data.promo_text,
-      };
+      return this.getLandingSettings();
     } catch (error) {
       console.error('Failed to update landing settings:', error);
       throw new InternalServerErrorException(

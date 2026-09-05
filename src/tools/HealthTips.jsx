@@ -1,10 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { guidesData } from '../data/guidesData.js';
+import { apiFetch } from '../lib/apiClient.js';
 
 function HealthTips() {
   const [activeTag, setActiveTag] = useState('All');
+  const [combinedGuides, setCombinedGuides] = useState(guidesData);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    apiFetch('/admin/public/cms')
+      .then(res => {
+        const publicArticles = Array.isArray(res) ? res : (res?.data || []);
+        if (publicArticles.length > 0) {
+          const cmsGuides = publicArticles.map(a => ({
+            id: a.slug || a.id,
+            slug: a.slug || a.id,
+            title: a.title,
+            summary: a.summary || (a.content ? a.content.replace(/<[^>]*>/g, '').slice(0, 160) + '...' : ''),
+            tag: a.category === 'Symptom Checker' ? 'Hormones' : (a.category || 'PCOS'),
+            icon: a.category === 'Symptom Checker' ? 'fa-stethoscope' : (a.category === 'Announcement' ? 'fa-bullhorn' : 'fa-book-medical'),
+            tip: a.summary ? (a.summary.slice(0, 95) + '...') : 'Consult your specialist for a personalized clinical roadmap.',
+            readTime: a.read_time || a.readTime || '4 min read',
+            author: { name: a.author || 'HealNari Clinical Team', role: 'Medical Advisory Board' },
+            isCms: true,
+          }));
+
+          // Merge without duplicate titles/slugs
+          const existingSlugs = new Set(guidesData.map(g => g.slug || g.id));
+          const newItems = cmsGuides.filter(cg => !existingSlugs.has(cg.id) && !existingSlugs.has(cg.slug));
+          setCombinedGuides([...newItems, ...guidesData]);
+        }
+      })
+      .catch(() => {}); // Resilient fallback to static guidesData
+  }, []);
 
   const tags = ['All', 'PCOS', 'Hair Fall', 'Hormones', 'Diet & Lifestyle'];
 
@@ -21,7 +50,7 @@ function HealthTips() {
     },
   };
 
-  const filtered = activeTag === 'All' ? guidesData : guidesData.filter((t) => t.tag === activeTag);
+  const filtered = activeTag === 'All' ? combinedGuides : combinedGuides.filter((t) => t.tag === activeTag);
 
   return (
     <section id="health-tips" className="max-w-6xl mx-auto px-5 md:px-8 py-16 scroll-mt-20">

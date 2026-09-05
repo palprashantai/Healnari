@@ -133,6 +133,23 @@ function LandingPage() {
     };
   }, []);
 
+  // Update SEO dynamically if configured in admin landing manager
+  useEffect(() => {
+    if (!adminSettings) return;
+    const seo = adminSettings?.seoMetadata?.patient || adminSettings?.seoMetadata;
+    if (seo?.metaTitle) {
+      document.title = seo.metaTitle;
+      const ogTitle = document.querySelector('meta[property="og:title"]');
+      if (ogTitle) ogTitle.setAttribute('content', seo.metaTitle);
+    }
+    if (seo?.metaDesc) {
+      const desc = document.querySelector('meta[name="description"]');
+      if (desc) desc.setAttribute('content', seo.metaDesc);
+      const ogDesc = document.querySelector('meta[property="og:description"]');
+      if (ogDesc) ogDesc.setAttribute('content', seo.metaDesc);
+    }
+  }, [adminSettings]);
+
   const openBooking = (docName = '') => {
     import('../../lib/analytics.js').then(({ trackEvent, AnalyticsEvents }) => {
       trackEvent(AnalyticsEvents.BOOKING_MODAL_OPENED, { doctor: docName, source: 'patient_landing' });
@@ -160,14 +177,16 @@ function LandingPage() {
     setIsSuccessOpen(false);
   };
 
+  const dynamicPricing = adminSettings?.pricingAmount || 799;
+
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-brand-100 selection:text-brand-900 overflow-x-hidden w-full max-w-[100vw]">
       <ScrollProgressBar />
 
       {adminSettings?.toggles?.showEmergencyBanner && (
-        <PromoBanner text="Emergency telemedicine slots are currently available." type="emergency" />
+        <PromoBanner text={adminSettings?.announcements?.emergencyText || "Emergency telemedicine slots are currently available."} type="emergency" />
       )}
-      {adminSettings?.promoText && (
+      {(adminSettings?.toggles?.showPromoBanner !== false && adminSettings?.promoText) && (
         <PromoBanner text={adminSettings.promoText} type="promo" />
       )}
 
@@ -185,39 +204,59 @@ function LandingPage() {
         />
         
         <Suspense fallback={<div className="h-32 flex items-center justify-center text-slate-400 text-sm">Loading...</div>}>
-          <LazyRender><Reveal><Stats /></Reveal></LazyRender>
+          {adminSettings?.toggles?.showStats !== false && (
+            <LazyRender><Reveal><Stats /></Reveal></LazyRender>
+          )}
 
-          <LazyRender><Conditions /></LazyRender>
+          {adminSettings?.toggles?.showConditions !== false && (
+            <LazyRender><Conditions /></LazyRender>
+          )}
 
-          <LazyRender><Reveal><PcosDiagram /></Reveal></LazyRender>
+          {adminSettings?.toggles?.showPcosDiagram !== false && (
+            <LazyRender><Reveal><PcosDiagram /></Reveal></LazyRender>
+          )}
 
-          <LazyRender><Reveal><HolisticApproach /></Reveal></LazyRender>
+          {adminSettings?.toggles?.showHolisticApproach !== false && (
+            <LazyRender><Reveal><HolisticApproach /></Reveal></LazyRender>
+          )}
 
-          <LazyRender><Reveal><HowItWorks /></Reveal></LazyRender>
+          {adminSettings?.toggles?.showHowItWorks !== false && (
+            <LazyRender><Reveal><HowItWorks /></Reveal></LazyRender>
+          )}
 
           {/* Dedicated AI Health Suite Showcase */}
-          <LazyRender>
-            <PatientAiShowcase 
-              onStartConsult={() => openBooking('')} 
-              onOpenChecker={() => setIsSymptomOpen(true)} 
-            />
-          </LazyRender>
+          {adminSettings?.toggles?.showAiShowcase !== false && (
+            <LazyRender>
+              <PatientAiShowcase 
+                onStartConsult={() => openBooking('')} 
+                onOpenChecker={() => setIsSymptomOpen(true)} 
+              />
+            </LazyRender>
+          )}
 
           {adminSettings?.toggles?.showFeaturedDoctors !== false && (
             <LazyRender><Doctors onSelectDoctor={openBooking} /></LazyRender>
           )}
 
-          <LazyRender><Reveal><Outcomes /></Reveal></LazyRender>
-
-          {adminSettings?.toggles?.showTestimonials !== false && (
-            <LazyRender><Reveal><Testimonials /></Reveal></LazyRender>
+          {adminSettings?.toggles?.showOutcomes !== false && (
+            <LazyRender><Reveal><Outcomes /></Reveal></LazyRender>
           )}
 
-          <LazyRender><Reveal><CycleTracker /></Reveal></LazyRender>
+          {adminSettings?.toggles?.showTestimonials !== false && (
+            <LazyRender><Reveal><Testimonials reviews={adminSettings?.testimonials?.patient} /></Reveal></LazyRender>
+          )}
 
-          <LazyRender><Reveal><LabTests onBook={openBooking} /></Reveal></LazyRender>
+          {adminSettings?.toggles?.showCycleTracker !== false && (
+            <LazyRender><Reveal><CycleTracker /></Reveal></LazyRender>
+          )}
 
-          <LazyRender><Reveal><HealthTips onStartConsult={() => openBooking('')} /></Reveal></LazyRender>
+          {adminSettings?.toggles?.showLabTests !== false && (
+            <LazyRender><Reveal><LabTests onBook={openBooking} /></Reveal></LazyRender>
+          )}
+
+          {adminSettings?.toggles?.showHealthTips !== false && (
+            <LazyRender><Reveal><HealthTips onStartConsult={() => openBooking('')} /></Reveal></LazyRender>
+          )}
 
           {/* Customized Premium Inline CTA Section */}
           {adminSettings?.toggles?.showPricing !== false && (
@@ -234,7 +273,7 @@ function LandingPage() {
                     <i className="fas fa-percent text-emerald-400"></i> Introductory Offer
                   </span>
                   <div className="text-2xl sm:text-3xl md:text-4xl font-black leading-tight text-white font-display">
-                    Discuss your concerns with an expert for just <span className="underline decoration-white/40 decoration-wavy">₹{adminSettings?.pricingAmount || 799}</span>
+                    Discuss your concerns with an expert for just <span className="underline decoration-white/40 decoration-wavy">₹{dynamicPricing}</span>
                   </div>
                   <p className="text-white/90 text-base max-w-xl mx-auto leading-relaxed font-medium">
                     Includes: <strong>45-min video call</strong> with a specialist doctor + personalised <strong>lab-test roadmap</strong> + <strong>diet & lifestyle protocol</strong> + <strong>digital prescription</strong> + 14-day free chat follow-up. No surprise charges. <br/> <span className="text-brand-100 text-sm mt-1 inline-block"><i className="fas fa-globe-americas"></i> Available globally across all timezones.</span>
@@ -245,7 +284,7 @@ function LandingPage() {
                       onClick={() => openBooking('')}
                       className="w-full sm:w-auto bg-white text-brand-900 hover:bg-indigo-50 font-bold px-8 py-3.5 rounded-xl shadow-lg transition-all btn-interactive flex items-center justify-center gap-2 text-base md:text-lg"
                     >
-                      <i className="fas fa-calendar-check"></i> Book My ₹799 Consult
+                      <i className="fas fa-calendar-check"></i> Book My ₹{dynamicPricing} Consult
                     </button>
                     <button
                       onClick={() => setIsSymptomOpen(true)}
@@ -268,7 +307,9 @@ function LandingPage() {
             </section>
           )}
 
-          <LazyRender><Reveal><Faq /></Reveal></LazyRender>
+          {adminSettings?.toggles?.showFaq !== false && (
+            <LazyRender><Reveal><Faq faqs={adminSettings?.faqs?.patient} /></Reveal></LazyRender>
+          )}
 
           {adminSettings?.toggles?.showNewsletter !== false && (
             <LazyRender><Reveal><NewsletterSignup /></Reveal></LazyRender>
@@ -281,9 +322,11 @@ function LandingPage() {
       </Suspense>
 
       {/* Floating WhatsApp / Call CTA */}
-      <Suspense fallback={null}>
-        <FloatingCTA onBook={openBooking} />
-      </Suspense>
+      {adminSettings?.toggles?.showFloatingCTA !== false && (
+        <Suspense fallback={null}>
+          <FloatingCTA onBook={openBooking} />
+        </Suspense>
+      )}
 
       {/* Floating Bottom Sticky Bar on Mobile (Natural Thumb Zone for Patients) */}
       {showMobileBar && (
@@ -297,7 +340,7 @@ function LandingPage() {
               onClick={() => openBooking('')}
               className="bg-gradient-to-r from-aubergine-500 to-magenta-600 hover:from-aubergine-600 hover:to-magenta-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105 shrink-0 flex items-center gap-1.5"
             >
-              <i className="fas fa-stethoscope text-[10px]"></i> Book ₹799
+              <i className="fas fa-stethoscope text-[10px]"></i> Book ₹{dynamicPricing}
             </button>
           </div>
         </div>

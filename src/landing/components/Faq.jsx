@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
-function Faq() {
+function Faq({ faqs: customFaqs }) {
   const [activeIndex, setActiveIndex] = useState(null);
 
-  const faqs = [
+  const defaultFaqs = [
     {
       q: "What exactly do I get in a ₹799 consultation?",
       a: "Your ₹799 consultation includes a full 45-minute 1-on-1 video call with a specialist doctor (gynaecologist, endocrinologist, or trichologist depending on your concern), a personalised lab-test roadmap, a custom diet & yoga protocol designed for your hormonal profile, a digital prescription where applicable, and 14 days of free follow-up chat — all from the comfort of your home."
@@ -33,6 +33,12 @@ function Faq() {
       a: "No problem at all. We offer completely free, hassle-free rescheduling or cancellation up to 4 hours before your appointment. You can modify your slot directly from your patient dashboard or by messaging our support team anytime."
     }
   ];
+
+  const rawList = (customFaqs && customFaqs.length > 0) ? customFaqs : defaultFaqs;
+  const faqs = rawList.map(item => ({
+    q: item.q || item.question || '',
+    a: item.a || item.answer || ''
+  })).filter(item => item.q && item.a);
 
 
   const toggleAccordion = (idx) => {

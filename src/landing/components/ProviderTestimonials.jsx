@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import Reveal from '../../components/Reveal.jsx';
 
-function ProviderTestimonials() {
+function ProviderTestimonials({ testimonials: customTestimonials }) {
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
 
-  const testimonials = [
+  const defaultTestimonials = [
     {
       name: 'Dr. Ananya Mehta',
       category: 'endocrine',
@@ -46,6 +46,21 @@ function ProviderTestimonials() {
     }
   ];
 
+  const rawList = (customTestimonials && customTestimonials.length > 0) ? customTestimonials : defaultTestimonials;
+  const testimonials = rawList.map((t, idx) => ({
+    name: t.name || t.author || 'Verified Doctor',
+    category: t.category || 'all',
+    specialty: t.specialty || t.role || 'Specialist Doctor',
+    experience: t.experience || '10+ yrs exp',
+    regNo: t.regNo || 'Verified Clinician',
+    hospital: t.hospital || 'Leading Hospital Alum',
+    image: t.image || `/generated/doc${(idx % 3) + 1}.webp`,
+    quote: t.quote || '',
+    stat: t.stat || 'Verified Provider',
+    statIcon: t.statIcon || 'fa-user-check',
+    highlightBadge: t.highlightBadge || 'Top Provider'
+  })).filter(t => t.quote);
+
   const filterTabs = [
     { label: 'All Specialties', value: 'all' },
     { label: 'Endocrinology', value: 'endocrine' },
@@ -55,7 +70,7 @@ function ProviderTestimonials() {
 
   const filteredDocs = selectedSpecialty === 'all' 
     ? testimonials 
-    : testimonials.filter(doc => doc.category === selectedSpecialty);
+    : testimonials.filter(doc => doc.category === selectedSpecialty || doc.category === 'all');
 
   return (
     <section className="py-12 sm:py-16 md:py-24 max-w-7xl mx-auto px-4 sm:px-6 md:px-8">

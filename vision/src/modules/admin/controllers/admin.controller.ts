@@ -92,6 +92,21 @@ export class CmsArticleDto {
   @IsOptional()
   @IsIn(['Draft', 'Published', 'Archived'])
   status?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  slug?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  readTime?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  tags?: any;
 }
 
 export class UpdateCmsArticleDto {
@@ -129,6 +144,21 @@ export class UpdateCmsArticleDto {
   @IsOptional()
   @IsIn(['Draft', 'Published', 'Archived'])
   status?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  slug?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  readTime?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  tags?: any;
 }
 
 export class UpdateCmsStatusDto {
@@ -201,6 +231,26 @@ export class UpdateLandingSettingsDto {
   @IsString()
   @MaxLength(500)
   promoText?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  faqs?: any;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  testimonials?: any;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  seoMetadata?: any;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  heroCta?: any;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  announcements?: any;
 }
 
 export class MessageTemplateDto {
@@ -852,6 +902,22 @@ export class AdminController {
   @ApiOperation({ summary: 'Get landing page settings (Public)' })
   async getPublicLandingSettings() {
     return this.adminService.getLandingSettings();
+  }
+
+  @Public()
+  @Get('public/cms')
+  @ApiOperation({ summary: 'Published CMS articles for public website' })
+  async getPublicCmsArticles() {
+    const data = await this.adminService.getPublicCmsArticles();
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Public()
+  @Get('public/cms/:slugOrId')
+  @ApiOperation({ summary: 'Single published CMS article by slug or ID' })
+  async getPublicCmsArticleBySlugOrId(@Param('slugOrId') slugOrId: string) {
+    const data = await this.adminService.getPublicCmsArticleBySlugOrId(slugOrId);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
   }
 
   // ─── Message Templates ────────────────────────────────────────────

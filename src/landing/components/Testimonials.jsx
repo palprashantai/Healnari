@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 
-function Testimonials() {
+function Testimonials({ reviews: customReviews }) {
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const reviews = [
+  const defaultReviews = [
     {
       quote: "I had PCOS for 6 years. Every doctor told me to 'just lose weight'. HealNari was the first place that actually ran the right tests, designed my diet around my insulin resistance, and gave me a yoga plan too. In 4 months, my cycle is regular for the first time since college.",
       author: "Sneha K.",
@@ -32,6 +32,20 @@ function Testimonials() {
       tags: ['Diagnosed: Thyroid & Hormonal Imbalance', 'Outcome: Hormonal Stability & Energy Restored']
     }
   ];
+
+  const rawReviews = (customReviews && customReviews.length > 0) ? customReviews : defaultReviews;
+  const reviews = rawReviews.map((r, i) => ({
+    quote: r.quote || '',
+    author: r.author || r.name || 'Verified Patient',
+    age: r.age || 28,
+    stars: Number(r.stars) || 5,
+    role: r.role || r.specialty || 'Verified Patient',
+    image: r.image || `/generated/patient${(i % 3) + 1}.webp`,
+    tags: Array.isArray(r.tags) ? r.tags : (r.tags ? [r.tags] : ['Verified Patient'])
+  })).filter(r => r.quote);
+
+  // Keep active index within bounds
+  const currentReview = reviews[activeIndex] || reviews[0] || defaultReviews[0];
 
   const handleNext = () => {
     setActiveIndex((prev) => (prev === reviews.length - 1 ? 0 : prev + 1));
@@ -69,8 +83,8 @@ function Testimonials() {
             <div className="relative w-20 h-20 md:w-28 md:h-28 rounded-full flex-shrink-0 group cursor-pointer mx-auto md:mx-0">
               <div className="w-full h-full rounded-full overflow-hidden border-4 border-aubergine-50 shadow-md bg-slate-100">
                 <img
-                  src={reviews[activeIndex].image}
-                  alt={reviews[activeIndex].author}
+                  src={currentReview.image}
+                  alt={currentReview.author}
                   loading="lazy"
                   decoding="async"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -90,14 +104,14 @@ function Testimonials() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                 {/* Stars */}
                 <div className="flex justify-center md:justify-start gap-1 text-amber-400 text-sm">
-                  {[...Array(reviews[activeIndex].stars)].map((_, i) => (
+                  {[...Array(currentReview.stars)].map((_, i) => (
                     <i key={i} className="fas fa-star"></i>
                   ))}
                 </div>
                 
                 {/* Clinical Condition Tags */}
                 <div className="flex flex-wrap justify-center md:justify-end gap-1.5">
-                  {reviews[activeIndex].tags.map((tag, idx) => (
+                  {(currentReview.tags || []).map((tag, idx) => (
                     <span key={idx} className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-[9px] md:text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md shadow-sm">
                       {tag}
                     </span>
@@ -107,16 +121,16 @@ function Testimonials() {
 
               {/* Quote Copy */}
               <p className="text-slate-700 text-base md:text-lg font-medium leading-relaxed relative z-10 italic">
-                “{reviews[activeIndex].quote}”
+                “{currentReview.quote}”
               </p>
 
               {/* Patient Meta Info */}
               <div>
                 <h4 className="font-extrabold text-slate-800 text-base">
-                  {reviews[activeIndex].author}, <span className="text-slate-500">Age {reviews[activeIndex].age}</span>
+                  {currentReview.author}, <span className="text-slate-500">Age {currentReview.age}</span>
                 </h4>
                 <p className="text-aubergine-600 text-xs font-bold uppercase tracking-wider mt-0.5">
-                  {reviews[activeIndex].role}
+                  {currentReview.role}
                 </p>
               </div>
 
