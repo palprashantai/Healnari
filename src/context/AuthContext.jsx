@@ -188,14 +188,24 @@ export function AuthProvider({ children }) {
     if (updates.emergencyContact !== undefined) patch.emergencyContact = updates.emergencyContact;
     if (updates.allergies !== undefined) patch.allergies = updates.allergies;
     if (updates.chronicConditions !== undefined) patch.chronicConditions = updates.chronicConditions;
-    if (updates.currency !== undefined) {
-      patch.currency = updates.currency.toUpperCase() === 'USD' ? 'USD' : 'INR';
-      patch.country = patch.currency === 'USD' ? 'US' : 'IN';
-      try {
-        localStorage.setItem('healnari_currency', patch.currency);
-      } catch {}
+    // POLICY: Country = any ISO-2 code. Currency = ONLY INR (India) or USD (all other countries).
+    // If country is updated → re-derive currency automatically.
+    // If currency is updated directly → clamp to INR/USD only.
+    if (updates.country !== undefined) {
+      patch.country = updates.country.trim().toUpperCase().slice(0, 10);
+      // Auto-derive currency from country — IN = INR, everything else = USD
+      patch.currency = patch.country === 'IN' ? 'INR' : 'USD';
+      try { localStorage.setItem('healnari_currency', patch.currency); } catch {}
     }
-    if (updates.country !== undefined) patch.country = updates.country.toUpperCase() === 'US' ? 'US' : 'IN';
+    if (updates.currency !== undefined) {
+      // Only allow INR or USD — never store a third currency
+      patch.currency = updates.currency.toUpperCase() === 'USD' ? 'USD' : 'INR';
+      // If no explicit country was given, derive a fallback country from currency
+      if (updates.country === undefined) {
+        patch.country = patch.currency === 'USD' ? 'US' : 'IN';
+      }
+      try { localStorage.setItem('healnari_currency', patch.currency); } catch {}
+    }
     if (updates.emailNotifications !== undefined) patch.emailNotifications = updates.emailNotifications;
     if (updates.smsNotifications !== undefined) patch.smsNotifications = updates.smsNotifications;
     if (Object.keys(patch).length === 0) return;

@@ -42,6 +42,8 @@ function DoctorProfile() {
     clinicName: doc.clinicName || 'HealNari Women\'s Clinic — Bandra',
     clinicAddress: doc.clinicAddress || 'Shop 4, Mehta Plaza, Bandra West, Mumbai',
     bio: doc.bio || doc.profile?.bio || '',
+    dob: doc.dob || '',
+    age: doc.age || '',
     consultFee: String(doc.consultationFee || doc.consultFee || doc.profile?.consultation_fee || 799),
     videoFee: String(doc.consultationFee || doc.consultFee || doc.profile?.consultation_fee || 799),
     clinicFee: '999',
@@ -57,6 +59,8 @@ function DoctorProfile() {
         specialty: user.specialty || user.profile?.specialty || prev.specialty,
         regNo: user.regNo || user.profile?.registration_no || prev.regNo,
         bio: user.bio || user.profile?.bio || prev.bio,
+        dob: user.dob || prev.dob,
+        age: user.age || prev.age,
         consultFee: String(user.consultationFee || user.consultFee || user.profile?.consultation_fee || prev.consultFee || 799),
         videoFee: String(user.consultationFee || user.consultFee || user.profile?.consultation_fee || prev.videoFee || 799),
       }));
@@ -144,6 +148,7 @@ function DoctorProfile() {
         clinicName: form.clinicName,
         clinicAddress: form.clinicAddress,
         bio: form.bio,
+        dob: form.dob,
         consultationFee: Number(form.videoFee || form.consultFee || 799),
         consultFee: Number(form.videoFee || form.consultFee || 799),
         videoFee: Number(form.videoFee || form.consultFee || 799),
@@ -322,6 +327,8 @@ function DoctorProfile() {
                   { label: 'Phone Number', key: 'phone', icon: 'fa-phone' },
                   { label: 'Medical Registration No.', key: 'regNo', icon: 'fa-id-badge' },
                   { label: 'Specialty', key: 'specialty', icon: 'fa-stethoscope' },
+                  { label: 'Date of Birth', key: 'dob', icon: 'fa-cake-candles', type: 'date' },
+                  { label: 'Age', key: 'age', icon: 'fa-user-clock', readOnly: true },
                   { label: 'Qualification', key: 'qualification', icon: 'fa-graduation-cap' },
                   { label: 'Years of Experience', key: 'experience', icon: 'fa-clock-rotate-left' },
                   { label: 'Clinic Name', key: 'clinicName', icon: 'fa-hospital' },
@@ -329,6 +336,7 @@ function DoctorProfile() {
                   <div key={f.key}>
                     <label htmlFor={`doctor-profile-${f.key}`} className="text-xs font-bold text-slate-500 mb-1.5 block">
                       <i className={`fas ${f.icon} mr-1.5 text-aubergine-400`}></i>{f.label}
+                      {f.readOnly && <span className="ml-1.5 font-normal text-slate-400 normal-case">(auto-calculated)</span>}
                     </label>
                     {f.key === 'specialty' ? (
                       <select
@@ -343,8 +351,8 @@ function DoctorProfile() {
                         ))}
                       </select>
                     ) : (
-                      <input id={`doctor-profile-${f.key}`} type={f.type || 'text'} value={form[f.key]} onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50" />
+                      <input id={`doctor-profile-${f.key}`} type={f.type || 'text'} value={form[f.key]} readOnly={f.readOnly} onChange={e => !f.readOnly && setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                        className={`w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 ${f.readOnly ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-slate-50/50'}`} />
                     )}
                   </div>
                 ))}

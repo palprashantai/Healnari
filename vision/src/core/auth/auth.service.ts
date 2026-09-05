@@ -23,12 +23,22 @@ export class AuthService {
 
   toAppUser(user: AuthUser) {
     const p = user.profile;
+    const meta = (user as any).user_metadata || {};
+    // dob — prefer explicit metadata, fall back to profile-level dob (set by patient_records sync)
+    const dob: string | null = meta.dob || (p as any).dob || null;
+    let age = meta.age || (p as any).age || null;
+    if (!age && dob) {
+      const parsedYear = new Date(dob).getFullYear();
+      if (!isNaN(parsedYear) && parsedYear > 1900) {
+        age = new Date().getFullYear() - parsedYear;
+      }
+    }
     return {
       id: p.id,
       email: user.email || (p as any).email || '',
       role: p.role,
       name: p.full_name,
-      phone: p.phone || '',
+      phone: p.phone || meta.phone || '',
       avatarUrl: p.avatar_url || '',
       specialty: p.specialty || '',
       regNo: p.registration_no || '',
@@ -36,7 +46,10 @@ export class AuthService {
       consultFee: p.consultation_fee || 799,
       bio: p.bio || '',
       currency: (p.currency || 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR',
-      country: p.country || ((p.currency || 'INR').toUpperCase() === 'USD' ? 'US' : 'IN'),
+      country: p.country || meta.country || ((p.currency || 'INR').toUpperCase() === 'USD' ? 'US' : 'IN'),
+      age: age ? Number(age) : null,
+      dob: dob || null,
+      gender: meta.gender || (p as any).gender || 'Female',
       kycVerified: p.kyc_verified,
       kycSubmittedAt: p.kyc_submitted_at || null,
       emailNotifications: true,
@@ -75,6 +88,10 @@ export class AuthService {
         role: body.role,
         full_name: body.fullName,
         specialty: body.specialty,
+        country: body.country,
+        age: body.age,
+        phone: body.phone,
+        gender: body.gender,
       },
     });
 
@@ -99,11 +116,35 @@ export class AuthService {
       });
     }
 
-    if (body.registrationNo) {
+    const profileUpdates: any = {};
+    if (body.country) profileUpdates.country = body.country.trim().toUpperCase();
+    if (body.phone) profileUpdates.phone = body.phone.trim();
+    if (body.registrationNo) profileUpdates.registration_no = body.registrationNo.trim();
+    if (body.specialty) profileUpdates.specialty = body.specialty.trim();
+    if (body.medicalCouncil) profileUpdates.medical_council = body.medicalCouncil.trim();
+
+    if (Object.keys(profileUpdates).length > 0) {
       await this.supabase.admin
         .from('profiles')
-        .update({ registration_no: body.registrationNo })
+        .update(profileUpdates)
         .eq('id', data.user.id);
+    }
+
+    if (body.role === ProfileRole.PATIENT && (body.age || body.dob)) {
+      const dob = body.dob || (body.age ? `${new Date().getFullYear() - Number(body.age)}-01-01` : null);
+      if (dob) {
+        try {
+          await this.supabase.admin
+            .from('patient_records')
+            .upsert({
+              patient_id: data.user.id,
+              dob,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'patient_id' });
+        } catch (e: any) {
+          this.logger.warn(`Could not sync patient_records dob on register: ${e?.message}`);
+        }
+      }
     }
 
     // The DB trigger that creates the profiles row fires asynchronously off
@@ -208,17 +249,46 @@ export class AuthService {
     if (body.specialty !== undefined) patch.specialty = body.specialty;
     if (body.registrationNo !== undefined)
       patch.registration_no = body.registrationNo;
+
+    // Persist dob: sync to patient_records table and store in user_metadata so
+    // toAppUser can always read it back consistently for both roles.
+    if (body.dob !== undefined && body.dob) {
+      try {
+        await this.supabase.admin
+          .from('patient_records')
+          .upsert(
+            { patient_id: userId, dob: body.dob, updated_at: new Date().toISOString() },
+            { onConflict: 'patient_id' },
+          );
+      } catch (e: any) {
+        this.logger.warn(`Could not sync dob to patient_records for ${userId}: ${e?.message}`);
+      }
+      try {
+        await this.supabase.admin.auth.admin.updateUserById(userId, {
+          user_metadata: { dob: body.dob },
+        });
+      } catch (e: any) {
+        this.logger.warn(`Could not sync dob to user_metadata for ${userId}: ${e?.message}`);
+      }
+    }
     if (body.consultationFee !== undefined)
       patch.consultation_fee = Number(body.consultationFee);
     if (body.bio !== undefined) patch.bio = body.bio;
+    // POLICY: Country = any ISO-2 code. Currency = ONLY INR (India) or USD (all other countries).
+    if (body.country !== undefined) {
+      patch.country = body.country.trim().toUpperCase().slice(0, 10);
+      // Auto-derive currency from country — IN = INR, everything else = USD
+      patch.currency = patch.country === 'IN' ? 'INR' : 'USD';
+    }
     if (body.currency !== undefined) {
+      // Only allow INR or USD — never store a third currency
       const cleanCurrency = body.currency.toUpperCase() === 'USD' ? 'USD' : 'INR';
       patch.currency = cleanCurrency;
-      if (!body.country) {
+      // If no explicit country was given alongside, derive a fallback country from currency
+      if (body.country === undefined) {
         patch.country = cleanCurrency === 'USD' ? 'US' : 'IN';
       }
     }
-    if (body.country !== undefined) patch.country = body.country.toUpperCase() === 'US' ? 'US' : 'IN';
 
     // Safely sync notification preferences to notification_preferences table (not profiles table)
     if (body.emailNotifications !== undefined || body.smsNotifications !== undefined) {

@@ -33,7 +33,8 @@ function PatientProfile() {
     name: user?.name || '',
     email: user?.email || '',
     phone: user?.phone || '',
-    dob: '',
+    dob: user?.dob || '',
+    age: user?.age || '',
     bloodGroup: '',
     height: '',
     weight: '',
@@ -53,7 +54,8 @@ function PatientProfile() {
       name: p.name || user?.name || '',
       email: p.email || user?.email || '',
       phone: p.phone || user?.phone || '',
-      dob: p.dob || own.dob || '',
+      dob: p.dob || own.dob || user?.dob || '',
+      age: user?.age || '',
       bloodGroup: p.bloodGroup || (own.blood && own.blood !== '—' ? own.blood : ''),
       height: p.height || (own.height && own.height !== '—' ? String(own.height) : ''),
       weight: p.weight || (own.weight && own.weight !== '—' ? String(own.weight) : ''),
@@ -270,12 +272,13 @@ function PatientProfile() {
                   { label: 'Email Address', key: 'email', icon: 'fa-envelope', type: 'email', readOnly: true },
                   { label: 'Phone Number', key: 'phone', icon: 'fa-phone' },
                   { label: 'Date of Birth', key: 'dob', icon: 'fa-cake-candles', type: 'date' },
+                  { label: 'Age', key: 'age', icon: 'fa-user-clock', readOnly: true },
                   { label: 'City / Location', key: 'city', icon: 'fa-location-dot' },
                 ].map(field => (
                   <div key={field.key}>
                     <label htmlFor={`profile-${field.key}`} className="text-xs font-bold text-slate-500 mb-1.5 block">
                       <i className={`fas ${field.icon} mr-1.5 text-aubergine-400`}></i>{field.label}
-                      {field.readOnly && <span className="ml-1.5 font-normal text-slate-400 normal-case">(cannot be changed)</span>}
+                      {field.readOnly && <span className="ml-1.5 font-normal text-slate-400 normal-case">{field.key === 'age' ? '(auto-calculated)' : '(cannot be changed)'}</span>}
                     </label>
                     <input
                       id={`profile-${field.key}`}

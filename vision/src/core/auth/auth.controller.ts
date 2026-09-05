@@ -82,6 +82,47 @@ export class RegisterDto {
   @IsString()
   @MaxLength(100)
   registrationNo?: string;
+
+  @ApiProperty({ required: false, example: 'IN' })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
+  @IsString()
+  @MaxLength(10)
+  country?: string;
+
+  @ApiProperty({ required: false, example: 28 })
+  @IsOptional()
+  @IsNumber()
+  @Min(12)
+  age?: number;
+
+  @ApiProperty({ required: false, example: '+91 9876543210' })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MaxLength(30)
+  phone?: string;
+
+  @ApiProperty({ required: false, example: 'Female' })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MaxLength(30)
+  gender?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MaxLength(100)
+  medicalCouncil?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MaxLength(20)
+  dob?: string;
 }
 
 export class ForgotPasswordDto {
@@ -119,6 +160,13 @@ export class UpdateMeDto {
   @MinLength(2)
   @MaxLength(100)
   fullName?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MaxLength(20)
+  dob?: string;
 
   @ApiProperty({ required: false })
   @IsOptional()
