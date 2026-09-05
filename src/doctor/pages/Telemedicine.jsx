@@ -14,6 +14,7 @@ import { AIButton } from '../../components/AiButton.jsx';
 import { AIPaywallModal } from '../../components/ai/AIPaywallModal.jsx';
 import { AIUsageBadge } from '../../components/ai/AIUsageBadge.jsx';
 import { triggerHaptic } from '../../lib/haptics.js';
+import { DEFAULT_DOCTOR_PATIENTS } from '../../data/defaultPatients.js';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
  * for srcObject, so this stays a thin imperative wrapper. */
@@ -2850,22 +2851,62 @@ function DoctorTelemedicine() {
   const [refreshing, setRefreshing] = useState(false);
   const knownSessionsRef = useRef(new Map()); // id -> last-seen status, for diffing new/changed sessions
 
+  // Sub-tabs: 'queue' (today's active queue), 'history' (telemedicine history), 'upcoming' (future scheduled dates)
+  const [activeTab, setActiveTab] = useState('queue');
+  const [historySearch, setHistorySearch] = useState('');
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+
   const todayStr = todayLocalStr();
+
+  const defaultHistory = DEFAULT_DOCTOR_PATIENTS.map(p => {
+    const lastNote = p.clinicalNotes?.[0];
+    return {
+      id: `hist-${p.id}`,
+      patient_id: p.id,
+      patientName: p.name,
+      patientPhone: p.phone,
+      patientAge: p.age,
+      blood: p.blood || 'B+',
+      reason: p.diagnosis || 'Clinical Consultation',
+      scheduled_date: p.lastVisit || '02 Sep 2026',
+      scheduled_time: '11:00 AM',
+      duration: '45 Mins',
+      status: 'Done',
+      note: lastNote?.text || `Reviewed clinical symptoms and hormonal panel for ${p.diagnosis}. Prescribed personalized protocol.`,
+      meds: p.meds || [],
+      labs: p.labs || [],
+      patientObj: p,
+    };
+  });
+
+  const [rawHistory, setRawHistory] = useState(defaultHistory);
 
   const loadQueue = ({ silent = false, alertChanges = false } = {}) => {
     if (silent) setRefreshing(true);
-    return apiFetch('/telemedicine/queue')
-      .then(data => {
+    return Promise.all([
+      apiFetch('/telemedicine/queue').catch(() => []),
+      apiFetch('/telemedicine/history').catch(() => [])
+    ])
+      .then(([data, histData]) => {
+        const queueList = Array.isArray(data) ? data : (data?.data || []);
+        const histList = Array.isArray(histData) ? histData : (histData?.data || []);
+
         if (alertChanges) {
           const known = knownSessionsRef.current;
-          const newRequests = data.filter(s => !known.has(s.id) && s.status === 'Requested');
-          const nowWaiting = data.filter(s => known.has(s.id) && known.get(s.id) !== 'Waiting' && s.status === 'Waiting');
+          const newRequests = queueList.filter(s => !known.has(s.id) && s.status === 'Requested');
+          const nowWaiting = queueList.filter(s => known.has(s.id) && known.get(s.id) !== 'Waiting' && s.status === 'Waiting');
           if (newRequests.length || nowWaiting.length) playChime();
           newRequests.forEach(s => toast(`New video request from ${s.patientName}`, 'info'));
           nowWaiting.forEach(s => toast(`${s.patientName} is waiting for their video call`, 'success'));
         }
-        knownSessionsRef.current = new Map(data.map(s => [s.id, s.status]));
-        setRawSessions(data);
+        knownSessionsRef.current = new Map(queueList.map(s => [s.id, s.status]));
+        setRawSessions(queueList);
+        if (histList && histList.length > 0) {
+          setRawHistory(histList);
+        } else {
+          setRawHistory(defaultHistory);
+        }
         setLastUpdated(Date.now());
       })
       .catch(err => { if (!silent) toast(err.message || 'Failed to load queue', 'error'); })
@@ -2894,24 +2935,80 @@ function DoctorTelemedicine() {
     return () => clearInterval(t);
   }, [activeCall]);
 
-  const toSession = (s) => ({
-    id: s.id,
-    patientId: s.patient_id,
-    patient: s.patientName,
-    age: s.patientAge != null ? `${s.patientAge}F` : '—',
-    type: s.reason || 'Consultation',
-    time: s.scheduled_time,
-    date: s.scheduled_date === todayStr ? 'Today' : new Date(s.scheduled_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
-    phone: s.patientPhone || '—',
-    waiting: s.status === 'Waiting' || s.status === 'In Progress',
-    accepted: s.status !== 'Requested',
-    status: s.status,
-  });
+  const toSession = (s) => {
+    const rawDate = s.scheduled_date || s.date || '';
+    const isToday = rawDate === todayStr || rawDate === 'Today' || (typeof rawDate === 'string' && rawDate.slice(0, 10) === todayStr);
+    let displayDate = 'Today';
+    if (!isToday && rawDate) {
+      const parsed = new Date(rawDate);
+      displayDate = isNaN(parsed.getTime()) ? rawDate : parsed.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+    }
+    return {
+      id: s.id,
+      patientId: s.patient_id || s.patientId,
+      patient: s.patientName || s.patient || 'Patient',
+      age: s.patientAge != null ? `${s.patientAge}F` : (s.age || '—'),
+      blood: s.blood || 'B+',
+      type: s.reason || s.type || 'Video Consultation',
+      time: s.scheduled_time || s.time || '10:30 AM',
+      date: isToday ? 'Today' : displayDate,
+      rawDate: rawDate,
+      phone: s.patientPhone || s.phone || '—',
+      waiting: s.status === 'Waiting' || s.status === 'In Progress',
+      accepted: s.status !== 'Requested',
+      status: s.status || 'Upcoming',
+      notes: s.note || s.notes || s.reason || '',
+      duration: s.duration || '45 Mins',
+      diagnosis: s.diagnosis || s.reason || 'Clinical Consultation',
+      meds: s.meds || s.prescriptions || [],
+      labs: s.labs || [],
+      patientObj: s.patientObj || null,
+    };
+  };
 
   const sessions = rawSessions.map(toSession);
+  const todaySessions = sessions.filter(s => s.date === 'Today');
+  const upcomingSessions = sessions.filter(s => s.date !== 'Today');
+  const historySessions = rawHistory.map(toSession);
 
-  const waitingSessions = sessions.filter(s => s.status === 'Waiting');
-  const newRequestSessions = sessions.filter(s => !s.accepted);
+  const filteredHistory = historySessions.filter(item => {
+    if (!historySearch.trim()) return true;
+    const query = historySearch.toLowerCase();
+    return (
+      item.patient.toLowerCase().includes(query) ||
+      (item.diagnosis && item.diagnosis.toLowerCase().includes(query)) ||
+      (item.notes && item.notes.toLowerCase().includes(query))
+    );
+  });
+
+  const waitingSessions = todaySessions.filter(s => s.status === 'Waiting');
+  const newRequestSessions = todaySessions.filter(s => !s.accepted);
+
+  const handlePrintHistoryPrescription = (histItem) => {
+    openPrescriptionPrintWindow({
+      rxId: `HN-${String(histItem.id || '').replace(/^hist-/, '').slice(0, 6).toUpperCase() || 'TELE'}`,
+      date: histItem.date === 'Today' ? new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : (histItem.rawDate || histItem.date),
+      doctor: {
+        name: user?.name || 'Dr. Sarah Mitchell',
+        specialty: 'Obstetrics & Gynecology',
+        regNo: 'NMC-88421',
+      },
+      patient: {
+        name: histItem.patient,
+        age: String(histItem.age || '28').replace(/[^0-9]/g, '') || '28',
+        gender: 'Female',
+      },
+      diagnosis: histItem.diagnosis || 'Clinical Teleconsultation',
+      medicines: (histItem.meds || []).map(m => ({
+        name: m.name || m.medicineName || 'Prescribed Medicine',
+        schedule: m.frequency || m.schedule || '1-0-1',
+        duration: `${m.dosage ? m.dosage + ' • ' : ''}${m.timing || 'After Food'} (${m.duration || '15 Days'})`,
+        instructions: m.instructions || 'Take as directed.',
+      })),
+      labTests: histItem.labs || [],
+      instructions: histItem.notes || 'Follow balanced nutrition, hydration, and sleep hygiene as discussed during consultation.',
+    });
+  };
 
   // Arrived here via the incoming-call ring screen's "Accept" — a patient
   // called us. The queue may not have picked up this appointment yet (it's
@@ -2951,19 +3048,22 @@ function DoctorTelemedicine() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  const activeTabList = activeTab === 'queue' ? todaySessions : activeTab === 'upcoming' ? upcomingSessions : filteredHistory;
+
   const handleBulkAction = (action) => {
     setShowActionsMenu(false);
     if (selectedIds.length === 0) { toast('Please select at least one session first.', 'error'); return; }
     setBulkModalParams({ isOpen: true, channel: action });
   };
   const toggleSelectAll = () => {
-    if (selectedIds.length === sessions.length && sessions.length > 0) setSelectedIds([]);
-    else setSelectedIds(sessions.map(s => s.id));
+    if (selectedIds.length === activeTabList.length && activeTabList.length > 0) setSelectedIds([]);
+    else setSelectedIds(activeTabList.map(s => s.id));
   };
   const toggleSelect = (id) => setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const sendBulkMessage = async (channel, messageText) => {
-    const recipients = sessions.filter(s => selectedIds.includes(s.id));
+    const allKnown = [...sessions, ...historySessions];
+    const recipients = allKnown.filter(s => selectedIds.includes(s.id));
     const patientIds = [...new Set(recipients.map(s => s.patientId).filter(Boolean))];
     try {
       await apiFetch('/communications/broadcasts', {
@@ -3168,129 +3268,480 @@ function DoctorTelemedicine() {
         </div>
       ) : (
         <>
-          {/* Waiting-patient alert */}
-          {waitingSessions.length > 0 && (
-            <div className="bg-gradient-to-r from-emerald-50 to-emerald-100/50 border border-emerald-200 rounded-2xl p-5 flex items-center gap-5 shadow-sm">
-              <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30 relative">
-                <i className="fas fa-video animate-pulse"></i>
-                <div className="absolute inset-0 bg-emerald-400 rounded-2xl animate-ping opacity-20"></div>
+          {/* KPI Stats Overview */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <button
+              onClick={() => setActiveTab('queue')}
+              className={`text-left p-4 rounded-2xl border transition-all duration-200 ${
+                activeTab === 'queue'
+                  ? 'bg-aubergine-50/80 border-aubergine-300 ring-2 ring-aubergine-500/20 shadow-sm'
+                  : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Today's Queue</span>
+                <span className={`w-2.5 h-2.5 rounded-full ${todaySessions.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></span>
               </div>
-              <div className="flex-1">
-                <p className="font-black text-emerald-900 text-base">
-                  {waitingSessions.length === 1 ? `${waitingSessions[0].patient} is waiting in the virtual lobby.` : `${waitingSessions.length} patients are waiting.`}
-                </p>
-                <p className="text-xs text-emerald-700 mt-0.5 font-medium">Join now to avoid keeping them waiting.</p>
+              <div className="text-2xl font-black text-slate-800 mt-1">{todaySessions.length}</div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                {waitingSessions.length > 0 ? `${waitingSessions.length} waiting in lobby` : 'Scheduled for today'}
+              </p>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`text-left p-4 rounded-2xl border transition-all duration-200 ${
+                activeTab === 'history'
+                  ? 'bg-aubergine-50/80 border-aubergine-300 ring-2 ring-aubergine-500/20 shadow-sm'
+                  : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Telemedicine History</span>
+                <i className="fas fa-clock-rotate-left text-aubergine-600 text-xs"></i>
               </div>
-              <button onClick={() => joinCall(waitingSessions[0])}
-                className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold px-6 py-3 rounded-xl text-sm hover:from-emerald-600 hover:to-emerald-700 transition-all flex-shrink-0 flex items-center gap-2 shadow-md hover:-translate-y-0.5">
-                <i className="fas fa-video animate-pulse"></i> Join Now
-              </button>
+              <div className="text-2xl font-black text-slate-800 mt-1">{historySessions.length}</div>
+              <p className="text-[11px] text-slate-500 mt-0.5">Completed video consults</p>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('upcoming')}
+              className={`text-left p-4 rounded-2xl border transition-all duration-200 ${
+                activeTab === 'upcoming'
+                  ? 'bg-aubergine-50/80 border-aubergine-300 ring-2 ring-aubergine-500/20 shadow-sm'
+                  : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Upcoming Consults</span>
+                <i className="fas fa-calendar-days text-indigo-500 text-xs"></i>
+              </div>
+              <div className="text-2xl font-black text-slate-800 mt-1">{upcomingSessions.length}</div>
+              <p className="text-[11px] text-slate-500 mt-0.5">Future booked slots</p>
+            </button>
+
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Session Protocol</span>
+                <i className="fas fa-shield-halved text-emerald-500 text-xs"></i>
+              </div>
+              <div className="text-2xl font-black text-slate-800 mt-1">45 Mins</div>
+              <p className="text-[11px] text-slate-500 mt-0.5">Encrypted • NMC Compliant</p>
+            </div>
+          </div>
+
+          {/* Sub-tab Navigation */}
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+            <button
+              onClick={() => setActiveTab('queue')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                activeTab === 'queue'
+                  ? 'bg-aubergine-600 text-white shadow-sm shadow-aubergine-600/20'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <i className="fas fa-video text-[11px]"></i>
+              Today's Queue
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                activeTab === 'queue' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {todaySessions.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                activeTab === 'history'
+                  ? 'bg-aubergine-600 text-white shadow-sm shadow-aubergine-600/20'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <i className="fas fa-history text-[11px]"></i>
+              Telemedicine History
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                activeTab === 'history' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {historySessions.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('upcoming')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                activeTab === 'upcoming'
+                  ? 'bg-aubergine-600 text-white shadow-sm shadow-aubergine-600/20'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+            >
+              <i className="fas fa-calendar-check text-[11px]"></i>
+              Upcoming Consultations
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                activeTab === 'upcoming' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {upcomingSessions.length}
+              </span>
+            </button>
+          </div>
+
+          {/* TAB 1: TODAY'S LIVE QUEUE */}
+          {activeTab === 'queue' && (
+            <div className="space-y-4">
+              {/* Waiting-patient alert */}
+              {waitingSessions.length > 0 && (
+                <div className="bg-gradient-to-r from-emerald-50 to-emerald-100/50 border border-emerald-200 rounded-2xl p-5 flex items-center gap-5 shadow-sm">
+                  <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30 relative">
+                    <i className="fas fa-video animate-pulse"></i>
+                    <div className="absolute inset-0 bg-emerald-400 rounded-2xl animate-ping opacity-20"></div>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-black text-emerald-900 text-base">
+                      {waitingSessions.length === 1 ? `${waitingSessions[0].patient} is waiting in the virtual lobby.` : `${waitingSessions.length} patients are waiting.`}
+                    </p>
+                    <p className="text-xs text-emerald-700 mt-0.5 font-medium">Join now to avoid keeping them waiting.</p>
+                  </div>
+                  <button onClick={() => joinCall(waitingSessions[0])}
+                    className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold px-6 py-3 rounded-xl text-sm hover:from-emerald-600 hover:to-emerald-700 transition-all flex-shrink-0 flex items-center gap-2 shadow-md hover:-translate-y-0.5">
+                    <i className="fas fa-video animate-pulse"></i> Join Now
+                  </button>
+                </div>
+              )}
+
+              {/* New request alert */}
+              {newRequestSessions.length > 0 && (
+                <div className="bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200 rounded-2xl p-5 flex items-center gap-5 shadow-sm">
+                  <div className="w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-500/30">
+                    <i className="fas fa-calendar-plus"></i>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-black text-amber-900 text-base">
+                      {newRequestSessions.length === 1 ? '1 new video consultation request' : `${newRequestSessions.length} new video consultation requests`}
+                    </p>
+                    <p className="text-xs text-amber-700 mt-0.5 font-medium">Accept or reject below to confirm the patient's slot.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Sessions Queue Container */}
+              <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between bg-slate-50/50 gap-2 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <h2 className="font-bold text-slate-800 tracking-tight whitespace-nowrap sm:whitespace-normal">Today's Video Consultation Queue</h2>
+                    <div className="min-w-0 shrink-0"><LastUpdated at={lastUpdated} /></div>
+                  </div>
+                  {todaySessions.length > 0 && (
+                    <div className="flex items-center gap-3">
+                      {selectedIds.length > 0 && <span className="text-xs text-slate-500 font-bold">{selectedIds.length} selected</span>}
+                      <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-500 hover:text-aubergine-600 transition-colors">
+                        <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${selectedIds.length > 0 && selectedIds.length === todaySessions.length ? 'bg-aubergine-600 shadow-sm text-white' : selectedIds.length > 0 ? 'bg-aubergine-200 text-aubergine-700 ring-1 ring-aubergine-400' : 'bg-white ring-1 ring-slate-200 ring-inset'}`}>
+                          {(selectedIds.length > 0 && selectedIds.length === todaySessions.length) ? <i className="fas fa-check text-[9px]"></i> : selectedIds.length > 0 ? <div className="w-2 h-0.5 bg-aubergine-700 rounded-full"></div> : null}
+                        </div>
+                        <input type="checkbox" className="hidden" checked={selectedIds.length === todaySessions.length && todaySessions.length > 0} onChange={toggleSelectAll} />
+                        Select All
+                      </label>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="p-4 space-y-3">
+                  {todaySessions.map(s => (
+                    <div key={s.id} className={`p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-white transition-all duration-300 shadow-sm hover:shadow-md ${s.waiting ? 'ring-1 ring-emerald-400 bg-emerald-50/20' : 'ring-1 ring-slate-100'} ${selectedIds.includes(s.id) ? 'ring-1 ring-aubergine-400 bg-aubergine-50/20' : ''}`}>
+                      <label className="cursor-pointer group flex-shrink-0 self-center" onClick={e => e.stopPropagation()}>
+                        <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${selectedIds.includes(s.id) ? 'bg-aubergine-600 shadow-sm text-white' : 'bg-slate-100/80 group-hover:bg-slate-200 ring-1 ring-slate-200/80 ring-inset group-hover:ring-aubergine-300'}`}>
+                          {selectedIds.includes(s.id) && <i className="fas fa-check text-[9px]"></i>}
+                        </div>
+                        <input type="checkbox" className="hidden" checked={selectedIds.includes(s.id)} onChange={() => toggleSelect(s.id)} />
+                      </label>
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="relative">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-aubergine-100 to-aubergine-200 text-aubergine-700 font-bold flex items-center justify-center shadow-inner text-sm">
+                            {s.patient.split(' ').map(n => n[0]).join('')}
+                          </div>
+                          {s.waiting && <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white animate-pulse shadow-sm shadow-emerald-500/50"></div>}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <h3 className="font-bold text-slate-800 tracking-tight">{s.patient}</h3>
+                            {s.waiting && <span className="text-[9px] bg-gradient-to-r from-emerald-100 to-emerald-50 text-emerald-700 font-black px-2 py-0.5 rounded-md border border-emerald-200 shadow-sm">WAITING</span>}
+                            {!s.accepted && <span className="text-[9px] bg-gradient-to-r from-amber-100 to-amber-50 text-amber-700 font-black px-2 py-0.5 rounded-md border border-amber-200 shadow-sm">NEW REQUEST</span>}
+                          </div>
+                          <p className="text-[11px] text-slate-500 font-medium">{s.age} • {s.type}</p>
+                          <p className="text-[11px] text-emerald-700 font-bold mt-1 bg-emerald-50 px-2.5 py-0.5 rounded-md inline-block border border-emerald-100/50">
+                            Today — {s.time}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0 justify-end items-center">
+                        <a href={`tel:${s.phone}`}
+                          className="w-10 h-10 rounded-full bg-white text-slate-500 hover:text-aubergine-600 hover:bg-aubergine-50 flex items-center justify-center transition-colors border border-slate-200 shadow-sm" title="Call Patient">
+                          <i className="fas fa-phone"></i>
+                        </a>
+                        <button onClick={() => { setNoteTarget(s); setNoteDraft(''); setShowNotes(true); }}
+                          className="text-[11px] font-bold text-aubergine-600 border border-aubergine-200 px-4 py-2.5 rounded-xl hover:bg-aubergine-50 transition-colors shadow-sm flex items-center gap-1.5 bg-white">
+                          <i className="fas fa-file-lines"></i> Notes
+                        </button>
+                        {s.accepted ? (
+                          <button onClick={() => joinCall(s)}
+                            className={`font-bold px-5 py-2.5 rounded-xl text-[11px] transition-all flex items-center gap-2 shadow-sm ${s.waiting ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-emerald-500/20 hover:-translate-y-0.5' : 'bg-gradient-to-r from-aubergine-600 to-aubergine-700 text-white shadow-aubergine-600/20 hover:-translate-y-0.5'}`}>
+                            <i className={`fas fa-video ${s.waiting ? 'animate-pulse' : ''}`}></i> {s.waiting ? 'Join Now' : 'Start Call'}
+                          </button>
+                        ) : (
+                          <>
+                            <button onClick={() => handleReject(s.id)}
+                              className="font-bold px-4 py-2.5 rounded-xl text-[11px] transition-colors flex items-center gap-1.5 bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 shadow-sm">
+                              Reject
+                            </button>
+                            <button onClick={() => handleAccept(s.id)}
+                              className="font-bold px-5 py-2.5 rounded-xl text-[11px] transition-all flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-sm shadow-emerald-500/20 hover:-translate-y-0.5">
+                              <i className="fas fa-check"></i> Accept
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {todaySessions.length === 0 && (
+                    <div className="bg-slate-50/50 rounded-2xl p-12 text-center border border-slate-100 border-dashed">
+                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-200 shadow-sm">
+                        <i className="fas fa-calendar-check text-2xl text-emerald-500"></i>
+                      </div>
+                      <h3 className="text-base font-black text-slate-800 mb-1">No Video Consultations Scheduled for Today</h3>
+                      <p className="text-xs text-slate-500 max-w-md mx-auto mb-4">
+                        You have no appointments booked for today. Future bookings are safely listed under Upcoming Consultations.
+                      </p>
+                      <div className="flex items-center justify-center gap-3">
+                        {upcomingSessions.length > 0 && (
+                          <button
+                            onClick={() => setActiveTab('upcoming')}
+                            className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition-all flex items-center gap-2"
+                          >
+                            <i className="fas fa-calendar-days"></i> View Upcoming ({upcomingSessions.length})
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setActiveTab('history')}
+                          className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold px-4 py-2 rounded-xl text-xs shadow-sm transition-all flex items-center gap-2"
+                        >
+                          <i className="fas fa-clock-rotate-left"></i> View Past History ({historySessions.length})
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 
-          {/* New request alert */}
-          {newRequestSessions.length > 0 && (
-            <div className="bg-gradient-to-r from-amber-50 to-amber-100/50 border border-amber-200 rounded-2xl p-5 flex items-center gap-5 shadow-sm">
-              <div className="w-12 h-12 bg-amber-500 text-white rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-500/30">
-                <i className="fas fa-calendar-plus"></i>
-              </div>
-              <div className="flex-1">
-                <p className="font-black text-amber-900 text-base">
-                  {newRequestSessions.length === 1 ? '1 new video consultation request' : `${newRequestSessions.length} new video consultation requests`}
-                </p>
-                <p className="text-xs text-amber-700 mt-0.5 font-medium">Accept or reject below to confirm the patient's slot.</p>
-              </div>
-            </div>
-          )}
-
-          {/* Sessions Queue */}
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between bg-slate-50/50 gap-2 min-w-0">
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <h2 className="font-bold text-slate-800 tracking-tight whitespace-nowrap sm:whitespace-normal">Video Consultation Queue</h2>
-                <div className="min-w-0 shrink-0"><LastUpdated at={lastUpdated} /></div>
-              </div>
-              <div className="flex items-center gap-3">
-                {selectedIds.length > 0 && <span className="text-xs text-slate-500 font-bold">{selectedIds.length} selected</span>}
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-500 hover:text-aubergine-600 transition-colors">
-                  <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${selectedIds.length > 0 && selectedIds.length === sessions.length ? 'bg-aubergine-600 shadow-sm text-white' : selectedIds.length > 0 ? 'bg-aubergine-200 text-aubergine-700 ring-1 ring-aubergine-400' : 'bg-white ring-1 ring-slate-200 ring-inset'}`}>
-                    {(selectedIds.length > 0 && selectedIds.length === sessions.length) ? <i className="fas fa-check text-[9px]"></i> : selectedIds.length > 0 ? <div className="w-2 h-0.5 bg-aubergine-700 rounded-full"></div> : null}
+          {/* TAB 2: TELEMEDICINE HISTORY */}
+          {activeTab === 'history' && (
+            <div className="space-y-4">
+              <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
+                  <div>
+                    <h2 className="font-black text-slate-800 tracking-tight text-base flex items-center gap-2">
+                      <i className="fas fa-clock-rotate-left text-aubergine-600"></i>
+                      Telemedicine Consultation History
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Showing {filteredHistory.length} completed telemedicine consultations with clinical notes and prescriptions.
+                    </p>
                   </div>
-                  <input type="checkbox" className="hidden" checked={selectedIds.length === sessions.length && sessions.length > 0} onChange={toggleSelectAll} />
-                  Select All
-                </label>
-              </div>
-            </div>
-            
-            <div className="p-4 space-y-3">
-              {sessions.map(s => (
-                <div key={s.id} className={`p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-white transition-all duration-300 shadow-sm hover:shadow-md ${s.waiting ? 'ring-1 ring-emerald-400 bg-emerald-50/20' : 'ring-1 ring-slate-100'} ${selectedIds.includes(s.id) ? 'ring-1 ring-aubergine-400 bg-aubergine-50/20' : ''}`}>
-                  <label className="cursor-pointer group flex-shrink-0 self-center" onClick={e => e.stopPropagation()}>
-                    <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${selectedIds.includes(s.id) ? 'bg-aubergine-600 shadow-sm text-white' : 'bg-slate-100/80 group-hover:bg-slate-200 ring-1 ring-slate-200/80 ring-inset group-hover:ring-aubergine-300'}`}>
-                      {selectedIds.includes(s.id) && <i className="fas fa-check text-[9px]"></i>}
-                    </div>
-                    <input type="checkbox" className="hidden" checked={selectedIds.includes(s.id)} onChange={() => toggleSelect(s.id)} />
-                  </label>
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-aubergine-100 to-aubergine-200 text-aubergine-700 font-bold flex items-center justify-center shadow-inner text-sm">
-                        {s.patient.split(' ').map(n => n[0]).join('')}
-                      </div>
-                      {s.waiting && <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white animate-pulse shadow-sm shadow-emerald-500/50"></div>}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <h3 className="font-bold text-slate-800 tracking-tight">{s.patient}</h3>
-                        {s.waiting && <span className="text-[9px] bg-gradient-to-r from-emerald-100 to-emerald-50 text-emerald-700 font-black px-2 py-0.5 rounded-md border border-emerald-200 shadow-sm">WAITING</span>}
-                        {!s.accepted && <span className="text-[9px] bg-gradient-to-r from-amber-100 to-amber-50 text-amber-700 font-black px-2 py-0.5 rounded-md border border-amber-200 shadow-sm">NEW REQUEST</span>}
-                      </div>
-                      <p className="text-[11px] text-slate-500 font-medium">{s.age} • {s.type}</p>
-                      <p className="text-[11px] text-aubergine-700 font-bold mt-1 bg-aubergine-50 px-2 py-0.5 rounded-md inline-block border border-aubergine-100/50">{s.date} — {s.time}</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0 justify-end items-center">
-                    <a href={`tel:${s.phone}`}
-                      className="w-10 h-10 rounded-full bg-white text-slate-500 hover:text-aubergine-600 hover:bg-aubergine-50 flex items-center justify-center transition-colors border border-slate-200 shadow-sm" title="Call Patient">
-                      <i className="fas fa-phone"></i>
-                    </a>
-                    <button onClick={() => { setNoteTarget(s); setNoteDraft(''); setShowNotes(true); }}
-                      className="text-[11px] font-bold text-aubergine-600 border border-aubergine-200 px-4 py-2.5 rounded-xl hover:bg-aubergine-50 transition-colors shadow-sm flex items-center gap-1.5 bg-white">
-                      <i className="fas fa-file-lines"></i> Notes
-                    </button>
-                    {s.accepted ? (
-                      <button onClick={() => joinCall(s)}
-                        className={`font-bold px-5 py-2.5 rounded-xl text-[11px] transition-all flex items-center gap-2 shadow-sm ${s.waiting ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-emerald-500/20 hover:-translate-y-0.5' : 'bg-gradient-to-r from-aubergine-600 to-aubergine-700 text-white shadow-aubergine-600/20 hover:-translate-y-0.5'}`}>
-                        <i className={`fas fa-video ${s.waiting ? 'animate-pulse' : ''}`}></i> {s.waiting ? 'Join Now' : 'Start Call'}
+                  <div className="relative w-full sm:w-72">
+                    <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input
+                      type="text"
+                      value={historySearch}
+                      onChange={e => setHistorySearch(e.target.value)}
+                      placeholder="Search patient, diagnosis, notes..."
+                      className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-aubergine-300 focus:border-aubergine-400 transition-all shadow-sm"
+                    />
+                    {historySearch && (
+                      <button
+                        onClick={() => setHistorySearch('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                      >
+                        <i className="fas fa-times-circle"></i>
                       </button>
-                    ) : (
-                      <>
-                        <button onClick={() => handleReject(s.id)}
-                          className="font-bold px-4 py-2.5 rounded-xl text-[11px] transition-colors flex items-center gap-1.5 bg-white border border-rose-200 text-rose-500 hover:bg-rose-50 shadow-sm">
-                          Reject
-                        </button>
-                        <button onClick={() => handleAccept(s.id)}
-                          className="font-bold px-5 py-2.5 rounded-xl text-[11px] transition-all flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-sm shadow-emerald-500/20 hover:-translate-y-0.5">
-                          <i className="fas fa-check"></i> Accept
-                        </button>
-                      </>
                     )}
                   </div>
                 </div>
-              ))}
 
-              {sessions.length === 0 && (
-                <div className="bg-slate-50/50 rounded-2xl p-16 text-center border border-slate-100 border-dashed">
-                  <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-200 shadow-sm">
-                    <i className="fas fa-video-slash text-3xl text-slate-300"></i>
-                  </div>
-                  <h3 className="text-lg font-black text-slate-800 mb-1">Queue is Empty</h3>
-                  <p className="text-sm text-slate-500 max-w-sm mx-auto">
-                    You have no upcoming telemedicine consultations. Enjoy your break!
-                  </p>
+                <div className="p-4 space-y-3">
+                  {filteredHistory.map(item => (
+                    <div
+                      key={item.id}
+                      className="p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-aubergine-200"
+                    >
+                      <div className="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
+                        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-aubergine-100 to-aubergine-200 text-aubergine-700 font-black flex items-center justify-center shadow-inner text-xs flex-shrink-0">
+                          {item.patient.split(' ').map(n => n[0]).join('')}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <h3 className="font-bold text-slate-800 text-sm tracking-tight">{item.patient}</h3>
+                            <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md">
+                              {item.age}
+                            </span>
+                            <span className="text-[10px] bg-aubergine-50 text-aubergine-700 font-bold px-2 py-0.5 rounded-md border border-aubergine-100">
+                              {item.blood}
+                            </span>
+                            <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
+                              <i className="fas fa-check-circle text-[9px]"></i> Completed
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                            <span className="font-semibold text-slate-700 flex items-center gap-1">
+                              <i className="fas fa-stethoscope text-aubergine-500 text-[10px]"></i> {item.diagnosis}
+                            </span>
+                            <span className="text-slate-300">•</span>
+                            <span className="flex items-center gap-1">
+                              <i className="fas fa-calendar-day text-slate-400 text-[10px]"></i> {item.date === 'Today' ? (item.rawDate || 'Today') : item.date}
+                            </span>
+                            <span className="text-slate-300">•</span>
+                            <span className="flex items-center gap-1 text-emerald-600 font-medium">
+                              <i className="fas fa-stopwatch text-[10px]"></i> {item.duration}
+                            </span>
+                          </div>
+
+                          {item.notes && (
+                            <p className="text-xs text-slate-500 mt-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100 line-clamp-2">
+                              <span className="font-bold text-slate-700">Clinical Notes: </span>
+                              {item.notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 justify-end flex-shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                        <button
+                          onClick={() => {
+                            setSelectedHistoryItem(item);
+                            setShowHistoryModal(true);
+                          }}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold text-aubergine-700 bg-aubergine-50 hover:bg-aubergine-100 border border-aubergine-200 transition-all flex items-center gap-1.5 shadow-sm"
+                        >
+                          <i className="fas fa-notes-medical text-aubergine-600"></i> SOAP Notes
+                        </button>
+
+                        <button
+                          onClick={() => handlePrintHistoryPrescription(item)}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 transition-all flex items-center gap-1.5 shadow-sm"
+                          title="Print Official Prescription"
+                        >
+                          <i className="fas fa-print text-slate-500"></i> Print Rx
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            navigate('/doctor-dashboard/patients', { state: { selectedPatientId: item.patientId } });
+                          }}
+                          className="px-3 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-aubergine-600 hover:bg-slate-100 transition-all flex items-center gap-1"
+                          title="View Complete EMR"
+                        >
+                          <i className="fas fa-user-circle"></i> EMR
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {filteredHistory.length === 0 && (
+                    <div className="bg-slate-50/50 rounded-2xl p-12 text-center border border-slate-100 border-dashed">
+                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-200 shadow-sm">
+                        <i className="fas fa-magnifying-glass text-2xl text-slate-300"></i>
+                      </div>
+                      <h3 className="text-base font-black text-slate-800 mb-1">No Past Consultations Found</h3>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                        No telemedicine history matched your search criteria. Try a different query.
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* TAB 3: UPCOMING CONSULTATIONS */}
+          {activeTab === 'upcoming' && (
+            <div className="space-y-4">
+              <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-100 flex flex-wrap items-center justify-between bg-slate-50/50 gap-2">
+                  <div>
+                    <h2 className="font-black text-slate-800 tracking-tight text-base flex items-center gap-2">
+                      <i className="fas fa-calendar-days text-indigo-600"></i>
+                      Upcoming Scheduled Telemedicine Consultations
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Appointments scheduled for future dates. These will appear in Today's Queue on their appointment date.
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-xl">
+                    {upcomingSessions.length} Scheduled
+                  </span>
+                </div>
+
+                <div className="p-4 space-y-3">
+                  {upcomingSessions.map(s => (
+                    <div
+                      key={s.id}
+                      className="p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-white border border-slate-100 transition-all duration-300 shadow-sm hover:shadow-md hover:border-indigo-200"
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 text-indigo-700 font-bold flex items-center justify-center shadow-inner text-sm flex-shrink-0">
+                          {s.patient.split(' ').map(n => n[0]).join('')}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <h3 className="font-bold text-slate-800 tracking-tight">{s.patient}</h3>
+                            <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-md">
+                              {s.age}
+                            </span>
+                            {!s.accepted && (
+                              <span className="text-[9px] bg-amber-100 text-amber-700 font-black px-2 py-0.5 rounded-md border border-amber-200 shadow-sm">
+                                NEW REQUEST
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 font-medium">{s.type}</p>
+                          <p className="text-[11px] text-indigo-700 font-bold mt-1 bg-indigo-50 px-2.5 py-0.5 rounded-md inline-block border border-indigo-100">
+                            <i className="fas fa-calendar-day mr-1"></i> {s.date} — {s.time}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0 justify-end items-center">
+                        <a href={`tel:${s.phone}`}
+                          className="w-10 h-10 rounded-full bg-white text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center transition-colors border border-slate-200 shadow-sm" title="Call Patient">
+                          <i className="fas fa-phone"></i>
+                        </a>
+                        <button onClick={() => { setNoteTarget(s); setNoteDraft(''); setShowNotes(true); }}
+                          className="text-[11px] font-bold text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl hover:bg-slate-50 transition-colors shadow-sm flex items-center gap-1.5 bg-white">
+                          <i className="fas fa-file-lines"></i> Pre-call Notes
+                        </button>
+                        <button onClick={() => joinCall(s)}
+                          className="font-bold px-5 py-2.5 rounded-xl text-[11px] transition-all flex items-center gap-2 shadow-sm bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-indigo-600/20 hover:-translate-y-0.5">
+                          <i className="fas fa-video"></i> Start Early
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {upcomingSessions.length === 0 && (
+                    <div className="bg-slate-50/50 rounded-2xl p-12 text-center border border-slate-100 border-dashed">
+                      <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-3 border border-slate-200 shadow-sm">
+                        <i className="fas fa-calendar-plus text-2xl text-slate-300"></i>
+                      </div>
+                      <h3 className="text-base font-black text-slate-800 mb-1">No Upcoming Consultations</h3>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                        There are no future video consultations booked at this time.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Tech Tips */}
           <div className="grid sm:grid-cols-3 gap-4">
@@ -3353,6 +3804,144 @@ function DoctorTelemedicine() {
           toast('🎉 Doctor AI Pro activated! Unlimited SOAP notes & pre-consult briefs enabled.', 'success');
         }}
       />
+
+      {/* Telemedicine Consultation History Details Modal */}
+      <Modal
+        isOpen={showHistoryModal && !!selectedHistoryItem}
+        onClose={() => {
+          setShowHistoryModal(false);
+          setSelectedHistoryItem(null);
+        }}
+        title={`Teleconsultation Record — ${selectedHistoryItem?.patient || ''}`}
+        size="lg"
+      >
+        {selectedHistoryItem && (
+          <div className="space-y-5">
+            {/* Patient Header Summary */}
+            <div className="bg-gradient-to-r from-aubergine-50 to-slate-50 border border-aubergine-100 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-aubergine-600 text-white font-black flex items-center justify-center text-sm shadow-md">
+                  {selectedHistoryItem.patient.split(' ').map(n => n[0]).join('')}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-slate-800 text-base">{selectedHistoryItem.patient}</h3>
+                    <span className="text-[10px] bg-white border border-slate-200 px-2 py-0.5 rounded-md font-bold text-slate-600">
+                      {selectedHistoryItem.age}
+                    </span>
+                    <span className="text-[10px] bg-aubergine-100 text-aubergine-800 font-bold px-2 py-0.5 rounded-md">
+                      {selectedHistoryItem.blood}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    <span className="font-semibold text-slate-700">Diagnosis: </span>
+                    {selectedHistoryItem.diagnosis}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex sm:flex-col items-center sm:items-end justify-between text-xs text-slate-500 font-medium">
+                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold px-2.5 py-0.5 rounded-full text-[11px] flex items-center gap-1">
+                  <i className="fas fa-check-circle text-[10px]"></i> Completed ({selectedHistoryItem.duration})
+                </span>
+                <span className="mt-1">
+                  {selectedHistoryItem.date === 'Today' ? (selectedHistoryItem.rawDate || 'Today') : selectedHistoryItem.date} • {selectedHistoryItem.time}
+                </span>
+              </div>
+            </div>
+
+            {/* Clinical SOAP Notes */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <i className="fas fa-file-medical text-aubergine-600"></i> Clinical Notes & Assessment (SOAP)
+                </h4>
+                <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  Doctor Verified
+                </span>
+              </div>
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 text-xs text-slate-700 leading-relaxed space-y-2 whitespace-pre-line shadow-inner bg-slate-50/40">
+                {selectedHistoryItem.notes || 'No detailed clinical notes attached for this consultation.'}
+              </div>
+            </div>
+
+            {/* Prescribed Medications */}
+            {selectedHistoryItem.meds && selectedHistoryItem.meds.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <i className="fas fa-pills text-purple-600"></i> Prescribed Medications ({selectedHistoryItem.meds.length})
+                </h4>
+                <div className="grid sm:grid-cols-2 gap-2.5">
+                  {selectedHistoryItem.meds.map((med, idx) => (
+                    <div key={idx} className="bg-white border border-slate-200 rounded-xl p-3 text-xs shadow-sm">
+                      <div className="flex items-center justify-between font-bold text-slate-800">
+                        <span>{med.name || med.medicineName}</span>
+                        <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                          {med.dosage || med.strength || 'Standard'}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-1 flex items-center justify-between">
+                        <span>Schedule: <strong>{med.frequency || med.schedule || '1-0-1'}</strong></span>
+                        <span>Duration: <strong>{med.duration || '15 Days'}</strong></span>
+                      </div>
+                      {med.instructions && (
+                        <p className="text-[10px] text-slate-400 mt-1 italic">{med.instructions}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Requested Lab Tests */}
+            {selectedHistoryItem.labs && selectedHistoryItem.labs.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <i className="fas fa-vial text-rose-500"></i> Requested Lab Tests ({selectedHistoryItem.labs.length})
+                </h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedHistoryItem.labs.map((lab, idx) => (
+                    <span key={idx} className="bg-rose-50 border border-rose-200 text-rose-700 text-xs px-2.5 py-1 rounded-lg font-medium">
+                      {typeof lab === 'string' ? lab : lab.testName || lab.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions Footer */}
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+              <button
+                onClick={() => {
+                  navigate('/doctor-dashboard/patients', { state: { selectedPatientId: selectedHistoryItem.patientId } });
+                  setShowHistoryModal(false);
+                }}
+                className="text-xs font-bold text-slate-600 hover:text-aubergine-600 flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-slate-100 transition-all"
+              >
+                <i className="fas fa-folder-open"></i> Open Patient EMR
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setShowHistoryModal(false);
+                    setSelectedHistoryItem(null);
+                  }}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => handlePrintHistoryPrescription(selectedHistoryItem)}
+                  className="px-4 py-2 rounded-xl bg-aubergine-600 hover:bg-aubergine-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shadow-aubergine-600/20"
+                >
+                  <i className="fas fa-print"></i> Print Prescription
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

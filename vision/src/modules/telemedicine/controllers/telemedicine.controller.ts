@@ -39,6 +39,16 @@ export class TelemedicineController {
 
   @ApiOperation({
     summary:
+      "Doctor's telemedicine history (completed/past video consultations)",
+  })
+  @Get('history')
+  async history(@CurrentUser() user: AuthUser) {
+    const data = await this.telemedicineService.getHistory(user);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({
+    summary:
       'STUN/TURN ICE server list for establishing a WebRTC video call (either participant)',
   })
   @Get('ice-servers')

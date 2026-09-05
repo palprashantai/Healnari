@@ -65,6 +65,52 @@ export class TelemedicineService {
     });
   }
 
+  async getHistory(user: AuthUser) {
+    if (user.profile.role !== ProfileRole.DOCTOR)
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: sessions } = await this.supabase.admin
+      .from('appointments')
+      .select()
+      .is('deleted_at', null)
+      .eq('doctor_id', user.id)
+      .eq('type', 'video')
+      .or(`status.in.(Done,Completed,Finished),scheduled_date.lt.${today}`)
+      .order('scheduled_date', { ascending: false })
+      .order('scheduled_time', { ascending: false });
+
+    if (!sessions || !sessions.length) return [];
+
+    const patientIds = [...new Set(sessions.map((s) => s.patient_id))];
+    const [{ data: profiles }, { data: records }] = await Promise.all([
+      this.supabase.admin
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', patientIds),
+      this.supabase.admin
+        .from('patient_records')
+        .select('patient_id, dob')
+        .is('deleted_at', null)
+        .in('patient_id', patientIds),
+    ]);
+    const profileById = new Map((profiles || []).map((p) => [p.id, p]));
+    const dobById = new Map((records || []).map((r) => [r.patient_id, r.dob]));
+
+    return sessions.map((s) => {
+      const dob = dobById.get(s.patient_id);
+      const age = dob
+        ? Math.floor((Date.now() - new Date(dob).getTime()) / 31557600000)
+        : null;
+      return {
+        ...s,
+        patientName: profileById.get(s.patient_id)?.full_name || 'Patient',
+        patientPhone: profileById.get(s.patient_id)?.phone || null,
+        patientAge: age,
+      };
+    });
+  }
+
   private async guardAppointmentAccess(user: AuthUser, appointmentId: string) {
     const { data: appointment } = await this.supabase.admin
       .from('appointments')
