@@ -71,11 +71,19 @@ export class BillingService {
       .select('id, full_name')
       .in('id', ids);
     const nameById = new Map((profiles || []).map((p) => [p.id, p.full_name]));
-    return payments.map((p) => ({
-      ...p,
-      patientName: nameById.get(p.patient_id) || 'Patient',
-      doctorName: p.doctor_id ? nameById.get(p.doctor_id) || 'Doctor' : null,
-    }));
+    return payments.map((p) => {
+      const payoutAmount = p.doctor_payout_amount ?? p.provider_payout_amount ?? (p.amount ? Number((p.amount * 0.85).toFixed(2)) : 0);
+      const payoutCurrency = p.doctor_payout_currency || p.provider_payout_currency || p.base_currency || p.currency || 'INR';
+      return {
+        ...p,
+        patientName: nameById.get(p.patient_id) || 'Patient',
+        doctorName: p.doctor_id ? nameById.get(p.doctor_id) || 'Doctor' : null,
+        doctor_payout_amount: payoutAmount,
+        doctor_payout_currency: payoutCurrency,
+        provider_payout_amount: payoutAmount,
+        provider_payout_currency: payoutCurrency,
+      };
+    });
   }
 
   async getTransactions(user: AuthUser) {
@@ -114,6 +122,31 @@ export class BillingService {
     return DecimalMath.sum((rows || []).map((r) => r.amount || 0));
   }
 
+  /** Convert any stored payment payout into the doctor's operating currency */
+  private getPayoutInCurrency(payment: any, targetCurrency: string): number {
+    const rawAmt = Number(
+      payment.doctor_payout_amount ?? payment.provider_payout_amount ?? (payment.amount ? payment.amount * 0.85 : 0),
+    );
+    const payCurr = (
+      payment.doctor_payout_currency ||
+      payment.provider_payout_currency ||
+      payment.base_currency ||
+      payment.currency ||
+      'INR'
+    ).toUpperCase();
+
+    if (rawAmt <= 0) return 0;
+    const target = (targetCurrency || 'INR').toUpperCase();
+    if (payCurr === target) return rawAmt;
+
+    try {
+      const converted = this.fxRateService.convertAmount(rawAmt, payCurr, target);
+      return converted.convertedAmount;
+    } catch {
+      return rawAmt;
+    }
+  }
+
   /** What a doctor can actually request as a payout in their currency */
   private async getAvailableBalance(doctorId: string): Promise<number> {
     const { data: docProfile } = await this.supabase.admin
@@ -136,20 +169,20 @@ export class BillingService {
         .in('status', ['Processing', 'Paid']),
     ]);
 
-    // Sum strictly in doctor operating currency to avoid cross-currency mathematical pollution
-    const matchingPaid = (paid || []).filter((p) => {
-      const payCurr = (p.doctor_payout_currency || p.provider_payout_currency || p.base_currency || p.currency || 'INR').toUpperCase();
-      return payCurr === docCurrency;
-    });
-    const matchingOutgoing = (outgoing || []).filter(
-      (p) => (p.currency || 'INR').toUpperCase() === docCurrency,
-    );
-
     const totalEarned = DecimalMath.sum(
-      matchingPaid.map((p) => p.doctor_payout_amount ?? p.provider_payout_amount ?? p.base_amount ?? p.amount ?? 0),
+      (paid || []).map((p) => this.getPayoutInCurrency(p, docCurrency)),
     );
     const totalOut = DecimalMath.sum(
-      matchingOutgoing.map((p) => p.amount || 0),
+      (outgoing || []).map((p) => {
+        const amt = Number(p.amount || 0);
+        const curr = (p.currency || 'INR').toUpperCase();
+        if (curr === docCurrency) return amt;
+        try {
+          return this.fxRateService.convertAmount(amt, curr, docCurrency).convertedAmount;
+        } catch {
+          return amt;
+        }
+      }),
     );
     return Math.max(0, DecimalMath.subtract(totalEarned, totalOut));
   }
@@ -169,7 +202,7 @@ export class BillingService {
           .eq('status', 'Paid'),
         this.supabase.admin
           .from('payments')
-          .select('amount, currency, base_amount, base_currency, doctor_payout_amount, doctor_payout_currency, provider_payout_amount, provider_payout_currency')
+          .select('amount, currency, base_amount, base_currency, doctor_payout_amount, doctor_payout_currency, provider_payout_amount, provider_payout_currency, created_at')
           .eq('doctor_id', user.id)
           .eq('status', 'Pending'),
         this.supabase.admin
@@ -179,22 +212,25 @@ export class BillingService {
           .in('status', ['Processing', 'Paid']),
       ]);
 
-    const matchingPaid = (paid || []).filter((p) => {
-      const payCurr = (p.doctor_payout_currency || p.provider_payout_currency || p.base_currency || p.currency || 'INR').toUpperCase();
-      return payCurr === docCurrency;
-    });
-    const matchingPending = (pending || []).filter((p) => {
-      const payCurr = (p.doctor_payout_currency || p.provider_payout_currency || p.base_currency || p.currency || 'INR').toUpperCase();
-      return payCurr === docCurrency;
-    });
-    const matchingOutgoing = (outgoing || []).filter(
-      (p) => (p.currency || 'INR').toUpperCase() === docCurrency,
-    );
+    const paidRows = paid || [];
+    const pendingRows = pending || [];
+    const outgoingRows = outgoing || [];
 
     const totalEarned = DecimalMath.sum(
-      matchingPaid.map((p) => p.doctor_payout_amount ?? p.provider_payout_amount ?? p.base_amount ?? p.amount ?? 0),
+      paidRows.map((p) => this.getPayoutInCurrency(p, docCurrency)),
     );
-    const totalOut = DecimalMath.sum(matchingOutgoing.map((p) => p.amount || 0));
+    const totalOut = DecimalMath.sum(
+      outgoingRows.map((p) => {
+        const amt = Number(p.amount || 0);
+        const curr = (p.currency || 'INR').toUpperCase();
+        if (curr === docCurrency) return amt;
+        try {
+          return this.fxRateService.convertAmount(amt, curr, docCurrency).convertedAmount;
+        } catch {
+          return amt;
+        }
+      }),
+    );
     const available = Math.max(0, DecimalMath.subtract(totalEarned, totalOut));
 
     const now = new Date();
@@ -202,35 +238,34 @@ export class BillingService {
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const startOfYear = new Date(now.getFullYear(), 0, 1);
 
-    /** Sum earnings from the doctor's payout layer, then fall back to base (service) amount */
+    /** Sum earnings converted cleanly into the doctor's payout currency */
     const sumEarned = (rows: any[]) =>
       DecimalMath.sum(
-        rows.map((r) => r.doctor_payout_amount ?? r.provider_payout_amount ?? r.base_amount ?? r.amount ?? 0),
+        rows.map((r) => this.getPayoutInCurrency(r, docCurrency)),
       );
-    const rows = matchingPaid;
 
     return {
       thisMonth: sumEarned(
-        rows.filter((r) => new Date(r.created_at) >= startOfMonth),
+        paidRows.filter((r) => new Date(r.created_at) >= startOfMonth),
       ),
-      thisMonthCount: rows.filter((r) => new Date(r.created_at) >= startOfMonth)
+      thisMonthCount: paidRows.filter((r) => new Date(r.created_at) >= startOfMonth)
         .length,
       lastMonth: sumEarned(
-        rows.filter(
+        paidRows.filter(
           (r) =>
             new Date(r.created_at) >= startOfLastMonth &&
             new Date(r.created_at) < startOfMonth,
         ),
       ),
-      lastMonthCount: rows.filter(
+      lastMonthCount: paidRows.filter(
         (r) =>
           new Date(r.created_at) >= startOfLastMonth &&
           new Date(r.created_at) < startOfMonth,
       ).length,
-      pending: sumEarned(matchingPending),
-      pendingCount: matchingPending.length,
+      pending: sumEarned(pendingRows),
+      pendingCount: pendingRows.length,
       totalYtd: sumEarned(
-        rows.filter((r) => new Date(r.created_at) >= startOfYear),
+        paidRows.filter((r) => new Date(r.created_at) >= startOfYear),
       ),
       available,
       currency: docCurrency,
@@ -397,6 +432,10 @@ export class BillingService {
       platform_fee_currency: doctorCurrency,
       provider_payout_amount: payoutInDoctorCurr.providerPayoutAmount,
       provider_payout_currency: doctorCurrency,
+      doctor_payout_amount: payoutInDoctorCurr.providerPayoutAmount,
+      doctor_payout_currency: doctorCurrency,
+      platform_commission_amount: payoutInDoctorCurr.commissionAmount,
+      platform_commission_currency: doctorCurrency,
 
       status: 'Pending',
       cf_order_id: cfOrderId,

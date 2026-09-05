@@ -93,8 +93,12 @@ function PatientBilling() {
       appointmentId: next.id,
       doctor: `Dr. ${next.doctorName}`,
       date: next.date,
-      amount: doc?.consultation_fee ?? 29,
-      currency: doc?.currency || next.currency || 'INR',
+      amount: Number(next.patient_payable_amount || next.fee) > 0
+        ? Number(next.patient_payable_amount || next.fee)
+        : (Number(doc?.consultation_fee) > 0
+            ? Number(doc.consultation_fee)
+            : ((doc?.currency || next.currency || 'INR') === 'USD' ? 29 : 799)),
+      currency: next.patient_payable_currency || next.currency || doc?.currency || 'INR',
     };
   }, [appointments, doctorById, paidAppointmentIds]);
 

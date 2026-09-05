@@ -45,7 +45,17 @@ export function normalizeCurrency(currency) {
  */
 export function getCurrencyForCountry(countryCode) {
   const code = (countryCode || 'IN').toUpperCase().trim();
-  return code === 'IN' ? 'INR' : 'USD';
+  if (
+    code === 'IN' ||
+    code === 'INDIA' ||
+    code === '+91' ||
+    code === 'INR' ||
+    code === '₹' ||
+    code === 'IND'
+  ) {
+    return 'INR';
+  }
+  return 'USD';
 }
 
 /**

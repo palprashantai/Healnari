@@ -454,7 +454,9 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
       // know not to reset/close here — previously this fired the request
       // and closed immediately regardless of outcome, making a failed
       // booking look identical to a successful one.
-      await onBook({ ...form, doctorName: selectedDoctor?.full_name, fee: selectedDoctor?.consultation_fee });
+      const defaultDocFee = ((selectedDoctor?.currency || 'INR') === 'USD') ? 29 : 799;
+      const effectiveFee = Number(selectedDoctor?.consultation_fee) > 0 ? Number(selectedDoctor.consultation_fee) : defaultDocFee;
+      await onBook({ ...form, doctorName: selectedDoctor?.full_name, fee: effectiveFee });
       reset();
     } catch {
       // already toasted by the caller — keep the modal open so the user can
@@ -530,7 +532,17 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
             <div className="flex justify-between"><span className="font-bold text-slate-600">Doctor</span><span className="text-slate-800">Dr. {selectedDoctor?.full_name}</span></div>
             <div className="flex justify-between"><span className="font-bold text-slate-600">Type</span><span className="text-slate-800">{form.type}</span></div>
             <div className="flex justify-between"><span className="font-bold text-slate-600">Date & Time</span><span className="text-slate-800">{form.date} • {form.slot || '—'}</span></div>
-            <div className="flex justify-between"><span className="font-bold text-slate-600">Consult Fee</span><span className="text-aubergine-700 font-black">{formatCurrency(selectedDoctor?.consultation_fee ?? 29, selectedDoctor?.currency || 'INR')}</span></div>
+            <div className="flex justify-between">
+              <span className="font-bold text-slate-600">Consult Fee</span>
+              <span className="text-aubergine-700 font-black">
+                {formatCurrency(
+                  Number(selectedDoctor?.consultation_fee) > 0
+                    ? Number(selectedDoctor.consultation_fee)
+                    : ((selectedDoctor?.currency || 'INR') === 'USD' ? 29 : 799),
+                  selectedDoctor?.currency || 'INR'
+                )}
+              </span>
+            </div>
           </div>
           <div className="flex gap-3">
             <button onClick={() => setStep(1)} disabled={booking} className="crm-btn-secondary flex-1 disabled:opacity-40">← Back</button>
@@ -866,7 +878,12 @@ function PatientAppointments() {
       rawStatus,
       status: displayStatus,
       type: a.type,
-      fee: doc?.consultation_fee ?? 799,
+      fee: Number(a.patient_payable_amount || a.fee) > 0
+        ? Number(a.patient_payable_amount || a.fee)
+        : (Number(doc?.consultation_fee) > 0
+            ? Number(doc.consultation_fee)
+            : ((doc?.currency || a.currency || 'INR') === 'USD' ? 29 : 799)),
+      currency: a.patient_payable_currency || a.currency || doc?.currency || 'INR',
       isPaid: paidAppointmentIds.has(a.id),
     };
   };

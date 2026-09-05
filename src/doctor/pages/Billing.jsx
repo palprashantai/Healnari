@@ -146,7 +146,11 @@ function InvoiceModal({ txn, isOpen, onClose, doctorName, toast }) {
           <div className="flex justify-between"><span className="text-slate-500 font-medium">Payment Rail</span><span className="font-bold text-slate-800">{txn.method}</span></div>
           <div className="flex justify-between border-t border-slate-100 pt-2 mt-2">
             <span className="font-bold text-slate-700">Gross Settlement</span>
-            <span className="font-black text-slate-900 text-base">{formatCurrency(txn.amount, txn.currency || 'INR')}</span>
+            <span className="font-black text-slate-900 text-base">{formatCurrency(txn.grossAmount || txn.amount, txn.grossCurrency || txn.currency || 'INR')}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="font-bold text-emerald-700">Net Doctor Payout</span>
+            <span className="font-black text-emerald-700 text-base">{formatCurrency(txn.amount, txn.currency || 'INR')}</span>
           </div>
         </div>
         <button onClick={() => downloadInvoicePdf(txn, toast)} className="w-full bg-slate-900 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-xs">
@@ -184,19 +188,26 @@ function DoctorBilling() {
   const userCurrency = user?.profile?.currency || user?.currency || getUserCurrency(user);
 
   const rows = useMemo(() => {
-    return transactions.map(t => ({
-      id: t.id,
-      txn_ref: t.txn_ref,
-      patient: t.patientName || 'Patient',
-      date: t.created_at ? new Date(t.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
-      rawDate: t.created_at ? new Date(t.created_at) : new Date(),
-      type: t.service || 'Consultation',
-      amount: Number(t.provider_payout_amount || t.amount || 0),
-      grossAmount: Number(t.original_amount || t.amount || 0),
-      currency: t.currency || userCurrency,
-      status: PAYMENT_STATUS_TO_DISPLAY[t.status] || 'pending',
-      method: t.method || '—',
-    }));
+    return transactions.map(t => {
+      const payoutCurr = t.doctor_payout_currency || t.provider_payout_currency || userCurrency || 'INR';
+      const grossCurr = t.paid_currency || t.currency || userCurrency || 'INR';
+      const payoutAmt = Number(t.doctor_payout_amount ?? t.provider_payout_amount ?? (t.amount ? t.amount * 0.85 : 0));
+      const grossAmt = Number(t.paid_amount ?? t.amount ?? t.base_amount ?? 0);
+      return {
+        id: t.id,
+        txn_ref: t.txn_ref,
+        patient: t.patientName || 'Patient',
+        date: t.created_at ? new Date(t.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+        rawDate: t.created_at ? new Date(t.created_at) : new Date(),
+        type: t.service || 'Consultation',
+        amount: payoutAmt,
+        grossAmount: grossAmt,
+        currency: payoutCurr,
+        grossCurrency: grossCurr,
+        status: PAYMENT_STATUS_TO_DISPLAY[t.status] || 'pending',
+        method: t.method || '—',
+      };
+    });
   }, [transactions, userCurrency]);
 
   // Real 30-Day Earnings Chart calculated from real transaction dates and amounts
@@ -413,7 +424,8 @@ function DoctorBilling() {
                 <th className="px-6 py-3.5">Date</th>
                 <th className="px-6 py-3.5">Service Type</th>
                 <th className="px-6 py-3.5">Payment Method</th>
-                <th className="px-6 py-3.5">Amount</th>
+                <th className="px-6 py-3.5">Net Payout</th>
+                <th className="px-6 py-3.5">Gross Billed</th>
                 <th className="px-6 py-3.5">Status</th>
                 <th className="px-6 py-3.5 text-right">Receipt</th>
               </tr>
@@ -432,6 +444,9 @@ function DoctorBilling() {
                   <td className="px-6 py-4 text-slate-500 text-xs font-medium">{t.method}</td>
                   <td className="px-6 py-4 font-black text-slate-900 font-sans">
                     {formatCurrency(t.amount, t.currency || userCurrency)}
+                  </td>
+                  <td className="px-6 py-4 text-slate-500 font-semibold font-sans text-xs">
+                    {formatCurrency(t.grossAmount, t.grossCurrency || userCurrency)}
                   </td>
                   <td className="px-6 py-4">
                     <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border capitalize ${STATUS_STYLE[t.status]}`}>

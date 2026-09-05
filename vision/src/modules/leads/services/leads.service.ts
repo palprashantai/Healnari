@@ -134,7 +134,7 @@ export class LeadsService {
 
       const patientId = patientProfile ? patientProfile.id : null;
 
-      const doctorResolved = resolveCountryCurrency(doctor?.currency);
+      const doctorResolved = resolveCountryCurrency(doctor?.currency || doctor?.country);
       const doctorCurrency = doctorResolved.currency;
       let doctorBaseFee = Number(doctor?.consultation_fee || 0);
       if (doctorBaseFee <= 0) {
@@ -397,7 +397,7 @@ export class LeadsService {
           appointment = existingAppt; // Already approved or paid
         }
       } else {
-        const doctorResolved = resolveCountryCurrency(doctor?.currency);
+        const doctorResolved = resolveCountryCurrency(doctor?.currency || doctor?.country);
         const doctorCurrency = doctorResolved.currency;
         let doctorBaseFee = Number(doctor?.consultation_fee || 0);
         if (doctorBaseFee <= 0) {

@@ -23,9 +23,16 @@ export interface AppointmentPricingLock {
  *   - India ('IN', 'INDIA') -> INR (₹)
  *   - All other supported countries -> USD ($)
  */
-export function resolveCountryCurrency(countryCode?: string | null): ResolvedCurrency {
-  const code = (countryCode || '').toUpperCase().trim();
-  if (code === 'IN' || code === 'INDIA' || code === '+91') {
+export function resolveCountryCurrency(countryOrCurrency?: string | null): ResolvedCurrency {
+  const code = (countryOrCurrency || '').toUpperCase().trim();
+  if (
+    code === 'IN' ||
+    code === 'INDIA' ||
+    code === '+91' ||
+    code === 'INR' ||
+    code === '₹' ||
+    code === 'IND'
+  ) {
     return {
       country: 'IN',
       currency: 'INR',
@@ -36,7 +43,7 @@ export function resolveCountryCurrency(countryCode?: string | null): ResolvedCur
 
   // All non-India countries default to USD
   return {
-    country: code || 'US',
+    country: code === 'USD' || code === '$' ? 'US' : (code || 'US'),
     currency: 'USD',
     symbol: '$',
     isDomestic: false,
