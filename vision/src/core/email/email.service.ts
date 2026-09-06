@@ -1,5 +1,5 @@
 import dns from 'node:dns';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
@@ -27,12 +27,173 @@ try {
   // Safe ignore if shared module is not directly accessible
 }
 
-// Mask email for privacy in logs (SEC-7)
-function maskEmail(email: string): string {
+// Mask email for privacy in logs (SEC-7 / HIPAA compliance)
+export function maskEmail(email: string): string {
   if (!email) return '***';
-  const [local, domain] = email.split('@');
-  if (!domain) return '***';
+  const clean = email.trim();
+  const atIndex = clean.indexOf('@');
+  if (atIndex <= 1) return '***@' + (clean.split('@')[1] || '***');
+  const local = clean.slice(0, atIndex);
+  const domain = clean.slice(atIndex + 1);
   return `${local.slice(0, 1)}***@${domain}`;
+}
+
+export enum SmtpErrorCode {
+  CONNECTION_TIMEOUT = 'CONNECTION_TIMEOUT',
+  CONNECTION_REFUSED = 'CONNECTION_REFUSED',
+  DNS_ERROR = 'DNS_ERROR',
+  TLS_ERROR = 'TLS_ERROR',
+  AUTHENTICATION_FAILED = 'AUTHENTICATION_FAILED',
+  MAILBOX_UNAVAILABLE = 'MAILBOX_UNAVAILABLE',
+  RATE_LIMITED = 'RATE_LIMITED',
+  TEMPORARY_SMTP_FAILURE = 'TEMPORARY_SMTP_FAILURE',
+  PERMANENT_SMTP_FAILURE = 'PERMANENT_SMTP_FAILURE',
+}
+
+export interface ClassifiedSmtpError {
+  code: SmtpErrorCode;
+  isTemporary: boolean;
+  message: string;
+  diagnostics: string;
+}
+
+export function classifySmtpError(err: any): ClassifiedSmtpError {
+  const errMsg = String(err?.message || '');
+  const errCode = String(err?.code || '');
+  const responseCode = Number(err?.responseCode || 0);
+
+  // 1. Connection Timeout (e.g. Render Free Tier outbound SMTP port block)
+  if (
+    errCode === 'ETIMEDOUT' ||
+    errMsg.includes('Connection timeout') ||
+    errMsg.includes('timed out') ||
+    errMsg.includes('ETIMEDOUT')
+  ) {
+    return {
+      code: SmtpErrorCode.CONNECTION_TIMEOUT,
+      isTemporary: true,
+      message: 'SMTP connection timed out while establishing socket connection.',
+      diagnostics:
+        'SMTP connection timed out. On Render Free Tier, outbound TCP ports 25, 465, and 587 are firewalled at the infrastructure level. Solution: Upgrade Render to Starter ($7/mo) or deploy to an SMTP-compatible environment.',
+    };
+  }
+
+  // 2. Connection Refused
+  if (errCode === 'ECONNREFUSED' || errMsg.includes('ECONNREFUSED')) {
+    return {
+      code: SmtpErrorCode.CONNECTION_REFUSED,
+      isTemporary: true,
+      message: 'SMTP server refused the connection on configured host and port.',
+      diagnostics:
+        'Remote SMTP host actively refused connection. Verify SMTP_HOST and SMTP_PORT match provider specifications.',
+    };
+  }
+
+  // 3. DNS Resolution Error
+  if (
+    errCode === 'ENOTFOUND' ||
+    errCode === 'EAI_AGAIN' ||
+    errMsg.includes('getaddrinfo ENOTFOUND')
+  ) {
+    return {
+      code: SmtpErrorCode.DNS_ERROR,
+      isTemporary: false,
+      message: 'Failed to resolve SMTP hostname in DNS.',
+      diagnostics:
+        'DNS resolution failed for SMTP_HOST. Verify the hostname is typed correctly in environment variables.',
+    };
+  }
+
+  // 4. TLS / Handshake Error
+  if (
+    errCode === 'ESOCKET' ||
+    errMsg.includes('self-signed') ||
+    errMsg.includes('certificate') ||
+    errMsg.includes('SSL') ||
+    errMsg.includes('TLS')
+  ) {
+    return {
+      code: SmtpErrorCode.TLS_ERROR,
+      isTemporary: false,
+      message: 'TLS/SSL handshake negotiation failed with SMTP server.',
+      diagnostics:
+        'TLS handshake failed. Verify port and security matching (Port 465 requires SMTP_SECURE=true; Port 587 requires SMTP_SECURE=false with STARTTLS).',
+    };
+  }
+
+  // 5. Authentication Failed
+  if (
+    responseCode === 535 ||
+    errMsg.includes('Username and Password not accepted') ||
+    errMsg.includes('5.7.8') ||
+    errMsg.includes('Invalid login') ||
+    errMsg.includes('BadCredentials')
+  ) {
+    return {
+      code: SmtpErrorCode.AUTHENTICATION_FAILED,
+      isTemporary: false,
+      message: 'SMTP authentication failed. Invalid username or application password.',
+      diagnostics:
+        'SMTP credentials were rejected. If using Gmail, you must generate a 16-character Google App Password (with 2FA enabled), not your personal account password.',
+    };
+  }
+
+  // 6. Rate Limited / Quota Exceeded
+  if (
+    responseCode === 421 ||
+    responseCode === 450 ||
+    errMsg.includes('Too many') ||
+    errMsg.includes('rate limit') ||
+    errMsg.includes('daily sending quota')
+  ) {
+    return {
+      code: SmtpErrorCode.RATE_LIMITED,
+      isTemporary: true,
+      message: 'SMTP provider rate limit or sending quota exceeded.',
+      diagnostics:
+        'Provider sending rate or quota limit reached. Message will be retried automatically.',
+    };
+  }
+
+  // 7. Mailbox Unavailable / Bad Recipient
+  if (responseCode >= 550 && responseCode <= 554) {
+    return {
+      code: SmtpErrorCode.MAILBOX_UNAVAILABLE,
+      isTemporary: false,
+      message: 'Recipient address does not exist or was rejected by receiving server.',
+      diagnostics:
+        'Recipient mailbox is invalid, disabled, or rejected by recipient mail exchange.',
+    };
+  }
+
+  // 8. General 4xx Temporary Failure
+  if (responseCode >= 400 && responseCode < 500) {
+    return {
+      code: SmtpErrorCode.TEMPORARY_SMTP_FAILURE,
+      isTemporary: true,
+      message: `Temporary SMTP error (${responseCode}): ${errMsg}`,
+      diagnostics:
+        'Temporary mail server failure. Email will be queued for background retry.',
+    };
+  }
+
+  // 9. Permanent Failure
+  return {
+    code: SmtpErrorCode.PERMANENT_SMTP_FAILURE,
+    isTemporary: false,
+    message: errMsg || 'Unknown SMTP failure',
+    diagnostics: errMsg,
+  };
+}
+
+export interface SmtpHealthStatus {
+  status: 'CONNECTED' | 'FAILED';
+  host: string;
+  port: number;
+  secure: boolean;
+  errorClassification?: SmtpErrorCode;
+  diagnosticMessage?: string;
+  timestamp: string;
 }
 
 export interface MailAttachment {
@@ -64,7 +225,6 @@ export interface SendTemplateEmailOptions {
   event?: string;
 }
 
-// Backward-compatibility interface for existing calls
 export interface TemplatedMailOptions {
   to: string;
   slug: string;
@@ -85,100 +245,154 @@ interface CachedTemplate {
   fetchedAt: number;
 }
 
+interface RetryQueueItem {
+  payload: MailPayload;
+  attempts: number;
+  nextRetryAt: number;
+}
+
 @Injectable()
-export class EmailService {
+export class EmailService implements OnModuleInit {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter | null = null;
-  private readonly resendApiKey?: string;
-  private readonly brevoApiKey?: string;
+  private readonly smtpHost: string;
+  private readonly smtpPort: number;
+  private readonly smtpSecure: boolean;
+  private readonly smtpUser: string;
   private readonly from: string;
   private readonly frontendUrl: string;
   private templateCache = new Map<string, CachedTemplate>();
   private readonly CACHE_TTL_MS = 60 * 1000; // 1 minute in-memory TTL
-  private retryQueue: { payload: MailPayload; attempts: number }[] = [];
+  private retryQueue: RetryQueueItem[] = [];
   private readonly MAX_RETRIES = 3;
+
+  // Deduplication cache to prevent duplicate healthcare emails for the same event & entity
+  private recentDispatches = new Map<string, number>();
+  private readonly DEDUP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes window
 
   constructor(
     private readonly supabase: SupabaseService,
     private readonly configService: ConfigService,
   ) {
-    this.from =
-      this.configService.get<string>('EMAIL_FROM') ||
-      process.env.EMAIL_FROM ||
-      'HealNari <no-reply@healnari.app>';
-
+    // 1. Resolve Frontend URL
     this.frontendUrl = (
       this.configService.get<string>('FRONTEND_URL') ||
       process.env.FRONTEND_URL ||
       'https://healnari.vercel.app'
     ).replace(/\/$/, '');
 
-    this.resendApiKey =
-      this.configService.get<string>('RESEND_API_KEY') ||
-      process.env.RESEND_API_KEY;
-    this.brevoApiKey =
-      this.configService.get<string>('BREVO_API_KEY') ||
-      process.env.BREVO_API_KEY;
+    // 2. Resolve From Address (supports MAIL_FROM or EMAIL_FROM, plus optional MAIL_FROM_NAME)
+    const rawFrom =
+      this.configService.get<string>('MAIL_FROM') ||
+      process.env.MAIL_FROM ||
+      this.configService.get<string>('EMAIL_FROM') ||
+      process.env.EMAIL_FROM ||
+      '';
+    const fromName =
+      this.configService.get<string>('MAIL_FROM_NAME') ||
+      process.env.MAIL_FROM_NAME ||
+      'HealNari';
 
-    if (this.resendApiKey) {
-      this.logger.log(
-        'EmailService: Resend HTTP API configured (HTTPS Port 443 — immune to SMTP port blocks)',
-      );
-    }
-    if (this.brevoApiKey) {
-      this.logger.log(
-        'EmailService: Brevo HTTP API configured (HTTPS Port 443 — immune to SMTP port blocks)',
-      );
+    if (rawFrom.includes('<')) {
+      this.from = rawFrom.trim();
+    } else if (rawFrom.includes('@')) {
+      this.from = `${fromName} <${rawFrom.trim()}>`;
+    } else {
+      this.from = `${fromName} <no-reply@healnari.app>`;
     }
 
-    const host =
-      this.configService.get<string>('SMTP_HOST') || process.env.SMTP_HOST;
-    const user =
-      this.configService.get<string>('SMTP_USER') || process.env.SMTP_USER;
-    const pass =
-      this.configService.get<string>('SMTP_PASS') || process.env.SMTP_PASS;
-    const port = Number(
+    // 3. Resolve SMTP Host & Port
+    this.smtpHost = (
+      this.configService.get<string>('SMTP_HOST') ||
+      process.env.SMTP_HOST ||
+      ''
+    ).trim();
+
+    this.smtpPort = Number(
       this.configService.get<string>('SMTP_PORT') ||
         process.env.SMTP_PORT ||
         587,
     );
-    const secure =
-      (this.configService.get<string>('SMTP_SECURE') ||
-        process.env.SMTP_SECURE) === 'true' ||
-      port === 465;
 
+    // 4. Resolve TLS/Secure configuration matching selected port
+    const rawSecure =
+      this.configService.get<string>('SMTP_SECURE') || process.env.SMTP_SECURE;
+    this.smtpSecure =
+      rawSecure !== undefined && rawSecure !== ''
+        ? rawSecure === 'true'
+        : this.smtpPort === 465;
+
+    // 5. Resolve SMTP Authentication (supports SMTP_USER, SMTP_PASS / SMTP_PASSWORD)
+    this.smtpUser = (
+      this.configService.get<string>('SMTP_USER') ||
+      process.env.SMTP_USER ||
+      ''
+    )
+      .trim()
+      .replace(/^["']|["']$/g, '');
+
+    const rawPass =
+      this.configService.get<string>('SMTP_PASS') ||
+      process.env.SMTP_PASS ||
+      this.configService.get<string>('SMTP_PASSWORD') ||
+      process.env.SMTP_PASSWORD ||
+      '';
+    const cleanPass = rawPass.trim().replace(/^["']|["']$/g, '');
+
+    // 6. Force Node.js DNS resolver to prioritize IPv4
     if (typeof dns.setDefaultResultOrder === 'function') {
       dns.setDefaultResultOrder('ipv4first');
     }
 
-    if (host && user && pass) {
+    // 7. Initialize Nodemailer Transporter with production-safe timeouts & connection pooling
+    if (this.smtpHost && this.smtpUser && cleanPass) {
       this.transporter = nodemailer.createTransport({
-        host,
-        port,
-        secure,
-        auth: { user, pass },
-        pool: false,
+        host: this.smtpHost,
+        port: this.smtpPort,
+        secure: this.smtpSecure,
+        auth: {
+          user: this.smtpUser,
+          pass: cleanPass,
+        },
+        pool: true,
+        maxConnections: 5,
+        maxMessages: 100,
         family: 4,
-        connectionTimeout: 5000,
-        greetingTimeout: 5000,
-        socketTimeout: 10000,
-        dnsTimeout: 5000,
+        connectionTimeout: 10000, // 10s socket connection timeout
+        greetingTimeout: 10000,   // 10s SMTP greeting timeout
+        socketTimeout: 15000,     // 15s socket inactivity timeout
+        dnsTimeout: 5000,         // 5s DNS query timeout
         tls: {
-          rejectUnauthorized: false,
+          rejectUnauthorized:
+            (this.configService.get<string>('SMTP_REJECT_UNAUTHORIZED') ||
+              process.env.SMTP_REJECT_UNAUTHORIZED) !== 'false',
         },
       } as any);
+    }
+  }
+
+  /**
+   * Validates required SMTP configuration at application startup.
+   */
+  async onModuleInit() {
+    const missing: string[] = [];
+    if (!this.smtpHost) missing.push('SMTP_HOST');
+    if (!this.smtpUser) missing.push('SMTP_USER');
+    if (!this.transporter) missing.push('SMTP_PASS/SMTP_PASSWORD');
+
+    if (missing.length === 0) {
       this.logger.log(
-        `EmailService: SMTP configured with host: ${host}:${port} (secure: ${secure})`,
+        `EmailService: SMTP initialized successfully (host: ${this.smtpHost}:${this.smtpPort}, secure: ${this.smtpSecure}, from: ${this.from})`,
       );
-    } else if (!this.resendApiKey && !this.brevoApiKey) {
+    } else {
       this.logger.warn(
-        'EmailService: No delivery provider configured (SMTP, RESEND_API_KEY, or BREVO_API_KEY missing) — emails will be simulated.',
+        `EmailService: Missing SMTP configuration (${missing.join(', ')}) — email delivery will be simulated locally.`,
       );
     }
   }
 
   get isConfigured(): boolean {
-    return !!this.resendApiKey || !!this.brevoApiKey || !!this.transporter;
+    return !!this.transporter;
   }
 
   /**
@@ -201,7 +415,54 @@ export class EmailService {
   }
 
   /**
-   * Primary method: Sends an email using a database-managed template.
+   * Verifies SMTP connection, TLS handshake, and authentication without sending an email.
+   * Returns safe diagnostics without leaking credentials.
+   */
+  async verifyConnection(): Promise<SmtpHealthStatus> {
+    const timestamp = new Date().toISOString();
+    if (!this.transporter) {
+      return {
+        status: 'FAILED',
+        host: this.smtpHost || 'not_configured',
+        port: this.smtpPort,
+        secure: this.smtpSecure,
+        errorClassification: SmtpErrorCode.PERMANENT_SMTP_FAILURE,
+        diagnosticMessage:
+          'SMTP transporter is not configured. Missing SMTP_HOST, SMTP_USER, or SMTP_PASS in environment.',
+        timestamp,
+      };
+    }
+
+    try {
+      await this.transporter.verify();
+      return {
+        status: 'CONNECTED',
+        host: this.smtpHost,
+        port: this.smtpPort,
+        secure: this.smtpSecure,
+        diagnosticMessage:
+          'SMTP connection, TLS handshake, and authentication verified successfully.',
+        timestamp,
+      };
+    } catch (err: any) {
+      const classified = classifySmtpError(err);
+      this.logger.error(
+        `SMTP Health Check Failed [${classified.code}]: ${classified.message}`,
+      );
+      return {
+        status: 'FAILED',
+        host: this.smtpHost,
+        port: this.smtpPort,
+        secure: this.smtpSecure,
+        errorClassification: classified.code,
+        diagnosticMessage: classified.diagnostics,
+        timestamp,
+      };
+    }
+  }
+
+  /**
+   * Primary method: Sends an email using a database-managed or fallback template.
    * Resolves template from DB, validates variables, renders responsive HTML,
    * dispatches via SMTP, and records to email_logs.
    */
@@ -269,13 +530,9 @@ export class EmailService {
             isActive: true,
             fetchedAt: now,
           });
-        } else {
-          this.logger.warn(
-            `Template '${templateKey}' not found in database — using ${hardcoded ? 'built-in structured' : 'default generic'} fallback`,
-          );
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       this.logger.warn(
         `Failed to fetch template '${templateKey}' from DB: ${err.message}`,
       );
@@ -320,14 +577,12 @@ export class EmailService {
 
   /**
    * Replaces all {{key}} placeholders in text with provided variable values safely.
-   * Ensures missing variables do not output "undefined", "null", or raw curly tags.
    */
   private interpolate(
     text: string,
     variables: Record<string, any> = {},
   ): string {
     if (!text) return '';
-    // 1. Replace defined variables
     let result = text.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, key) => {
       const val = variables[key];
       if (val === undefined || val === null) {
@@ -335,7 +590,6 @@ export class EmailService {
       }
       return String(val);
     });
-    // 2. Clean up any accidental double spaces created by empty token replacements
     result = result.replace(/  +/g, ' ');
     return result;
   }
@@ -398,22 +652,13 @@ export class EmailService {
               <a href="${this.frontendUrl}" target="_blank" style="display: inline-block; text-decoration: none;">
                 <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
                   <tr>
-                    <td align="center" style="vertical-align: middle; padding-right: 14px;">
-                      <img 
-                        src="https://healnari.vercel.app/brand/logo-icon.png" 
-                        alt="HealNari Logo" 
-                        width="52" 
-                        height="52" 
-                        style="display: block; width: 52px; height: 52px; border-radius: 50%; border: 0; outline: none;" 
-                      />
+                    <td style="vertical-align: middle; padding-right: 10px;">
+                      <div style="background: linear-gradient(135deg, #2A1647 0%, #6B46C1 100%); width: 36px; height: 36px; border-radius: 10px; text-align: center; line-height: 36px; color: #FFFFFF; font-size: 18px; font-weight: 900;">
+                        H
+                      </div>
                     </td>
-                    <td align="left" style="vertical-align: middle;">
-                      <span style="font-size: 28px; font-weight: 900; color: #2A1647; letter-spacing: -0.5px; font-family: 'Playfair Display', Georgia, serif; line-height: 1.1; display: block;">
-                        Heal<span style="color: #E23E8C;">Nari</span>
-                      </span>
-                      <span style="display: block; font-size: 10px; font-weight: 700; color: #94A3B8; text-transform: uppercase; letter-spacing: 1.5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin-top: 3px;">
-                        Women's Specialized Telemedicine &amp; Care
-                      </span>
+                    <td style="vertical-align: middle;">
+                      <span style="font-size: 22px; font-weight: 800; color: #2A1647; letter-spacing: -0.5px;">Heal<span style="color: #6B46C1;">Nari</span></span>
                     </td>
                   </tr>
                 </table>
@@ -421,29 +666,18 @@ export class EmailService {
             </td>
           </tr>
 
-          <!-- Main Body -->
+          <!-- Content Body -->
           <tr>
-            <td class="content-cell" style="padding: 32px 36px; color: #334155; font-size: 15px; line-height: 1.6;">
+            <td class="content-cell" style="padding: 32px 36px 28px 36px;">
               ${innerHtml}
-            </td>
-          </tr>
-
-          <!-- Help Card -->
-          <tr>
-            <td style="padding: 0 36px 20px 36px;">
-              <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 16px; text-align: center;">
-                <p style="margin: 0; font-size: 12px; color: #64748B; line-height: 1.5;">
-                  Need assistance? Contact our patient care team at <a href="mailto:support@healnari.app" style="color: #6B46C1; font-weight: 600; text-decoration: underline;">support@healnari.app</a>
-                </p>
-              </div>
             </td>
           </tr>
 
           <!-- Footer -->
           <tr>
-            <td class="footer-cell" style="background-color: #F8FAFC; padding: 24px 36px; text-align: center; border-top: 1px solid #E2E8F0; font-size: 12px; color: #64748B; line-height: 1.6;">
-              <p style="margin: 0 0 6px 0; font-weight: 700; color: #475569;">
-                HealNari Women's Healthcare Network
+            <td class="footer-cell" style="padding: 24px 36px 32px 36px; background-color: #F8FAFC; border-top: 1px solid #F1F5F9; text-align: center;">
+              <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 600; color: #64748B;">
+                HealNari — Women's Holistic Health & Clinical Telemedicine
               </p>
               <p style="margin: 0 0 12px 0; color: #94A3B8; font-size: 11px;">
                 DPDP Act, 2023 Compliant &bull; End-to-End Encrypted Telemedicine &bull; Certified Specialists
@@ -463,220 +697,21 @@ export class EmailService {
   }
 
   /**
-   * Sends email via Resend REST API (HTTPS Port 443).
-   * Free tier provides 3,000 emails/mo, 100/day, zero port-blocking on Render.
+   * Calculates an idempotency key for preventing duplicate notifications.
    */
-  private async sendViaResend(
-    payload: MailPayload,
-  ): Promise<{ messageId: string }> {
-    if (!this.resendApiKey) {
-      throw new Error('RESEND_API_KEY is not configured');
-    }
-
-    const resendFrom =
-      this.configService.get<string>('RESEND_FROM') ||
-      process.env.RESEND_FROM ||
-      (this.from.includes('healnari.app') || this.from.includes('healnari.com')
-        ? this.from
-        : 'HealNari <onboarding@resend.dev>');
-
-    const body: Record<string, any> = {
-      from: resendFrom,
-      to: [payload.to],
-      subject: payload.subject,
-      html: payload.html,
-      text: payload.text || undefined,
-    };
-
-    if (payload.attachments && payload.attachments.length > 0) {
-      body.attachments = payload.attachments.map((att) => ({
-        filename: att.filename,
-        content: att.content.toString('base64'),
-      }));
-    }
-
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.resendApiKey.trim()}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-
-    const data = (await response.json()) as any;
-    if (!response.ok) {
-      throw new Error(
-        `Resend API error (${response.status}): ${data?.message || JSON.stringify(data)}`,
-      );
-    }
-
-    return { messageId: data.id || `resend-${Date.now()}` };
+  private getIdempotencyKey(payload: MailPayload): string | null {
+    if (!payload.event && !payload.templateKey) return null;
+    const event = payload.event || payload.templateKey;
+    const entity = `${payload.entityType || 'global'}_${payload.entityId || 'none'}`;
+    return `${event}:${entity}:${payload.to.toLowerCase().trim()}`;
   }
 
   /**
-   * Sends email via Brevo REST API (HTTPS Port 443).
-   * Free tier provides 300 emails/day, zero port-blocking on Render.
-   */
-  private async sendViaBrevo(
-    payload: MailPayload,
-  ): Promise<{ messageId: string }> {
-    if (!this.brevoApiKey) {
-      throw new Error('BREVO_API_KEY is not configured');
-    }
-
-    let senderName = 'HealNari';
-    let senderEmail = 'notifications@healnari.com';
-    const match = this.from.match(/(.*)<(.*)>/);
-    if (match) {
-      senderName = match[1].trim() || senderName;
-      senderEmail = match[2].trim() || senderEmail;
-    } else if (this.from.includes('@')) {
-      senderEmail = this.from.trim();
-    }
-
-    const body: Record<string, any> = {
-      sender: { name: senderName, email: senderEmail },
-      to: [{ email: payload.to }],
-      subject: payload.subject,
-      htmlContent: payload.html,
-      textContent: payload.text || undefined,
-    };
-
-    if (payload.attachments && payload.attachments.length > 0) {
-      body.attachment = payload.attachments.map((att) => ({
-        name: att.filename,
-        content: att.content.toString('base64'),
-      }));
-    }
-
-    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': this.brevoApiKey.trim(),
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-
-    const data = (await response.json()) as any;
-    if (!response.ok) {
-      throw new Error(
-        `Brevo API error (${response.status}): ${data?.message || JSON.stringify(data)}`,
-      );
-    }
-
-    return { messageId: data.messageId || `brevo-${Date.now()}` };
-  }
-
-  /**
-   * Internal dispatcher trying available providers in order:
-   * 1. Resend HTTP API (Port 443 HTTPS — immune to Render SMTP block)
-   * 2. Brevo HTTP API (Port 443 HTTPS — immune to Render SMTP block)
-   * 3. SMTP Transporter
-   */
-  private async dispatchMail(
-    payload: MailPayload,
-  ): Promise<{
-    provider: string;
-    messageId: string;
-    attempts: { provider: string; success: boolean; error?: string }[];
-  }> {
-    const attempts: { provider: string; success: boolean; error?: string }[] =
-      [];
-
-    // 1. Resend HTTP API (HTTPS Port 443)
-    if (this.resendApiKey) {
-      try {
-        const res = await this.sendViaResend(payload);
-        attempts.push({ provider: 'resend', success: true });
-        return {
-          provider: 'resend',
-          messageId: res.messageId,
-          attempts,
-        };
-      } catch (err: any) {
-        attempts.push({ provider: 'resend', success: false, error: err.message });
-        this.logger.warn(
-          `Resend API dispatch failed for ${maskEmail(payload.to)}: ${err.message}`,
-        );
-        if (!this.brevoApiKey && !this.transporter) {
-          throw new Error(`Resend delivery failed: ${err.message}`);
-        }
-      }
-    }
-
-    // 2. Brevo HTTP API (HTTPS Port 443)
-    if (this.brevoApiKey) {
-      try {
-        const res = await this.sendViaBrevo(payload);
-        attempts.push({ provider: 'brevo', success: true });
-        return {
-          provider: 'brevo',
-          messageId: res.messageId,
-          attempts,
-        };
-      } catch (err: any) {
-        attempts.push({ provider: 'brevo', success: false, error: err.message });
-        this.logger.warn(
-          `Brevo API dispatch failed for ${maskEmail(payload.to)}: ${err.message}`,
-        );
-        if (!this.transporter) {
-          throw new Error(`Brevo delivery failed: ${err.message}`);
-        }
-      }
-    }
-
-    // 3. SMTP Transporter
-    if (this.transporter) {
-      try {
-        const info = await this.transporter.sendMail({
-          from: this.from,
-          to: payload.to,
-          subject: payload.subject,
-          html: payload.html,
-          text: payload.text,
-          attachments: payload.attachments,
-        });
-        attempts.push({ provider: 'smtp', success: true });
-        return {
-          provider: 'smtp',
-          messageId: info.messageId,
-          attempts,
-        };
-      } catch (err: any) {
-        const isRenderFirewall =
-          err.message?.includes('Connection timeout') ||
-          err.code === 'ETIMEDOUT';
-        const smtpErrMsg = isRenderFirewall
-          ? 'SMTP connection timed out. If running on Render free tier, outbound ports 25, 465, and 587 are firewalled. Add BREVO_API_KEY (HTTPS port 443) or verify domain on Resend.'
-          : err.message;
-        attempts.push({ provider: 'smtp', success: false, error: smtpErrMsg });
-        if (isRenderFirewall) {
-          this.logger.error(
-            `[Render SMTP Firewall Warning] Connection timeout connecting to SMTP host. Render blocks outbound SMTP ports 25, 465, and 587 on their free tier. To fix: Add BREVO_API_KEY or verified RESEND_API_KEY in Render environment variables (uses HTTPS port 443).`,
-          );
-        }
-        throw new Error(smtpErrMsg);
-      }
-    }
-
-    const summary = attempts
-      .map((a) => `[${a.provider}: ${a.error || 'failed'}]`)
-      .join(', ');
-    throw new Error(
-      attempts.length > 0
-        ? `All configured providers failed: ${summary}`
-        : 'No email delivery provider available (set RESEND_API_KEY, BREVO_API_KEY, or valid SMTP credentials)',
-    );
-  }
-
-  /**
-   * Dispatches email via configured provider and records delivery log in email_logs.
+   * Primary email dispatch method via standard SMTP transport.
+   * Safe for critical healthcare workflows: never throws unhandled errors.
    */
   async sendMail(payload: MailPayload): Promise<boolean> {
-    if (!this.isConfigured) {
+    if (!this.isConfigured || !this.transporter) {
       this.logger.warn(
         `Email not configured — simulated "${payload.subject}" to ${maskEmail(payload.to)}`,
       );
@@ -686,6 +721,19 @@ export class EmailService {
         providerMessageId: 'simulated-local-delivery',
       }).catch(() => {});
       return true;
+    }
+
+    // 1. Check idempotency to prevent duplicate emails for critical events
+    const dedupKey = this.getIdempotencyKey(payload);
+    const now = Date.now();
+    if (dedupKey) {
+      const lastSent = this.recentDispatches.get(dedupKey);
+      if (lastSent && now - lastSent < this.DEDUP_WINDOW_MS) {
+        this.logger.debug(
+          `Suppressed duplicate email [${dedupKey}] sent ${Math.round((now - lastSent) / 1000)}s ago`,
+        );
+        return true;
+      }
     }
 
     let finalHtml = payload.html;
@@ -699,32 +747,53 @@ export class EmailService {
     };
 
     try {
-      const result = await this.dispatchMail(preparedPayload);
+      const info = await this.transporter.sendMail({
+        from: this.from,
+        to: preparedPayload.to,
+        subject: preparedPayload.subject,
+        html: preparedPayload.html,
+        text: preparedPayload.text,
+        attachments: preparedPayload.attachments,
+      });
+
+      if (dedupKey) {
+        this.recentDispatches.set(dedupKey, now);
+      }
 
       this.logger.log(
-        `Sent mail "${payload.subject}" to ${maskEmail(payload.to)} via ${result.provider} (${result.messageId})`,
+        `Sent mail "${payload.subject}" to ${maskEmail(payload.to)} via SMTP (${info.messageId})`,
       );
 
       this.logToDatabase({
         ...payload,
         status: 'SENT',
-        providerMessageId: result.messageId,
+        providerMessageId: info.messageId,
       }).catch(() => {});
 
       return true;
     } catch (err: any) {
+      const classified = classifySmtpError(err);
+
       this.logger.error(
-        `Failed to send mail to ${maskEmail(payload.to)}: ${err.message}`,
+        `Failed to send mail to ${maskEmail(payload.to)} [${classified.code}]: ${classified.message}`,
         err.stack,
       );
 
       this.logToDatabase({
         ...payload,
         status: 'FAILED',
-        error: err.message,
+        error: `[${classified.code}] ${classified.diagnostics}`,
       }).catch(() => {});
 
-      this.queueForRetry(preparedPayload);
+      // Only queue for retry if failure is temporary (e.g. timeout, rate limit)
+      if (classified.isTemporary) {
+        this.queueForRetry(preparedPayload);
+      } else {
+        this.logger.warn(
+          `Dropping non-retryable SMTP error [${classified.code}] for ${maskEmail(payload.to)}`,
+        );
+      }
+
       return false;
     }
   }
@@ -734,51 +803,47 @@ export class EmailService {
    */
   async testEmail(recipient: string): Promise<{
     success: boolean;
-    provider?: string;
+    provider: string;
     messageId?: string;
     error?: string;
     diagnostics?: string;
-    attempts?: { provider: string; success: boolean; error?: string }[];
+    errorClassification?: SmtpErrorCode;
   }> {
-    try {
-      const result = await this.dispatchMail({
-        to: recipient,
-        subject: 'HealNari Email Delivery Test',
-        html: this.wrapWithLayout(
-          '<h2>Email System Verified</h2><p>Your HealNari transactional email system is successfully configured and delivering messages.</p>',
-          'Email System Verified',
-        ),
-      });
-      return {
-        success: true,
-        provider: result.provider,
-        messageId: result.messageId,
-        attempts: result.attempts,
-      };
-    } catch (err: any) {
-      const isRenderFirewall =
-        err.message?.includes('Connection timeout') ||
-        err.message?.includes('firewalled') ||
-        err.code === 'ETIMEDOUT';
-      const isResendSandbox =
-        err.message?.includes('You can only send testing emails') ||
-        err.message?.includes('validation_error');
-
-      let diagnostics = '';
-      if (isRenderFirewall) {
-        diagnostics =
-          'Outbound SMTP port blocked by Render free-tier firewall. To fix: Add BREVO_API_KEY (HTTPS port 443) or verify your domain on Resend (resend.com/domains).';
-      } else if (isResendSandbox) {
-        diagnostics =
-          "Resend Sandbox Restriction: Resend's free onboarding key can only send to the account owner (palprashant90.ai@gmail.com). To send to all users, verify a domain at resend.com/domains or add a free BREVO_API_KEY.";
-      } else {
-        diagnostics = err.message;
-      }
-
+    if (!this.transporter) {
       return {
         success: false,
-        error: err.message,
-        diagnostics,
+        provider: 'smtp',
+        error: 'SMTP transporter not configured',
+        diagnostics:
+          'SMTP credentials (SMTP_HOST, SMTP_USER, SMTP_PASS) are missing in environment variables.',
+        errorClassification: SmtpErrorCode.PERMANENT_SMTP_FAILURE,
+      };
+    }
+
+    try {
+      const info = await this.transporter.sendMail({
+        from: this.from,
+        to: recipient,
+        subject: 'HealNari SMTP Delivery Test',
+        html: this.wrapWithLayout(
+          '<h2>SMTP System Verified</h2><p>Your HealNari transactional email system is successfully connected via SMTP and delivering messages.</p>',
+          'SMTP Delivery Verified',
+        ),
+      });
+
+      return {
+        success: true,
+        provider: 'smtp',
+        messageId: info.messageId,
+      };
+    } catch (err: any) {
+      const classified = classifySmtpError(err);
+      return {
+        success: false,
+        provider: 'smtp',
+        error: classified.message,
+        diagnostics: classified.diagnostics,
+        errorClassification: classified.code,
       };
     }
   }
@@ -811,21 +876,24 @@ export class EmailService {
         error: data.error || null,
         variables: data.variables || {},
       });
-    } catch (err) {
-      // Non-blocking logger error
+    } catch (err: any) {
       this.logger.debug(`Could not write to email_logs: ${err.message}`);
     }
   }
 
   /**
-   * Queues a failed email for background retry.
+   * Queues a failed email for background retry with exponential backoff.
    */
   private queueForRetry(payload: MailPayload, attempts = 1) {
     if (attempts <= this.MAX_RETRIES) {
+      // Exponential backoff: 1 min, 3 min, 7 min
+      const delayMs = Math.pow(2, attempts) * 30 * 1000;
+      const nextRetryAt = Date.now() + delayMs;
+
       this.logger.warn(
-        `Queueing email to ${maskEmail(payload.to)} for retry (Attempt ${attempts}/${this.MAX_RETRIES})`,
+        `Queueing email to ${maskEmail(payload.to)} for retry (Attempt ${attempts}/${this.MAX_RETRIES}, next in ${delayMs / 1000}s)`,
       );
-      this.retryQueue.push({ payload, attempts });
+      this.retryQueue.push({ payload, attempts, nextRetryAt });
     } else {
       this.logger.error(
         `Permanently dropping email to ${maskEmail(payload.to)} after ${this.MAX_RETRIES} attempts.`,
@@ -838,33 +906,52 @@ export class EmailService {
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async processRetryQueue() {
-    if (this.retryQueue.length === 0 || !this.isConfigured) return;
+    if (this.retryQueue.length === 0 || !this.transporter) return;
+
+    const now = Date.now();
+    const readyItems = this.retryQueue.filter((item) => item.nextRetryAt <= now);
+    if (readyItems.length === 0) return;
 
     this.logger.log(
-      `Processing ${this.retryQueue.length} email(s) in retry queue...`,
+      `Processing ${readyItems.length} email(s) ready for retry in queue...`,
     );
 
-    const currentQueue = [...this.retryQueue];
-    this.retryQueue = [];
+    // Keep items not ready yet
+    this.retryQueue = this.retryQueue.filter((item) => item.nextRetryAt > now);
 
-    for (const item of currentQueue) {
+    for (const item of readyItems) {
       try {
-        const result = await this.dispatchMail(item.payload);
+        const info = await this.transporter.sendMail({
+          from: this.from,
+          to: item.payload.to,
+          subject: item.payload.subject,
+          html: item.payload.html,
+          text: item.payload.text,
+          attachments: item.payload.attachments,
+        });
 
         this.logger.log(
-          `Successfully sent retried email to ${maskEmail(item.payload.to)} via ${result.provider} (${result.messageId})`,
+          `Successfully sent retried email to ${maskEmail(item.payload.to)} via SMTP (${info.messageId})`,
         );
 
         this.logToDatabase({
           ...item.payload,
           status: 'SENT',
-          providerMessageId: result.messageId,
+          providerMessageId: info.messageId,
         }).catch(() => {});
       } catch (err: any) {
+        const classified = classifySmtpError(err);
         this.logger.warn(
-          `Retry failed for ${maskEmail(item.payload.to)}: ${err.message}`,
+          `Retry attempt ${item.attempts} failed for ${maskEmail(item.payload.to)} [${classified.code}]: ${classified.message}`,
         );
-        this.queueForRetry(item.payload, item.attempts + 1);
+
+        if (classified.isTemporary) {
+          this.queueForRetry(item.payload, item.attempts + 1);
+        } else {
+          this.logger.warn(
+            `Dropping retried email to ${maskEmail(item.payload.to)} due to permanent error [${classified.code}]`,
+          );
+        }
       }
     }
   }

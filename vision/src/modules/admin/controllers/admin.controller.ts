@@ -1212,5 +1212,13 @@ export class AdminController {
     const result = await this.adminService.testEmail(targetEmail);
     return ResponseHelper.success(result, 'Email delivery test executed');
   }
+
+  @Get('email/verify')
+  @ApiOperation({ summary: 'Verify SMTP connection, TLS handshake, and authentication without sending email' })
+  async verifySmtp(@CurrentUser() user: AuthUser) {
+    this.checkAdmin(user);
+    const result = await this.adminService.verifySmtp();
+    return ResponseHelper.success(result, 'SMTP health check executed');
+  }
 }
 

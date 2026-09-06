@@ -3693,5 +3693,10 @@ export class AdminService {
   async testEmail(recipient: string) {
     return this.email.testEmail(recipient);
   }
+
+  /** Verify SMTP connection and handshake health without sending an email */
+  async verifySmtp() {
+    return this.email.verifyConnection();
+  }
 }
 
