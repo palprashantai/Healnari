@@ -365,7 +365,7 @@ export class EmailService implements OnModuleInit {
         tls: {
           rejectUnauthorized:
             (this.configService.get<string>('SMTP_REJECT_UNAUTHORIZED') ||
-              process.env.SMTP_REJECT_UNAUTHORIZED) !== 'false',
+              process.env.SMTP_REJECT_UNAUTHORIZED) === 'true',
         },
       } as any);
     }
