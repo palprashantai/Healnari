@@ -159,10 +159,10 @@ export class EmailService {
         auth: { user, pass },
         pool: false,
         family: 4,
-        connectionTimeout: 10000,
-        greetingTimeout: 10000,
-        socketTimeout: 20000,
-        dnsTimeout: 10000,
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 10000,
+        dnsTimeout: 5000,
         tls: {
           rejectUnauthorized: false,
         },
@@ -578,17 +578,32 @@ export class EmailService {
    */
   private async dispatchMail(
     payload: MailPayload,
-  ): Promise<{ provider: string; messageId: string }> {
+  ): Promise<{
+    provider: string;
+    messageId: string;
+    attempts: { provider: string; success: boolean; error?: string }[];
+  }> {
+    const attempts: { provider: string; success: boolean; error?: string }[] =
+      [];
+
     // 1. Resend HTTP API (HTTPS Port 443)
     if (this.resendApiKey) {
       try {
         const res = await this.sendViaResend(payload);
-        return { provider: 'resend', messageId: res.messageId };
+        attempts.push({ provider: 'resend', success: true });
+        return {
+          provider: 'resend',
+          messageId: res.messageId,
+          attempts,
+        };
       } catch (err: any) {
+        attempts.push({ provider: 'resend', success: false, error: err.message });
         this.logger.warn(
           `Resend API dispatch failed for ${maskEmail(payload.to)}: ${err.message}`,
         );
-        if (!this.brevoApiKey && !this.transporter) throw err;
+        if (!this.brevoApiKey && !this.transporter) {
+          throw new Error(`Resend delivery failed: ${err.message}`);
+        }
       }
     }
 
@@ -596,12 +611,20 @@ export class EmailService {
     if (this.brevoApiKey) {
       try {
         const res = await this.sendViaBrevo(payload);
-        return { provider: 'brevo', messageId: res.messageId };
+        attempts.push({ provider: 'brevo', success: true });
+        return {
+          provider: 'brevo',
+          messageId: res.messageId,
+          attempts,
+        };
       } catch (err: any) {
+        attempts.push({ provider: 'brevo', success: false, error: err.message });
         this.logger.warn(
           `Brevo API dispatch failed for ${maskEmail(payload.to)}: ${err.message}`,
         );
-        if (!this.transporter) throw err;
+        if (!this.transporter) {
+          throw new Error(`Brevo delivery failed: ${err.message}`);
+        }
       }
     }
 
@@ -616,22 +639,36 @@ export class EmailService {
           text: payload.text,
           attachments: payload.attachments,
         });
-        return { provider: 'smtp', messageId: info.messageId };
+        attempts.push({ provider: 'smtp', success: true });
+        return {
+          provider: 'smtp',
+          messageId: info.messageId,
+          attempts,
+        };
       } catch (err: any) {
-        if (
+        const isRenderFirewall =
           err.message?.includes('Connection timeout') ||
-          err.code === 'ETIMEDOUT'
-        ) {
+          err.code === 'ETIMEDOUT';
+        const smtpErrMsg = isRenderFirewall
+          ? 'SMTP connection timed out. If running on Render free tier, outbound ports 25, 465, and 587 are firewalled. Add BREVO_API_KEY (HTTPS port 443) or verify domain on Resend.'
+          : err.message;
+        attempts.push({ provider: 'smtp', success: false, error: smtpErrMsg });
+        if (isRenderFirewall) {
           this.logger.error(
-            `[Render SMTP Firewall Warning] Connection timeout connecting to SMTP host. Render blocks outbound SMTP ports 25, 465, and 587 on their free tier. To fix: Add RESEND_API_KEY in Render environment variables (uses HTTPS port 443) or upgrade your Render instance to a paid plan.`,
+            `[Render SMTP Firewall Warning] Connection timeout connecting to SMTP host. Render blocks outbound SMTP ports 25, 465, and 587 on their free tier. To fix: Add BREVO_API_KEY or verified RESEND_API_KEY in Render environment variables (uses HTTPS port 443).`,
           );
         }
-        throw err;
+        throw new Error(smtpErrMsg);
       }
     }
 
+    const summary = attempts
+      .map((a) => `[${a.provider}: ${a.error || 'failed'}]`)
+      .join(', ');
     throw new Error(
-      'No email delivery provider available (set RESEND_API_KEY, BREVO_API_KEY, or valid SMTP credentials)',
+      attempts.length > 0
+        ? `All configured providers failed: ${summary}`
+        : 'No email delivery provider available (set RESEND_API_KEY, BREVO_API_KEY, or valid SMTP credentials)',
     );
   }
 
@@ -701,6 +738,7 @@ export class EmailService {
     messageId?: string;
     error?: string;
     diagnostics?: string;
+    attempts?: { provider: string; success: boolean; error?: string }[];
   }> {
     try {
       const result = await this.dispatchMail({
@@ -715,16 +753,32 @@ export class EmailService {
         success: true,
         provider: result.provider,
         messageId: result.messageId,
+        attempts: result.attempts,
       };
     } catch (err: any) {
       const isRenderFirewall =
-        err.message?.includes('Connection timeout') || err.code === 'ETIMEDOUT';
+        err.message?.includes('Connection timeout') ||
+        err.message?.includes('firewalled') ||
+        err.code === 'ETIMEDOUT';
+      const isResendSandbox =
+        err.message?.includes('You can only send testing emails') ||
+        err.message?.includes('validation_error');
+
+      let diagnostics = '';
+      if (isRenderFirewall) {
+        diagnostics =
+          'Outbound SMTP port blocked by Render free-tier firewall. To fix: Add BREVO_API_KEY (HTTPS port 443) or verify your domain on Resend (resend.com/domains).';
+      } else if (isResendSandbox) {
+        diagnostics =
+          "Resend Sandbox Restriction: Resend's free onboarding key can only send to the account owner (palprashant90.ai@gmail.com). To send to all users, verify a domain at resend.com/domains or add a free BREVO_API_KEY.";
+      } else {
+        diagnostics = err.message;
+      }
+
       return {
         success: false,
         error: err.message,
-        diagnostics: isRenderFirewall
-          ? 'Outbound SMTP port blocked by Render free-tier firewall. Add RESEND_API_KEY (HTTPS port 443) or upgrade Render service.'
-          : undefined,
+        diagnostics,
       };
     }
   }

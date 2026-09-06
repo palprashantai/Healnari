@@ -3356,6 +3356,50 @@ export class AdminService {
             ),
           );
         }
+
+        if (channels.includes('Email') && recipientIds.length) {
+          const { data: recipientProfiles } = await this.supabase.admin
+            .from('profiles')
+            .select('id, email, full_name')
+            .in('id', recipientIds);
+
+          const validRecipients = (recipientProfiles || []).filter(
+            (p) => p.email && p.email.includes('@'),
+          );
+
+          if (validRecipients.length > 0) {
+            this.logger.log(
+              `Dispatching broadcast email "${body.subject}" to ${validRecipients.length} recipients...`,
+            );
+            const batchSize = 5;
+            for (let i = 0; i < validRecipients.length; i += batchSize) {
+              const batch = validRecipients.slice(i, i + batchSize);
+              await Promise.all(
+                batch.map((p) =>
+                  this.email.sendMail({
+                    to: p.email,
+                    subject: body.subject,
+                    html: `
+                      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #334155; max-width: 600px; margin: 0 auto;">
+                        <h2 style="color: #6B46C1; margin-bottom: 16px; font-size: 20px;">${body.subject}</h2>
+                        <p style="font-size: 15px; color: #1e293b; margin-bottom: 16px;">
+                          Hello <strong>${p.full_name || 'there'}</strong>,
+                        </p>
+                        <div style="font-size: 14px; color: #334155; margin-bottom: 24px; white-space: pre-line; background-color: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                          ${body.body}
+                        </div>
+                        <div style="text-align: center; margin: 28px 0;">
+                          <a href="${this.email.getUrl('/')}" style="background-color: #6B46C1; color: #ffffff; padding: 12px 28px; border-radius: 8px; font-weight: 700; text-decoration: none; display: inline-block;">Open HealNari</a>
+                        </div>
+                      </div>
+                    `,
+                    event: 'admin_broadcast',
+                  }),
+                ),
+              );
+            }
+          }
+        }
       }
 
       const { data } = await this.supabase.admin
@@ -3393,22 +3437,54 @@ export class AdminService {
     }
   }
 
-  /** Real single-recipient push, used by the Doctor/Patient detail pages'
-   * "Message" action instead of the toast-only simulation they used to have. */
-  async notifyUser(userId: string, title: string, message: string) {
+  /** Direct message to a single user via Push, Email, or both. */
+  async notifyUser(
+    userId: string,
+    title: string,
+    message: string,
+    channel: 'push' | 'email' | 'both' = 'push',
+  ) {
     try {
       const { data: profile } = await this.supabase.admin
         .from('profiles')
-        .select('id')
+        .select('id, email, full_name')
         .eq('id', userId)
         .maybeSingle();
       if (!profile) throw new NotFoundException('User not found');
-      const data = await this.notifications.create(userId, {
-        type: 'admin_message',
-        title,
-        message,
-      });
-      return data;
+
+      let pushResult = null;
+      if (channel === 'push' || channel === 'both') {
+        pushResult = await this.notifications.create(userId, {
+          type: 'admin_message',
+          title,
+          message,
+        });
+      }
+
+      let emailSent = false;
+      if ((channel === 'email' || channel === 'both') && profile.email) {
+        emailSent = await this.email.sendMail({
+          to: profile.email,
+          subject: title,
+          html: `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #334155; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #6B46C1; margin-bottom: 16px; font-size: 20px;">${title}</h2>
+              <p style="font-size: 15px; color: #1e293b; margin-bottom: 16px;">
+                Hello <strong>${profile.full_name || 'there'}</strong>,
+              </p>
+              <div style="font-size: 14px; color: #334155; margin-bottom: 24px; white-space: pre-line; background-color: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                ${message}
+              </div>
+              <div style="text-align: center; margin: 28px 0;">
+                <a href="${this.email.getUrl('/')}" style="background-color: #6B46C1; color: #ffffff; padding: 12px 28px; border-radius: 8px; font-weight: 700; text-decoration: none; display: inline-block;">Open HealNari</a>
+              </div>
+            </div>
+          `,
+          event: 'admin_direct_message',
+        });
+      }
+
+      return { pushResult, emailSent };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(

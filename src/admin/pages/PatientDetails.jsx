@@ -100,21 +100,21 @@ function AdminPatientDetails() {
   };
 
   const handleSendMessage = async () => {
-    if (messageType !== 'push') {
-      toast(`${messageType.toUpperCase()} is not connected yet — nothing was actually sent.`, 'info');
-      setActiveModal(null); setMessageText(''); setSelectedTemplate('');
-      return;
-    }
     setSendingMessage(true);
     try {
       await apiFetch('/admin/notify', {
         method: 'POST',
-        body: { userId: profile.id, title: 'Message from HealNari Admin', message: messageText },
+        body: {
+          userId: profile.id,
+          title: 'Message from HealNari Care Team',
+          message: messageText,
+          channel: messageType,
+        },
       });
-      toast('Push notification sent!', 'success');
+      toast(`${messageType === 'email' ? 'Email' : 'Push notification'} sent successfully!`, 'success');
       setActiveModal(null); setMessageText(''); setSelectedTemplate('');
     } catch (err) {
-      toast(err.message || 'Failed to send push notification', 'error');
+      toast(err.message || 'Failed to send message', 'error');
     } finally {
       setSendingMessage(false);
     }

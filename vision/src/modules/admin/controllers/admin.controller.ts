@@ -19,6 +19,7 @@ import {
   ApiProperty,
   ApiParam,
   ApiQuery,
+  ApiPropertyOptional,
 } from '@nestjs/swagger';
 import {
   IsString,
@@ -368,6 +369,11 @@ export class NotifyUserDto {
   @MinLength(1)
   @MaxLength(2000)
   message: string;
+
+  @ApiPropertyOptional({ enum: ['push', 'email', 'both'] })
+  @IsOptional()
+  @IsIn(['push', 'email', 'both'])
+  channel?: 'push' | 'email' | 'both';
 }
 
 export class UpdateUserStatusDto {
@@ -451,7 +457,7 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly analyticsService: AnalyticsService,
-  ) {}
+  ) { }
 
   private checkAdmin(user: AuthUser) {
     if (user.profile.role !== ProfileRole.ADMIN)
@@ -1054,6 +1060,7 @@ export class AdminController {
       body.userId,
       body.title,
       body.message,
+      body.channel,
     );
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_UPDATED);
   }

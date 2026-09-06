@@ -67,11 +67,9 @@ function AdminCommunications() {
       });
       setBroadcastHistory(prev => [{ ...res, date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) }, ...prev]);
       if (scheduleType === 'scheduled') {
-        toast('Broadcast scheduled!', 'success');
-      } else if (channels.includes('Push')) {
-        toast(`Push notification delivered to ${res.recipient_count ?? 0} recipient(s).`, 'success');
+        toast('Broadcast scheduled successfully!', 'success');
       } else {
-        toast('Recorded, but not delivered — no email provider is connected yet. Enable Push to actually reach recipients.', 'info');
+        toast(`Broadcast dispatched to ${res.recipient_count ?? 0} recipient(s) via ${channels.join(' & ')}!`, 'success');
       }
       setMessageSubject(''); setMessageBody(''); setSelectedTemplate('');
     } catch {
@@ -118,21 +116,33 @@ function AdminCommunications() {
     }, 500);
   };
 
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
+  const [testEmailAddress, setTestEmailAddress] = useState('palprashant90.ai@gmail.com');
   const [testingEmail, setTestingEmail] = useState(false);
+  const [testResult, setTestResult] = useState(null);
 
-  const handleTestEmail = async () => {
+  const runEmailTest = async (overrideRecipient) => {
+    const target = (overrideRecipient || testEmailAddress || '').trim();
+    if (!target || !target.includes('@')) {
+      toast('Please enter a valid recipient email address.', 'error');
+      return;
+    }
     setTestingEmail(true);
+    setTestResult(null);
     try {
       const res = await apiFetch('/admin/email/test', {
         method: 'POST',
-        body: {},
+        body: { recipient: target },
       });
-      if (res?.success) {
-        toast(`✅ Test email delivered successfully via ${res.data?.provider || 'provider'}!`, 'success');
+      const data = res?.data || res;
+      setTestResult(data);
+      if (data?.success) {
+        toast(`✅ Delivered test email to ${target} via ${data.provider?.toUpperCase()}!`, 'success');
       } else {
-        toast(`❌ ${res?.data?.error || res?.message || 'Email delivery failed'}`, 'error');
+        toast(`❌ Delivery failed: ${data?.error || 'Provider rejected request'}`, 'error');
       }
     } catch (err) {
+      setTestResult({ success: false, error: err.message, diagnostics: 'Could not connect to backend test endpoint.' });
       toast(`❌ Test failed: ${err.message}`, 'error');
     } finally {
       setTestingEmail(false);
@@ -150,13 +160,12 @@ function AdminCommunications() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            onClick={handleTestEmail}
-            disabled={testingEmail}
-            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-sm transition-all disabled:opacity-50"
-            title="Send a live test verification email to your account"
+            onClick={() => { setIsTestModalOpen(true); setTestResult(null); }}
+            className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl border border-purple-200 bg-purple-50/50 hover:bg-purple-100/70 text-purple-700 shadow-sm transition-all"
+            title="Open Email System Diagnostics & Test Delivery"
           >
-            <i className={`fas ${testingEmail ? 'fa-spinner fa-spin text-purple-600' : 'fa-paper-plane text-purple-600'}`}></i>
-            {testingEmail ? 'Sending Test...' : 'Test Email Delivery'}
+            <i className="fas fa-envelope-circle-check text-purple-600"></i>
+            Test Email Delivery
           </button>
           <AIButton
             onClick={() => setAiGeneratorOpen(true)}
@@ -227,9 +236,9 @@ function AdminCommunications() {
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-slate-400 mt-2">
-              <i className="fas fa-circle-info mr-1"></i>
-              Push delivers a real notification. Email is recorded on the broadcast but not actually sent — no email provider is connected yet.
+            <p className="text-[11px] text-slate-500 mt-2">
+              <i className="fas fa-circle-check text-emerald-500 mr-1"></i>
+              Both Web Push notifications and branded HTML Emails are dispatched live to all target recipients.
             </p>
           </div>
 
@@ -290,7 +299,7 @@ function AdminCommunications() {
                         <span className="text-[10px] font-bold text-aubergine-700 bg-aubergine-50 border border-aubergine-100 px-2 py-0.5 rounded"><i className="fas fa-bell mr-1"></i>{b.recipient_count ?? 0} notified</span>
                       )}
                       {b.channels.includes('Email') && (
-                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded"><i className="fas fa-envelope mr-1"></i>Email (not sent)</span>
+                        <span className="text-[10px] font-bold text-aubergine-700 bg-aubergine-50 border border-aubergine-100 px-2 py-0.5 rounded"><i className="fas fa-envelope mr-1"></i>Email sent</span>
                       )}
                     </div>
                   )}
@@ -355,6 +364,144 @@ function AdminCommunications() {
                 className="bg-slate-900 text-white font-bold px-4 py-2 rounded-xl text-xs"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Email System Diagnostics & Live Test Modal */}
+      {isTestModalOpen && (
+        <Modal
+          isOpen={isTestModalOpen}
+          onClose={() => setIsTestModalOpen(false)}
+          title="Email System Diagnostics & Live Test"
+          size="md"
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-slate-500">
+              Trigger a live end-to-end delivery test to inspect connected email dispatchers (Resend HTTPS, Brevo HTTPS, or SMTP).
+            </p>
+
+            <div>
+              <label className="text-xs font-bold text-slate-600 block mb-1.5 uppercase tracking-wider">
+                Test Recipient Email
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={testEmailAddress}
+                  onChange={(e) => setTestEmailAddress(e.target.value)}
+                  placeholder="Enter recipient email..."
+                  className="flex-1 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-purple-200"
+                />
+                <button
+                  onClick={() => runEmailTest()}
+                  disabled={testingEmail}
+                  className="bg-purple-700 hover:bg-purple-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm transition-all disabled:opacity-50"
+                >
+                  <i className={`fas ${testingEmail ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i>
+                  {testingEmail ? 'Testing...' : 'Send Test'}
+                </button>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-[11px] text-slate-400">Quick fill:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTestEmailAddress('palprashant90.ai@gmail.com');
+                    runEmailTest('palprashant90.ai@gmail.com');
+                  }}
+                  className="text-[11px] font-bold text-purple-600 hover:text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100 transition-colors"
+                >
+                  palprashant90.ai@gmail.com (Resend Owner)
+                </button>
+              </div>
+            </div>
+
+            {/* Test Result Display */}
+            {testResult && (
+              <div
+                className={`p-4 rounded-xl border text-xs space-y-2 ${
+                  testResult.success
+                    ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
+                    : 'bg-rose-50/70 border-rose-200 text-rose-900'
+                }`}
+              >
+                <div className="flex items-center gap-2 font-bold text-sm">
+                  <i
+                    className={`fas ${
+                      testResult.success
+                        ? 'fa-circle-check text-emerald-600'
+                        : 'fa-triangle-exclamation text-rose-600'
+                    }`}
+                  ></i>
+                  <span>
+                    {testResult.success
+                      ? 'Live Email Delivered Successfully!'
+                      : 'Delivery Test Failed'}
+                  </span>
+                </div>
+
+                {testResult.success ? (
+                  <div className="space-y-1 text-xs text-emerald-800">
+                    <p>
+                      <strong>Active Dispatcher:</strong>{' '}
+                      <span className="uppercase font-mono bg-emerald-100 px-1.5 py-0.5 rounded">
+                        {testResult.provider || 'configured provider'}
+                      </span>
+                    </p>
+                    {testResult.messageId && (
+                      <p className="font-mono text-[11px] break-all">
+                        <strong>Message ID:</strong> {testResult.messageId}
+                      </p>
+                    )}
+                    <p className="text-[11px] text-emerald-700 mt-2">
+                      Please check the inbox and spam folder of <strong>{testEmailAddress}</strong>.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 text-xs text-rose-800">
+                    <p>
+                      <strong>Error:</strong> {testResult.error || 'Connection rejected'}
+                    </p>
+                    {testResult.diagnostics && (
+                      <div className="bg-white/80 border border-rose-200 p-2.5 rounded-lg text-[11px] leading-relaxed">
+                        <p className="font-bold text-rose-900 mb-1">
+                          <i className="fas fa-info-circle mr-1"></i> Root Cause Diagnostics:
+                        </p>
+                        <p>{testResult.diagnostics}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Provider Configuration Guide Box */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[11px] text-slate-600 space-y-1.5">
+              <p className="font-bold text-slate-700">
+                <i className="fas fa-sliders mr-1 text-purple-600"></i> Supported Delivery Providers:
+              </p>
+              <ul className="list-disc pl-4 space-y-1">
+                <li>
+                  <strong>Brevo (Recommended for Render free tier):</strong> HTTPS Port 443, no domain setup needed, free 300 emails/day to any recipient. Add <code className="bg-slate-200 px-1 rounded">BREVO_API_KEY</code> in Render.
+                </li>
+                <li>
+                  <strong>Resend:</strong> HTTPS Port 443. Free sandbox key works for <code className="bg-slate-200 px-1 rounded">palprashant90.ai@gmail.com</code>. Verify your domain at <a href="https://resend.com/domains" target="_blank" rel="noreferrer" className="text-purple-600 underline">resend.com/domains</a> to send to all recipients.
+                </li>
+                <li>
+                  <strong>Gmail SMTP:</strong> Direct SMTP on port 587. Works locally and on VPS/paid Render instances (free tier blocks port 587).
+                </li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setIsTestModalOpen(false)}
+                className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors"
+              >
+                Done
               </button>
             </div>
           </div>

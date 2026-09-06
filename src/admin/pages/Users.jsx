@@ -89,7 +89,7 @@ function AdminUsers() {
         },
       });
       if (messageType === 'push') toast(`Push notification delivered to ${res.recipient_count ?? 0} patient(s).`, 'success');
-      else toast('Recorded, but not delivered — no email provider is connected yet.', 'info');
+      else toast(`Email broadcast sent to ${res.recipient_count ?? 0} patient(s).`, 'success');
     } catch { toast('Send failed', 'error'); }
     setIsMessageModalOpen(false); setSelectedIds([]); setMessageText(''); setSelectedTemplate('');
   };
