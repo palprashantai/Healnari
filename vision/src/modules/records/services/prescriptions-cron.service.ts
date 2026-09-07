@@ -198,12 +198,11 @@ export class PrescriptionsCronService {
     this.logger.log('Starting recommended follow-up appointment sweep...');
 
     // Find appointments completed 10-16 days ago that have not yet had a follow-up reminder sent
-    const fourteenDaysAgo = new Date(
-      Date.now() - 14 * 24 * 60 * 60 * 1000,
-    ).toISOString();
-    const tenDaysAgo = new Date(
-      Date.now() - 10 * 24 * 60 * 60 * 1000,
-    ).toISOString();
+    const now = Date.now();
+    const fourteenDaysAgo = new Date(now - 16 * 24 * 60 * 60 * 1000).toISOString();
+    const tenDaysAgo = new Date(now - 10 * 24 * 60 * 60 * 1000).toISOString();
+    const fourteenDaysAgoDate = fourteenDaysAgo.slice(0, 10);
+    const tenDaysAgoDate = tenDaysAgo.slice(0, 10);
 
     const { data: completedApts, error } = await this.supabase.admin
       .from('appointments')
@@ -212,8 +211,8 @@ export class PrescriptionsCronService {
       )
       .eq('status', 'Done')
       .is('follow_up_reminder_sent_at', null)
-      .lte('scheduled_at', tenDaysAgo)
-      .gte('scheduled_at', fourteenDaysAgo)
+      .lte('scheduled_date', tenDaysAgoDate)
+      .gte('scheduled_date', fourteenDaysAgoDate)
       .limit(50);
 
     if (error || !completedApts?.length) return;
@@ -231,6 +230,44 @@ export class PrescriptionsCronService {
 
     if (!claimed?.length) return;
 
+    // Check if patient already booked a future appointment with this doctor or clinic
+    const patientIds = [...new Set(claimed.map((a) => a.patient_id))];
+    const { data: futureApts } = await this.supabase.admin
+      .from('appointments')
+      .select('patient_id, doctor_id')
+      .in('patient_id', patientIds)
+      .in('status', ['Upcoming', 'Waiting', 'In Progress', 'HOLD', 'Requested', 'Approved'])
+      .gte('scheduled_date', fourteenDaysAgoDate);
+
+    const hasFutureApt = new Set(
+      (futureApts || []).map((a) => `${a.patient_id}_${a.doctor_id}`),
+    );
+
+    // Extract specific follow-up advice if recorded on prescription
+    const aptIds = claimed.map((a) => a.id);
+    const { data: rxList } = await this.supabase.admin
+      .from('prescriptions')
+      .select('appointment_id, instructions')
+      .in('appointment_id', aptIds)
+      .is('deleted_at', null);
+
+    const adviceByAptId = new Map<string, string>();
+    (rxList || []).forEach((rx) => {
+      if (rx.appointment_id && rx.instructions) {
+        try {
+          if (rx.instructions.startsWith('{')) {
+            const parsed = JSON.parse(rx.instructions);
+            if (parsed.followUpAdvice) {
+              adviceByAptId.set(rx.appointment_id, String(parsed.followUpAdvice).trim());
+            }
+          } else {
+            const match = rx.instructions.match(/(?:Next\s+)?Follow[- ]?up(?:\s+Review|\s+Consultation|\s+Advice)?:\s*([^\n\r]+)/i);
+            if (match) adviceByAptId.set(rx.appointment_id, match[1].trim());
+          }
+        } catch {}
+      }
+    });
+
     const doctorIds = [...new Set(claimed.map((a) => a.doctor_id))];
     const { data: doctors } = await this.supabase.admin
       .from('profiles')
@@ -241,18 +278,29 @@ export class PrescriptionsCronService {
     );
 
     const todayTag = new Date().toISOString().slice(0, 10);
+    let sentCount = 0;
+
     await Promise.all(
       claimed.map(async (apt: any) => {
+        // Skip notifying if patient already has an upcoming consult scheduled with this doctor
+        if (hasFutureApt.has(`${apt.patient_id}_${apt.doctor_id}`)) {
+          return;
+        }
+
+        const docName = doctorNameById.get(apt.doctor_id) || 'Your Doctor';
+        const specificAdvice = adviceByAptId.get(apt.id);
+        const adviceSnippet = specificAdvice ? `: "${specificAdvice}"` : '';
+
         await this.notifications
           .create(apt.patient_id, {
             type: 'follow_up_recommended',
             title: 'Time for Your Follow-Up Review',
-            message: `Dr. ${doctorNameById.get(apt.doctor_id) || 'Your Doctor'} recommended a review around this time. Book your follow-up consultation to track your progress and titrate medications.`,
+            message: `Dr. ${docName} recommended a follow-up review${adviceSnippet}. Book your follow-up consultation to track progress and titrate medications.`,
             idempotencyKey: `followup_${apt.id}_${todayTag}`,
             data: {
               appointmentId: apt.id,
               doctorId: apt.doctor_id,
-              path: '/patient-dashboard/appointments',
+              path: `/patient-dashboard/appointments?book=followup&doctorId=${apt.doctor_id}`,
             },
           })
           .catch(() => {});
@@ -264,8 +312,9 @@ export class PrescriptionsCronService {
               to: apt.patient.email,
               variables: {
                 patientName: apt.patient.full_name || 'Patient',
-                doctorName: doctorNameById.get(apt.doctor_id) || 'Specialist',
-                dashboardUrl: this.email.getUrl('/patient-dashboard/appointments'),
+                doctorName: docName,
+                followUpAdvice: specificAdvice || 'Routine clinical review',
+                dashboardUrl: this.email.getUrl(`/patient-dashboard/appointments?book=followup&doctorId=${apt.doctor_id}`),
               },
               entityType: 'appointment',
               entityId: apt.id,
@@ -273,10 +322,12 @@ export class PrescriptionsCronService {
             })
             .catch(() => {});
         }
+
+        sentCount++;
       }),
     );
 
-    this.logger.log(`Sent ${claimed.length} follow-up reminder(s).`);
+    this.logger.log(`Sent ${sentCount} follow-up reminder(s). (Claimed: ${claimed.length})`);
   }
 
   /**

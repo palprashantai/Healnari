@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { PaymentModal } from '../../components/PaymentModal.jsx';
@@ -473,6 +473,12 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
     <Modal isOpen={isOpen} onClose={reset} title={prefill.followUp ? 'Book Follow-up' : 'Book Appointment'} size="md">
       {step === 1 && (
         <div className="space-y-4">
+          {prefill.followUp && (
+            <div className="rounded-xl bg-purple-50 border border-purple-200 p-3 text-xs text-purple-900 flex items-center gap-2">
+              <i className="fas fa-calendar-check text-purple-600 text-sm"></i>
+              <span><strong>Follow-up Consultation:</strong> Select a review date with your doctor to assess your treatment plan.</span>
+            </div>
+          )}
           <div>
             <label className="text-xs font-bold text-slate-500 mb-1.5 block">Select Doctor *</label>
             <select value={form.doctorId} onChange={e => setForm(p => ({ ...p, doctorId: e.target.value }))}
@@ -920,6 +926,38 @@ function PatientAppointments() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('All Types');
   const [statusFilter, setStatusFilter] = useState('All Status');
+  const location = useLocation();
+
+  // Listen for navigation state (e.g. from Prescriptions "Book Follow-up" or notification routes)
+  useEffect(() => {
+    if (location.state?.followUp) {
+      setBookPrefill({
+        doctorId: location.state.doctorId || '',
+        followUp: true,
+      });
+      setShowBook(true);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, location.pathname, navigate]);
+
+  // Listen for URL query params e.g. ?book=followup&doctorId=...
+  useEffect(() => {
+    const bookParam = searchParams.get('book');
+    const docIdParam = searchParams.get('doctorId');
+    if (bookParam === 'followup' || (bookParam === 'true' && docIdParam)) {
+      setBookPrefill({
+        doctorId: docIdParam || '',
+        followUp: true,
+      });
+      setShowBook(true);
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.delete('book');
+        next.delete('doctorId');
+        return next;
+      }, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Reached via the incoming-call ring screen's "Accept", or the service
   // worker navigating this tab to ?joinCall=<id> when an OS push

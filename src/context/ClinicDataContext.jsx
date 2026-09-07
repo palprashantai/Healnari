@@ -55,6 +55,7 @@ export function ClinicDataProvider({ children }) {
       duration: p.duration,
       instructions: p.instructions,
       doctor: p.doctor_name || 'Your Doctor',
+      doctorId: p.doctor_id || null,
       doctorSpecialty: p.doctor_specialty || '',
       doctorRegNo: p.doctor_registration_no || '',
       prescribedOn: p.created_at ? new Date(p.created_at).toLocaleDateString() : '',

@@ -131,7 +131,20 @@ function parseMedicineDetails(m) {
 /**
  * Parses structured medicines and returns an HTML string for the prescription document.
  */
-export function generatePrescriptionHtml({ rxId, date, doctor, patient, diagnosis, medicines, labTests, instructions, handwrittenImage, origin = '' }) {
+export function generatePrescriptionHtml({
+  rxId,
+  date,
+  doctor,
+  patient,
+  diagnosis,
+  medicines,
+  labTests,
+  instructions,
+  handwrittenImage,
+  followUpAdvice: explicitFollowUpAdvice,
+  followUp: explicitFollowUp,
+  origin = '',
+}) {
   const safeOrigin = origin || ((typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : '');
   const logoSvgUrl = `${safeOrigin}/brand/logo.svg`;
 
@@ -184,18 +197,33 @@ export function generatePrescriptionHtml({ rxId, date, doctor, patient, diagnosi
   // Parse structured medicines
   const parsedMedicines = (medicines || []).map(parseMedicineDetails);
 
-  // Parse Instructions
+  // Parse Instructions & Follow-Up Advice
   let displayInstructions = instructions || '';
-  let followUpAdvice = '';
+  let followUpAdvice = (explicitFollowUpAdvice || explicitFollowUp || '').trim();
+
   try {
-    if (displayInstructions && displayInstructions.startsWith('{')) {
-      const parsedJson = JSON.parse(displayInstructions);
+    if (typeof displayInstructions === 'string' && displayInstructions.trim().startsWith('{')) {
+      const parsedJson = JSON.parse(displayInstructions.trim());
       if (parsedJson.type === 'healnari-holistic-v1') {
         displayInstructions = parsedJson.clinicalNotes || '';
-        followUpAdvice = parsedJson.followUpAdvice || '';
+        if (!followUpAdvice && parsedJson.followUpAdvice) {
+          followUpAdvice = String(parsedJson.followUpAdvice).trim();
+        }
       }
     }
   } catch {}
+
+  // Parse plain-text follow-up directives if not already set via JSON or props
+  if (typeof displayInstructions === 'string' && displayInstructions) {
+    const match = displayInstructions.match(/(?:Next\s+)?Follow[- ]?up(?:\s+Review|\s+Consultation|\s+Advice|\s+Plan)?:\s*([^\n\r]+)/i);
+    if (match) {
+      if (!followUpAdvice) {
+        followUpAdvice = match[1].trim();
+      }
+      // Clean up inline follow-up from instructions so it doesn't duplicate
+      displayInstructions = displayInstructions.replace(/(?:Next\s+)?Follow[- ]?up(?:\s+Review|\s+Consultation|\s+Advice|\s+Plan)?:\s*[^\n\r]+/gi, '').trim();
+    }
+  }
 
   const medicinesRowsHtml = parsedMedicines.map((m, idx) => `
     <tr class="med-item-row">
@@ -853,6 +881,38 @@ export function generatePrescriptionHtml({ rxId, date, doctor, patient, diagnosi
         .notes-callout .callout-title {
           color: #6B46C1;
         }
+        .followup-callout {
+          background: #fdf4ff;
+          border: 1px solid #f0abfc;
+          border-left: 4px solid #9333ea;
+          color: #581c87;
+        }
+        .followup-callout .callout-title {
+          color: #9333ea;
+        }
+        .followup-body {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .followup-pill-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          font-size: 12px;
+          font-weight: 800;
+          color: #581c87;
+          background: #fae8ff;
+          border: 1px solid #e9d5ff;
+          padding: 5px 12px;
+          border-radius: 6px;
+          width: fit-content;
+        }
+        .followup-helper {
+          font-size: 10.5px;
+          color: #7e22ce;
+          line-height: 1.45;
+        }
         .labs-callout {
           background: #f0fdf4;
           border: 1px solid #bbf7d0;
@@ -1181,7 +1241,24 @@ export function generatePrescriptionHtml({ rxId, date, doctor, patient, diagnosi
                   Doctor's Instructions &amp; Dietary Advice
                 </div>
                 <div style="white-space: pre-line;">${escapeHtml(displayInstructions)}</div>
-                ${followUpAdvice ? `<div style="margin-top: 6px; font-weight: 700; color: #6B46C1;">Next Follow-up Consultation: ${escapeHtml(followUpAdvice)}</div>` : ''}
+              </div>
+            ` : ''}
+
+            ${followUpAdvice ? `
+              <div class="callout-box followup-callout">
+                <div class="callout-title">
+                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/></svg>
+                  Recommended Next Follow-Up Consultation
+                </div>
+                <div class="followup-body">
+                  <div class="followup-pill-badge">
+                    <span>📅</span>
+                    <span>Review: ${escapeHtml(followUpAdvice)}</span>
+                  </div>
+                  <div class="followup-helper">
+                    Please schedule your follow-up review consultation around this timeframe via the HealNari patient portal to track clinical outcomes, review diagnostic investigations, or adjust dosages.
+                  </div>
+                </div>
               </div>
             ` : ''}
 

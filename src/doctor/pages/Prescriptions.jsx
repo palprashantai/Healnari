@@ -1600,11 +1600,13 @@ function DoctorPrescriptions() {
 
   const downloadRxPdf = (rx) => {
     let finalInstructions = rx.instructions;
+    let followUpAdvice = '';
     try {
       if (rx.instructions && rx.instructions.startsWith('{')) {
         const parsed = JSON.parse(rx.instructions);
         if (parsed.type === 'healnari-holistic-v1') {
-          finalInstructions = [parsed.clinicalNotes, parsed.followUpAdvice ? `Next Follow-up: ${parsed.followUpAdvice}` : ''].filter(Boolean).join('\n\n');
+          finalInstructions = parsed.clinicalNotes || '';
+          followUpAdvice = parsed.followUpAdvice || '';
         }
       }
     } catch(e) {}
@@ -1626,6 +1628,8 @@ function DoctorPrescriptions() {
       diagnosis: rx.diagnosis,
       medicines: rx.meds,
       instructions: finalInstructions,
+      followUpAdvice: followUpAdvice,
+      followUp: followUpAdvice,
     });
   };
 

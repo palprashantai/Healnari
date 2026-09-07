@@ -954,6 +954,17 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
   // Trigger Print / PDF Download for Medical Rx
   const handlePrintPrescription = () => {
     const fullInstructions = [clinicalNotes, followUpAdvice ? `Next Follow-up: ${followUpAdvice}` : ''].filter(Boolean).join('\n\n');
+    const medsToPrint = draftMeds.length > 0 ? draftMeds : (
+      (clinicalNotes || followUpAdvice) ? [{
+        name: 'Clinical Consultation & Follow-Up Protocol',
+        dosage: 'Standard',
+        frequency: 'Daily regimen',
+        timing: 'As directed',
+        duration: 'Course until follow-up',
+        instructions: followUpAdvice ? `Follow-up: ${followUpAdvice}` : 'Follow doctor consultation advice',
+      }] : []
+    );
+
     openPrescriptionPrintWindow({
       rxId: `HN-${session.id?.slice(0, 6).toUpperCase() || 'TELE'}`,
       date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
@@ -968,7 +979,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
         gender: 'Female',
       },
       diagnosis: diagnosis,
-      medicines: draftMeds.map(m => ({
+      medicines: medsToPrint.map(m => ({
         name: m.name,
         dosage: m.dosage,
         schedule: m.frequency,
@@ -978,6 +989,8 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
       })),
       labTests: draftLabs,
       instructions: fullInstructions,
+      followUpAdvice: followUpAdvice,
+      followUp: followUpAdvice,
     });
   };
 
@@ -3099,14 +3112,23 @@ function DoctorTelemedicine() {
     try {
       if (notes) await apiFetch(`/telemedicine/${activeCall.id}/notes`, { method: 'POST', body: { note: notes } });
       
-      if (draftMeds && draftMeds.length > 0) {
+      const effectiveMeds = (draftMeds && draftMeds.length > 0)
+        ? draftMeds
+        : (notes ? [{
+            name: 'Clinical Consultation & Follow-Up Protocol',
+            dosage: 'Standard',
+            frequency: 'Daily regimen',
+            duration: 'Course until follow-up',
+          }] : []);
+
+      if (effectiveMeds.length > 0) {
         await addRx(activeCall.patientId, {
           appointmentId: activeCall.id,
           diagnosis: activeCall.type || 'Teleconsultation',
           instructions: notes || '',
-          medicines: draftMeds.map(m => ({
+          medicines: effectiveMeds.map(m => ({
             name: m.name || m.rawText || 'Medication',
-            dosage: m.dosage || '',
+            dosage: m.dosage || 'Standard',
             frequency: m.frequency || m.schedule || '1-0-1',
             duration: m.duration || '30 Days',
           })),

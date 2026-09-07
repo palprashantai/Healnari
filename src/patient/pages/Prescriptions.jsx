@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { DoseSchedule, parseDoseSchedule } from '../../components/DoseSchedule.jsx';
@@ -147,6 +148,41 @@ const STATUS_CARD_STYLE = {
   Completed:       'bg-slate-200 text-slate-500',
 };
 
+function parseRxInstructions(rawInstructions) {
+  let clinicalNotes = '';
+  let followUpAdvice = '';
+  let dietPlan = '';
+  let exercisePlan = '';
+
+  if (!rawInstructions) return { clinicalNotes, followUpAdvice, dietPlan, exercisePlan };
+
+  if (typeof rawInstructions === 'string' && rawInstructions.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(rawInstructions.trim());
+      if (parsed.type === 'healnari-holistic-v1') {
+        clinicalNotes = parsed.clinicalNotes || '';
+        followUpAdvice = parsed.followUpAdvice || '';
+        dietPlan = parsed.dietPlan || '';
+        exercisePlan = parsed.exercisePlan || '';
+      }
+    } catch {}
+  }
+
+  if (!clinicalNotes && !followUpAdvice) {
+    clinicalNotes = String(rawInstructions).trim();
+  }
+
+  if (typeof clinicalNotes === 'string' && clinicalNotes) {
+    const match = clinicalNotes.match(/(?:Next\s+)?Follow[- ]?up(?:\s+Review|\s+Consultation|\s+Advice|\s+Plan)?:\s*([^\n\r]+)/i);
+    if (match) {
+      if (!followUpAdvice) followUpAdvice = match[1].trim();
+      clinicalNotes = clinicalNotes.replace(/(?:Next\s+)?Follow[- ]?up(?:\s+Review|\s+Consultation|\s+Advice|\s+Plan)?:\s*[^\n\r]+/gi, '').trim();
+    }
+  }
+
+  return { clinicalNotes, followUpAdvice, dietPlan, exercisePlan };
+}
+
 /** One card per prescription — every medicine a doctor wrote together in the
  * same "Write Prescription" visit shares a group_id and is shown together,
  * instead of each medicine line rendering as its own separate prescription. */
@@ -159,20 +195,29 @@ function toRxCards(myPatient) {
       if (!byGroup.has(m.groupId)) byGroup.set(m.groupId, []);
       byGroup.get(m.groupId).push(m);
     });
-  return [...byGroup.entries()].map(([groupId, meds]) => ({
-    id: groupId,
-    doctor: meds[0]?.doctor || 'Your Doctor',
-    doctorSpecialty: meds[0]?.doctorSpecialty || '',
-    doctorRegNo: meds[0]?.doctorRegNo || '',
-    date: meds[0]?.prescribedOn,
-    diagnosis: meds.find(m => m.diagnosis)?.diagnosis || (myPatient.diagnosis && myPatient.diagnosis !== 'Pending' ? myPatient.diagnosis : 'General'),
-    status: meds.some(m => m.refillsLeft > 0) ? 'Active' : 'Expired',
-    validTill: meds.reduce((latest, m) => (!latest || (m.validTill && m.validTill > latest)) ? m.validTill : latest, ''),
-    medicines: meds.map(m => ({ id: m.id, name: m.name, schedule: m.frequency, duration: m.duration, refills: m.refillsLeft })),
-    instructions: meds.find(m => m.instructions)?.instructions || '',
-    refillRequested: meds.some(m => m.refillRequested),
-    handwrittenImage: meds[0]?.handwrittenImage || meds[0]?.file_url || null,
-  })).sort((a, b) => new Date(b.date) - new Date(a.date));
+  return [...byGroup.entries()].map(([groupId, meds]) => {
+    const rawInstr = meds.find(m => m.instructions)?.instructions || '';
+    const parsed = parseRxInstructions(rawInstr);
+    return {
+      id: groupId,
+      doctorId: meds[0]?.doctorId || null,
+      doctor: meds[0]?.doctor || 'Your Doctor',
+      doctorSpecialty: meds[0]?.doctorSpecialty || '',
+      doctorRegNo: meds[0]?.doctorRegNo || '',
+      date: meds[0]?.prescribedOn,
+      diagnosis: meds.find(m => m.diagnosis)?.diagnosis || (myPatient.diagnosis && myPatient.diagnosis !== 'Pending' ? myPatient.diagnosis : 'General'),
+      status: meds.some(m => m.refillsLeft > 0) ? 'Active' : 'Expired',
+      validTill: meds.reduce((latest, m) => (!latest || (m.validTill && m.validTill > latest)) ? m.validTill : latest, ''),
+      medicines: meds.map(m => ({ id: m.id, name: m.name, schedule: m.frequency, duration: m.duration, refills: m.refillsLeft })),
+      instructions: rawInstr,
+      clinicalNotes: parsed.clinicalNotes,
+      followUpAdvice: parsed.followUpAdvice,
+      dietPlan: parsed.dietPlan,
+      exercisePlan: parsed.exercisePlan,
+      refillRequested: meds.some(m => m.refillRequested),
+      handwrittenImage: meds[0]?.handwrittenImage || meds[0]?.file_url || null,
+    };
+  }).sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
 const DOSE_SLOT_DEFS = [
@@ -182,7 +227,7 @@ const DOSE_SLOT_DEFS = [
 ];
 
 /* ─── Prescription Detail Modal ─────────────── */
-function PrescriptionModal({ rx, labRequests, onClose }) {
+function PrescriptionModal({ rx, labRequests, onClose, onBookFollowUp }) {
   if (!rx) return null;
   const daysLeft = daysUntil(rx.validTill);
   const effectiveStatus = resolveRxStatus(rx);
@@ -260,10 +305,41 @@ function PrescriptionModal({ rx, labRequests, onClose }) {
         })()}
 
         {/* Instructions */}
-        <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-          <p className="text-xs font-black text-amber-800 mb-1.5 uppercase tracking-wide flex items-center gap-1.5"><i className="fas fa-circle-info"></i> Doctor's Instructions</p>
-          <p className="text-xs text-amber-900 leading-relaxed">{rx.instructions}</p>
-        </div>
+        {rx.clinicalNotes && (
+          <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+            <p className="text-xs font-black text-amber-800 mb-1.5 uppercase tracking-wide flex items-center gap-1.5"><i className="fas fa-circle-info"></i> Doctor's Instructions</p>
+            <p className="text-xs text-amber-900 leading-relaxed whitespace-pre-line">{rx.clinicalNotes}</p>
+          </div>
+        )}
+
+        {/* Recommended Next Follow-Up */}
+        {rx.followUpAdvice && (
+          <div className="bg-purple-50/90 border border-purple-200 rounded-xl p-4 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-black text-purple-900 uppercase tracking-wide flex items-center gap-1.5">
+                <i className="fas fa-calendar-check text-purple-600"></i> Recommended Next Follow-Up
+              </p>
+              {onBookFollowUp && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onBookFollowUp(rx.doctorId, rx.doctor);
+                  }}
+                  className="text-xs font-bold bg-purple-700 hover:bg-purple-800 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 shadow-xs"
+                >
+                  <i className="fas fa-calendar-plus"></i> Book Follow-Up
+                </button>
+              )}
+            </div>
+            <div className="text-sm font-bold text-purple-950 flex items-center gap-2">
+              <span className="text-base">📅</span>
+              <span>Review: {rx.followUpAdvice}</span>
+            </div>
+            <p className="text-[11px] text-purple-700 leading-relaxed">
+              Schedule your follow-up review consultation with Dr. {rx.doctor} around this timeframe to evaluate treatment progress, review diagnostic reports, or titrate medications.
+            </p>
+          </div>
+        )}
 
         <div className="flex gap-2 pt-2 border-t border-slate-100">
           <button onClick={onClose} className="flex-1 crm-btn-secondary">Close</button>
@@ -299,6 +375,7 @@ function RefillModal({ rx, onClose, onSubmit, submitting }) {
 
 /* ─── Main Component ─────────────────────────── */
 function PatientPrescriptions() {
+  const navigate = useNavigate();
   const toast = useToast();
   const { patients, requestRefill, lifestyleLogs } = useClinicData();
   const prescriptions = useMemo(() => toRxCards(patients[0]), [patients]);
@@ -342,12 +419,14 @@ function PatientPrescriptions() {
   };
 
   const handleDownload = (rx) => {
-    let finalInstructions = rx.instructions;
+    let finalInstructions = rx.clinicalNotes || rx.instructions;
+    let followUpAdvice = rx.followUpAdvice || '';
     try {
       if (rx.instructions && rx.instructions.startsWith('{')) {
         const parsed = JSON.parse(rx.instructions);
         if (parsed.type === 'healnari-holistic-v1') {
-          finalInstructions = [parsed.clinicalNotes, parsed.followUpAdvice ? `Next Follow-up: ${parsed.followUpAdvice}` : ''].filter(Boolean).join('\n\n');
+          finalInstructions = parsed.clinicalNotes || '';
+          if (!followUpAdvice && parsed.followUpAdvice) followUpAdvice = parsed.followUpAdvice;
         }
       }
     } catch(e) {}
@@ -373,6 +452,8 @@ function PatientPrescriptions() {
       medicines: rx.medicines,
       labTests: matchingLabTests.map(r => r.requested_tests),
       instructions: finalInstructions,
+      followUpAdvice: followUpAdvice,
+      followUp: followUpAdvice,
       handwrittenImage: rx.handwrittenImage,
     });
   };
@@ -501,6 +582,34 @@ function PatientPrescriptions() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Recommended Follow-Up — shown prominently on card if doctor set a follow-up */}
+                  {rx.followUpAdvice && (
+                    <div className="mb-5 rounded-2xl bg-purple-50/90 border border-purple-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                      <div className="flex items-start sm:items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                          <i className="fas fa-calendar-check text-lg"></i>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-purple-700">Recommended Next Review</span>
+                            <span className="bg-purple-200/70 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded-full">Follow-up</span>
+                          </div>
+                          <div className="text-xs font-black text-purple-950 mt-0.5">{rx.followUpAdvice}</div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          navigate('/patient-dashboard/appointments', {
+                            state: { doctorId: rx.doctorId, doctorName: rx.doctor, followUp: true }
+                          });
+                        }}
+                        className="self-start sm:self-center text-xs font-bold bg-purple-700 hover:bg-purple-800 text-white px-3.5 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5 shrink-0"
+                      >
+                        <i className="fas fa-calendar-plus"></i> Book Follow-up
+                      </button>
+                    </div>
+                  )}
 
                   {/* Lifestyle Plan — shown inline if the doctor set one */}
                   {(() => {
@@ -696,7 +805,16 @@ function PatientPrescriptions() {
       </div>
 
       {/* Modals */}
-      <PrescriptionModal rx={detailRx} labRequests={labRequests} onClose={() => setDetailRx(null)} />
+      <PrescriptionModal
+        rx={detailRx}
+        labRequests={labRequests}
+        onClose={() => setDetailRx(null)}
+        onBookFollowUp={(docId, docName) => {
+          navigate('/patient-dashboard/appointments', {
+            state: { doctorId: docId, doctorName: docName, followUp: true }
+          });
+        }}
+      />
       <RefillModal rx={refillRx} onClose={() => setRefillRx(null)} onSubmit={handleRefillSubmit} submitting={submittingRefill} />
       <AiDrugSafetyModal rx={safetyTargetRx} onClose={() => setSafetyTargetRx(null)} />
     </div>

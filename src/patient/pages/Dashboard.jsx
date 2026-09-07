@@ -1702,6 +1702,7 @@ function PatientAiDashboardCard({ navigate }) {
 function PatientDashboard() {
   const { user } = useAuth();
   const { appointments, patients, addAppointment, vitals, logLifestyle, lifestyleLogs, logCycle, cycleLogs, requestRefill } = useClinicData();
+  const own = patients?.[0] || null;
   const navigate = useNavigate();
   const toast = useToast();
 
