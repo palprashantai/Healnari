@@ -22,7 +22,7 @@ const MENU_CATEGORIES = [
     items: [
       { name: 'Dashboard',          icon: 'fa-house',          path: '/patient-dashboard',              color: '#6B46C1' },
       { name: 'AI Health Hub',      icon: 'fa-wand-magic-sparkles', path: '/patient-dashboard/ai',      color: '#a855f7', badge: 'AI' },
-      { name: 'Find a Doctor',      icon: 'fa-user-doctor',    path: '/patient-dashboard/find-doctor',   color: '#0ea5e9' },
+      { name: 'Find a Specialist',  icon: 'fa-user-doctor',    path: '/patient-dashboard/find-doctor',   color: '#0ea5e9' },
     ]
   },
   {
@@ -30,7 +30,7 @@ const MENU_CATEGORIES = [
     items: [
       { name: 'My Appointments',    icon: 'fa-calendar-check', path: '/patient-dashboard/appointments',  color: '#10b981' },
       { name: 'Medical Records',    icon: 'fa-file-medical',   path: '/patient-dashboard/records',       color: '#f59e0b' },
-      { name: 'Prescriptions',      icon: 'fa-pills',          path: '/patient-dashboard/prescriptions', color: '#f43f5e' },
+      { name: 'Prescriptions & Care', icon: 'fa-pills',        path: '/patient-dashboard/prescriptions', color: '#f43f5e' },
     ]
   },
   {
@@ -55,7 +55,7 @@ const MENU_CATEGORIES = [
 const BOTTOM_TABS = [
   { name: 'Home',         icon: 'fa-house',          path: '/patient-dashboard' },
   { name: 'Appointments', icon: 'fa-calendar-check', path: '/patient-dashboard/appointments' },
-  { name: 'Find Doctor',  icon: 'fa-user-doctor',    path: '/patient-dashboard/find-doctor', isFab: true },
+  { name: 'Specialists',  icon: 'fa-user-doctor',    path: '/patient-dashboard/find-doctor', isFab: true },
   { name: 'Tracking',     icon: 'fa-heart-pulse',    path: '/patient-dashboard/tracking' },
   { name: 'Vault',        icon: 'fa-file-medical',   path: '/patient-dashboard/records' },
 ];

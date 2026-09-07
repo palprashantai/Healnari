@@ -10,6 +10,7 @@ import { todayLocalStr } from '../../lib/dateUtils.js';
 import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
 import { useFullscreen } from '../../hooks/useFullscreen.js';
 import { openPrescriptionPrintWindow, openLifestylePlanPrintWindow } from '../../lib/prescriptionPrint.js';
+import { getProviderCapabilities } from '../../lib/providerCapabilities.js';
 import { AIButton } from '../../components/AiButton.jsx';
 import { AIPaywallModal } from '../../components/ai/AIPaywallModal.jsx';
 import { AIUsageBadge } from '../../components/ai/AIUsageBadge.jsx';
@@ -965,18 +966,19 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
       }] : []
     );
 
+    const caps = getProviderCapabilities(user);
     openPrescriptionPrintWindow({
       rxId: `HN-${session.id?.slice(0, 6).toUpperCase() || 'TELE'}`,
       date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
       doctor: {
-        name: user?.name || 'Dr. Consultant Gynecologist',
-        specialty: 'Obstetrics & Gynecology',
-        regNo: 'HN-88421',
+        name: caps.displayName,
+        specialty: caps.specialtyLabel,
+        regNo: user?.profile?.registration_no || user?.registrationNo || 'HN-VERIFIED',
       },
       patient: {
         name: session.patient,
-        age: session.age || '28',
-        gender: 'Female',
+        age: session.age || '—',
+        gender: session.gender || session.patientRecord?.gender || 'Not specified',
       },
       diagnosis: diagnosis,
       medicines: medsToPrint.map(m => ({
@@ -2976,18 +2978,19 @@ function DoctorTelemedicine() {
   const newRequestSessions = todaySessions.filter(s => !s.accepted);
 
   const handlePrintHistoryPrescription = (histItem) => {
+    const caps = getProviderCapabilities(user);
     openPrescriptionPrintWindow({
       rxId: `HN-${String(histItem.id || '').replace(/^hist-/, '').slice(0, 6).toUpperCase() || 'TELE'}`,
       date: histItem.date === 'Today' ? new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : (histItem.rawDate || histItem.date),
       doctor: {
-        name: user?.name || 'Dr. Sarah Mitchell',
-        specialty: 'Obstetrics & Gynecology',
-        regNo: 'NMC-88421',
+        name: caps.displayName,
+        specialty: caps.specialtyLabel,
+        regNo: user?.profile?.registration_no || user?.registrationNo || 'NMC-VERIFIED',
       },
       patient: {
         name: histItem.patient,
-        age: String(histItem.age || '28').replace(/[^0-9]/g, '') || '28',
-        gender: 'Female',
+        age: String(histItem.age || '—').replace(/[^0-9]/g, '') || '—',
+        gender: histItem.gender || 'Not specified',
       },
       diagnosis: histItem.diagnosis || 'Clinical Teleconsultation',
       medicines: (histItem.meds || []).map(m => ({

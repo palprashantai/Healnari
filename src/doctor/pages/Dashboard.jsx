@@ -9,6 +9,7 @@ import { Tilt3D } from '../../components/Tilt3D.jsx';
 import { DoctorShareModal } from '../../components/DoctorShareModal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { todayLocalStr } from '../../lib/dateUtils.js';
+import { getProviderCapabilities } from '../../lib/providerCapabilities.js';
 
 const DAY_MS = 86400000;
 function daysAgoLabel(dateStr) {
@@ -152,11 +153,11 @@ function UrgentLabModal({ lab, onClose, toast, doctorName }) {
 }
 
 /* ─── Patient File Modal ─── */
-function PatientFileModal({ row, onClose, onWriteRx }) {
+function PatientFileModal({ row, onClose, onPrimaryAction, capabilities }) {
   if (!row) return null;
   const p = row.patient;
   return (
-    <Modal isOpen={!!row} onClose={onClose} title={`Patient File — ${row.name}`} size="lg">
+    <Modal isOpen={!!row} onClose={onClose} title={`${capabilities?.clientLabel || 'Patient'} File — ${row.name}`} size="lg">
       <div className="space-y-4">
         <div className="flex items-center gap-4 bg-slate-50 rounded-2xl p-4 border border-slate-200">
           <div className="w-14 h-14 rounded-2xl bg-aubergine-100 text-aubergine-700 flex items-center justify-center text-xl font-black">
@@ -197,8 +198,9 @@ function PatientFileModal({ row, onClose, onWriteRx }) {
         </div>
         <div className="flex gap-3 pt-2 border-t border-slate-100">
           <button onClick={onClose} className="flex-1 border border-slate-200 text-slate-600 font-bold py-2.5 rounded-xl text-sm hover:bg-slate-50 transition-colors">Close</button>
-          <button onClick={() => onWriteRx(p)} className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-            <i className="fas fa-file-prescription"></i> Write Prescription
+          <button onClick={() => onPrimaryAction(p)} className="flex-1 bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+            <i className={`fas ${capabilities?.primaryAction?.icon || 'fa-file-prescription'}`}></i>
+            {capabilities?.primaryAction?.name || 'Write Prescription'}
           </button>
         </div>
       </div>
@@ -645,7 +647,8 @@ function DoctorDashboard() {
   const toast = useToast();
   const { patients, appointments, refillRequests, approveRefill: ctxApproveRefill, rejectRefill: ctxRejectRefill, callNextForDoctor, kycVerified, kycSubmitted, verifyKyc } = useClinicData();
 
-  const doctorName = user?.name || 'Dr. Sarah Mitchell';
+  const capabilities = useMemo(() => getProviderCapabilities(user), [user]);
+  const doctorName = capabilities.displayName;
   const todayIso = todayLocalStr();
 
   const queue = useMemo(() => {
@@ -654,11 +657,12 @@ function DoctorDashboard() {
       .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
       .map((a, i) => {
         const patient = patients.find(p => p.id === a.patientId);
+        const genderSuffix = patient?.gender ? (patient.gender.toLowerCase().startsWith('f') ? 'F' : patient.gender.toLowerCase().startsWith('m') ? 'M' : '') : '';
         return {
           id: a.id,
           token: `T-${String(i + 1).padStart(2, '0')}`,
           name: a.patientName,
-          age: patient ? `${patient.age}F` : '—',
+          age: patient ? `${patient.age}${genderSuffix}` : '—',
           type: a.reason,
           time: a.time,
           status: a.status,
@@ -701,16 +705,16 @@ function DoctorDashboard() {
           toast(err.message || 'Failed to update queue', 'error');
         }
       } else {
-        toast('No waiting patients in the queue right now.', 'info');
+        toast(`No waiting ${capabilities.clientLabel.toLowerCase()}s in the queue right now.`, 'info');
       }
       return;
     }
 
     try {
       await callNextForDoctor(doctorName);
-      toast(`Calling next patient: ${nextPatient.name} (${nextPatient.token})`, 'success');
+      toast(`Calling next ${capabilities.clientLabel.toLowerCase()}: ${nextPatient.name} (${nextPatient.token})`, 'success');
     } catch (err) {
-      toast(err.message || 'Failed to call next patient', 'error');
+      toast(err.message || `Failed to call next ${capabilities.clientLabel.toLowerCase()}`, 'error');
     }
   };
 
@@ -741,10 +745,14 @@ function DoctorDashboard() {
     if (urgentLab) { setReviewedLabIds(prev => [...prev, urgentLab.id]); setUrgentLab(null); }
   };
 
-  const handleWriteRx = (patient) => {
+  const handlePrimaryAction = (patient) => {
     setSelectedRow(null);
-    navigate('/doctor-dashboard/patients');
-    toast(`Open ${patient.name}'s chart to write a prescription.`, 'info');
+    if (capabilities.primaryAction?.route) {
+      navigate(capabilities.primaryAction.route);
+      toast(`Opening ${capabilities.primaryAction.name} for ${patient.name}.`, 'info');
+    } else {
+      navigate('/doctor-dashboard/patients');
+    }
   };
 
   const hour = new Date().getHours();
@@ -752,10 +760,32 @@ function DoctorDashboard() {
   const todayLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
 
   const todayStats = [
-    { label: "Today's Queue", value: queue.length, sub: `${queue.filter(q => q.status !== 'Done' && q.status !== 'No Show').length} remaining`, icon: 'fa-hospital-user', color: 'from-slate-600 to-slate-800', onClick: () => navigate('/doctor-dashboard/appointments') },
-    { label: 'Lab Reviews', value: visibleLabs.length, sub: visibleLabs.some(l => l.urgent) ? '⚡ Urgent pending' : 'All reviewed', icon: 'fa-microscope', color: 'from-amber-500 to-orange-600', onClick: () => navigate('/doctor-dashboard/reports') },
-    { label: 'Refill Requests', value: refillRequests.length, sub: 'Awaiting approval', icon: 'fa-prescription-bottle-medical', color: 'from-teal-500 to-cyan-600', onClick: () => navigate('/doctor-dashboard/prescriptions') },
-    { label: 'Active Patients', value: patients.filter(p => p.status === 'active').length, sub: `${patients.length} total in roster`, icon: 'fa-heart-pulse', color: 'from-rose-500 to-red-600', onClick: () => navigate('/doctor-dashboard/patients') },
+    { 
+      label: "Today's Schedule", 
+      value: queue.length, 
+      sub: `${queue.filter(q => q.status !== 'Done' && q.status !== 'No Show').length} remaining`, 
+      icon: 'fa-hospital-user', 
+      color: 'from-slate-600 to-slate-800', 
+      onClick: () => navigate('/doctor-dashboard/appointments') 
+    },
+    capabilities.canReviewLabs
+      ? { label: 'Lab Reviews', value: visibleLabs.length, sub: visibleLabs.some(l => l.urgent) ? '⚡ Urgent pending' : 'All reviewed', icon: 'fa-microscope', color: 'from-amber-500 to-orange-600', onClick: () => navigate('/doctor-dashboard/reports') }
+      : capabilities.canFormulateDiet
+      ? { label: 'Diet Protocols', value: 'Active', sub: 'Clinical meal charts', icon: 'fa-apple-whole', color: 'from-amber-500 to-orange-600', onClick: () => navigate('/doctor-dashboard/diet-yoga') }
+      : { label: 'Care Protocols', value: 'Active', sub: 'Custom treatment guides', icon: 'fa-heart-circle-check', color: 'from-amber-500 to-orange-600', onClick: () => navigate('/doctor-dashboard/diet-yoga') },
+    capabilities.canManageRefills
+      ? { label: 'Refill Requests', value: refillRequests.length, sub: 'Awaiting approval', icon: 'fa-prescription-bottle-medical', color: 'from-teal-500 to-cyan-600', onClick: () => navigate('/doctor-dashboard/prescriptions') }
+      : capabilities.canFormulateYoga
+      ? { label: 'Movement Protocols', value: 'Active', sub: 'Yoga & posture therapy', icon: 'fa-person-walking', color: 'from-teal-500 to-cyan-600', onClick: () => navigate('/doctor-dashboard/diet-yoga') }
+      : { label: 'Completed Today', value: queue.filter(q => q.status === 'Done').length, sub: 'Finished consultations', icon: 'fa-clipboard-check', color: 'from-teal-500 to-cyan-600', onClick: () => navigate('/doctor-dashboard/appointments') },
+    { 
+      label: `Active ${capabilities.clientLabel}s`, 
+      value: patients.filter(p => p.status === 'active').length, 
+      sub: `${patients.length} total in roster`, 
+      icon: 'fa-users', 
+      color: 'from-rose-500 to-red-600', 
+      onClick: () => navigate('/doctor-dashboard/patients') 
+    },
   ];
 
   return (
@@ -796,12 +826,13 @@ function DoctorDashboard() {
             <div>
               <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mb-2">
                 {greeting},
-                <span className="block text-emerald-400">{user?.name || 'Doctor'}.</span>
+                <span className="block text-emerald-400">{capabilities.displayName}.</span>
               </h1>
               <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
-                <span className="text-white font-bold">{queue.filter(q => q.status !== 'Done' && q.status !== 'No Show').length}</span> patients remaining today
+                <span className="text-emerald-300 font-bold mr-2">{capabilities.specialtyLabel}</span> · 
+                <span className="text-white font-bold"> {queue.filter(q => q.status !== 'Done' && q.status !== 'No Show').length}</span> {capabilities.clientLabel.toLowerCase()}s remaining today
                 {queue.filter(q => q.status === 'Done').length > 0 && (
-                  <> · <span className="text-emerald-400 font-bold">{queue.filter(q => q.status === 'Done').length} seen</span></>
+                  <> · <span className="text-emerald-400 font-bold">{queue.filter(q => q.status === 'Done').length} completed</span></>
                 )}
                 {queue.some(q => q.concern) && (
                   <> · <span className="text-amber-400 font-bold">{queue.filter(q => q.concern).length} with alerts</span></>
@@ -982,7 +1013,7 @@ function DoctorDashboard() {
 
       {/* Modals */}
       <DoctorShareModal isOpen={showShareModal} onClose={() => setShowShareModal(false)} doctor={user} />
-      <PatientFileModal row={selectedRow} onClose={() => setSelectedRow(null)} onWriteRx={handleWriteRx} />
+      <PatientFileModal row={selectedRow} onClose={() => setSelectedRow(null)} onPrimaryAction={handlePrimaryAction} capabilities={capabilities} />
       <KYCModal isOpen={showKycModal} onClose={() => setShowKycModal(false)} toast={toast} onVerify={verifyKyc} />
       <UrgentLabModal lab={urgentLab} onClose={handleUrgentLabClose} toast={toast} doctorName={user?.name} />
     </div>

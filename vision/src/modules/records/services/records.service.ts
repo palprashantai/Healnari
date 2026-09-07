@@ -284,11 +284,47 @@ export class RecordsService {
   }
 
   private async notifyPatientOfPrescription(user: AuthUser, patient: any, body: CreatePrescriptionDto, groupId: string) {
+    let isHolisticPlan = false;
+    let isDietOnly = false;
+    let isYogaOnly = false;
+    try {
+      if (body.instructions && body.instructions.startsWith('{')) {
+        const parsed = JSON.parse(body.instructions);
+        if (parsed.type === 'healnari-holistic-v1') {
+          isHolisticPlan = true;
+          if (parsed.dietPlan && !parsed.exercisePlan) isDietOnly = true;
+          if (parsed.exercisePlan && !parsed.dietPlan) isYogaOnly = true;
+        }
+      }
+    } catch {}
+
+    const isDietitian = /diet|nutrition/i.test(user.profile?.specialty || '');
+    const isYoga = /yoga|movement|exercise/i.test(user.profile?.specialty || '');
+
+    const prefix = isDietitian ? 'Dt. ' : isYoga ? '' : 'Dr. ';
+    const providerTitle = `${prefix}${user.profile.full_name || 'Your Specialist'}`.trim();
+
+    const notifTitle = isDietOnly || isDietitian
+      ? 'Clinical Diet Plan Formulated'
+      : isYogaOnly || isYoga
+      ? 'Mindful Movement & Yoga Protocol Issued'
+      : isHolisticPlan
+      ? 'Personalized Care & Lifestyle Plan Issued'
+      : 'Prescription Issued';
+
+    const notifMessage = isDietOnly || isDietitian
+      ? `${providerTitle} has created your personalized clinical diet chart. Tap to review meals and guidelines.`
+      : isYogaOnly || isYoga
+      ? `${providerTitle} has formulated your custom movement and yoga protocol. Tap to review your routine.`
+      : isHolisticPlan
+      ? `${providerTitle} has formulated your personalized care protocol. Tap to review.`
+      : `${providerTitle} has issued your prescription${body.diagnosis ? ` for ${body.diagnosis}` : ''} (${body.medicines.length} medication${body.medicines.length > 1 ? 's' : ''}). Tap to review directions and dosage.`;
+
     this.notifications
       .create(body.patientId, {
         type: 'prescription_issued',
-        title: 'Prescription Issued',
-        message: `Dr. ${user.profile.full_name} has issued your prescription${body.diagnosis ? ` for ${body.diagnosis}` : ''} (${body.medicines.length} medication${body.medicines.length > 1 ? 's' : ''}). Tap to review directions and dosage.`,
+        title: notifTitle,
+        message: notifMessage,
         idempotencyKey: `rx_issued_${groupId}`,
         data: { groupId, path: '/patient-dashboard/prescriptions' },
       })
@@ -300,8 +336,8 @@ export class RecordsService {
         to: patient.email,
         variables: {
           patientName: patient.full_name || 'Patient',
-          doctorName: user.profile.full_name || 'Doctor',
-          diagnosis: body.diagnosis || 'General Consultation Plan',
+          doctorName: providerTitle,
+          diagnosis: body.diagnosis || (isDietitian ? 'Clinical Nutrition Plan' : isYoga ? 'Yoga & Movement Protocol' : 'General Consultation Plan'),
           medicineCount: body.medicines?.length || 1,
           recordsUrl: this.email.getUrl('/patient-dashboard/prescriptions'),
         },

@@ -143,6 +143,8 @@ export function generatePrescriptionHtml({
   handwrittenImage,
   followUpAdvice: explicitFollowUpAdvice,
   followUp: explicitFollowUp,
+  dietPlan: explicitDietPlan,
+  exercisePlan: explicitExercisePlan,
   origin = '',
 }) {
   const safeOrigin = origin || ((typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : '');
@@ -173,15 +175,17 @@ export function generatePrescriptionHtml({
   }
 
   // Doctor Details
-  const doctorName = (doctor?.name || 'Dr. Sarah Mitchell').replace(/^Dr\.?\s+/i, 'Dr. ');
-  const doctorSpecialty = doctor?.specialty || 'Senior Consultant Gynaecologist & Obstetrician';
-  const doctorQualifications = doctor?.qualifications || 'MBBS, MS, DGO (Obstetrics & Gynaecology)';
-  const doctorRegNo = doctor?.regNo || 'KMC-84920';
+  const doctorName = doctor?.name
+    ? (/^(Dr\.|Dt\.)/i.test(doctor.name) ? doctor.name : `Dr. ${doctor.name}`)
+    : 'Attending Practitioner';
+  const doctorSpecialty = doctor?.specialty || 'General Practitioner';
+  const doctorQualifications = doctor?.qualifications || doctor?.education || 'Medical Practitioner';
+  const doctorRegNo = doctor?.regNo || doctor?.registrationNo || 'REG-PENDING';
 
   // Patient Details
   const patientName = patient?.name || 'Patient';
   const patientAge = patient?.age && patient.age !== '—' ? `${patient.age} Yrs` : 'Adult';
-  const patientGender = patient?.gender || 'Female';
+  const patientGender = patient?.gender || 'Not specified';
   const patientBlood = patient?.blood && patient.blood !== '—' ? patient.blood : '—';
   const patientMrn = patient?.mrn || (patient?.id ? `HN-${String(patient.id).slice(0, 6).toUpperCase()}` : 'HN-532115');
   const patientPhone = patient?.phone || '';
@@ -200,8 +204,8 @@ export function generatePrescriptionHtml({
   // Parse Instructions & Follow-Up Advice & Lifestyle Protocols
   let displayInstructions = instructions || '';
   let followUpAdvice = (explicitFollowUpAdvice || explicitFollowUp || '').trim();
-  let dietPlan = (options.dietPlan || '').trim();
-  let exercisePlan = (options.exercisePlan || '').trim();
+  let dietPlan = (explicitDietPlan || '').trim();
+  let exercisePlan = (explicitExercisePlan || '').trim();
 
   try {
     if (typeof displayInstructions === 'string' && displayInstructions.trim().startsWith('{')) {

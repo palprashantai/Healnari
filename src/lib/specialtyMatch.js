@@ -58,17 +58,23 @@ export const CONCERN_OPTIONS = [
     icon: 'fa-person-praying' 
   },
   { 
-    label: 'General Women’s Health Checkup', 
+    label: 'Anxiety, Burnout & Mental Wellness', 
+    specialty: 'Mental Health Professional', 
+    description: 'Therapeutic counseling, emotional resilience, mood support, and burnout management.',
+    icon: 'fa-brain' 
+  },
+  { 
+    label: 'Primary Care & General Health Checkup', 
     specialty: 'General Physician', 
-    description: 'Preventive routine checkups, blood work reviews, and holistic health screening.',
+    description: 'Preventive routine checkups, acute illness triage, blood work reviews, and whole-body health.',
     icon: 'fa-heart-pulse' 
   },
 ];
 
 export const SPECIALIST_GUIDES = {
   'Gynaecologist': {
-    title: 'Gynaecologist',
-    focus: "Periods, reproductive health, ovulation, and pelvic well-being.",
+    title: 'Gynecologist & Obstetrician',
+    focus: "Periods, reproductive health, ovulation, PCOS confirmation, and pelvic well-being.",
     bestFor: "Irregular cycles, heavy bleeding, PCOS confirmation, fertility planning, or pelvic discomfort."
   },
   'Endocrinologist': {
@@ -77,19 +83,24 @@ export const SPECIALIST_GUIDES = {
     bestFor: 'Insulin resistance, thyroid imbalances, sudden unexplained weight shifts, or adrenal fatigue.'
   },
   'Dermatologist': {
-    title: 'Dermatologist',
+    title: 'Dermatologist & Trichologist',
     focus: 'Skin barrier health, adult cystic acne, hormonal hyperpigmentation, and scalp vitality.',
     bestFor: 'Persistent breakouts, jawline cystic acne, scalp hair thinning, or skin texture changes.'
   },
   'Clinical Dietitian': {
-    title: 'Clinical Dietitian',
-    focus: 'Sustainable, non-restrictive nutrition tailored to metabolism, digestion, and energy.',
+    title: 'Clinical Dietitian & Nutritionist',
+    focus: 'Sustainable, therapeutic nutrition tailored to metabolism, digestion, and energy.',
     bestFor: 'Practical blood-sugar balancing meal plans, gut health, and supportive lifestyle nutrition.'
   },
   'Yoga & Movement Specialist': {
     title: 'Yoga & Mindful Movement Specialist',
     focus: 'Supportive movement, stress reduction, restorative breathwork, and pelvic mobility.',
     bestFor: 'Somatic stress relief, low-impact hormone-friendly movement, and sleep optimization.'
+  },
+  'Mental Health Professional': {
+    title: 'Mental Health Professional / Counselor',
+    focus: 'Emotional regulation, cognitive support, stress resilience, and compassionate talk therapy.',
+    bestFor: 'Chronic stress, mood fluctuations, life transitions, burnout, and emotional fatigue.'
   },
   'General Physician': {
     title: 'General Physician',

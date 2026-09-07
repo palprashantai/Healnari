@@ -128,6 +128,23 @@ function BookingModal({ doc, patientCountry = 'IN', isOpen, onClose, toast, addA
             )}
           </div>
 
+          {/* Consultation Deliverable Banner */}
+          <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-xs flex items-center gap-2.5 text-emerald-900 font-medium">
+            <i className="fas fa-certificate text-emerald-600 text-sm"></i>
+            <div>
+              <span className="font-bold text-[11px] uppercase tracking-wider block text-emerald-800">Care Deliverable</span>
+              <span className="text-xs">
+                {/nutrition|diet/i.test(doc.specialty)
+                  ? 'Personalized Clinical Diet Chart & Meal Protocol'
+                  : /yoga|movement|fitness/i.test(doc.specialty)
+                  ? 'Custom Yoga & Mindful Movement Routine'
+                  : /mental|psych|counsel/i.test(doc.specialty)
+                  ? 'Therapeutic Action Plan & Counseling Summary'
+                  : 'Official Digital Prescription & Care Guidelines'}
+              </span>
+            </div>
+          </div>
+
           {/* Type */}
           <div>
             <p className="text-xs font-bold text-slate-500 mb-1.5 block" id="consult-type-label">Consult Type</p>
@@ -470,9 +487,9 @@ function PatientDiscovery() {
     languages: d.languages || 'English, Hindi',
     clinic_name: d.clinic_name || 'HealNari Clinical Care Network',
     clinic_address: d.clinic_address || 'Online Telemedicine & Partner Clinic',
-    medical_council: d.medical_council || 'State Medical Council',
-    bio: d.bio || 'Consultant dedicated to root-cause endocrine, gynaecological, and holistic women’s health.',
-    ethos: d.ethos || 'Root-cause hormonal regulation & evidence-based care',
+    medical_council: d.medical_council || 'Medical / Allied Health Council',
+    bio: d.bio || 'Dedicated consultant delivering personalized clinical guidelines, evidence-based care, and holistic outcomes.',
+    ethos: d.ethos || 'Root-cause medicine, holistic lifestyle regulation & compassionate clinical care',
     rating: d.rating || 4.9,
     reviews_count: d.reviews_count || 128,
     fee: d.consultation_fee || (d.currency === 'USD' ? 29 : 799),
@@ -482,7 +499,21 @@ function PatientDiscovery() {
     verified: !!d.kyc_verified,
   })), [rawDoctors]);
 
-  const specialties = useMemo(() => ['All', ...(Array.isArray(dbSpecialties) ? dbSpecialties : []).map(s => s.name)], [dbSpecialties]);
+  const specialties = useMemo(() => {
+    if (Array.isArray(dbSpecialties) && dbSpecialties.length > 0) {
+      return ['All', ...dbSpecialties.map(s => s.name)];
+    }
+    return [
+      'All',
+      'General Physician',
+      'Gynecologist',
+      'Endocrinologist',
+      'Dermatologist',
+      'Dietitian & Nutritionist',
+      'Yoga & Movement',
+      'Mental Health'
+    ];
+  }, [dbSpecialties]);
 
 
   const handleFavorite = async (id) => {
@@ -518,8 +549,8 @@ function PatientDiscovery() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800">Find a Doctor</h1>
-          <p className="text-sm text-slate-500">Browse HealNari's verified specialists, ratings, and book consultations.</p>
+          <h1 className="text-2xl font-black text-slate-800">Find a Specialist</h1>
+          <p className="text-sm text-slate-500">Consult verified physicians, clinical nutritionists, dermatologists, mental health experts &amp; yoga specialists.</p>
         </div>
         <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-sm">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>

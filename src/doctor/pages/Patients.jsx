@@ -12,6 +12,7 @@ import { buildPatientTimeline } from '../../lib/patientTimeline.js';
 import { openPrescriptionPrintWindow, openPatientEmrPrintWindow, openInvoicePrintWindow, openLifestylePlanPrintWindow } from '../../lib/prescriptionPrint.js';
 import { AiButton } from '../../components/AiButton.jsx';
 import DietAndYogaMakerPage from './DietAndYogaMakerPage.jsx';
+import { getProviderCapabilities } from '../../lib/providerCapabilities.js';
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -79,12 +80,15 @@ function WriteRxPage({ patient, onBack, onSaveRx }) {
   const { user } = useAuth();
   const toast = useToast();
 
-  const doctorName = user?.name || user?.profile?.full_name || 'Dr. Sarah Mitchell';
-  const doctorSpecialty = user?.profile?.specialty || 'Gynaecologist & Obstetrician';
-  const doctorReg = user?.profile?.registration_no || 'KMC-84920';
+  const capabilities = useMemo(() => getProviderCapabilities(user), [user]);
+  const doctorName = capabilities.displayName;
+  const doctorSpecialty = capabilities.specialtyLabel;
+  const doctorReg = user?.profile?.registration_no || user?.registrationNo || 'REG-VERIFIED';
 
   const [diagnosis, setDiagnosis] = useState(
-    patient?.diagnosis && patient.diagnosis !== 'Pending' ? patient.diagnosis : 'PCOS (Polycystic Ovary Syndrome)'
+    patient?.diagnosis && patient.diagnosis !== 'Pending'
+      ? patient.diagnosis
+      : (capabilities.specialtyDef?.commonConditions?.[0] || 'General Consultation')
   );
 
   const [medicines, setMedicines] = useState([
@@ -1539,9 +1543,9 @@ function ViewRxDocModal({ rx, patient, labRequests, isOpen, onClose }) {
         {/* Clinic Header */}
         <div className="flex justify-between items-start border-b border-slate-200 pb-4">
           <div>
-            <h2 className="text-xl font-black text-aubergine-900 tracking-tight">HealNari Women's Health Clinic</h2>
-            <p className="text-xs text-slate-500">Center for Gynaecology, PCOS & Advanced Reproductive Medicine</p>
-            <p className="text-[11px] text-slate-500 mt-1">102 Medical Hub, Indiranagar, Bengaluru • Phone: +91 80 4567 8900</p>
+            <h2 className="text-xl font-black text-aubergine-900 tracking-tight">HealNari Multi-Specialty Clinic</h2>
+            <p className="text-xs text-slate-500">Integrated Medical &amp; Holistic Specialist Care Services</p>
+            <p className="text-[11px] text-slate-500 mt-1">Digital Tele-EMR &amp; Healthcare Hub • Phone: +91 80 4567 8900</p>
           </div>
           <div className="text-right">
             <span className="text-2xl font-serif text-aubergine-800 font-bold">Rx</span>
@@ -1555,14 +1559,14 @@ function ViewRxDocModal({ rx, patient, labRequests, isOpen, onClose }) {
           <div>
             <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Patient Information</p>
             <p className="font-black text-slate-800 text-sm mt-0.5">{patient.name}</p>
-            <p className="text-slate-600">{patient.age} Yrs / {patient.blood} • {patient.phone}</p>
+            <p className="text-slate-600">{patient.age} Yrs {patient.gender ? `/ ${patient.gender}` : ''} / {patient.blood} • {patient.phone}</p>
             <p className="text-aubergine-700 font-bold mt-1">Diagnosis: {patient.diagnosis}</p>
           </div>
           <div className="text-right sm:text-left">
-            <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Prescribing Doctor</p>
-            <p className="font-black text-slate-800 text-sm mt-0.5">{rx.prescribedBy}</p>
-            <p className="text-slate-600">MD, DGO (Obstetrics & Gynaecology)</p>
-            <p className="text-slate-500">Reg No: KMC-84920</p>
+            <p className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Prescribing Specialist</p>
+            <p className="font-black text-slate-800 text-sm mt-0.5">{rx.prescribedBy || 'Attending Practitioner'}</p>
+            <p className="text-slate-600">{rx.doctorSpecialty || 'Clinical Specialist'}</p>
+            <p className="text-slate-500">{rx.doctorRegNo ? `Reg No: ${rx.doctorRegNo}` : 'Verified Clinical Practitioner'}</p>
           </div>
         </div>
 
@@ -1619,11 +1623,11 @@ function ViewRxDocModal({ rx, patient, labRequests, isOpen, onClose }) {
         {/* Signature & Footer */}
         <div className="flex justify-between items-end pt-4 border-t border-slate-200">
           <div>
-            <p className="text-[10px] text-slate-500">Digitally signed & stored in EMR encrypted registry.</p>
+            <p className="text-[10px] text-slate-500">Digitally signed &amp; stored in EMR encrypted registry.</p>
             <p className="text-[10px] text-slate-500">Valid until: {rx.duration}</p>
           </div>
           <div className="text-center">
-            <div className="font-serif italic text-aubergine-800 text-lg font-bold">Dr. Sarah Mitchell</div>
+            <div className="font-serif italic text-aubergine-800 text-lg font-bold">{rx.prescribedBy || 'Attending Practitioner'}</div>
             <div className="w-32 border-b border-slate-400 my-1 mx-auto"></div>
             <p className="text-[10px] font-bold text-slate-500">Authorized Medical Practitioner Signature</p>
           </div>
@@ -1635,15 +1639,15 @@ function ViewRxDocModal({ rx, patient, labRequests, isOpen, onClose }) {
               rxId: rx.id,
               date: rx.date,
               doctor: {
-                name: rx.prescribedBy || 'Dr. Sarah Mitchell',
-                specialty: 'Senior Consultant Gynaecologist & Obstetrician',
-                qualifications: 'MBBS, MS, DGO (Obstetrics & Gynaecology)',
-                regNo: 'KMC-84920',
+                name: rx.prescribedBy || 'Attending Practitioner',
+                specialty: rx.doctorSpecialty || 'Clinical Specialist',
+                qualifications: 'Medical Practitioner',
+                regNo: rx.doctorRegNo || 'REG-VERIFIED',
               },
               patient: {
                 name: patient.name,
                 age: patient.age,
-                gender: patient.gender || 'Female',
+                gender: patient.gender || 'Not specified',
                 blood: patient.blood,
                 mrn: patient.mrn,
                 phone: patient.phone,
@@ -2093,6 +2097,7 @@ function DietYogaModal({ isOpen, onClose, patient, activePlan, onSavePlan }) {
 function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
   const { user } = useAuth();
   const userCurrency = user?.profile?.currency || user?.currency || 'INR';
+  const capabilities = useMemo(() => getProviderCapabilities(user), [user]);
   const { addRx, requestLabReport, addClinicalNote, recordCharge, listLabReportRequests, cancelLabReportRequest, appointments } = useClinicData();
   const [tab, setTab] = useState('overview');
   const patientTimeline = useMemo(
@@ -2111,7 +2116,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
     return [...byGroup.entries()].map(([groupId, items]) => ({
       id: items[0].groupId || items[0].id,
       date: items[0].date || items[0].prescribedOn || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      prescribedBy: items[0].prescribedBy || items[0].doctor || 'Dr. Sarah Mitchell',
+      prescribedBy: items[0].prescribedBy || items[0].doctor || capabilities.displayName,
       status: items[0].status || 'Active', // Now uses the status from backend
       diagnosis: items.find(m => m.diagnosis)?.diagnosis || '',
       instructions: items.find(m => m.instructions)?.instructions || '',
@@ -2313,7 +2318,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                 )}
               </div>
               <p className="text-aubergine-100 text-xs">
-                {patient.age} Yrs • Blood Group <strong className="text-white font-black">{patient.blood}</strong> • {patient.phone}
+                {patient.age} Yrs {patient.gender ? `• ${patient.gender}` : ''} • Blood Group <strong className="text-white font-black">{patient.blood}</strong> • {patient.phone}
               </p>
               <p className="text-aubergine-200 text-xs font-semibold flex items-center gap-1.5">
                 <i className="fas fa-stethoscope text-magenta-200"></i> {patient.diagnosis}
@@ -2333,25 +2338,35 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
             >
               AI Brief
             </AiButton>
-            <button
-              onClick={() => setShowWriteRx(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
-            >
-              <i className="fas fa-file-prescription"></i> Rx
-            </button>
-            <button
-              onClick={() => setShowDietYogaMaker(true)}
-              className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98]"
-              title="Open Clinical Diet Chart & Yoga Protocol Maker"
-            >
-              <i className="fas fa-seedling"></i> Diet &amp; Yoga
-            </button>
-            <button
-              onClick={() => setShowOrderLab(true)}
-              className="bg-aubergine-700 hover:bg-aubergine-800 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
-            >
-              <i className="fas fa-vial"></i> Lab
-            </button>
+            {capabilities.canPrescribeDrugs && (
+              <button
+                onClick={() => setShowWriteRx(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <i className="fas fa-file-prescription"></i> Rx
+              </button>
+            )}
+            {(capabilities.canFormulateDiet || capabilities.canFormulateYoga) && (
+              <button
+                onClick={() => setShowDietYogaMaker(true)}
+                className={`${
+                  !capabilities.canPrescribeDrugs
+                    ? 'bg-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-300'
+                    : 'bg-teal-600 hover:bg-teal-700'
+                } text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98]`}
+                title="Open Clinical Diet Chart &amp; Yoga Protocol Maker"
+              >
+                <i className="fas fa-seedling"></i> Diet &amp; Yoga
+              </button>
+            )}
+            {capabilities.canOrderLabs && (
+              <button
+                onClick={() => setShowOrderLab(true)}
+                className="bg-aubergine-700 hover:bg-aubergine-800 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <i className="fas fa-vial"></i> Lab
+              </button>
+            )}
             <button
               onClick={() => setShowRecordPayment(true)}
               className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"

@@ -12,6 +12,7 @@ import { DataErrorBanner } from '../../components/DataErrorBanner.jsx';
 import { NavHoverRail } from '../../components/NavHoverRail.jsx';
 import { ModuleAccentBar } from '../../components/ModuleAccentBar.jsx';
 import AiChatWidget from '../../tools/AiChatWidget.jsx';
+import { getProviderCapabilities } from '../../lib/providerCapabilities.js';
 
 import { triggerHaptic } from '../../lib/haptics.js';
 
@@ -156,6 +157,7 @@ function SidebarContent({ user, onClose, onItemHover }) {
   const { logout } = useAuth();
   const navigate  = useNavigate();
   const toast     = useToast();
+  const capabilities = useMemo(() => getProviderCapabilities(user), [user]);
 
   const handleLogout = () => {
     logout();
@@ -171,25 +173,25 @@ function SidebarContent({ user, onClose, onItemHover }) {
         <NavLink to="/doctor-dashboard" className="flex items-center">
           <HealNariLogo showTagline={false} size="sm" variant="dark" />
         </NavLink>
-        <span className="ml-auto text-[9px] text-aubergine-300 font-bold uppercase tracking-widest border border-aubergine-500/30 bg-aubergine-500/10 px-2 py-0.5 rounded-full shadow-inner">Provider</span>
+        <span className="ml-auto text-[9px] text-aubergine-300 font-bold uppercase tracking-widest border border-aubergine-500/30 bg-aubergine-500/10 px-2 py-0.5 rounded-full shadow-inner">{capabilities.specialtyBadge}</span>
       </div>
 
-      {/* Doctor Badge */}
+      {/* Doctor/Provider Badge */}
       <div className="mx-4 mt-6 mb-4 py-2 px-3 bg-white/[0.03] hover:bg-white/[0.06] transition-colors rounded-xl border border-white/5 flex items-center gap-3 cursor-pointer group">
         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-aubergine-500 to-magenta-600 shadow-lg flex items-center justify-center text-white text-xs font-black shrink-0 relative">
-          {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'DR'}
+          {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || (capabilities.titlePrefix ? 'DR' : 'PR')}
           <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
         </div>
         <div className="min-w-0">
-          <p className="text-slate-200 text-xs font-bold leading-tight truncate group-hover:text-white transition-colors">{user?.name || 'Dr. Sarah Mitchell'}</p>
-          <p className="text-slate-500 text-[10px] truncate">{user?.specialty || 'Gynaecologist'}</p>
+          <p className="text-slate-200 text-xs font-bold leading-tight truncate group-hover:text-white transition-colors">{capabilities.displayName}</p>
+          <p className="text-slate-400 text-[10px] truncate">{capabilities.specialtyLabel}</p>
         </div>
       </div>
 
       {/* Nav */}
       <nav className="px-3 pt-2 flex-1 overflow-y-auto hide-scrollbar">
         <NavHoverRail indicatorClassName="bg-aubergine-800/40 rounded-xl">
-          {NAV_CATEGORIES.map((category, catIdx) => (
+          {capabilities.navCategories.map((category, catIdx) => (
             <details key={category.title} className={`group/nav-cat ${catIdx > 0 ? "mt-4" : ""}`} open>
               <summary className="text-[10px] font-bold text-aubergine-300/60 uppercase tracking-widest mb-1.5 px-3 cursor-pointer list-none flex items-center justify-between hover:text-white transition-colors select-none">
                 {category.title}
@@ -246,6 +248,7 @@ function SidebarContent({ user, onClose, onItemHover }) {
 /* ─── Main Layout ────────────────────────────── */
 function DoctorLayout() {
   const { user } = useAuth();
+  const capabilities = useMemo(() => getProviderCapabilities(user), [user]);
   const navigate  = useNavigate();
   const location  = useLocation();
   const toast     = useToast();
@@ -461,8 +464,8 @@ function DoctorLayout() {
                 {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'DR'}
               </div>
               <div className="hidden lg:block text-xs">
-                <p className="font-bold text-slate-800 leading-tight">{user?.name || 'Dr. Mitchell'}</p>
-                <p className="text-slate-500">{user?.specialty?.split(' ')[0] || 'Gynaecologist'}</p>
+                <p className="font-bold text-slate-800 leading-tight">{capabilities.displayName}</p>
+                <p className="text-slate-500">{capabilities.specialtyBadge}</p>
               </div>
             </div>
           </div>
@@ -590,10 +593,10 @@ function DoctorLayout() {
         </main>
       </div>
 
-      {/* iOS/Android Styled Floating Frosted-Glass Mobile Bottom Dock for Doctors */}
+      {/* iOS/Android Styled Floating Frosted-Glass Mobile Bottom Dock for Doctors/Providers */}
       <nav className="md:hidden fixed bottom-[max(0.75rem,env(safe-area-inset-bottom,0.75rem))] inset-x-2 sm:inset-x-4 z-50 pointer-events-none">
         <div className="mobile-floating-dock pointer-events-auto rounded-3xl border border-white/60 px-1 py-1.5 flex items-center justify-around shadow-[0_12px_35px_rgba(42,22,71,0.18)] gap-1">
-          {DOCTOR_BOTTOM_TABS.map(tab => (
+          {capabilities.bottomTabs.map(tab => (
             <NavLink
               key={tab.path}
               to={tab.path}
