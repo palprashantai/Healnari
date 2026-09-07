@@ -92,33 +92,6 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
         {/* Main Hero Header */}
         <div className="text-center max-w-4xl mx-auto space-y-5 sm:space-y-6 animate-slide-up">
           
-          {/* Top Social Proof & Trust Badges */}
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <div className="flex items-center -space-x-2">
-              <img src="/generated/doc1.webp" alt="Doctor" className="w-7 h-7 rounded-full border-2 border-white object-cover shadow-2xs" />
-              <img src="/generated/doc2.webp" alt="Doctor" className="w-7 h-7 rounded-full border-2 border-white object-cover shadow-2xs" />
-              <img src="/generated/doc3.webp" alt="Doctor" className="w-7 h-7 rounded-full border-2 border-white object-cover shadow-2xs" />
-              <div className="w-7 h-7 rounded-full border-2 border-white bg-aubergine-700 text-white font-black text-[9px] flex items-center justify-center shadow-2xs">
-                250+
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-              <div className="flex text-amber-500 text-[11px]">
-                <i className="fas fa-star" />
-                <i className="fas fa-star" />
-                <i className="fas fa-star" />
-                <i className="fas fa-star" />
-                <i className="fas fa-star" />
-              </div>
-              <span className="font-extrabold text-slate-900">4.96/5</span>
-              <span className="text-slate-500 font-normal">Clinician Rating</span>
-              <span className="text-slate-300">•</span>
-              <span className="text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 text-[10px] font-bold inline-flex items-center gap-1">
-                <i className="fas fa-shield-halved text-emerald-600" /> NMC Verified Network
-              </span>
-            </div>
-          </div>
-
           {/* Trust Pill */}
           <div className="inline-flex items-center gap-2 bg-white border border-aubergine-200/80 shadow-xs text-aubergine-800 text-[11px] sm:text-xs font-semibold px-3 sm:px-4 py-1.5 rounded-full text-center max-w-full">
             <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
@@ -140,7 +113,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
               )}
             </h1>
             <p className="text-slate-600 text-sm sm:text-lg md:text-xl leading-relaxed max-w-2xl mx-auto font-normal px-1">
-              {subtitle || "Run your multi-specialty digital clinic on HealNari — zero rent, zero staff overhead, zero commute. Connect with pre-screened patients across Gynecology, PCOS, Endocrinology, Dermatology, Nutrition, and Movement with built-in AI EMR, digital Rx, and direct weekly payouts."}
+              {subtitle || "Launch your independent digital practice on HealNari with zero overhead. Treat high-intent women’s health patients with AI-powered EMR, instant digital prescriptions, and transparent weekly payouts."}
             </p>
           </div>
 

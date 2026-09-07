@@ -109,7 +109,7 @@ function AdminLandingManager() {
   const [heroTitle, setHeroTitle] = useState("Your Premier Partner in Women's Health");
   const [heroSubtitle, setHeroSubtitle] = useState("Empowering women through comprehensive, compassionate, and cutting-edge medical care. Book consultations instantly.");
   const [providerHeroTitle, setProviderHeroTitle] = useState("Empower Your Practice with HealNari");
-  const [providerHeroSubtitle, setProviderHeroSubtitle] = useState("Join the leading digital platform for women's endocrinology and reproductive health. Focus on what you do best while our AI EMR and automated patient acquisition handles the rest.");
+  const [providerHeroSubtitle, setProviderHeroSubtitle] = useState("Launch your independent digital practice on HealNari with zero overhead. Treat high-intent women’s health patients with AI-powered EMR, instant digital prescriptions, and transparent weekly payouts.");
   const [pricingAmount, setPricingAmount] = useState(799);
   const [platformCommissionRate, setPlatformCommissionRate] = useState(10);
   const [promoText, setPromoText] = useState("Use code HEALTH20 for 20% off your first consultation!");

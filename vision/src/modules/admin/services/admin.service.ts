@@ -3004,7 +3004,7 @@ export class AdminService {
             'Empowering women through comprehensive, compassionate, and cutting-edge medical care. Book consultations instantly.',
           providerHeroTitle: 'Empower Your Practice with HealNari',
           providerHeroSubtitle:
-            "Join the leading digital platform for women's endocrinology and reproductive health. Focus on what you do best—delivering world-class clinical outcomes—while our AI EMR and automated patient acquisition handles the rest.",
+            'Launch your independent digital practice on HealNari with zero overhead. Treat high-intent women’s health patients with AI-powered EMR, instant digital prescriptions, and transparent weekly payouts.',
           pricingAmount: 799,
           platformCommissionRate: 10,
           toggles: defaultToggles,
