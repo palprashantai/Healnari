@@ -285,13 +285,28 @@ export function ClinicDataProvider({ children }) {
     // Optimistic
     setPatients(prev => prev.map(p => (p.id === updated.id ? updated : p)));
     try {
+      const payload = {};
+      if (updated.name && typeof updated.name === 'string') payload.name = updated.name.trim();
+      if (updated.phone && typeof updated.phone === 'string' && updated.phone.trim()) payload.phone = updated.phone.trim();
+      if (updated.dob && typeof updated.dob === 'string' && updated.dob.trim()) payload.dob = updated.dob.trim();
+      if (updated.blood && updated.blood !== '—' && typeof updated.blood === 'string' && updated.blood.trim()) {
+        payload.bloodGroup = updated.blood.trim();
+      }
+      if (updated.city && typeof updated.city === 'string' && updated.city.trim()) payload.city = updated.city.trim();
+      if (Array.isArray(updated.allergies)) payload.allergies = updated.allergies;
+      if (Array.isArray(updated.chronicConditions)) {
+        payload.chronicConditions = updated.chronicConditions;
+      } else if (Array.isArray(updated.medicalHistory?.chronicConditions)) {
+        payload.chronicConditions = updated.medicalHistory.chronicConditions;
+      }
+      const h = parseFloat(updated.height);
+      if (!isNaN(h) && h > 0) payload.heightCm = h;
+      const w = parseFloat(updated.weight);
+      if (!isNaN(w) && w > 0) payload.weightKg = w;
+
       const res = await apiFetch(`/patients/${updated.id}`, {
         method: 'PUT',
-        body: {
-          name: updated.name, phone: updated.phone, dob: updated.dob, bloodGroup: updated.blood,
-          city: updated.city, allergies: updated.allergies, chronicConditions: updated.medicalHistory?.chronicConditions,
-          heightCm: updated.height, weightKg: updated.weight,
-        }
+        body: payload
       });
       // Sync back
       setPatients(prev => prev.map(p => (p.id === updated.id ? adaptPatient(res) : p)));

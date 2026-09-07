@@ -96,8 +96,7 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
     }
 
     const doctorPhotoUrl = selectedPhoto.startsWith('data:') ? selectedPhoto : `${origin}${selectedPhoto}`;
-    const logoFullUrl = `${origin}/brand/logo-full.jpg`;
-    const logoIconUrl = `${origin}/brand/logo-icon.jpg`;
+    const logoSvgUrl = `${origin}/brand/logo.svg`;
 
     let templateHtml = '';
 
@@ -110,8 +109,7 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
             <!-- HealNari Brand Header -->
             <div class="header-strip">
               <div class="brand-row">
-                <img src="${logoIconUrl}" class="logo-mark" alt="Logo" onerror="this.style.display='none'" />
-                <span class="brand-title">Heal<span>Nari</span></span>
+                <img src="${logoSvgUrl}" class="clinic-brand-logo" alt="HealNari" onerror="this.onerror=null;this.src='/brand/logo.svg';" />
               </div>
               <div class="verified-pill">● VERIFIED CLINIC</div>
             </div>
@@ -173,8 +171,8 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
             
             <div class="wall-top">
               <div class="brand-row">
-                <img src="${logoIconUrl}" class="logo-mark" alt="Logo" onerror="this.style.display='none'" />
-                <span class="brand-title">Heal<span>Nari</span> Care Network</span>
+                <img src="${logoSvgUrl}" class="clinic-brand-logo" alt="HealNari" onerror="this.onerror=null;this.src='/brand/logo.svg';" />
+                <span class="wall-sub-tag">Care Network</span>
               </div>
               <span class="wall-tag">OFFICIAL CLINICAL BOOKING POINT</span>
             </div>
@@ -239,7 +237,7 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
             <div class="wall-footer">
               <div>
                 <strong>Confidential &amp; Secure Telemedicine</strong>
-                <p>Digital Prescriptions • Lab Test Reviews • Cycle-Synced Care</p>
+                <p>Digital Prescriptions • Clinical Care • Verified Specialists</p>
               </div>
               <div class="wall-url">healnari.care/dr/${docId}</div>
             </div>
@@ -252,7 +250,7 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
       const renderCard = () => `
         <div class="mini-card">
           <div class="mini-top">
-            <span class="brand-title" style="font-size: 14px;">Heal<span style="color:#d946ef;">Nari</span></span>
+            <img src="${logoSvgUrl}" class="mini-card-logo" alt="HealNari" onerror="this.onerror=null;this.src='/brand/logo.svg';" />
             <span class="mini-badge">Doctor Direct</span>
           </div>
           <div class="mini-doc-row">
@@ -330,21 +328,27 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
             .brand-row {
               display: flex;
               align-items: center;
-              gap: 8px;
+              gap: 10px;
             }
-            .logo-mark {
-              width: 26px;
-              height: 26px;
-              border-radius: 999px;
-              object-fit: cover;
+            .clinic-brand-logo {
+              height: 32px;
+              width: auto;
+              max-width: 140px;
+              object-fit: contain;
+              display: block;
             }
-            .brand-title {
-              font-size: 20px;
-              font-weight: 900;
-              color: #2A1647;
-              letter-spacing: -0.5px;
+            .wall-top .clinic-brand-logo {
+              height: 38px;
+              max-width: 160px;
             }
-            .brand-title span { color: #d946ef; }
+            .wall-sub-tag {
+              font-size: 13px;
+              font-weight: 700;
+              color: #64748b;
+              border-left: 2px solid #e2e8f0;
+              padding-left: 10px;
+              line-height: 1.2;
+            }
             .verified-pill {
               font-size: 9.5px;
               font-weight: 800;
@@ -626,6 +630,13 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
               align-items: center;
               margin-bottom: 8px;
             }
+            .mini-card-logo {
+              height: 18px;
+              width: auto;
+              max-width: 80px;
+              object-fit: contain;
+              display: block;
+            }
             .mini-badge { font-size: 8px; font-weight: 800; text-transform: uppercase; background: #f3e8ff; color: #6B46C1; padding: 2px 6px; border-radius: 6px; }
             .mini-doc-row {
               display: flex;
@@ -871,19 +882,14 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
               
               <div className="bg-white border-2 border-aubergine-300 rounded-3xl p-6 shadow-md max-w-sm w-full space-y-4 text-center relative overflow-hidden">
                 
-                {/* Header with Original HealNari Logo */}
+                {/* Header with Official HealNari Logo */}
                 <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                  <div className="flex items-center gap-2">
-                    <img
-                      src="/brand/logo-icon.jpg"
-                      alt="HealNari Logo"
-                      className="w-7 h-7 rounded-full object-contain"
-                      onError={(e) => { e.target.style.display = 'none'; }}
-                    />
-                    <span className="font-black text-sm tracking-tight text-aubergine-950 font-serif">
-                      Heal<span className="text-magenta-600">Nari</span>
-                    </span>
-                  </div>
+                  <img
+                    src="/brand/logo.svg"
+                    alt="HealNari"
+                    className="h-6 w-auto max-w-[130px] object-contain"
+                    onError={(e) => { e.target.src = '/brand/logo-icon.png'; }}
+                  />
                   <span className="text-[9px] font-black uppercase text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                     ● VERIFIED CLINIC
                   </span>

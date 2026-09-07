@@ -1387,237 +1387,1185 @@ export function openPrescriptionPrintWindow(params) {
   }, 500);
 }
 
-export function openLifestylePlanPrintWindow({ rxId, date, doctor, patient, dietPlan, exercisePlan }) {
-  const win = window.open('', '_blank', 'width=800,height=960');
+/**
+ * Parses dietary regimen text into structured objects for hospital-grade A4 printing.
+ */
+function parseDietProtocolText(raw) {
+  if (!raw) return null;
+  const text = String(raw).replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  if (!text) return null;
+
+  // 1. Regimen Name
+  const regMatch = text.match(/CLINICAL DIETARY REGIMEN\s*(?:\(([^)]+)\))?/i);
+  const regimen = regMatch ? regMatch[1].trim() : '';
+
+  // 2. Macros
+  let macros = null;
+  const macroMatch = text.match(/Calorie Target:\s*([^|\n]+)\|\s*Protein:\s*([^|\n]+)\|\s*Carbs:\s*([^|\n]+)\|\s*Fiber:\s*([^\n]+)/i);
+  if (macroMatch) {
+    macros = {
+      calories: macroMatch[1].trim(),
+      protein: macroMatch[2].trim(),
+      carbs: macroMatch[3].trim(),
+      fiber: macroMatch[4].trim(),
+    };
+  }
+
+  // 3. Meals - Bullet-delimited robust parser
+  const meals = [];
+  const timetableMatch = text.match(/DAILY MEAL-BY-MEAL TIMETABLE:\s*\n([\s\S]*?)(?=RECOMMENDED FOODS|FOODS TO STRICTLY AVOID|$)/i);
+  const mealBlock = timetableMatch ? timetableMatch[1] : text;
+  const rawMealItems = mealBlock.split(/(?=•\s*\[)/);
+
+  for (const item of rawMealItems) {
+    const trimmed = item.trim();
+    if (!trimmed.startsWith('•')) continue;
+    const headerMatch = trimmed.match(/•\s*\[([^\]]+)\]\s*([^:\n]+):/);
+    if (!headerMatch) continue;
+    const time = headerMatch[1].trim();
+    const meal = headerMatch[2].trim();
+
+    const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
+    let foods = '';
+    let portion = '';
+    let note = '';
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (/^Clinical Note:\s*/i.test(line)) {
+        note = line.replace(/^Clinical Note:\s*/i, '').trim();
+      } else if (!foods) {
+        const portionMatch = line.match(/\(Portion:\s*([^)]+)\)/i);
+        if (portionMatch) {
+          portion = portionMatch[1].trim();
+          foods = line.replace(/\(Portion:[^)]+\)/i, '').trim();
+        } else {
+          foods = line;
+        }
+      }
+    }
+    if (foods || meal) {
+      meals.push({ time, meal, foods, portion, notes: note, note });
+    }
+  }
+
+  // 4. Dos and Don'ts
+  const dos = [];
+  const donts = [];
+  const lines = text.split('\n');
+  let currentSec = '';
+  for (const l of lines) {
+    const trimmed = l.trim();
+    if (/RECOMMENDED FOODS TO INCLUDE/i.test(trimmed)) {
+      currentSec = 'dos';
+    } else if (/FOODS TO STRICTLY AVOID/i.test(trimmed)) {
+      currentSec = 'donts';
+    } else if (currentSec === 'dos' && trimmed.startsWith('✓')) {
+      dos.push(trimmed.replace(/^✓\s*/, ''));
+    } else if (currentSec === 'donts' && trimmed.startsWith('✗')) {
+      donts.push(trimmed.replace(/^✗\s*/, ''));
+    }
+  }
+
+  return { regimen, macros, meals, dos, donts, raw: text };
+}
+
+/**
+ * Parses mindful movement / yoga protocol text into structured objects for A4 printing.
+ */
+function parseYogaProtocolText(raw) {
+  if (!raw) return null;
+  const text = String(raw).replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  if (!text) return null;
+
+  // 1. Phase
+  const phaseMatch = text.match(/MINDFUL MOVEMENT & YOGA THERAPY\s*(?:\(([^)]+)\))?/i);
+  const phase = phaseMatch ? phaseMatch[1].trim() : '';
+
+  // 2. Frequency
+  const freqMatch = text.match(/Frequency:\s*([^\n]+)/i);
+  const frequency = freqMatch ? freqMatch[1].trim() : '';
+
+  // 3. Asanas
+  const asanas = [];
+  const asanaMatch = text.match(/PRESCRIBED HORMONAL ASANAS:\s*\n([\s\S]*?)(?=PRANAYAMA & BREATHWORK|DAILY CARDIO|CLINICAL PRECAUTIONS|$)/i);
+  const asanaBlock = asanaMatch ? asanaMatch[1] : text;
+  const rawAsanas = asanaBlock.split(/(?=\d+\.\s+)/);
+
+  for (const item of rawAsanas) {
+    const trimmed = item.trim();
+    const headMatch = trimmed.match(/^(\d+)\.\s*([^(]+)\s*\(([^)]+)\)/);
+    if (!headMatch) continue;
+    const num = headMatch[1].trim();
+    const name = headMatch[2].trim();
+    const duration = headMatch[3].trim();
+    let benefit = '';
+    let cues = '';
+
+    const bMatch = trimmed.match(/Benefit:\s*([^\n]+)/i);
+    if (bMatch) benefit = bMatch[1].trim();
+
+    const cMatch = trimmed.match(/Alignment & Cue:\s*([^\n]+)/i);
+    if (cMatch) cues = cMatch[1].trim();
+
+    asanas.push({ num, name, duration, benefit, cues });
+  }
+
+  // 4. Pranayama
+  const pranayama = [];
+  const pranaSection = text.match(/PRANAYAMA & BREATHWORK PROTOCOL:([\s\S]*?)(?=DAILY CARDIO|CLINICAL PRECAUTIONS|$)/i);
+  if (pranaSection) {
+    const lines = pranaSection[1].split('\n').map(l => l.trim()).filter(l => l.startsWith('•'));
+    for (const line of lines) {
+      const pMatch = line.match(/^•\s*([^(]+)\s*\(([^)]+)\):\s*(.+)$/);
+      if (pMatch) {
+        pranayama.push({
+          name: pMatch[1].trim(),
+          duration: pMatch[2].trim(),
+          benefit: pMatch[3].trim(),
+        });
+      }
+    }
+  }
+
+  // 5. Cardio
+  const cardioMatch = text.match(/DAILY CARDIO & STEPS:\s*([^\n]+)/i);
+  const cardio = cardioMatch ? cardioMatch[1].trim() : '';
+
+  // 6. Precautions
+  const precMatch = text.match(/CLINICAL PRECAUTIONS & RED FLAGS:\s*([^\n]+)/i);
+  const precautions = precMatch ? precMatch[1].trim() : '';
+
+  return { phase, frequency, asanas, pranayama, cardio, precautions, raw: text };
+}
+
+export function openLifestylePlanPrintWindow({ rxId, date, doctor, patient, dietPlan, exercisePlan, diagnosis, structuredData, origin: customOrigin }) {
+  const win = window.open('', '_blank', 'width=900,height=980');
   if (!win) return;
 
-  const doctorMeta = [doctor?.specialty, doctor?.regNo ? `Reg. No. ${doctor.regNo}` : null].filter(Boolean).join(' &middot; ');
-  const patientMeta = [patient?.age ? `${patient.age} yrs` : null, patient?.gender].filter(Boolean).join(', ');
+  const origin = customOrigin || ((typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : '');
+  const logoSvgUrl = `${origin}/brand/logo.svg`;
+
+  const now = new Date();
+  const planDate = date || now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const displayPlanId = rxId ? String(rxId).toUpperCase() : `LS-HN-${Math.floor(100000 + Math.random() * 900000)}`;
+
+  const doctorName = doctor?.name ? (/^(Dr\.|Dt\.)/i.test(doctor.name) ? doctor.name : `Dr. ${doctor.name}`) : 'Clinical Specialist';
+  const doctorSpecialty = doctor?.specialty || 'Holistic Health & Lifestyle Specialist';
+  const doctorReg = doctor?.regNo || doctor?.registrationNo || 'REG-VERIFIED';
+
+  const patientName = patient?.name || 'Patient';
+  const patientAge = patient?.age && patient.age !== '—' ? `${patient.age} Yrs` : 'Adult';
+  const patientGender = patient?.gender || 'Not specified';
+  const patientBlood = patient?.blood && patient.blood !== '—' ? patient.blood : '—';
+  const patientMrn = patient?.mrn || (patient?.id ? `HN-${String(patient.id).slice(0, 6).toUpperCase()}` : 'HN-532115');
+
+  // Parse or retrieve structured dietary regimen
+  const parsedDiet = parseDietProtocolText(dietPlan);
+  const dietRegimen = structuredData?.dietType || parsedDiet?.regimen || '';
+  const macros = structuredData?.macros || parsedDiet?.macros || null;
+  const meals = structuredData?.meals || parsedDiet?.meals || [];
+  const dos = structuredData?.dos || parsedDiet?.dos || [];
+  const donts = structuredData?.donts || parsedDiet?.donts || [];
+
+  // Parse or retrieve structured yoga/movement therapy
+  const parsedYoga = parseYogaProtocolText(exercisePlan);
+  const yogaPhase = structuredData?.yogaPhase || parsedYoga?.phase || '';
+  const yogaFrequency = structuredData?.yogaFrequency || parsedYoga?.frequency || '';
+  const asanas = structuredData?.asanas || parsedYoga?.asanas || [];
+  const pranayama = structuredData?.pranayama || parsedYoga?.pranayama || [];
+  const cardio = structuredData?.cardio || parsedYoga?.cardio || '';
+  const precautions = structuredData?.precautions || parsedYoga?.precautions || '';
+
+  const clinicalNotes = structuredData?.clinicalNotes || '';
+  const followUpAdvice = structuredData?.followUpAdvice || '';
 
   win.document.write(`
     <!doctype html>
-    <html>
+    <html lang="en">
     <head>
       <meta charset="utf-8" />
-      <title>Lifestyle Protocol — ${escapeHtml(patient?.name)}</title>
+      <base href="${origin}/" />
+      <title>Lifestyle &amp; Nutrition Protocol — ${escapeHtml(patientName)} — HealNari</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
         
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
         body { 
-          font-family: 'Inter', system-ui, -apple-system, sans-serif; 
-          color: #1e293b; 
-          padding: 0; 
-          margin: 0 auto; 
+          font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+          color: #0f172a; 
           background: #f8fafc;
-        }
-        
-        .page-container {
-          max-width: 800px;
-          margin: 40px auto;
-          position: relative;
-          background: #ffffff;
-          box-shadow: 0 20px 40px rgba(0,0,0,0.08);
-          border-radius: 16px;
-          overflow: hidden;
+          padding: 0;
+          margin: 0;
+          -webkit-font-smoothing: antialiased;
         }
 
-        /* Top Banner */
-        .banner {
-          background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+        .print-toolbar {
+          position: sticky;
+          top: 0;
+          left: 0;
+          right: 0;
+          background: #1e1b4b;
+          color: #ffffff;
+          padding: 12px 24px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+          z-index: 9999;
+        }
+        .toolbar-brand {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          font-weight: 700;
+          font-size: 14px;
+          color: #f8fafc;
+        }
+        .toolbar-badge {
+          background: #4c1d95;
+          color: #e9d5ff;
+          font-size: 11px;
+          padding: 3px 10px;
+          border-radius: 999px;
+          font-weight: 600;
+        }
+        .toolbar-actions {
+          display: flex;
+          gap: 10px;
+        }
+        .btn-toolbar-print {
+          background: #059669;
           color: white;
-          padding: 45px 55px;
+          border: none;
+          font-weight: 700;
+          font-size: 13px;
+          padding: 8px 18px;
+          border-radius: 10px;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          box-shadow: 0 2px 8px rgba(5,150,105,0.4);
+          transition: all 0.2s;
+        }
+        .btn-toolbar-print:hover { background: #047857; }
+        .btn-toolbar-close {
+          background: rgba(255,255,255,0.12);
+          color: #e2e8f0;
+          border: 1px solid rgba(255,255,255,0.2);
+          font-weight: 600;
+          font-size: 13px;
+          padding: 8px 16px;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .btn-toolbar-close:hover { background: rgba(255,255,255,0.2); }
+
+        .page-container {
+          max-width: 860px;
+          margin: 24px auto 60px;
+          background: #ffffff;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+          border-radius: 16px;
+          overflow: hidden;
+          position: relative;
+          border: 1px solid #e2e8f0;
+        }
+
+        .clinic-header {
+          background: #f8fafc;
+          padding: 22px 32px 18px;
+          border-bottom: 3.5px solid #6B46C1;
+          position: relative;
+        }
+        .header-top-row {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          position: relative;
+          gap: 20px;
         }
-        
-        .banner::after {
-          content: '';
-          position: absolute;
-          top: 0; right: 0; bottom: 0; left: 0;
-          background-image: radial-gradient(circle at 100% 0%, rgba(255,255,255,0.12) 0%, transparent 60%);
-          pointer-events: none;
+        .brand-block {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 5px;
+        }
+        .clinic-brand-logo {
+          height: 40px;
+          width: auto;
+          max-height: 44px;
+          object-fit: contain;
+          display: block;
+        }
+        .clinic-sub-details {
+          display: flex;
+          flex-direction: column;
+          gap: 1.5px;
+        }
+        .clinic-type {
+          font-size: 10.5px;
+          font-weight: 800;
+          color: #475569;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+        }
+        .clinic-address {
+          font-size: 10px;
+          color: #64748b;
+        }
+        .clinic-contacts {
+          font-size: 9.5px;
+          color: #64748b;
         }
 
-        .brand-col { max-width: 55%; position: relative; z-index: 1; }
-        .brand-logo-text { font-family: 'Playfair Display', serif; font-size: 38px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px; margin-bottom: 8px; line-height: 1; }
-        .clinic-line { font-size: 14px; font-weight: 600; color: #a7f3d0; letter-spacing: 1.5px; text-transform: uppercase; }
-        .clinic-address { font-size: 12px; color: #e2e8f0; margin-top: 10px; line-height: 1.6; opacity: 0.9; }
-        
-        .doc-col { max-width: 45%; text-align: right; position: relative; z-index: 1; }
-        .doctor-name { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: #ffffff; margin-bottom: 6px; }
-        .doctor-meta { font-size: 14px; color: #6ee7b7; line-height: 1.5; font-weight: 500; }
+        .header-doc-info {
+          text-align: right;
+          min-width: 220px;
+        }
+        .doc-main-title {
+          font-size: 19px;
+          font-weight: 900;
+          color: #1e1b4b;
+          letter-spacing: 1.1px;
+          text-transform: uppercase;
+          margin-bottom: 5px;
+        }
+        .doc-meta-table {
+          display: inline-flex;
+          flex-direction: column;
+          gap: 2.5px;
+          font-size: 11px;
+        }
+        .doc-meta-row {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          gap: 8px;
+        }
+        .meta-field-label {
+          color: #64748b;
+          font-weight: 600;
+        }
+        .meta-field-val {
+          color: #0f172a;
+          font-weight: 700;
+          text-align: right;
+        }
 
-        .content { padding: 55px; position: relative; background: #ffffff; }
-        
-        /* Meta Info Grid */
-        .meta-grid {
+        .body-content {
+          padding: 20px 32px 28px;
+        }
+
+        .profiles-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 14px;
+          margin-bottom: 16px;
+        }
+        .profile-card {
+          border-radius: 10px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+        }
+        .profile-card-header {
+          padding: 7px 12px;
+          font-size: 9.5px;
+          font-weight: 800;
+          letter-spacing: 0.8px;
+          text-transform: uppercase;
           display: flex;
           justify-content: space-between;
-          margin-bottom: 40px;
-          position: relative;
-          z-index: 1;
-          padding-bottom: 20px;
-          border-bottom: 2px dashed #f1f5f9;
+          align-items: center;
         }
-
-        .meta-item { display: flex; flex-direction: column; gap: 6px; }
-        .meta-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; font-weight: 800; }
-        .meta-value { font-size: 15px; font-weight: 700; color: #0f172a; }
-        
-        /* Patient Box */
-        .patient-box {
+        .patient-card .profile-card-header {
+          background: #f8fafc;
+          color: #475569;
+          border-bottom: 1px solid #e2e8f0;
+        }
+        .doctor-card .profile-card-header {
+          background: #faf5ff;
+          color: #6B46C1;
+          border-bottom: 1px solid #f3e8ff;
+        }
+        .profile-card-body {
+          padding: 10px 12px;
+        }
+        .profile-name {
+          font-size: 14px;
+          font-weight: 800;
+          color: #0f172a;
+          margin-bottom: 3px;
+        }
+        .profile-details-row {
+          font-size: 11px;
+          color: #475569;
           display: flex;
-          background: linear-gradient(to right, #f8fafc, #ffffff);
-          border-left: 4px solid #10b981;
-          border-radius: 0 16px 16px 0;
-          padding: 28px 32px;
-          margin-bottom: 50px;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.02);
-          position: relative;
-          z-index: 1;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
         }
-        .patient-box > div { flex: 1; }
-        
-        .patient-name { font-size: 22px; font-weight: 800; color: #1e293b; margin-bottom: 6px; letter-spacing: -0.3px; }
-        .patient-details { font-size: 15px; color: #64748b; font-weight: 500; }
+        .doctor-sub-details {
+          font-size: 11px;
+          color: #475569;
+          line-height: 1.45;
+        }
+        .doctor-sub-details .spec { color: #6B46C1; font-weight: 700; }
+        .doctor-sub-details .reg { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #64748b; margin-top: 2px; }
 
-        /* Protocol Sections */
-        .protocol-title {
-          font-family: 'Playfair Display', serif;
-          font-size: 28px; 
-          font-weight: 700; 
-          color: #064e3b; 
-          margin-bottom: 25px;
-          text-align: center;
-          padding-bottom: 15px;
-          border-bottom: 2px solid #e2e8f0;
+        .protocol-section {
+          margin-bottom: 18px;
+          border-radius: 10px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+        }
+        .section-header {
+          padding: 9px 14px;
+          background: #faf5ff;
+          border-bottom: 1px solid #f3e8ff;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+        }
+        .section-header-left {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .section-title {
+          font-size: 12px;
+          font-weight: 800;
+          color: #6B46C1;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+        }
+        .section-tag-pill {
+          font-size: 10px;
+          font-weight: 700;
+          color: #6B46C1;
+          background: #ede9fe;
+          padding: 2px 8px;
+          border-radius: 999px;
+          border: 1px solid #ddd6fe;
+        }
+        .section-body {
+          padding: 14px 16px;
         }
 
-        .instructions-container {
+        /* Macro Targets Strip */
+        .macro-strip {
           display: grid;
-          grid-template-columns: 1fr;
-          gap: 30px;
-          margin-bottom: 40px;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 8px;
+          margin-bottom: 12px;
+          padding: 8px 12px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
         }
-        
-        .callout-box {
-          border-radius: 16px;
-          padding: 35px;
-          position: relative;
-          z-index: 1;
+        .macro-pill {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
         }
-        
-        .diet-box {
+        .macro-val {
+          font-size: 12px;
+          font-weight: 800;
+          color: #1e1b4b;
+        }
+        .macro-lbl {
+          font-size: 9px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #64748b;
+          letter-spacing: 0.5px;
+        }
+
+        .sub-timetable-header {
+          font-size: 10.5px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+          color: #475569;
+          margin-bottom: 8px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .protocol-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+        .protocol-card {
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          background: #ffffff;
+          padding: 8px 11px;
+        }
+        .protocol-card.meal-card {
+          border-left: 3px solid #6B46C1;
+        }
+        .protocol-card.asana-card {
+          border-left: 3px solid #059669;
+        }
+        .card-head {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 3px;
+          flex-wrap: wrap;
+        }
+        .time-badge {
+          background: #f1f5f9;
+          color: #334155;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 9.5px;
+          font-weight: 700;
+          padding: 2px 6px;
+          border-radius: 4px;
+        }
+        .num-badge {
+          background: #ecfdf5;
+          color: #047857;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 9.5px;
+          font-weight: 800;
+          padding: 2px 6px;
+          border-radius: 4px;
+        }
+        .card-title-strong {
+          font-size: 11.5px;
+          font-weight: 800;
+          color: #0f172a;
+        }
+        .portion-tag {
+          font-size: 9.5px;
+          color: #64748b;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          padding: 1px 6px;
+          border-radius: 4px;
+        }
+        .dur-tag {
+          font-size: 9.5px;
+          color: #047857;
+          background: #ecfdf5;
+          border: 1px solid #a7f3d0;
+          padding: 1px 6px;
+          border-radius: 4px;
+          font-weight: 700;
+        }
+        .card-body-desc {
+          font-size: 11px;
+          color: #1e293b;
+          line-height: 1.45;
+          margin-bottom: 3px;
+        }
+        .card-clinical-note {
+          font-size: 10px;
+          color: #64748b;
+          line-height: 1.4;
+          background: #f8fafc;
+          border: 1px dashed #e2e8f0;
+          padding: 3px 8px;
+          border-radius: 4px;
+        }
+        .card-clinical-note strong {
+          color: #475569;
+        }
+
+        /* Dos & Don'ts */
+        .dos-donts-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          margin-top: 10px;
+        }
+        .dos-box {
           background: #f0fdf4;
           border: 1px solid #bbf7d0;
-          border-left: 6px solid #22c55e;
+          border-radius: 8px;
+          padding: 8px 10px;
         }
-        
-        .yoga-box {
+        .dos-title {
+          font-size: 10px;
+          font-weight: 800;
+          color: #15803d;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 5px;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+        }
+        .donts-box {
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          border-radius: 8px;
+          padding: 8px 10px;
+        }
+        .donts-title {
+          font-size: 10px;
+          font-weight: 800;
+          color: #b91c1c;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 5px;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+        }
+        .dos-list, .donts-list {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+        }
+        .dos-list li {
+          font-size: 10px;
+          color: #166534;
+          line-height: 1.35;
+          display: flex;
+          align-items: flex-start;
+          gap: 5px;
+        }
+        .donts-list li {
+          font-size: 10px;
+          color: #991b1b;
+          line-height: 1.35;
+          display: flex;
+          align-items: flex-start;
+          gap: 5px;
+        }
+
+        /* Pranayama, Cardio, Precautions */
+        .breathwork-card {
+          border: 1px solid #e0e7ff;
+          background: #f5f3ff;
+          border-radius: 8px;
+          padding: 8px 10px;
+          margin-top: 8px;
+        }
+        .breathwork-title {
+          font-size: 10px;
+          font-weight: 800;
+          color: #4f46e5;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 6px;
+        }
+        .breathwork-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .breathwork-item {
+          font-size: 10px;
+          color: #312e81;
+          line-height: 1.4;
+        }
+        .cardio-callout {
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          border-radius: 8px;
+          padding: 7px 10px;
+          margin-top: 8px;
+          font-size: 10px;
+          color: #1e40af;
+          display: flex;
+          align-items: flex-start;
+          gap: 6px;
+        }
+        .precautions-callout {
           background: #fffbeb;
           border: 1px solid #fde68a;
-          border-left: 6px solid #f59e0b;
+          border-radius: 8px;
+          padding: 7px 10px;
+          margin-top: 8px;
+          font-size: 10px;
+          color: #92400e;
+          display: flex;
+          align-items: flex-start;
+          gap: 6px;
+        }
+        .advisory-box {
+          background: #faf5ff;
+          border: 1px solid #e9d5ff;
+          border-radius: 8px;
+          padding: 8px 12px;
+          margin-top: 10px;
+          font-size: 10.5px;
+          color: #4c1d95;
+          line-height: 1.45;
         }
 
-        .callout-title { font-size: 16px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-        .diet-box .callout-title { color: #166534; }
-        .yoga-box .callout-title { color: #92400e; }
-        
-        .callout-content { font-size: 16px; line-height: 1.8; font-weight: 500; white-space: pre-wrap; }
-        .diet-box .callout-content { color: #14532d; }
-        .yoga-box .callout-content { color: #78350f; }
-
-        /* Footer */
-        .footer {
-          margin-top: 70px;
-          padding-top: 40px;
-          border-top: 2px solid #f1f5f9;
+        .prescription-footer {
+          margin-top: 24px;
+          padding-top: 14px;
+          border-top: 2px solid #e2e8f0;
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
-          position: relative;
-          z-index: 1;
+          gap: 18px;
         }
-        
-        .disclaimer-box { max-width: 420px; }
-        .disclaimer { font-size: 13px; color: #64748b; line-height: 1.6; font-weight: 500; }
-        .disclaimer strong { color: #0f172a; font-weight: 700; }
-        
-        .sign-box { text-align: center; min-width: 260px; }
-        .sign-doc { font-family: 'Playfair Display', serif; font-size: 34px; font-weight: 700; color: #064e3b; margin-bottom: 15px; font-style: italic; }
-        .sign-line { border-top: 2px dashed #cbd5e1; padding-top: 14px; font-size: 13px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+        .footer-legal-block {
+          max-width: 480px;
+        }
+        .legal-notice {
+          font-size: 9.5px;
+          color: #64748b;
+          line-height: 1.4;
+        }
+        .signature-box {
+          text-align: right;
+          min-width: 190px;
+        }
+        .signature-cursive {
+          font-family: 'Plus Jakarta Sans', Georgia, serif;
+          font-size: 18px;
+          font-style: italic;
+          font-weight: 700;
+          color: #1e1b4b;
+          margin-bottom: 3px;
+        }
+        .signature-line {
+          border-top: 1.5px solid #0f172a;
+          padding-top: 3px;
+          font-size: 10px;
+          font-weight: 800;
+          color: #0f172a;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .signature-verified-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: #ecfdf5;
+          color: #059669;
+          font-size: 8.5px;
+          font-weight: 800;
+          padding: 2px 5px;
+          border-radius: 4px;
+          border: 1px solid #a7f3d0;
+          margin-top: 3px;
+        }
 
+        /* ─── PRINT ENGINE RULES ─── */
         @media print {
-          @page { margin: 0; size: auto; }
-          body { background: #ffffff; padding: 0; }
-          .page-container { margin: 0; border-radius: 0; box-shadow: none; max-width: 100%; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .callout-box { break-inside: avoid; }
+          @page {
+            size: A4 portrait;
+            margin: 6mm 8mm;
+          }
+          html, body {
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+          }
+          *, *::before, *::after {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          body {
+            background: #ffffff !important;
+            color: #0f172a !important;
+            font-size: 10pt !important;
+          }
+          .print-toolbar {
+            display: none !important;
+          }
+          .page-container {
+            margin: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            border-radius: 0 !important;
+            overflow: visible !important;
+          }
+          .clinic-header {
+            padding: 10px 16px 8px !important;
+            border-bottom: 2.5px solid #6B46C1 !important;
+          }
+          .clinic-brand-logo {
+            height: 34px !important;
+            max-height: 38px !important;
+          }
+          .doc-main-title {
+            font-size: 16px !important;
+            margin-bottom: 2px !important;
+          }
+          .body-content {
+            padding: 8px 16px 10px !important;
+            overflow: visible !important;
+          }
+          .profiles-grid {
+            gap: 8px !important;
+            margin-bottom: 8px !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .profile-card {
+            border: 1px solid #cbd5e1 !important;
+            overflow: visible !important;
+          }
+          .profile-card-header {
+            padding: 4px 8px !important;
+            font-size: 8.5px !important;
+          }
+          .profile-card-body {
+            padding: 5px 8px !important;
+          }
+          .profile-name {
+            font-size: 12.5px !important;
+            margin-bottom: 2px !important;
+          }
+          .profile-details-row {
+            font-size: 10px !important;
+            margin-bottom: 1px !important;
+          }
+          .protocol-section {
+            margin-bottom: 10px !important;
+            border: 1px solid #cbd5e1 !important;
+            page-break-inside: auto !important;
+            break-inside: auto !important;
+            overflow: visible !important;
+          }
+          .section-header {
+            padding: 6px 10px !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+          }
+          .section-body {
+            padding: 7px 10px !important;
+            overflow: visible !important;
+          }
+          .macro-strip {
+            padding: 5px 8px !important;
+            margin-bottom: 8px !important;
+            gap: 6px !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .macro-val {
+            font-size: 11px !important;
+          }
+          .macro-lbl {
+            font-size: 8px !important;
+          }
+          .protocol-grid {
+            gap: 6px !important;
+            margin-bottom: 8px !important;
+          }
+          .protocol-card {
+            padding: 6px 9px !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            border: 1px solid #cbd5e1 !important;
+          }
+          .card-head {
+            margin-bottom: 2px !important;
+          }
+          .card-title-strong {
+            font-size: 10.5px !important;
+          }
+          .card-body-desc {
+            font-size: 10px !important;
+            margin-bottom: 2px !important;
+            line-height: 1.35 !important;
+          }
+          .card-clinical-note {
+            font-size: 9px !important;
+            padding: 2px 6px !important;
+          }
+          .dos-donts-grid {
+            gap: 8px !important;
+            margin-top: 8px !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .dos-box, .donts-box {
+            padding: 6px 8px !important;
+          }
+          .dos-title, .donts-title {
+            font-size: 9.5px !important;
+            margin-bottom: 3px !important;
+          }
+          .dos-list li, .donts-list li {
+            font-size: 9px !important;
+            line-height: 1.3 !important;
+          }
+          .breathwork-card,
+          .cardio-callout,
+          .precautions-callout,
+          .advisory-box {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            padding: 6px 9px !important;
+            margin-top: 7px !important;
+          }
+          .prescription-footer {
+            margin-top: 12px !important;
+            padding-top: 6px !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
         }
       </style>
     </head>
     <body>
-      <div class="page-container">
-        <div class="banner">
-          <div class="brand-col">
-            <div class="brand-logo-text">HealNari</div>
-            <div class="clinic-line">Holistic Wellness Protocol</div>
-            <div class="clinic-address">123 Wellness Avenue, Health City<br/>support@healnari.com &nbsp;&bull;&nbsp; +91 80000 00000</div>
-          </div>
-          <div class="doc-col">
-            <div class="doctor-name">Dr. ${escapeHtml(doctor?.name)}</div>
-            <div class="doctor-meta">${doctorMeta || 'Registered Medical Practitioner'}</div>
-          </div>
+      <div class="print-toolbar">
+        <div class="toolbar-brand">
+          <span>HealNari Tele-EMR</span>
+          <span class="toolbar-badge">Lifestyle Protocol</span>
         </div>
+        <div class="toolbar-actions">
+          <button onclick="window.print()" class="btn-toolbar-print">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            Print / Save as PDF
+          </button>
+          <button onclick="window.close()" class="btn-toolbar-close">Close</button>
+        </div>
+      </div>
 
-        <div class="content">
-          <div class="meta-grid">
-            <div class="meta-item">
-              <div class="meta-label">Date of Consultation</div>
-              <div class="meta-value">${escapeHtml(date)}</div>
-            </div>
-            <div class="meta-item" style="text-align: right;">
-              <div class="meta-label">Protocol ID</div>
-              <div class="meta-value" style="font-family: monospace; color: #475569; letter-spacing: 0.5px;">${escapeHtml(rxId)}</div>
-            </div>
-          </div>
-
-          <div class="patient-box">
-            <div>
-              <div class="meta-label">Patient Details</div>
-              <div class="patient-name">${escapeHtml(patient?.name)}</div>
-              <div class="patient-details">${patientMeta ? escapeHtml(patientMeta) : 'Telehealth Member'}</div>
-            </div>
-          </div>
-
-          <div class="protocol-title">Personalized Lifestyle Protocol</div>
-
-          <div class="instructions-container">
-            ${dietPlan ? `
-            <div class="callout-box diet-box">
-              <div class="callout-title">🥗 Personalized Nutrition Plan</div>
-              <div class="callout-content">${escapeHtml(dietPlan)}</div>
-            </div>` : ''}
-
-            ${exercisePlan ? `
-            <div class="callout-box yoga-box">
-              <div class="callout-title">🧘‍♀️ Yoga & Mindful Movement Protocol</div>
-              <div class="callout-content">${escapeHtml(exercisePlan)}</div>
-            </div>` : ''}
-          </div>
-
-          <div class="footer">
-            <div class="disclaimer-box">
-              <div class="disclaimer">
-                <strong>Important Medical Note:</strong> This personalized protocol is formulated to support your health and symptom management. Aligned with WHO & 2023 Evidence-based Guidelines.
+      <div class="page-container">
+        <header class="clinic-header">
+          <div class="header-top-row">
+            <div class="brand-block">
+              <img 
+                src="${logoSvgUrl}" 
+                alt="HealNari Logo" 
+                class="clinic-brand-logo" 
+                onerror="this.onerror=null;this.src='/brand/logo.svg';" 
+              />
+              <div class="clinic-sub-details">
+                <div class="clinic-type">Multi-Specialty Healthcare Platform</div>
+                <div class="clinic-address">Verified Tele-EMR &amp; Clinical Care Network</div>
+                <div class="clinic-contacts">care@healnari.app &nbsp;|&nbsp; +91 80 4567 8900 &nbsp;|&nbsp; www.healnari.app</div>
               </div>
             </div>
-            <div class="sign-box">
-              <div class="sign-doc">${escapeHtml(doctor?.name)}</div>
-              <div class="sign-line">Digital Signature</div>
+
+            <div class="header-doc-info">
+              <div class="doc-main-title">LIFESTYLE PROTOCOL</div>
+              <div class="doc-meta-table">
+                <div class="doc-meta-row">
+                  <span class="meta-field-label">Protocol ID:</span>
+                  <span class="meta-field-val font-mono">${escapeHtml(displayPlanId)}</span>
+                </div>
+                <div class="doc-meta-row">
+                  <span class="meta-field-label">Date of Issue:</span>
+                  <span class="meta-field-val">${escapeHtml(planDate)}</span>
+                </div>
+                <div class="doc-meta-row">
+                  <span class="meta-field-label">Consult Mode:</span>
+                  <span class="meta-field-val" style="color: #6B46C1;">Digital Care Plan</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div class="body-content">
+          <div class="profiles-grid">
+            <div class="profile-card patient-card">
+              <div class="profile-card-header">
+                <span>Patient Demographics</span>
+                <span class="font-mono">MRN: ${escapeHtml(patientMrn)}</span>
+              </div>
+              <div class="profile-card-body">
+                <div class="profile-name">${escapeHtml(patientName)}</div>
+                <div class="profile-details-row">
+                  <span><strong>Age:</strong> ${escapeHtml(patientAge)}</span>
+                  <span>•</span>
+                  <span><strong>Gender:</strong> ${escapeHtml(patientGender)}</span>
+                  <span>•</span>
+                  <span><strong>Blood:</strong> ${escapeHtml(patientBlood)}</span>
+                </div>
+                ${diagnosis ? `
+                <div style="font-size: 10.5px; color: #6B46C1; font-weight: 700; margin-top: 3px;">
+                  Indication: ${escapeHtml(diagnosis)}
+                </div>` : ''}
+              </div>
+            </div>
+
+            <div class="profile-card doctor-card">
+              <div class="profile-card-header">
+                <span>Formulating Specialist</span>
+                <span class="font-mono">Reg: ${escapeHtml(doctorReg)}</span>
+              </div>
+              <div class="profile-card-body">
+                <div class="profile-name">${escapeHtml(doctorName)}</div>
+                <div class="doctor-sub-details">
+                  <p class="spec">${escapeHtml(doctorSpecialty)}</p>
+                  <p class="reg">HealNari Multi-Specialty Health Network</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          ${(dietPlan || meals.length > 0) ? `
+          <div class="protocol-section">
+            <div class="section-header">
+              <div class="section-header-left">
+                <span style="font-size: 13px;">🥗</span>
+                <span class="section-title">Personalized Nutrition &amp; Dietary Protocol</span>
+              </div>
+              ${dietRegimen ? `<span class="section-tag-pill">${escapeHtml(dietRegimen)}</span>` : ''}
+            </div>
+            <div class="section-body">
+              ${macros ? `
+                <div class="macro-strip">
+                  <div class="macro-pill"><span class="macro-val">${escapeHtml(macros.calories || '—')}</span><span class="macro-lbl">Target Calories</span></div>
+                  <div class="macro-pill"><span class="macro-val">${escapeHtml(macros.protein || '—')}</span><span class="macro-lbl">Protein Target</span></div>
+                  <div class="macro-pill"><span class="macro-val">${escapeHtml(macros.carbs || '—')}</span><span class="macro-lbl">Carb Balance</span></div>
+                  <div class="macro-pill"><span class="macro-val">${escapeHtml(macros.fiber || '—')}</span><span class="macro-lbl">Dietary Fiber</span></div>
+                </div>
+              ` : ''}
+
+              ${meals.length > 0 ? `
+                <div class="sub-timetable-header">
+                  <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/></svg>
+                  Daily Meal-by-Meal Schedule
+                </div>
+                <div class="protocol-grid">
+                  ${meals.map(m => `
+                    <div class="protocol-card meal-card">
+                      <div class="card-head">
+                        <span class="time-badge">${escapeHtml(m.time)}</span>
+                        <span class="card-title-strong">${escapeHtml(m.meal)}</span>
+                        ${m.portion ? `<span class="portion-tag">${escapeHtml(m.portion)}</span>` : ''}
+                      </div>
+                      <div class="card-body-desc">${escapeHtml(m.foods)}</div>
+                      ${(m.notes || m.note) ? `
+                        <div class="card-clinical-note"><strong>Clinical Note:</strong> ${escapeHtml(m.notes || m.note)}</div>
+                      ` : ''}
+                    </div>
+                  `).join('')}
+                </div>
+              ` : `
+                <div style="white-space: pre-line; font-size: 11px; line-height: 1.55;">${escapeHtml(dietPlan)}</div>
+              `}
+
+              ${(dos.length > 0 || donts.length > 0) ? `
+                <div class="dos-donts-grid">
+                  ${dos.length > 0 ? `
+                    <div class="dos-box">
+                      <div class="dos-title">✓ Recommended Foods to Include</div>
+                      <ul class="dos-list">
+                        ${dos.map(d => `<li><span>✓</span><span>${escapeHtml(d)}</span></li>`).join('')}
+                      </ul>
+                    </div>
+                  ` : ''}
+                  ${donts.length > 0 ? `
+                    <div class="donts-box">
+                      <div class="donts-title">✗ Strictly Avoid / Eliminate</div>
+                      <ul class="donts-list">
+                        ${donts.map(d => `<li><span>✗</span><span>${escapeHtml(d)}</span></li>`).join('')}
+                      </ul>
+                    </div>
+                  ` : ''}
+                </div>
+              ` : ''}
+            </div>
+          </div>` : ''}
+
+          ${(exercisePlan || asanas.length > 0) ? `
+          <div class="protocol-section">
+            <div class="section-header">
+              <div class="section-header-left">
+                <span style="font-size: 13px;">🧘</span>
+                <span class="section-title">Mindful Movement &amp; Yoga Protocol</span>
+              </div>
+              ${yogaFrequency ? `<span class="section-tag-pill">${escapeHtml(yogaFrequency)}</span>` : ''}
+            </div>
+            <div class="section-body">
+              ${yogaPhase ? `
+                <div style="font-size: 11px; font-weight: 700; color: #047857; margin-bottom: 8px;">
+                  Prescribed Therapy Phase: ${escapeHtml(yogaPhase)}
+                </div>
+              ` : ''}
+
+              ${asanas.length > 0 ? `
+                <div class="sub-timetable-header">
+                  <svg width="12" height="12" fill="currentColor" viewBox="0 0 16 16"><path d="M12.5 3a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-5 4a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM8 9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"/></svg>
+                  Prescribed Hormonal Movement &amp; Asanas
+                </div>
+                <div class="protocol-grid">
+                  ${asanas.map((a, idx) => `
+                    <div class="protocol-card asana-card">
+                      <div class="card-head">
+                        <span class="num-badge">${String(idx + 1).padStart(2, '0')}</span>
+                        <span class="card-title-strong">${escapeHtml(a.name)}</span>
+                        ${a.duration ? `<span class="dur-tag">${escapeHtml(a.duration)}</span>` : ''}
+                      </div>
+                      <div class="card-body-desc"><strong style="color: #047857;">Clinical Benefit:</strong> ${escapeHtml(a.benefit)}</div>
+                      ${a.cues ? `<div class="card-clinical-note"><strong>Alignment &amp; Cue:</strong> ${escapeHtml(a.cues)}</div>` : ''}
+                    </div>
+                  `).join('')}
+                </div>
+              ` : `
+                <div style="white-space: pre-line; font-size: 11px; line-height: 1.55;">${escapeHtml(exercisePlan)}</div>
+              `}
+
+              ${pranayama.length > 0 ? `
+                <div class="breathwork-card">
+                  <div class="breathwork-title">🌬️ Pranayama &amp; Breathwork Protocol</div>
+                  <div class="breathwork-grid">
+                    ${pranayama.map(p => `
+                      <div class="breathwork-item">
+                        <strong>• ${escapeHtml(p.name)}</strong> (${escapeHtml(p.duration)}): ${escapeHtml(p.benefit)}
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+
+              ${cardio ? `
+                <div class="cardio-callout">
+                  <span>🏃‍♀️</span>
+                  <div><strong>Daily Movement &amp; Cardio:</strong> ${escapeHtml(cardio)}</div>
+                </div>
+              ` : ''}
+
+              ${precautions ? `
+                <div class="precautions-callout">
+                  <span>⚠️</span>
+                  <div><strong>Clinical Precautions &amp; Red Flags:</strong> ${escapeHtml(precautions)}</div>
+                </div>
+              ` : ''}
+            </div>
+          </div>` : ''}
+
+          ${(clinicalNotes || followUpAdvice) ? `
+            <div class="advisory-box">
+              ${clinicalNotes ? `<div><strong>Specialist Clinical Notes:</strong> ${escapeHtml(clinicalNotes)}</div>` : ''}
+              ${followUpAdvice ? `<div style="margin-top: 4px; font-weight: 700; color: #6B46C1;"><strong>Recommended Next Review:</strong> ${escapeHtml(followUpAdvice)}</div>` : ''}
+            </div>
+          ` : ''}
+
+          <div class="prescription-footer">
+            <div class="footer-legal-block">
+              <p class="legal-notice">
+                <strong>Clinical Wellness Note:</strong> This protocol is clinically formulated for the individual patient based on diagnostic history, nutritional biochemistry, and movement safety. Aligned with clinical evidence and wellness guidelines.
+              </p>
+            </div>
+            <div class="signature-box">
+              <div class="signature-cursive">${escapeHtml(doctorName)}</div>
+              <div class="signature-line">Authorized Specialist Signature</div>
+              <div class="signature-verified-pill">
+                <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425a.267.267 0 0 1 .02-.022z"/></svg>
+                Digitally Verified &amp; Signed
+              </div>
             </div>
           </div>
         </div>

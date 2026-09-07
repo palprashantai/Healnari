@@ -85,7 +85,7 @@ export class CreatePrescriptionDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
-  @MaxLength(2000)
+  @MaxLength(50000)
   instructions?: string;
 
   @ApiProperty({ required: false })

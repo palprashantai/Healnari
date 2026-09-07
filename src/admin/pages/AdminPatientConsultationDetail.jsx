@@ -115,9 +115,9 @@ function AdminPatientConsultationDetail() {
           <div className="flex justify-between items-start pt-6 pb-8 border-b border-slate-200">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-3xl font-bold text-[#6B46C1] font-serif tracking-tight">Heal<span className="text-pink-500">Nari</span></span>
+                <img src="/brand/logo.svg" alt="HealNari" className="h-8 w-auto object-contain" />
               </div>
-              <p className="text-sm font-bold text-slate-600 mb-2">Digital Health Clinic</p>
+              <p className="text-sm font-bold text-slate-600 mb-2">Multi-Specialty Healthcare Platform</p>
               <p className="text-xs text-slate-500">123 Wellness Avenue, Health City</p>
               <p className="text-xs text-slate-500">support@healnari.app | +1 (800) 000-0000</p>
             </div>

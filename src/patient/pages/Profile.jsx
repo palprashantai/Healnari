@@ -183,8 +183,9 @@ function PatientProfile() {
   const FIELD_COLOR = {
     personal: 'from-aubergine-900 to-aubergine-700',
     health: 'from-rose-900 to-rose-700',
-    preferences: 'from-aubergine-900 to-aubergine-700',
-    security: 'from-slate-800 to-slate-700',
+    preferences: 'from-violet-950 via-aubergine-900 to-purple-800',
+    notifications: 'from-indigo-950 via-aubergine-900 to-purple-900',
+    security: 'from-slate-900 to-slate-800',
   };
 
   return (
@@ -192,7 +193,7 @@ function PatientProfile() {
       <h1 className="text-2xl font-black text-slate-800">My Profile</h1>
 
       {/* Profile Header */}
-      <div className={`bg-gradient-to-r ${FIELD_COLOR[activeTab]} rounded-3xl p-8 text-white flex flex-col sm:flex-row items-center sm:items-start gap-6 relative overflow-hidden transition-all duration-500`}>
+      <div className={`bg-gradient-to-r ${FIELD_COLOR[activeTab] || 'from-aubergine-900 to-aubergine-700'} rounded-3xl p-8 text-white flex flex-col sm:flex-row items-center sm:items-start gap-6 relative overflow-hidden transition-all duration-500`}>
         <div className="absolute -right-8 -top-8 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
         <div className="relative">
           <div className="w-24 h-24 rounded-3xl bg-white/20 border-4 border-white/30 flex items-center justify-center text-3xl font-black text-white shrink-0 shadow-xl overflow-hidden">

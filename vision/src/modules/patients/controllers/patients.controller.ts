@@ -28,6 +28,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { PatientsService } from '@/modules/patients/services/patients.service';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
@@ -43,6 +44,7 @@ export class CreatePatientDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null ? undefined : value))
   @IsString()
   @Matches(/^[0-9+\s\-()]{7,20}$/, {
     message: 'phone must be a valid contact number',
@@ -51,6 +53,7 @@ export class CreatePatientDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null ? undefined : value))
   @IsEmail()
   email?: string;
 
@@ -59,6 +62,7 @@ export class CreatePatientDto {
     enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
   })
   @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null || value === '—' ? undefined : value))
   @IsIn(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'])
   bloodGroup?: string;
 }
@@ -73,6 +77,7 @@ export class UpdatePatientDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null ? undefined : value))
   @IsString()
   @Matches(/^[0-9+\s\-()]{7,20}$/, {
     message: 'phone must be a valid contact number',
@@ -81,6 +86,7 @@ export class UpdatePatientDto {
 
   @ApiProperty({ required: false, example: '1995-05-15' })
   @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null ? undefined : value))
   @IsString()
   @Matches(/^\d{4}-\d{2}-\d{2}$/, {
     message: 'dob must be in YYYY-MM-DD format',
@@ -92,11 +98,13 @@ export class UpdatePatientDto {
     enum: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
   })
   @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null || value === '—' ? undefined : value))
   @IsIn(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'])
   bloodGroup?: string;
 
   @ApiProperty({ required: false, example: 165 })
   @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null || value === undefined || isNaN(Number(value)) ? undefined : Number(value)))
   @IsNumber()
   @Min(30)
   @Max(300)
@@ -104,6 +112,7 @@ export class UpdatePatientDto {
 
   @ApiProperty({ required: false, example: 62 })
   @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null || value === undefined || isNaN(Number(value)) ? undefined : Number(value)))
   @IsNumber()
   @Min(2)
   @Max(500)

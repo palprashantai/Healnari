@@ -39,6 +39,8 @@ export function PatientCarePassModal({ isOpen, onClose, patient, doctorName }) {
       return;
     }
 
+    const logoSvgUrl = `${origin}/brand/logo.svg`;
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -78,12 +80,13 @@ export function PatientCarePassModal({ isOpen, onClose, patient, doctorName }) {
               padding-bottom: 14px;
               margin-bottom: 18px;
             }
-            .logo {
-              font-size: 20px;
-              font-weight: 900;
-              color: #ffffff;
+            .pass-brand-logo {
+              height: 24px;
+              width: auto;
+              max-width: 120px;
+              object-fit: contain;
+              filter: brightness(0) invert(1);
             }
-            .logo span { color: #f472b6; }
             .badge {
               font-size: 9px;
               font-weight: 800;
@@ -164,7 +167,7 @@ export function PatientCarePassModal({ isOpen, onClose, patient, doctorName }) {
           <div class="card-wrapper">
             <div class="care-card">
               <div class="top-bar">
-                <div class="logo">Heal<span>Nari</span></div>
+                <img src="${logoSvgUrl}" class="pass-brand-logo" alt="HealNari" onerror="this.onerror=null;this.src='/brand/logo.svg';" />
                 <div class="badge">● Emergency Care Pass</div>
               </div>
 
@@ -278,7 +281,7 @@ export function PatientCarePassModal({ isOpen, onClose, patient, doctorName }) {
               
               <div className="flex justify-between items-center border-b border-white/10 pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="font-black text-white text-base tracking-tight font-display">Heal<span className="text-pink-400">Nari</span></span>
+                  <img src="/brand/logo.svg" alt="HealNari" className="h-5 w-auto object-contain brightness-0 invert" />
                   <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-black px-2 py-0.5 rounded-full">
                     DIGITAL CARE PASS
                   </span>

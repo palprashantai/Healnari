@@ -98,7 +98,7 @@ export class InvoiceService {
         .fillColor('#475569')
         .fontSize(11)
         .font('Helvetica-Bold')
-        .text('Digital Health Clinic', 50, 95);
+        .text('Multi-Specialty Healthcare Platform', 50, 95);
       addressTop = 110;
     } else {
       doc
@@ -110,7 +110,7 @@ export class InvoiceService {
         .fillColor('#475569')
         .fontSize(11)
         .font('Helvetica-Bold')
-        .text('Digital Health Clinic', 50, 78);
+        .text('Multi-Specialty Healthcare Platform', 50, 78);
     }
     doc
       .fillColor('#64748b')
