@@ -129,18 +129,11 @@ function parseMedicineDetails(m) {
 }
 
 /**
- * Opens a hospital-grade digital prescription print window styled to premier
- * clinical standards: official clinic letterhead, high-res brand logo, consultation
- * timestamp, complete patient demographics, dosing matrix, doctor credentials,
- * security QR, and Telemedicine Practice Guidelines certification.
+ * Parses structured medicines and returns an HTML string for the prescription document.
  */
-export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagnosis, medicines, labTests, instructions, handwrittenImage }) {
-  const win = window.open('', '_blank', 'width=940,height=1050');
-  if (!win) return;
-
-  const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : '';
-  const logoUrl = `${origin}/brand/logo.svg`;
-  const logoFallbackUrl = `${origin}/brand/logo-full.png`;
+export function generatePrescriptionHtml({ rxId, date, doctor, patient, diagnosis, medicines, labTests, instructions, handwrittenImage, origin = '' }) {
+  const safeOrigin = origin || ((typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : '');
+  const logoSvgUrl = `${safeOrigin}/brand/logo.svg`;
 
   // Parse Consultation Date & Time
   const now = new Date();
@@ -218,15 +211,15 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
       <td class="col-matrix">
         <div class="matrix-pill-group">
           <div class="matrix-cell ${m.morning !== '0' && m.morning !== '–' ? 'active-morning' : 'inactive'}">
-            <span class="cell-label">Morn</span>
+            <span class="cell-label">M</span>
             <span class="cell-val">${escapeHtml(m.morning)}</span>
           </div>
           <div class="matrix-cell ${m.afternoon !== '0' && m.afternoon !== '–' ? 'active-afternoon' : 'inactive'}">
-            <span class="cell-label">Noon</span>
+            <span class="cell-label">A</span>
             <span class="cell-val">${escapeHtml(m.afternoon)}</span>
           </div>
           <div class="matrix-cell ${m.night !== '0' && m.night !== '–' ? 'active-night' : 'inactive'}">
-            <span class="cell-label">Night</span>
+            <span class="cell-label">N</span>
             <span class="cell-val">${escapeHtml(m.night)}</span>
           </div>
         </div>
@@ -250,15 +243,16 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
     </tr>
   `).join('');
 
-  win.document.write(`
+  return `
     <!doctype html>
     <html lang="en">
     <head>
       <meta charset="utf-8" />
+      <base href="${safeOrigin}/" />
       <title>Prescription — ${escapeHtml(patientName)} — HealNari</title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
         
         * { box-sizing: border-box; margin: 0; padding: 0; }
         
@@ -316,7 +310,6 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
         }
         .btn-toolbar-print {
           background: #059669;
-          hover:background: #047857;
           color: white;
           border: none;
           font-weight: 700;
@@ -347,134 +340,109 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
         /* Prescription Page Container */
         .page-container {
           max-width: 880px;
-          margin: 30px auto 60px;
+          margin: 28px auto 60px;
           background: #ffffff;
-          box-shadow: 0 15px 35px rgba(0,0,0,0.06);
-          border-radius: 18px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+          border-radius: 16px;
           overflow: hidden;
           position: relative;
           border: 1px solid #e2e8f0;
         }
 
-        /* Official Clinic Letterhead Banner */
+        /* Modern Medical Letterhead - Matching Invoice Header */
         .clinic-header {
-          background: linear-gradient(135deg, #1e1b4b 0%, #311042 55%, #4c1d95 100%);
-          color: #ffffff;
-          padding: 36px 44px 30px;
+          background: #f8fafc;
+          padding: 26px 40px 22px;
+          border-bottom: 4px solid #6B46C1;
           position: relative;
-          border-bottom: 4px solid #d4af37;
-        }
-        .clinic-header::after {
-          content: '';
-          position: absolute;
-          top: 0; right: 0; bottom: 0; left: 0;
-          background-image: radial-gradient(circle at 95% 10%, rgba(212,175,55,0.15) 0%, transparent 50%);
-          pointer-events: none;
         }
 
         .header-top-row {
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
-          gap: 20px;
-          position: relative;
-          z-index: 1;
+          align-items: center;
+          gap: 24px;
         }
         
         .brand-block {
           display: flex;
-          align-items: center;
-          gap: 18px;
-        }
-        .logo-emblem {
-          width: 58px;
-          height: 58px;
-          background: #ffffff;
-          border-radius: 16px;
-          padding: 6px;
-          box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-        .logo-emblem svg {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-        }
-        .brand-text-col {}
-        .clinic-name {
-          font-family: 'Playfair Display', serif;
-          font-size: 30px;
-          font-weight: 700;
-          color: #ffffff;
-          letter-spacing: -0.3px;
-          line-height: 1.1;
-        }
-        .clinic-tagline {
-          font-size: 13px;
-          font-weight: 600;
-          color: #e9d5ff;
-          letter-spacing: 0.8px;
-          text-transform: uppercase;
-          margin-top: 4px;
-        }
-        .accreditation-line {
-          font-size: 10.5px;
-          color: #cbd5e1;
-          margin-top: 5px;
-          display: flex;
-          align-items: center;
+          flex-direction: column;
+          align-items: flex-start;
           gap: 6px;
-          flex-wrap: wrap;
-        }
-        .accreditation-line .gold { color: #fde047; font-weight: 700; }
-        .accreditation-line .dot { opacity: 0.6; }
-
-        .header-contact-col {
-          text-align: right;
-          font-size: 11.5px;
-          color: #e2e8f0;
-          line-height: 1.5;
-        }
-        .header-contact-col strong { color: #ffffff; }
-        .rx-emblem-large {
-          font-family: 'Playfair Display', serif;
-          font-size: 42px;
-          font-weight: 700;
-          color: #fde047;
-          line-height: 1;
-          margin-bottom: 6px;
-          opacity: 0.95;
         }
 
-        /* Consultation Metadata Strip */
-        .meta-strip {
-          background: #f8fafc;
-          border-bottom: 1px solid #e2e8f0;
-          padding: 12px 44px;
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-          gap: 16px;
-          font-size: 11.5px;
-        }
-        .meta-cell {}
-        .meta-cell-label {
-          text-transform: uppercase;
-          font-size: 9.5px;
-          letter-spacing: 1px;
-          font-weight: 800;
-          color: #64748b;
+        .clinic-brand-logo {
+          height: 44px;
+          width: auto;
+          max-height: 48px;
+          object-fit: contain;
           display: block;
-          margin-bottom: 2px;
         }
-        .meta-cell-val {
-          font-weight: 700;
+
+        .clinic-sub-details {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .clinic-type {
+          font-size: 11px;
+          font-weight: 800;
+          color: #475569;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+        }
+
+        .clinic-address {
+          font-size: 10px;
+          color: #64748b;
+        }
+
+        .clinic-contacts {
+          font-size: 9.5px;
+          color: #64748b;
+        }
+
+        /* Right Header Box - Matching Invoice Info */
+        .header-doc-info {
+          text-align: right;
+          min-width: 230px;
+        }
+
+        .doc-main-title {
+          font-size: 24px;
+          font-weight: 900;
           color: #0f172a;
-          font-size: 13px;
+          letter-spacing: 1.2px;
+          text-transform: uppercase;
+          margin-bottom: 6px;
         }
-        .meta-cell-val.font-mono { font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+
+        .doc-meta-table {
+          display: inline-flex;
+          flex-direction: column;
+          gap: 3px;
+          font-size: 11px;
+        }
+
+        .doc-meta-row {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .meta-field-label {
+          color: #64748b;
+          font-weight: 600;
+        }
+
+        .meta-field-val {
+          color: #0f172a;
+          font-weight: 700;
+          text-align: right;
+        }
+
         .badge-tele-mode {
           display: inline-flex;
           align-items: center;
@@ -482,122 +450,106 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
           background: #ecfdf5;
           color: #047857;
           border: 1px solid #a7f3d0;
-          padding: 2px 8px;
-          border-radius: 6px;
-          font-size: 11px;
+          padding: 2px 7px;
+          border-radius: 5px;
+          font-size: 10.5px;
           font-weight: 700;
         }
 
         /* Main Body Content */
         .body-content {
-          padding: 36px 44px 40px;
+          padding: 28px 40px 36px;
           position: relative;
         }
 
-        /* Faint Rx Watermark */
-        .watermark-bg {
-          position: absolute;
-          top: 52%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          font-family: 'Playfair Display', serif;
-          font-size: 520px;
-          font-weight: 700;
-          color: #4c1d95;
-          opacity: 0.022;
-          z-index: 0;
-          pointer-events: none;
-          line-height: 1;
-        }
-
-        /* 2-Column Doctor & Patient Profile Cards */
+        /* 2-Column Doctor & Patient Profile Cards - Matching Invoice Box Pattern */
         .profiles-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 20px;
-          margin-bottom: 30px;
+          gap: 18px;
+          margin-bottom: 24px;
           position: relative;
           z-index: 1;
         }
         .profile-card {
-          border-radius: 14px;
+          border-radius: 12px;
           border: 1px solid #e2e8f0;
           background: #ffffff;
           overflow: hidden;
         }
         .profile-card-header {
-          padding: 8px 16px;
+          padding: 8px 14px;
           font-size: 10px;
           font-weight: 800;
-          letter-spacing: 1px;
+          letter-spacing: 0.8px;
           text-transform: uppercase;
           display: flex;
           justify-content: space-between;
           align-items: center;
         }
         .patient-card .profile-card-header {
-          background: #f1f5f9;
+          background: #f8fafc;
           color: #475569;
           border-bottom: 1px solid #e2e8f0;
         }
         .doctor-card .profile-card-header {
           background: #faf5ff;
-          color: #6b21a8;
+          color: #6B46C1;
           border-bottom: 1px solid #f3e8ff;
         }
 
         .profile-card-body {
-          padding: 14px 16px;
+          padding: 12px 14px;
         }
         .profile-name {
-          font-size: 17px;
+          font-size: 16px;
           font-weight: 800;
           color: #0f172a;
           margin-bottom: 4px;
         }
         .profile-details-row {
-          font-size: 12px;
+          font-size: 11.5px;
           color: #475569;
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           flex-wrap: wrap;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
         }
         .profile-details-row strong { color: #1e293b; }
 
         .diagnosis-box {
           background: #faf5ff;
           border: 1px solid #e9d5ff;
-          border-left: 3px solid #7c3aed;
-          border-radius: 8px;
-          padding: 8px 12px;
-          margin-top: 8px;
+          border-left: 3px solid #6B46C1;
+          border-radius: 6px;
+          padding: 7px 10px;
+          margin-top: 6px;
         }
         .diag-label {
-          font-size: 10px;
+          font-size: 9.5px;
           font-weight: 800;
           text-transform: uppercase;
-          letter-spacing: 0.8px;
-          color: #6b21a8;
+          letter-spacing: 0.6px;
+          color: #6B46C1;
           display: block;
           margin-bottom: 2px;
         }
         .diag-text {
-          font-size: 13px;
+          font-size: 12.5px;
           font-weight: 700;
           color: #3b0764;
         }
 
         .allergy-notice {
-          margin-top: 8px;
-          font-size: 11px;
-          border-radius: 6px;
-          padding: 5px 10px;
+          margin-top: 6px;
+          font-size: 10.5px;
+          border-radius: 5px;
+          padding: 4px 8px;
           font-weight: 600;
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
         }
         .allergy-notice.alert {
           background: #fef2f2;
@@ -612,82 +564,81 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
 
         /* Doctor Sub details */
         .doctor-sub-details {
-          font-size: 12px;
+          font-size: 11.5px;
           color: #475569;
           line-height: 1.5;
         }
         .doctor-sub-details .qual { font-weight: 700; color: #1e293b; }
-        .doctor-sub-details .spec { color: #6b21a8; font-weight: 600; }
-        .doctor-sub-details .reg { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #64748b; margin-top: 4px; }
+        .doctor-sub-details .spec { color: #6B46C1; font-weight: 600; }
+        .doctor-sub-details .reg { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #64748b; margin-top: 4px; }
 
-        /* Rx Symbol Header */
+        /* Rx Section Header */
         .rx-section-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 14px;
+          margin-bottom: 12px;
           position: relative;
           z-index: 1;
         }
         .rx-title-left {
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
         }
         .rx-symbol-inline {
-          font-family: 'Playfair Display', serif;
-          font-size: 32px;
-          font-weight: 700;
-          color: #1e1b4b;
+          font-family: 'Plus Jakarta Sans', serif;
+          font-size: 26px;
+          font-weight: 800;
+          color: #6B46C1;
           line-height: 1;
         }
         .rx-section-title {
-          font-size: 14px;
+          font-size: 13px;
           font-weight: 800;
           text-transform: uppercase;
-          letter-spacing: 1.2px;
+          letter-spacing: 1px;
           color: #1e293b;
         }
         .rx-item-count {
-          background: #ede9fe;
-          color: #5b21b6;
+          background: #f3e8ff;
+          color: #6B46C1;
           font-size: 11px;
           font-weight: 800;
-          padding: 2px 10px;
+          padding: 2px 9px;
           border-radius: 999px;
         }
 
-        /* Structured Medications Table */
+        /* Structured Medications Table - Matching Invoice Itemized Style */
         .meds-table-container {
           border: 1px solid #cbd5e1;
-          border-radius: 12px;
+          border-radius: 10px;
           overflow: hidden;
-          margin-bottom: 28px;
+          margin-bottom: 24px;
           position: relative;
           z-index: 1;
           background: #ffffff;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.02);
         }
         .meds-table {
           width: 100%;
           border-collapse: collapse;
           text-align: left;
-          font-size: 12px;
+          font-size: 11.5px;
         }
         .meds-table thead {
-          background: #f8fafc;
-          border-bottom: 2px solid #cbd5e1;
+          background: #6B46C1;
+          color: #ffffff;
         }
         .meds-table th {
-          padding: 10px 12px;
+          padding: 9px 12px;
           font-weight: 800;
-          font-size: 10.5px;
-          color: #475569;
+          font-size: 10px;
+          color: #ffffff;
           text-transform: uppercase;
           letter-spacing: 0.8px;
         }
         .meds-table td {
-          padding: 12px 12px;
+          padding: 10px 12px;
           border-bottom: 1px solid #f1f5f9;
           vertical-align: top;
         }
@@ -695,18 +646,18 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
           border-bottom: none;
         }
         .meds-table tbody tr:nth-child(even) {
-          background: #fafaf9;
+          background: #f8fafc;
         }
 
         .col-num {
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 800;
           color: #94a3b8;
-          width: 38px;
+          width: 32px;
           text-align: center;
         }
         .col-med {
-          width: 38%;
+          width: 40%;
         }
         .med-name-line {
           display: flex;
@@ -716,169 +667,220 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
         }
         .med-prefix {
           font-weight: 800;
-          color: #4c1d95;
-          font-size: 11px;
+          color: #6B46C1;
+          font-size: 10.5px;
           text-transform: uppercase;
         }
         .med-main-name {
-          font-size: 14px;
+          font-size: 13.5px;
           font-weight: 800;
           color: #0f172a;
           letter-spacing: -0.2px;
         }
         .med-strength-tag {
-          font-size: 11px;
+          font-size: 10.5px;
           font-weight: 700;
           color: #4338ca;
           background: #e0e7ff;
-          padding: 1px 7px;
-          border-radius: 5px;
+          padding: 1px 6px;
+          border-radius: 4px;
           border: 1px solid #c7d2fe;
         }
         .med-special-note {
-          font-size: 11px;
+          font-size: 10.5px;
           color: #64748b;
-          margin-top: 5px;
+          margin-top: 4px;
           line-height: 1.4;
         }
         .med-special-note .note-bullet {
-          color: #7c3aed;
+          color: #6B46C1;
           font-weight: bold;
         }
 
         /* Matrix Pills (Morning - Noon - Night) */
         .col-matrix {
-          width: 25%;
+          width: 22%;
         }
         .matrix-pill-group {
           display: inline-flex;
-          border: 1px solid #cbd5e1;
-          border-radius: 8px;
+          align-items: center;
+          border: 1px solid #e2e8f0;
+          border-radius: 7px;
           overflow: hidden;
           background: #ffffff;
         }
         .matrix-cell {
-          padding: 4px 8px;
-          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 3px 8px;
           min-width: 34px;
-          border-right: 1px solid #e2e8f0;
+          border-right: 1px solid #f1f5f9;
         }
-        .matrix-cell:last-child { border-right: none; }
-        .cell-label {
-          font-size: 8.5px;
+        .matrix-cell:last-child {
+          border-right: none;
+        }
+        .matrix-cell .cell-label {
+          font-size: 8px;
+          font-weight: 800;
           text-transform: uppercase;
           color: #94a3b8;
-          display: block;
-          font-weight: 800;
+          line-height: 1;
+          margin-bottom: 2px;
         }
-        .cell-val {
-          font-size: 12px;
+        .matrix-cell .cell-val {
+          font-size: 11px;
           font-weight: 800;
-          color: #0f172a;
-          line-height: 1.2;
+          line-height: 1;
         }
-        .matrix-cell.active-morning { background: #fef3c7; color: #b45309; }
-        .matrix-cell.active-afternoon { background: #e0f2fe; color: #0369a1; }
-        .matrix-cell.active-night { background: #ede9fe; color: #6d28d9; }
-        .matrix-cell.inactive { background: #ffffff; color: #cbd5e1; }
+        .matrix-cell.active-morning {
+          background: #eff6ff;
+          color: #1d4ed8;
+        }
+        .matrix-cell.active-morning .cell-label {
+          color: #3b82f6;
+        }
+        .matrix-cell.active-afternoon {
+          background: #fffbeb;
+          color: #b45309;
+        }
+        .matrix-cell.active-afternoon .cell-label {
+          color: #f59e0b;
+        }
+        .matrix-cell.active-night {
+          background: #faf5ff;
+          color: #6B46C1;
+        }
+        .matrix-cell.active-night .cell-label {
+          color: #8b5cf6;
+        }
+        .matrix-cell.inactive {
+          background: #ffffff;
+          color: #94a3b8;
+        }
         .matrix-sub-schedule {
-          font-size: 10px;
+          font-size: 9.5px;
           color: #64748b;
+          margin-top: 3px;
           font-weight: 600;
-          margin-top: 4px;
         }
 
-        /* Food Timing Badges */
         .col-timing {
-          width: 15%;
+          width: 16%;
         }
         .food-badge {
           display: inline-block;
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 700;
           padding: 3px 8px;
-          border-radius: 6px;
+          border-radius: 5px;
           white-space: nowrap;
         }
-        .food-after { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
-        .food-before { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
-        .food-bed { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
-        .food-general { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+        .food-after {
+          background: #ecfdf5;
+          color: #047857;
+          border: 1px solid #a7f3d0;
+        }
+        .food-before {
+          background: #fff7ed;
+          color: #c2410c;
+          border: 1px solid #fed7aa;
+        }
+        .food-bed {
+          background: #faf5ff;
+          color: #6B46C1;
+          border: 1px solid #e9d5ff;
+        }
+        .food-general {
+          background: #f1f5f9;
+          color: #475569;
+          border: 1px solid #e2e8f0;
+        }
 
         .col-dur {
-          width: 12%;
+          width: 11%;
         }
         .duration-pill {
+          font-size: 10.5px;
           font-weight: 700;
-          color: #1e293b;
-          font-size: 11.5px;
+          color: #0f172a;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          padding: 2px 7px;
+          border-radius: 5px;
+          display: inline-block;
+          white-space: nowrap;
         }
 
         .col-qty {
-          width: 10%;
+          width: 11%;
           font-weight: 700;
           color: #334155;
-          font-size: 12px;
         }
 
-        /* Instructions & Investigations Callouts */
+        /* Callouts Section */
         .callouts-grid {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 16px;
-          margin-bottom: 30px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          margin-bottom: 24px;
           position: relative;
           z-index: 1;
         }
         .callout-box {
-          border-radius: 12px;
-          padding: 16px 20px;
-          font-size: 12.5px;
-          line-height: 1.6;
+          border-radius: 10px;
+          padding: 12px 16px;
+          font-size: 11.5px;
+          line-height: 1.5;
         }
         .callout-title {
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 800;
           text-transform: uppercase;
-          letter-spacing: 1px;
+          letter-spacing: 0.8px;
           margin-bottom: 6px;
           display: flex;
           align-items: center;
           gap: 6px;
         }
         .notes-callout {
+          background: #faf5ff;
+          border: 1px solid #e9d5ff;
+          border-left: 4px solid #6B46C1;
+          color: #3b0764;
+        }
+        .notes-callout .callout-title {
+          color: #6B46C1;
+        }
+        .labs-callout {
+          background: #f0fdf4;
+          border: 1px solid #bbf7d0;
+          border-left: 4px solid #16a34a;
+          color: #14532d;
+        }
+        .labs-callout .callout-title {
+          color: #16a34a;
+        }
+        .labs-list {
+          margin-left: 18px;
+          margin-top: 4px;
+        }
+        .sos-callout {
           background: #fffbeb;
           border: 1px solid #fde68a;
           border-left: 4px solid #f59e0b;
           color: #78350f;
+          font-size: 11px;
         }
-        .notes-callout .callout-title { color: #b45309; }
-        .labs-callout {
-          background: #f0fdf4;
-          border: 1px solid #bbf7d0;
-          border-left: 4px solid #10b981;
-          color: #065f46;
+        .sos-callout .callout-title {
+          color: #b45309;
         }
-        .labs-callout .callout-title { color: #047857; }
-        .labs-list {
-          margin: 0;
-          padding-left: 18px;
-        }
-        .labs-list li { margin-bottom: 4px; }
-        
-        .sos-callout {
-          background: #fef2f2;
-          border: 1px solid #fecaca;
-          border-left: 4px solid #ef4444;
-          color: #991b1b;
-          font-size: 11.5px;
-        }
-        .sos-callout .callout-title { color: #b91c1c; }
 
-        /* Footer & Signature Row */
+        /* Footer & Digital Signature Block - Matching Invoice Signature Block */
         .prescription-footer {
           border-top: 2px solid #e2e8f0;
-          padding-top: 24px;
+          padding-top: 18px;
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
@@ -886,36 +888,34 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
           position: relative;
           z-index: 1;
         }
-
         .legal-notice-box {
-          max-width: 520px;
-          font-size: 10.5px;
+          max-width: 58%;
+          font-size: 10px;
           color: #64748b;
-          line-height: 1.6;
+          line-height: 1.45;
         }
-        .legal-notice-box strong { color: #1e293b; }
         .security-badge-row {
           display: flex;
           align-items: center;
           gap: 10px;
           margin-top: 8px;
-          font-size: 10px;
+          font-size: 9.5px;
           color: #475569;
         }
         .security-qr-mock {
-          width: 42px;
-          height: 42px;
+          width: 38px;
+          height: 38px;
           background: #f8fafc;
           border: 1px solid #cbd5e1;
           border-radius: 6px;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 8px;
+          font-size: 7.5px;
           font-weight: 800;
           color: #475569;
           text-align: center;
-          line-height: 1;
+          line-height: 1.1;
           flex-shrink: 0;
         }
 
@@ -924,16 +924,16 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
           min-width: 220px;
         }
         .signature-cursive {
-          font-family: 'Playfair Display', Georgia, serif;
-          font-size: 26px;
+          font-family: 'Plus Jakarta Sans', Georgia, serif;
+          font-size: 22px;
           font-style: italic;
           font-weight: 700;
           color: #1e1b4b;
           margin-bottom: 4px;
         }
         .signature-line {
-          border-top: 2px solid #0f172a;
-          padding-top: 6px;
+          border-top: 1.5px solid #0f172a;
+          padding-top: 4px;
           font-size: 11px;
           font-weight: 800;
           color: #0f172a;
@@ -941,7 +941,7 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
           letter-spacing: 0.5px;
         }
         .signature-meta {
-          font-size: 10px;
+          font-size: 9.5px;
           color: #64748b;
           margin-top: 2px;
         }
@@ -951,7 +951,7 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
           gap: 4px;
           background: #ecfdf5;
           color: #059669;
-          font-size: 9.5px;
+          font-size: 9px;
           font-weight: 800;
           padding: 2px 6px;
           border-radius: 4px;
@@ -968,7 +968,7 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
           body {
             background: #ffffff !important;
             color: #000000 !important;
-            font-size: 11pt;
+            font-size: 10.5pt;
           }
           .print-toolbar {
             display: none !important;
@@ -981,17 +981,12 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
             max-width: 100% !important;
           }
           .clinic-header {
-            padding: 24px 28px 20px !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          .meta-strip {
-            padding: 10px 28px !important;
+            padding: 18px 24px 16px !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
           .body-content {
-            padding: 24px 28px !important;
+            padding: 18px 24px !important;
           }
           .meds-table thead {
             -webkit-print-color-adjust: exact !important;
@@ -1001,7 +996,7 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
           .matrix-cell.active-afternoon,
           .matrix-cell.active-night,
           .food-badge,
-          .diag-box,
+          .diagnosis-box,
           .badge-tele-mode {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -1042,72 +1037,53 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
 
       <!-- Main A4 Printable Prescription Card -->
       <div class="page-container">
-        <!-- Clinic Official Letterhead -->
+        <!-- Clinic Official Letterhead - Modeled directly on the Invoice Header -->
         <header class="clinic-header">
           <div class="header-top-row">
             <div class="brand-block">
-              <div class="logo-emblem">
-                <!-- SVG Emblem -->
-                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="50" cy="50" r="46" fill="#1e1b4b" />
-                  <path d="M50 20 C36 20 25 31 25 45 C25 62 50 82 50 82 C50 82 75 62 75 45 C75 31 64 20 50 20 Z" fill="#d946ef" opacity="0.85"/>
-                  <path d="M43 46 L48 51 L59 39" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-                  <circle cx="50" cy="50" r="48" stroke="#fde047" stroke-width="2.5" stroke-dasharray="4 3"/>
-                </svg>
-              </div>
-              <div class="brand-text-col">
-                <div class="clinic-name">HealNari Women's Health Clinic</div>
-                <div class="clinic-tagline">Center for Advanced Gynaecology &amp; Reproductive Wellness</div>
-                <div class="accreditation-line">
-                  <span class="gold">★ NABH Telemedicine Certified</span>
-                  <span class="dot">•</span>
-                  <span>Reg. No: KA-MED-2024-9912</span>
-                  <span class="dot">•</span>
-                  <span>MoHFW Telehealth Compliant</span>
-                </div>
+              <img 
+                src="${logoSvgUrl}" 
+                alt="HealNari Logo" 
+                class="clinic-brand-logo" 
+                onerror="this.onerror=null;this.src='/brand/logo.svg';" 
+              />
+              <div class="clinic-sub-details">
+                <div class="clinic-type">Digital Health Clinic</div>
+                <div class="clinic-address">123 Wellness Avenue, Health City</div>
+                <div class="clinic-contacts">support@healnari.app &nbsp;|&nbsp; +1 (800) 000-0000 &nbsp;|&nbsp; care@healnari.com</div>
               </div>
             </div>
 
-            <div class="header-contact-col">
-              <div class="rx-emblem-large">℞</div>
-              <div><strong>Address:</strong> 102 Medical Hub, Indiranagar, Bengaluru - 560038</div>
-              <div><strong>Helpline:</strong> +91 80 4567 8900 &nbsp;|&nbsp; <strong>Email:</strong> care@healnari.com</div>
-              <div><strong>Web:</strong> www.healnari.com</div>
+            <!-- Document Meta (Right) - TAX INVOICE style -->
+            <div class="header-doc-info">
+              <div class="doc-main-title">PRESCRIPTION</div>
+              <div class="doc-meta-table">
+                <div class="doc-meta-row">
+                  <span class="meta-field-label">Prescription No:</span>
+                  <span class="meta-field-val font-mono">${escapeHtml(displayRxId)}</span>
+                </div>
+                <div class="doc-meta-row">
+                  <span class="meta-field-label">Date of Issue:</span>
+                  <span class="meta-field-val">${escapeHtml(consultationDate)}</span>
+                </div>
+                <div class="doc-meta-row">
+                  <span class="meta-field-label">Valid Until:</span>
+                  <span class="meta-field-val" style="color: #047857;">Till ${escapeHtml(validUntilDate)}</span>
+                </div>
+                <div class="doc-meta-row">
+                  <span class="meta-field-label">Consult Mode:</span>
+                  <span class="badge-tele-mode">● Tele-EMR Consult</span>
+                </div>
+              </div>
             </div>
           </div>
         </header>
 
-        <!-- Consultation Metadata Strip -->
-        <div class="meta-strip">
-          <div class="meta-cell">
-            <span class="meta-cell-label">Prescription ID</span>
-            <span class="meta-cell-val font-mono">${escapeHtml(displayRxId)}</span>
-          </div>
-          <div class="meta-cell">
-            <span class="meta-cell-label">Consultation Date</span>
-            <span class="meta-cell-val">${escapeHtml(consultationDate)}</span>
-          </div>
-          <div class="meta-cell">
-            <span class="meta-cell-label">Consultation Time</span>
-            <span class="meta-cell-val">${escapeHtml(consultationTime)}</span>
-          </div>
-          <div class="meta-cell">
-            <span class="meta-cell-label">Prescription Validity</span>
-            <span class="meta-cell-val" style="color: #047857;">Till ${escapeHtml(validUntilDate)}</span>
-          </div>
-          <div class="meta-cell" style="text-align: right;">
-            <span class="meta-cell-label">Consultation Mode</span>
-            <span class="badge-tele-mode">● Tele-EMR Consult</span>
-          </div>
-        </div>
-
         <!-- Main Body -->
         <div class="body-content">
-          <div class="watermark-bg">℞</div>
-
-          <!-- Doctor & Patient Profile Cards -->
+          <!-- Doctor & Patient Profile Cards - Matching Invoice Demographics Boxes -->
           <div class="profiles-grid">
-            <!-- Patient Demographics -->
+            <!-- Patient Demographics (Billed To Style) -->
             <div class="profile-card patient-card">
               <div class="profile-card-header">
                 <span>Patient Demographics</span>
@@ -1135,7 +1111,7 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
               </div>
             </div>
 
-            <!-- Prescribing Doctor -->
+            <!-- Prescribing Doctor (Treating Doctor Style) -->
             <div class="profile-card doctor-card">
               <div class="profile-card-header">
                 <span>Prescribing Practitioner</span>
@@ -1155,11 +1131,11 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
 
           <!-- Handwritten Canvas Image (If Attached) -->
           ${handwrittenImage ? `
-            <div style="margin-bottom: 24px; border: 2px solid #e2e8f0; border-radius: 14px; overflow: hidden; background: #faf8f5; padding: 10px; position: relative; z-index: 1;">
-              <div style="font-size: 11px; font-weight: 800; color: #6b21a8; text-transform: uppercase; margin-bottom: 8px;">
+            <div style="margin-bottom: 20px; border: 1.5px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #faf8f5; padding: 10px; position: relative; z-index: 1;">
+              <div style="font-size: 10.5px; font-weight: 800; color: #6B46C1; text-transform: uppercase; margin-bottom: 8px;">
                 ● Attached Doctor's Handwritten Prescription Canvas
               </div>
-              <img src="${handwrittenImage}" alt="Handwritten Prescription" style="width: 100%; border-radius: 8px; display: block;" />
+              <img src="${handwrittenImage}" alt="Handwritten Prescription" style="width: 100%; border-radius: 6px; display: block;" />
             </div>
           ` : ''}
 
@@ -1205,7 +1181,7 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
                   Doctor's Instructions &amp; Dietary Advice
                 </div>
                 <div style="white-space: pre-line;">${escapeHtml(displayInstructions)}</div>
-                ${followUpAdvice ? `<div style="margin-top: 8px; font-weight: 700; color: #92400e;">Next Follow-up Consultation: ${escapeHtml(followUpAdvice)}</div>` : ''}
+                ${followUpAdvice ? `<div style="margin-top: 6px; font-weight: 700; color: #6B46C1;">Next Follow-up Consultation: ${escapeHtml(followUpAdvice)}</div>` : ''}
               </div>
             ` : ''}
 
@@ -1226,11 +1202,11 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
                 <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M7.938 2.016A.13.13 0 0 1 8.002 2a.13.13 0 0 1 .063.016.146.146 0 0 1 .054.057l6.857 11.667c.036.06.035.124.002.183a.163.163 0 0 1-.054.06.116.116 0 0 1-.066.017H1.146a.115.115 0 0 1-.066-.017.163.163 0 0 1-.054-.06.176.176 0 0 1 .002-.183L7.884 2.073a.147.147 0 0 1 .054-.057zm1.044-.45a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566z"/><path d="M7.002 12a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 5.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z"/></svg>
                 Emergency &amp; Red-Flag Advisory
               </div>
-              <div>In case of acute severe abdominal or pelvic pain, fever higher than 101°F, sudden heavy bleeding, or severe dizziness, immediately contact the HealNari emergency hotline (+91 80 4567 8900) or visit the nearest emergency medical facility.</div>
+              <div>In case of acute severe abdominal or pelvic pain, high fever (>101°F), sudden abnormal bleeding, or severe dizziness, immediately contact the HealNari care hotline (+91 80 4567 8900) or visit the nearest emergency healthcare facility.</div>
             </div>
           </div>
 
-          <!-- Footer & Digital Signature Block -->
+          <!-- Footer & Digital Signature Block - Matching Invoice Signature Block -->
           <footer class="prescription-footer">
             <div class="legal-notice-box">
               <p><strong>Statutory Compliance:</strong> This digital prescription is issued pursuant to the National Telemedicine Practice Guidelines (2020) and Section 5 of the Information Technology Act (2000). It is legally valid for dispensing across all licensed pharmacies.</p>
@@ -1260,13 +1236,28 @@ export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagn
       </div>
     </body>
     </html>
-  `);
+  `;
+}
 
+/**
+ * Opens a hospital-grade digital prescription print window styled to premier
+ * clinical standards: official clinic letterhead matching the invoice header,
+ * high-res brand logo, consultation timestamp, complete patient demographics,
+ * dosing matrix, doctor credentials, security QR, and Telemedicine Practice Guidelines certification.
+ */
+export function openPrescriptionPrintWindow(params) {
+  const win = window.open('', '_blank', 'width=940,height=1050');
+  if (!win) return;
+
+  const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : '';
+  const html = generatePrescriptionHtml({ ...params, origin });
+
+  win.document.write(html);
   win.document.close();
   win.focus();
   setTimeout(() => {
     win.print();
-  }, 500); // Allow Plus Jakarta Sans to load
+  }, 500);
 }
 
 export function openLifestylePlanPrintWindow({ rxId, date, doctor, patient, dietPlan, exercisePlan }) {
@@ -1520,9 +1511,9 @@ export function openLifestylePlanPrintWindow({ rxId, date, doctor, patient, diet
  * clinical diagnoses, active medications with dosing matrix, lab findings, clinical notes,
  * and attending doctor's digital signature.
  */
-export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
-  const win = window.open('', '_blank', 'width=960,height=1050');
-  if (!win) return;
+export function generatePatientEmrHtml({ patient, doctor, groupedRx, origin = '' }) {
+  const safeOrigin = origin || ((typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : '');
+  const logoSvgUrl = `${safeOrigin}/brand/logo.svg`;
 
   const now = new Date();
   const printDate = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -1583,15 +1574,15 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
       <td class="col-matrix">
         <div class="matrix-pill-group">
           <div class="matrix-cell ${m.morning !== '0' && m.morning !== '–' ? 'active-morning' : 'inactive'}">
-            <span class="cell-label">Morn</span>
+            <span class="cell-label">M</span>
             <span class="cell-val">${escapeHtml(m.morning)}</span>
           </div>
           <div class="matrix-cell ${m.afternoon !== '0' && m.afternoon !== '–' ? 'active-afternoon' : 'inactive'}">
-            <span class="cell-label">Noon</span>
+            <span class="cell-label">A</span>
             <span class="cell-val">${escapeHtml(m.afternoon)}</span>
           </div>
           <div class="matrix-cell ${m.night !== '0' && m.night !== '–' ? 'active-night' : 'inactive'}">
-            <span class="cell-label">Night</span>
+            <span class="cell-label">N</span>
             <span class="cell-val">${escapeHtml(m.night)}</span>
           </div>
         </div>
@@ -1612,15 +1603,16 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
     </tr>
   `).join('');
 
-  win.document.write(`
+  return `
     <!doctype html>
     <html lang="en">
     <head>
       <meta charset="utf-8" />
+      <base href="${safeOrigin}/" />
       <title>EMR Summary — ${escapeHtml(patientName)} — HealNari</title>
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
         
         * { box-sizing: border-box; margin: 0; padding: 0; }
         
@@ -1708,130 +1700,109 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
         /* Prescription Page Container */
         .page-container {
           max-width: 900px;
-          margin: 30px auto 60px;
+          margin: 28px auto 60px;
           background: #ffffff;
-          box-shadow: 0 15px 35px rgba(0,0,0,0.06);
-          border-radius: 18px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+          border-radius: 16px;
           overflow: hidden;
           position: relative;
           border: 1px solid #e2e8f0;
         }
 
-        /* Official Clinic Letterhead Banner */
+        /* Modern Medical Letterhead - Matching Invoice Header */
         .clinic-header {
-          background: linear-gradient(135deg, #1e1b4b 0%, #311042 55%, #4c1d95 100%);
-          color: #ffffff;
-          padding: 34px 44px 28px;
+          background: #f8fafc;
+          padding: 26px 40px 22px;
+          border-bottom: 4px solid #6B46C1;
           position: relative;
-          border-bottom: 4px solid #d4af37;
-        }
-        .clinic-header::after {
-          content: '';
-          position: absolute;
-          top: 0; right: 0; bottom: 0; left: 0;
-          background-image: radial-gradient(circle at 95% 10%, rgba(212,175,55,0.15) 0%, transparent 50%);
-          pointer-events: none;
         }
 
         .header-top-row {
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
-          gap: 20px;
-          position: relative;
-          z-index: 1;
+          align-items: center;
+          gap: 24px;
         }
         
         .brand-block {
           display: flex;
-          align-items: center;
-          gap: 18px;
-        }
-        .logo-emblem {
-          width: 58px;
-          height: 58px;
-          background: #ffffff;
-          border-radius: 16px;
-          padding: 6px;
-          box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-        .logo-emblem svg {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-        }
-        .clinic-name {
-          font-family: 'Playfair Display', serif;
-          font-size: 28px;
-          font-weight: 700;
-          color: #ffffff;
-          letter-spacing: -0.3px;
-          line-height: 1.1;
-        }
-        .clinic-tagline {
-          font-size: 12.5px;
-          font-weight: 600;
-          color: #e9d5ff;
-          letter-spacing: 0.8px;
-          text-transform: uppercase;
-          margin-top: 4px;
-        }
-        .accreditation-line {
-          font-size: 10.5px;
-          color: #cbd5e1;
-          margin-top: 5px;
-          display: flex;
-          align-items: center;
+          flex-direction: column;
+          align-items: flex-start;
           gap: 6px;
-          flex-wrap: wrap;
-        }
-        .accreditation-line .gold { color: #fde047; font-weight: 700; }
-        .accreditation-line .dot { opacity: 0.6; }
-
-        .header-contact-col {
-          text-align: right;
-          font-size: 11.5px;
-          color: #e2e8f0;
-          line-height: 1.5;
-        }
-        .header-contact-col strong { color: #ffffff; }
-        .header-doc-title {
-          font-family: 'Playfair Display', serif;
-          font-size: 22px;
-          font-weight: 700;
-          color: #fde047;
-          margin-bottom: 4px;
         }
 
-        /* Consultation Metadata Strip */
-        .meta-strip {
-          background: #f8fafc;
-          border-bottom: 1px solid #e2e8f0;
-          padding: 12px 44px;
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-          gap: 16px;
-          font-size: 11.5px;
-        }
-        .meta-cell-label {
-          text-transform: uppercase;
-          font-size: 9.5px;
-          letter-spacing: 1px;
-          font-weight: 800;
-          color: #64748b;
+        .clinic-brand-logo {
+          height: 44px;
+          width: auto;
+          max-height: 48px;
+          object-fit: contain;
           display: block;
-          margin-bottom: 2px;
         }
-        .meta-cell-val {
-          font-weight: 700;
+
+        .clinic-sub-details {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .clinic-type {
+          font-size: 11px;
+          font-weight: 800;
+          color: #475569;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+        }
+
+        .clinic-address {
+          font-size: 10px;
+          color: #64748b;
+        }
+
+        .clinic-contacts {
+          font-size: 9.5px;
+          color: #64748b;
+        }
+
+        /* Right Header Box - Matching Invoice Info */
+        .header-doc-info {
+          text-align: right;
+          min-width: 240px;
+        }
+
+        .doc-main-title {
+          font-size: 24px;
+          font-weight: 900;
           color: #0f172a;
-          font-size: 13px;
+          letter-spacing: 1.2px;
+          text-transform: uppercase;
+          margin-bottom: 6px;
         }
-        .meta-cell-val.font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        .doc-meta-table {
+          display: inline-flex;
+          flex-direction: column;
+          gap: 3px;
+          font-size: 11px;
+        }
+
+        .doc-meta-row {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .meta-field-label {
+          color: #64748b;
+          font-weight: 600;
+        }
+
+        .meta-field-val {
+          color: #0f172a;
+          font-weight: 700;
+          text-align: right;
+        }
+
         .badge-status-active {
           display: inline-flex;
           align-items: center;
@@ -1839,15 +1810,15 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
           background: #ecfdf5;
           color: #047857;
           border: 1px solid #a7f3d0;
-          padding: 2px 8px;
-          border-radius: 6px;
-          font-size: 11px;
+          padding: 2px 7px;
+          border-radius: 5px;
+          font-size: 10.5px;
           font-weight: 700;
         }
 
         /* Main Body Content */
         .body-content {
-          padding: 32px 44px 40px;
+          padding: 28px 40px 36px;
           position: relative;
         }
 
@@ -1857,23 +1828,23 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
           align-items: center;
           justify-content: space-between;
           margin-bottom: 12px;
-          margin-top: 24px;
+          margin-top: 22px;
           padding-bottom: 6px;
           border-bottom: 2px solid #f1f5f9;
         }
         .section-header:first-of-type { margin-top: 0; }
         .section-title {
-          font-size: 13px;
+          font-size: 12.5px;
           font-weight: 800;
           text-transform: uppercase;
-          letter-spacing: 1.2px;
+          letter-spacing: 1px;
           color: #1e1b4b;
           display: flex;
           align-items: center;
           gap: 8px;
         }
 
-        /* 2-Column Profiles */
+        /* 2-Column Profiles - Matching Invoice Demographics Boxes */
         .profiles-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -1887,71 +1858,71 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
           overflow: hidden;
         }
         .profile-card-header {
-          padding: 8px 16px;
+          padding: 8px 14px;
           font-size: 10px;
           font-weight: 800;
-          letter-spacing: 1px;
+          letter-spacing: 0.8px;
           text-transform: uppercase;
           display: flex;
           justify-content: space-between;
           align-items: center;
         }
         .patient-card .profile-card-header {
-          background: #f1f5f9;
+          background: #f8fafc;
           color: #475569;
           border-bottom: 1px solid #e2e8f0;
         }
         .doctor-card .profile-card-header {
           background: #faf5ff;
-          color: #6b21a8;
+          color: #6B46C1;
           border-bottom: 1px solid #f3e8ff;
         }
-        .profile-card-body { padding: 14px 16px; }
+        .profile-card-body { padding: 12px 14px; }
         .profile-name {
-          font-size: 17px;
+          font-size: 16px;
           font-weight: 800;
           color: #0f172a;
           margin-bottom: 4px;
         }
         .profile-details-row {
-          font-size: 12px;
+          font-size: 11.5px;
           color: #475569;
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           flex-wrap: wrap;
-          margin-bottom: 8px;
+          margin-bottom: 6px;
         }
         .profile-details-row strong { color: #1e293b; }
 
         .diagnosis-box {
           background: #faf5ff;
           border: 1px solid #e9d5ff;
-          border-left: 3px solid #7c3aed;
-          border-radius: 8px;
-          padding: 8px 12px;
-          margin-top: 8px;
+          border-left: 3px solid #6B46C1;
+          border-radius: 6px;
+          padding: 7px 10px;
+          margin-top: 6px;
         }
         .diag-label {
           font-size: 9.5px;
           font-weight: 800;
           text-transform: uppercase;
-          letter-spacing: 0.8px;
-          color: #6b21a8;
+          letter-spacing: 0.6px;
+          color: #6B46C1;
           display: block;
           margin-bottom: 2px;
         }
-        .diag-text { font-size: 13px; font-weight: 700; color: #3b0764; }
+        .diag-text { font-size: 12.5px; font-weight: 700; color: #3b0764; }
 
         .allergy-notice {
-          margin-top: 8px;
-          font-size: 11px;
-          border-radius: 6px;
-          padding: 6px 10px;
+          margin-top: 6px;
+          font-size: 10.5px;
+          border-radius: 5px;
+          padding: 4px 8px;
           font-weight: 600;
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
         }
         .allergy-notice.alert {
           background: #fef2f2;
@@ -1965,20 +1936,20 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
         }
 
         .doctor-sub-details {
-          font-size: 12px;
+          font-size: 11.5px;
           color: #475569;
           line-height: 1.5;
         }
         .doctor-sub-details .qual { font-weight: 700; color: #1e293b; }
-        .doctor-sub-details .spec { color: #6b21a8; font-weight: 600; }
-        .doctor-sub-details .reg { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #64748b; margin-top: 4px; }
+        .doctor-sub-details .spec { color: #6B46C1; font-weight: 600; }
+        .doctor-sub-details .reg { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #64748b; margin-top: 4px; }
 
         /* Vitals Cards Grid */
         .vitals-grid {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
           gap: 12px;
-          margin-bottom: 24px;
+          margin-bottom: 22px;
         }
         .vital-card {
           background: #f8fafc;
@@ -1987,48 +1958,48 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
           padding: 10px 14px;
         }
         .vital-label {
-          font-size: 9.5px;
+          font-size: 9px;
           font-weight: 800;
           text-transform: uppercase;
           color: #64748b;
           letter-spacing: 0.8px;
         }
         .vital-val {
-          font-size: 16px;
+          font-size: 15px;
           font-weight: 800;
           color: #0f172a;
           margin-top: 2px;
         }
         .vital-sub {
-          font-size: 10px;
+          font-size: 9.5px;
           color: #059669;
           font-weight: 700;
           margin-top: 2px;
         }
 
-        /* Medications Table */
+        /* Medications Table - Matching Invoice Itemized Header */
         .meds-table-container {
           border: 1px solid #cbd5e1;
-          border-radius: 12px;
+          border-radius: 10px;
           overflow: hidden;
-          margin-bottom: 24px;
+          margin-bottom: 22px;
           background: #ffffff;
         }
         .meds-table {
           width: 100%;
           border-collapse: collapse;
-          font-size: 12px;
+          font-size: 11.5px;
           text-align: left;
         }
         .meds-table thead {
-          background: #f8fafc;
-          border-bottom: 2px solid #cbd5e1;
+          background: #6B46C1;
+          color: #ffffff;
         }
         .meds-table th {
           padding: 9px 12px;
           font-weight: 800;
-          font-size: 10.5px;
-          color: #475569;
+          font-size: 10px;
+          color: #ffffff;
           text-transform: uppercase;
           letter-spacing: 0.8px;
         }
@@ -2038,69 +2009,74 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
           vertical-align: middle;
         }
         .meds-table tbody tr:last-child td { border-bottom: none; }
-        .col-num { width: 34px; text-align: center; color: #94a3b8; font-weight: 800; }
+        .meds-table tbody tr:nth-child(even) { background: #f8fafc; }
+        .col-num { width: 32px; text-align: center; color: #94a3b8; font-weight: 800; font-size: 11px; }
         .col-med { width: 40%; }
         .med-name-line { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
-        .med-prefix { font-weight: 800; color: #4c1d95; font-size: 10.5px; text-transform: uppercase; }
+        .med-prefix { font-weight: 800; color: #6B46C1; font-size: 10.5px; text-transform: uppercase; }
         .med-main-name { font-size: 13.5px; font-weight: 800; color: #0f172a; }
         .med-strength-tag { font-size: 10.5px; font-weight: 700; color: #4338ca; background: #e0e7ff; padding: 1px 6px; border-radius: 4px; }
         .med-special-note { font-size: 10.5px; color: #64748b; margin-top: 3px; }
-        .note-bullet { color: #7c3aed; font-weight: bold; }
+        .note-bullet { color: #6B46C1; font-weight: bold; }
 
         /* Dosing Matrix */
-        .col-matrix { width: 25%; }
+        .col-matrix { width: 22%; }
         .matrix-pill-group {
           display: inline-flex;
-          border: 1px solid #cbd5e1;
-          border-radius: 6px;
+          align-items: center;
+          border: 1px solid #e2e8f0;
+          border-radius: 7px;
           overflow: hidden;
           background: #ffffff;
         }
         .matrix-cell {
-          padding: 3px 7px;
-          text-align: center;
-          min-width: 32px;
-          border-right: 1px solid #e2e8f0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 3px 8px;
+          min-width: 34px;
+          border-right: 1px solid #f1f5f9;
         }
         .matrix-cell:last-child { border-right: none; }
-        .cell-label { font-size: 8px; text-transform: uppercase; color: #94a3b8; display: block; font-weight: 800; }
-        .cell-val { font-size: 11px; font-weight: 800; color: #0f172a; }
-        .matrix-cell.active-morning { background: #fef3c7; color: #b45309; }
-        .matrix-cell.active-afternoon { background: #e0f2fe; color: #0369a1; }
-        .matrix-cell.active-night { background: #ede9fe; color: #6d28d9; }
-        .matrix-cell.inactive { background: #ffffff; color: #cbd5e1; }
+        .cell-label { font-size: 8px; text-transform: uppercase; color: #94a3b8; line-height: 1; margin-bottom: 2px; font-weight: 800; }
+        .cell-val { font-size: 11px; font-weight: 800; line-height: 1; }
+        .matrix-cell.active-morning { background: #eff6ff; color: #1d4ed8; }
+        .matrix-cell.active-afternoon { background: #fffbeb; color: #b45309; }
+        .matrix-cell.active-night { background: #faf5ff; color: #6B46C1; }
+        .matrix-cell.inactive { background: #ffffff; color: #94a3b8; }
         .matrix-sub-schedule { font-size: 9.5px; color: #64748b; font-weight: 600; margin-top: 3px; }
 
         .col-timing { width: 18%; }
-        .food-badge { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 5px; }
+        .food-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 5px; }
         .food-after { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
-        .food-before { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
-        .food-bed { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+        .food-before { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
+        .food-bed { background: #faf5ff; color: #6B46C1; border: 1px solid #e9d5ff; }
         .food-general { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
 
         .col-dur { width: 17%; }
-        .duration-pill { font-weight: 700; color: #1e293b; font-size: 11px; }
+        .duration-pill { font-weight: 700; color: #1e293b; font-size: 10.5px; }
 
         /* Diagnostics & Notes Grid */
         .diagnostics-grid {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 16px;
-          margin-bottom: 24px;
+          margin-bottom: 22px;
         }
         .diag-card {
           border: 1px solid #e2e8f0;
-          border-radius: 12px;
-          padding: 14px 16px;
+          border-radius: 10px;
+          padding: 12px 14px;
           background: #ffffff;
         }
         .diag-card-title {
-          font-size: 10.5px;
+          font-size: 10px;
           font-weight: 800;
           text-transform: uppercase;
           letter-spacing: 0.8px;
           color: #475569;
-          margin-bottom: 10px;
+          margin-bottom: 8px;
           display: flex;
           align-items: center;
           gap: 6px;
@@ -2109,13 +2085,13 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 6px 0;
+          padding: 5px 0;
           border-bottom: 1px dashed #f1f5f9;
-          font-size: 11.5px;
+          font-size: 11px;
         }
         .report-row:last-child { border-bottom: none; }
         .report-status-tag {
-          font-size: 9.5px;
+          font-size: 9px;
           font-weight: 800;
           padding: 1px 6px;
           border-radius: 4px;
@@ -2124,21 +2100,21 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
         .status-pending { background: #fffbeb; color: #b45309; }
 
         .clinical-note-item {
-          padding: 8px 10px;
-          background: #f8fafc;
-          border-left: 3px solid #6366f1;
+          padding: 7px 9px;
+          background: #faf5ff;
+          border-left: 3px solid #6B46C1;
           border-radius: 4px;
-          margin-bottom: 8px;
-          font-size: 11.5px;
-          line-height: 1.5;
+          margin-bottom: 6px;
+          font-size: 11px;
+          line-height: 1.45;
         }
         .clinical-note-item:last-child { margin-bottom: 0; }
-        .note-meta { font-size: 9.5px; color: #64748b; font-weight: 700; margin-bottom: 2px; }
+        .note-meta { font-size: 9px; color: #64748b; font-weight: 700; margin-bottom: 2px; }
 
-        /* Footer & Signature */
+        /* Footer & Signature Block */
         .prescription-footer {
           border-top: 2px solid #e2e8f0;
-          padding-top: 20px;
+          padding-top: 18px;
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
@@ -2146,36 +2122,35 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
         }
         .legal-notice-box {
           max-width: 500px;
-          font-size: 10px;
+          font-size: 9.5px;
           color: #64748b;
-          line-height: 1.5;
+          line-height: 1.45;
         }
-        .legal-notice-box strong { color: #1e293b; }
         .signature-box { text-align: right; min-width: 220px; }
         .signature-cursive {
-          font-family: 'Playfair Display', Georgia, serif;
-          font-size: 24px;
+          font-family: 'Plus Jakarta Sans', Georgia, serif;
+          font-size: 22px;
           font-style: italic;
           font-weight: 700;
           color: #1e1b4b;
           margin-bottom: 4px;
         }
         .signature-line {
-          border-top: 2px solid #0f172a;
+          border-top: 1.5px solid #0f172a;
           padding-top: 4px;
-          font-size: 10.5px;
+          font-size: 11px;
           font-weight: 800;
           color: #0f172a;
           text-transform: uppercase;
         }
-        .signature-meta { font-size: 10px; color: #64748b; margin-top: 2px; }
+        .signature-meta { font-size: 9.5px; color: #64748b; margin-top: 2px; }
         .signature-verified-pill {
           display: inline-flex;
           align-items: center;
           gap: 4px;
           background: #ecfdf5;
           color: #059669;
-          font-size: 9.5px;
+          font-size: 9px;
           font-weight: 800;
           padding: 2px 6px;
           border-radius: 4px;
@@ -2186,7 +2161,7 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
         /* Print Media Styles */
         @media print {
           @page { size: A4 portrait; margin: 8mm 10mm; }
-          body { background: #ffffff !important; color: #000000 !important; font-size: 10.5pt; }
+          body { background: #ffffff !important; color: #000000 !important; font-size: 10pt; }
           .print-toolbar { display: none !important; }
           .page-container {
             margin: 0 !important;
@@ -2195,7 +2170,9 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
             border: none !important;
             max-width: 100% !important;
           }
-          .clinic-header, .meta-strip, .meds-table thead, .vital-card, .matrix-cell, .food-badge, .badge-status-active {
+          .clinic-header { padding: 18px 24px 16px !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .meds-table thead { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .vital-card, .matrix-cell, .food-badge, .badge-status-active {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
@@ -2227,69 +2204,52 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
 
       <!-- Main A4 Printable EMR Container -->
       <div class="page-container">
-        <!-- Clinic Official Letterhead -->
+        <!-- Clinic Official Letterhead - Modeled on Invoice Header -->
         <header class="clinic-header">
           <div class="header-top-row">
             <div class="brand-block">
-              <div class="logo-emblem">
-                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="50" cy="50" r="46" fill="#1e1b4b" />
-                  <path d="M50 20 C36 20 25 31 25 45 C25 62 50 82 50 82 C50 82 75 62 75 45 C75 31 64 20 50 20 Z" fill="#d946ef" opacity="0.85"/>
-                  <path d="M43 46 L48 51 L59 39" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-                  <circle cx="50" cy="50" r="48" stroke="#fde047" stroke-width="2.5" stroke-dasharray="4 3"/>
-                </svg>
-              </div>
-              <div>
-                <div class="clinic-name">HealNari Women's Health Clinic</div>
-                <div class="clinic-tagline">Center for Advanced Gynaecology &amp; Reproductive Wellness</div>
-                <div class="accreditation-line">
-                  <span class="gold">★ NABH Telemedicine Certified</span>
-                  <span class="dot">•</span>
-                  <span>Reg. No: KA-MED-2024-9912</span>
-                  <span class="dot">•</span>
-                  <span>MoHFW Telehealth Compliant</span>
-                </div>
+              <img 
+                src="${logoSvgUrl}" 
+                alt="HealNari Logo" 
+                class="clinic-brand-logo" 
+                onerror="this.onerror=null;this.src='/brand/logo.svg';" 
+              />
+              <div class="clinic-sub-details">
+                <div class="clinic-type">Digital Health Clinic</div>
+                <div class="clinic-address">123 Wellness Avenue, Health City</div>
+                <div class="clinic-contacts">support@healnari.app &nbsp;|&nbsp; +1 (800) 000-0000 &nbsp;|&nbsp; care@healnari.com</div>
               </div>
             </div>
 
-            <div class="header-contact-col">
-              <div class="header-doc-title">EMR Summary</div>
-              <div><strong>Address:</strong> 102 Medical Hub, Indiranagar, Bengaluru - 560038</div>
-              <div><strong>Helpline:</strong> +91 80 4567 8900 &nbsp;|&nbsp; care@healnari.com</div>
-              <div><strong>Web:</strong> www.healnari.com</div>
+            <div class="header-doc-info">
+              <div class="doc-main-title">EMR SUMMARY</div>
+              <div class="doc-meta-table">
+                <div class="doc-meta-row">
+                  <span class="meta-field-label">Patient MRN:</span>
+                  <span class="meta-field-val font-mono">${escapeHtml(patientMrn)}</span>
+                </div>
+                <div class="doc-meta-row">
+                  <span class="meta-field-label">Generated Date:</span>
+                  <span class="meta-field-val">${escapeHtml(printDate)} • ${escapeHtml(printTime)}</span>
+                </div>
+                <div class="doc-meta-row">
+                  <span class="meta-field-label">Total Visits:</span>
+                  <span class="meta-field-val">${escapeHtml(patient?.visits || '1')} Recorded</span>
+                </div>
+                <div class="doc-meta-row">
+                  <span class="meta-field-label">Record Status:</span>
+                  <span class="badge-status-active">● Active Medical Record</span>
+                </div>
+              </div>
             </div>
           </div>
         </header>
 
-        <!-- Metadata Strip -->
-        <div class="meta-strip">
-          <div>
-            <span class="meta-cell-label">Document Type</span>
-            <span class="meta-cell-val">Clinical Health Record</span>
-          </div>
-          <div>
-            <span class="meta-cell-label">Patient MRN</span>
-            <span class="meta-cell-val font-mono">${escapeHtml(patientMrn)}</span>
-          </div>
-          <div>
-            <span class="meta-cell-label">Generated Date &amp; Time</span>
-            <span class="meta-cell-val">${escapeHtml(printDate)} • ${escapeHtml(printTime)}</span>
-          </div>
-          <div>
-            <span class="meta-cell-label">Total Recorded Visits</span>
-            <span class="meta-cell-val">${escapeHtml(patient?.visits || '1')} Visit(s)</span>
-          </div>
-          <div style="text-align: right;">
-            <span class="meta-cell-label">EMR Record Status</span>
-            <span class="badge-status-active">● Active Medical Record</span>
-          </div>
-        </div>
-
         <!-- Main Body -->
         <div class="body-content">
-          <!-- Profiles Grid -->
+          <!-- Profiles Grid - Matching Invoice Demographics Boxes -->
           <div class="profiles-grid">
-            <!-- Patient Demographics -->
+            <!-- Patient Demographics (Billed To Style) -->
             <div class="profile-card patient-card">
               <div class="profile-card-header">
                 <span>Patient Demographics</span>
@@ -2321,7 +2281,7 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
               </div>
             </div>
 
-            <!-- Attending Doctor -->
+            <!-- Attending Doctor (Treating Doctor Style) -->
             <div class="profile-card doctor-card">
               <div class="profile-card-header">
                 <span>Attending Practitioner</span>
@@ -2372,10 +2332,10 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
           <!-- Active Prescriptions -->
           <div class="section-header">
             <div class="section-title">
-              <span style="font-family: 'Playfair Display', serif; font-size: 18px;">℞</span>
+              <span style="font-family: 'Plus Jakarta Sans', serif; font-size: 16px; font-weight: 800; color: #6B46C1;">℞</span>
               Active Medication Regimen
             </div>
-            <span style="font-size: 11px; font-weight: 700; color: #6b21a8;">${parsedMeds.length} Prescribed Medicine${parsedMeds.length === 1 ? '' : 's'}</span>
+            <span style="font-size: 11px; font-weight: 700; color: #6B46C1;">${parsedMeds.length} Prescribed Medicine${parsedMeds.length === 1 ? '' : 's'}</span>
           </div>
           <div class="meds-table-container">
             <table class="meds-table">
@@ -2440,10 +2400,10 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
             </div>
           </div>
 
-          <!-- Footer & Digital Signature Block -->
+          <!-- Footer & Digital Signature Block - Matching Invoice Signature Block -->
           <footer class="prescription-footer">
             <div class="legal-notice-box">
-              <p><strong>Official Medical Record:</strong> This Clinical Health Summary is generated from the certified HealNari Electronic Medical Records System. All diagnoses, vitals, and medication regimens are digitally authenticated by the prescribing practitioner.</p>
+              <p><strong>Official Medical Record:</strong> This Clinical Health Summary is generated from the certified HealNari Electronic Medical Records System. All diagnoses, vitals, and medication regimens are digitally authenticated by the prescribing practitioner pursuant to Telemedicine Practice Guidelines (2020) and DPDP Act (2023).</p>
               <div style="margin-top: 6px; font-size: 9.5px; color: #475569;">
                 Security Verification Hash: <span style="font-family: monospace;">SHA256:EMR-${patientMrn.replace(/[^A-Z0-9]/g, '')}-${now.getTime().toString(36).toUpperCase()}</span>
               </div>
@@ -2464,8 +2424,23 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
       </div>
     </body>
     </html>
-  `);
+  `;
+}
 
+/**
+ * Opens a comprehensive Patient EMR & Clinical Health Record print window.
+ * Displays official clinic letterhead matching invoice header, complete patient demographics,
+ * vital biometrics, clinical diagnoses, active medications with dosing matrix, lab findings,
+ * clinical notes, and attending doctor's digital signature.
+ */
+export function openPatientEmrPrintWindow(params) {
+  const win = window.open('', '_blank', 'width=960,height=1050');
+  if (!win) return;
+
+  const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : '';
+  const html = generatePatientEmrHtml({ ...params, origin });
+
+  win.document.write(html);
   win.document.close();
   win.focus();
   setTimeout(() => {
@@ -2479,6 +2454,9 @@ export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
 export function openInvoicePrintWindow({ invoice, patient, doctor, currency }) {
   const win = window.open('', '_blank', 'width=880,height=960');
   if (!win) return;
+
+  const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : '';
+  const logoSvgUrl = `${origin}/brand/logo.svg`;
 
   const now = new Date();
   const invoiceId = invoice?.id || invoice?.txnRef || `INV-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -2497,9 +2475,10 @@ export function openInvoicePrintWindow({ invoice, patient, doctor, currency }) {
     <html lang="en">
     <head>
       <meta charset="utf-8" />
+      <base href="${origin}/" />
       <title>Invoice — ${escapeHtml(invoiceId)} — HealNari</title>
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
           font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
@@ -2523,23 +2502,74 @@ export function openInvoicePrintWindow({ invoice, patient, doctor, currency }) {
           font-size: 13px; padding: 8px 16px; border-radius: 10px; cursor: pointer; margin-left: 8px;
         }
         .page-container {
-          max-width: 800px; margin: 30px auto 60px; background: white;
+          max-width: 820px; margin: 28px auto 60px; background: white;
           border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden;
           box-shadow: 0 10px 30px rgba(0,0,0,0.05);
         }
-        .invoice-header {
-          background: linear-gradient(135deg, #1e1b4b 0%, #311042 55%, #4c1d95 100%);
-          color: white; padding: 36px 44px; display: flex; justify-content: space-between;
-          border-bottom: 4px solid #d4af37;
+        .clinic-header {
+          background: #f8fafc;
+          padding: 26px 40px 22px;
+          border-bottom: 4px solid #6B46C1;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 24px;
         }
-        .invoice-title { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; }
+        .brand-block {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 6px;
+        }
+        .clinic-brand-logo {
+          height: 44px;
+          width: auto;
+          max-height: 48px;
+          object-fit: contain;
+          display: block;
+        }
+        .clinic-sub-details {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .clinic-type {
+          font-size: 11px;
+          font-weight: 800;
+          color: #475569;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+        }
+        .clinic-address {
+          font-size: 10px;
+          color: #64748b;
+        }
+        .clinic-contacts {
+          font-size: 9.5px;
+          color: #64748b;
+        }
+
+        .header-doc-info { text-align: right; min-width: 230px; }
+        .doc-main-title {
+          font-size: 24px;
+          font-weight: 900;
+          color: #0f172a;
+          letter-spacing: 1.2px;
+          text-transform: uppercase;
+          margin-bottom: 6px;
+        }
+        .doc-meta-table { display: inline-flex; flex-direction: column; gap: 3px; font-size: 11px; }
+        .doc-meta-row { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
+        .meta-field-label { color: #64748b; font-weight: 600; }
+        .meta-field-val { color: #0f172a; font-weight: 700; text-align: right; }
+
         .meta-strip {
-          background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 14px 44px;
-          display: flex; justify-content: space-between; font-size: 12px;
+          background: #ffffff; border-bottom: 1px solid #e2e8f0; padding: 14px 40px;
+          display: flex; justify-content: space-between; font-size: 12px; color: #334155;
         }
-        .content { padding: 36px 44px; }
-        .table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 13px; }
-        .table th { background: #f1f5f9; padding: 10px 14px; text-align: left; font-size: 11px; text-transform: uppercase; }
+        .content { padding: 28px 40px 36px; }
+        .table { width: 100%; border-collapse: collapse; margin: 18px 0 24px; font-size: 12.5px; }
+        .table th { background: #6B46C1; color: #ffffff; padding: 10px 14px; text-align: left; font-size: 10.5px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.8px; }
         .table td { padding: 14px; border-bottom: 1px solid #e2e8f0; }
         .total-box {
           background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
@@ -2548,14 +2578,16 @@ export function openInvoicePrintWindow({ invoice, patient, doctor, currency }) {
         }
         .total-amount { font-size: 22px; font-weight: 800; color: #1e1b4b; }
         .footer {
-          margin-top: 40px; padding-top: 20px; border-top: 2px solid #e2e8f0;
-          display: flex; justify-content: space-between; align-items: flex-end; font-size: 11px; color: #64748b;
+          margin-top: 36px; padding-top: 18px; border-top: 2px solid #e2e8f0;
+          display: flex; justify-content: space-between; align-items: flex-end; font-size: 10.5px; color: #64748b;
         }
         @media print {
-          @page { size: A4 portrait; margin: 10mm; }
+          @page { size: A4 portrait; margin: 8mm 10mm; }
           body { background: white !important; }
           .print-toolbar { display: none !important; }
-          .page-container { margin: 0 !important; border: none !important; box-shadow: none !important; }
+          .page-container { margin: 0 !important; border: none !important; box-shadow: none !important; max-width: 100% !important; }
+          .clinic-header { padding: 18px 24px 16px !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .table th { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
       </style>
     </head>
@@ -2568,22 +2600,42 @@ export function openInvoicePrintWindow({ invoice, patient, doctor, currency }) {
         </div>
       </div>
       <div class="page-container">
-        <div class="invoice-header">
-          <div>
-            <div class="invoice-title">HealNari Women's Health Clinic</div>
-            <div style="font-size: 12px; color: #e9d5ff; margin-top: 4px;">Center for Gynaecology &amp; Reproductive Medicine</div>
-            <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px;">Indiranagar, Bengaluru • Helpline: +91 80 4567 8900</div>
+        <header class="clinic-header">
+          <div class="brand-block">
+            <img 
+              src="${logoSvgUrl}" 
+              alt="HealNari Logo" 
+              class="clinic-brand-logo" 
+              onerror="this.onerror=null;this.src='/brand/logo.svg';" 
+            />
+            <div class="clinic-sub-details">
+              <div class="clinic-type">Digital Health Clinic</div>
+              <div class="clinic-address">123 Wellness Avenue, Health City</div>
+              <div class="clinic-contacts">support@healnari.app &nbsp;|&nbsp; +1 (800) 000-0000 &nbsp;|&nbsp; care@healnari.com</div>
+            </div>
           </div>
-          <div style="text-align: right;">
-            <div style="font-size: 20px; font-weight: 800; color: #fde047;">TAX INVOICE</div>
-            <div style="font-family: monospace; font-size: 12px; margin-top: 4px;">${escapeHtml(invoiceId)}</div>
-            <div style="font-size: 11px; color: #cbd5e1; margin-top: 2px;">Date: ${escapeHtml(invoiceDate)}</div>
+          <div class="header-doc-info">
+            <div class="doc-main-title">TAX INVOICE</div>
+            <div class="doc-meta-table">
+              <div class="doc-meta-row">
+                <span class="meta-field-label">Invoice No:</span>
+                <span class="meta-field-val font-mono">${escapeHtml(invoiceId)}</span>
+              </div>
+              <div class="doc-meta-row">
+                <span class="meta-field-label">Date of Issue:</span>
+                <span class="meta-field-val">${escapeHtml(invoiceDate)}</span>
+              </div>
+              <div class="doc-meta-row">
+                <span class="meta-field-label">Time:</span>
+                <span class="meta-field-val">${escapeHtml(invoiceTime)}</span>
+              </div>
+            </div>
           </div>
-        </div>
+        </header>
         <div class="meta-strip">
-          <div><strong>Billed To:</strong> ${escapeHtml(patientName)} (MRN: ${escapeHtml(patientMrn)})</div>
+          <div><strong>Billed To:</strong> ${escapeHtml(patientName)} <span style="color:#64748b; font-family: monospace;">(MRN: ${escapeHtml(patientMrn)})</span></div>
           <div><strong>Attending Doctor:</strong> ${escapeHtml(doctorName)}</div>
-          <div><strong>Payment Mode:</strong> ${escapeHtml(invoice?.method || 'Online UPI / Card')}</div>
+          <div><strong>Payment Mode:</strong> <span style="font-weight: 700; color: #047857;">${escapeHtml(invoice?.method || 'Online UPI / Card')}</span></div>
         </div>
         <div class="content">
           <table class="table">
@@ -2608,7 +2660,7 @@ export function openInvoicePrintWindow({ invoice, patient, doctor, currency }) {
               <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Ref: ${escapeHtml(invoice?.txnRef || 'TXN-991823')}</div>
             </div>
             <div>
-              <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 800; text-align: right;">Total Paid</div>
+              <div style="font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 800; text-align: right;">Total Paid</div>
               <div class="total-amount">${currSymbol}${amountVal}</div>
             </div>
           </div>
@@ -2618,8 +2670,8 @@ export function openInvoicePrintWindow({ invoice, patient, doctor, currency }) {
               <p>GSTIN: 29AAAAH0000A1Z5 • Health Services Exemption applicable as per Notification 12/2017</p>
             </div>
             <div style="text-align: right;">
-              <div style="font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; color: #1e1b4b;">HealNari Healthcare</div>
-              <div style="border-top: 1px solid #0f172a; padding-top: 3px; font-size: 9.5px; font-weight: 700; text-transform: uppercase;">Accounts Department Seal</div>
+              <div style="font-size: 15px; font-weight: 800; color: #1e1b4b;"><span style="color:#6B46C1">Heal</span><span style="color:#E23E8C">Nari</span> Healthcare</div>
+              <div style="border-top: 1px solid #0f172a; padding-top: 3px; font-size: 9px; font-weight: 700; text-transform: uppercase;">Accounts Department Seal</div>
             </div>
           </div>
         </div>

@@ -1,0 +1,1125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Prescription Preview — Priya Sharma — HealNari</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body { 
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      color: #0f172a; 
+      background: #f1f5f9;
+      padding: 0;
+      margin: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Action Bar for Preview */
+    .print-toolbar {
+      position: sticky;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #1e1b4b;
+      color: #ffffff;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+      z-index: 9999;
+    }
+    .toolbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 14px;
+      color: #f8fafc;
+    }
+    .toolbar-badge {
+      background: #4c1d95;
+      color: #e9d5ff;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+    .toolbar-hint {
+      font-size: 12px;
+      color: #cbd5e1;
+      display: none;
+    }
+    @media (min-width: 640px) {
+      .toolbar-hint { display: inline-block; }
+    }
+    .toolbar-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .btn-toolbar-print {
+      background: #059669;
+      color: white;
+      border: none;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 8px 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 8px rgba(5,150,105,0.4);
+      transition: all 0.2s;
+    }
+    .btn-toolbar-print:hover { background: #047857; transform: translateY(-1px); }
+    .btn-toolbar-close {
+      background: rgba(255,255,255,0.12);
+      color: #e2e8f0;
+      border: 1px solid rgba(255,255,255,0.2);
+      font-weight: 600;
+      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+    }
+    .btn-toolbar-close:hover { background: rgba(255,255,255,0.2); }
+
+    /* Prescription Page Container */
+    .page-container {
+      max-width: 880px;
+      margin: 28px auto 60px;
+      background: #ffffff;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+      border-radius: 16px;
+      overflow: hidden;
+      position: relative;
+      border: 1px solid #e2e8f0;
+    }
+
+    /* Modern Medical Letterhead - Matching Invoice Header */
+    .clinic-header {
+      background: #f8fafc;
+      padding: 26px 40px 22px;
+      border-bottom: 4px solid #6B46C1;
+      position: relative;
+    }
+
+    .header-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+    }
+    
+    .brand-block {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .clinic-brand-logo {
+      height: 44px;
+      width: auto;
+      max-height: 48px;
+      object-fit: contain;
+      display: block;
+    }
+
+    .clinic-sub-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .clinic-type {
+      font-size: 11px;
+      font-weight: 800;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .clinic-address {
+      font-size: 10px;
+      color: #64748b;
+    }
+
+    .clinic-contacts {
+      font-size: 9.5px;
+      color: #64748b;
+    }
+
+    /* Right Header Box - Matching Invoice Info */
+    .header-doc-info {
+      text-align: right;
+      min-width: 230px;
+    }
+
+    .doc-main-title {
+      font-size: 24px;
+      font-weight: 900;
+      color: #0f172a;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .doc-meta-table {
+      display: inline-flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 11px;
+    }
+
+    .doc-meta-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .meta-field-label {
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .meta-field-val {
+      color: #0f172a;
+      font-weight: 700;
+      text-align: right;
+    }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    .badge-tele-mode {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 10.5px;
+      font-weight: 700;
+    }
+
+    /* Main Body Content */
+    .body-content {
+      padding: 28px 40px 36px;
+      position: relative;
+    }
+
+    /* 2-Column Doctor & Patient Profile Cards - Matching Invoice Box Pattern */
+    .profiles-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 1;
+    }
+    .profile-card {
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      overflow: hidden;
+    }
+    .profile-card-header {
+      padding: 8px 14px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .patient-card .profile-card-header {
+      background: #f8fafc;
+      color: #475569;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .doctor-card .profile-card-header {
+      background: #faf5ff;
+      color: #6B46C1;
+      border-bottom: 1px solid #f3e8ff;
+    }
+
+    .profile-card-body {
+      padding: 12px 14px;
+    }
+    .profile-name {
+      font-size: 16px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+    .profile-details-row {
+      font-size: 11.5px;
+      color: #475569;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .profile-details-row strong { color: #1e293b; }
+
+    .diagnosis-box {
+      background: #faf5ff;
+      border: 1px solid #e9d5ff;
+      border-left: 3px solid #6B46C1;
+      border-radius: 6px;
+      padding: 7px 10px;
+      margin-top: 6px;
+    }
+    .diag-label {
+      font-size: 9.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #6B46C1;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .diag-text {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #3b0764;
+    }
+
+    .allergy-notice {
+      margin-top: 6px;
+      font-size: 10.5px;
+      border-radius: 5px;
+      padding: 4px 8px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .allergy-notice.alert {
+      background: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+    .allergy-notice.safe {
+      background: #f0fdf4;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+
+    /* Doctor Sub details */
+    .doctor-sub-details {
+      font-size: 11.5px;
+      color: #475569;
+      line-height: 1.5;
+    }
+    .doctor-sub-details .qual { font-weight: 700; color: #1e293b; }
+    .doctor-sub-details .spec { color: #6B46C1; font-weight: 600; }
+    .doctor-sub-details .reg { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #64748b; margin-top: 4px; }
+
+    /* Rx Section Header */
+    .rx-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      position: relative;
+      z-index: 1;
+    }
+    .rx-title-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .rx-symbol-inline {
+      font-family: 'Plus Jakarta Sans', serif;
+      font-size: 26px;
+      font-weight: 800;
+      color: #6B46C1;
+      line-height: 1;
+    }
+    .rx-section-title {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #1e293b;
+    }
+    .rx-item-count {
+      background: #f3e8ff;
+      color: #6B46C1;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 9px;
+      border-radius: 999px;
+    }
+
+    /* Structured Medications Table - Matching Invoice Itemized Style */
+    .meds-table-container {
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 1;
+      background: #ffffff;
+    }
+    .meds-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 11.5px;
+    }
+    .meds-table thead {
+      background: #6B46C1;
+      color: #ffffff;
+    }
+    .meds-table th {
+      padding: 9px 12px;
+      font-weight: 800;
+      font-size: 10px;
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .meds-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+    }
+    .meds-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .meds-table tbody tr:nth-child(even) {
+      background: #f8fafc;
+    }
+
+    .col-num {
+      font-size: 11px;
+      font-weight: 800;
+      color: #94a3b8;
+      width: 32px;
+      text-align: center;
+    }
+    .col-med {
+      width: 40%;
+    }
+    .med-name-line {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .med-prefix {
+      font-weight: 800;
+      color: #6B46C1;
+      font-size: 10.5px;
+      text-transform: uppercase;
+    }
+    .med-main-name {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.2px;
+    }
+    .med-strength-tag {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #4338ca;
+      background: #e0e7ff;
+      padding: 1px 6px;
+      border-radius: 4px;
+      border: 1px solid #c7d2fe;
+    }
+    .med-special-note {
+      font-size: 10.5px;
+      color: #64748b;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    .med-special-note .note-bullet {
+      color: #6B46C1;
+      font-weight: bold;
+    }
+
+    /* Matrix Pills (Morning - Noon - Night) */
+    .col-matrix {
+      width: 22%;
+    }
+    .matrix-pill-group {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+    .matrix-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3px 8px;
+      min-width: 34px;
+      border-right: 1px solid #f1f5f9;
+    }
+    .matrix-cell:last-child {
+      border-right: none;
+    }
+    .matrix-cell .cell-label {
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #94a3b8;
+      line-height: 1;
+      margin-bottom: 2px;
+    }
+    .matrix-cell .cell-val {
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .matrix-cell.active-morning {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+    .matrix-cell.active-morning .cell-label {
+      color: #3b82f6;
+    }
+    .matrix-cell.active-afternoon {
+      background: #fffbeb;
+      color: #b45309;
+    }
+    .matrix-cell.active-afternoon .cell-label {
+      color: #f59e0b;
+    }
+    .matrix-cell.active-night {
+      background: #faf5ff;
+      color: #6B46C1;
+    }
+    .matrix-cell.active-night .cell-label {
+      color: #8b5cf6;
+    }
+    .matrix-cell.inactive {
+      background: #ffffff;
+      color: #94a3b8;
+    }
+    .matrix-sub-schedule {
+      font-size: 9.5px;
+      color: #64748b;
+      margin-top: 3px;
+      font-weight: 600;
+    }
+
+    .col-timing {
+      width: 16%;
+    }
+    .food-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 5px;
+      white-space: nowrap;
+    }
+    .food-after {
+      background: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+    }
+    .food-before {
+      background: #fff7ed;
+      color: #c2410c;
+      border: 1px solid #fed7aa;
+    }
+    .food-bed {
+      background: #faf5ff;
+      color: #6B46C1;
+      border: 1px solid #e9d5ff;
+    }
+    .food-general {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+    }
+
+    .col-dur {
+      width: 11%;
+    }
+    .duration-pill {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #0f172a;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      padding: 2px 7px;
+      border-radius: 5px;
+      display: inline-block;
+      white-space: nowrap;
+    }
+
+    .col-qty {
+      width: 11%;
+      font-weight: 700;
+      color: #334155;
+    }
+
+    /* Callouts Section */
+    .callouts-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 1;
+    }
+    .callout-box {
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 11.5px;
+      line-height: 1.5;
+    }
+    .callout-title {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .notes-callout {
+      background: #faf5ff;
+      border: 1px solid #e9d5ff;
+      border-left: 4px solid #6B46C1;
+      color: #3b0764;
+    }
+    .notes-callout .callout-title {
+      color: #6B46C1;
+    }
+    .labs-callout {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-left: 4px solid #16a34a;
+      color: #14532d;
+    }
+    .labs-callout .callout-title {
+      color: #16a34a;
+    }
+    .labs-list {
+      margin-left: 18px;
+      margin-top: 4px;
+    }
+    .sos-callout {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-left: 4px solid #f59e0b;
+      color: #78350f;
+      font-size: 11px;
+    }
+    .sos-callout .callout-title {
+      color: #b45309;
+    }
+
+    /* Footer & Digital Signature Block - Matching Invoice Signature Block */
+    .prescription-footer {
+      border-top: 2px solid #e2e8f0;
+      padding-top: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 24px;
+      position: relative;
+      z-index: 1;
+    }
+    .legal-notice-box {
+      max-width: 58%;
+      font-size: 10px;
+      color: #64748b;
+      line-height: 1.45;
+    }
+    .security-badge-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+      font-size: 9.5px;
+      color: #475569;
+    }
+    .security-qr-mock {
+      width: 38px;
+      height: 38px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7.5px;
+      font-weight: 800;
+      color: #475569;
+      text-align: center;
+      line-height: 1.1;
+      flex-shrink: 0;
+    }
+
+    .signature-box {
+      text-align: right;
+      min-width: 220px;
+    }
+    .signature-cursive {
+      font-family: 'Plus Jakarta Sans', Georgia, serif;
+      font-size: 22px;
+      font-style: italic;
+      font-weight: 700;
+      color: #1e1b4b;
+      margin-bottom: 4px;
+    }
+    .signature-line {
+      border-top: 1.5px solid #0f172a;
+      padding-top: 4px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .signature-meta {
+      font-size: 9.5px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    .signature-verified-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #ecfdf5;
+      color: #059669;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid #a7f3d0;
+      margin-top: 4px;
+    }
+
+    /* Print Media Styles */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 8mm 10mm;
+      }
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-size: 10.5pt;
+      }
+      .print-toolbar {
+        display: none !important;
+      }
+      .page-container {
+        margin: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        max-width: 100% !important;
+      }
+      .clinic-header {
+        padding: 18px 24px 16px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .body-content {
+        padding: 18px 24px !important;
+      }
+      .meds-table thead {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .matrix-cell.active-morning,
+      .matrix-cell.active-afternoon,
+      .matrix-cell.active-night,
+      .food-badge,
+      .diagnosis-box,
+      .badge-tele-mode {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .med-item-row {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      .callout-box {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      .prescription-footer {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Action Bar (Screen Only) -->
+  <div class="print-toolbar">
+    <div class="toolbar-brand">
+      <span>HealNari Tele-EMR</span>
+      <span class="toolbar-badge">Official Prescription Letterhead Preview</span>
+      <span class="toolbar-hint">Simple, proper medical letterhead with real HealNari logo.</span>
+    </div>
+    <div class="toolbar-actions">
+      <button onclick="window.print()" class="btn-toolbar-print">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+        Print / Save as PDF
+      </button>
+      <a href="/doctor-dashboard/prescriptions" class="btn-toolbar-close">
+        Dashboard
+      </a>
+    </div>
+  </div>
+
+  <!-- Main A4 Printable Prescription Card -->
+  <div class="page-container">
+    <!-- Clinic Official Letterhead - Modeled directly on the Invoice Header -->
+    <header class="clinic-header">
+      <div class="header-top-row">
+        <div class="brand-block">
+          <img 
+            src="/brand/logo.svg" 
+            alt="HealNari Logo" 
+            class="clinic-brand-logo" 
+            onerror="this.onerror=null;this.src='/brand/logo.svg';" 
+          />
+          <div class="clinic-sub-details">
+            <div class="clinic-type">Digital Health Clinic</div>
+            <div class="clinic-address">123 Wellness Avenue, Health City</div>
+            <div class="clinic-contacts">support@healnari.app &nbsp;|&nbsp; +1 (800) 000-0000 &nbsp;|&nbsp; care@healnari.com</div>
+          </div>
+        </div>
+
+        <!-- Document Meta (Right) - TAX INVOICE style -->
+        <div class="header-doc-info">
+          <div class="doc-main-title">PRESCRIPTION</div>
+          <div class="doc-meta-table">
+            <div class="doc-meta-row">
+              <span class="meta-field-label">Prescription No:</span>
+              <span class="meta-field-val font-mono">RX-HN-481920</span>
+            </div>
+            <div class="doc-meta-row">
+              <span class="meta-field-label">Date of Issue:</span>
+              <span class="meta-field-val">07 Sep 2026</span>
+            </div>
+            <div class="doc-meta-row">
+              <span class="meta-field-label">Valid Until:</span>
+              <span class="meta-field-val" style="color: #047857;">Till 07 Oct 2026</span>
+            </div>
+            <div class="doc-meta-row">
+              <span class="meta-field-label">Consult Mode:</span>
+              <span class="badge-tele-mode">● Tele-EMR Consult</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Body -->
+    <div class="body-content">
+      <!-- Doctor & Patient Profile Cards - Matching Invoice Demographics Boxes -->
+      <div class="profiles-grid">
+        <!-- Patient Demographics (Billed To Style) -->
+        <div class="profile-card patient-card">
+          <div class="profile-card-header">
+            <span>Patient Demographics</span>
+            <span class="font-mono">MRN: HN-492102</span>
+          </div>
+          <div class="profile-card-body">
+            <div class="profile-name">Priya Sharma</div>
+            <div class="profile-details-row">
+              <span><strong>Age:</strong> 28 Yrs</span>
+              <span>•</span>
+              <span><strong>Gender:</strong> Female</span>
+              <span>•</span>
+              <span><strong>Blood:</strong> B+</span>
+              <span>•</span>
+              <span><strong>Phone:</strong> +91 98765 43210</span>
+            </div>
+
+            <div class="diagnosis-box">
+              <span class="diag-label">Clinical Indication / Diagnosis</span>
+              <span class="diag-text">Polycystic Ovary Syndrome (PCOS) &amp; Hormonal Balance Evaluation</span>
+            </div>
+
+            <div class="allergy-notice safe">
+              <strong>Drug Allergies:</strong> No Known Drug Allergies (NKDA)
+            </div>
+          </div>
+        </div>
+
+        <!-- Prescribing Doctor (Treating Doctor Style) -->
+        <div class="profile-card doctor-card">
+          <div class="profile-card-header">
+            <span>Prescribing Practitioner</span>
+            <span class="font-mono">Reg: KMC-84920</span>
+          </div>
+          <div class="profile-card-body">
+            <div class="profile-name">Dr. Sarah Mitchell</div>
+            <div class="doctor-sub-details">
+              <p class="qual">MBBS, MS, DGO (Obstetrics &amp; Gynaecology)</p>
+              <p class="spec">Senior Consultant Gynaecologist &amp; Reproductive Wellness</p>
+              <p>Dept. of Obstetrics &amp; Gynaecological Endocrinology</p>
+              <p class="reg">Medical Council: Karnataka Medical Council (KMC)</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Prescribed Medications Section -->
+      <div class="rx-section-header">
+        <div class="rx-title-left">
+          <span class="rx-symbol-inline">℞</span>
+          <span class="rx-section-title">Prescribed Medication Regimen</span>
+        </div>
+        <span class="rx-item-count">4 Medications</span>
+      </div>
+
+      <div class="meds-table-container">
+        <table class="meds-table">
+          <thead>
+            <tr>
+              <th class="col-num">#</th>
+              <th class="col-med">Medication Name &amp; Strength</th>
+              <th class="col-matrix">Dosing Matrix (M-A-N)</th>
+              <th class="col-timing">When to Take</th>
+              <th class="col-dur">Duration</th>
+              <th class="col-qty">Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="med-item-row">
+              <td class="col-num font-mono">01</td>
+              <td class="col-med">
+                <div class="med-name-line">
+                  <span class="med-prefix">Tab.</span>
+                  <span class="med-main-name">Myo-Inositol &amp; D-Chiro Inositol</span>
+                  <span class="med-strength-tag">1000mg + 25mg</span>
+                </div>
+                <div class="med-special-note"><span class="note-bullet">▸</span> Take with a full glass of water. Promotes regular ovulatory rhythm.</div>
+              </td>
+              <td class="col-matrix">
+                <div class="matrix-pill-group">
+                  <div class="matrix-cell active-morning">
+                    <span class="cell-label">M</span>
+                    <span class="cell-val">1</span>
+                  </div>
+                  <div class="matrix-cell inactive">
+                    <span class="cell-label">A</span>
+                    <span class="cell-val">0</span>
+                  </div>
+                  <div class="matrix-cell active-night">
+                    <span class="cell-label">N</span>
+                    <span class="cell-val">1</span>
+                  </div>
+                </div>
+                <div class="matrix-sub-schedule">1-0-1 Daily</div>
+              </td>
+              <td class="col-timing">
+                <span class="food-badge food-after">After Food</span>
+              </td>
+              <td class="col-dur">
+                <span class="duration-pill">30 Days</span>
+              </td>
+              <td class="col-qty font-mono">60 Units</td>
+            </tr>
+
+            <tr class="med-item-row">
+              <td class="col-num font-mono">02</td>
+              <td class="col-med">
+                <div class="med-name-line">
+                  <span class="med-prefix">Cap.</span>
+                  <span class="med-main-name">Cholecalciferol (Vitamin D3)</span>
+                  <span class="med-strength-tag">60,000 IU</span>
+                </div>
+                <div class="med-special-note"><span class="note-bullet">▸</span> Take once weekly on Sunday mornings with warm milk or fat-containing meal.</div>
+              </td>
+              <td class="col-matrix">
+                <div class="matrix-pill-group">
+                  <div class="matrix-cell active-morning">
+                    <span class="cell-label">M</span>
+                    <span class="cell-val">1</span>
+                  </div>
+                  <div class="matrix-cell inactive">
+                    <span class="cell-label">A</span>
+                    <span class="cell-val">0</span>
+                  </div>
+                  <div class="matrix-cell inactive">
+                    <span class="cell-label">N</span>
+                    <span class="cell-val">0</span>
+                  </div>
+                </div>
+                <div class="matrix-sub-schedule">Weekly (Sun)</div>
+              </td>
+              <td class="col-timing">
+                <span class="food-badge food-after">After Breakfast</span>
+              </td>
+              <td class="col-dur">
+                <span class="duration-pill">8 Weeks</span>
+              </td>
+              <td class="col-qty font-mono">8 Units</td>
+            </tr>
+
+            <tr class="med-item-row">
+              <td class="col-num font-mono">03</td>
+              <td class="col-med">
+                <div class="med-name-line">
+                  <span class="med-prefix">Tab.</span>
+                  <span class="med-main-name">Metformin Hydrochloride (SR)</span>
+                  <span class="med-strength-tag">500mg</span>
+                </div>
+                <div class="med-special-note"><span class="note-bullet">▸</span> Sustained release formulation to improve cellular insulin sensitivity.</div>
+              </td>
+              <td class="col-matrix">
+                <div class="matrix-pill-group">
+                  <div class="matrix-cell inactive">
+                    <span class="cell-label">M</span>
+                    <span class="cell-val">0</span>
+                  </div>
+                  <div class="matrix-cell inactive">
+                    <span class="cell-label">A</span>
+                    <span class="cell-val">0</span>
+                  </div>
+                  <div class="matrix-cell active-night">
+                    <span class="cell-label">N</span>
+                    <span class="cell-val">1</span>
+                  </div>
+                </div>
+                <div class="matrix-sub-schedule">0-0-1 Nightly</div>
+              </td>
+              <td class="col-timing">
+                <span class="food-badge food-bed">After Dinner</span>
+              </td>
+              <td class="col-dur">
+                <span class="duration-pill">30 Days</span>
+              </td>
+              <td class="col-qty font-mono">30 Units</td>
+            </tr>
+
+            <tr class="med-item-row">
+              <td class="col-num font-mono">04</td>
+              <td class="col-med">
+                <div class="med-name-line">
+                  <span class="med-prefix">Syp.</span>
+                  <span class="med-main-name">Iron Tonic &amp; Folic Acid</span>
+                  <span class="med-strength-tag">200ml</span>
+                </div>
+                <div class="med-special-note"><span class="note-bullet">▸</span> 10ml twice daily. Do not take with dairy or calcium supplements.</div>
+              </td>
+              <td class="col-matrix">
+                <div class="matrix-pill-group">
+                  <div class="matrix-cell active-morning">
+                    <span class="cell-label">M</span>
+                    <span class="cell-val">10ml</span>
+                  </div>
+                  <div class="matrix-cell inactive">
+                    <span class="cell-label">A</span>
+                    <span class="cell-val">0</span>
+                  </div>
+                  <div class="matrix-cell active-night">
+                    <span class="cell-label">N</span>
+                    <span class="cell-val">10ml</span>
+                  </div>
+                </div>
+                <div class="matrix-sub-schedule">10ml Twice Daily</div>
+              </td>
+              <td class="col-timing">
+                <span class="food-badge food-after">After Meals</span>
+              </td>
+              <td class="col-dur">
+                <span class="duration-pill">15 Days</span>
+              </td>
+              <td class="col-qty font-mono">1 Bottle</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Instructions & Investigations -->
+      <div class="callouts-grid">
+        <div class="callout-box notes-callout">
+          <div class="callout-title">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
+            Doctor's Instructions &amp; Lifestyle Advice
+          </div>
+          <div style="white-space: pre-line;">1. Low-glycemic index (GI) Mediterranean dietary pattern: Increase fiber (flaxseeds, chia, green vegetables), reduce refined carbohydrates and sugars.
+2. 35–45 minutes of moderate aerobic activity or resistance training 4 to 5 times per week.
+3. Maintain regular sleep timing (minimum 7.5 hours nightly) to assist cortisol and melatonin balance.
+4. Stay well hydrated with 2.5 to 3 liters of water daily.</div>
+          <div style="margin-top: 6px; font-weight: 700; color: #6B46C1;">Next Follow-up Consultation: In 4 Weeks (07 Oct 2026) with repeat lab reports.</div>
+        </div>
+
+        <div class="callout-box labs-callout">
+          <div class="callout-title">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a1 1 0 0 1-1-1V1zm2 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4H4v10z"/></svg>
+            Suggested Laboratory Investigations
+          </div>
+          <ul class="labs-list">
+            <li><strong>Fasting Blood Glucose &amp; Fasting Insulin (HOMA-IR calculation)</strong></li>
+            <li><strong>Complete Hormonal Profile (Serum LH, FSH, Total &amp; Free Testosterone, DHEAS, AMH)</strong></li>
+            <li><strong>Lipid Profile &amp; High-Sensitivity CRP (hs-CRP)</strong></li>
+            <li><strong>Pelvic Ultrasound (USG Pelvis TVS / TAS) for ovarian morphology &amp; endometrial thickness</strong></li>
+          </ul>
+        </div>
+
+        <div class="callout-box sos-callout">
+          <div class="callout-title">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M7.938 2.016A.13.13 0 0 1 8.002 2a.13.13 0 0 1 .063.016.146.146 0 0 1 .054.057l6.857 11.667c.036.06.035.124.002.183a.163.163 0 0 1-.054.06.116.116 0 0 1-.066.017H1.146a.115.115 0 0 1-.066-.017.163.163 0 0 1-.054-.06.176.176 0 0 1 .002-.183L7.884 2.073a.147.147 0 0 1 .054-.057zm1.044-.45a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566z"/><path d="M7.002 12a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 5.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z"/></svg>
+            Emergency &amp; Red-Flag Advisory
+          </div>
+          <div>In case of acute severe abdominal or pelvic pain, high fever (>101°F), sudden abnormal heavy bleeding, or severe dizziness, immediately contact the HealNari care hotline (+91 80 4567 8900) or visit the nearest emergency healthcare facility.</div>
+        </div>
+      </div>
+
+      <!-- Footer & Digital Signature Block - Matching Invoice Signature Block -->
+      <footer class="prescription-footer">
+        <div class="legal-notice-box">
+          <p><strong>Statutory Compliance:</strong> This digital prescription is issued pursuant to the National Telemedicine Practice Guidelines (2020) and Section 5 of the Information Technology Act (2000). It is legally valid for dispensing across all licensed pharmacies.</p>
+          <div class="security-badge-row">
+            <div class="security-qr-mock">
+              <span>QR<br/>VERIFIED</span>
+            </div>
+            <div>
+              <p><strong>Security Hash:</strong> <span class="font-mono">SHA256:RXHN481920B984A1</span></p>
+              <p>Confidential Medical Record • HealNari Healthcare Systems v2.4 • DPDP Act (2023) Compliant</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="signature-box">
+          <div class="signature-cursive">Dr. Sarah Mitchell</div>
+          <div class="signature-line">Dr. Sarah Mitchell</div>
+          <div class="signature-meta">MBBS, MS, DGO (Obstetrics &amp; Gynaecology)</div>
+          <div class="signature-meta">Reg. No: KMC-84920</div>
+          <div class="signature-verified-pill">
+            <svg width="10" height="10" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022Z"/></svg>
+            Digitally Signed &amp; Authenticated
+          </div>
+        </div>
+      </footer>
+    </div>
+  </div>
+</body>
+</html>
