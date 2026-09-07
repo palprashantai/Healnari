@@ -2999,12 +2999,12 @@ export class AdminService {
 
       if (error || !data) {
         return {
-          heroTitle: "Your Premier Partner in Women's Health",
+          heroTitle: "Specialized Medical Care, Delivered with Precision.",
           heroSubtitle:
-            'Empowering women through comprehensive, compassionate, and cutting-edge medical care. Book consultations instantly.',
+            'Consult verified General Physicians, Dermatologists, Gynecologists, Endocrinologists, and Nutritionists with built-in AI Lab Report Analysis and 24/7 symptom triage. Comprehensive 45-minute video consultations, digital prescriptions, and free 14-day follow-up.',
           providerHeroTitle: 'Empower Your Practice with HealNari',
           providerHeroSubtitle:
-            'Launch your independent digital practice on HealNari with zero overhead. Treat high-intent women’s health patients with AI-powered EMR, instant digital prescriptions, and transparent weekly payouts.',
+            'Launch your independent digital practice on HealNari with zero overhead. Treat high-intent patients across multiple specialties with AI-powered EMR, instant digital prescriptions, and transparent weekly payouts.',
           pricingAmount: 799,
           platformCommissionRate: 10,
           toggles: defaultToggles,

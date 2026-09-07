@@ -1,185 +1,294 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { NavLink } from 'react-router-dom';
 import { triggerHaptic } from '../../lib/haptics.js';
+import { apiFetch } from '../../lib/apiClient.js';
+
+// Multi-Specialty Clinical Specialties Ribbon
+const SPECIALTIES_RIBBON = [
+  { icon: 'fa-user-doctor', label: 'General Medicine', color: 'text-blue-700 bg-blue-50/80 border-blue-200' },
+  { icon: 'fa-wand-magic-sparkles', label: 'Dermatology & Skin', color: 'text-amber-700 bg-amber-50/80 border-amber-200' },
+  { icon: 'fa-dna', label: 'Endocrinology & Thyroid', color: 'text-indigo-700 bg-indigo-50/80 border-indigo-200' },
+  { icon: 'fa-venus', label: 'Gynaecology & PCOS', color: 'text-rose-700 bg-rose-50/80 border-rose-200' },
+  { icon: 'fa-apple-whole', label: 'Clinical Nutrition', color: 'text-teal-700 bg-teal-50/80 border-teal-200' },
+  { icon: 'fa-brain', label: 'Mental Health', color: 'text-purple-700 bg-purple-50/80 border-purple-200' },
+  { icon: 'fa-seedling', label: 'Trichology & Scalp', color: 'text-emerald-700 bg-emerald-50/80 border-emerald-200' },
+];
+
+const DEFAULT_SPECIALTIES_DROPDOWN = [
+  { id: 'all', name: 'All Specialties' },
+  { id: 'general', name: 'General Medicine', subtitle: 'Fever, Infections, BP, Fatigue' },
+  { id: 'derma', name: 'Dermatology & Hair', subtitle: 'Acne, Eczema, Hair Fall' },
+  { id: 'endo', name: 'Endocrinology', subtitle: 'Thyroid, Diabetes, Hormones' },
+  { id: 'gynae', name: 'Gynaecology', subtitle: 'Menstrual Care, PCOS, Fertility' },
+  { id: 'nutrition', name: 'Clinical Nutrition', subtitle: 'Weight, Gut Health, Diet Plans' },
+];
 
 function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
-  return (
-    <section className="relative pt-6 pb-6 md:pt-8 lg:pt-10 md:pb-8 max-w-6xl mx-auto px-4 sm:px-5 md:px-8">
-      {/* Decorative blurry background highlights */}
-      <div className="absolute top-1/4 left-1/10 w-72 h-72 rounded-full bg-indigo-200/40 blur-3xl -z-10"></div>
-      <div className="absolute top-1/3 right-1/10 w-80 h-80 rounded-full bg-violet-200/30 blur-3xl -z-10"></div>
+  const [specialties, setSpecialties] = useState(DEFAULT_SPECIALTIES_DROPDOWN);
+  const [selectedSpecialty, setSelectedSpecialty] = useState('all');
 
-      <div className="grid lg:grid-cols-12 gap-6 lg:gap-12 items-start">
-        {/* Left Column: Copy & Actions */}
-        <div className="lg:col-span-7 space-y-4 sm:space-y-7 text-center lg:text-left order-2 lg:order-1 min-w-0">
+  // Progressive background hydration: Fetch real database specialties if available
+  useEffect(() => {
+    let isMounted = true;
+    apiFetch('/admin/public/specialties')
+      .then((spRes) => {
+        if (!isMounted) return;
+        const spData = Array.isArray(spRes?.data) ? spRes.data : Array.isArray(spRes) ? spRes : [];
+        if (spData.length > 0) {
+          const formattedSp = [
+            { id: 'all', name: 'All Specialties' },
+            ...spData.map((s) => ({
+              id: s.id || s.slug || s.name.toLowerCase().replace(/\s+/g, '-'),
+              name: s.name,
+              subtitle: s.description || s.subtitle || '',
+            })),
+          ];
+          setSpecialties(formattedSp);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    triggerHaptic('medium');
+    
+    // Smooth scroll to doctors section or trigger consultation
+    const doctorsSection = document.getElementById('doctors');
+    if (doctorsSection) {
+      doctorsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (onStartConsult) {
+      onStartConsult('');
+    }
+  };
+
+  return (
+    <section className="relative pt-6 pb-8 md:pt-10 md:pb-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 overflow-hidden">
+      {/* Subtle ambient lighting backdrops */}
+      <div 
+        aria-hidden="true" 
+        className="absolute top-1/4 left-1/10 w-80 h-80 rounded-full bg-aubergine-200/30 blur-3xl -z-10 pointer-events-none"
+      />
+      <div 
+        aria-hidden="true" 
+        className="absolute top-1/3 right-1/10 w-96 h-96 rounded-full bg-violet-200/25 blur-3xl -z-10 pointer-events-none"
+      />
+
+      <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+        
+        {/* Left Column: Multi-Specialty Positioning & Triage Gateway */}
+        <div className="lg:col-span-7 space-y-4 sm:space-y-5 text-center lg:text-left order-2 lg:order-1 min-w-0">
           
-          {/* AI Announcement Pill */}
-          <div className="flex justify-center lg:justify-start">
+          {/* Eyebrow & AI Feature Announcement Pills */}
+          <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
+            <div className="inline-flex items-center gap-2 bg-aubergine-50/90 border border-aubergine-200/80 px-3.5 py-1.5 rounded-full shadow-2xs text-xs font-semibold text-aubergine-900">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 ring-4 ring-emerald-100" />
+              <span className="font-bold">Multi-Specialty Telehealth</span>
+              <span className="text-slate-400">•</span>
+              <span className="text-slate-600">Verified Specialists</span>
+            </div>
+
             <a
               href="#ai-features"
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-aubergine-50 via-magenta-50 to-indigo-50 hover:from-aubergine-100 hover:via-magenta-100 hover:to-indigo-100 border border-aubergine-200/80 px-3.5 py-1.5 rounded-full shadow-2xs text-xs font-semibold text-aubergine-900 transition-all hover:scale-105"
+              className="inline-flex items-center gap-1.5 bg-gradient-to-r from-magenta-50 via-purple-50 to-indigo-50 hover:from-magenta-100 hover:via-purple-100 hover:to-indigo-100 border border-magenta-200/90 px-3.5 py-1.5 rounded-full shadow-2xs text-xs font-bold text-magenta-900 transition-all hover:scale-[1.02]"
             >
-              <span className="w-2 h-2 rounded-full bg-magenta-500 animate-pulse"></span>
-              <span>✨ <strong>New:</strong> AI Lab Report Analyzer &amp; 24/7 Companion</span>
-              <span className="text-magenta-600 font-bold ml-1">Explore AI Suite →</span>
+              <i className="fas fa-wand-magic-sparkles text-magenta-600 text-[11px] animate-pulse" aria-hidden="true" />
+              <span>✨ <strong>AI Health Suite:</strong> Lab Analyzer &amp; 24/7 Triage</span>
+              <i className="fas fa-arrow-right text-[10px] text-magenta-600 ml-0.5" aria-hidden="true" />
             </a>
           </div>
 
-          {/* Trust Badges */}
-          <div className="flex overflow-x-auto hide-scrollbar snap-x justify-start lg:justify-start gap-2 py-1 sm:flex-wrap">
-            <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-aubergine-50 border border-aubergine-100 text-aubergine-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-stethoscope text-aubergine-500"></i> 8+ Specialist Disciplines
-            </span>
-            <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-user-md text-emerald-500"></i> Verified Medical Doctors
-            </span>
-            <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-wand-magic-sparkles text-indigo-500"></i> AI Lab &amp; Diagnostic Suite
-            </span>
-            <span className="snap-start shrink-0 inline-flex items-center gap-1.5 bg-magenta-50 border border-magenta-100 text-magenta-700 text-xs font-semibold px-3 py-1.5 rounded-full shadow-2xs">
-              <i className="fas fa-shield-halved text-magenta-600"></i> 100% Private &amp; Encrypted
-            </span>
-          </div>
-
-          {/* Main Titles */}
-          <div className="space-y-4 px-1 sm:px-0">
-            <h1 className="text-3xl leading-[1.2] sm:text-4xl lg:text-5xl lg:leading-[1.15] font-extrabold tracking-tight text-slate-900 font-display">
-              {title || (
+          {/* H1 Heading */}
+          <div className="space-y-3">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 font-display leading-[1.15]">
+              {title && !title.toLowerCase().includes("women") ? (
+                title
+              ) : (
                 <>
-                  Multi-Specialty Healthcare for <br className="hidden lg:block" />
-                  <span className="text-aubergine-600 inline-block">Hormones, Skin, Hair &amp; Holistic Care</span>
+                  Specialized Medical Care, <br className="hidden sm:inline" />
+                  <span className="text-aubergine-600">Delivered with Precision.</span>
                 </>
               )}
             </h1>
-            <div className="space-y-4 max-w-xl mx-auto lg:mx-0 px-2 sm:px-0 relative z-10">
-              {subtitle ? (
-                <p className="text-slate-600 text-lg md:text-xl font-normal leading-relaxed whitespace-pre-line">
-                  {subtitle}
-                </p>
+
+            {/* Subheadline (Concise, multi-specialty, scannable, featuring AI capability) */}
+            <p className="text-slate-600 text-base sm:text-lg lg:text-xl font-normal leading-relaxed max-w-2xl mx-auto lg:mx-0">
+              {subtitle && subtitle.toLowerCase().includes("ai") ? (
+                subtitle
               ) : (
                 <>
-                  <p className="text-slate-600 text-[15px] sm:text-lg md:text-xl font-normal leading-relaxed">
-                    Connect with qualified specialists across <strong>Gynaecology &amp; Women's Health, PCOS, Menstrual Care, Endocrinology, Dermatology, Hair &amp; Scalp Health, Clinical Nutrition, and Yoga &amp; Movement</strong>.
-                  </p>
-                  <p className="text-slate-600 text-[15px] sm:text-base md:text-lg font-normal leading-relaxed">
-                    <strong>Your personalized holistic health journey in one platform.</strong> Comprehensive root-cause care combining medical consultations, precision lab diagnostics, customized diet plans, and lifestyle pharmacology.
-                  </p>
-                  <p className="text-slate-700 text-[15px] sm:text-base md:text-lg font-medium leading-relaxed pt-2 pb-4 sm:pb-0">
-                    <span className="text-aubergine-700 font-bold">Included in care:</span> 45-min video consult • AI lab analysis • Tailored nutrition &amp; yoga plans • Digital Rx • Free 14-day chat follow-up.
-                  </p>
+                  Consult verified <strong>General Physicians, Dermatologists, Gynecologists, Endocrinologists, and Nutritionists</strong> with built-in <strong>AI Lab Report Analysis</strong> and 24/7 symptom triage. Comprehensive 45-minute video consultations, digital prescriptions, and free 14-day follow-up.
                 </>
               )}
-            </div>
+            </p>
           </div>
 
-          {/* Pricing Banner */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4 justify-center lg:justify-start text-sm sm:text-base font-semibold text-slate-700">
-            <span className="inline-flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full text-emerald-800 border border-emerald-100 shadow-xs text-xs sm:text-sm">
-              <i className="fas fa-tag text-emerald-600"></i> Specialist Consultations starting at ₹799
-            </span>
-            <span className="inline-flex items-center gap-1.5 bg-aubergine-50 px-3 py-1.5 rounded-full text-aubergine-800 border border-aubergine-100 shadow-xs text-xs sm:text-sm">
-              <i className="fas fa-heart-circle-bolt text-aubergine-600"></i> Free Health &amp; Cycle Tracking
-            </span>
-            <span className="inline-flex items-center gap-1.5 bg-indigo-50 px-3 py-1.5 rounded-full text-indigo-800 border border-indigo-100 shadow-xs text-xs sm:text-sm">
-              <i className="fas fa-globe text-indigo-600"></i> Global Care (INR, USD, EUR, GBP, AED)
-            </span>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 mt-3 pt-1">
-            {/* Primary Action Button */}
-            <div className="relative group shrink-0 w-full sm:w-auto">
-              <div className="absolute -top-3 left-4 z-10 bg-rose-700 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider py-0.5 px-2 rounded-full shadow-xs animate-bounce flex items-center gap-1 whitespace-nowrap">
-                <i className="fas fa-calendar-day"></i> Next Slot: Today
-              </div>
-              <button 
-                onClick={() => {
-                  triggerHaptic('medium');
-                  onStartConsult?.();
-                }}
-                className="w-full sm:w-auto relative bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600 hover:from-aubergine-700 hover:via-magenta-700 hover:to-indigo-700 text-white font-extrabold px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl shadow-md shadow-aubergine-200/60 hover:shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 text-xs sm:text-sm whitespace-nowrap"
+          {/* Specialties Ribbon (Integrated from ProviderHero for full visual consistency) */}
+          <div className="pt-1 pb-1 flex flex-wrap justify-center lg:justify-start gap-1.5 sm:gap-2 max-w-2xl">
+            {SPECIALTIES_RIBBON.map(s => (
+              <span 
+                key={s.label} 
+                className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold border shadow-2xs ${s.color}`}
               >
-                <i className="fas fa-stethoscope text-xs shrink-0"></i> <span>Book Specialist Consult</span>
-              </button>
+                <i className={`fas ${s.icon} text-[10px]`} aria-hidden="true" />
+                {s.label}
+              </span>
+            ))}
+          </div>
+
+          {/* Interactive Specialty Search & Triage Bar */}
+          <form 
+            onSubmit={handleSearchSubmit}
+            className="bg-white p-2 sm:p-2.5 rounded-2xl border border-slate-200/90 shadow-sm max-w-xl mx-auto lg:mx-0 flex flex-col sm:flex-row items-center gap-2"
+          >
+            <div className="relative w-full sm:flex-1">
+              <label htmlFor="hero-specialty-select" className="sr-only">Select Medical Specialty</label>
+              <i className="fas fa-stethoscope absolute left-3.5 top-1/2 -translate-y-1/2 text-aubergine-500 text-sm pointer-events-none" aria-hidden="true" />
+              <select
+                id="hero-specialty-select"
+                value={selectedSpecialty}
+                onChange={(e) => setSelectedSpecialty(e.target.value)}
+                className="w-full pl-9 pr-8 py-2.5 bg-slate-50/80 hover:bg-slate-50 rounded-xl text-slate-800 text-sm font-semibold border border-transparent focus:border-aubergine-400 focus:bg-white focus:outline-none transition-colors cursor-pointer"
+              >
+                {specialties.map((spec) => (
+                  <option key={spec.id} value={spec.id}>
+                    {spec.name} {spec.subtitle ? `— (${spec.subtitle.split(',')[0]})` : ''}
+                  </option>
+                ))}
+              </select>
             </div>
-            <a
-              href="#ai-features"
-              className="w-full sm:w-auto bg-white hover:bg-magenta-50/80 border border-magenta-200 text-magenta-700 font-bold py-2.5 sm:py-3 px-3.5 sm:px-4 rounded-xl shadow-xs transition-all btn-interactive flex items-center justify-center gap-1.5 text-xs sm:text-sm whitespace-nowrap"
-            >
-              <i className="fas fa-wand-magic-sparkles text-magenta-500 shrink-0 text-xs"></i> <span>AI Health Suite</span>
-            </a>
+
             <button
+              type="submit"
+              className="w-full sm:w-auto bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 text-sm whitespace-nowrap shrink-0 focus-visible:ring-2 focus-visible:ring-aubergine-500 focus-visible:ring-offset-2"
+            >
+              <span>Find Specialists</span>
+              <i className="fas fa-arrow-right text-xs" aria-hidden="true" />
+            </button>
+          </form>
+
+          {/* Secondary Actions & Provider Onboarding Pathway */}
+          <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2 pt-1 text-xs sm:text-sm font-semibold text-slate-600">
+            <button
+              type="button"
               onClick={() => {
                 triggerHaptic('light');
                 onOpenChecker?.();
               }}
-              className="w-full sm:w-auto bg-sand-50/80 hover:bg-aubergine-50 border border-sand-200 text-slate-700 font-bold py-2.5 sm:py-3 px-3.5 sm:px-4 rounded-xl shadow-xs transition-all btn-interactive flex items-center justify-center gap-1.5 text-xs sm:text-sm whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 text-aubergine-700 hover:text-aubergine-800 font-bold hover:underline transition-colors py-1"
             >
-              <i className="fas fa-heart-pulse text-rose-500 shrink-0 text-xs"></i> <span>Symptom Checker</span>
+              <i className="fas fa-wand-magic-sparkles text-aubergine-500" aria-hidden="true" />
+              <span>Free AI Symptom Triage</span>
             </button>
+
+            <span className="text-slate-300 hidden sm:inline">•</span>
+
+            <NavLink
+              to="/for-doctors"
+              className="inline-flex items-center gap-1.5 text-slate-700 hover:text-aubergine-700 font-bold transition-colors py-1 group"
+            >
+              <i className="fas fa-user-doctor text-emerald-600" aria-hidden="true" />
+              <span>Are you a Doctor? <span className="text-aubergine-600 group-hover:underline">Join our panel &rarr;</span></span>
+            </NavLink>
           </div>
 
-          {/* Risk Reversal */}
-          <div className="text-center lg:text-left text-xs font-bold text-slate-500 mt-3 pt-1">
-             <i className="fas fa-shield-halved text-emerald-500 mr-1"></i> 100% Confidentiality &amp; Satisfaction Guarantee. Don't love your doctor? Your next consult is on us.
-          </div>
-
-          {/* Consultation trust statement */}
-          <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-2 text-xs sm:text-sm text-slate-500 text-center sm:text-left mt-2">
-            <div className="flex -space-x-1 shrink-0">
-              <span className="w-5 h-5 rounded-full bg-aubergine-500 flex items-center justify-center text-[10px] text-white font-bold border border-white">✓</span>
-              <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-[10px] text-white font-bold border border-white">✓</span>
-              <span className="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center text-[10px] text-white font-bold border border-white">✓</span>
+          {/* Verifiable Clinical Proof Badges (Including AI Diagnostics) */}
+          <div className="pt-3 border-t border-slate-200/70 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
+            <div className="flex items-start gap-2">
+              <i className="fas fa-circle-check text-emerald-600 text-sm mt-0.5 shrink-0" aria-hidden="true" />
+              <div>
+                <p className="text-xs font-bold text-slate-800">Council-Verified</p>
+                <p className="text-[11px] text-slate-500 font-medium">Licensed MD/MS doctors</p>
+              </div>
             </div>
-            <span>45-min detailed video consult • Digital prescription &amp; lab roadmap • 14-day free chat follow-up</span>
+
+            <div className="flex items-start gap-2">
+              <i className="fas fa-wand-magic-sparkles text-magenta-600 text-sm mt-0.5 shrink-0" aria-hidden="true" />
+              <div>
+                <p className="text-xs font-bold text-slate-800">AI Diagnostic Suite</p>
+                <p className="text-[11px] text-slate-500 font-medium">Lab reports &amp; biomarker analysis</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2">
+              <i className="fas fa-shield-halved text-aubergine-600 text-sm mt-0.5 shrink-0" aria-hidden="true" />
+              <div>
+                <p className="text-xs font-bold text-slate-800">100% Private</p>
+                <p className="text-[11px] text-slate-500 font-medium">Encrypted video &amp; records</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2">
+              <i className="fas fa-clock-rotate-left text-indigo-600 text-sm mt-0.5 shrink-0" aria-hidden="true" />
+              <div>
+                <p className="text-xs font-bold text-slate-800">From ₹799</p>
+                <p className="text-[11px] text-slate-500 font-medium">45-min consult + 14-d chat</p>
+              </div>
+            </div>
           </div>
 
         </div>
 
-        {/* Right Column: Visual Component & Live Care Highlights */}
-        <div className="lg:col-span-5 relative order-1 lg:order-2 mt-2 sm:mt-0 flex flex-col items-center lg:items-end">
-          {/* Main Visual Frame - slightly lowered for harmonious alignment with heading */}
-          <div className="relative w-44 h-44 sm:w-72 sm:h-72 lg:w-80 lg:h-80 mx-auto lg:ml-auto lg:mr-0 lg:mt-4">
-            <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-aubergine-600 via-magenta-400 to-indigo-300 opacity-25 blur-2xl animate-pulse-subtle"></div>
+        {/* Right Column: Exact Circular Doctor Visual with Floating Badges (Zero Collisions) */}
+        <div className="lg:col-span-5 relative order-1 lg:order-2 flex flex-col items-center lg:items-end">
+          
+          {/* Main Circular Visual Frame with Ambient Radial Glow */}
+          <div className="relative w-52 h-52 sm:w-72 sm:h-72 lg:w-84 lg:h-84 mx-auto lg:ml-auto lg:mr-0">
+            {/* Ambient Radial Gradient Glow */}
+            <div 
+              aria-hidden="true"
+              className="absolute inset-0 rounded-full bg-gradient-to-tr from-aubergine-600 via-magenta-400 to-indigo-300 opacity-25 blur-2xl animate-pulse-subtle"
+            />
             
-            {/* Beautiful Profile Image */}
-            <div className="w-full h-full rounded-full overflow-hidden border-4 sm:border-8 border-white shadow-2xl relative">
+            {/* Circular Doctor Portrait */}
+            <div className="w-full h-full rounded-full overflow-hidden border-4 sm:border-8 border-white shadow-2xl relative bg-slate-100">
               <img
                 src="/generated/hero.webp"
-                alt="Patient consulting specialist doctor for endocrinology, dermatology, and holistic health at HealNari"
-                width="320"
-                height="320"
+                alt="Licensed specialist doctor in clinical consultation at HealNari"
+                width="340"
+                height="340"
                 fetchpriority="high"
                 loading="eager"
                 decoding="async"
                 className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/20 via-transparent to-transparent"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/20 via-transparent to-transparent pointer-events-none" />
             </div>
 
-            {/* Interactive Rating Badge Overlay */}
+            {/* Top-Left Floating Badge: 100% Doctor-Led */}
+            <div className="absolute -top-1 sm:-top-3 -left-1 sm:-left-3 bg-white/95 backdrop-blur-md rounded-xl sm:rounded-2xl shadow-lg border border-sand-200 p-1.5 sm:p-2.5 flex items-center gap-1.5 sm:gap-2 animate-bounce-subtle z-10 scale-90 sm:scale-100 origin-top-left">
+              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-[10px] sm:text-xs shrink-0">
+                <i className="fas fa-shield-heart" aria-hidden="true" />
+              </div>
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-800 whitespace-nowrap">
+                100% Doctor-Led
+              </span>
+            </div>
+
+            {/* Bottom-Right Floating Badge: 4.98 / 5.0 Rating */}
             <div className="absolute -bottom-2 sm:-bottom-4 -right-2 sm:right-4 bg-white/95 backdrop-blur-md rounded-xl sm:rounded-2xl shadow-xl border border-sand-200 p-2 sm:p-3.5 flex items-center gap-1.5 sm:gap-3 animate-float z-10 scale-90 sm:scale-100 origin-bottom-right">
               <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-amber-50 flex items-center justify-center text-amber-500 text-xs sm:text-lg shrink-0">
-                <i className="fas fa-star"></i>
+                <i className="fas fa-star" aria-hidden="true" />
               </div>
               <div>
                 <div className="flex items-center gap-1 sm:gap-1.5">
                   <span className="font-extrabold text-slate-800 text-xs sm:text-base leading-none">4.98</span>
                   <span className="text-[9px] sm:text-[11px] text-slate-400 font-bold">/ 5.0</span>
                 </div>
-                <p className="text-[9px] sm:text-[11px] text-slate-500 font-bold mt-0.5">2,000+ verified consults</p>
+                <p className="text-[9px] sm:text-[11px] text-slate-500 font-bold mt-0.5 whitespace-nowrap">
+                  2,000+ verified consults
+                </p>
               </div>
             </div>
 
-            {/* Mini Trust Bubble */}
-            <div className="absolute -top-1 sm:-top-3 -left-1 sm:-left-3 bg-white/95 backdrop-blur-md rounded-xl sm:rounded-2xl shadow-lg border border-sand-200 p-1.5 sm:p-2.5 flex items-center gap-1.5 sm:gap-2 animate-bounce-subtle z-10 scale-90 sm:scale-100 origin-top-left">
-              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 text-[10px] sm:text-xs shrink-0">
-                <i className="fas fa-shield-heart"></i>
-              </div>
-              <span className="text-[9px] sm:text-[11px] font-bold text-slate-800">100% Doctor-Led</span>
-            </div>
           </div>
 
         </div>
+
       </div>
     </section>
   );

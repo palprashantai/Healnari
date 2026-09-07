@@ -39,8 +39,8 @@ function DoctorLandingPage() {
     });
 
     const originalTitle = document.title;
-    const docTitle = "Telemedicine Platform for Gynecologists & Doctors | Direct Net Payouts + AI EMR | HealNari";
-    const docDesc = "Grow your clinical practice with zero clinic overhead. HealNari connects verified Gynecologists, Endocrinologists, Dermatologists, Dietitians & Yoga Therapists with high-intent patients. Built-in AI EMR, digital Rx & weekly direct payouts.";
+    const docTitle = "Telemedicine Platform for Multi-Specialty Doctors & Clinicians | Direct Net Payouts + AI EMR | HealNari";
+    const docDesc = "Grow your clinical practice with zero clinic overhead. HealNari connects verified General Physicians, Dermatologists, Endocrinologists, Gynecologists, Dietitians & Mental Health professionals with high-intent patients. Built-in AI EMR, digital Rx & weekly direct payouts.";
     const docUrl = "https://healnari.care/for-doctors";
 
     document.title = docTitle;
@@ -87,13 +87,14 @@ function DoctorLandingPage() {
           "url": "https://healnari.care/for-doctors",
           "logo": "https://healnari.care/brand/logo-full.jpg",
           "medicalSpecialty": [
+            "https://schema.org/PrimaryCare",
             "https://schema.org/Gynecologic",
             "https://schema.org/Endocrine",
             "https://schema.org/Dermatology",
             "https://schema.org/DietNutrition"
           ],
-          "description": "Multi-specialty digital clinic platform enabling licensed Gynaecologists, Endocrinologists, Dermatologists, Trichologists, Dietitians, and Movement Therapists to deliver root-cause care with integrated AI-assisted EMR.",
-          "knowsAbout": ["Women's Health", "PCOS", "Endocrine Disorders", "Trichology", "Dermatology", "Clinical Nutrition", "Telemedicine"],
+          "description": "Multi-specialty digital clinic platform enabling licensed General Physicians, Gynaecologists, Endocrinologists, Dermatologists, Trichologists, Dietitians, and Mental Health Professionals to deliver evidence-based care with integrated AI-assisted EMR.",
+          "knowsAbout": ["General Medicine", "Primary Care", "Women's Health", "PCOS", "Endocrine Disorders", "Trichology", "Dermatology", "Clinical Nutrition", "Telemedicine"],
           "aggregateRating": {
             "@type": "AggregateRating",
             "ratingValue": "4.96",
@@ -165,7 +166,7 @@ function DoctorLandingPage() {
   const defaultDoctorFaqs = [
     {
       q: "What exactly is HealNari and which specialists can join?",
-      a: "HealNari is a dedicated digital clinic ecosystem for women's health specialists. We actively onboard licensed Gynaecologists, Endocrinologists, Dermatologists, Trichologists, Clinical Dietitians, Yoga/Movement Therapists, and Fertility Experts. Patients with menstrual irregularities, PCOS, thyroid disorders, hormonal acne, hair loss, and metabolic concerns connect directly with you."
+      a: "HealNari is a modern multi-specialty digital healthcare and telemedicine platform. We actively onboard licensed General Physicians, Dermatologists, Endocrinologists, Gynecologists, Clinical Dietitians, Mental Health Professionals, and Specialists across all clinical disciplines. Patients seeking acute primary care, chronic disease management, hormonal health, skin/hair treatments, and holistic wellness connect directly with you."
     },
     {
       q: "How much can I earn and how does the payout model work?",

@@ -7,21 +7,23 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
   const [activeWorkflow, setActiveWorkflow] = useState('queue');
   const [activeSession, setActiveSession] = useState({
     token: 'T-01',
-    patient: 'Priya Sharma',
-    age: '28F',
-    concern: 'PCOS Root-Cause Diagnostic',
+    patient: 'Rohan Sharma',
+    age: '34M',
+    concern: 'Hypertension & Metabolic Triage',
     status: 'In Video Call',
-    elapsed: 18,
+    elapsed: 14,
   });
   const [queueList, setQueueList] = useState([
-    { token: 'T-02', patient: 'Ananya Roy', age: '24F', concern: 'Irregular Cycles & Acne', time: '10:15 AM' },
-    { token: 'T-03', patient: 'Sneha Kapoor', age: '31F', concern: 'Hormonal Hair Fall', time: '11:00 AM' },
+    { token: 'T-02', patient: 'Priya Nair', age: '28F', concern: 'Hormonal Balance & PCOS Care', time: '10:15 AM' },
+    { token: 'T-03', patient: 'Aarav Mehta', age: '26M', concern: 'Persistent Cystic Acne & Dermatology', time: '10:45 AM' },
+    { token: 'T-04', patient: 'Sunita Rao', age: '42F', concern: 'Thyroid Monitoring & Fatigue', time: '11:15 AM' },
   ]);
 
   const toast = useToast();
 
-  // 6-Line Typewriter Animation Effect
+  // 7-Line Typewriter Animation Effect
   const rotatingLines = [
+    'Multi-Specialty Telehealth',
     'AI-Powered Clinical EMR',
     'Automated SOAP Notes & Scribe',
     'Smart Rx & Drug Safety Checks',
@@ -92,11 +94,22 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
         {/* Main Hero Header */}
         <div className="text-center max-w-4xl mx-auto space-y-5 sm:space-y-6 animate-slide-up">
           
-          {/* Trust Pill */}
-          <div className="inline-flex items-center gap-2 bg-white border border-aubergine-200/80 shadow-xs text-aubergine-800 text-[11px] sm:text-xs font-semibold px-3 sm:px-4 py-1.5 rounded-full text-center max-w-full">
-            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-            <span className="sm:hidden">Onboarding Women's Health Specialists</span>
-            <span className="hidden sm:inline">Now Onboarding Gynaecologists, Endocrinologists, Dermatologists, Trichologists, Dietitians &amp; Yoga Therapists</span>
+          {/* Trust & AI Announcement Pills */}
+          <div className="flex flex-wrap items-center justify-center gap-2 max-w-full">
+            <div className="inline-flex items-center gap-2 bg-white border border-aubergine-200/80 shadow-xs text-aubergine-800 text-[11px] sm:text-xs font-semibold px-3 sm:px-4 py-1.5 rounded-full text-center">
+              <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+              <span className="sm:hidden">Multi-Specialty Doctor Panel</span>
+              <span className="hidden sm:inline">Now Onboarding General Physicians, Dermatologists, Endocrinologists, Gynecologists &amp; Specialists</span>
+            </div>
+
+            <a
+              href="#ai-clinical-suite"
+              className="inline-flex items-center gap-1.5 bg-indigo-50/90 hover:bg-indigo-100 border border-indigo-200/90 shadow-xs text-indigo-900 text-[11px] sm:text-xs font-bold px-3 sm:px-4 py-1.5 rounded-full transition-all hover:scale-[1.02]"
+            >
+              <i className="fas fa-wand-magic-sparkles text-indigo-600 text-[10px] animate-pulse" aria-hidden="true" />
+              <span>✨ <strong>AI Clinical Scribe:</strong> Automated SOAP Notes &amp; Smart Rx</span>
+              <i className="fas fa-arrow-down text-[9px] text-indigo-500 ml-0.5" aria-hidden="true" />
+            </a>
           </div>
 
           {/* Typography Section */}
@@ -113,20 +126,20 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
               )}
             </h1>
             <p className="text-slate-600 text-sm sm:text-lg md:text-xl leading-relaxed max-w-2xl mx-auto font-normal px-1">
-              {subtitle || "Launch your independent digital practice on HealNari with zero overhead. Treat high-intent women’s health patients with AI-powered EMR, instant digital prescriptions, and transparent weekly payouts."}
+              {subtitle || "Launch your independent digital practice on HealNari with zero overhead. Treat high-intent patients across primary care, dermatology, endocrinology, women’s health, and nutrition—with automated AI SOAP notes, real-time drug interaction safety checks, and transparent weekly payouts."}
             </p>
           </div>
 
           {/* Specialties Ribbon */}
-          <div className="pt-1 pb-1 flex flex-wrap justify-center gap-1.5 sm:gap-2 max-w-3xl mx-auto">
+          <div className="pt-1 pb-1 flex flex-wrap justify-center gap-1.5 sm:gap-2 max-w-4xl mx-auto">
             {[
-              { icon: 'fa-venus', label: 'Gynaecology & PCOS', color: 'text-rose-700 bg-rose-50/80 border-rose-200' },
+              { icon: 'fa-user-doctor', label: 'General Medicine', color: 'text-blue-700 bg-blue-50/80 border-blue-200' },
+              { icon: 'fa-wand-magic-sparkles', label: 'Dermatology & Skin', color: 'text-amber-700 bg-amber-50/80 border-amber-200' },
               { icon: 'fa-dna', label: 'Endocrinology & Thyroid', color: 'text-indigo-700 bg-indigo-50/80 border-indigo-200' },
-              { icon: 'fa-wand-magic-sparkles', label: 'Dermatology & Acne', color: 'text-amber-700 bg-amber-50/80 border-amber-200' },
-              { icon: 'fa-seedling', label: 'Trichology & Scalp', color: 'text-emerald-700 bg-emerald-50/80 border-emerald-200' },
+              { icon: 'fa-venus', label: 'Gynaecology & PCOS', color: 'text-rose-700 bg-rose-50/80 border-rose-200' },
               { icon: 'fa-apple-whole', label: 'Clinical Nutrition', color: 'text-teal-700 bg-teal-50/80 border-teal-200' },
-              { icon: 'fa-person-praying', label: 'Pelvic & Yoga Therapy', color: 'text-purple-700 bg-purple-50/80 border-purple-200' },
-              { icon: 'fa-baby', label: 'Fertility & Ovulation', color: 'text-pink-700 bg-pink-50/80 border-pink-200' },
+              { icon: 'fa-brain', label: 'Mental Health', color: 'text-purple-700 bg-purple-50/80 border-purple-200' },
+              { icon: 'fa-seedling', label: 'Trichology & Scalp', color: 'text-emerald-700 bg-emerald-50/80 border-emerald-200' },
             ].map(s => (
               <span key={s.label} className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold border shadow-2xs ${s.color}`}>
                 <i className={`fas ${s.icon} text-[10px]`} />
@@ -145,9 +158,16 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
               <span className="sm:hidden">Apply as Specialist (3 Mins)</span>
               <span className="hidden sm:inline">Apply as Specialist (Takes 3 Mins)</span>
             </button>
+            <a
+              href="#ai-clinical-suite"
+              className="w-full sm:w-auto bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200 text-indigo-900 font-bold px-5 py-3.5 sm:py-4 rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
+            >
+              <i className="fas fa-wand-magic-sparkles text-indigo-600" />
+              <span>Explore AI Clinical EMR</span>
+            </a>
             <button
               onClick={onOpenLogin}
-              className="w-full sm:w-auto bg-white hover:bg-slate-50 border border-sand-300 text-slate-700 font-semibold px-6 py-3.5 sm:py-4 rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
+              className="w-full sm:w-auto bg-white hover:bg-slate-50 border border-sand-300 text-slate-700 font-semibold px-5 py-3.5 sm:py-4 rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
             >
               <i className="fas fa-arrow-right-to-bracket text-aubergine-600"></i> Provider Login
             </button>
@@ -155,10 +175,10 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
 
           {/* Trust Guarantees */}
           <div className="grid grid-cols-2 sm:flex sm:flex-wrap justify-center items-center gap-2.5 sm:gap-6 pt-1 text-[11px] sm:text-xs font-medium text-slate-500 text-left sm:text-center">
-            <span className="flex items-center gap-1.5"><i className="fas fa-shield-halved text-emerald-600"></i> Verified Credentials</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-wand-magic-sparkles text-indigo-600"></i> AI SOAP Scribe in 15s</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-prescription-bottle-medical text-teal-600"></i> Smart Rx Safety Checks</span>
             <span className="flex items-center gap-1.5"><i className="fas fa-circle-dollar-to-slot text-emerald-600"></i> Direct Weekly Payout</span>
-            <span className="flex items-center gap-1.5"><i className="fas fa-lock text-emerald-600"></i> Clinical Autonomy</span>
-            <span className="flex items-center gap-1.5"><i className="fas fa-users text-emerald-600"></i> 8+ Specialties</span>
+            <span className="flex items-center gap-1.5"><i className="fas fa-lock text-emerald-600"></i> 100% Clinical Autonomy</span>
           </div>
 
           {/* 4 Key Practice Pillars */}
@@ -224,7 +244,7 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                           ● LIVE CLINIC
                         </span>
                       </div>
-                      <p className="text-[10px] sm:text-[11px] text-slate-500 truncate">Dr. Ananya Mehta • Reproductive Endocrinology</p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500 truncate">Dr. Rajesh Mehta, MD • Internal Medicine &amp; Multi-Specialty Lead</p>
                     </div>
                   </div>
 
@@ -342,9 +362,9 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                         <div className="flex items-center gap-1.5 text-xs font-bold text-rose-700 mb-1">
                           <i className="fas fa-triangle-exclamation"></i> Action Required
                         </div>
-                        <p className="font-bold text-slate-900 text-xs sm:text-sm">Urgent Hormone Panel</p>
+                        <p className="font-bold text-slate-900 text-xs sm:text-sm">Urgent Metabolic Panel</p>
                         <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 leading-relaxed">
-                          Priya Sharma's fasting insulin &amp; DHEAS uploaded by partner lab.
+                          Rohan Sharma's HbA1c (6.8%) &amp; Lipid Profile uploaded by partner lab.
                         </p>
                       </div>
                       <button 
@@ -383,11 +403,11 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                             <i className="fas fa-notes-medical text-teal-600" /> Subjective &amp; Objective
                           </p>
                           <p className="text-[11px] text-slate-600">
-                            <strong>S:</strong> 28F presenting with 45-day oligomenorrhea, progressive adult acne &amp; fatigue. <br />
-                            <strong>O:</strong> Fasting Insulin 18.2 µIU/mL, LH/FSH 2.8. Pelvic USG reveals bilateral polycystic morphology.
+                            <strong>S:</strong> 34M presenting with elevated BP (142/92), progressive fatigue &amp; family history of T2D. <br />
+                            <strong>O:</strong> BMI 27.4, HbA1c 6.8%, Fasting Glucose 126 mg/dL. Renal function &amp; electrolytes normal.
                           </p>
                           <p className="text-[11px] text-slate-600 pt-1 border-t border-slate-100">
-                            <strong>A:</strong> Polycystic Ovarian Syndrome (Insulin-Resistant Phenotype).
+                            <strong>A:</strong> Stage 1 Essential Hypertension with Early Type 2 Diabetes Mellitus.
                           </p>
                         </div>
 
@@ -403,16 +423,16 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                           </div>
                           <div className="space-y-1 text-[11px] text-slate-700">
                             <div className="p-1.5 bg-slate-50 rounded-lg border border-slate-100 flex justify-between">
-                              <span><strong>1. Myo-Inositol + D-Chiro-Inositol (40:1)</strong> — 2000mg</span>
-                              <span className="text-slate-500 font-medium">1-0-1 (B.F.)</span>
+                              <span><strong>1. Telmisartan</strong> — 40mg</span>
+                              <span className="text-slate-500 font-medium">1-0-0 (Morning)</span>
                             </div>
                             <div className="p-1.5 bg-slate-50 rounded-lg border border-slate-100 flex justify-between">
-                              <span><strong>2. Metformin SR</strong> — 500mg</span>
+                              <span><strong>2. Metformin Hydrochloride</strong> — 500mg</span>
                               <span className="text-slate-500 font-medium">0-0-1 (Dinner)</span>
                             </div>
                           </div>
                           <div className="flex items-center justify-between pt-1 text-[10px] text-slate-400">
-                            <span>Dr. Ananya Mehta (Reg: NMC-15201)</span>
+                            <span>Dr. Rajesh Mehta (Reg: NMC-18492)</span>
                             <span className="text-emerald-600 font-bold">● Digitally Signed</span>
                           </div>
                         </div>
@@ -437,9 +457,9 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
                           <i className="fas fa-clipboard-user text-indigo-500"></i> Patient: {activeSession.patient} ({activeSession.age}) • Token {activeSession.token}
                         </p>
                         <p>
-                          • <strong>Symptoms:</strong> Menstrual cycles ~45 days, progressive hirsutism (Ferriman-Gallwey Score: 9), persistent adult acne. <br />
-                          • <strong>Biomarkers:</strong> LH/FSH ratio 2.8, Fasting Insulin 18.2 µIU/mL (High Insulin Resistance), Normal Thyroid Profile (TSH: 2.1). <br />
-                          • <strong>Provisional Suggestion:</strong> Insulin-Resistant PCOS phenotype. Recommended Inositol 40:1 ratio &amp; Metformin evaluation.
+                          • <strong>Symptoms:</strong> Elevated office BP readings, chronic daytime fatigue, increased thirst. <br />
+                          • <strong>Biomarkers:</strong> HbA1c 6.8%, Fasting Blood Glucose 126 mg/dL, LDL 138 mg/dL, normal serum creatinine (0.9 mg/dL). <br />
+                          • <strong>Provisional Suggestion:</strong> Metformin initiation + ARB (Telmisartan) anti-hypertensive therapy with medical nutrition referral.
                         </p>
                       </div>
                     </div>
