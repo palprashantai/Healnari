@@ -33,6 +33,7 @@ const PatientFamily = lazy(() => import('./patient/pages/Family.jsx'));
 const PatientBilling = lazy(() => import('./patient/pages/Billing.jsx'));
 const PatientProfile = lazy(() => import('./patient/pages/Profile.jsx'));
 const PatientAiProduct = lazy(() => import('./patient/pages/AiProduct.jsx'));
+const PatientLifestyle = lazy(() => import('./patient/pages/Lifestyle.jsx'));
 
 // Doctor Pages
 const DoctorDashboard = lazy(() => import('./doctor/pages/Dashboard.jsx'));
@@ -185,6 +186,7 @@ function App() {
                   <Route path="fertility" element={<PatientFertility />} />
                   <Route path="appointments" element={<PatientAppointments />} />
                   <Route path="prescriptions" element={<PatientPrescriptions />} />
+                  <Route path="lifestyle" element={<PatientLifestyle />} />
                   <Route path="records" element={<PatientRecords />} />
                   <Route path="family" element={<PatientFamily />} />
                   <Route path="billing" element={<PatientBilling />} />

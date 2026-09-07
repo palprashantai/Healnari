@@ -197,9 +197,11 @@ export function generatePrescriptionHtml({
   // Parse structured medicines
   const parsedMedicines = (medicines || []).map(parseMedicineDetails);
 
-  // Parse Instructions & Follow-Up Advice
+  // Parse Instructions & Follow-Up Advice & Lifestyle Protocols
   let displayInstructions = instructions || '';
   let followUpAdvice = (explicitFollowUpAdvice || explicitFollowUp || '').trim();
+  let dietPlan = (options.dietPlan || '').trim();
+  let exercisePlan = (options.exercisePlan || '').trim();
 
   try {
     if (typeof displayInstructions === 'string' && displayInstructions.trim().startsWith('{')) {
@@ -208,6 +210,12 @@ export function generatePrescriptionHtml({
         displayInstructions = parsedJson.clinicalNotes || '';
         if (!followUpAdvice && parsedJson.followUpAdvice) {
           followUpAdvice = String(parsedJson.followUpAdvice).trim();
+        }
+        if (!dietPlan && parsedJson.dietPlan) {
+          dietPlan = String(parsedJson.dietPlan).trim();
+        }
+        if (!exercisePlan && parsedJson.exercisePlan) {
+          exercisePlan = String(parsedJson.exercisePlan).trim();
         }
       }
     }
@@ -913,6 +921,24 @@ export function generatePrescriptionHtml({
           color: #7e22ce;
           line-height: 1.45;
         }
+        .diet-callout {
+          background: #f0fdf4;
+          border: 1px solid #bbf7d0;
+          border-left: 4px solid #059669;
+          color: #064e3b;
+        }
+        .diet-callout .callout-title {
+          color: #059669;
+        }
+        .exercise-callout {
+          background: #fffbeb;
+          border: 1px solid #fde68a;
+          border-left: 4px solid #d97706;
+          color: #78350f;
+        }
+        .exercise-callout .callout-title {
+          color: #d97706;
+        }
         .labs-callout {
           background: #f0fdf4;
           border: 1px solid #bbf7d0;
@@ -1234,11 +1260,31 @@ export function generatePrescriptionHtml({
 
           <!-- Instructions & Investigations -->
           <div class="callouts-grid">
+            ${dietPlan ? `
+              <div class="callout-box diet-callout">
+                <div class="callout-title">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                  Clinical Diet &amp; Nutrition Plan
+                </div>
+                <div style="white-space: pre-line; font-weight: 500;">${escapeHtml(dietPlan)}</div>
+              </div>
+            ` : ''}
+
+            ${exercisePlan ? `
+              <div class="callout-box exercise-callout">
+                <div class="callout-title">
+                  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  Yoga &amp; Mindful Movement Protocol
+                </div>
+                <div style="white-space: pre-line; font-weight: 500;">${escapeHtml(exercisePlan)}</div>
+              </div>
+            ` : ''}
+
             ${displayInstructions ? `
               <div class="callout-box notes-callout">
                 <div class="callout-title">
                   <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
-                  Doctor's Instructions &amp; Dietary Advice
+                  Doctor's Instructions &amp; Clinical Advice
                 </div>
                 <div style="white-space: pre-line;">${escapeHtml(displayInstructions)}</div>
               </div>

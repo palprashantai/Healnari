@@ -36,6 +36,7 @@ const MENU_CATEGORIES = [
   {
     title: 'Wellness',
     items: [
+      { name: 'Diet & Yoga Plan',   icon: 'fa-seedling',       path: '/patient-dashboard/lifestyle',     color: '#10b981', badge: 'Active' },
       { name: 'Health Tracking',    icon: 'fa-heart-pulse',    path: '/patient-dashboard/tracking',      color: '#6366f1' },
       { name: 'Fertility Insights', icon: 'fa-circle-dot',     path: '/patient-dashboard/fertility',     color: '#e11d48' },
     ]

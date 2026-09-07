@@ -410,6 +410,9 @@ function WriteRxPage({ onBack, onSave, patients }) {
     diagnosis: '', 
     meds: [{ name: '', schedule: '', duration: '' }], 
     instructions: '',
+    dietPlan: '',
+    exercisePlan: '',
+    followUpAdvice: '',
     handwrittenImage: null,
   });
   const [template, setTemplate] = useState('');
@@ -602,7 +605,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
     ? (form.patient && form.diagnosis.trim() && !!form.handwrittenImage)
     : rxMode === 'upload'
     ? (form.patient && form.diagnosis.trim() && !!uploadedFile)
-    : (form.patient && form.diagnosis.trim() && filledMeds.length > 0);
+    : (form.patient && form.diagnosis.trim() && (filledMeds.length > 0 || form.dietPlan?.trim() || form.exercisePlan?.trim() || form.instructions?.trim()));
 
   const applyTemplate = (tmplName) => {
     const found = protocols.find(t => t.name === tmplName || t.shortName === tmplName);
@@ -1258,10 +1261,113 @@ function WriteRxPage({ onBack, onSave, patients }) {
               )}
             </div>
 
-            {/* Instructions */}
+            {/* ── 🌿 Diet & Clinical Nutrition Plan (Doctor / Nutritionist) ── */}
+            <div className="bg-white rounded-2xl border border-emerald-200/80 shadow-sm p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black text-emerald-700 uppercase tracking-wide flex items-center gap-2">
+                  <i className="fas fa-seedling text-emerald-600 text-sm"></i> Diet &amp; Clinical Nutrition Plan
+                </label>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  Doctor &amp; Nutritionist
+                </span>
+              </div>
+              <textarea
+                rows={3}
+                value={form.dietPlan}
+                onChange={e => setForm(p => ({ ...p, dietPlan: e.target.value }))}
+                placeholder="e.g. Low glycemic index whole foods, 25-30g protein per main meal, 30g+ dietary fibre daily, anti-inflammatory Mediterranean principles, 3L hydration..."
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white leading-relaxed"
+              />
+              <div className="flex items-center gap-1.5 flex-wrap pt-0.5 text-xs">
+                <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider">Quick Add:</span>
+                {['Personalized Low-GI Plate', 'Protein Balance (20-30g/meal)', 'Fiber & Prebiotics (30g+/day)', 'Plant Polyphenols & Omega-3', 'Regular Meal Timing & Hydration', 'Sustainable Cultural Customization'].map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, dietPlan: p.dietPlan ? `${p.dietPlan}, ${tag}` : tag }))}
+                    className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors shadow-2xs"
+                  >
+                    + {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ── 🧘 Yoga & Mindful Movement Protocol (Yoga Specialist / Trainer) ── */}
+            <div className="bg-white rounded-2xl border border-amber-200/80 shadow-sm p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black text-amber-800 uppercase tracking-wide flex items-center gap-2">
+                  <i className="fas fa-om text-amber-600 text-sm"></i> Yoga &amp; Mindful Movement Protocol
+                </label>
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                  Yoga Specialist &amp; Trainer
+                </span>
+              </div>
+              <textarea
+                rows={3}
+                value={form.exercisePlan}
+                onChange={e => setForm(p => ({ ...p, exercisePlan: e.target.value }))}
+                placeholder="e.g. 150m moderate movement weekly, gentle pelvic yoga (Badhakonasana, Cat-Cow), diaphragmatic breathing (Pranayama), resistance training 2x/wk..."
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white leading-relaxed"
+              />
+              <div className="flex items-center gap-1.5 flex-wrap pt-0.5 text-xs">
+                <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider">Quick Add:</span>
+                {['Beginner Movement (Walking/Steps)', 'Gentle Yoga & Asanas', 'Flexibility & Pelvic Mobility', 'Relaxation & Restorative', 'Breathing & Mindfulness (Pranayama)', 'Strength & Resistance (2-3x/wk)'].map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, exercisePlan: p.exercisePlan ? `${p.exercisePlan}, ${tag}` : tag }))}
+                    className="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors shadow-2xs"
+                  >
+                    + {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* ── 📅 Recommended Next Follow-Up Consultation ── */}
+            <div className="bg-white rounded-2xl border border-purple-200/80 shadow-sm p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black text-purple-800 uppercase tracking-wide flex items-center gap-2">
+                  <i className="fas fa-calendar-check text-purple-600 text-sm"></i> Recommended Next Follow-Up
+                </label>
+                <span className="text-[10px] text-slate-400 font-medium">Auto-populates to patient reminder &amp; portal</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                {[
+                  { label: '+ 1 Week (Acute)', text: 'Review in 1 week' },
+                  { label: '+ 2 Weeks (Titration)', text: 'Review in 2 weeks with symptom log' },
+                  { label: '+ 1 Month (Cycle check)', text: 'Review in 1 month' },
+                  { label: '+ 6 Weeks (PCOS titration)', text: 'Review in 6 weeks with repeat fasting insulin' },
+                  { label: '+ Post Lab Reports', text: 'Review immediately upon lab test completion' },
+                ].map(chip => (
+                  <button
+                    key={chip.label}
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, followUpAdvice: chip.text }))}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                      form.followUpAdvice === chip.text
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                        : 'bg-purple-50/70 hover:bg-purple-100 text-purple-800 border-purple-200/80'
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="text"
+                value={form.followUpAdvice}
+                onChange={e => setForm(p => ({ ...p, followUpAdvice: e.target.value }))}
+                placeholder="Or specify custom follow-up timeframe (e.g. Review in 3 weeks after TVS scan)..."
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white"
+              />
+            </div>
+
+            {/* Instructions & Clinical Notes */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-              <label className="text-xs font-black text-slate-500 uppercase tracking-wide mb-2 block">Special Instructions</label>
-              <textarea rows={3} value={form.instructions} onChange={e => setForm(p => ({ ...p, instructions: e.target.value }))} placeholder="Dietary advice, follow-up, warnings..."
+              <label className="text-xs font-black text-slate-500 uppercase tracking-wide mb-2 block">Special Clinical Instructions / Precautions</label>
+              <textarea rows={3} value={form.instructions} onChange={e => setForm(p => ({ ...p, instructions: e.target.value }))} placeholder="General medication instructions, contraindication warnings, patient counsel..."
                 className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
             </div>
 
@@ -1335,6 +1441,33 @@ function WriteRxPage({ onBack, onSave, patients }) {
                         <li key={lab}>{lab}</li>
                       ))}
                     </ul>
+                  </div>
+                )}
+
+                {form.dietPlan && (
+                  <div className="border-t border-emerald-100 bg-emerald-50/60 p-2.5 rounded-xl text-xs text-emerald-900 space-y-1">
+                    <p className="font-bold flex items-center gap-1.5 text-emerald-700">
+                      <i className="fas fa-seedling text-emerald-600"></i> Diet &amp; Nutrition Plan:
+                    </p>
+                    <p className="whitespace-pre-line text-[11px] text-emerald-800 leading-relaxed font-sans">{form.dietPlan}</p>
+                  </div>
+                )}
+
+                {form.exercisePlan && (
+                  <div className="border-t border-amber-100 bg-amber-50/60 p-2.5 rounded-xl text-xs text-amber-900 space-y-1">
+                    <p className="font-bold flex items-center gap-1.5 text-amber-700">
+                      <i className="fas fa-om text-amber-600"></i> Yoga &amp; Mindful Movement:
+                    </p>
+                    <p className="whitespace-pre-line text-[11px] text-amber-800 leading-relaxed font-sans">{form.exercisePlan}</p>
+                  </div>
+                )}
+
+                {form.followUpAdvice && (
+                  <div className="border-t border-purple-100 bg-purple-50/60 p-2.5 rounded-xl text-xs text-purple-900 space-y-0.5">
+                    <p className="font-bold flex items-center gap-1.5 text-purple-700">
+                      <i className="fas fa-calendar-check text-purple-600"></i> Next Follow-Up:
+                    </p>
+                    <p className="text-[11px] text-purple-800 font-sans font-semibold">{form.followUpAdvice}</p>
                   </div>
                 )}
 
@@ -1601,12 +1734,16 @@ function DoctorPrescriptions() {
   const downloadRxPdf = (rx) => {
     let finalInstructions = rx.instructions;
     let followUpAdvice = '';
+    let dietPlan = '';
+    let exercisePlan = '';
     try {
       if (rx.instructions && rx.instructions.startsWith('{')) {
         const parsed = JSON.parse(rx.instructions);
         if (parsed.type === 'healnari-holistic-v1') {
           finalInstructions = parsed.clinicalNotes || '';
           followUpAdvice = parsed.followUpAdvice || '';
+          dietPlan = parsed.dietPlan || '';
+          exercisePlan = parsed.exercisePlan || '';
         }
       }
     } catch(e) {}
@@ -1630,6 +1767,8 @@ function DoctorPrescriptions() {
       instructions: finalInstructions,
       followUpAdvice: followUpAdvice,
       followUp: followUpAdvice,
+      dietPlan,
+      exercisePlan,
     });
   };
 
@@ -1690,16 +1829,37 @@ function DoctorPrescriptions() {
       const isHandwritten = form.mode === 'handwritten';
       const isUpload = form.mode === 'upload';
       
-      const medicines = isHandwritten
+      let medicines = isHandwritten
         ? [{ name: 'Handwritten Clinical Prescription (Attached)', dosage: 'As drawn on Rx', frequency: 'As directed', duration: 'Course duration specified' }]
         : isUpload
         ? [{ name: 'Scanned Clinical Prescription (Attached)', dosage: 'As written on paper Rx', frequency: 'As directed', duration: 'As specified' }]
         : form.meds.filter(m => m.name).map(m => ({ name: m.name, dosage: '', frequency: m.schedule, duration: m.duration }));
 
+      // If lifestyle-only consultation (no pharmaceuticals), register advisory protocol
+      if (medicines.length === 0 && (form.dietPlan || form.exercisePlan || form.instructions || form.followUpAdvice)) {
+        medicines = [{
+          name: 'Clinical Consultation & Follow-Up Protocol',
+          dosage: 'Advisory',
+          frequency: 'As directed',
+          duration: 'Ongoing'
+        }];
+      }
+
+      const instructions = (form.dietPlan || form.exercisePlan || form.followUpAdvice)
+        ? JSON.stringify({
+            type: 'healnari-holistic-v1',
+            clinicalNotes: form.instructions || '',
+            dietPlan: form.dietPlan || '',
+            exercisePlan: form.exercisePlan || '',
+            followUpAdvice: form.followUpAdvice || ''
+          })
+        : (form.instructions || (isHandwritten ? 'Please follow the handwritten instructions on your attached prescription.' : 'Follow clinical prescription as directed.'));
+
       await addRx(form.patientId, {
         diagnosis: form.diagnosis,
-        instructions: form.instructions || (isHandwritten ? 'Please follow the handwritten instructions on your attached prescription.' : 'Follow clinical prescription as directed.'),
+        instructions,
         medicines,
+        followUpAdvice: form.followUpAdvice || '',
         handwrittenImage: form.handwrittenImage,
       });
       toast(`Prescription (${isHandwritten ? 'Handwritten' : isUpload ? 'Scanned' : 'Digital'}) issued to ${form.patient}. Patient notified.`, 'success');

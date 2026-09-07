@@ -524,6 +524,26 @@ function PatientPrescriptions() {
         </div>
       </div>
 
+      {/* Quick Banner to Diet & Yoga Plan */}
+      <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-base shadow-xs">
+            <i className="fas fa-seedling"></i>
+          </div>
+          <div>
+            <h4 className="text-xs font-black text-emerald-950 uppercase tracking-wide">Looking for your Doctor's Diet &amp; Yoga Regimen?</h4>
+            <p className="text-[11px] text-emerald-800 font-medium">Access your meal timing, macronutrient targets, and cycle-aligned yoga routines in your dedicated hub.</p>
+          </div>
+        </div>
+        <button
+          onClick={() => navigate('/patient-dashboard/lifestyle')}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all flex items-center gap-1.5 shrink-0 shadow-2xs"
+        >
+          <span>Open Diet &amp; Yoga Hub</span>
+          <i className="fas fa-arrow-right text-[10px]"></i>
+        </button>
+      </div>
+
       {/* Status filter tabs */}
       <div className="flex flex-wrap gap-2">
         {STATUS_TABS.map(t => (

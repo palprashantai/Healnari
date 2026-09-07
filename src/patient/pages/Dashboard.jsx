@@ -1576,10 +1576,11 @@ function LifestylePlanWidget({ navigate, discreet }) {
             <h3 className="font-bold text-slate-800 text-sm">My Prescribed Lifestyle Protocol</h3>
           </div>
           <button
-            onClick={() => navigate('/patient-dashboard/prescriptions')}
-            className="text-[10px] font-bold text-emerald-600 hover:underline uppercase tracking-wide"
+            onClick={() => navigate('/patient-dashboard/lifestyle')}
+            className="text-[10px] font-bold text-emerald-600 hover:underline uppercase tracking-wide flex items-center gap-1"
           >
-            View All
+            <span>Open Hub</span>
+            <i className="fas fa-arrow-right text-[9px]"></i>
           </button>
         </div>
 
@@ -1613,7 +1614,7 @@ function LifestylePlanWidget({ navigate, discreet }) {
                   <span className="text-lg">🥗</span>
                   <span className="text-xs font-black text-emerald-800 uppercase tracking-wider">Personalized Nutrition Plan</span>
                 </div>
-                <p className="text-sm text-emerald-900 leading-relaxed whitespace-pre-wrap font-medium line-clamp-4">{plan.dietPlan}</p>
+                <p className="text-sm text-emerald-900 leading-relaxed whitespace-pre-wrap font-medium line-clamp-3">{plan.dietPlan}</p>
               </div>
             )}
 
@@ -1623,16 +1624,25 @@ function LifestylePlanWidget({ navigate, discreet }) {
                   <span className="text-lg">🧘‍♀️</span>
                   <span className="text-xs font-black text-amber-800 uppercase tracking-wider">Yoga &amp; Mindful Movement Protocol</span>
                 </div>
-                <p className="text-sm text-amber-900 leading-relaxed whitespace-pre-wrap font-medium line-clamp-4">{plan.exercisePlan}</p>
+                <p className="text-sm text-amber-900 leading-relaxed whitespace-pre-wrap font-medium line-clamp-3">{plan.exercisePlan}</p>
               </div>
             )}
 
-            <button
-              onClick={handleDownload}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold py-3 px-5 rounded-xl text-sm transition-all shadow-md shadow-emerald-500/20 hover:shadow-lg hover:-translate-y-0.5"
-            >
-              <i className="fas fa-download"></i> Download Lifestyle Plan PDF
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+              <button
+                onClick={() => navigate('/patient-dashboard/lifestyle')}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-sm"
+              >
+                <i className="fas fa-seedling"></i> Open Diet &amp; Yoga Hub
+              </button>
+              <button
+                onClick={handleDownload}
+                className="bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold py-3 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-2xs"
+                title="Download Official A4 PDF"
+              >
+                <i className="fas fa-file-pdf text-emerald-600"></i> Download PDF
+              </button>
+            </div>
           </div>
         )}
       </div>

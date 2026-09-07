@@ -9,8 +9,9 @@ import { DoseSchedule } from '../../components/DoseSchedule.jsx';
 import { RxStatusBadge } from '../../components/RxStatus.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { buildPatientTimeline } from '../../lib/patientTimeline.js';
-import { openPrescriptionPrintWindow, openPatientEmrPrintWindow, openInvoicePrintWindow } from '../../lib/prescriptionPrint.js';
+import { openPrescriptionPrintWindow, openPatientEmrPrintWindow, openInvoicePrintWindow, openLifestylePlanPrintWindow } from '../../lib/prescriptionPrint.js';
 import { AiButton } from '../../components/AiButton.jsx';
+import DietAndYogaMakerPage from './DietAndYogaMakerPage.jsx';
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -99,6 +100,9 @@ function WriteRxPage({ patient, onBack, onSaveRx }) {
   ]);
 
   const [instructions, setInstructions] = useState('');
+  const [dietPlan, setDietPlan] = useState('');
+  const [exercisePlan, setExercisePlan] = useState('');
+  const [followUpAdvice, setFollowUpAdvice] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [activeDropdownIndex, setActiveDropdownIndex] = useState(null);
   const [medCatalog, setMedCatalog] = useState([]);
@@ -262,14 +266,14 @@ function WriteRxPage({ patient, onBack, onSaveRx }) {
   const validMedicines = medicines.filter((m) => m.name.trim().length > 0);
 
   const handleSubmit = async (isDraft = false) => {
-    if (validMedicines.length === 0) {
-      toast('Please enter at least one medication name.', 'error');
+    if (validMedicines.length === 0 && !dietPlan.trim() && !exercisePlan.trim() && !instructions.trim()) {
+      toast('Please enter medications, diet & nutrition plan, or clinical instructions.', 'error');
       return;
     }
 
     setSubmitting(true);
     try {
-      const formattedMeds = validMedicines.map((m) => {
+      let formattedMeds = validMedicines.map((m) => {
         const medTitle = m.strength.trim() ? `${m.name.trim()} ${m.strength.trim()}` : m.name.trim();
         const schedWithTiming = m.timing ? `${m.schedule} (${m.timing})` : m.schedule;
         return {
@@ -282,10 +286,31 @@ function WriteRxPage({ patient, onBack, onSaveRx }) {
         };
       });
 
+      if (formattedMeds.length === 0 && (dietPlan.trim() || exercisePlan.trim() || followUpAdvice.trim())) {
+        formattedMeds = [{
+          name: 'Clinical Lifestyle & Nutrition Protocol',
+          dosage: 'Advisory',
+          schedule: 'As directed',
+          frequency: 'As directed',
+          duration: 'Ongoing',
+        }];
+      }
+
+      const finalInstructions = (dietPlan.trim() || exercisePlan.trim() || followUpAdvice.trim())
+        ? JSON.stringify({
+            type: 'healnari-holistic-v1',
+            clinicalNotes: instructions.trim() || 'Clinical prescription and lifestyle advice.',
+            dietPlan: dietPlan.trim(),
+            exercisePlan: exercisePlan.trim(),
+            followUpAdvice: followUpAdvice.trim(),
+          })
+        : (instructions.trim() || 'Take all medications as directed.');
+
       await onSaveRx(patient.id, {
         diagnosis: diagnosis.trim() || 'General Consultation',
-        instructions: instructions.trim() || 'Take all medications as directed.',
+        instructions: finalInstructions,
         medicines: formattedMeds,
+        followUpAdvice: followUpAdvice.trim(),
         isDraft,
       });
       onBack();
@@ -646,20 +671,123 @@ function WriteRxPage({ patient, onBack, onSaveRx }) {
             </button>
           </div>
 
-          {/* Section 4: Overarching Doctor Instructions & Lifestyle Advice */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-3">
+          {/* Section 3b: Diet & Clinical Nutrition Plan */}
+          <div className="bg-white rounded-3xl p-6 border border-emerald-200/80 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-black text-emerald-800 uppercase tracking-wider flex items-center gap-2">
+                <i className="fas fa-seedling text-emerald-600 text-sm"></i> Clinical Diet &amp; Nutrition Plan
+              </label>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                Doctor &amp; Nutritionist
+              </span>
+            </div>
+            <textarea
+              rows={3}
+              value={dietPlan}
+              onChange={(e) => setDietPlan(e.target.value)}
+              placeholder="e.g. Low glycemic index whole foods, 25-30g protein per main meal, 30g+ dietary fibre daily, anti-inflammatory Mediterranean principles, hydration guidelines..."
+              className="w-full border border-slate-200 rounded-2xl p-3.5 text-xs leading-relaxed text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-emerald-50/20 resize-none"
+            />
+            <div className="flex items-center gap-1.5 flex-wrap pt-0.5 text-xs">
+              <span className="text-slate-400 font-bold text-[10px] uppercase">Quick Add:</span>
+              {['Personalized Low-GI Plate', 'Protein Balance (20-30g/meal)', 'Fiber & Prebiotics (30g+/day)', 'Plant Polyphenols & Omega-3', 'Regular Meal Timing & Hydration', 'Sustainable Cultural Customization'].map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => setDietPlan((p) => (p ? `${p}, ${tag}` : tag))}
+                  className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors shadow-2xs"
+                >
+                  + {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Section 3c: Yoga & Mindful Movement Protocol */}
+          <div className="bg-white rounded-3xl p-6 border border-amber-200/80 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-black text-amber-800 uppercase tracking-wider flex items-center gap-2">
+                <i className="fas fa-om text-amber-600 text-sm"></i> Yoga &amp; Mindful Movement Protocol
+              </label>
+              <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+                Yoga Specialist &amp; Trainer
+              </span>
+            </div>
+            <textarea
+              rows={3}
+              value={exercisePlan}
+              onChange={(e) => setExercisePlan(e.target.value)}
+              placeholder="e.g. 150m moderate movement weekly, gentle pelvic yoga (Badhakonasana, Cat-Cow), diaphragmatic breathing (Pranayama), resistance training 2x/wk..."
+              className="w-full border border-slate-200 rounded-2xl p-3.5 text-xs leading-relaxed text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-amber-50/20 resize-none"
+            />
+            <div className="flex items-center gap-1.5 flex-wrap pt-0.5 text-xs">
+              <span className="text-slate-400 font-bold text-[10px] uppercase">Quick Add:</span>
+              {['Beginner Movement (Walking/Steps)', 'Gentle Yoga & Asanas', 'Flexibility & Pelvic Mobility', 'Relaxation & Restorative', 'Breathing & Mindfulness (Pranayama)', 'Strength & Resistance (2-3x/wk)'].map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => setExercisePlan((p) => (p ? `${p}, ${tag}` : tag))}
+                  className="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors shadow-2xs"
+                >
+                  + {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Section 3d: Recommended Next Follow-Up */}
+          <div className="bg-white rounded-3xl p-6 border border-purple-200/80 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-black text-purple-800 uppercase tracking-wider flex items-center gap-2">
+                <i className="fas fa-calendar-check text-purple-600 text-sm"></i> Recommended Next Follow-Up
+              </label>
+              <span className="text-[10px] text-slate-400 font-medium">Auto-populates to patient reminder</span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {[
+                { label: '+ 1 Week (Acute)', text: 'Review in 1 week' },
+                { label: '+ 2 Weeks (Titration)', text: 'Review in 2 weeks with symptom log' },
+                { label: '+ 1 Month (Cycle check)', text: 'Review in 1 month' },
+                { label: '+ 6 Weeks (PCOS titration)', text: 'Review in 6 weeks with repeat fasting insulin' },
+                { label: '+ Post Lab Reports', text: 'Review immediately upon lab test completion' },
+              ].map((chip) => (
+                <button
+                  key={chip.label}
+                  type="button"
+                  onClick={() => setFollowUpAdvice(chip.text)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                    followUpAdvice === chip.text
+                      ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
+                      : 'bg-purple-50/70 hover:bg-purple-100 text-purple-800 border-purple-200'
+                  }`}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={followUpAdvice}
+              onChange={(e) => setFollowUpAdvice(e.target.value)}
+              placeholder="Or specify custom follow-up timeframe..."
+              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white"
+            />
+          </div>
+
+          {/* Section 4: General Clinical Instructions */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                <i className="fas fa-clipboard-user text-aubergine-600"></i> Doctor Instructions &amp; Lifestyle Advice
+                <i className="fas fa-clipboard-user text-aubergine-600"></i> Additional Clinical Precautions
               </label>
               <span className="text-[11px] text-slate-400 font-medium">Click chips below to auto-insert</span>
             </div>
 
             <textarea
-              rows={4}
+              rows={3}
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
-              placeholder="e.g. • Take all medications strictly after food.&#10;• Maintain 3L water intake daily.&#10;• Low GI diet with daily 30-min brisk walk.&#10;• Review in 14 days or SOS if symptoms persist."
+              placeholder="e.g. • Take all medications strictly after food.&#10;• Maintain 3L water intake daily.&#10;• Review in 14 days or SOS if symptoms persist."
               className="w-full border border-slate-200 rounded-2xl p-4 text-xs leading-relaxed text-slate-800 focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-slate-50/50 resize-y"
             />
 
@@ -693,7 +821,7 @@ function WriteRxPage({ patient, onBack, onSaveRx }) {
             <button
               type="button"
               onClick={() => handleSubmit(true)}
-              disabled={submitting || validMedicines.length === 0}
+              disabled={submitting || (validMedicines.length === 0 && !dietPlan.trim() && !exercisePlan.trim() && !instructions.trim())}
               className="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold py-3 px-5 rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
             >
               <i className="fas fa-file-pen text-amber-600"></i>
@@ -703,7 +831,7 @@ function WriteRxPage({ patient, onBack, onSaveRx }) {
             <button
               type="button"
               onClick={() => handleSubmit(false)}
-              disabled={submitting || validMedicines.length === 0}
+              disabled={submitting || (validMedicines.length === 0 && !dietPlan.trim() && !exercisePlan.trim() && !instructions.trim())}
               className="flex-1 bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold py-3 px-6 rounded-2xl text-xs transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50"
             >
               {submitting ? (
@@ -714,7 +842,7 @@ function WriteRxPage({ patient, onBack, onSaveRx }) {
               ) : (
                 <>
                   <i className="fas fa-signature"></i>
-                  <span>Finalize &amp; Sign Rx ({validMedicines.length} Meds)</span>
+                  <span>Finalize &amp; Sign Protocol {validMedicines.length > 0 ? `(${validMedicines.length} Meds)` : '(Lifestyle Regimen)'}</span>
                 </>
               )}
             </button>
@@ -833,11 +961,39 @@ function WriteRxPage({ patient, onBack, onSaveRx }) {
                 </div>
               </div>
 
+              {/* Diet Plan Preview */}
+              {dietPlan.trim() && (
+                <div className="bg-emerald-50/90 border border-emerald-200 rounded-xl p-3 text-[11px] text-emerald-950 space-y-1">
+                  <span className="font-bold flex items-center gap-1.5 text-emerald-900 text-[10px] uppercase tracking-wider">
+                    <i className="fas fa-seedling text-emerald-600"></i> Clinical Diet &amp; Nutrition Plan:
+                  </span>
+                  <p className="whitespace-pre-line text-xs font-medium leading-relaxed">{dietPlan}</p>
+                </div>
+              )}
+
+              {/* Yoga & Movement Preview */}
+              {exercisePlan.trim() && (
+                <div className="bg-amber-50/90 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-950 space-y-1">
+                  <span className="font-bold flex items-center gap-1.5 text-amber-900 text-[10px] uppercase tracking-wider">
+                    <i className="fas fa-om text-amber-600"></i> Yoga &amp; Mindful Movement:
+                  </span>
+                  <p className="whitespace-pre-line text-xs font-medium leading-relaxed">{exercisePlan}</p>
+                </div>
+              )}
+
+              {/* Follow-up Target Preview */}
+              {followUpAdvice.trim() && (
+                <div className="bg-purple-50/90 border border-purple-200 rounded-xl p-2.5 text-[11px] text-purple-950 flex items-center gap-2">
+                  <i className="fas fa-calendar-check text-purple-600"></i>
+                  <span><strong>Next Follow-up Review:</strong> {followUpAdvice}</span>
+                </div>
+              )}
+
               {/* Instructions */}
               {instructions.trim() && (
-                <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-3 text-[11px] text-amber-950 space-y-1">
-                  <span className="font-bold flex items-center gap-1 text-amber-900 text-[10px] uppercase tracking-wider">
-                    <i className="fas fa-circle-info text-amber-600"></i> Doctor's Advice &amp; Instructions:
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[11px] text-slate-800 space-y-1">
+                  <span className="font-bold flex items-center gap-1 text-slate-700 text-[10px] uppercase tracking-wider">
+                    <i className="fas fa-circle-info text-slate-500"></i> Additional Clinical Precautions:
                   </span>
                   <p className="whitespace-pre-line text-xs font-medium leading-relaxed">{instructions}</p>
                 </div>
@@ -1619,6 +1775,320 @@ function ViewLabDocModal({ report, patient, isOpen, onClose }) {
   );
 }
 
+/* ─── Diet & Yoga / Exercise Regimen Modal ─────────── */
+function DietYogaModal({ isOpen, onClose, patient, activePlan, onSavePlan }) {
+  const { user } = useAuth();
+  const [modalTab, setModalTab] = useState(activePlan ? 'view' : 'compose');
+  const [dietPlan, setDietPlan] = useState(activePlan?.dietPlan || '');
+  const [exercisePlan, setExercisePlan] = useState(activePlan?.exercisePlan || '');
+  const [followUpAdvice, setFollowUpAdvice] = useState(activePlan?.followUpAdvice || 'Review in 4 weeks');
+  const [clinicalNotes, setClinicalNotes] = useState(activePlan?.clinicalNotes || 'Personalized clinical dietetics and mindful movement protocol.');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (activePlan) {
+      setDietPlan(activePlan.dietPlan || '');
+      setExercisePlan(activePlan.exercisePlan || '');
+      setFollowUpAdvice(activePlan.followUpAdvice || 'Review in 4 weeks');
+      setClinicalNotes(activePlan.clinicalNotes || 'Personalized clinical dietetics and mindful movement protocol.');
+      setModalTab('view');
+    } else {
+      setModalTab('compose');
+    }
+  }, [activePlan, isOpen]);
+
+  if (!isOpen || !patient) return null;
+
+  const handleDownload = () => {
+    openLifestylePlanPrintWindow({
+      rxId: activePlan?.rxId ? `HN-${String(activePlan.rxId).slice(0, 8).toUpperCase()}` : 'HN-LIFESTYLE',
+      date: activePlan?.date || new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      doctor: { name: user?.name, specialty: user?.specialty || user?.profile?.specialty, regNo: user?.regNo || user?.profile?.registration_no },
+      patient: { name: patient.name, age: patient.age, gender: patient.gender || 'Female' },
+      dietPlan: activePlan?.dietPlan || dietPlan,
+      exercisePlan: activePlan?.exercisePlan || exercisePlan,
+    });
+  };
+
+  const handleSave = async (e) => {
+    if (e) e.preventDefault();
+    if (!dietPlan.trim() && !exercisePlan.trim()) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await onSavePlan({
+        diagnosis: patient.diagnosis && patient.diagnosis !== 'Pending' ? patient.diagnosis : 'Lifestyle & Nutrition Protocol',
+        instructions: JSON.stringify({
+          type: 'healnari-holistic-v1',
+          clinicalNotes: clinicalNotes.trim(),
+          dietPlan: dietPlan.trim(),
+          exercisePlan: exercisePlan.trim(),
+          followUpAdvice: followUpAdvice.trim(),
+        }),
+        medicines: [{
+          name: 'Clinical Consultation & Lifestyle Protocol',
+          dosage: 'Advisory',
+          frequency: 'As directed',
+          duration: 'Ongoing',
+        }],
+        followUpAdvice: followUpAdvice.trim(),
+        isDraft: false,
+      });
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Diet & Mindful Movement Protocol — ${patient.name}`} size="lg">
+      <div className="space-y-4">
+        {/* Navigation Mode Bar */}
+        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+          <div className="flex gap-2">
+            {activePlan && (
+              <button
+                type="button"
+                onClick={() => setModalTab('view')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  modalTab === 'view' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <i className="fas fa-eye"></i> Active Plan
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setModalTab('compose')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                modalTab === 'compose' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <i className="fas fa-pen-to-square"></i> {activePlan ? 'Update / New Regimen' : 'Compose Regimen'}
+            </button>
+          </div>
+
+          {activePlan && (
+            <button
+              type="button"
+              onClick={handleDownload}
+              className="text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shadow-2xs"
+            >
+              <i className="fas fa-file-pdf text-emerald-600"></i> Download Official A4 PDF
+            </button>
+          )}
+        </div>
+
+        {modalTab === 'view' && activePlan ? (
+          <div className="space-y-4 text-xs">
+            {/* Doctor Info header banner */}
+            <div className="bg-emerald-50/80 border border-emerald-200/90 rounded-2xl p-4 flex items-center justify-between gap-4">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block">Current Regimen On File</span>
+                <p className="font-black text-slate-900 text-sm mt-0.5">Prescribed by {activePlan.prescribedBy || 'Clinical Specialist'}</p>
+                <p className="text-slate-500 text-[11px] mt-0.5">Date: {activePlan.date}</p>
+              </div>
+              <span className="bg-emerald-600 text-white text-[11px] font-bold px-3 py-1 rounded-full shadow-2xs">
+                ● Active Protocol
+              </span>
+            </div>
+
+            {/* Diet Card */}
+            <div className="bg-white border-2 border-emerald-100 rounded-2xl p-4 space-y-2 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-black text-emerald-800 uppercase tracking-wide text-xs flex items-center gap-2">
+                  <i className="fas fa-seedling text-emerald-600 text-sm"></i> Clinical Diet &amp; Nutrition Plan
+                </span>
+                <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
+                  Doctor / Nutritionist
+                </span>
+              </div>
+              <p className="text-slate-800 text-xs leading-relaxed whitespace-pre-line font-medium bg-emerald-50/40 p-3 rounded-xl border border-emerald-100/80">
+                {activePlan.dietPlan || 'No specific dietary protocol recorded.'}
+              </p>
+            </div>
+
+            {/* Exercise Card */}
+            <div className="bg-white border-2 border-amber-100 rounded-2xl p-4 space-y-2 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-black text-amber-800 uppercase tracking-wide text-xs flex items-center gap-2">
+                  <i className="fas fa-om text-amber-600 text-sm"></i> Yoga &amp; Mindful Movement Protocol
+                </span>
+                <span className="text-[10px] font-bold bg-amber-50 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200">
+                  Yoga Specialist / Trainer
+                </span>
+              </div>
+              <p className="text-slate-800 text-xs leading-relaxed whitespace-pre-line font-medium bg-amber-50/40 p-3 rounded-xl border border-amber-100/80">
+                {activePlan.exercisePlan || 'No specific yoga/movement protocol recorded.'}
+              </p>
+            </div>
+
+            {/* Follow-up advice */}
+            {activePlan.followUpAdvice && (
+              <div className="bg-purple-50/80 border border-purple-200 rounded-2xl p-3.5 flex items-center justify-between text-xs text-purple-900">
+                <div className="flex items-center gap-2">
+                  <i className="fas fa-calendar-check text-purple-600 text-sm"></i>
+                  <span><strong>Next Review:</strong> {activePlan.followUpAdvice}</span>
+                </div>
+                <span className="text-[10px] text-purple-700 font-semibold bg-purple-100 px-2 py-0.5 rounded-full">Follow-up Target</span>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setModalTab('compose')}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-colors"
+              >
+                <i className="fas fa-pen"></i> Update / Revise Protocol
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 border border-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs hover:bg-slate-50 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Compose / Update Mode */
+          <form onSubmit={handleSave} className="space-y-4">
+            {/* Diet Box */}
+            <div className="bg-emerald-50/30 border border-emerald-200 rounded-2xl p-4 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black text-emerald-800 uppercase tracking-wide flex items-center gap-2">
+                  <i className="fas fa-seedling text-emerald-600"></i> Clinical Diet &amp; Nutrition Plan
+                </label>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                  Doctor / Clinical Nutritionist
+                </span>
+              </div>
+              <textarea
+                rows={3}
+                value={dietPlan}
+                onChange={e => setDietPlan(e.target.value)}
+                placeholder="e.g. Low glycemic index whole foods, 25-30g protein per main meal, 30g+ dietary fibre daily, anti-inflammatory Mediterranean principles, hydration guidelines..."
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white leading-relaxed resize-none"
+              />
+              <div className="flex items-center gap-1.5 flex-wrap pt-0.5 text-xs">
+                <span className="text-slate-400 font-bold text-[10px] uppercase">Quick Add:</span>
+                {['Personalized Low-GI Plate', 'Protein Balance (20-30g/meal)', 'Fiber & Prebiotics (30g+/day)', 'Plant Polyphenols & Omega-3', 'Regular Meal Timing & Hydration', 'Sustainable Cultural Customization'].map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setDietPlan(p => p ? `${p}, ${tag}` : tag)}
+                    className="bg-white hover:bg-emerald-50 border border-emerald-200 text-emerald-800 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors shadow-2xs"
+                  >
+                    + {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Yoga & Movement Box */}
+            <div className="bg-amber-50/30 border border-amber-200 rounded-2xl p-4 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black text-amber-800 uppercase tracking-wide flex items-center gap-2">
+                  <i className="fas fa-om text-amber-600"></i> Yoga &amp; Mindful Movement Protocol
+                </label>
+                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                  Yoga Specialist &amp; Trainer
+                </span>
+              </div>
+              <textarea
+                rows={3}
+                value={exercisePlan}
+                onChange={e => setExercisePlan(e.target.value)}
+                placeholder="e.g. 150m moderate movement weekly, gentle pelvic yoga (Badhakonasana, Cat-Cow), diaphragmatic breathing (Pranayama), resistance training 2x/wk..."
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white leading-relaxed resize-none"
+              />
+              <div className="flex items-center gap-1.5 flex-wrap pt-0.5 text-xs">
+                <span className="text-slate-400 font-bold text-[10px] uppercase">Quick Add:</span>
+                {['Beginner Movement (Walking/Steps)', 'Gentle Yoga & Asanas', 'Flexibility & Pelvic Mobility', 'Relaxation & Restorative', 'Breathing & Mindfulness (Pranayama)', 'Strength & Resistance (2-3x/wk)'].map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setExercisePlan(p => p ? `${p}, ${tag}` : tag)}
+                    className="bg-white hover:bg-amber-50 border border-amber-200 text-amber-800 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors shadow-2xs"
+                  >
+                    + {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Follow-up target */}
+            <div className="bg-purple-50/30 border border-purple-200 rounded-2xl p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-black text-purple-800 uppercase tracking-wide flex items-center gap-2">
+                  <i className="fas fa-calendar-check text-purple-600"></i> Recommended Next Follow-Up
+                </label>
+                <span className="text-[10px] text-slate-400 font-medium">Auto-populates to patient reminder</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {[
+                  { label: '+ 1 Week (Acute)', text: 'Review in 1 week' },
+                  { label: '+ 2 Weeks (Titration)', text: 'Review in 2 weeks with symptom log' },
+                  { label: '+ 1 Month (Cycle check)', text: 'Review in 1 month' },
+                  { label: '+ 6 Weeks (PCOS titration)', text: 'Review in 6 weeks with repeat fasting insulin' },
+                  { label: '+ Post Lab Reports', text: 'Review immediately upon lab test completion' },
+                ].map(chip => (
+                  <button
+                    key={chip.label}
+                    type="button"
+                    onClick={() => setFollowUpAdvice(chip.text)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                      followUpAdvice === chip.text
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
+                        : 'bg-white hover:bg-purple-50 text-purple-800 border-purple-200'
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="text"
+                value={followUpAdvice}
+                onChange={e => setFollowUpAdvice(e.target.value)}
+                placeholder="Or custom timeline..."
+                className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-purple-300 bg-white"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 border border-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={submitting || (!dietPlan.trim() && !exercisePlan.trim())}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-colors"
+              >
+                {submitting ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin"></i> Saving to EMR...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-paper-plane"></i> Issue &amp; Send to Patient
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 /* ─── FULL PAGE EMR COMPONENT ───────────────────────── */
 function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
   const { user } = useAuth();
@@ -1663,12 +2133,31 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
   // Sub-modals state
   const [showWriteRx, setShowWriteRx] = useState(false);
+  const [showDietYogaMaker, setShowDietYogaMaker] = useState(false);
+  const [showDietYogaModal, setShowDietYogaModal] = useState(false);
   const [showOrderLab, setShowOrderLab] = useState(false);
   const [showRecordPayment, setShowRecordPayment] = useState(false);
   const [selectedRxDoc, setSelectedRxDoc] = useState(null);
   const [selectedLabDoc, setSelectedLabDoc] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showAiBrief, setShowAiBrief] = useState(false);
+
+  const holisticPlans = useMemo(() => {
+    const list = [];
+    groupedRx.forEach(rx => {
+      try {
+        if (rx.instructions && rx.instructions.startsWith('{')) {
+          const parsed = JSON.parse(rx.instructions);
+          if (parsed.type === 'healnari-holistic-v1' && (parsed.dietPlan || parsed.exercisePlan)) {
+            list.push({ ...parsed, rxId: rx.id, date: rx.date, prescribedBy: rx.prescribedBy });
+          }
+        }
+      } catch(e) {}
+    });
+    return list;
+  }, [groupedRx]);
+
+  const activeLifestylePlan = holisticPlans[0] || null;
 
   const loadLabRequests = () => {
     if (!patient) return;
@@ -1725,6 +2214,17 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
   if (showWriteRx) {
     return <WriteRxPage patient={patient} onBack={() => setShowWriteRx(false)} onSaveRx={handleAddRx} />;
+  }
+
+  if (showDietYogaMaker) {
+    return (
+      <DietAndYogaMakerPage
+        patient={patient}
+        onBack={() => setShowDietYogaMaker(false)}
+        onSaveProtocol={(plan) => handleAddRx(patient.id, plan)}
+        activePlan={activeLifestylePlan}
+      />
+    );
   }
 
   const handleRequestLab = async (patientId, request) => {
@@ -1840,6 +2340,13 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
               <i className="fas fa-file-prescription"></i> Rx
             </button>
             <button
+              onClick={() => setShowDietYogaMaker(true)}
+              className="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+              title="Open Clinical Diet Chart & Yoga Protocol Maker"
+            >
+              <i className="fas fa-seedling"></i> Diet &amp; Yoga
+            </button>
+            <button
               onClick={() => setShowOrderLab(true)}
               className="bg-aubergine-700 hover:bg-aubergine-800 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm"
             >
@@ -1905,6 +2412,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
             { key: 'overview', label: 'Overview', icon: 'fa-clipboard-list' },
             { key: 'timeline', label: 'Timeline', icon: 'fa-timeline' },
             { key: 'prescriptions', label: `Prescriptions (${patient.meds.length})`, icon: 'fa-pills' },
+            { key: 'lifestyle', label: `Diet & Yoga (${holisticPlans.length})`, icon: 'fa-seedling' },
             { key: 'reports', label: `Lab & Reports (${patient.reports.length})`, icon: 'fa-vial' },
             { key: 'payments', label: `Billing (${(patient.payments || []).length})`, icon: 'fa-receipt' },
             { key: 'consultations', label: `Consultations (${patient.consultations.length})`, icon: 'fa-calendar-days' },
@@ -2155,6 +2663,34 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                             <i className="fas fa-ban"></i> Cancel Finalized
                           </button>
                         )}
+                        {(() => {
+                          try {
+                            if (rxGroup.instructions && rxGroup.instructions.startsWith('{')) {
+                              const p = JSON.parse(rxGroup.instructions);
+                              if (p.type === 'healnari-holistic-v1' && (p.dietPlan || p.exercisePlan)) {
+                                return (
+                                  <button
+                                    onClick={() => {
+                                      openLifestylePlanPrintWindow({
+                                        rxId: `HN-${String(rxGroup.id).slice(0, 8).toUpperCase()}`,
+                                        date: rxGroup.date,
+                                        doctor: { name: user?.name, specialty: user?.specialty || user?.profile?.specialty, regNo: user?.regNo || user?.profile?.registration_no },
+                                        patient: { name: patient.name, age: patient.age, gender: patient.gender || 'Female' },
+                                        dietPlan: p.dietPlan,
+                                        exercisePlan: p.exercisePlan,
+                                      });
+                                    }}
+                                    className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold px-3 py-2 rounded-xl border border-emerald-200 text-xs transition-colors flex items-center gap-1.5 shadow-2xs"
+                                    title="Download Lifestyle & Yoga Protocol"
+                                  >
+                                    <i className="fas fa-seedling text-emerald-600"></i> Lifestyle Plan
+                                  </button>
+                                );
+                              }
+                            }
+                          } catch(e) {}
+                          return null;
+                        })()}
                         <button
                           onClick={() => setSelectedRxDoc(rxGroup)}
                           className="bg-white hover:bg-slate-100 text-slate-700 font-bold px-3.5 py-2 rounded-xl border border-slate-200 text-xs transition-colors flex items-center gap-1.5 shadow-xs"
@@ -2180,11 +2716,58 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                     ))}
                   </div>
 
-                  {rxGroup.instructions && (
-                    <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 text-amber-900 mt-2">
-                      <strong className="font-bold">Doctor Instructions:</strong> {rxGroup.instructions}
-                    </div>
-                  )}
+                  {(() => {
+                    let parsedNotes = null;
+                    try {
+                      if (rxGroup.instructions && rxGroup.instructions.startsWith('{')) {
+                        const p = JSON.parse(rxGroup.instructions);
+                        if (p.type === 'healnari-holistic-v1') parsedNotes = p;
+                      }
+                    } catch(e) {}
+
+                    if (parsedNotes) {
+                      return (
+                        <div className="space-y-2 mt-2">
+                          {parsedNotes.dietPlan && (
+                            <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3 text-emerald-900">
+                              <span className="font-bold flex items-center gap-1.5 text-xs text-emerald-800 mb-1">
+                                <i className="fas fa-seedling text-emerald-600"></i> Clinical Diet &amp; Nutrition Plan:
+                              </span>
+                              <p className="text-[11px] leading-relaxed whitespace-pre-line text-emerald-900 font-medium">{parsedNotes.dietPlan}</p>
+                            </div>
+                          )}
+
+                          {parsedNotes.exercisePlan && (
+                            <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3 text-amber-900">
+                              <span className="font-bold flex items-center gap-1.5 text-xs text-amber-800 mb-1">
+                                <i className="fas fa-om text-amber-600"></i> Yoga &amp; Mindful Movement:
+                              </span>
+                              <p className="text-[11px] leading-relaxed whitespace-pre-line text-amber-900 font-medium">{parsedNotes.exercisePlan}</p>
+                            </div>
+                          )}
+
+                          {parsedNotes.clinicalNotes && (
+                            <div className="bg-slate-100 border border-slate-200 rounded-xl p-3 text-slate-800">
+                              <strong className="font-bold text-xs">Clinical Advice:</strong> {parsedNotes.clinicalNotes}
+                            </div>
+                          )}
+
+                          {parsedNotes.followUpAdvice && (
+                            <div className="bg-purple-50 border border-purple-200 rounded-xl p-2.5 text-purple-900 flex items-center gap-2 text-xs">
+                              <i className="fas fa-calendar-check text-purple-600"></i>
+                              <span><strong>Follow-Up Target:</strong> {parsedNotes.followUpAdvice}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    return rxGroup.instructions ? (
+                      <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 text-amber-900 mt-2">
+                        <strong className="font-bold">Doctor Instructions:</strong> {rxGroup.instructions}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
               ))}
 
@@ -2194,6 +2777,159 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Tab: DIET & YOGA REGIMEN */}
+        {tab === 'lifestyle' && (
+          <div className="space-y-5">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
+                  <i className="fas fa-seedling text-emerald-600"></i> Clinical Diet &amp; Yoga Regimen
+                </h3>
+                <p className="text-slate-500 text-xs mt-0.5">
+                  Evidence-based nutrition therapy &amp; pelvic-aligned mindful movement protocols
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {activeLifestylePlan && (
+                  <button
+                    onClick={() => {
+                      openLifestylePlanPrintWindow({
+                        rxId: `HN-${String(activeLifestylePlan.rxId).slice(0, 8).toUpperCase()}`,
+                        date: activeLifestylePlan.date,
+                        doctor: { name: user?.name, specialty: user?.specialty || user?.profile?.specialty, regNo: user?.regNo || user?.profile?.registration_no },
+                        patient: { name: patient.name, age: patient.age, gender: patient.gender || 'Female' },
+                        dietPlan: activeLifestylePlan.dietPlan,
+                        exercisePlan: activeLifestylePlan.exercisePlan,
+                      });
+                    }}
+                    className="bg-white hover:bg-emerald-50 text-emerald-800 font-bold px-3.5 py-2.5 rounded-xl text-xs border border-emerald-200 transition-all flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <i className="fas fa-file-pdf text-emerald-600"></i> Download A4 Plan
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowDietYogaMaker(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-sm"
+                >
+                  <i className="fas fa-pen-to-square"></i> {activeLifestylePlan ? 'Open Chart Maker / Edit' : 'Open Diet & Yoga Chart Maker'}
+                </button>
+              </div>
+            </div>
+
+            {activeLifestylePlan ? (
+              <div className="space-y-4">
+                {/* Active Protocol Header Card */}
+                <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white p-5 rounded-2xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300">Active Regimen</span>
+                    <h4 className="text-base font-black text-white mt-0.5">Issued by {activeLifestylePlan.prescribedBy}</h4>
+                    <p className="text-xs text-slate-300 mt-0.5">Date: {activeLifestylePlan.date} • Rx Ref: {activeLifestylePlan.rxId}</p>
+                  </div>
+                  <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-bold px-3 py-1 rounded-full">
+                    ● Synchronized with Patient Portal
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Diet Plan Card */}
+                  <div className="bg-white rounded-2xl border-2 border-emerald-100 p-5 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between pb-2 border-b border-emerald-100">
+                      <h4 className="text-xs font-black text-emerald-800 uppercase tracking-wide flex items-center gap-2">
+                        <i className="fas fa-seedling text-emerald-600 text-sm"></i> Clinical Diet &amp; Nutrition Plan
+                      </h4>
+                      <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                        Doctor &amp; Nutritionist
+                      </span>
+                    </div>
+                    <p className="text-slate-800 text-xs leading-relaxed whitespace-pre-line font-medium bg-emerald-50/40 p-4 rounded-xl border border-emerald-100/60">
+                      {activeLifestylePlan.dietPlan || 'No dietary notes recorded.'}
+                    </p>
+                  </div>
+
+                  {/* Yoga & Movement Card */}
+                  <div className="bg-white rounded-2xl border-2 border-amber-100 p-5 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between pb-2 border-b border-amber-100">
+                      <h4 className="text-xs font-black text-amber-800 uppercase tracking-wide flex items-center gap-2">
+                        <i className="fas fa-om text-amber-600 text-sm"></i> Yoga &amp; Mindful Movement Protocol
+                      </h4>
+                      <span className="text-[10px] font-bold bg-amber-50 text-amber-800 px-2.5 py-0.5 rounded-full border border-amber-200">
+                        Yoga Specialist &amp; Trainer
+                      </span>
+                    </div>
+                    <p className="text-slate-800 text-xs leading-relaxed whitespace-pre-line font-medium bg-amber-50/40 p-4 rounded-xl border border-amber-100/60">
+                      {activeLifestylePlan.exercisePlan || 'No yoga/movement notes recorded.'}
+                    </p>
+                  </div>
+                </div>
+
+                {activeLifestylePlan.followUpAdvice && (
+                  <div className="bg-purple-50/80 border border-purple-200 rounded-2xl p-4 flex items-center justify-between text-xs text-purple-900">
+                    <div className="flex items-center gap-2.5">
+                      <i className="fas fa-calendar-check text-purple-600 text-base"></i>
+                      <div>
+                        <span className="font-bold block">Recommended Next Follow-up Review</span>
+                        <span className="text-purple-700">{activeLifestylePlan.followUpAdvice}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* History of previous protocols if > 1 */}
+                {holisticPlans.length > 1 && (
+                  <div className="space-y-2 pt-2">
+                    <h4 className="text-xs font-black text-slate-600 uppercase tracking-wider">Protocol History ({holisticPlans.length})</h4>
+                    <div className="space-y-2">
+                      {holisticPlans.slice(1).map((hPlan, idx) => (
+                        <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs flex justify-between items-center">
+                          <div>
+                            <span className="font-bold text-slate-800">Prescription from {hPlan.date}</span>
+                            <p className="text-slate-500 text-[11px]">By {hPlan.prescribedBy}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              openLifestylePlanPrintWindow({
+                                rxId: `HN-${String(hPlan.rxId).slice(0, 8).toUpperCase()}`,
+                                date: hPlan.date,
+                                doctor: { name: hPlan.prescribedBy },
+                                patient: { name: patient.name, age: patient.age, gender: patient.gender || 'Female' },
+                                dietPlan: hPlan.dietPlan,
+                                exercisePlan: hPlan.exercisePlan,
+                              });
+                            }}
+                            className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900"
+                          >
+                            <i className="fas fa-download"></i> View / Print
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-16 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-2xl mx-auto border border-emerald-200">
+                  <i className="fas fa-seedling"></i>
+                </div>
+                <div>
+                  <h4 className="text-sm font-black text-slate-800">No Active Diet &amp; Movement Regimen</h4>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+                    Prescribe a customized nutritional protocol, low-GI dietary targets, and cycle-aligned yoga routines for {patient.name}.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowDietYogaMaker(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs inline-flex items-center gap-2 shadow-sm transition-colors"
+                >
+                  <i className="fas fa-plus"></i> Open Diet &amp; Yoga Chart Maker
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -2490,6 +3226,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
       </div>
 
       {/* Sub Modals */}
+      <DietYogaModal isOpen={showDietYogaModal} onClose={() => setShowDietYogaModal(false)} patient={patient} activePlan={activeLifestylePlan} onSavePlan={(plan) => handleAddRx(patient.id, plan)} />
       <RequestLabReportModal isOpen={showOrderLab} onClose={() => setShowOrderLab(false)} patient={patient} onRequest={handleRequestLab} />
       <InlineRecordPaymentModal isOpen={showRecordPayment} onClose={() => setShowRecordPayment(false)} patient={patient} onSavePayment={handleAddPayment} />
       <ViewRxDocModal rx={selectedRxDoc} patient={patient} labRequests={labRequests} isOpen={!!selectedRxDoc} onClose={() => setSelectedRxDoc(null)} />
