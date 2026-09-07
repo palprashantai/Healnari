@@ -987,7 +987,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
   const handleAddRx = async (patientId, newRx) => {
     try {
-      const activeAppt = appointments?.find(a => a.patientId === patientId && ['In Progress', 'Waiting', 'Upcoming'].includes(a.status));
+      const activeAppt = appointments?.find(a => a.patientId === patientId && ['In Progress', 'Waiting', 'Upcoming'].includes(a.status) && (a.paymentId || a.payment_id));
       await addRx(patientId, {
         appointmentId: newRx.appointmentId || activeAppt?.id,
         instructions: newRx.instructions,
@@ -1026,7 +1026,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
   const handleRequestLab = async (patientId, request) => {
     try {
-      const activeAppt = appointments?.find(a => a.patientId === patientId && ['In Progress', 'Waiting', 'Upcoming'].includes(a.status));
+      const activeAppt = appointments?.find(a => a.patientId === patientId && ['In Progress', 'Waiting', 'Upcoming'].includes(a.status) && (a.paymentId || a.payment_id));
       await requestLabReport(patientId, { ...request, appointmentId: request.appointmentId || activeAppt?.id });
       toast(`Report request sent to ${patient.name}.`, 'success');
       loadLabRequests();

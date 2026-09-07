@@ -650,8 +650,8 @@ function DoctorDashboard() {
 
   const queue = useMemo(() => {
     return appointments
-      .filter(a => a.doctorId === user?.id && a.date === todayIso)
-      .sort((a, b) => a.time.localeCompare(b.time))
+      .filter(a => (!user?.id || a.doctorId === user?.id) && a.date === todayIso && ['Upcoming', 'Waiting', 'In Progress', 'Done'].includes(a.status) && (a.paymentId || a.payment_id || a.status === 'Done'))
+      .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
       .map((a, i) => {
         const patient = patients.find(p => p.id === a.patientId);
         return {
@@ -799,7 +799,7 @@ function DoctorDashboard() {
                 <span className="block text-emerald-400">{user?.name || 'Doctor'}.</span>
               </h1>
               <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
-                <span className="text-white font-bold">{queue.filter(q => q.status !== 'Done').length}</span> patients remaining today
+                <span className="text-white font-bold">{queue.filter(q => q.status !== 'Done' && q.status !== 'No Show').length}</span> patients remaining today
                 {queue.filter(q => q.status === 'Done').length > 0 && (
                   <> · <span className="text-emerald-400 font-bold">{queue.filter(q => q.status === 'Done').length} seen</span></>
                 )}

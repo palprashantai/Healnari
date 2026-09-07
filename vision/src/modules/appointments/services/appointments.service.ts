@@ -645,6 +645,9 @@ export class AppointmentsService {
     const isDoctor = user.id === appointment.doctor_id || user.profile.role === ProfileRole.DOCTOR;
     const isPatient = user.id === appointment.patient_id && !isDoctor;
 
+    // Build the update payload — add cancellation tracking when relevant
+    const updatePayload: Record<string, any> = { status };
+
     // ── Strict Role-Based State Machine Validation ───────────────────
     if (isPatient) {
       if (status === AppointmentStatus.APPROVED) {
@@ -662,6 +665,18 @@ export class AppointmentsService {
       if (status === AppointmentStatus.WAITING) {
         if (appointment.status !== AppointmentStatus.UPCOMING) {
           throw new BadRequestException('Cannot enter waiting room for an appointment that is not confirmed.');
+        }
+        if (!appointment.payment_id) {
+          const { data: payment } = await this.supabase.admin
+            .from('payments')
+            .select('id')
+            .eq('appointment_id', id)
+            .eq('status', 'Paid')
+            .maybeSingle();
+          if (!payment) {
+            throw new BadRequestException('Cannot enter waiting room: consultation payment has not been confirmed.');
+          }
+          updatePayload.payment_id = payment.id;
         }
       }
       if (status === AppointmentStatus.CANCELLED) {
@@ -727,6 +742,7 @@ export class AppointmentsService {
             'Appointment cannot be confirmed without a successful payment.',
           );
         }
+        updatePayload.payment_id = payment.id;
       }
       if (status === AppointmentStatus.IN_PROGRESS) {
         if (
@@ -738,11 +754,23 @@ export class AppointmentsService {
             'Cannot start a call for an appointment that is not confirmed or waiting.',
           );
         }
+        if (!appointment.payment_id) {
+          const { data: payment } = await this.supabase.admin
+            .from('payments')
+            .select('id')
+            .eq('appointment_id', id)
+            .eq('status', 'Paid')
+            .maybeSingle();
+          if (!payment) {
+            throw new BadRequestException(
+              'Cannot start consultation: consultation payment has not been completed.',
+            );
+          }
+          updatePayload.payment_id = payment.id;
+        }
       }
     }
 
-    // Build the update payload — add cancellation tracking when relevant
-    const updatePayload: Record<string, any> = { status };
     if (status === AppointmentStatus.CANCELLED) {
       updatePayload.cancelled_by = user.id;
       updatePayload.cancelled_at = new Date().toISOString();
@@ -1314,6 +1342,7 @@ export class AppointmentsService {
       .eq('doctor_id', user.id)
       .eq('scheduled_date', today)
       .eq('status', AppointmentStatus.UPCOMING)
+      .not('payment_id', 'is', null)
       .order('scheduled_time', { ascending: true })
       .limit(1);
 
@@ -1380,6 +1409,15 @@ export class AppointmentsService {
         estimatedWaitMinutes: 0,
       };
     }
+    if (!appointment.payment_id) {
+      return {
+        status: appointment.status,
+        position: null,
+        totalInQueue: 0,
+        peopleAhead: 0,
+        estimatedWaitMinutes: 0,
+      };
+    }
 
     const { data: todays } = await this.supabase.admin
       .from('appointments')
@@ -1391,6 +1429,7 @@ export class AppointmentsService {
         AppointmentStatus.WAITING,
         AppointmentStatus.IN_PROGRESS,
       ])
+      .not('payment_id', 'is', null)
       .order('scheduled_time', { ascending: true });
 
     const activeQueue = todays || [];
@@ -1502,6 +1541,7 @@ export class AppointmentsService {
       .from('appointments')
       .select('id, patient_id, doctor_id, scheduled_date, scheduled_time, type')
       .in('status', [AppointmentStatus.UPCOMING])
+      .not('payment_id', 'is', null)
       .is('reminder_24h_sent_at', null)
       .gte('scheduled_at', windowStart.toISOString())
       .lte('scheduled_at', windowEnd.toISOString());
@@ -1676,6 +1716,7 @@ export class AppointmentsService {
       .from('appointments')
       .select('id, patient_id, doctor_id, scheduled_date, scheduled_time, type')
       .in('status', [AppointmentStatus.UPCOMING, AppointmentStatus.WAITING])
+      .not('payment_id', 'is', null)
       .is('reminder_sent_at', null)
       .gte('scheduled_at', now.toISOString())
       .lte('scheduled_at', windowEnd.toISOString());
@@ -1771,6 +1812,7 @@ export class AppointmentsService {
         AppointmentStatus.WAITING,
         AppointmentStatus.IN_PROGRESS,
       ])
+      .not('payment_id', 'is', null)
       .order('scheduled_time', { ascending: true });
 
     if (error || !todaysActive?.length) return;

@@ -46,12 +46,29 @@ async function testEmail() {
     await transporter.verify();
     console.log('   ✓ SMTP connection and authentication verified successfully!');
 
-    console.log('\n2. Sending test email...');
+    const targetRecipient = process.argv[2] || user;
+    console.log(`\n2. Sending test email to ${targetRecipient}...`);
     const info = await transporter.sendMail({
       from,
-      to: user, // send to self
+      to: targetRecipient,
       subject: 'HealNari Production SMTP Verification',
-      text: 'This email verifies that your SMTP transport is correctly configured and operational.',
+      text: `This email verifies that your SMTP transport is correctly configured and operational. Sent to: ${targetRecipient}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #E2E8F0; border-radius: 12px; max-width: 520px; margin: 0 auto; background-color: #ffffff;">
+          <div style="background: linear-gradient(135deg, #2A1647 0%, #6B46C1 100%); color: #ffffff; padding: 12px 18px; border-radius: 8px; margin-bottom: 20px;">
+            <h2 style="margin: 0; font-size: 18px;">HealNari SMTP Delivery Verification</h2>
+          </div>
+          <p style="color: #334155; font-size: 14px; line-height: 1.6;">Hello,</p>
+          <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+            Your HealNari production SMTP service is successfully connected and delivering messages to <strong>${targetRecipient}</strong>.
+          </p>
+          <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px 16px; margin: 20px 0; font-size: 13px; color: #475569;">
+            <p style="margin: 0;"><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+            <p style="margin: 4px 0 0 0;"><strong>Sender:</strong> ${from}</p>
+          </div>
+          <p style="font-size: 12px; color: #94A3B8; margin-top: 24px;">HealNari Telemedicine Platform</p>
+        </div>
+      `,
     });
     console.log('   ✓ Email sent successfully!');
     console.log(`   Message ID: ${info.messageId}`);

@@ -1019,7 +1019,7 @@ export class AnalyticsService {
       // Consultations
       const currentApts = apts.filter((a) => inRange(a.created_at || a.scheduled_date));
       const completed = currentApts.filter((a) => a.status === AppointmentStatus.DONE).length;
-      const scheduled = currentApts.filter((a) => [AppointmentStatus.UPCOMING, AppointmentStatus.WAITING, AppointmentStatus.IN_PROGRESS].includes(a.status)).length;
+      const scheduled = currentApts.filter((a) => [AppointmentStatus.UPCOMING, AppointmentStatus.WAITING, AppointmentStatus.IN_PROGRESS].includes(a.status) && a.payment_id).length;
       const cancelled = currentApts.filter((a) => a.status === AppointmentStatus.CANCELLED).length;
       const noShow = currentApts.filter((a) => a.status === AppointmentStatus.NO_SHOW).length;
       const totalBooked = currentApts.length;
@@ -1138,7 +1138,7 @@ export class AnalyticsService {
 
       // Consultations
       const completed = apts.filter((a) => a.status === AppointmentStatus.DONE).length;
-      const upcoming = apts.filter((a) => [AppointmentStatus.UPCOMING, AppointmentStatus.WAITING, AppointmentStatus.APPROVED].includes(a.status)).length;
+      const upcoming = apts.filter((a) => [AppointmentStatus.UPCOMING, AppointmentStatus.WAITING].includes(a.status) && a.payment_id).length;
       const cancelled = apts.filter((a) => a.status === AppointmentStatus.CANCELLED).length;
 
       // Spending grouped by currency

@@ -885,18 +885,18 @@ function PatientAppointments() {
             ? Number(doc.consultation_fee)
             : ((doc?.currency || a.currency || 'INR') === 'USD' ? 29 : 799)),
       currency: a.patient_payable_currency || a.currency || doc?.currency || 'INR',
-      isPaid: paidAppointmentIds.has(a.id),
+      isPaid: paidAppointmentIds.has(a.id) || !!a.paymentId,
     };
   };
 
   const pendingRequests = useMemo(() => appointments
-    .filter(a => ['Requested', 'Approved', 'HOLD'].includes(a.status))
+    .filter(a => ['Requested', 'Approved', 'HOLD'].includes(a.status) || (!a.paymentId && !paidAppointmentIds.has(a.id) && !['Done', 'Cancelled', 'No Show'].includes(a.status)))
     .map(toRow)
     .sort((a, b) => (a.date || '').localeCompare(b.date || '')),
     [appointments, doctorById, paidAppointmentIds]);
 
   const upcoming = useMemo(() => appointments
-    .filter(a => ['Upcoming', 'Waiting', 'In Progress'].includes(a.status))
+    .filter(a => ['Upcoming', 'Waiting', 'In Progress'].includes(a.status) && (a.paymentId || paidAppointmentIds.has(a.id)))
     .map(toRow)
     .sort((a, b) => (a.date || '').localeCompare(b.date || '')),
     [appointments, doctorById, paidAppointmentIds]);

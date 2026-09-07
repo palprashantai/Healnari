@@ -1751,9 +1751,11 @@ function PatientDashboard() {
     apiFetch('/records/lab-report-requests').then(r => setPendingReportCount(r.filter(x => x.status === 'Pending').length)).catch(() => setPendingReportCount(0));
   }, []);
 
-  const own = patients?.[0];
-  const upcomingAppointments = (appointments || []).filter(a => !['Done', 'Cancelled', 'No Show', 'Approved', 'Requested'].includes(a.status)).sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || ''));
+  const upcomingAppointments = (appointments || [])
+    .filter(a => ['Upcoming', 'Waiting', 'In Progress'].includes(a.status) && (a.paymentId || a.payment_id))
+    .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || ''));
   const nextAppointment = upcomingAppointments[0];
+  const pendingPaymentApt = (appointments || []).find(a => (a.status === 'Approved' || a.status === 'HOLD') && !a.paymentId && !a.payment_id);
   const daysToNext = nextAppointment ? Math.max(0, daysUntil(nextAppointment.date)) : null;
 
   // Live queue position for today's appointment — refetched periodically
@@ -1885,6 +1887,35 @@ function PatientDashboard() {
 
       {/* AI Health Companion Discovery Card */}
       <PatientAiDashboardCard navigate={navigate} />
+
+      {/* Pending Payment Alert Banner for Approved Consultations */}
+      {pendingPaymentApt && (
+        <div className="bg-gradient-to-r from-aubergine-50 via-purple-50 to-pink-50 border-2 border-aubergine-200 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-slide-up">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-aubergine-600 text-white flex items-center justify-center text-lg shrink-0 shadow-md shadow-aubergine-600/20">
+              <i className="fas fa-credit-card"></i>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="font-extrabold text-aubergine-900 text-sm sm:text-base">Consultation Approved by Dr. {pendingPaymentApt.doctorName || 'Specialist'}</p>
+                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                  Payment Required
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5">
+                Complete payment to lock in your confirmed appointment for {pendingPaymentApt.date ? new Date(pendingPaymentApt.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'your scheduled date'} at {pendingPaymentApt.time}.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/patient-dashboard/appointments?tab=action_required')}
+            className="bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:opacity-95 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm transition-all shadow-md shadow-aubergine-500/20 whitespace-nowrap btn-interactive flex items-center justify-center gap-2 shrink-0"
+          >
+            <span>Pay &amp; Confirm</span>
+            <i className="fas fa-arrow-right text-xs"></i>
+          </button>
+        </div>
+      )}
 
       {/* Bento Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

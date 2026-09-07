@@ -31,6 +31,7 @@ export class TelemedicineService {
       .eq('type', 'video')
       .gte('scheduled_date', today)
       .in('status', ['Upcoming', 'Waiting', 'In Progress'])
+      .not('payment_id', 'is', null)
       .order('scheduled_date', { ascending: true })
       .order('scheduled_time', { ascending: true });
 

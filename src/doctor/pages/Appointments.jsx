@@ -230,22 +230,22 @@ function DoctorAppointments() {
   });
 
   const queue = useMemo(() => appointments
-    .filter(a => a.date === todayStr && a.status !== 'Requested' && a.status !== 'Approved' && a.status !== 'Cancelled')
+    .filter(a => a.date === todayStr && ['Upcoming', 'Waiting', 'In Progress', 'Done'].includes(a.status) && (a.paymentId || a.payment_id || a.status === 'Done'))
     .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
     .map(toRow)
     .map((r, i) => ({ ...r, token: `T-${String(i + 1).padStart(2, '0')}` })),
     [appointments, todayStr, ageByPatientId]);
 
-  const requests = useMemo(() => appointments.filter(a => a.status === 'Requested' || a.status === 'Approved').map(toRow), [appointments, ageByPatientId]);
+  const requests = useMemo(() => appointments.filter(a => ['Requested', 'Approved', 'HOLD'].includes(a.status)).map(toRow), [appointments, ageByPatientId]);
 
   const upcoming = useMemo(() => appointments
-    .filter(a => a.date > todayStr && a.status !== 'Requested' && a.status !== 'Approved' && a.status !== 'Cancelled')
+    .filter(a => a.date > todayStr && ['Upcoming', 'Waiting', 'In Progress'].includes(a.status) && (a.paymentId || a.payment_id))
     .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
     .map(toRow),
     [appointments, todayStr, ageByPatientId]);
 
   const past = useMemo(() => appointments
-    .filter(a => a.date < todayStr && a.status !== 'Requested' && a.status !== 'Approved')
+    .filter(a => (a.date < todayStr || a.status === 'Cancelled' || a.status === 'Done') && !['Requested', 'Approved', 'HOLD'].includes(a.status))
     .map(toRow),
     [appointments, todayStr, ageByPatientId]);
 
