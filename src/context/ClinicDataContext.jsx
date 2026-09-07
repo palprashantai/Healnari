@@ -330,11 +330,11 @@ export function ClinicDataProvider({ children }) {
           handwrittenImage: rx.handwrittenImage,
           isDraft: rx.isDraft !== undefined ? rx.isDraft : true,
           idempotencyKey: rx.idempotencyKey,
-          medicines: rx.medicines.map(m => ({
-            medName: m.name,
-            dosage: m.dosage,
-            schedule: m.frequency,
-            duration: m.duration,
+          medicines: (rx.medicines || []).map(m => ({
+            medName: (m.name || m.medName || '').trim(),
+            dosage: m.dosage || m.strength || 'Standard',
+            schedule: m.frequency || m.schedule || '1-0-1',
+            duration: m.duration || '30 Days',
           })),
         }
       });

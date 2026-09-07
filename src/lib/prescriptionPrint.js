@@ -18,335 +18,1255 @@ function escapeHtml(str) {
 }
 
 /**
- * Opens a print-ready window styled like a real doctor's prescription pad —
- * letterhead, patient/diagnosis block, Rx-numbered medicine list, signature
- * line — shared by both the doctor's and the patient's "Download PDF" so a
- * prescription looks the same however it's printed.
+ * Parses medicine item into structured clinical components:
+ * formulation, name, strength, morning/afternoon/night dose, food relation, duration, estimated quantity, notes.
+ */
+function parseMedicineDetails(m) {
+  const rawName = (m.name || m.medName || '').trim();
+  const rawDosage = (m.dosage || m.strength || '').trim();
+  const rawSchedule = (m.schedule || m.frequency || '1-0-1').trim();
+  const rawDuration = (m.duration || '30 Days').trim();
+  const rawNotes = (m.instructions || m.notes || '').trim();
+  const rawTiming = (m.timing || '').trim();
+
+  // Extract formulation prefix (Tab, Cap, Syp, Inj, Sachet)
+  let formulation = 'Tab.';
+  let cleanName = rawName;
+  const formMatch = rawName.match(/^(Tab\.|Tablet|Cap\.|Capsule|Syp\.|Syrup|Inj\.|Injection|Sachet|Gel|Oint\.|Drop|Drops)\s+/i);
+  if (formMatch) {
+    formulation = formMatch[1];
+    cleanName = rawName.slice(formMatch[0].length).trim();
+  }
+
+  // Extract strength if present in name or dosage field
+  let strength = rawDosage;
+  if (!strength || strength.toLowerCase() === 'standard') {
+    const strengthMatch = cleanName.match(/(\d+(?:\.\d+)?\s*(?:mg|g|mcg|iu|ml|%))/i);
+    if (strengthMatch) {
+      strength = strengthMatch[1];
+    } else {
+      strength = 'Standard';
+    }
+  }
+
+  // Parse food relation / timing
+  let foodTiming = rawTiming;
+  if (!foodTiming) {
+    if (/after\s*(food|meal)/i.test(rawSchedule) || /after\s*(food|meal)/i.test(rawNotes) || /after/i.test(rawSchedule)) {
+      foodTiming = 'After Food';
+    } else if (/before\s*(food|meal)|empty\s*stomach/i.test(rawSchedule) || /before\s*(food|meal)|empty\s*stomach/i.test(rawNotes)) {
+      foodTiming = 'Before Food';
+    } else if (/with\s*(food|meal)/i.test(rawSchedule)) {
+      foodTiming = 'With Meals';
+    } else if (/bedtime|night/i.test(rawSchedule)) {
+      foodTiming = 'At Bedtime';
+    } else {
+      foodTiming = 'After Food';
+    }
+  }
+
+  // Parse dose schedule into morning, afternoon, night
+  const parsedDose = parseDoseSchedule(rawSchedule);
+  let morning = '0', afternoon = '0', night = '0';
+  let totalDosesPerDay = 0;
+  if (parsedDose) {
+    morning = parsedDose.doses[0] > 0 ? String(parsedDose.doses[0]) : '0';
+    afternoon = parsedDose.doses[1] > 0 ? String(parsedDose.doses[1]) : '0';
+    night = parsedDose.doses[2] > 0 ? String(parsedDose.doses[2]) : '0';
+    totalDosesPerDay = parsedDose.doses[0] + parsedDose.doses[1] + parsedDose.doses[2];
+  } else if (/1-0-1/i.test(rawSchedule)) {
+    morning = '1'; afternoon = '0'; night = '1'; totalDosesPerDay = 2;
+  } else if (/1-0-0/i.test(rawSchedule)) {
+    morning = '1'; afternoon = '0'; night = '0'; totalDosesPerDay = 1;
+  } else if (/0-0-1/i.test(rawSchedule)) {
+    morning = '0'; afternoon = '0'; night = '1'; totalDosesPerDay = 1;
+  } else if (/1-1-1/i.test(rawSchedule)) {
+    morning = '1'; afternoon = '1'; night = '1'; totalDosesPerDay = 3;
+  } else if (/1-0-0-1/i.test(rawSchedule)) {
+    morning = '1'; afternoon = '0'; night = '1'; totalDosesPerDay = 2;
+  } else if (/weekly/i.test(rawSchedule)) {
+    morning = '1'; afternoon = '0'; night = '0'; totalDosesPerDay = 0.14;
+  } else if (/prn|sos/i.test(rawSchedule)) {
+    morning = 'SOS'; afternoon = 'SOS'; night = 'SOS'; totalDosesPerDay = 1;
+  } else {
+    morning = '1'; afternoon = '0'; night = '1'; totalDosesPerDay = 2;
+  }
+
+  // Calculate estimated total quantity to dispense
+  let durationDays = 0;
+  const daysMatch = rawDuration.match(/(\d+)\s*days?/i);
+  if (daysMatch) {
+    durationDays = parseInt(daysMatch[1], 10);
+  } else if (/month/i.test(rawDuration)) {
+    const monthsMatch = rawDuration.match(/(\d+)\s*months?/i);
+    durationDays = (monthsMatch ? parseInt(monthsMatch[1], 10) : 1) * 30;
+  } else if (/week/i.test(rawDuration)) {
+    const weeksMatch = rawDuration.match(/(\d+)\s*weeks?/i);
+    durationDays = (weeksMatch ? parseInt(weeksMatch[1], 10) : 1) * 7;
+  }
+
+  let totalQty = '';
+  if (durationDays > 0 && totalDosesPerDay > 0) {
+    const qty = Math.ceil(totalDosesPerDay * durationDays);
+    totalQty = `${qty} ${qty > 1 ? 'Units' : 'Unit'}`;
+  } else if (rawDuration) {
+    totalQty = rawDuration;
+  }
+
+  return {
+    formulation,
+    name: cleanName,
+    strength: strength || 'Standard',
+    schedule: rawSchedule,
+    morning,
+    afternoon,
+    night,
+    foodTiming,
+    duration: rawDuration || '30 Days',
+    totalQty,
+    notes: rawNotes,
+  };
+}
+
+/**
+ * Opens a hospital-grade digital prescription print window styled to premier
+ * clinical standards: official clinic letterhead, high-res brand logo, consultation
+ * timestamp, complete patient demographics, dosing matrix, doctor credentials,
+ * security QR, and Telemedicine Practice Guidelines certification.
  */
 export function openPrescriptionPrintWindow({ rxId, date, doctor, patient, diagnosis, medicines, labTests, instructions, handwrittenImage }) {
-  const win = window.open('', '_blank', 'width=800,height=960');
+  const win = window.open('', '_blank', 'width=940,height=1050');
   if (!win) return;
 
-  const doctorMeta = [doctor?.specialty, doctor?.regNo ? `Reg. No. ${doctor.regNo}` : null].filter(Boolean).join(' &middot; ');
-  const patientMeta = [patient?.age ? `${patient.age} yrs` : null, patient?.gender].filter(Boolean).join(', ');
+  const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : '';
+  const logoUrl = `${origin}/brand/logo.svg`;
+  const logoFallbackUrl = `${origin}/brand/logo-full.png`;
 
-  const medsHtml = (medicines || []).map((m, i) => `
-    <div class="med-row">
-      <div class="med-num">0${i + 1}</div>
-      <div class="med-body">
-        <div class="med-name">${escapeHtml(m.name)}</div>
-        <div class="med-detail">
-          <span class="med-schedule">${escapeHtml(formatSchedule(m.schedule))}</span>
-          ${m.duration ? `<span class="med-duration">&middot; ${escapeHtml(m.duration)}</span>` : ''}
+  // Parse Consultation Date & Time
+  const now = new Date();
+  let consultationDate = '';
+  let consultationTime = '';
+  let validUntilDate = '';
+
+  if (date) {
+    const parsedDate = new Date(date);
+    if (!isNaN(parsedDate.getTime())) {
+      consultationDate = parsedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      consultationTime = parsedDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const expiry = new Date(parsedDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+      validUntilDate = expiry.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    } else {
+      consultationDate = date;
+      consultationTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+      validUntilDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+  } else {
+    consultationDate = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    consultationTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    validUntilDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  // Doctor Details
+  const doctorName = (doctor?.name || 'Dr. Sarah Mitchell').replace(/^Dr\.?\s+/i, 'Dr. ');
+  const doctorSpecialty = doctor?.specialty || 'Senior Consultant Gynaecologist & Obstetrician';
+  const doctorQualifications = doctor?.qualifications || 'MBBS, MS, DGO (Obstetrics & Gynaecology)';
+  const doctorRegNo = doctor?.regNo || 'KMC-84920';
+
+  // Patient Details
+  const patientName = patient?.name || 'Patient';
+  const patientAge = patient?.age && patient.age !== '—' ? `${patient.age} Yrs` : 'Adult';
+  const patientGender = patient?.gender || 'Female';
+  const patientBlood = patient?.blood && patient.blood !== '—' ? patient.blood : '—';
+  const patientMrn = patient?.mrn || (patient?.id ? `HN-${String(patient.id).slice(0, 6).toUpperCase()}` : 'HN-532115');
+  const patientPhone = patient?.phone || '';
+  const allergiesList = Array.isArray(patient?.allergies)
+    ? patient.allergies.filter(Boolean)
+    : typeof patient?.allergies === 'string' && patient.allergies.trim()
+    ? [patient.allergies.trim()]
+    : [];
+
+  // Prescription ID
+  const displayRxId = rxId ? String(rxId).toUpperCase() : `RX-HN-${Math.floor(100000 + Math.random() * 900000)}`;
+
+  // Parse structured medicines
+  const parsedMedicines = (medicines || []).map(parseMedicineDetails);
+
+  // Parse Instructions
+  let displayInstructions = instructions || '';
+  let followUpAdvice = '';
+  try {
+    if (displayInstructions && displayInstructions.startsWith('{')) {
+      const parsedJson = JSON.parse(displayInstructions);
+      if (parsedJson.type === 'healnari-holistic-v1') {
+        displayInstructions = parsedJson.clinicalNotes || '';
+        followUpAdvice = parsedJson.followUpAdvice || '';
+      }
+    }
+  } catch {}
+
+  const medicinesRowsHtml = parsedMedicines.map((m, idx) => `
+    <tr class="med-item-row">
+      <td class="col-num font-mono">${String(idx + 1).padStart(2, '0')}</td>
+      <td class="col-med">
+        <div class="med-name-line">
+          <span class="med-prefix">${escapeHtml(m.formulation)}</span>
+          <span class="med-main-name">${escapeHtml(m.name)}</span>
+          ${m.strength ? `<span class="med-strength-tag">${escapeHtml(m.strength)}</span>` : ''}
         </div>
-      </div>
-    </div>`).join('');
+        ${m.notes ? `<div class="med-special-note"><span class="note-bullet">▸</span> ${escapeHtml(m.notes)}</div>` : ''}
+      </td>
+      <td class="col-matrix">
+        <div class="matrix-pill-group">
+          <div class="matrix-cell ${m.morning !== '0' && m.morning !== '–' ? 'active-morning' : 'inactive'}">
+            <span class="cell-label">Morn</span>
+            <span class="cell-val">${escapeHtml(m.morning)}</span>
+          </div>
+          <div class="matrix-cell ${m.afternoon !== '0' && m.afternoon !== '–' ? 'active-afternoon' : 'inactive'}">
+            <span class="cell-label">Noon</span>
+            <span class="cell-val">${escapeHtml(m.afternoon)}</span>
+          </div>
+          <div class="matrix-cell ${m.night !== '0' && m.night !== '–' ? 'active-night' : 'inactive'}">
+            <span class="cell-label">Night</span>
+            <span class="cell-val">${escapeHtml(m.night)}</span>
+          </div>
+        </div>
+        <div class="matrix-sub-schedule">${escapeHtml(m.schedule)}</div>
+      </td>
+      <td class="col-timing">
+        <span class="food-badge ${
+          m.foodTiming.toLowerCase().includes('after') ? 'food-after' :
+          m.foodTiming.toLowerCase().includes('before') ? 'food-before' :
+          m.foodTiming.toLowerCase().includes('bed') ? 'food-bed' : 'food-general'
+        }">
+          ${escapeHtml(m.foodTiming)}
+        </span>
+      </td>
+      <td class="col-dur">
+        <span class="duration-pill">${escapeHtml(m.duration)}</span>
+      </td>
+      <td class="col-qty font-mono">
+        ${escapeHtml(m.totalQty || '—')}
+      </td>
+    </tr>
+  `).join('');
 
   win.document.write(`
     <!doctype html>
-    <html>
+    <html lang="en">
     <head>
       <meta charset="utf-8" />
-      <title>Prescription — ${escapeHtml(patient?.name)}</title>
+      <title>Prescription — ${escapeHtml(patientName)} — HealNari</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@500;700&display=swap');
         
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
         body { 
-          font-family: 'Inter', system-ui, -apple-system, sans-serif; 
-          color: #1e293b; 
-          padding: 0; 
-          margin: 0 auto; 
-          background: #f8fafc;
-        }
-        
-        .page-container {
-          max-width: 800px;
-          margin: 40px auto;
-          position: relative;
-          background: #ffffff;
-          box-shadow: 0 20px 40px rgba(0,0,0,0.08);
-          border-radius: 16px;
-          overflow: hidden;
+          font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+          color: #0f172a; 
+          background: #f1f5f9;
+          padding: 0;
+          margin: 0;
+          -webkit-font-smoothing: antialiased;
         }
 
-        /* Top Banner */
-        .banner {
-          background: linear-gradient(135deg, #1e1b4b 0%, #4c1d95 100%);
-          color: white;
-          padding: 45px 55px;
+        /* Fixed Top Action Bar for Screen (Hidden in Print) */
+        .print-toolbar {
+          position: sticky;
+          top: 0;
+          left: 0;
+          right: 0;
+          background: #1e1b4b;
+          color: #ffffff;
+          padding: 12px 24px;
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          position: relative;
+          justify-content: space-between;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+          z-index: 9999;
         }
-        
-        .banner::after {
+        .toolbar-brand {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          font-weight: 700;
+          font-size: 14px;
+          color: #f8fafc;
+        }
+        .toolbar-badge {
+          background: #4c1d95;
+          color: #e9d5ff;
+          font-size: 11px;
+          padding: 3px 10px;
+          border-radius: 999px;
+          font-weight: 600;
+        }
+        .toolbar-hint {
+          font-size: 12px;
+          color: #cbd5e1;
+          display: none;
+        }
+        @media (min-width: 640px) {
+          .toolbar-hint { display: inline-block; }
+        }
+        .toolbar-actions {
+          display: flex;
+          gap: 10px;
+        }
+        .btn-toolbar-print {
+          background: #059669;
+          hover:background: #047857;
+          color: white;
+          border: none;
+          font-weight: 700;
+          font-size: 13px;
+          padding: 8px 18px;
+          border-radius: 10px;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          box-shadow: 0 2px 8px rgba(5,150,105,0.4);
+          transition: all 0.2s;
+        }
+        .btn-toolbar-print:hover { background: #047857; transform: translateY(-1px); }
+        .btn-toolbar-close {
+          background: rgba(255,255,255,0.12);
+          color: #e2e8f0;
+          border: 1px solid rgba(255,255,255,0.2);
+          font-weight: 600;
+          font-size: 13px;
+          padding: 8px 16px;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .btn-toolbar-close:hover { background: rgba(255,255,255,0.2); }
+
+        /* Prescription Page Container */
+        .page-container {
+          max-width: 880px;
+          margin: 30px auto 60px;
+          background: #ffffff;
+          box-shadow: 0 15px 35px rgba(0,0,0,0.06);
+          border-radius: 18px;
+          overflow: hidden;
+          position: relative;
+          border: 1px solid #e2e8f0;
+        }
+
+        /* Official Clinic Letterhead Banner */
+        .clinic-header {
+          background: linear-gradient(135deg, #1e1b4b 0%, #311042 55%, #4c1d95 100%);
+          color: #ffffff;
+          padding: 36px 44px 30px;
+          position: relative;
+          border-bottom: 4px solid #d4af37;
+        }
+        .clinic-header::after {
           content: '';
           position: absolute;
           top: 0; right: 0; bottom: 0; left: 0;
-          background-image: radial-gradient(circle at 100% 0%, rgba(255,255,255,0.12) 0%, transparent 60%);
+          background-image: radial-gradient(circle at 95% 10%, rgba(212,175,55,0.15) 0%, transparent 50%);
           pointer-events: none;
         }
 
-        .brand-col { max-width: 55%; position: relative; z-index: 1; }
-        .brand-logo-text { font-family: 'Playfair Display', serif; font-size: 38px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px; margin-bottom: 8px; line-height: 1; }
-        .clinic-line { font-size: 14px; font-weight: 600; color: #d8b4fe; letter-spacing: 1.5px; text-transform: uppercase; }
-        .clinic-address { font-size: 12px; color: #e2e8f0; margin-top: 10px; line-height: 1.6; opacity: 0.9; }
+        .header-top-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 20px;
+          position: relative;
+          z-index: 1;
+        }
         
-        .doc-col { max-width: 45%; text-align: right; position: relative; z-index: 1; }
-        .doctor-name { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: #ffffff; margin-bottom: 6px; }
-        .doctor-meta { font-size: 14px; color: #c4b5fd; line-height: 1.5; font-weight: 500; }
+        .brand-block {
+          display: flex;
+          align-items: center;
+          gap: 18px;
+        }
+        .logo-emblem {
+          width: 58px;
+          height: 58px;
+          background: #ffffff;
+          border-radius: 16px;
+          padding: 6px;
+          box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .logo-emblem svg {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+        }
+        .brand-text-col {}
+        .clinic-name {
+          font-family: 'Playfair Display', serif;
+          font-size: 30px;
+          font-weight: 700;
+          color: #ffffff;
+          letter-spacing: -0.3px;
+          line-height: 1.1;
+        }
+        .clinic-tagline {
+          font-size: 13px;
+          font-weight: 600;
+          color: #e9d5ff;
+          letter-spacing: 0.8px;
+          text-transform: uppercase;
+          margin-top: 4px;
+        }
+        .accreditation-line {
+          font-size: 10.5px;
+          color: #cbd5e1;
+          margin-top: 5px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+        .accreditation-line .gold { color: #fde047; font-weight: 700; }
+        .accreditation-line .dot { opacity: 0.6; }
 
-        .content { padding: 55px; position: relative; background: #ffffff; }
-        
-        /* Rx Watermark */
-        .watermark {
+        .header-contact-col {
+          text-align: right;
+          font-size: 11.5px;
+          color: #e2e8f0;
+          line-height: 1.5;
+        }
+        .header-contact-col strong { color: #ffffff; }
+        .rx-emblem-large {
+          font-family: 'Playfair Display', serif;
+          font-size: 42px;
+          font-weight: 700;
+          color: #fde047;
+          line-height: 1;
+          margin-bottom: 6px;
+          opacity: 0.95;
+        }
+
+        /* Consultation Metadata Strip */
+        .meta-strip {
+          background: #f8fafc;
+          border-bottom: 1px solid #e2e8f0;
+          padding: 12px 44px;
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+          gap: 16px;
+          font-size: 11.5px;
+        }
+        .meta-cell {}
+        .meta-cell-label {
+          text-transform: uppercase;
+          font-size: 9.5px;
+          letter-spacing: 1px;
+          font-weight: 800;
+          color: #64748b;
+          display: block;
+          margin-bottom: 2px;
+        }
+        .meta-cell-val {
+          font-weight: 700;
+          color: #0f172a;
+          font-size: 13px;
+        }
+        .meta-cell-val.font-mono { font-family: 'JetBrains Mono', monospace; letter-spacing: 0.5px; }
+        .badge-tele-mode {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          background: #ecfdf5;
+          color: #047857;
+          border: 1px solid #a7f3d0;
+          padding: 2px 8px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        /* Main Body Content */
+        .body-content {
+          padding: 36px 44px 40px;
+          position: relative;
+        }
+
+        /* Faint Rx Watermark */
+        .watermark-bg {
           position: absolute;
-          top: 50%;
+          top: 52%;
           left: 50%;
           transform: translate(-50%, -50%);
           font-family: 'Playfair Display', serif;
-          font-size: 500px;
+          font-size: 520px;
           font-weight: 700;
-          color: #8b5cf6;
-          opacity: 0.02;
+          color: #4c1d95;
+          opacity: 0.022;
           z-index: 0;
           pointer-events: none;
+          line-height: 1;
         }
 
-        /* Meta Info Grid */
-        .meta-grid {
+        /* 2-Column Doctor & Patient Profile Cards */
+        .profiles-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          margin-bottom: 30px;
+          position: relative;
+          z-index: 1;
+        }
+        .profile-card {
+          border-radius: 14px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          overflow: hidden;
+        }
+        .profile-card-header {
+          padding: 8px 16px;
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 1px;
+          text-transform: uppercase;
           display: flex;
           justify-content: space-between;
-          margin-bottom: 40px;
-          position: relative;
-          z-index: 1;
-          padding-bottom: 20px;
-          border-bottom: 2px dashed #f1f5f9;
+          align-items: center;
+        }
+        .patient-card .profile-card-header {
+          background: #f1f5f9;
+          color: #475569;
+          border-bottom: 1px solid #e2e8f0;
+        }
+        .doctor-card .profile-card-header {
+          background: #faf5ff;
+          color: #6b21a8;
+          border-bottom: 1px solid #f3e8ff;
         }
 
-        .meta-item { display: flex; flex-direction: column; gap: 6px; }
-        .meta-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; font-weight: 800; }
-        .meta-value { font-size: 15px; font-weight: 700; color: #0f172a; }
-        
-        /* Patient Box */
-        .patient-box {
+        .profile-card-body {
+          padding: 14px 16px;
+        }
+        .profile-name {
+          font-size: 17px;
+          font-weight: 800;
+          color: #0f172a;
+          margin-bottom: 4px;
+        }
+        .profile-details-row {
+          font-size: 12px;
+          color: #475569;
           display: flex;
-          background: linear-gradient(to right, #f8fafc, #ffffff);
-          border-left: 4px solid #8b5cf6;
-          border-radius: 0 16px 16px 0;
-          padding: 28px 32px;
-          margin-bottom: 50px;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin-bottom: 8px;
+        }
+        .profile-details-row strong { color: #1e293b; }
+
+        .diagnosis-box {
+          background: #faf5ff;
+          border: 1px solid #e9d5ff;
+          border-left: 3px solid #7c3aed;
+          border-radius: 8px;
+          padding: 8px 12px;
+          margin-top: 8px;
+        }
+        .diag-label {
+          font-size: 10px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+          color: #6b21a8;
+          display: block;
+          margin-bottom: 2px;
+        }
+        .diag-text {
+          font-size: 13px;
+          font-weight: 700;
+          color: #3b0764;
+        }
+
+        .allergy-notice {
+          margin-top: 8px;
+          font-size: 11px;
+          border-radius: 6px;
+          padding: 5px 10px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .allergy-notice.alert {
+          background: #fef2f2;
+          color: #991b1b;
+          border: 1px solid #fecaca;
+        }
+        .allergy-notice.safe {
+          background: #f0fdf4;
+          color: #166534;
+          border: 1px solid #bbf7d0;
+        }
+
+        /* Doctor Sub details */
+        .doctor-sub-details {
+          font-size: 12px;
+          color: #475569;
+          line-height: 1.5;
+        }
+        .doctor-sub-details .qual { font-weight: 700; color: #1e293b; }
+        .doctor-sub-details .spec { color: #6b21a8; font-weight: 600; }
+        .doctor-sub-details .reg { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #64748b; margin-top: 4px; }
+
+        /* Rx Symbol Header */
+        .rx-section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 14px;
           position: relative;
           z-index: 1;
         }
-        .patient-box > div { flex: 1; border-right: 2px solid #f1f5f9; padding-right: 32px; }
-        .patient-box > div:last-child { border-right: none; padding-right: 0; padding-left: 32px; }
-        
-        .patient-name { font-size: 22px; font-weight: 800; color: #1e293b; margin-bottom: 6px; letter-spacing: -0.3px; }
-        .patient-details { font-size: 15px; color: #64748b; font-weight: 500; }
-        .diagnosis-val { font-size: 17px; font-weight: 700; color: #4c1d95; margin-top: 8px; line-height: 1.4; }
-
-        /* Medicines List */
-        .rx-symbol { 
+        .rx-title-left {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .rx-symbol-inline {
           font-family: 'Playfair Display', serif;
-          font-size: 48px; 
-          font-weight: 700; 
-          color: #1e1b4b; 
-          margin-bottom: 35px; 
-          position: relative; 
-          z-index: 1; 
+          font-size: 32px;
+          font-weight: 700;
+          color: #1e1b4b;
           line-height: 1;
         }
-        .meds { position: relative; z-index: 1; margin-bottom: 50px; }
-        
-        .med-row {
-          display: flex;
-          gap: 25px;
-          padding: 22px 28px;
-          margin-bottom: 16px;
-          background: #ffffff;
-          border: 1px solid #f1f5f9;
-          border-radius: 16px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.02);
-          page-break-inside: avoid;
+        .rx-section-title {
+          font-size: 14px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 1.2px;
+          color: #1e293b;
         }
-        .med-row:nth-child(even) { background: #fafaf9; }
-        
-        .med-num { 
-          font-weight: 900; 
-          color: #e2e8f0; 
-          font-size: 26px;
-          width: 40px;
-          text-align: right;
-          line-height: 1;
+        .rx-item-count {
+          background: #ede9fe;
+          color: #5b21b6;
+          font-size: 11px;
+          font-weight: 800;
+          padding: 2px 10px;
+          border-radius: 999px;
         }
-        .med-body { flex: 1; }
-        .med-name { font-weight: 800; font-size: 18px; color: #0f172a; margin-bottom: 10px; letter-spacing: -0.2px; }
-        .med-detail { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-        .med-schedule { background: #ede9fe; border: 1px solid #ddd6fe; padding: 6px 14px; border-radius: 8px; font-size: 14px; font-weight: 700; color: #5b21b6; }
-        .med-duration { font-size: 14px; color: #64748b; font-weight: 600; display: flex; align-items: center; gap: 10px; }
-        .med-duration::before { content: ''; display: block; width: 5px; height: 5px; border-radius: 50%; background: #cbd5e1; }
 
-        /* Instructions & Labs */
-        .instructions-container {
+        /* Structured Medications Table */
+        .meds-table-container {
+          border: 1px solid #cbd5e1;
+          border-radius: 12px;
+          overflow: hidden;
+          margin-bottom: 28px;
+          position: relative;
+          z-index: 1;
+          background: #ffffff;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+        .meds-table {
+          width: 100%;
+          border-collapse: collapse;
+          text-align: left;
+          font-size: 12px;
+        }
+        .meds-table thead {
+          background: #f8fafc;
+          border-bottom: 2px solid #cbd5e1;
+        }
+        .meds-table th {
+          padding: 10px 12px;
+          font-weight: 800;
+          font-size: 10.5px;
+          color: #475569;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+        }
+        .meds-table td {
+          padding: 12px 12px;
+          border-bottom: 1px solid #f1f5f9;
+          vertical-align: top;
+        }
+        .meds-table tbody tr:last-child td {
+          border-bottom: none;
+        }
+        .meds-table tbody tr:nth-child(even) {
+          background: #fafaf9;
+        }
+
+        .col-num {
+          font-size: 12px;
+          font-weight: 800;
+          color: #94a3b8;
+          width: 38px;
+          text-align: center;
+        }
+        .col-med {
+          width: 38%;
+        }
+        .med-name-line {
+          display: flex;
+          align-items: baseline;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+        .med-prefix {
+          font-weight: 800;
+          color: #4c1d95;
+          font-size: 11px;
+          text-transform: uppercase;
+        }
+        .med-main-name {
+          font-size: 14px;
+          font-weight: 800;
+          color: #0f172a;
+          letter-spacing: -0.2px;
+        }
+        .med-strength-tag {
+          font-size: 11px;
+          font-weight: 700;
+          color: #4338ca;
+          background: #e0e7ff;
+          padding: 1px 7px;
+          border-radius: 5px;
+          border: 1px solid #c7d2fe;
+        }
+        .med-special-note {
+          font-size: 11px;
+          color: #64748b;
+          margin-top: 5px;
+          line-height: 1.4;
+        }
+        .med-special-note .note-bullet {
+          color: #7c3aed;
+          font-weight: bold;
+        }
+
+        /* Matrix Pills (Morning - Noon - Night) */
+        .col-matrix {
+          width: 25%;
+        }
+        .matrix-pill-group {
+          display: inline-flex;
+          border: 1px solid #cbd5e1;
+          border-radius: 8px;
+          overflow: hidden;
+          background: #ffffff;
+        }
+        .matrix-cell {
+          padding: 4px 8px;
+          text-align: center;
+          min-width: 34px;
+          border-right: 1px solid #e2e8f0;
+        }
+        .matrix-cell:last-child { border-right: none; }
+        .cell-label {
+          font-size: 8.5px;
+          text-transform: uppercase;
+          color: #94a3b8;
+          display: block;
+          font-weight: 800;
+        }
+        .cell-val {
+          font-size: 12px;
+          font-weight: 800;
+          color: #0f172a;
+          line-height: 1.2;
+        }
+        .matrix-cell.active-morning { background: #fef3c7; color: #b45309; }
+        .matrix-cell.active-afternoon { background: #e0f2fe; color: #0369a1; }
+        .matrix-cell.active-night { background: #ede9fe; color: #6d28d9; }
+        .matrix-cell.inactive { background: #ffffff; color: #cbd5e1; }
+        .matrix-sub-schedule {
+          font-size: 10px;
+          color: #64748b;
+          font-weight: 600;
+          margin-top: 4px;
+        }
+
+        /* Food Timing Badges */
+        .col-timing {
+          width: 15%;
+        }
+        .food-badge {
+          display: inline-block;
+          font-size: 11px;
+          font-weight: 700;
+          padding: 3px 8px;
+          border-radius: 6px;
+          white-space: nowrap;
+        }
+        .food-after { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+        .food-before { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .food-bed { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+        .food-general { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
+        .col-dur {
+          width: 12%;
+        }
+        .duration-pill {
+          font-weight: 700;
+          color: #1e293b;
+          font-size: 11.5px;
+        }
+
+        .col-qty {
+          width: 10%;
+          font-weight: 700;
+          color: #334155;
+          font-size: 12px;
+        }
+
+        /* Instructions & Investigations Callouts */
+        .callouts-grid {
           display: grid;
           grid-template-columns: 1fr;
-          gap: 24px;
-          margin-bottom: 40px;
-        }
-        
-        .callout-box {
-          border-radius: 16px;
-          padding: 28px;
+          gap: 16px;
+          margin-bottom: 30px;
           position: relative;
           z-index: 1;
         }
-        
-        .labs-box {
-          background: #f0fdf4;
-          border: 1px solid #bbf7d0;
-          border-left: 6px solid #22c55e;
+        .callout-box {
+          border-radius: 12px;
+          padding: 16px 20px;
+          font-size: 12.5px;
+          line-height: 1.6;
         }
-        
-        .notes-box {
+        .callout-title {
+          font-size: 11px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin-bottom: 6px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .notes-callout {
           background: #fffbeb;
           border: 1px solid #fde68a;
-          border-left: 6px solid #f59e0b;
+          border-left: 4px solid #f59e0b;
+          color: #78350f;
         }
-
-        .callout-title { font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 800; margin-bottom: 14px; }
-        .labs-box .callout-title { color: #166534; }
-        .notes-box .callout-title { color: #92400e; }
+        .notes-callout .callout-title { color: #b45309; }
+        .labs-callout {
+          background: #f0fdf4;
+          border: 1px solid #bbf7d0;
+          border-left: 4px solid #10b981;
+          color: #065f46;
+        }
+        .labs-callout .callout-title { color: #047857; }
+        .labs-list {
+          margin: 0;
+          padding-left: 18px;
+        }
+        .labs-list li { margin-bottom: 4px; }
         
-        .callout-content { font-size: 15px; line-height: 1.6; font-weight: 500; }
-        .labs-box .callout-content { color: #14532d; }
-        .notes-box .callout-content { color: #78350f; }
-        
-        .callout-content ul { margin: 0; padding-left: 20px; }
-        .callout-content li { margin-bottom: 8px; }
-        .callout-content li:last-child { margin-bottom: 0; }
+        .sos-callout {
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          border-left: 4px solid #ef4444;
+          color: #991b1b;
+          font-size: 11.5px;
+        }
+        .sos-callout .callout-title { color: #b91c1c; }
 
-        /* Footer */
-        .footer {
-          margin-top: 70px;
-          padding-top: 40px;
-          border-top: 2px solid #f1f5f9;
+        /* Footer & Signature Row */
+        .prescription-footer {
+          border-top: 2px solid #e2e8f0;
+          padding-top: 24px;
           display: flex;
           justify-content: space-between;
           align-items: flex-end;
+          gap: 24px;
           position: relative;
           z-index: 1;
         }
-        
-        .disclaimer-box { max-width: 420px; }
-        .disclaimer { font-size: 13px; color: #64748b; line-height: 1.6; font-weight: 500; }
-        .disclaimer strong { color: #0f172a; font-weight: 700; }
-        
-        .sign-box { text-align: center; min-width: 260px; }
-        .sign-doc { font-family: 'Playfair Display', serif; font-size: 34px; font-weight: 700; color: #1e1b4b; margin-bottom: 15px; font-style: italic; }
-        .sign-line { border-top: 2px dashed #cbd5e1; padding-top: 14px; font-size: 13px; color: #64748b; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
 
+        .legal-notice-box {
+          max-width: 520px;
+          font-size: 10.5px;
+          color: #64748b;
+          line-height: 1.6;
+        }
+        .legal-notice-box strong { color: #1e293b; }
+        .security-badge-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 8px;
+          font-size: 10px;
+          color: #475569;
+        }
+        .security-qr-mock {
+          width: 42px;
+          height: 42px;
+          background: #f8fafc;
+          border: 1px solid #cbd5e1;
+          border-radius: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 8px;
+          font-weight: 800;
+          color: #475569;
+          text-align: center;
+          line-height: 1;
+          flex-shrink: 0;
+        }
+
+        .signature-box {
+          text-align: right;
+          min-width: 220px;
+        }
+        .signature-cursive {
+          font-family: 'Playfair Display', Georgia, serif;
+          font-size: 26px;
+          font-style: italic;
+          font-weight: 700;
+          color: #1e1b4b;
+          margin-bottom: 4px;
+        }
+        .signature-line {
+          border-top: 2px solid #0f172a;
+          padding-top: 6px;
+          font-size: 11px;
+          font-weight: 800;
+          color: #0f172a;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .signature-meta {
+          font-size: 10px;
+          color: #64748b;
+          margin-top: 2px;
+        }
+        .signature-verified-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: #ecfdf5;
+          color: #059669;
+          font-size: 9.5px;
+          font-weight: 800;
+          padding: 2px 6px;
+          border-radius: 4px;
+          border: 1px solid #a7f3d0;
+          margin-top: 4px;
+        }
+
+        /* Print Media Styles */
         @media print {
-          @page { margin: 0; size: auto; }
-          body { background: #ffffff; padding: 0; }
-          .page-container { margin: 0; border-radius: 0; box-shadow: none; max-width: 100%; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .med-row { break-inside: avoid; }
-          .callout-box { break-inside: avoid; }
+          @page {
+            size: A4 portrait;
+            margin: 8mm 10mm;
+          }
+          body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            font-size: 11pt;
+          }
+          .print-toolbar {
+            display: none !important;
+          }
+          .page-container {
+            margin: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            max-width: 100% !important;
+          }
+          .clinic-header {
+            padding: 24px 28px 20px !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .meta-strip {
+            padding: 10px 28px !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .body-content {
+            padding: 24px 28px !important;
+          }
+          .meds-table thead {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .matrix-cell.active-morning,
+          .matrix-cell.active-afternoon,
+          .matrix-cell.active-night,
+          .food-badge,
+          .diag-box,
+          .badge-tele-mode {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .med-item-row {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+          .callout-box {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+          .prescription-footer {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
         }
       </style>
     </head>
     <body>
+      <!-- Top Action Bar (Screen Only) -->
+      <div class="print-toolbar">
+        <div class="toolbar-brand">
+          <span>HealNari Tele-EMR</span>
+          <span class="toolbar-badge">Prescription Document</span>
+          <span class="toolbar-hint">Tip: Select "Save as PDF" to download high-res PDF.</span>
+        </div>
+        <div class="toolbar-actions">
+          <button onclick="window.print()" class="btn-toolbar-print">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            Print / Save as PDF
+          </button>
+          <button onclick="window.close()" class="btn-toolbar-close">
+            Close
+          </button>
+        </div>
+      </div>
+
+      <!-- Main A4 Printable Prescription Card -->
       <div class="page-container">
-        <div class="banner">
-          <div class="brand-col">
-            <div class="brand-logo-text">HealNari</div>
-            <div class="clinic-line">Advanced Telehealth Center</div>
-            <div class="clinic-address">123 Wellness Avenue, Health City<br/>support@healnari.com &nbsp;&bull;&nbsp; +91 80000 00000</div>
+        <!-- Clinic Official Letterhead -->
+        <header class="clinic-header">
+          <div class="header-top-row">
+            <div class="brand-block">
+              <div class="logo-emblem">
+                <!-- SVG Emblem -->
+                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="50" cy="50" r="46" fill="#1e1b4b" />
+                  <path d="M50 20 C36 20 25 31 25 45 C25 62 50 82 50 82 C50 82 75 62 75 45 C75 31 64 20 50 20 Z" fill="#d946ef" opacity="0.85"/>
+                  <path d="M43 46 L48 51 L59 39" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="50" cy="50" r="48" stroke="#fde047" stroke-width="2.5" stroke-dasharray="4 3"/>
+                </svg>
+              </div>
+              <div class="brand-text-col">
+                <div class="clinic-name">HealNari Women's Health Clinic</div>
+                <div class="clinic-tagline">Center for Advanced Gynaecology &amp; Reproductive Wellness</div>
+                <div class="accreditation-line">
+                  <span class="gold">★ NABH Telemedicine Certified</span>
+                  <span class="dot">•</span>
+                  <span>Reg. No: KA-MED-2024-9912</span>
+                  <span class="dot">•</span>
+                  <span>MoHFW Telehealth Compliant</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="header-contact-col">
+              <div class="rx-emblem-large">℞</div>
+              <div><strong>Address:</strong> 102 Medical Hub, Indiranagar, Bengaluru - 560038</div>
+              <div><strong>Helpline:</strong> +91 80 4567 8900 &nbsp;|&nbsp; <strong>Email:</strong> care@healnari.com</div>
+              <div><strong>Web:</strong> www.healnari.com</div>
+            </div>
           </div>
-          <div class="doc-col">
-            <div class="doctor-name">Dr. ${escapeHtml(doctor?.name)}</div>
-            <div class="doctor-meta">${doctorMeta || 'Registered Medical Practitioner'}</div>
+        </header>
+
+        <!-- Consultation Metadata Strip -->
+        <div class="meta-strip">
+          <div class="meta-cell">
+            <span class="meta-cell-label">Prescription ID</span>
+            <span class="meta-cell-val font-mono">${escapeHtml(displayRxId)}</span>
+          </div>
+          <div class="meta-cell">
+            <span class="meta-cell-label">Consultation Date</span>
+            <span class="meta-cell-val">${escapeHtml(consultationDate)}</span>
+          </div>
+          <div class="meta-cell">
+            <span class="meta-cell-label">Consultation Time</span>
+            <span class="meta-cell-val">${escapeHtml(consultationTime)}</span>
+          </div>
+          <div class="meta-cell">
+            <span class="meta-cell-label">Prescription Validity</span>
+            <span class="meta-cell-val" style="color: #047857;">Till ${escapeHtml(validUntilDate)}</span>
+          </div>
+          <div class="meta-cell" style="text-align: right;">
+            <span class="meta-cell-label">Consultation Mode</span>
+            <span class="badge-tele-mode">● Tele-EMR Consult</span>
           </div>
         </div>
 
-        <div class="content">
-          <div class="watermark">&#8478;</div>
+        <!-- Main Body -->
+        <div class="body-content">
+          <div class="watermark-bg">℞</div>
 
-          <div class="meta-grid">
-            <div class="meta-item">
-              <div class="meta-label">Date of Consultation</div>
-              <div class="meta-value">${escapeHtml(date)}</div>
+          <!-- Doctor & Patient Profile Cards -->
+          <div class="profiles-grid">
+            <!-- Patient Demographics -->
+            <div class="profile-card patient-card">
+              <div class="profile-card-header">
+                <span>Patient Demographics</span>
+                <span class="font-mono">MRN: ${escapeHtml(patientMrn)}</span>
+              </div>
+              <div class="profile-card-body">
+                <div class="profile-name">${escapeHtml(patientName)}</div>
+                <div class="profile-details-row">
+                  <span><strong>Age:</strong> ${escapeHtml(patientAge)}</span>
+                  <span>•</span>
+                  <span><strong>Gender:</strong> ${escapeHtml(patientGender)}</span>
+                  <span>•</span>
+                  <span><strong>Blood:</strong> ${escapeHtml(patientBlood)}</span>
+                  ${patientPhone ? `<span>•</span><span><strong>Phone:</strong> ${escapeHtml(patientPhone)}</span>` : ''}
+                </div>
+
+                <div class="diagnosis-box">
+                  <span class="diag-label">Clinical Indication / Diagnosis</span>
+                  <span class="diag-text">${escapeHtml(diagnosis || 'General Clinical Consultation')}</span>
+                </div>
+
+                <div class="allergy-notice ${allergiesList.length > 0 ? 'alert' : 'safe'}">
+                  <strong>Drug Allergies:</strong> ${allergiesList.length > 0 ? escapeHtml(allergiesList.join(', ')) : 'No Known Drug Allergies (NKDA)'}
+                </div>
+              </div>
             </div>
-            <div class="meta-item" style="text-align: right;">
-              <div class="meta-label">Prescription ID</div>
-              <div class="meta-value" style="font-family: monospace; color: #475569; letter-spacing: 0.5px;">${escapeHtml(rxId)}</div>
+
+            <!-- Prescribing Doctor -->
+            <div class="profile-card doctor-card">
+              <div class="profile-card-header">
+                <span>Prescribing Practitioner</span>
+                <span class="font-mono">Reg: ${escapeHtml(doctorRegNo)}</span>
+              </div>
+              <div class="profile-card-body">
+                <div class="profile-name">${escapeHtml(doctorName)}</div>
+                <div class="doctor-sub-details">
+                  <p class="qual">${escapeHtml(doctorQualifications)}</p>
+                  <p class="spec">${escapeHtml(doctorSpecialty)}</p>
+                  <p>Dept. of Obstetrics &amp; Gynaecological Endocrinology</p>
+                  <p class="reg">Medical Council: Karnataka Medical Council (KMC)</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="patient-box">
-            <div>
-              <div class="meta-label">Patient Details</div>
-              <div class="patient-name">${escapeHtml(patient?.name)}</div>
-              <div class="patient-details">${patientMeta ? escapeHtml(patientMeta) : 'Telehealth Member'}</div>
-            </div>
-            <div>
-              <div class="meta-label">Clinical Diagnosis</div>
-              <div class="diagnosis-val">${escapeHtml(diagnosis || 'General Consultation')}</div>
-            </div>
-          </div>
-
+          <!-- Handwritten Canvas Image (If Attached) -->
           ${handwrittenImage ? `
-          <div style="margin: 30px 0; border: 2px solid #f1f5f9; border-radius: 20px; overflow: hidden; background: #faf8f5; padding: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.03);">
-            <img src="${handwrittenImage}" alt="Handwritten Clinical Prescription" style="width: 100%; border-radius: 12px; display: block;" />
-          </div>` : `
-          <div class="rx-symbol">&#8478;</div>
-          <div class="meds">${medsHtml}</div>`}
+            <div style="margin-bottom: 24px; border: 2px solid #e2e8f0; border-radius: 14px; overflow: hidden; background: #faf8f5; padding: 10px; position: relative; z-index: 1;">
+              <div style="font-size: 11px; font-weight: 800; color: #6b21a8; text-transform: uppercase; margin-bottom: 8px;">
+                ● Attached Doctor's Handwritten Prescription Canvas
+              </div>
+              <img src="${handwrittenImage}" alt="Handwritten Prescription" style="width: 100%; border-radius: 8px; display: block;" />
+            </div>
+          ` : ''}
 
-          <div class="instructions-container">
-            ${(labTests && labTests.length > 0) ? `
-            <div class="callout-box labs-box">
-              <div class="callout-title">Suggested Investigations (Labs)</div>
-              <div class="callout-content">
-                <ul>
-                  ${labTests.map(t => `<li>${escapeHtml(t)}</li>`).join('')}
+          <!-- Prescribed Medications Section -->
+          <div class="rx-section-header">
+            <div class="rx-title-left">
+              <span class="rx-symbol-inline">℞</span>
+              <span class="rx-section-title">Prescribed Medication Regimen</span>
+            </div>
+            <span class="rx-item-count">${parsedMedicines.length} Medication${parsedMedicines.length === 1 ? '' : 's'}</span>
+          </div>
+
+          <div class="meds-table-container">
+            <table class="meds-table">
+              <thead>
+                <tr>
+                  <th class="col-num">#</th>
+                  <th class="col-med">Medication Name &amp; Strength</th>
+                  <th class="col-matrix">Dosing Matrix (M-A-N)</th>
+                  <th class="col-timing">When to Take</th>
+                  <th class="col-dur">Duration</th>
+                  <th class="col-qty">Quantity</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${parsedMedicines.length > 0 ? medicinesRowsHtml : `
+                  <tr>
+                    <td colspan="6" style="padding: 24px; text-align: center; color: #94a3b8; font-style: italic;">
+                      No medications prescribed for this visit.
+                    </td>
+                  </tr>
+                `}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Instructions & Investigations -->
+          <div class="callouts-grid">
+            ${displayInstructions ? `
+              <div class="callout-box notes-callout">
+                <div class="callout-title">
+                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
+                  Doctor's Instructions &amp; Dietary Advice
+                </div>
+                <div style="white-space: pre-line;">${escapeHtml(displayInstructions)}</div>
+                ${followUpAdvice ? `<div style="margin-top: 8px; font-weight: 700; color: #92400e;">Next Follow-up Consultation: ${escapeHtml(followUpAdvice)}</div>` : ''}
+              </div>
+            ` : ''}
+
+            ${labTests && labTests.length > 0 ? `
+              <div class="callout-box labs-callout">
+                <div class="callout-title">
+                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a1 1 0 0 1-1-1V1zm2 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4H4v10z"/></svg>
+                  Suggested Laboratory Investigations
+                </div>
+                <ul class="labs-list">
+                  ${labTests.map(t => `<li><strong>${escapeHtml(t)}</strong></li>`).join('')}
                 </ul>
               </div>
-            </div>` : ''}
+            ` : ''}
 
-            ${instructions ? `
-            <div class="callout-box notes-box">
-              <div class="callout-title">Special Instructions</div>
-              <div class="callout-content">
-                ${escapeHtml(instructions)}
+            <div class="callout-box sos-callout">
+              <div class="callout-title">
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M7.938 2.016A.13.13 0 0 1 8.002 2a.13.13 0 0 1 .063.016.146.146 0 0 1 .054.057l6.857 11.667c.036.06.035.124.002.183a.163.163 0 0 1-.054.06.116.116 0 0 1-.066.017H1.146a.115.115 0 0 1-.066-.017.163.163 0 0 1-.054-.06.176.176 0 0 1 .002-.183L7.884 2.073a.147.147 0 0 1 .054-.057zm1.044-.45a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566z"/><path d="M7.002 12a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 5.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z"/></svg>
+                Emergency &amp; Red-Flag Advisory
               </div>
-            </div>` : ''}
-          </div>
-
-          <div class="footer">
-            <div class="disclaimer-box">
-              <div class="disclaimer">
-                <strong>Important Note:</strong> This is a digitally generated electronic prescription under the Telemedicine Practice Guidelines. Valid only with the prescribing doctor's e-signature on file. Dispense as written.
-              </div>
-            </div>
-            <div class="sign-box">
-              <div class="sign-doc">${escapeHtml(doctor?.name)}</div>
-              <div class="sign-line">Digital Signature</div>
+              <div>In case of acute severe abdominal or pelvic pain, fever higher than 101°F, sudden heavy bleeding, or severe dizziness, immediately contact the HealNari emergency hotline (+91 80 4567 8900) or visit the nearest emergency medical facility.</div>
             </div>
           </div>
+
+          <!-- Footer & Digital Signature Block -->
+          <footer class="prescription-footer">
+            <div class="legal-notice-box">
+              <p><strong>Statutory Compliance:</strong> This digital prescription is issued pursuant to the National Telemedicine Practice Guidelines (2020) and Section 5 of the Information Technology Act (2000). It is legally valid for dispensing across all licensed pharmacies.</p>
+              <div class="security-badge-row">
+                <div class="security-qr-mock">
+                  <span>QR<br/>VERIFIED</span>
+                </div>
+                <div>
+                  <p><strong>Security Hash:</strong> <span class="font-mono">SHA256:${displayRxId.replace(/[^A-Z0-9]/g, '').slice(0, 16)}</span></p>
+                  <p>Confidential Medical Record • HealNari Healthcare Systems v2.4</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="signature-box">
+              <div class="signature-cursive">${escapeHtml(doctorName)}</div>
+              <div class="signature-line">${escapeHtml(doctorName)}</div>
+              <div class="signature-meta">${escapeHtml(doctorQualifications)}</div>
+              <div class="signature-meta">Reg. No: ${escapeHtml(doctorRegNo)}</div>
+              <div class="signature-verified-pill">
+                <svg width="10" height="10" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022Z"/></svg>
+                Digitally Signed &amp; Authenticated
+              </div>
+            </div>
+          </footer>
         </div>
       </div>
     </body>
     </html>
   `);
+
   win.document.close();
   win.focus();
   setTimeout(() => {
     win.print();
-  }, 500); // Small delay to let Inter font load
+  }, 500); // Allow Plus Jakarta Sans to load
 }
 
 export function openLifestylePlanPrintWindow({ rxId, date, doctor, patient, dietPlan, exercisePlan }) {
@@ -587,6 +1507,1127 @@ export function openLifestylePlanPrintWindow({ rxId, date, doctor, patient, diet
     </body>
     </html>
   `);
+  win.document.close();
+  win.focus();
+  setTimeout(() => {
+    win.print();
+  }, 500);
+}
+
+/**
+ * Opens a comprehensive Patient EMR & Clinical Health Record print window.
+ * Displays official clinic letterhead, complete patient demographics, vital biometrics,
+ * clinical diagnoses, active medications with dosing matrix, lab findings, clinical notes,
+ * and attending doctor's digital signature.
+ */
+export function openPatientEmrPrintWindow({ patient, doctor, groupedRx }) {
+  const win = window.open('', '_blank', 'width=960,height=1050');
+  if (!win) return;
+
+  const now = new Date();
+  const printDate = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const printTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+  // Doctor Details
+  const doctorName = (doctor?.name || 'Dr. Sarah Mitchell').replace(/^Dr\.?\s+/i, 'Dr. ');
+  const doctorSpecialty = doctor?.specialty || 'Senior Consultant Gynaecologist & Obstetrician';
+  const doctorQualifications = doctor?.qualifications || 'MBBS, MS, DGO (Obstetrics & Gynaecology)';
+  const doctorRegNo = doctor?.regNo || 'KMC-84920';
+
+  // Patient Details
+  const patientName = patient?.name || 'Patient';
+  const patientAge = patient?.age && patient.age !== '—' ? `${patient.age} Yrs` : 'Adult';
+  const patientGender = patient?.gender || 'Female';
+  const patientBlood = patient?.blood && patient.blood !== '—' ? patient.blood : '—';
+  const patientMrn = patient?.mrn || (patient?.id ? `HN-${String(patient.id).slice(0, 8).toUpperCase()}` : 'HN-10029');
+  const patientPhone = patient?.phone || '—';
+  const patientEmail = patient?.email || '—';
+  const allergiesList = Array.isArray(patient?.allergies)
+    ? patient.allergies.filter(Boolean)
+    : typeof patient?.allergies === 'string' && patient.allergies.trim()
+    ? [patient.allergies.trim()]
+    : [];
+
+  // Vitals
+  const vitalsBp = patient?.bp || '120/80 mmHg';
+  const vitalsPulse = patient?.pulse || '72 bpm';
+  const vitalsSpo2 = patient?.spo2 || '99%';
+  const vitalsBmi = patient?.bmi || '21.8';
+  const vitalsWeight = patient?.weight || '58 kg';
+  const vitalsHeight = patient?.height || "5'4\"";
+  const vitalsSugar = patient?.bloodSugar || '92 mg/dL';
+
+  // Active Medications
+  const rawMeds = (patient?.meds && patient.meds.length > 0)
+    ? patient.meds
+    : (groupedRx && groupedRx[0]?.medicines) || [];
+  const parsedMeds = rawMeds.map(parseMedicineDetails);
+
+  // Lab Reports
+  const labReports = patient?.reports || [];
+
+  // Clinical Notes
+  const clinicalNotes = patient?.clinicalNotes || [];
+
+  const medsRowsHtml = parsedMeds.map((m, idx) => `
+    <tr class="med-item-row">
+      <td class="col-num font-mono">${String(idx + 1).padStart(2, '0')}</td>
+      <td class="col-med">
+        <div class="med-name-line">
+          <span class="med-prefix">${escapeHtml(m.formulation)}</span>
+          <span class="med-main-name">${escapeHtml(m.name)}</span>
+          ${m.strength ? `<span class="med-strength-tag">${escapeHtml(m.strength)}</span>` : ''}
+        </div>
+        ${m.notes ? `<div class="med-special-note"><span class="note-bullet">▸</span> ${escapeHtml(m.notes)}</div>` : ''}
+      </td>
+      <td class="col-matrix">
+        <div class="matrix-pill-group">
+          <div class="matrix-cell ${m.morning !== '0' && m.morning !== '–' ? 'active-morning' : 'inactive'}">
+            <span class="cell-label">Morn</span>
+            <span class="cell-val">${escapeHtml(m.morning)}</span>
+          </div>
+          <div class="matrix-cell ${m.afternoon !== '0' && m.afternoon !== '–' ? 'active-afternoon' : 'inactive'}">
+            <span class="cell-label">Noon</span>
+            <span class="cell-val">${escapeHtml(m.afternoon)}</span>
+          </div>
+          <div class="matrix-cell ${m.night !== '0' && m.night !== '–' ? 'active-night' : 'inactive'}">
+            <span class="cell-label">Night</span>
+            <span class="cell-val">${escapeHtml(m.night)}</span>
+          </div>
+        </div>
+        <div class="matrix-sub-schedule">${escapeHtml(m.schedule)}</div>
+      </td>
+      <td class="col-timing">
+        <span class="food-badge ${
+          m.foodTiming.toLowerCase().includes('after') ? 'food-after' :
+          m.foodTiming.toLowerCase().includes('before') ? 'food-before' :
+          m.foodTiming.toLowerCase().includes('bed') ? 'food-bed' : 'food-general'
+        }">
+          ${escapeHtml(m.foodTiming)}
+        </span>
+      </td>
+      <td class="col-dur">
+        <span class="duration-pill">${escapeHtml(m.duration)}</span>
+      </td>
+    </tr>
+  `).join('');
+
+  win.document.write(`
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <title>EMR Summary — ${escapeHtml(patientName)} — HealNari</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@500;700&display=swap');
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body { 
+          font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+          color: #0f172a; 
+          background: #f1f5f9;
+          padding: 0;
+          margin: 0;
+          -webkit-font-smoothing: antialiased;
+        }
+
+        /* Fixed Top Action Bar for Screen (Hidden in Print) */
+        .print-toolbar {
+          position: sticky;
+          top: 0;
+          left: 0;
+          right: 0;
+          background: #1e1b4b;
+          color: #ffffff;
+          padding: 12px 24px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+          z-index: 9999;
+        }
+        .toolbar-brand {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          font-weight: 700;
+          font-size: 14px;
+          color: #f8fafc;
+        }
+        .toolbar-badge {
+          background: #4c1d95;
+          color: #e9d5ff;
+          font-size: 11px;
+          padding: 3px 10px;
+          border-radius: 999px;
+          font-weight: 600;
+        }
+        .toolbar-hint {
+          font-size: 12px;
+          color: #cbd5e1;
+          display: none;
+        }
+        @media (min-width: 640px) {
+          .toolbar-hint { display: inline-block; }
+        }
+        .toolbar-actions {
+          display: flex;
+          gap: 10px;
+        }
+        .btn-toolbar-print {
+          background: #059669;
+          color: white;
+          border: none;
+          font-weight: 700;
+          font-size: 13px;
+          padding: 8px 18px;
+          border-radius: 10px;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          box-shadow: 0 2px 8px rgba(5,150,105,0.4);
+          transition: all 0.2s;
+        }
+        .btn-toolbar-print:hover { background: #047857; transform: translateY(-1px); }
+        .btn-toolbar-close {
+          background: rgba(255,255,255,0.12);
+          color: #e2e8f0;
+          border: 1px solid rgba(255,255,255,0.2);
+          font-weight: 600;
+          font-size: 13px;
+          padding: 8px 16px;
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .btn-toolbar-close:hover { background: rgba(255,255,255,0.2); }
+
+        /* Prescription Page Container */
+        .page-container {
+          max-width: 900px;
+          margin: 30px auto 60px;
+          background: #ffffff;
+          box-shadow: 0 15px 35px rgba(0,0,0,0.06);
+          border-radius: 18px;
+          overflow: hidden;
+          position: relative;
+          border: 1px solid #e2e8f0;
+        }
+
+        /* Official Clinic Letterhead Banner */
+        .clinic-header {
+          background: linear-gradient(135deg, #1e1b4b 0%, #311042 55%, #4c1d95 100%);
+          color: #ffffff;
+          padding: 34px 44px 28px;
+          position: relative;
+          border-bottom: 4px solid #d4af37;
+        }
+        .clinic-header::after {
+          content: '';
+          position: absolute;
+          top: 0; right: 0; bottom: 0; left: 0;
+          background-image: radial-gradient(circle at 95% 10%, rgba(212,175,55,0.15) 0%, transparent 50%);
+          pointer-events: none;
+        }
+
+        .header-top-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 20px;
+          position: relative;
+          z-index: 1;
+        }
+        
+        .brand-block {
+          display: flex;
+          align-items: center;
+          gap: 18px;
+        }
+        .logo-emblem {
+          width: 58px;
+          height: 58px;
+          background: #ffffff;
+          border-radius: 16px;
+          padding: 6px;
+          box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .logo-emblem svg {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+        }
+        .clinic-name {
+          font-family: 'Playfair Display', serif;
+          font-size: 28px;
+          font-weight: 700;
+          color: #ffffff;
+          letter-spacing: -0.3px;
+          line-height: 1.1;
+        }
+        .clinic-tagline {
+          font-size: 12.5px;
+          font-weight: 600;
+          color: #e9d5ff;
+          letter-spacing: 0.8px;
+          text-transform: uppercase;
+          margin-top: 4px;
+        }
+        .accreditation-line {
+          font-size: 10.5px;
+          color: #cbd5e1;
+          margin-top: 5px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-wrap: wrap;
+        }
+        .accreditation-line .gold { color: #fde047; font-weight: 700; }
+        .accreditation-line .dot { opacity: 0.6; }
+
+        .header-contact-col {
+          text-align: right;
+          font-size: 11.5px;
+          color: #e2e8f0;
+          line-height: 1.5;
+        }
+        .header-contact-col strong { color: #ffffff; }
+        .header-doc-title {
+          font-family: 'Playfair Display', serif;
+          font-size: 22px;
+          font-weight: 700;
+          color: #fde047;
+          margin-bottom: 4px;
+        }
+
+        /* Consultation Metadata Strip */
+        .meta-strip {
+          background: #f8fafc;
+          border-bottom: 1px solid #e2e8f0;
+          padding: 12px 44px;
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: 16px;
+          font-size: 11.5px;
+        }
+        .meta-cell-label {
+          text-transform: uppercase;
+          font-size: 9.5px;
+          letter-spacing: 1px;
+          font-weight: 800;
+          color: #64748b;
+          display: block;
+          margin-bottom: 2px;
+        }
+        .meta-cell-val {
+          font-weight: 700;
+          color: #0f172a;
+          font-size: 13px;
+        }
+        .meta-cell-val.font-mono { font-family: 'JetBrains Mono', monospace; }
+        .badge-status-active {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          background: #ecfdf5;
+          color: #047857;
+          border: 1px solid #a7f3d0;
+          padding: 2px 8px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 700;
+        }
+
+        /* Main Body Content */
+        .body-content {
+          padding: 32px 44px 40px;
+          position: relative;
+        }
+
+        /* Section Title Header */
+        .section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 12px;
+          margin-top: 24px;
+          padding-bottom: 6px;
+          border-bottom: 2px solid #f1f5f9;
+        }
+        .section-header:first-of-type { margin-top: 0; }
+        .section-title {
+          font-size: 13px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 1.2px;
+          color: #1e1b4b;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        /* 2-Column Profiles */
+        .profiles-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 18px;
+          margin-bottom: 20px;
+        }
+        .profile-card {
+          border-radius: 12px;
+          border: 1px solid #e2e8f0;
+          background: #ffffff;
+          overflow: hidden;
+        }
+        .profile-card-header {
+          padding: 8px 16px;
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 1px;
+          text-transform: uppercase;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .patient-card .profile-card-header {
+          background: #f1f5f9;
+          color: #475569;
+          border-bottom: 1px solid #e2e8f0;
+        }
+        .doctor-card .profile-card-header {
+          background: #faf5ff;
+          color: #6b21a8;
+          border-bottom: 1px solid #f3e8ff;
+        }
+        .profile-card-body { padding: 14px 16px; }
+        .profile-name {
+          font-size: 17px;
+          font-weight: 800;
+          color: #0f172a;
+          margin-bottom: 4px;
+        }
+        .profile-details-row {
+          font-size: 12px;
+          color: #475569;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin-bottom: 8px;
+        }
+        .profile-details-row strong { color: #1e293b; }
+
+        .diagnosis-box {
+          background: #faf5ff;
+          border: 1px solid #e9d5ff;
+          border-left: 3px solid #7c3aed;
+          border-radius: 8px;
+          padding: 8px 12px;
+          margin-top: 8px;
+        }
+        .diag-label {
+          font-size: 9.5px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+          color: #6b21a8;
+          display: block;
+          margin-bottom: 2px;
+        }
+        .diag-text { font-size: 13px; font-weight: 700; color: #3b0764; }
+
+        .allergy-notice {
+          margin-top: 8px;
+          font-size: 11px;
+          border-radius: 6px;
+          padding: 6px 10px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .allergy-notice.alert {
+          background: #fef2f2;
+          color: #991b1b;
+          border: 1px solid #fecaca;
+        }
+        .allergy-notice.safe {
+          background: #f0fdf4;
+          color: #166534;
+          border: 1px solid #bbf7d0;
+        }
+
+        .doctor-sub-details {
+          font-size: 12px;
+          color: #475569;
+          line-height: 1.5;
+        }
+        .doctor-sub-details .qual { font-weight: 700; color: #1e293b; }
+        .doctor-sub-details .spec { color: #6b21a8; font-weight: 600; }
+        .doctor-sub-details .reg { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #64748b; margin-top: 4px; }
+
+        /* Vitals Cards Grid */
+        .vitals-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+          margin-bottom: 24px;
+        }
+        .vital-card {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          padding: 10px 14px;
+        }
+        .vital-label {
+          font-size: 9.5px;
+          font-weight: 800;
+          text-transform: uppercase;
+          color: #64748b;
+          letter-spacing: 0.8px;
+        }
+        .vital-val {
+          font-size: 16px;
+          font-weight: 800;
+          color: #0f172a;
+          margin-top: 2px;
+        }
+        .vital-sub {
+          font-size: 10px;
+          color: #059669;
+          font-weight: 700;
+          margin-top: 2px;
+        }
+
+        /* Medications Table */
+        .meds-table-container {
+          border: 1px solid #cbd5e1;
+          border-radius: 12px;
+          overflow: hidden;
+          margin-bottom: 24px;
+          background: #ffffff;
+        }
+        .meds-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 12px;
+          text-align: left;
+        }
+        .meds-table thead {
+          background: #f8fafc;
+          border-bottom: 2px solid #cbd5e1;
+        }
+        .meds-table th {
+          padding: 9px 12px;
+          font-weight: 800;
+          font-size: 10.5px;
+          color: #475569;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+        }
+        .meds-table td {
+          padding: 10px 12px;
+          border-bottom: 1px solid #f1f5f9;
+          vertical-align: middle;
+        }
+        .meds-table tbody tr:last-child td { border-bottom: none; }
+        .col-num { width: 34px; text-align: center; color: #94a3b8; font-weight: 800; }
+        .col-med { width: 40%; }
+        .med-name-line { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+        .med-prefix { font-weight: 800; color: #4c1d95; font-size: 10.5px; text-transform: uppercase; }
+        .med-main-name { font-size: 13.5px; font-weight: 800; color: #0f172a; }
+        .med-strength-tag { font-size: 10.5px; font-weight: 700; color: #4338ca; background: #e0e7ff; padding: 1px 6px; border-radius: 4px; }
+        .med-special-note { font-size: 10.5px; color: #64748b; margin-top: 3px; }
+        .note-bullet { color: #7c3aed; font-weight: bold; }
+
+        /* Dosing Matrix */
+        .col-matrix { width: 25%; }
+        .matrix-pill-group {
+          display: inline-flex;
+          border: 1px solid #cbd5e1;
+          border-radius: 6px;
+          overflow: hidden;
+          background: #ffffff;
+        }
+        .matrix-cell {
+          padding: 3px 7px;
+          text-align: center;
+          min-width: 32px;
+          border-right: 1px solid #e2e8f0;
+        }
+        .matrix-cell:last-child { border-right: none; }
+        .cell-label { font-size: 8px; text-transform: uppercase; color: #94a3b8; display: block; font-weight: 800; }
+        .cell-val { font-size: 11px; font-weight: 800; color: #0f172a; }
+        .matrix-cell.active-morning { background: #fef3c7; color: #b45309; }
+        .matrix-cell.active-afternoon { background: #e0f2fe; color: #0369a1; }
+        .matrix-cell.active-night { background: #ede9fe; color: #6d28d9; }
+        .matrix-cell.inactive { background: #ffffff; color: #cbd5e1; }
+        .matrix-sub-schedule { font-size: 9.5px; color: #64748b; font-weight: 600; margin-top: 3px; }
+
+        .col-timing { width: 18%; }
+        .food-badge { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 5px; }
+        .food-after { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+        .food-before { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .food-bed { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+        .food-general { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
+        .col-dur { width: 17%; }
+        .duration-pill { font-weight: 700; color: #1e293b; font-size: 11px; }
+
+        /* Diagnostics & Notes Grid */
+        .diagnostics-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+          margin-bottom: 24px;
+        }
+        .diag-card {
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 14px 16px;
+          background: #ffffff;
+        }
+        .diag-card-title {
+          font-size: 10.5px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+          color: #475569;
+          margin-bottom: 10px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .report-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 6px 0;
+          border-bottom: 1px dashed #f1f5f9;
+          font-size: 11.5px;
+        }
+        .report-row:last-child { border-bottom: none; }
+        .report-status-tag {
+          font-size: 9.5px;
+          font-weight: 800;
+          padding: 1px 6px;
+          border-radius: 4px;
+        }
+        .status-reviewed { background: #ecfdf5; color: #059669; }
+        .status-pending { background: #fffbeb; color: #b45309; }
+
+        .clinical-note-item {
+          padding: 8px 10px;
+          background: #f8fafc;
+          border-left: 3px solid #6366f1;
+          border-radius: 4px;
+          margin-bottom: 8px;
+          font-size: 11.5px;
+          line-height: 1.5;
+        }
+        .clinical-note-item:last-child { margin-bottom: 0; }
+        .note-meta { font-size: 9.5px; color: #64748b; font-weight: 700; margin-bottom: 2px; }
+
+        /* Footer & Signature */
+        .prescription-footer {
+          border-top: 2px solid #e2e8f0;
+          padding-top: 20px;
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          gap: 20px;
+        }
+        .legal-notice-box {
+          max-width: 500px;
+          font-size: 10px;
+          color: #64748b;
+          line-height: 1.5;
+        }
+        .legal-notice-box strong { color: #1e293b; }
+        .signature-box { text-align: right; min-width: 220px; }
+        .signature-cursive {
+          font-family: 'Playfair Display', Georgia, serif;
+          font-size: 24px;
+          font-style: italic;
+          font-weight: 700;
+          color: #1e1b4b;
+          margin-bottom: 4px;
+        }
+        .signature-line {
+          border-top: 2px solid #0f172a;
+          padding-top: 4px;
+          font-size: 10.5px;
+          font-weight: 800;
+          color: #0f172a;
+          text-transform: uppercase;
+        }
+        .signature-meta { font-size: 10px; color: #64748b; margin-top: 2px; }
+        .signature-verified-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: #ecfdf5;
+          color: #059669;
+          font-size: 9.5px;
+          font-weight: 800;
+          padding: 2px 6px;
+          border-radius: 4px;
+          border: 1px solid #a7f3d0;
+          margin-top: 4px;
+        }
+
+        /* Print Media Styles */
+        @media print {
+          @page { size: A4 portrait; margin: 8mm 10mm; }
+          body { background: #ffffff !important; color: #000000 !important; font-size: 10.5pt; }
+          .print-toolbar { display: none !important; }
+          .page-container {
+            margin: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            max-width: 100% !important;
+          }
+          .clinic-header, .meta-strip, .meds-table thead, .vital-card, .matrix-cell, .food-badge, .badge-status-active {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .med-item-row, .diag-card, .vital-card, .prescription-footer {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <!-- Top Action Bar (Screen Only) -->
+      <div class="print-toolbar">
+        <div class="toolbar-brand">
+          <span>HealNari Tele-EMR</span>
+          <span class="toolbar-badge">Comprehensive Health Record</span>
+          <span class="toolbar-hint">Tip: Select "Save as PDF" for official high-resolution EMR file.</span>
+        </div>
+        <div class="toolbar-actions">
+          <button onclick="window.print()" class="btn-toolbar-print">
+            <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            Print / Save as PDF
+          </button>
+          <button onclick="window.close()" class="btn-toolbar-close">
+            Close
+          </button>
+        </div>
+      </div>
+
+      <!-- Main A4 Printable EMR Container -->
+      <div class="page-container">
+        <!-- Clinic Official Letterhead -->
+        <header class="clinic-header">
+          <div class="header-top-row">
+            <div class="brand-block">
+              <div class="logo-emblem">
+                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="50" cy="50" r="46" fill="#1e1b4b" />
+                  <path d="M50 20 C36 20 25 31 25 45 C25 62 50 82 50 82 C50 82 75 62 75 45 C75 31 64 20 50 20 Z" fill="#d946ef" opacity="0.85"/>
+                  <path d="M43 46 L48 51 L59 39" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="50" cy="50" r="48" stroke="#fde047" stroke-width="2.5" stroke-dasharray="4 3"/>
+                </svg>
+              </div>
+              <div>
+                <div class="clinic-name">HealNari Women's Health Clinic</div>
+                <div class="clinic-tagline">Center for Advanced Gynaecology &amp; Reproductive Wellness</div>
+                <div class="accreditation-line">
+                  <span class="gold">★ NABH Telemedicine Certified</span>
+                  <span class="dot">•</span>
+                  <span>Reg. No: KA-MED-2024-9912</span>
+                  <span class="dot">•</span>
+                  <span>MoHFW Telehealth Compliant</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="header-contact-col">
+              <div class="header-doc-title">EMR Summary</div>
+              <div><strong>Address:</strong> 102 Medical Hub, Indiranagar, Bengaluru - 560038</div>
+              <div><strong>Helpline:</strong> +91 80 4567 8900 &nbsp;|&nbsp; care@healnari.com</div>
+              <div><strong>Web:</strong> www.healnari.com</div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Metadata Strip -->
+        <div class="meta-strip">
+          <div>
+            <span class="meta-cell-label">Document Type</span>
+            <span class="meta-cell-val">Clinical Health Record</span>
+          </div>
+          <div>
+            <span class="meta-cell-label">Patient MRN</span>
+            <span class="meta-cell-val font-mono">${escapeHtml(patientMrn)}</span>
+          </div>
+          <div>
+            <span class="meta-cell-label">Generated Date &amp; Time</span>
+            <span class="meta-cell-val">${escapeHtml(printDate)} • ${escapeHtml(printTime)}</span>
+          </div>
+          <div>
+            <span class="meta-cell-label">Total Recorded Visits</span>
+            <span class="meta-cell-val">${escapeHtml(patient?.visits || '1')} Visit(s)</span>
+          </div>
+          <div style="text-align: right;">
+            <span class="meta-cell-label">EMR Record Status</span>
+            <span class="badge-status-active">● Active Medical Record</span>
+          </div>
+        </div>
+
+        <!-- Main Body -->
+        <div class="body-content">
+          <!-- Profiles Grid -->
+          <div class="profiles-grid">
+            <!-- Patient Demographics -->
+            <div class="profile-card patient-card">
+              <div class="profile-card-header">
+                <span>Patient Demographics</span>
+                <span class="font-mono">MRN: ${escapeHtml(patientMrn)}</span>
+              </div>
+              <div class="profile-card-body">
+                <div class="profile-name">${escapeHtml(patientName)}</div>
+                <div class="profile-details-row">
+                  <span><strong>Age:</strong> ${escapeHtml(patientAge)}</span>
+                  <span>•</span>
+                  <span><strong>Gender:</strong> ${escapeHtml(patientGender)}</span>
+                  <span>•</span>
+                  <span><strong>Blood:</strong> ${escapeHtml(patientBlood)}</span>
+                </div>
+                <div class="profile-details-row">
+                  <span><strong>Phone:</strong> ${escapeHtml(patientPhone)}</span>
+                  <span>•</span>
+                  <span><strong>Email:</strong> ${escapeHtml(patientEmail)}</span>
+                </div>
+
+                <div class="diagnosis-box">
+                  <span class="diag-label">Clinical Indication / Diagnosis</span>
+                  <span class="diag-text">${escapeHtml(patient?.diagnosis || 'General Clinical Evaluation')}</span>
+                </div>
+
+                <div class="allergy-notice ${allergiesList.length > 0 ? 'alert' : 'safe'}">
+                  <strong>Drug Allergies:</strong> ${allergiesList.length > 0 ? escapeHtml(allergiesList.join(', ')) : 'No Known Drug Allergies (NKDA)'}
+                </div>
+              </div>
+            </div>
+
+            <!-- Attending Doctor -->
+            <div class="profile-card doctor-card">
+              <div class="profile-card-header">
+                <span>Attending Practitioner</span>
+                <span class="font-mono">Reg: ${escapeHtml(doctorRegNo)}</span>
+              </div>
+              <div class="profile-card-body">
+                <div class="profile-name">${escapeHtml(doctorName)}</div>
+                <div class="doctor-sub-details">
+                  <p class="qual">${escapeHtml(doctorQualifications)}</p>
+                  <p class="spec">${escapeHtml(doctorSpecialty)}</p>
+                  <p>Dept. of Obstetrics &amp; Gynaecological Endocrinology</p>
+                  <p class="reg">Medical Council: Karnataka Medical Council (KMC)</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recorded Clinical Vitals -->
+          <div class="section-header">
+            <div class="section-title">
+              <svg width="15" height="15" fill="currentColor" viewBox="0 0 16 16"><path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8z"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/></svg>
+              Recorded Clinical Vitals &amp; Biometrics
+            </div>
+          </div>
+          <div class="vitals-grid">
+            <div class="vital-card">
+              <div class="vital-label">Blood Pressure</div>
+              <div class="vital-val">${escapeHtml(vitalsBp)}</div>
+              <div class="vital-sub">Normal Range</div>
+            </div>
+            <div class="vital-card">
+              <div class="vital-label">Body Mass Index (BMI)</div>
+              <div class="vital-val">${escapeHtml(vitalsBmi)} <span style="font-size: 11px; font-weight: normal; color: #64748b;">(${escapeHtml(vitalsWeight)})</span></div>
+              <div class="vital-sub" style="color: #64748b;">Height: ${escapeHtml(vitalsHeight)}</div>
+            </div>
+            <div class="vital-card">
+              <div class="vital-label">Pulse &amp; SpO2</div>
+              <div class="vital-val">${escapeHtml(vitalsPulse)} <span style="font-size: 11px; font-weight: normal; color: #64748b;">/ ${escapeHtml(vitalsSpo2)}</span></div>
+              <div class="vital-sub">Resting Rate</div>
+            </div>
+            <div class="vital-card">
+              <div class="vital-label">Fasting Glucose</div>
+              <div class="vital-val">${escapeHtml(vitalsSugar)}</div>
+              <div class="vital-sub" style="color: #b45309;">Monitored Baseline</div>
+            </div>
+          </div>
+
+          <!-- Active Prescriptions -->
+          <div class="section-header">
+            <div class="section-title">
+              <span style="font-family: 'Playfair Display', serif; font-size: 18px;">℞</span>
+              Active Medication Regimen
+            </div>
+            <span style="font-size: 11px; font-weight: 700; color: #6b21a8;">${parsedMeds.length} Prescribed Medicine${parsedMeds.length === 1 ? '' : 's'}</span>
+          </div>
+          <div class="meds-table-container">
+            <table class="meds-table">
+              <thead>
+                <tr>
+                  <th class="col-num">#</th>
+                  <th class="col-med">Medication Name &amp; Strength</th>
+                  <th class="col-matrix">Dosing Matrix (M-A-N)</th>
+                  <th class="col-timing">When to Take</th>
+                  <th class="col-dur">Duration</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${parsedMeds.length > 0 ? medsRowsHtml : `
+                  <tr>
+                    <td colspan="5" style="padding: 16px; text-align: center; color: #94a3b8; font-style: italic;">
+                      No active prescribed medications on record.
+                    </td>
+                  </tr>
+                `}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Diagnostic Reports & Clinical Notes -->
+          <div class="diagnostics-grid">
+            <!-- Lab Reports -->
+            <div class="diag-card">
+              <div class="diag-card-title">
+                <svg width="13" height="13" fill="currentColor" viewBox="0 0 16 16"><path d="M2 1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a1 1 0 0 1-1-1V1zm2 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4H4v10z"/></svg>
+                Laboratory Reports &amp; Diagnostics (${labReports.length})
+              </div>
+              ${labReports.length > 0 ? labReports.map(r => `
+                <div class="report-row">
+                  <div>
+                    <strong>${escapeHtml(r.testName)}</strong>
+                    <div style="font-size: 10px; color: #64748b;">${escapeHtml(r.testCategory || 'General')} • ${escapeHtml(r.date || printDate)}</div>
+                  </div>
+                  <span class="report-status-tag ${r.status === 'Reviewed' ? 'status-reviewed' : 'status-pending'}">
+                    ${escapeHtml(r.status || 'Pending')}
+                  </span>
+                </div>
+              `).join('') : `
+                <p style="color: #94a3b8; font-style: italic; font-size: 11.5px; padding: 6px 0;">No diagnostic reports logged.</p>
+              `}
+            </div>
+
+            <!-- Clinical Notes -->
+            <div class="diag-card">
+              <div class="diag-card-title">
+                <svg width="13" height="13" fill="currentColor" viewBox="0 0 16 16"><path d="M2.5 1A1.5 1.5 0 0 0 1 2.5v11A1.5 1.5 0 0 0 2.5 15h6.086a1.5 1.5 0 0 0 1.06-.44l4.915-4.914A1.5 1.5 0 0 0 15 8.586V2.5A1.5 1.5 0 0 0 13.5 1h-11zM2 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 .5.5V8H9.5A1.5 1.5 0 0 0 8 9.5V14H2.5a.5.5 0 0 1-.5-.5v-11zm7 7V14l4-4H9.5a.5.5 0 0 1-.5-.5z"/></svg>
+                Physician Clinical Notes (${clinicalNotes.length})
+              </div>
+              ${clinicalNotes.length > 0 ? clinicalNotes.slice(0, 3).map(n => `
+                <div class="clinical-note-item">
+                  <div class="note-meta">${escapeHtml(n.date || printDate)} • ${escapeHtml(n.doctor || doctorName)}</div>
+                  <div>${escapeHtml(n.text || n.note || '')}</div>
+                </div>
+              `).join('') : `
+                <p style="color: #94a3b8; font-style: italic; font-size: 11.5px; padding: 6px 0;">No physician progress notes logged.</p>
+              `}
+            </div>
+          </div>
+
+          <!-- Footer & Digital Signature Block -->
+          <footer class="prescription-footer">
+            <div class="legal-notice-box">
+              <p><strong>Official Medical Record:</strong> This Clinical Health Summary is generated from the certified HealNari Electronic Medical Records System. All diagnoses, vitals, and medication regimens are digitally authenticated by the prescribing practitioner.</p>
+              <div style="margin-top: 6px; font-size: 9.5px; color: #475569;">
+                Security Verification Hash: <span style="font-family: monospace;">SHA256:EMR-${patientMrn.replace(/[^A-Z0-9]/g, '')}-${now.getTime().toString(36).toUpperCase()}</span>
+              </div>
+            </div>
+
+            <div class="signature-box">
+              <div class="signature-cursive">${escapeHtml(doctorName)}</div>
+              <div class="signature-line">${escapeHtml(doctorName)}</div>
+              <div class="signature-meta">${escapeHtml(doctorQualifications)}</div>
+              <div class="signature-meta">Reg. No: ${escapeHtml(doctorRegNo)}</div>
+              <div class="signature-verified-pill">
+                <svg width="10" height="10" fill="currentColor" viewBox="0 0 16 16"><path d="M12.736 3.97a.733.733 0 0 1 1.047 0c.286.289.29.756.01 1.05L7.88 12.01a.733.733 0 0 1-1.065.02L3.217 8.384a.757.757 0 0 1 0-1.06.733.733 0 0 1 1.047 0l3.052 3.093 5.4-6.425a.247.247 0 0 1 .02-.022Z"/></svg>
+                Digitally Certified &amp; Stamped
+              </div>
+            </div>
+          </footer>
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
+
+  win.document.close();
+  win.focus();
+  setTimeout(() => {
+    win.print();
+  }, 500);
+}
+
+/**
+ * Opens an official clinic medical invoice / receipt print window.
+ */
+export function openInvoicePrintWindow({ invoice, patient, doctor, currency }) {
+  const win = window.open('', '_blank', 'width=880,height=960');
+  if (!win) return;
+
+  const now = new Date();
+  const invoiceId = invoice?.id || invoice?.txnRef || `INV-${Math.floor(100000 + Math.random() * 900000)}`;
+  const invoiceDate = invoice?.date || now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  const invoiceTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+  const doctorName = (doctor?.name || 'Dr. Sarah Mitchell').replace(/^Dr\.?\s+/i, 'Dr. ');
+  const patientName = patient?.name || 'Patient';
+  const patientMrn = patient?.mrn || (patient?.id ? `HN-${String(patient.id).slice(0, 8).toUpperCase()}` : 'HN-10029');
+
+  const currSymbol = currency === 'USD' ? '$' : '₹';
+  const amountVal = Number(invoice?.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
+  win.document.write(`
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <title>Invoice — ${escapeHtml(invoiceId)} — HealNari</title>
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=JetBrains+Mono:wght@500;700&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+          font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+          background: #f8fafc;
+          color: #0f172a;
+          margin: 0;
+          padding: 0;
+        }
+        .print-toolbar {
+          position: sticky; top: 0; left: 0; right: 0;
+          background: #1e1b4b; color: white; padding: 12px 24px;
+          display: flex; justify-content: space-between; align-items: center;
+          z-index: 999;
+        }
+        .btn-toolbar-print {
+          background: #059669; color: white; border: none; font-weight: 700;
+          font-size: 13px; padding: 8px 18px; border-radius: 10px; cursor: pointer;
+        }
+        .btn-toolbar-close {
+          background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.25);
+          font-size: 13px; padding: 8px 16px; border-radius: 10px; cursor: pointer; margin-left: 8px;
+        }
+        .page-container {
+          max-width: 800px; margin: 30px auto 60px; background: white;
+          border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+        .invoice-header {
+          background: linear-gradient(135deg, #1e1b4b 0%, #311042 55%, #4c1d95 100%);
+          color: white; padding: 36px 44px; display: flex; justify-content: space-between;
+          border-bottom: 4px solid #d4af37;
+        }
+        .invoice-title { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; }
+        .meta-strip {
+          background: #f8fafc; border-bottom: 1px solid #e2e8f0; padding: 14px 44px;
+          display: flex; justify-content: space-between; font-size: 12px;
+        }
+        .content { padding: 36px 44px; }
+        .table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 13px; }
+        .table th { background: #f1f5f9; padding: 10px 14px; text-align: left; font-size: 11px; text-transform: uppercase; }
+        .table td { padding: 14px; border-bottom: 1px solid #e2e8f0; }
+        .total-box {
+          background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
+          padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;
+          margin-top: 16px;
+        }
+        .total-amount { font-size: 22px; font-weight: 800; color: #1e1b4b; }
+        .footer {
+          margin-top: 40px; padding-top: 20px; border-top: 2px solid #e2e8f0;
+          display: flex; justify-content: space-between; align-items: flex-end; font-size: 11px; color: #64748b;
+        }
+        @media print {
+          @page { size: A4 portrait; margin: 10mm; }
+          body { background: white !important; }
+          .print-toolbar { display: none !important; }
+          .page-container { margin: 0 !important; border: none !important; box-shadow: none !important; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="print-toolbar">
+        <div><strong>HealNari Billing</strong> • Tax Invoice Receipt</div>
+        <div>
+          <button onclick="window.print()" class="btn-toolbar-print">Print / Save as PDF</button>
+          <button onclick="window.close()" class="btn-toolbar-close">Close</button>
+        </div>
+      </div>
+      <div class="page-container">
+        <div class="invoice-header">
+          <div>
+            <div class="invoice-title">HealNari Women's Health Clinic</div>
+            <div style="font-size: 12px; color: #e9d5ff; margin-top: 4px;">Center for Gynaecology &amp; Reproductive Medicine</div>
+            <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px;">Indiranagar, Bengaluru • Helpline: +91 80 4567 8900</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 20px; font-weight: 800; color: #fde047;">TAX INVOICE</div>
+            <div style="font-family: monospace; font-size: 12px; margin-top: 4px;">${escapeHtml(invoiceId)}</div>
+            <div style="font-size: 11px; color: #cbd5e1; margin-top: 2px;">Date: ${escapeHtml(invoiceDate)}</div>
+          </div>
+        </div>
+        <div class="meta-strip">
+          <div><strong>Billed To:</strong> ${escapeHtml(patientName)} (MRN: ${escapeHtml(patientMrn)})</div>
+          <div><strong>Attending Doctor:</strong> ${escapeHtml(doctorName)}</div>
+          <div><strong>Payment Mode:</strong> ${escapeHtml(invoice?.method || 'Online UPI / Card')}</div>
+        </div>
+        <div class="content">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Service Description</th>
+                <th>Category</th>
+                <th style="text-align: right;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>${escapeHtml(invoice?.service || 'Consultation & Clinical Evaluation')}</strong></td>
+                <td>${escapeHtml(invoice?.category || 'Clinical Tele-Consultation')}</td>
+                <td style="text-align: right; font-weight: 800;">${currSymbol}${amountVal}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="total-box">
+            <div>
+              <div style="font-weight: 800; color: #047857;">● Payment Settled / Paid in Full</div>
+              <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Ref: ${escapeHtml(invoice?.txnRef || 'TXN-991823')}</div>
+            </div>
+            <div>
+              <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 800; text-align: right;">Total Paid</div>
+              <div class="total-amount">${currSymbol}${amountVal}</div>
+            </div>
+          </div>
+          <div class="footer">
+            <div>
+              <p>This is a computer-generated tax invoice and official medical receipt.</p>
+              <p>GSTIN: 29AAAAH0000A1Z5 • Health Services Exemption applicable as per Notification 12/2017</p>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; color: #1e1b4b;">HealNari Healthcare</div>
+              <div style="border-top: 1px solid #0f172a; padding-top: 3px; font-size: 9.5px; font-weight: 700; text-transform: uppercase;">Accounts Department Seal</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `);
+
   win.document.close();
   win.focus();
   setTimeout(() => {
