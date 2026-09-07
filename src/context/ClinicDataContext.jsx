@@ -87,7 +87,12 @@ export function ClinicDataProvider({ children }) {
       height: record?.height_cm || '—',
       weight: record?.weight_kg || '—',
       city: record?.city || '',
-      bmi: '—', bp: '—', pulse: '—', spo2: '—', temp: '—', bloodSugar: '—',
+      bp: data.vitals?.bp || record?.bp || '—',
+      pulse: data.vitals?.pulse || '—',
+      spo2: data.vitals?.spo2 || '—',
+      bloodSugar: data.vitals?.sugar || data.vitals?.fasting_glucose || '—',
+      temp: data.vitals?.temp || '—',
+      bmi: '—',
       allergies: record?.allergies || [],
       meds,
       reports: lab_reports.map(r => ({
@@ -304,12 +309,25 @@ export function ClinicDataProvider({ children }) {
       const w = parseFloat(updated.weight);
       if (!isNaN(w) && w > 0) payload.weightKg = w;
 
+      if (updated.bp && updated.bp !== '—' && typeof updated.bp === 'string' && updated.bp.trim()) {
+        payload.bp = updated.bp.trim();
+      }
+      if (updated.pulse && updated.pulse !== '—' && typeof updated.pulse === 'string' && updated.pulse.trim()) {
+        payload.pulse = updated.pulse.trim();
+      }
+      if (updated.spo2 && updated.spo2 !== '—' && typeof updated.spo2 === 'string' && updated.spo2.trim()) {
+        payload.spo2 = updated.spo2.trim();
+      }
+      if (updated.bloodSugar && updated.bloodSugar !== '—' && typeof updated.bloodSugar === 'string' && updated.bloodSugar.trim()) {
+        payload.bloodSugar = updated.bloodSugar.trim();
+      }
+
       const res = await apiFetch(`/patients/${updated.id}`, {
         method: 'PUT',
         body: payload
       });
       // Sync back
-      setPatients(prev => prev.map(p => (p.id === updated.id ? adaptPatient(res) : p)));
+      setPatients(prev => prev.map(p => (p.id === updated.id ? { ...adaptPatient(res), bp: updated.bp || p.bp, pulse: updated.pulse || p.pulse, spo2: updated.spo2 || p.spo2, bloodSugar: updated.bloodSugar || p.bloodSugar } : p)));
     } catch (err) {
       console.error(err);
       fetchData(); // rollback on error

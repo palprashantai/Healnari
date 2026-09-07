@@ -104,33 +104,45 @@ export class PatientsService {
   }
 
   private async assemble(profile: Profile, record: PatientRecord | null) {
-    const [medsRes, reportsRes, notesRes, paymentsRes] = await Promise.all([
-      this.supabase.admin
-        .from('prescriptions')
-        .select()
-        .is('deleted_at', null)
-        .eq('patient_id', profile.id)
-        .order('created_at', { ascending: false }),
-      this.supabase.admin
-        .from('lab_reports')
-        .select()
-        .is('deleted_at', null)
-        .eq('patient_id', profile.id)
-        .order('created_at', { ascending: false }),
-      this.supabase.admin
-        .from('clinical_notes')
-        .select()
-        .is('deleted_at', null)
-        .eq('patient_id', profile.id)
-        .order('created_at', { ascending: false }),
-      this.supabase.admin
-        .from('payments')
-        .select()
-        .eq('patient_id', profile.id)
-        .order('created_at', { ascending: false }),
-    ]);
+    const [medsRes, reportsRes, notesRes, paymentsRes, vitalsRes] =
+      await Promise.all([
+        this.supabase.admin
+          .from('prescriptions')
+          .select()
+          .is('deleted_at', null)
+          .eq('patient_id', profile.id)
+          .order('created_at', { ascending: false }),
+        this.supabase.admin
+          .from('lab_reports')
+          .select()
+          .is('deleted_at', null)
+          .eq('patient_id', profile.id)
+          .order('created_at', { ascending: false }),
+        this.supabase.admin
+          .from('clinical_notes')
+          .select()
+          .is('deleted_at', null)
+          .eq('patient_id', profile.id)
+          .order('created_at', { ascending: false }),
+        this.supabase.admin
+          .from('payments')
+          .select()
+          .eq('patient_id', profile.id)
+          .order('created_at', { ascending: false }),
+        this.supabase.admin
+          .from('vitals_logs')
+          .select()
+          .eq('patient_id', profile.id)
+          .order('logged_at', { ascending: false }),
+      ]);
     const prescriptions = medsRes.data || [];
     const notes = notesRes.data || [];
+    const latestVitals: Record<string, string> = {};
+    (vitalsRes.data || []).forEach((v: any) => {
+      if (v.vital_key && !latestVitals[v.vital_key]) {
+        latestVitals[v.vital_key] = v.value;
+      }
+    });
 
     // Attach the real prescribing/authoring doctor's name (+ specialty/reg no,
     // for a proper prescription letterhead) — some legacy rows have no
@@ -180,6 +192,7 @@ export class PatientsService {
           'Your Doctor',
       })),
       payments: paymentsRes.data || [],
+      vitals: latestVitals,
     };
   }
 
@@ -394,6 +407,39 @@ export class PatientsService {
         .from('patient_records')
         .update(recordPatch)
         .eq('patient_id', patientId);
+    }
+
+    if (body.bp) {
+      await this.supabase.admin.from('vitals_logs').insert({
+        patient_id: patientId,
+        vital_key: 'bp',
+        value: body.bp,
+        unit: 'mmHg',
+      });
+    }
+    if (body.pulse) {
+      await this.supabase.admin.from('vitals_logs').insert({
+        patient_id: patientId,
+        vital_key: 'pulse',
+        value: body.pulse,
+        unit: 'bpm',
+      });
+    }
+    if (body.spo2) {
+      await this.supabase.admin.from('vitals_logs').insert({
+        patient_id: patientId,
+        vital_key: 'spo2',
+        value: body.spo2,
+        unit: '%',
+      });
+    }
+    if (body.bloodSugar) {
+      await this.supabase.admin.from('vitals_logs').insert({
+        patient_id: patientId,
+        vital_key: 'sugar',
+        value: body.bloodSugar,
+        unit: 'mg/dL',
+      });
     }
 
     const { data: updatedProfile } = await this.supabase.admin

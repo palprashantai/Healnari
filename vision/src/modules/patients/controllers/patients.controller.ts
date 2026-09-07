@@ -144,6 +144,34 @@ export class UpdatePatientDto {
   @MaxLength(50)
   lifeStageMode?: string;
 
+  @ApiProperty({ required: false, example: '120/80' })
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null || value === '—' ? undefined : value))
+  @IsString()
+  @MaxLength(30)
+  bp?: string;
+
+  @ApiProperty({ required: false, example: '72' })
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null || value === '—' ? undefined : value))
+  @IsString()
+  @MaxLength(20)
+  pulse?: string;
+
+  @ApiProperty({ required: false, example: '98' })
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null || value === '—' ? undefined : value))
+  @IsString()
+  @MaxLength(20)
+  spo2?: string;
+
+  @ApiProperty({ required: false, example: '95' })
+  @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null || value === '—' ? undefined : value))
+  @IsString()
+  @MaxLength(30)
+  bloodSugar?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()

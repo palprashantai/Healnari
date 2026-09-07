@@ -2093,6 +2093,163 @@ function DietYogaModal({ isOpen, onClose, patient, activePlan, onSavePlan }) {
   );
 }
 
+/* ─── RECORD / UPDATE CLINICAL VITALS MODAL ───────────── */
+function RecordVitalsModal({ isOpen, onClose, patient, onSaveVitals }) {
+  const [bp, setBp] = useState('');
+  const [pulse, setPulse] = useState('');
+  const [spo2, setSpo2] = useState('');
+  const [bloodSugar, setBloodSugar] = useState('');
+  const [height, setHeight] = useState('');
+  const [weight, setWeight] = useState('');
+  const [blood, setBlood] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (patient && isOpen) {
+      setBp(patient.bp && patient.bp !== '—' ? patient.bp : '');
+      setPulse(patient.pulse && patient.pulse !== '—' ? String(patient.pulse) : '');
+      setSpo2(patient.spo2 && patient.spo2 !== '—' ? String(patient.spo2) : '');
+      setBloodSugar(patient.bloodSugar && patient.bloodSugar !== '—' ? String(patient.bloodSugar) : '');
+      setHeight(patient.height && patient.height !== '—' ? String(patient.height) : '');
+      setWeight(patient.weight && patient.weight !== '—' ? String(patient.weight) : '');
+      setBlood(patient.blood && patient.blood !== '—' ? patient.blood : '');
+    }
+  }, [patient, isOpen]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await onSaveVitals?.({
+        ...patient,
+        bp: bp.trim() || '—',
+        pulse: pulse.trim() || '—',
+        spo2: spo2.trim() || '—',
+        bloodSugar: bloodSugar.trim() || '—',
+        height: height.trim() || '—',
+        weight: weight.trim() || '—',
+        blood: blood.trim() || '—',
+      });
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Record Clinical Vitals — ${patient?.name || 'Patient'}`} size="md">
+      <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        <div className="bg-emerald-50/70 border border-emerald-200 text-emerald-900 rounded-xl p-3 text-xs flex items-center gap-2.5">
+          <i className="fas fa-heart-pulse text-emerald-600 text-sm flex-shrink-0"></i>
+          <span>Enter measured biometric readings. Unmeasured fields will display as &ldquo;Not Recorded&rdquo;.</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="font-bold text-slate-700 block mb-1">Blood Pressure (mmHg)</label>
+            <input
+              type="text"
+              placeholder="e.g. 120/80"
+              value={bp}
+              onChange={(e) => setBp(e.target.value)}
+              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+            />
+          </div>
+          <div>
+            <label className="font-bold text-slate-700 block mb-1">Pulse Rate (BPM)</label>
+            <input
+              type="text"
+              placeholder="e.g. 72"
+              value={pulse}
+              onChange={(e) => setPulse(e.target.value)}
+              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="font-bold text-slate-700 block mb-1">SpO2 Oxygen (%)</label>
+            <input
+              type="text"
+              placeholder="e.g. 98"
+              value={spo2}
+              onChange={(e) => setSpo2(e.target.value)}
+              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+            />
+          </div>
+          <div>
+            <label className="font-bold text-slate-700 block mb-1">Fasting Glucose (mg/dL)</label>
+            <input
+              type="text"
+              placeholder="e.g. 95"
+              value={bloodSugar}
+              onChange={(e) => setBloodSugar(e.target.value)}
+              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="font-bold text-slate-700 block mb-1">Height (cm)</label>
+            <input
+              type="number"
+              step="0.1"
+              placeholder="e.g. 165"
+              value={height}
+              onChange={(e) => setHeight(e.target.value)}
+              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+            />
+          </div>
+          <div>
+            <label className="font-bold text-slate-700 block mb-1">Weight (kg)</label>
+            <input
+              type="number"
+              step="0.1"
+              placeholder="e.g. 62"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+            />
+          </div>
+          <div>
+            <label className="font-bold text-slate-700 block mb-1">Blood Group</label>
+            <select
+              value={blood}
+              onChange={(e) => setBlood(e.target.value)}
+              className="w-full border border-slate-300 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-hidden bg-white"
+            >
+              <option value="">Unspecified</option>
+              {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((bg) => (
+                <option key={bg} value={bg}>{bg}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-3 border-t border-slate-200">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl shadow-sm transition-colors flex items-center gap-1.5"
+          >
+            {saving ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-check"></i>}
+            Save Vitals
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 /* ─── FULL PAGE EMR COMPONENT ───────────────────────── */
 function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
   const { user } = useAuth();
@@ -2146,6 +2303,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
   const [selectedLabDoc, setSelectedLabDoc] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showAiBrief, setShowAiBrief] = useState(false);
+  const [showRecordVitals, setShowRecordVitals] = useState(false);
 
   const holisticPlans = useMemo(() => {
     const list = [];
@@ -2288,6 +2446,56 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
   const totalPaid = (patient.payments || []).reduce((acc, curr) => (curr.status === 'Paid' ? acc + curr.amount : acc), 0);
   const totalPending = (patient.payments || []).reduce((acc, curr) => (curr.status === 'Pending' ? acc + curr.amount : acc), 0);
 
+  // Safely compute age from patient.age or patient.dob
+  const displayAge = useMemo(() => {
+    if (patient.age && patient.age !== '—') return `${patient.age} Yrs`;
+    if (patient.dob) {
+      const parsedDob = new Date(patient.dob);
+      if (!isNaN(parsedDob.getTime())) {
+        const calculated = Math.floor((new Date() - parsedDob) / 31557600000);
+        if (calculated > 0 && calculated < 130) return `${calculated} Yrs`;
+      }
+    }
+    return null;
+  }, [patient.age, patient.dob]);
+
+  // Case-insensitive active prescription counter
+  const activeRxCount = useMemo(() => {
+    if (!patient || !patient.meds) return 0;
+    const actives = patient.meds.filter((m) => String(m.status).toLowerCase() === 'active');
+    if (actives.length > 0) return actives.length;
+    return patient.meds.length;
+  }, [patient]);
+
+  // Vitals parsing and dynamic BMI calculations
+  const heightNum = parseFloat(patient.height);
+  const weightNum = parseFloat(patient.weight);
+  const hasHeight = !isNaN(heightNum) && heightNum > 0;
+  const hasWeight = !isNaN(weightNum) && weightNum > 0;
+
+  const computedBmi = useMemo(() => {
+    if (hasHeight && hasWeight && heightNum > 50 && weightNum > 10) {
+      const hM = heightNum / 100;
+      return (weightNum / (hM * hM)).toFixed(1);
+    }
+    return null;
+  }, [hasHeight, hasWeight, heightNum, weightNum]);
+
+  const bmiCategory = useMemo(() => {
+    if (!computedBmi) return null;
+    const val = parseFloat(computedBmi);
+    if (val < 18.5) return { label: 'Underweight', color: 'text-amber-700 bg-amber-50 border-amber-200' };
+    if (val <= 24.9) return { label: 'Optimal BMI', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
+    if (val <= 29.9) return { label: 'Overweight', color: 'text-amber-700 bg-amber-50 border-amber-200' };
+    return { label: 'High BMI', color: 'text-rose-700 bg-rose-50 border-rose-200' };
+  }, [computedBmi]);
+
+  const hasBp = Boolean(patient.bp && patient.bp !== '—');
+  const hasPulse = Boolean(patient.pulse && patient.pulse !== '—');
+  const hasSpo2 = Boolean(patient.spo2 && patient.spo2 !== '—');
+  const hasBloodSugar = Boolean(patient.bloodSugar && patient.bloodSugar !== '—');
+  const hasBmi = Boolean(patient.bmi && patient.bmi !== '—');
+
   return (
     <div className="space-y-4 animate-fade-in pb-12">
       {/* Navigation Breadcrumb Bar */}
@@ -2317,11 +2525,46 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                   </span>
                 )}
               </div>
-              <p className="text-aubergine-100 text-xs">
-                {patient.age} Yrs {patient.gender ? `• ${patient.gender}` : ''} • Blood Group <strong className="text-white font-black">{patient.blood}</strong> • {patient.phone}
-              </p>
-              <p className="text-aubergine-200 text-xs font-semibold flex items-center gap-1.5">
-                <i className="fas fa-stethoscope text-magenta-200"></i> {patient.diagnosis}
+              <div className="flex items-center gap-2 text-aubergine-100 text-xs flex-wrap pt-0.5">
+                {displayAge ? (
+                  <span className="bg-white/10 px-2.5 py-0.5 rounded-full border border-white/10 font-bold">
+                    {displayAge}
+                  </span>
+                ) : (
+                  <span className="bg-white/10 px-2.5 py-0.5 rounded-full border border-white/10 text-white/70">
+                    Age: Not Recorded
+                  </span>
+                )}
+                {patient.gender && patient.gender !== '—' && (
+                  <span className="bg-white/10 px-2.5 py-0.5 rounded-full border border-white/10">
+                    {patient.gender}
+                  </span>
+                )}
+                <span className="bg-white/10 px-2.5 py-0.5 rounded-full border border-white/10">
+                  {patient.blood && patient.blood !== '—' ? (
+                    <>Blood Group <strong className="text-white font-black">{patient.blood}</strong></>
+                  ) : (
+                    <span className="text-white/70">Blood: Not Recorded</span>
+                  )}
+                </span>
+                {patient.phone && (
+                  <span className="bg-white/10 px-2.5 py-0.5 rounded-full border border-white/10 flex items-center gap-1">
+                    <i className="fas fa-phone text-[10px] opacity-75"></i> {patient.phone}
+                  </span>
+                )}
+                {patient.city && (
+                  <span className="bg-white/10 px-2.5 py-0.5 rounded-full border border-white/10 flex items-center gap-1">
+                    <i className="fas fa-location-dot text-[10px] opacity-75"></i> {patient.city}
+                  </span>
+                )}
+              </div>
+              <p className="text-aubergine-200 text-xs font-semibold flex items-center gap-1.5 pt-0.5">
+                <i className="fas fa-stethoscope text-magenta-200"></i>
+                {patient.diagnosis && patient.diagnosis !== 'Pending' ? (
+                  <span>{patient.diagnosis}</span>
+                ) : (
+                  <span className="text-white/75 font-normal italic">No active diagnosis recorded</span>
+                )}
               </p>
             </div>
           </div>
@@ -2374,6 +2617,13 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
               <i className="fas fa-receipt"></i> Payment
             </button>
             <button
+              onClick={() => setShowRecordVitals(true)}
+              className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 shadow-sm active:scale-95"
+              title="Record or Update Patient Vitals & Measurements"
+            >
+              <i className="fas fa-heart-pulse"></i> Vitals
+            </button>
+            <button
               onClick={() => openPatientEmrPrintWindow({ patient, doctor: user, groupedRx })}
               title="Print Comprehensive Patient EMR & Health Record"
               aria-label="Print Patient EMR"
@@ -2388,15 +2638,15 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-4 border-t border-white/10 text-xs">
           <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
             <span className="text-white/60 text-[10px] block font-medium">Visits</span>
-            <span className="font-black text-white text-base">{patient.visits}</span>
+            <span className="font-black text-white text-base">{patient.visits || 0}</span>
           </div>
           <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
             <span className="text-white/60 text-[10px] block font-medium">Active Rx</span>
-            <span className="font-black text-white text-base">{patient.meds.filter((m) => m.status === 'Active').length}</span>
+            <span className="font-black text-white text-base">{activeRxCount}</span>
           </div>
           <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
             <span className="text-white/60 text-[10px] block font-medium">Reports</span>
-            <span className="font-black text-white text-base">{patient.reports.length}</span>
+            <span className="font-black text-white text-base">{patient.reports ? patient.reports.length : 0}</span>
           </div>
           <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
             <span className="text-white/60 text-[10px] block font-medium">Billed</span>
@@ -2404,7 +2654,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
           </div>
           <div className="bg-white/10 rounded-xl p-2.5 border border-white/10">
             <span className="text-white/60 text-[10px] block font-medium">Last Visit</span>
-            <span className="font-black text-white text-base">{patient.lastVisit}</span>
+            <span className="font-black text-white text-base">{patient.lastVisit || 'Initial Visit'}</span>
           </div>
         </div>
       </div>
@@ -2487,31 +2737,146 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
           <div className="space-y-5">
             {/* Vitals Cards */}
             <div>
-              <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider mb-2.5">Vitals</h3>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <h3 className="font-black text-slate-800 text-sm uppercase tracking-wider">Clinical Vitals & Measurements</h3>
+                </div>
+                <button
+                  onClick={() => setShowRecordVitals(true)}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200 text-xs font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <i className="fas fa-pen-to-square text-aubergine-600"></i> Record / Update Vitals
+                </button>
+              </div>
+
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <p className="text-slate-500 font-bold text-[10px] uppercase">Blood Pressure</p>
-                  <p className="font-black text-slate-900 text-lg mt-1">{patient.bp}</p>
-                  <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
-                    <i className="fas fa-circle-check"></i> Optimal BP Range
-                  </span>
+                {/* Blood Pressure */}
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  hasBp ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-50/70 border-dashed border-slate-300'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-slate-500 font-bold text-[10px] uppercase tracking-wider">Blood Pressure</p>
+                    <i className="fas fa-stethoscope text-slate-400 text-xs"></i>
+                  </div>
+                  <p className="font-black text-slate-900 text-xl mt-1.5">
+                    {hasBp ? (
+                      <>
+                        {patient.bp} <span className="text-[11px] font-medium text-slate-500">mmHg</span>
+                      </>
+                    ) : (
+                      <span className="text-slate-400 font-bold text-base">Not Recorded</span>
+                    )}
+                  </p>
+                  {hasBp ? (
+                    <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md font-bold inline-flex items-center gap-1 mt-2">
+                      <i className="fas fa-circle-check text-[9px]"></i> Recorded in EMR
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 font-medium inline-flex items-center gap-1 mt-2">
+                      <i className="fas fa-circle-minus text-[9px]"></i> Awaiting measurement
+                    </span>
+                  )}
                 </div>
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <p className="text-slate-500 font-bold text-[10px] uppercase">Body Mass Index (BMI)</p>
-                  <p className="font-black text-slate-900 text-lg mt-1">{patient.bmi} <span className="text-xs font-normal text-slate-500">({patient.weight})</span></p>
-                  <span className="text-[10px] text-slate-500 font-medium block mt-1">Height: {patient.height}</span>
+
+                {/* BMI & Weight / Height */}
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  hasBmi || computedBmi ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-50/70 border-dashed border-slate-300'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-slate-500 font-bold text-[10px] uppercase tracking-wider">Body Mass Index (BMI)</p>
+                    <i className="fas fa-weight-scale text-slate-400 text-xs"></i>
+                  </div>
+                  <p className="font-black text-slate-900 text-xl mt-1.5">
+                    {computedBmi || (hasBmi ? patient.bmi : null) ? (
+                      <>
+                        {computedBmi || patient.bmi}
+                        {hasWeight && (
+                          <span className="text-xs font-normal text-slate-500 ml-1.5">
+                            ({patient.weight}{!String(patient.weight).includes('kg') && !String(patient.weight).includes('Kg') ? ' kg' : ''})
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-slate-400 font-bold text-base">Not Recorded</span>
+                    )}
+                  </p>
+                  <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                    {bmiCategory ? (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${bmiCategory.color}`}>
+                        {bmiCategory.label}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 font-medium inline-flex items-center gap-1">
+                        <i className="fas fa-circle-minus text-[9px]"></i> Height/Weight required
+                      </span>
+                    )}
+                    {hasHeight && (
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        • {patient.height}{!String(patient.height).includes('cm') ? ' cm' : ''}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <p className="text-slate-500 font-bold text-[10px] uppercase">Pulse / SpO2</p>
-                  <p className="font-black text-slate-900 text-lg mt-1">{patient.pulse} <span className="text-xs font-normal text-slate-500">/ {patient.spo2}</span></p>
-                  <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
-                    <i className="fas fa-heart-pulse"></i> Normal Resting Rate
-                  </span>
+
+                {/* Pulse / SpO2 */}
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  hasPulse || hasSpo2 ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-50/70 border-dashed border-slate-300'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-slate-500 font-bold text-[10px] uppercase tracking-wider">Pulse / SpO2</p>
+                    <i className="fas fa-heart-pulse text-slate-400 text-xs"></i>
+                  </div>
+                  <p className="font-black text-slate-900 text-xl mt-1.5">
+                    {hasPulse || hasSpo2 ? (
+                      <>
+                        {hasPulse ? patient.pulse : '—'}
+                        <span className="text-xs font-normal text-slate-500"> bpm</span>
+                        {' / '}
+                        {hasSpo2 ? patient.spo2 : '—'}
+                        <span className="text-xs font-normal text-slate-500">%</span>
+                      </>
+                    ) : (
+                      <span className="text-slate-400 font-bold text-base">Not Recorded</span>
+                    )}
+                  </p>
+                  {hasPulse || hasSpo2 ? (
+                    <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md font-bold inline-flex items-center gap-1 mt-2">
+                      <i className="fas fa-heart-pulse text-[9px]"></i> Active Vitals
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 font-medium inline-flex items-center gap-1 mt-2">
+                      <i className="fas fa-circle-minus text-[9px]"></i> Awaiting pulse reading
+                    </span>
+                  )}
                 </div>
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <p className="text-slate-500 font-bold text-[10px] uppercase">Fasting Glucose</p>
-                  <p className="font-black text-slate-900 text-lg mt-1">{patient.bloodSugar}</p>
-                  <span className="text-[10px] text-amber-600 font-bold block mt-1">Monitored Metric</span>
+
+                {/* Fasting Glucose */}
+                <div className={`p-4 rounded-2xl border transition-all ${
+                  hasBloodSugar ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-50/70 border-dashed border-slate-300'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-slate-500 font-bold text-[10px] uppercase tracking-wider">Fasting Glucose</p>
+                    <i className="fas fa-droplet text-slate-400 text-xs"></i>
+                  </div>
+                  <p className="font-black text-slate-900 text-xl mt-1.5">
+                    {hasBloodSugar ? (
+                      <>
+                        {patient.bloodSugar} <span className="text-[11px] font-medium text-slate-500">mg/dL</span>
+                      </>
+                    ) : (
+                      <span className="text-slate-400 font-bold text-base">Not Recorded</span>
+                    )}
+                  </p>
+                  {hasBloodSugar ? (
+                    <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md font-bold inline-flex items-center gap-1 mt-2">
+                      <i className="fas fa-check text-[9px]"></i> Monitored Metric
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 font-medium inline-flex items-center gap-1 mt-2">
+                      <i className="fas fa-circle-minus text-[9px]"></i> No glucose log
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -3247,6 +3612,12 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
       <ViewRxDocModal rx={selectedRxDoc} patient={patient} labRequests={labRequests} isOpen={!!selectedRxDoc} onClose={() => setSelectedRxDoc(null)} />
       <ViewLabDocModal report={selectedLabDoc} patient={patient} isOpen={!!selectedLabDoc} onClose={() => setSelectedLabDoc(null)} />
       <ViewInvoiceModal invoice={selectedInvoice} patient={patient} isOpen={!!selectedInvoice} onClose={() => setSelectedInvoice(null)} />
+      <RecordVitalsModal
+        isOpen={showRecordVitals}
+        onClose={() => setShowRecordVitals(false)}
+        patient={patient}
+        onSaveVitals={onUpdatePatient}
+      />
     </div>
   );
 }
