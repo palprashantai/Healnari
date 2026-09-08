@@ -227,25 +227,29 @@ function DoctorAppointments() {
     mode: a.type === 'Video Consult' ? 'Video' : 'Clinic',
     status: a.status,
     notes: a.reason || '',
+    paid: Boolean(a.paymentId || a.payment_id),
   });
 
   const queue = useMemo(() => appointments
-    .filter(a => a.date === todayStr && ['Upcoming', 'Waiting', 'In Progress', 'Done'].includes(a.status) && (a.paymentId || a.payment_id || a.status === 'Done'))
+    .filter(a => a.date === todayStr && ['Upcoming', 'Approved', 'Waiting', 'In Progress', 'Done'].includes(a.status))
     .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
     .map(toRow)
     .map((r, i) => ({ ...r, token: `T-${String(i + 1).padStart(2, '0')}` })),
     [appointments, todayStr, ageByPatientId]);
 
-  const requests = useMemo(() => appointments.filter(a => ['Requested', 'Approved', 'HOLD'].includes(a.status)).map(toRow), [appointments, ageByPatientId]);
+  const requests = useMemo(() => appointments
+    .filter(a => ['Requested', 'HOLD'].includes(a.status))
+    .map(toRow),
+    [appointments, ageByPatientId]);
 
   const upcoming = useMemo(() => appointments
-    .filter(a => a.date > todayStr && ['Upcoming', 'Waiting', 'In Progress'].includes(a.status) && (a.paymentId || a.payment_id))
+    .filter(a => a.date > todayStr && ['Upcoming', 'Approved', 'Waiting', 'In Progress'].includes(a.status))
     .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
     .map(toRow),
     [appointments, todayStr, ageByPatientId]);
 
   const past = useMemo(() => appointments
-    .filter(a => (a.date < todayStr || a.status === 'Cancelled' || a.status === 'Done') && !['Requested', 'Approved', 'HOLD'].includes(a.status))
+    .filter(a => (a.date < todayStr || a.status === 'Cancelled' || a.status === 'Done') && !['Requested', 'HOLD'].includes(a.status))
     .map(toRow),
     [appointments, todayStr, ageByPatientId]);
 
@@ -689,9 +693,20 @@ function DoctorAppointments() {
                   <h4 className="font-extrabold text-slate-800 text-sm">{p.name}</h4>
                   <p className="text-[11px] text-slate-500">{p.age} • {p.type}</p>
                 </div>
-                <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
-                  {p.mode}
-                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                    {p.mode}
+                  </span>
+                  {p.paid ? (
+                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+                      Paid
+                    </span>
+                  ) : (
+                    <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                      Payment Pending
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="text-xs py-2 border-y border-slate-100 bg-slate-50/50 -mx-4 px-4 flex justify-between">
                 <div>
@@ -932,9 +947,20 @@ function DoctorAppointments() {
                   </td>
                   <td className="px-4 py-3 align-middle font-bold text-aubergine-700 text-[13px] whitespace-nowrap">{p.date} • {p.time}</td>
                   <td className="px-4 py-3 align-middle">
-                    <span className={`flex items-center gap-1.5 text-[11px] font-bold w-max px-2.5 py-1 rounded-lg ${p.mode === 'Video' ? 'bg-aubergine-50 text-aubergine-700' : 'bg-slate-50 text-slate-600'}`}>
-                      <i className={`fas ${p.mode === 'Video' ? 'fa-video' : 'fa-hospital'} text-[10px]`}></i> {p.mode}
-                    </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`flex items-center gap-1.5 text-[11px] font-bold w-max px-2.5 py-1 rounded-lg ${p.mode === 'Video' ? 'bg-aubergine-50 text-aubergine-700' : 'bg-slate-50 text-slate-600'}`}>
+                        <i className={`fas ${p.mode === 'Video' ? 'fa-video' : 'fa-hospital'} text-[10px]`}></i> {p.mode}
+                      </span>
+                      {p.paid ? (
+                        <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+                          <i className="fas fa-circle-check text-[9px]"></i> Paid
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-2xs">
+                          <i className="fas fa-clock text-[9px]"></i> Payment Pending
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 rounded-r-2xl align-middle text-right">
                     <div className="flex justify-end gap-2 items-center">

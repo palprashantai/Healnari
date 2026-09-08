@@ -42,17 +42,17 @@ export function HealNariLogo({ showTagline = false, size = "md", variant = "ligh
   }
 
   return (
-    <div className="flex flex-col">
-      <div className="flex items-center gap-2.5 group cursor-pointer">
+    <div className="flex flex-col shrink-0">
+      <div className="flex items-center gap-2 group cursor-pointer select-none">
         <HealNariLogoMark className={sizeClasses.icon} />
-        <div className="flex flex-col">
-          <span className={`font-black tracking-tight font-serif ${sizeClasses.text} ${isDark ? 'text-white' : 'text-[#2A1647]'}`}>
-            Heal<span className={isDark ? 'text-pink-400' : 'text-[#E23E8C]'}>Nar<span className="relative inline-block">ı<span className="absolute -top-[0.25em] left-1/2 -translate-x-1/2 text-[0.45em] leading-none select-none">♥</span></span></span>
+        <div className="flex flex-col shrink-0">
+          <span className={`font-black tracking-tight font-serif whitespace-nowrap inline-flex items-baseline ${sizeClasses.text} ${isDark ? 'text-white' : 'text-[#2A1647]'}`}>
+            Heal<span className={isDark ? 'text-pink-400' : 'text-[#E23E8C]'}>Nar<span className="relative inline-block whitespace-nowrap">ı<span className="absolute -top-[0.25em] left-1/2 -translate-x-1/2 text-[0.45em] leading-none select-none pointer-events-none">♥</span></span></span>
           </span>
         </div>
       </div>
       {showTagline && (
-        <span className={`font-semibold tracking-wider italic mt-0.5 ${sizeClasses.tagline} ${isDark ? 'text-aubergine-200' : 'text-aubergine-600'}`}>
+        <span className={`font-semibold tracking-wider italic mt-0.5 whitespace-nowrap ${sizeClasses.tagline} ${isDark ? 'text-aubergine-200' : 'text-aubergine-600'}`}>
           — AI Care, Every Woman, Every Stage —
         </span>
       )}

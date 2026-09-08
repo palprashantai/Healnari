@@ -5,6 +5,7 @@ import {
   InternalServerErrorException,
   Logger,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { SupabaseService } from '@/core/supabase/supabase.service';
@@ -30,7 +31,7 @@ const LAB_REPORTS_BUCKET = 'lab-reports';
 const ALLOWED_LAB_REPORT_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 
 @Injectable()
-export class RecordsService {
+export class RecordsService implements OnModuleInit {
   private readonly logger = new Logger(RecordsService.name);
 
   constructor(
@@ -38,6 +39,26 @@ export class RecordsService {
     private readonly notifications: NotificationsService,
     private readonly email: EmailService,
   ) {}
+
+  async onModuleInit() {
+    await this.ensureBucketExists();
+  }
+
+  private async ensureBucketExists() {
+    try {
+      const { data: buckets } = await this.supabase.admin.storage.listBuckets();
+      const exists = buckets?.some((b) => b.name === LAB_REPORTS_BUCKET);
+      if (!exists) {
+        await this.supabase.admin.storage.createBucket(LAB_REPORTS_BUCKET, {
+          public: true,
+          fileSizeLimit: 52428800, // 50MB
+        });
+        this.logger.log(`Created storage bucket "${LAB_REPORTS_BUCKET}"`);
+      }
+    } catch (err: any) {
+      this.logger.warn(`Could not ensure "${LAB_REPORTS_BUCKET}" bucket: ${err?.message}`);
+    }
+  }
 
   /** Doctor role alone isn't enough to read/write other people's PHI — the
    * account must also be admin-verified (see DoctorsService.verifyKyc). */
@@ -487,9 +508,18 @@ export class RecordsService {
       .slice(0, 60);
     const path = `${body.patientId}/${randomUUID()}-${sanitizedBase}.${ext}`;
 
-    const { error: uploadError } = await this.supabase.admin.storage
+    let { error: uploadError } = await this.supabase.admin.storage
       .from(LAB_REPORTS_BUCKET)
       .upload(path, file.buffer, { contentType: file.mimetype });
+
+    if (uploadError && uploadError.message?.toLowerCase().includes('bucket not found')) {
+      await this.ensureBucketExists();
+      const retry = await this.supabase.admin.storage
+        .from(LAB_REPORTS_BUCKET)
+        .upload(path, file.buffer, { contentType: file.mimetype });
+      uploadError = retry.error;
+    }
+
     if (uploadError) {
       this.logger.error(
         `Lab report upload to storage failed for patient ${body.patientId}: ${uploadError.message}`,

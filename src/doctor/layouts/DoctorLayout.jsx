@@ -169,11 +169,11 @@ function SidebarContent({ user, onClose, onItemHover }) {
   return (
     <div className="flex flex-col h-full bg-aubergine-900">
       {/* Logo */}
-      <div className="h-16 flex items-center px-6 shrink-0 pt-2">
-        <NavLink to="/doctor-dashboard" className="flex items-center">
+      <div className="h-16 flex items-center px-4 shrink-0 pt-2 gap-2 justify-between">
+        <NavLink to="/doctor-dashboard" className="flex items-center shrink-0">
           <HealNariLogo showTagline={false} size="sm" variant="dark" />
         </NavLink>
-        <span className="ml-auto text-[9px] text-aubergine-300 font-bold uppercase tracking-widest border border-aubergine-500/30 bg-aubergine-500/10 px-2 py-0.5 rounded-full shadow-inner">{capabilities.specialtyBadge}</span>
+        <span className="text-[8.5px] text-aubergine-200 font-bold uppercase tracking-wider border border-aubergine-500/30 bg-aubergine-500/20 px-2 py-0.5 rounded-full shadow-inner whitespace-nowrap shrink-0">{capabilities.specialtyBadge}</span>
       </div>
 
       {/* Doctor/Provider Badge */}
@@ -472,10 +472,9 @@ function DoctorLayout() {
         </header>
 
         {/* Persistent 2-Identifier Patient Header Bar (Clinical Safety).
-            Full detail (allergy/risk chips) only on patient-scoped screens — elsewhere
-            it collapses to one line so it stops outweighing the page's own content.
-            Hidden on /doctor-dashboard/telemedicine to give full screen to the active video/Rx studio. */}
-        {!location.pathname.startsWith('/doctor-dashboard/telemedicine') && (
+            Displayed exclusively on screens scoped to a patient chart (/patients, /prescriptions, /reports).
+            Hidden on /telemedicine and general overview/queue pages so it does not distract from queue workflows. */}
+        {isPatientScoped && !location.pathname.startsWith('/doctor-dashboard/telemedicine') && (
           <div className={`bg-gradient-to-r from-aubergine-900 via-slate-900 to-aubergine-900 text-white px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 text-xs z-10 border-b border-aubergine-800/40 shadow-xs transition-all w-full min-w-0 overflow-x-auto hide-scrollbar ${isPatientScoped ? 'py-1.5' : 'py-1'}`}>
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 overflow-hidden">
               <span className="bg-emerald-500/20 text-emerald-300 font-bold px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] border border-emerald-500/30 flex items-center gap-1 whitespace-nowrap shrink-0">
