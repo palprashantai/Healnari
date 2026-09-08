@@ -713,6 +713,31 @@ export function ClinicDataProvider({ children }) {
     try {
       const res = await apiFetch('/appointments/call-next', { method: 'POST' });
       setAppointments(res.map(adaptAppointment));
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }, []);
+
+  const checkInPatient = useCallback(async (appointmentId) => {
+    try {
+      const res = await apiFetch(`/appointments/${appointmentId}/check-in`, { method: 'POST' });
+      const adapted = adaptAppointment(res);
+      setAppointments(prev => prev.map(a => a.id === appointmentId ? adapted : a));
+      return adapted;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }, []);
+
+  const broadcastDelay = useCallback(async (delayMinutes) => {
+    try {
+      return await apiFetch('/appointments/queue/delay-broadcast', {
+        method: 'POST',
+        body: { delayMinutes },
+      });
     } catch (err) {
       console.error(err);
       throw err;
@@ -859,7 +884,7 @@ export function ClinicDataProvider({ children }) {
     patients, updatePatient, addPatient, addRx, amendRx, finalizeRx, cancelRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
     uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, refreshPatients: fetchData, fetchData,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment, rescheduleAppointment, refreshAppointments,
-    approveRequest, rejectRequest, callNextForDoctor,
+    approveRequest, rejectRequest, callNextForDoctor, checkInPatient, broadcastDelay,
     transactions, syncPayment,
     cycleLogs, logCycle,
     vitals, logVital,
@@ -873,7 +898,7 @@ export function ClinicDataProvider({ children }) {
     patients, updatePatient, addPatient, addRx, amendRx, finalizeRx, cancelRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
     uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, fetchData,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment, rescheduleAppointment, refreshAppointments,
-    approveRequest, rejectRequest, callNextForDoctor,
+    approveRequest, rejectRequest, callNextForDoctor, checkInPatient, broadcastDelay,
     transactions, syncPayment,
     cycleLogs, logCycle,
     vitals, logVital,

@@ -504,46 +504,67 @@ function DoctorLayout() {
         {/* Persistent 2-Identifier Patient Header Bar (Clinical Safety).
             Displayed exclusively on screens scoped to a patient chart (/patients, /prescriptions, /reports).
             Hidden on /telemedicine and general overview/queue pages so it does not distract from queue workflows. */}
-        {isPatientScoped && !location.pathname.startsWith('/doctor-dashboard/telemedicine') && (
-          <div className={`bg-gradient-to-r from-aubergine-900 via-slate-900 to-aubergine-900 text-white px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 text-xs z-10 border-b border-aubergine-800/40 shadow-xs transition-all w-full min-w-0 overflow-x-auto hide-scrollbar ${isPatientScoped ? 'py-1.5' : 'py-1'}`}>
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 overflow-hidden">
-              <span className="bg-emerald-500/20 text-emerald-300 font-bold px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-[11px] border border-emerald-500/30 flex items-center gap-1 whitespace-nowrap shrink-0">
-                <i className="fas fa-lock text-[8px] sm:text-[9px]"></i> <span className="hidden sm:inline">Active</span>
-              </span>
-              <div className="flex items-center gap-1.5 sm:gap-2 font-bold min-w-0 overflow-hidden">
-                <span className="text-white text-xs sm:text-sm tracking-wide font-medium whitespace-nowrap truncate">{activePatient.name}</span>
-                <span className="text-aubergine-300 font-mono text-[10px] sm:text-[11px] whitespace-nowrap shrink-0">[{activePatient.mrn}]</span>
-                {isPatientScoped && (
-                  <div className="hidden sm:flex items-center gap-2 min-w-0">
-                    <span className="text-slate-400 whitespace-nowrap text-[11px]">• DOB: {activePatient.dob} ({activePatient.age})</span>
-                    <span className="text-slate-400 whitespace-nowrap text-[11px]">• Blood: {activePatient.bloodGroup}</span>
-                  </div>
-                )}
+        {isPatientScoped && !location.pathname.startsWith('/doctor-dashboard/telemedicine') && (() => {
+          const hasRealAllergy = activePatient.allergies && activePatient.allergies.length > 0 && !activePatient.allergies.some(a => a.toLowerCase().includes('none') || a === '—');
+          const hasRealFlag = activePatient.alerts && activePatient.alerts.length > 0 && !activePatient.alerts.some(f => f.toLowerCase().includes('no active') || f.toLowerCase().includes('none') || f === '—');
+
+          return (
+            <div className={`bg-slate-900 text-slate-100 px-3 sm:px-4 md:px-6 flex items-center justify-between gap-3 text-xs z-10 border-b border-slate-800 shadow-xs transition-all w-full min-w-0 overflow-x-auto hide-scrollbar ${isPatientScoped ? 'py-2' : 'py-1.5'}`}>
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 overflow-hidden">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-md shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                  <span className="hidden sm:inline">Active EMR</span>
+                </span>
+                <div className="flex items-center gap-1.5 sm:gap-2.5 font-bold min-w-0 overflow-hidden">
+                  <span className="text-white text-xs sm:text-sm tracking-tight font-black whitespace-nowrap truncate">{activePatient.name}</span>
+                  <span className="text-slate-400 font-mono text-[11px] whitespace-nowrap shrink-0">[{activePatient.mrn}]</span>
+                  {isPatientScoped && (
+                    <div className="hidden sm:flex items-center gap-2 min-w-0 text-slate-400 text-xs font-medium">
+                      <span>•</span>
+                      <span>DOB: <strong className="text-slate-200 font-semibold">{activePatient.dob}</strong> ({activePatient.age})</span>
+                      <span>•</span>
+                      <span>Blood: <strong className="text-slate-200 font-semibold">{activePatient.bloodGroup}</strong></span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2 min-w-0 shrink-0">
-              {isPatientScoped && (
-                <>
-                  {/* Allergy Flag */}
-                  <div className="flex items-center gap-1 bg-rose-950/80 border border-rose-600/40 px-2 py-0.5 rounded-lg text-rose-300 font-medium text-[10px] sm:text-[11px] whitespace-nowrap">
-                    <i className="fas fa-hand-dots text-rose-400 text-[9px]"></i>
-                    <span className="hidden sm:inline font-bold">Allergies:</span> {activePatient.allergies.join(', ')}
-                  </div>
+              <div className="flex items-center gap-2.5 min-w-0 shrink-0">
+                {isPatientScoped && (
+                  <>
+                    {/* Allergy Display: Semantic red badge ONLY when real allergy exists */}
+                    {hasRealAllergy ? (
+                      <div className="flex items-center gap-1.5 bg-rose-950/90 border border-rose-500/50 px-2 py-0.5 rounded-md text-rose-300 font-bold text-[11px] whitespace-nowrap">
+                        <i className="fas fa-hand-dots text-rose-400 text-[10px]"></i>
+                        <span>Allergies: {activePatient.allergies.join(', ')}</span>
+                      </div>
+                    ) : (
+                      <div className="hidden md:flex items-center gap-1 text-slate-400 text-xs whitespace-nowrap font-medium">
+                        <span className="text-slate-500">Allergies:</span>
+                        <span>None recorded</span>
+                      </div>
+                    )}
 
-                  {/* Risk Flag */}
-                  <div className="hidden md:flex items-center gap-1 bg-amber-950/80 border border-amber-600/40 px-2 py-0.5 rounded-lg text-amber-300 font-medium text-[10px] sm:text-[11px] whitespace-nowrap">
-                    <i className="fas fa-triangle-exclamation text-amber-400 text-[9px]"></i>
-                    <span className="font-bold">Flag:</span> {activePatient.alerts[0]}
-                  </div>
-                </>
-              )}
+                    {/* Risk Flag: Semantic amber badge ONLY when real alert exists */}
+                    {hasRealFlag ? (
+                      <div className="flex items-center gap-1.5 bg-amber-950/90 border border-amber-500/50 px-2 py-0.5 rounded-md text-amber-300 font-bold text-[11px] whitespace-nowrap">
+                        <i className="fas fa-triangle-exclamation text-amber-400 text-[10px]"></i>
+                        <span>Flag: {activePatient.alerts[0]}</span>
+                      </div>
+                    ) : (
+                      <div className="hidden lg:flex items-center gap-1 text-slate-400 text-xs whitespace-nowrap font-medium">
+                        <span className="text-slate-500">Flags:</span>
+                        <span>None</span>
+                      </div>
+                    )}
+                  </>
+                )}
 
-              {/* Quick Switch */}
-              <div className="relative">
-                <button onClick={() => setActivePatientMenu(!activePatientMenu)} className="bg-white/10 hover:bg-white/20 text-white font-bold px-2 sm:px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] transition-colors flex items-center gap-1 border border-white/20 shrink-0">
-                  <i className="fas fa-clock-rotate-left text-[9px]"></i> <span className="hidden sm:inline">Recent</span>
-                </button>
+                {/* Quick Switch */}
+                <div className="relative">
+                  <button onClick={() => setActivePatientMenu(!activePatientMenu)} className="bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold px-2.5 py-1 rounded-lg text-xs transition-colors flex items-center gap-1.5 border border-slate-700 shrink-0">
+                    <i className="fas fa-clock-rotate-left text-[10px] text-slate-400"></i> <span className="hidden sm:inline">Recent</span>
+                  </button>
                 {activePatientMenu && (
                   <div className="absolute right-0 top-full mt-1 w-64 bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-fade-in">
                     <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -570,7 +591,8 @@ function DoctorLayout() {
               </div>
             </div>
           </div>
-        )}
+        );
+      })()}
 
         {/* Expandable Clinical Alert Drawer (Non-Modal for Zero Interruptive Context Switching) —
             urgent items only; routine pending labs live in the dashboard's own card. */}

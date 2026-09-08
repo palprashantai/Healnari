@@ -639,6 +639,23 @@ function AiDashboardCard({ navigate }) {
   );
 }
 
+/* ─── Numerical Time Parser (Prevents 10:00 AM sorting before 9:00 AM) ─── */
+const parseTimeToMinutes = (timeStr) => {
+  if (!timeStr) return 9999;
+  const clean = String(timeStr).trim();
+  const match = clean.match(/^(\d{1,2}):(\d{2})(?:\s*([AP]M))?$/i);
+  if (!match) return 9999;
+  let [_, hours, minutes, period] = match;
+  let h = parseInt(hours, 10);
+  const m = parseInt(minutes, 10);
+  if (period) {
+    const p = period.toUpperCase();
+    if (p === 'PM' && h < 12) h += 12;
+    if (p === 'AM' && h === 12) h = 0;
+  }
+  return h * 60 + m;
+};
+
 /* ─── Main Component ─── */
 function DoctorDashboard() {
   const { user } = useAuth();
@@ -654,13 +671,13 @@ function DoctorDashboard() {
   const queue = useMemo(() => {
     return appointments
       .filter(a => (!user?.id || a.doctorId === user?.id) && a.date === todayIso && ['Upcoming', 'Waiting', 'In Progress', 'Done'].includes(a.status) && (a.paymentId || a.payment_id || a.status === 'Done'))
-      .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
+      .sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time))
       .map((a, i) => {
         const patient = patients.find(p => p.id === a.patientId);
         const genderSuffix = patient?.gender ? (patient.gender.toLowerCase().startsWith('f') ? 'F' : patient.gender.toLowerCase().startsWith('m') ? 'M' : '') : '';
         return {
           id: a.id,
-          token: `T-${String(i + 1).padStart(2, '0')}`,
+          token: a.token || a.queue_token || `T-${String(i + 1).padStart(2, '0')}`,
           name: a.patientName,
           age: patient ? `${patient.age}${genderSuffix}` : '—',
           type: a.reason,
@@ -694,6 +711,33 @@ function DoctorDashboard() {
 
   const currentPatient = queue.find(q => q.status === 'In Progress');
   const nextPatient = queue.find(q => q.status === 'Waiting');
+
+  // Elapsed consultation duration timer
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    if (!currentPatient) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setElapsedSeconds(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [currentPatient?.id]);
+
+  const formatElapsed = (sec) => {
+    const mins = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${mins}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const urgentLabsCount = visibleLabs.filter(l => l.urgent).length;
+  const waitingPatientsCount = queue.filter(q => q.status === 'Waiting').length;
+  const pendingRefillsCount = refillRequests.length;
+  const criticalPatientsWithAlerts = queue.filter(q => q.concern).length;
+  const doneWithoutRxCount = queue.filter(q => q.status === 'Done' && (!q.patient?.prescriptions || q.patient.prescriptions.length === 0)).length;
+  const totalAttentionCount = urgentLabsCount + pendingRefillsCount + criticalPatientsWithAlerts + (doneWithoutRxCount > 0 && capabilities.canManageRefills ? 1 : 0);
 
   const callNext = async () => {
     if (!nextPatient) {
@@ -765,25 +809,25 @@ function DoctorDashboard() {
       value: queue.length, 
       sub: `${queue.filter(q => q.status !== 'Done' && q.status !== 'No Show').length} remaining`, 
       icon: 'fa-hospital-user', 
-      color: 'from-slate-600 to-slate-800', 
+      accent: 'text-aubergine-800 bg-aubergine-50 border-aubergine-200', 
       onClick: () => navigate('/doctor-dashboard/appointments') 
     },
     capabilities.canReviewLabs
-      ? { label: 'Lab Reviews', value: visibleLabs.length, sub: visibleLabs.some(l => l.urgent) ? '⚡ Urgent pending' : 'All reviewed', icon: 'fa-microscope', color: 'from-amber-500 to-orange-600', onClick: () => navigate('/doctor-dashboard/reports') }
+      ? { label: 'Lab Reviews', value: visibleLabs.length, sub: visibleLabs.some(l => l.urgent) ? '⚡ Urgent pending' : 'All reviewed', icon: 'fa-microscope', accent: visibleLabs.some(l => l.urgent) ? 'text-rose-700 bg-rose-50 border-rose-200' : 'text-slate-700 bg-slate-50 border-slate-200', onClick: () => navigate('/doctor-dashboard/reports') }
       : capabilities.canFormulateDiet
-      ? { label: 'Diet Protocols', value: 'Active', sub: 'Clinical meal charts', icon: 'fa-apple-whole', color: 'from-amber-500 to-orange-600', onClick: () => navigate('/doctor-dashboard/diet-yoga') }
-      : { label: 'Care Protocols', value: 'Active', sub: 'Custom treatment guides', icon: 'fa-heart-circle-check', color: 'from-amber-500 to-orange-600', onClick: () => navigate('/doctor-dashboard/diet-yoga') },
+      ? { label: 'Diet Protocols', value: 'Active', sub: 'Clinical meal charts', icon: 'fa-apple-whole', accent: 'text-amber-700 bg-amber-50 border-amber-200', onClick: () => navigate('/doctor-dashboard/diet-yoga') }
+      : { label: 'Care Protocols', value: 'Active', sub: 'Custom treatment guides', icon: 'fa-heart-circle-check', accent: 'text-amber-700 bg-amber-50 border-amber-200', onClick: () => navigate('/doctor-dashboard/diet-yoga') },
     capabilities.canManageRefills
-      ? { label: 'Refill Requests', value: refillRequests.length, sub: 'Awaiting approval', icon: 'fa-prescription-bottle-medical', color: 'from-teal-500 to-cyan-600', onClick: () => navigate('/doctor-dashboard/prescriptions') }
+      ? { label: 'Refill Requests', value: refillRequests.length, sub: 'Awaiting approval', icon: 'fa-prescription-bottle-medical', accent: refillRequests.length > 0 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-slate-700 bg-slate-50 border-slate-200', onClick: () => navigate('/doctor-dashboard/prescriptions') }
       : capabilities.canFormulateYoga
-      ? { label: 'Movement Protocols', value: 'Active', sub: 'Yoga & posture therapy', icon: 'fa-person-walking', color: 'from-teal-500 to-cyan-600', onClick: () => navigate('/doctor-dashboard/diet-yoga') }
-      : { label: 'Completed Today', value: queue.filter(q => q.status === 'Done').length, sub: 'Finished consultations', icon: 'fa-clipboard-check', color: 'from-teal-500 to-cyan-600', onClick: () => navigate('/doctor-dashboard/appointments') },
+      ? { label: 'Movement Protocols', value: 'Active', sub: 'Yoga & posture therapy', icon: 'fa-person-walking', accent: 'text-teal-700 bg-teal-50 border-teal-200', onClick: () => navigate('/doctor-dashboard/diet-yoga') }
+      : { label: 'Completed Today', value: queue.filter(q => q.status === 'Done').length, sub: 'Finished consultations', icon: 'fa-clipboard-check', accent: 'text-emerald-700 bg-emerald-50 border-emerald-200', onClick: () => navigate('/doctor-dashboard/appointments') },
     { 
       label: `Active ${capabilities.clientLabel}s`, 
       value: patients.filter(p => p.status === 'active').length, 
       sub: `${patients.length} total in roster`, 
       icon: 'fa-users', 
-      color: 'from-rose-500 to-red-600', 
+      accent: 'text-aubergine-800 bg-aubergine-50 border-aubergine-200', 
       onClick: () => navigate('/doctor-dashboard/patients') 
     },
   ];
@@ -791,78 +835,348 @@ function DoctorDashboard() {
   return (
     <div className="space-y-6 animate-fade-in pb-12">
 
-      {/* Clinical Command Header */}
-      <div className="relative rounded-3xl overflow-hidden border border-slate-200 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 shadow-xl text-white">
-        {/* EKG Decorative Strip */}
-        <div className="absolute bottom-0 left-0 right-0 h-16 text-emerald-400/20 pointer-events-none overflow-hidden">
-          <EkgLine />
+      {/* 1. CLINICAL ATTENTION REQUIRED TRIAGE BAR */}
+      {totalAttentionCount > 0 ? (
+        <div className="bg-amber-50/90 border border-amber-300/80 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3 animate-fade-in">
+          <div className="flex items-start md:items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center text-base flex-shrink-0 shadow-2xs">
+              <i className="fas fa-triangle-exclamation"></i>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-amber-900 bg-amber-200/70 px-2 py-0.5 rounded">
+                  Clinical Attention Required
+                </span>
+                <span className="text-xs font-bold text-amber-800">
+                  {totalAttentionCount} action item{totalAttentionCount > 1 ? 's' : ''} pending
+                </span>
+              </div>
+              <p className="text-xs text-amber-900/80 mt-0.5">
+                Immediate clinical, prescription, or visit sign-off actions waiting on you.
+              </p>
+            </div>
+          </div>
+
+          {/* Action Pills */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {urgentLabsCount > 0 && (
+              <button
+                onClick={() => {
+                  const u = visibleLabs.find(l => l.urgent);
+                  if (u) setUrgentLab(u);
+                }}
+                className="bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-2xs"
+              >
+                <i className="fas fa-microscope text-rose-600"></i>
+                <span>{urgentLabsCount} Urgent Lab Flag{urgentLabsCount > 1 ? 's' : ''}</span>
+              </button>
+            )}
+
+            {pendingRefillsCount > 0 && (
+              <button
+                onClick={() => navigate('/doctor-dashboard/prescriptions')}
+                className="bg-amber-200/80 hover:bg-amber-300 text-amber-900 border border-amber-400 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-2xs"
+              >
+                <i className="fas fa-prescription-bottle text-amber-700"></i>
+                <span>{pendingRefillsCount} Pending Refill{pendingRefillsCount > 1 ? 's' : ''}</span>
+              </button>
+            )}
+
+            {doneWithoutRxCount > 0 && capabilities.canManageRefills && (
+              <button
+                onClick={() => navigate('/doctor-dashboard/prescriptions')}
+                className="bg-indigo-100 hover:bg-indigo-200 text-indigo-900 border border-indigo-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-2xs"
+              >
+                <i className="fas fa-file-signature text-indigo-700"></i>
+                <span>{doneWithoutRxCount} Completed Visit{doneWithoutRxCount > 1 ? 's' : ''} Awaiting Rx</span>
+              </button>
+            )}
+
+            {criticalPatientsWithAlerts > 0 && (
+              <button
+                onClick={() => navigate('/doctor-dashboard/appointments')}
+                className="bg-red-100 hover:bg-red-200 text-red-800 border border-red-300 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-2xs"
+              >
+                <i className="fas fa-heart-pulse text-red-600"></i>
+                <span>{criticalPatientsWithAlerts} Patient Alert{criticalPatientsWithAlerts > 1 ? 's' : ''}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl px-4 py-3 flex items-center justify-between text-xs text-emerald-800 shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="font-bold">All Clinical Triage Indicators Normal</span>
+            <span className="text-emerald-700/80 hidden sm:inline">— No urgent lab flags, pending critical refills, or high vitals alerts in queue.</span>
+          </div>
+          <span className="text-[11px] font-bold text-emerald-700 bg-white border border-emerald-200 px-2.5 py-0.5 rounded-full">
+            OPD On Schedule
+          </span>
+        </div>
+      )}
+
+      {/* Doctor Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-aubergine-50 border border-aubergine-200 flex items-center justify-center text-aubergine-800 text-xl font-bold flex-shrink-0">
+            {capabilities.displayName?.replace('Dr. ', '')?.[0] || 'D'}
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                {greeting}, {capabilities.displayName}
+              </h1>
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Clinic Active
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              <span className="font-semibold text-slate-700">{capabilities.specialtyLabel}</span> · {todayLabel} · <span className="font-bold text-slate-800">{queue.filter(q => q.status !== 'Done' && q.status !== 'No Show').length}</span> {capabilities.clientLabel.toLowerCase()}(s) remaining today
+            </p>
+          </div>
         </div>
 
-        {/* Subtle grid overlay */}
-        <div className="absolute inset-0 opacity-5 pointer-events-none"
-          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-2xs"
+          >
+            <i className="fas fa-share-nodes text-aubergine-700"></i>
+            <span>Share Booking Link</span>
+          </button>
+          <button
+            onClick={callNext}
+            disabled={!nextPatient && !currentPatient}
+            className="bg-aubergine-800 hover:bg-aubergine-700 disabled:opacity-40 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-2xs"
+          >
+            <i className="fas fa-bullhorn"></i>
+            <span>Call Next {nextPatient?.token ? `(${nextPatient.token})` : ''}</span>
+          </button>
         </div>
+      </div>
 
-        <div className="relative z-10 p-4 sm:p-6 md:p-8">
-          {/* Top status bar */}
-          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-5 flex-wrap">
-            <div className="flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/30 rounded-full px-3 py-1">
-              <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
-              <span className="text-[10px] font-black text-emerald-300 uppercase tracking-widest">Clinic Active</span>
+      {/* 2. SIDE-BY-SIDE HERO: IN-SESSION & NEXT PATIENT */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        
+        {/* LEFT: Active In-Session Patient */}
+        <div className="bg-white rounded-2xl border border-slate-200 border-l-4 border-l-emerald-500 p-5 shadow-xs flex flex-col justify-between relative overflow-hidden">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-black tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full uppercase">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                In Consultation Now
+              </span>
+
+              {currentPatient && (
+                <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 flex items-center gap-1.5">
+                  <i className="fas fa-stopwatch text-emerald-600"></i>
+                  {formatElapsed(elapsedSeconds)}
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-2 bg-white/10 border border-white/10 rounded-full px-3 py-1">
-              <i className="fas fa-calendar-day text-slate-400 text-[10px]"></i>
-              <span className="text-[10px] font-bold text-slate-300">{todayLabel}</span>
-            </div>
-            {currentPatient && (
-              <div className="flex items-center gap-2 bg-amber-500/20 border border-amber-500/30 rounded-full px-3 py-1">
-                <i className="fas fa-user-clock text-amber-400 text-[10px]"></i>
-                <span className="text-[10px] font-bold text-amber-300">In Session: {currentPatient.name}</span>
+
+            {currentPatient ? (
+              <div className="pt-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-mono font-black text-aubergine-800 bg-aubergine-50 px-2 py-0.5 rounded border border-aubergine-200 inline-block mb-1">
+                      {currentPatient.token}
+                    </span>
+                    <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                      {currentPatient.name}
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {currentPatient.age ? `${currentPatient.age} yrs · ` : ''}{currentPatient.type || 'General OPD Consultation'}
+                    </p>
+                  </div>
+
+                  <div className="text-right">
+                    <span className="text-xs font-medium text-slate-500 block">Slot</span>
+                    <span className="text-xs font-bold font-mono text-slate-800">{currentPatient.time}</span>
+                  </div>
+                </div>
+
+                {/* Vitals or Clinical Alerts */}
+                <div className="flex items-center gap-2 mt-3 flex-wrap">
+                  {currentPatient.vital && (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
+                      <i className="fas fa-heart-pulse text-slate-500"></i>
+                      BP: {currentPatient.vital}
+                    </span>
+                  )}
+                  {currentPatient.concern && (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded-lg">
+                      <i className="fas fa-triangle-exclamation text-rose-500"></i>
+                      {currentPatient.concern}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="py-6 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200 text-slate-400 flex items-center justify-center mx-auto mb-2 text-xl">
+                  <i className="fas fa-door-open"></i>
+                </div>
+                <h3 className="text-sm font-bold text-slate-800">Consultation Room Empty</h3>
+                <p className="text-xs text-slate-400 max-w-xs mx-auto mt-0.5">
+                  No patient currently in session. Ready to begin next consultation.
+                </p>
               </div>
             )}
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-5 sm:gap-6">
-            <div>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight mb-2">
-                {greeting},
-                <span className="block text-emerald-400">{capabilities.displayName}.</span>
-              </h1>
-              <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
-                <span className="text-emerald-300 font-bold mr-2">{capabilities.specialtyLabel}</span> · 
-                <span className="text-white font-bold"> {queue.filter(q => q.status !== 'Done' && q.status !== 'No Show').length}</span> {capabilities.clientLabel.toLowerCase()}s remaining today
-                {queue.filter(q => q.status === 'Done').length > 0 && (
-                  <> · <span className="text-emerald-400 font-bold">{queue.filter(q => q.status === 'Done').length} completed</span></>
-                )}
-                {queue.some(q => q.concern) && (
-                  <> · <span className="text-amber-400 font-bold">{queue.filter(q => q.concern).length} with alerts</span></>
-                )}
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 w-full sm:w-auto">
+          <div className="pt-4 mt-4 border-t border-slate-100 flex items-center gap-2.5">
+            {currentPatient ? (
+              <>
+                <button
+                  onClick={() => navigate(`/doctor-dashboard/telemedicine?startCall=${currentPatient.id}`)}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-2xs"
+                >
+                  <i className="fas fa-video"></i>
+                  <span>Join Video Room</span>
+                </button>
+                <button
+                  onClick={() => setSelectedRow(currentPatient)}
+                  className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <i className="fas fa-file-medical text-aubergine-700"></i>
+                  <span>EMR Chart</span>
+                </button>
+                <button
+                  onClick={callNext}
+                  className="bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 text-slate-600 hover:text-rose-700 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1 transition-colors"
+                  title="Finish session and advance queue"
+                >
+                  <i className="fas fa-check"></i>
+                  <span className="hidden sm:inline">Finish</span>
+                </button>
+              </>
+            ) : nextPatient ? (
               <button
-                onClick={() => setShowShareModal(true)}
-                className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold px-3.5 py-2.5 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-md hover:scale-105 active:scale-95"
+                onClick={callNext}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-2xs"
               >
-                <i className="fas fa-share-nodes text-aubergine-300"></i>
-                <span>Share Booking Link</span>
+                <i className="fas fa-bullhorn"></i>
+                <span>Call Next: {nextPatient.name} ({nextPatient.token})</span>
               </button>
+            ) : (
+              <div className="w-full text-center py-1 text-xs font-bold text-slate-400">
+                Queue Clear · No Pending Patients
+              </div>
+            )}
+          </div>
+        </div>
 
-              <button
-                onClick={() => navigate(`/doctor-dashboard/telemedicine?startCall=${currentPatient.id}`)}
-                disabled={!currentPatient}
-                className="bg-emerald-500 disabled:opacity-40 hover:bg-emerald-400 text-white font-bold px-4 py-2.5 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/50">
-                <i className="fas fa-video"></i>
-                {currentPatient ? `Start Call — ${currentPatient.name.split(' ')[0]}` : 'No Active Patient'}
-              </button>
+        {/* RIGHT: Next Patient In Line */}
+        <div className="bg-white rounded-2xl border border-slate-200 border-l-4 border-l-amber-400 p-5 shadow-xs flex flex-col justify-between relative overflow-hidden">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-black tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full uppercase">
+                <i className="fas fa-user-clock text-amber-600"></i>
+                Next Up In Queue
+              </span>
+
+              {nextPatient && (
+                <span className="text-xs font-mono font-bold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+                  Scheduled: {nextPatient.time}
+                </span>
+              )}
             </div>
+
+            {nextPatient ? (
+              <div className="pt-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-mono font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 inline-block mb-1">
+                      {nextPatient.token}
+                    </span>
+                    <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                      {nextPatient.name}
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {nextPatient.age ? `${nextPatient.age} yrs · ` : ''}{nextPatient.type || 'Scheduled Consultation'}
+                    </p>
+                  </div>
+
+                  <span className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                    Checked In · Waiting
+                  </span>
+                </div>
+
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-xs text-slate-500">
+                    <i className="fas fa-circle-info text-slate-400 mr-1"></i>
+                    Patient notified & waiting in virtual waiting room.
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="py-6 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200 text-slate-400 flex items-center justify-center mx-auto mb-2 text-xl">
+                  <i className="fas fa-clipboard-check"></i>
+                </div>
+                <h3 className="text-sm font-bold text-slate-800">No Patients Waiting</h3>
+                <p className="text-xs text-slate-400 max-w-xs mx-auto mt-0.5">
+                  The OPD queue is clear. New check-ins will appear here immediately.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-4 mt-4 border-t border-slate-100 flex items-center gap-2.5">
+            {nextPatient ? (
+              <>
+                <button
+                  onClick={callNext}
+                  className="flex-1 bg-aubergine-800 hover:bg-aubergine-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-2xs"
+                >
+                  <i className="fas fa-door-open"></i>
+                  <span>Call Into Room</span>
+                </button>
+                <button
+                  onClick={() => setSelectedRow(nextPatient)}
+                  className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <i className="fas fa-file-lines text-slate-500"></i>
+                  <span>Preview File</span>
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => navigate('/doctor-dashboard/appointments')}
+                className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors"
+              >
+                <i className="fas fa-calendar-days text-slate-500"></i>
+                <span>View Full Schedule</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* AI Insight Strip */}
-      <AIInsightStrip queue={queue} labs={visibleLabs} refillRequests={refillRequests} />
+      {/* 3. UNIFIED CLINICAL METRICS */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {todayStats.map(stat => (
+          <div
+            key={stat.label}
+            onClick={stat.onClick}
+            className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 hover:border-aubergine-300 shadow-xs hover:shadow-sm cursor-pointer transition-all flex flex-col justify-between"
+          >
+            <div className="flex justify-between items-start">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${stat.accent}`}>
+                <i className={`fas ${stat.icon} text-sm`}></i>
+              </div>
+              <i className="fas fa-arrow-right text-[10px] text-slate-300"></i>
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">{stat.value}</div>
+              <div className="text-xs font-bold text-slate-700 mt-0.5">{stat.label}</div>
+              <div className="text-[11px] text-slate-400 mt-0.5">{stat.sub}</div>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* AI Clinical Assistant Discovery Card */}
       <AiDashboardCard navigate={navigate} />
@@ -896,25 +1210,6 @@ function DoctorDashboard() {
           </div>
         </div>
       )}
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {todayStats.map(stat => (
-          <div key={stat.label} onClick={stat.onClick}
-            className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg hover:border-transparent cursor-pointer transition-all group relative overflow-hidden">
-            <div className={`absolute inset-0 bg-gradient-to-br ${stat.color} opacity-0 group-hover:opacity-5 transition-opacity`}></div>
-            <div className="flex justify-between items-start mb-3">
-              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center text-white shadow-md`}>
-                <i className={`fas ${stat.icon} text-sm`}></i>
-              </div>
-              <i className="fas fa-arrow-right text-[10px] text-slate-300 group-hover:text-aubergine-400 group-hover:translate-x-0.5 transition-all"></i>
-            </div>
-            <div className="text-3xl font-black text-slate-800 mb-0.5">{stat.value}</div>
-            <div className="text-xs font-bold text-slate-600">{stat.label}</div>
-            <div className="text-[10px] text-slate-400 mt-0.5">{stat.sub}</div>
-          </div>
-        ))}
-      </div>
 
       {/* Main Bento Grid */}
       <div className="grid lg:grid-cols-3 gap-6">

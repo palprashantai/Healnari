@@ -422,6 +422,77 @@ function AdminDashboard() {
         }}
       />
 
+      {/* Operational Bottlenecks & Action Center Triage Bar */}
+      {totalAlertsCount > 0 ? (
+        <div className="bg-amber-50/90 border border-amber-300/80 rounded-2xl p-4.5 shadow-xs animate-fade-in">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-sm shadow-2xs">
+                <i className="fas fa-triangle-exclamation"></i>
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                  Operational Bottlenecks Pending
+                  <span className="bg-amber-200/80 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-full">
+                    {totalAlertsCount} Items Require Action
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  {verifications.length} physician board verifications, {refunds.length} pending refunds, and {tickets.length} support inquiries require resolution.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setActiveQueueTab('verifications')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeQueueTab === 'verifications'
+                    ? 'bg-aubergine-800 text-white shadow-2xs'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Board Queue ({verifications.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveQueueTab('refunds')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeQueueTab === 'refunds'
+                    ? 'bg-aubergine-800 text-white shadow-2xs'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Refunds ({refunds.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveQueueTab('tickets')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  activeQueueTab === 'tickets'
+                    ? 'bg-aubergine-800 text-white shadow-2xs'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Tickets ({tickets.length})
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl px-4 py-3 flex items-center justify-between text-xs text-emerald-800 shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="font-bold">Platform Operations Healthy</span>
+            <span className="text-emerald-700/80 hidden sm:inline">— 0 pending physician verifications, 0 refund disputes, all payment &amp; compliance rails running normally.</span>
+          </div>
+          <span className="text-[11px] font-bold text-emerald-700 bg-white border border-emerald-200 px-2.5 py-0.5 rounded-full">
+            All Systems Nominal
+          </span>
+        </div>
+      )}
+
       {/* Product Health & Marketplace Decision Engine */}
       {scorecard?.diagnosis && (
         <div className="bg-gradient-to-r from-slate-900 via-aubergine-950 to-slate-900 border border-aubergine-800/80 rounded-2xl p-5 shadow-lg text-white space-y-4">
@@ -499,7 +570,7 @@ function AdminDashboard() {
           value={(stats?.activeDoctors ?? 0).toLocaleString()}
           period="Active Verified Physicians"
           icon="fa-user-doctor"
-          colorScheme="emerald"
+          colorScheme="purple"
           badgeText={`${verifications.length} Pending`}
           drillDownLabel="Manage Doctors"
           onDrillDown={() => navigate('/admin-dashboard/doctors')}
@@ -512,7 +583,7 @@ function AdminDashboard() {
           unit={stats?.grossVolumeCurrency || reportingCurrency}
           period={`Consultations & AI Plans (${stats?.grossVolumeCurrency || reportingCurrency})`}
           icon="fa-money-bill-trend-up"
-          colorScheme="dark"
+          colorScheme="purple"
           badgeText={stats?.aiSubscriptionRevenue ? `+${formatCurrency(stats.aiSubscriptionRevenue, stats?.grossVolumeCurrency || reportingCurrency, { hideCode: true })} AI` : undefined}
           drillDownLabel="View Revenue"
           onDrillDown={() => navigate('/admin-dashboard/revenue')}
@@ -525,72 +596,12 @@ function AdminDashboard() {
           unit={stats?.platformRevenueCurrency || reportingCurrency}
           period={`Commission & 100% AI Plans (${stats?.platformRevenueCurrency || reportingCurrency})`}
           icon="fa-sack-dollar"
-          colorScheme="magenta"
+          colorScheme="purple"
           drillDownLabel="View Settlements"
           onDrillDown={() => navigate('/admin-dashboard/revenue')}
           loading={loading}
         />
       </div>
-
-      {/* Level 3: Action Center Alert Strip */}
-      {totalAlertsCount > 0 && (
-        <div className="bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-aubergine-500/10 border border-amber-200/80 rounded-2xl p-4.5 shadow-sm">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-black text-sm shadow-sm">
-                <i className="fas fa-bell animate-pulse"></i>
-              </div>
-              <div>
-                <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                  Action Center Bottlenecks
-                  <span className="bg-amber-100 text-amber-800 text-[10px] font-black px-2 py-0.5 rounded-full">
-                    {totalAlertsCount} Items Pending
-                  </span>
-                </h3>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  {verifications.length} physician board verifications, {refunds.length} pending refunds, and {tickets.length} support inquiries require resolution.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveQueueTab('verifications')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  activeQueueTab === 'verifications'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                Board Queue ({verifications.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveQueueTab('refunds')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  activeQueueTab === 'refunds'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                Refunds ({refunds.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveQueueTab('tickets')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  activeQueueTab === 'tickets'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                Tickets ({tickets.length})
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Level 2: Real-time Telemetry Trend & SLA Health */}
       <div className="grid lg:grid-cols-3 gap-6">

@@ -415,6 +415,215 @@ export const FOOD_RELATIONS = [
   'Before Food', 'After Food', 'With Food', 'Empty Stomach', 'Bedtime', 'Independent of Food'
 ];
 
+export const DEFAULT_MULTI_SPECIALTY_PROTOCOLS = [
+  {
+    id: 'P_GP_01',
+    name: 'General Practice: Acute URI & Fever Protocol',
+    shortName: 'Acute URI & Fever',
+    badge: 'General OPD',
+    description: 'First-line symptomatic relief for acute viral rhinitis, cough, and pharyngeal irritation.',
+    diagnosis: 'Acute Upper Respiratory Tract Infection (URI)',
+    meds: [
+      {
+        name: 'Tablet Paracetamol 650mg',
+        dosageForm: 'Tablet',
+        strength: '650mg',
+        route: 'Oral',
+        schedule: '1-0-1',
+        duration: '5 Days',
+        foodRelation: 'After Food',
+        timing: 'After Food',
+        instructions: 'Take after meals for fever or body ache',
+        isSos: true,
+      },
+      {
+        name: 'Tablet Levocetirizine 5mg',
+        dosageForm: 'Tablet',
+        strength: '5mg',
+        route: 'Oral',
+        schedule: '0-0-1',
+        duration: '5 Days',
+        foodRelation: 'Bedtime',
+        timing: 'Bedtime',
+        instructions: 'Take at night before sleep for nasal congestion',
+      },
+      {
+        name: 'Syrup Dextromethorphan HBr 100ml',
+        dosageForm: 'Syrup',
+        strength: '10mg/5ml',
+        route: 'Oral',
+        schedule: '1-1-1',
+        duration: '5 Days',
+        foodRelation: 'After Food',
+        timing: 'After Food',
+        instructions: '10ml thrice daily after meals',
+      },
+    ],
+  },
+  {
+    id: 'P_GP_02',
+    name: 'General Practice: Essential Hypertension First-Line',
+    shortName: 'Hypertension First-Line',
+    badge: 'Cardiometabolic',
+    description: 'Initial pharmacological management for Stage 1 essential hypertension with lifestyle guidance.',
+    diagnosis: 'Primary Essential Hypertension',
+    meds: [
+      {
+        name: 'Tablet Telmisartan 40mg',
+        dosageForm: 'Tablet',
+        strength: '40mg',
+        route: 'Oral',
+        schedule: '1-0-0',
+        duration: '30 Days',
+        foodRelation: 'Before Food',
+        timing: 'Morning',
+        instructions: 'Take morning with water. Monitor BP weekly.',
+      },
+      {
+        name: 'Tablet Amlodipine 5mg',
+        dosageForm: 'Tablet',
+        strength: '5mg',
+        route: 'Oral',
+        schedule: '0-0-1',
+        duration: '30 Days',
+        foodRelation: 'Bedtime',
+        timing: 'Bedtime',
+        instructions: 'Take at night. Check for pedal edema.',
+      },
+    ],
+  },
+  {
+    id: 'P_DERM_01',
+    name: 'Dermatology: Inflammatory Acne Vulgaris Regimen',
+    shortName: 'Acne Vulgaris Protocol',
+    badge: 'Dermatology',
+    description: 'Comprehensive topical and oral antimicrobial protocol for moderate papulopustular facial acne.',
+    diagnosis: 'Acne Vulgaris (Grade II/III Inflammatory)',
+    meds: [
+      {
+        name: 'Gel Clindamycin 1% + Nicotinamide 4%',
+        dosageForm: 'Cream',
+        strength: '1% / 4%',
+        route: 'Topical',
+        schedule: '1-0-1',
+        duration: '30 Days',
+        foodRelation: 'Independent of Food',
+        timing: 'Morning & Night',
+        instructions: 'Apply thin layer on washed dry skin twice daily.',
+      },
+      {
+        name: 'Capsule Doxycycline 100mg',
+        dosageForm: 'Capsule',
+        strength: '100mg',
+        route: 'Oral',
+        schedule: '1-0-0',
+        duration: '14 Days',
+        foodRelation: 'After Food',
+        timing: 'After Lunch',
+        instructions: 'Take with full glass of water. Avoid lying down for 30 mins.',
+      },
+    ],
+  },
+  {
+    id: 'P_GYN_01',
+    name: 'Gynecology: PCOS Metabolic & Cycle Regulation',
+    shortName: 'PCOS Metabolic Protocol',
+    badge: 'Endocrinology',
+    description: 'Insulin-sensitizing and ovulatory support regimen with vitamin D3 replenishment.',
+    diagnosis: 'Polycystic Ovary Syndrome (PCOS)',
+    meds: [
+      {
+        name: 'Sachet Myo-Inositol 2000mg + D-Chiro-Inositol 50mg',
+        dosageForm: 'Sachet',
+        strength: '2050mg',
+        route: 'Oral',
+        schedule: '1-0-1',
+        duration: '60 Days',
+        foodRelation: 'After Food',
+        timing: 'After Meals',
+        instructions: 'Dissolve in 200ml water after breakfast and dinner.',
+      },
+      {
+        name: 'Tablet Metformin Hydrochloride 500mg SR',
+        dosageForm: 'Tablet',
+        strength: '500mg',
+        route: 'Oral',
+        schedule: '0-0-1',
+        duration: '30 Days',
+        foodRelation: 'With Food',
+        timing: 'With Dinner',
+        instructions: 'Take with dinner to minimize gastrointestinal discomfort.',
+      },
+    ],
+  },
+  {
+    id: 'P_GYN_02',
+    name: 'Gynecology: Dysmenorrhea & Acute Spasm Relief',
+    shortName: 'Dysmenorrhea Relief',
+    badge: 'Women’s Health',
+    description: 'Rapid anti-spasmodic and prostaglandin-inhibiting protocol for acute menstrual pain.',
+    diagnosis: 'Primary Dysmenorrhea & Pelvic Pain',
+    meds: [
+      {
+        name: 'Tablet Mefenamic Acid 500mg + Dicyclomine 20mg',
+        dosageForm: 'Tablet',
+        strength: '520mg',
+        route: 'Oral',
+        schedule: '1-0-1',
+        duration: '3 Days',
+        foodRelation: 'After Food',
+        timing: 'After Meals',
+        instructions: 'Take after food during acute pelvic pain. Max 3 days.',
+        isSos: true,
+      },
+      {
+        name: 'Tablet Drotaverine HCl 80mg',
+        dosageForm: 'Tablet',
+        strength: '80mg',
+        route: 'Oral',
+        schedule: '1-0-1',
+        duration: '3 Days',
+        foodRelation: 'After Food',
+        timing: 'SOS',
+        instructions: 'Take if smooth muscle cramps persist.',
+        isSos: true,
+      },
+    ],
+  },
+  {
+    id: 'P_LIFE_01',
+    name: 'Lifestyle & Wellness: Metabolic Fatigue Recovery',
+    shortName: 'Fatigue & Recovery',
+    badge: 'Lifestyle',
+    description: 'Cellular energy and neuromuscular recovery protocol with bioavailable magnesium.',
+    diagnosis: 'Chronic Fatigue & Nutritional Depletion',
+    meds: [
+      {
+        name: 'Capsule CoQ10 100mg + Methylcobalamin 1500mcg',
+        dosageForm: 'Capsule',
+        strength: '100mg / 1500mcg',
+        route: 'Oral',
+        schedule: '1-0-0',
+        duration: '30 Days',
+        foodRelation: 'After Food',
+        timing: 'Morning',
+        instructions: 'Take in the morning with breakfast.',
+      },
+      {
+        name: 'Tablet Magnesium Glycinate 250mg',
+        dosageForm: 'Tablet',
+        strength: '250mg',
+        route: 'Oral',
+        schedule: '0-0-1',
+        duration: '30 Days',
+        foodRelation: 'Bedtime',
+        timing: 'Night',
+        instructions: 'Take 45 minutes before sleep with warm water.',
+      },
+    ],
+  },
+];
+
 function WriteRxPage({ onBack, onSave, patients, amendTarget = null }) {
   const { user } = useAuth();
   const toast = useToast();
@@ -493,8 +702,8 @@ function WriteRxPage({ onBack, onSave, patients, amendTarget = null }) {
   const [isLabDropdownOpen, setIsLabDropdownOpen] = useState(false);
   const [selectedLabCat, setSelectedLabCat] = useState('All');
 
-  // Dynamic Protocol Bundles (fetched from /api/records/protocols)
-  const [protocols, setProtocols] = useState([]);
+  // Dynamic Protocol Bundles (fetched from /api/records/protocols with guaranteed clinical fallback)
+  const [protocols, setProtocols] = useState(DEFAULT_MULTI_SPECIALTY_PROTOCOLS);
 
   const [activeDropdownIndex, setActiveDropdownIndex] = useState(null);
   const [showAddMedModal, setShowAddMedModal] = useState(false);
@@ -512,13 +721,19 @@ function WriteRxPage({ onBack, onSave, patients, amendTarget = null }) {
   const [savingCustomMed, setSavingCustomMed] = useState(false);
 
   useEffect(() => {
-    // Fetch protocol bundles from DB
+    // Fetch protocol bundles from DB with automatic fallback to pre-configured multi-specialty clinical bundles
     apiFetch('/records/protocols')
       .then(res => {
         const items = Array.isArray(res) ? res : (res?.data || []);
-        setProtocols(items);
+        if (items.length > 0) {
+          setProtocols(items);
+        } else {
+          setProtocols(DEFAULT_MULTI_SPECIALTY_PROTOCOLS);
+        }
       })
-      .catch(() => {});
+      .catch(() => {
+        setProtocols(DEFAULT_MULTI_SPECIALTY_PROTOCOLS);
+      });
 
     // Fetch medicine catalog
     apiFetch('/records/catalog?type=medicine')

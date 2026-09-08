@@ -1762,9 +1762,29 @@ function PatientDashboard() {
     apiFetch('/records/lab-report-requests').then(r => setPendingReportCount(r.filter(x => x.status === 'Pending').length)).catch(() => setPendingReportCount(0));
   }, []);
 
+  const parseTimeToMinutes = (timeStr) => {
+    if (!timeStr) return 9999;
+    const clean = String(timeStr).trim();
+    const match = clean.match(/^(\d{1,2}):(\d{2})(?:\s*([AP]M))?$/i);
+    if (!match) return 9999;
+    let [_, hours, minutes, period] = match;
+    let h = parseInt(hours, 10);
+    const m = parseInt(minutes, 10);
+    if (period) {
+      const p = period.toUpperCase();
+      if (p === 'PM' && h < 12) h += 12;
+      if (p === 'AM' && h === 12) h = 0;
+    }
+    return h * 60 + m;
+  };
+
   const upcomingAppointments = (appointments || [])
     .filter(a => ['Upcoming', 'Waiting', 'In Progress'].includes(a.status) && (a.paymentId || a.payment_id))
-    .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.time || '').localeCompare(b.time || ''));
+    .sort((a, b) => {
+      const dateCmp = (a.date || '').localeCompare(b.date || '');
+      if (dateCmp !== 0) return dateCmp;
+      return parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
+    });
   const nextAppointment = upcomingAppointments[0];
   const pendingPaymentApt = (appointments || []).find(a => (a.status === 'Approved' || a.status === 'HOLD') && !a.paymentId && !a.payment_id);
   const daysToNext = nextAppointment ? Math.max(0, daysUntil(nextAppointment.date)) : null;
@@ -1798,261 +1818,472 @@ function PatientDashboard() {
     toast(`Active Mode: ${LIFE_MODES.find(m => m.id === id)?.label}`, 'info');
   };
 
-  useEffect(() => {
-    const handler = () => setDiscreet(localStorage.getItem('discreet_mode') === 'true');
-    window.addEventListener('discreet_mode_changed', handler);
-    return () => window.removeEventListener('discreet_mode_changed', handler);
-  }, []);
-
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const todayLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
-
-  return (
+   return (
     <div className="space-y-6 animate-fade-in pb-12">
-      {/* Dynamic Header */}
-      <div className="relative rounded-3xl overflow-hidden shadow-soft border border-aubergine-100 p-4 sm:p-6 md:p-8 bg-gradient-to-br from-white via-white to-aubergine-50/60">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-magenta-100 via-aubergine-50 to-transparent rounded-full mix-blend-multiply opacity-70 transform translate-x-1/4 -translate-y-1/4 pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-aubergine-50 via-magenta-50 to-transparent rounded-full mix-blend-multiply opacity-60 transform -translate-x-1/4 translate-y-1/4 pointer-events-none"></div>
+      {/* Patient Clinical Greeting Header */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-[10px] font-mono font-bold tracking-wider text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 uppercase">
+              HealNari Patient Portal
+            </span>
+            <span className="text-xs text-slate-400 font-medium">• {todayLabel}</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            {greeting}, {user?.name?.split(' ')[0] || 'there'}.
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
+            Your personal health care summary and active clinical care plan.
+          </p>
+        </div>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={() => setShowCarePassModal(true)}
+            className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold px-3.5 py-2.5 rounded-xl transition-all shadow-xs text-xs flex items-center gap-2"
+            title="View your Emergency Care Card & QR Pass"
+          >
+            <i className="fas fa-id-card text-aubergine-700"></i>
+            <span>My Health Pass</span>
+          </button>
+          <button
+            onClick={() => setShowQuickBook(true)}
+            className="bg-aubergine-800 hover:bg-aubergine-700 text-white font-bold px-4 py-2.5 rounded-xl transition-all shadow-xs text-xs flex items-center gap-2"
+          >
+            <i className="fas fa-calendar-plus text-xs text-aubergine-200"></i>
+            <span>Book Consultation</span>
+          </button>
+        </div>
+      </div>
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5 sm:gap-6">
-          <div>
-            <p className="text-[10px] font-black text-aubergine-500 uppercase tracking-widest mb-1.5 sm:mb-2 flex items-center gap-1.5"><i className="fas fa-calendar-day"></i> {todayLabel}</p>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-serif-brand font-black text-slate-800 mb-2 tracking-tight">
-              {greeting}, {user?.name?.split(' ')[0] || 'there'}.
-            </h1>
-            <p className="text-slate-500 text-xs sm:text-sm max-w-md leading-relaxed">
-              {nextAppointment
-                ? <>Your next visit with Dr. {nextAppointment.doctorName} is <strong className="text-aubergine-700">{daysToNext === 0 ? 'today' : `in ${daysToNext} day${daysToNext === 1 ? '' : 's'}`}</strong>. Rest and recharge.</>
-                : fertilityData?.nextPeriodEstimate 
-                  ? <>Your next period is predicted in <strong className="text-rose-600">{daysUntil(fertilityData.nextPeriodEstimate)} days</strong>. You are in your {fertilityData.phase || 'current'} phase.</>
-                  : "Welcome to your daily health command center. Let's start tracking your cycle."}
-            </p>
-            {isTodayVisit && queueStatus?.position && (
-              <div className="mt-2.5 inline-flex items-center gap-2 bg-white/70 border border-aubergine-200 rounded-xl px-3 py-1.5 text-xs font-bold text-aubergine-800 shadow-sm">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                {queueStatus.status === 'In Progress'
-                  ? "You're up now — join the call"
-                  : queueStatus.peopleAhead === 0
-                    ? "You're next in the queue"
-                    : `#${queueStatus.position} in queue · ~${queueStatus.estimatedWaitMinutes} min estimated wait`}
+      {/* 1. NEXT APPOINTMENT HERO (Immediate Visibility) */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-aubergine-50 text-aubergine-800 border border-aubergine-200/80 flex items-center justify-center text-xl shrink-0">
+              <i className={nextAppointment?.type === 'Video Consult' ? 'fas fa-video' : 'fas fa-hospital-user'}></i>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-aubergine-50 text-aubergine-800 border border-aubergine-200">
+                  {nextAppointment ? 'Upcoming Consultation' : 'Clinical Consultation'}
+                </span>
+                {isTodayVisit && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Happening Today
+                  </span>
+                )}
               </div>
+              {nextAppointment ? (
+                <>
+                  <h2 className="text-xl font-bold text-slate-900">
+                    Dr. {nextAppointment.doctorName}
+                    <span className="text-sm font-normal text-slate-500 ml-2">({nextAppointment.reason || 'Specialist Consultation'})</span>
+                  </h2>
+                  <p className="text-xs text-slate-600 mt-1 flex items-center gap-3 flex-wrap">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <i className="fas fa-calendar text-slate-400"></i>
+                      {nextAppointment.date ? new Date(nextAppointment.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) : 'Today'}
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <i className="fas fa-clock text-slate-400"></i>
+                      {nextAppointment.time}
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <i className={nextAppointment.type === 'Video Consult' ? 'fas fa-video text-aubergine-600' : 'fas fa-location-dot text-slate-400'}></i>
+                      {nextAppointment.type || 'Video Consult'}
+                    </span>
+                  </p>
+                  {isTodayVisit && queueStatus?.position && (
+                    <div className="mt-2.5 inline-flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span className="font-bold">Queue Status:</span>
+                      <span>
+                        {queueStatus.status === 'In Progress'
+                          ? "Doctor is ready — please join the consultation"
+                          : queueStatus.peopleAhead === 0
+                          ? "You are next in line"
+                          : `#${queueStatus.position} in line (~${queueStatus.estimatedWaitMinutes || 10} min wait)`}
+                      </span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <h2 className="text-lg font-bold text-slate-900">No Upcoming Appointments</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Schedule a consultation with our verified specialists for personalized diagnosis and ongoing care.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            {nextAppointment ? (
+              <>
+                <button
+                  onClick={() => navigate(`/patient-dashboard/appointments?joinCall=${nextAppointment.id}`)}
+                  disabled={nextAppointment.type !== 'Video Consult' || daysToNext !== 0}
+                  className="bg-aubergine-800 hover:bg-aubergine-700 disabled:opacity-40 disabled:hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-xs"
+                >
+                  <i className="fas fa-video"></i>
+                  <span>{isTodayVisit ? 'Join Video Room' : 'View Appointment'}</span>
+                </button>
+                <button
+                  onClick={() => navigate('/patient-dashboard/appointments')}
+                  className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition-colors"
+                >
+                  All Visits
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setShowQuickBook(true)}
+                className="bg-aubergine-800 hover:bg-aubergine-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-xs"
+              >
+                <i className="fas fa-calendar-plus text-xs text-aubergine-200"></i>
+                <span>Book Appointment</span>
+              </button>
             )}
           </div>
-          <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 w-full sm:w-auto">
-            <button
-              onClick={() => setShowCarePassModal(true)}
-              className="bg-white/80 hover:bg-white border border-aubergine-200 text-aubergine-800 font-bold px-4 py-2.5 sm:py-3 rounded-2xl transition-all shadow-sm text-xs sm:text-sm flex items-center justify-center gap-2 btn-interactive w-full sm:w-auto"
-              title="View your Emergency Care Card & QR Pass"
-            >
-              <i className="fas fa-id-card text-aubergine-600"></i>
-              <span>My Health Pass</span>
-            </button>
-
-            <button onClick={() => navigate(`/patient-dashboard/appointments?joinCall=${nextAppointment.id}`)} disabled={!nextAppointment || nextAppointment.type !== 'Video Consult' || daysToNext !== 0}
-              className="bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:from-aubergine-700 hover:to-magenta-700 disabled:opacity-40 disabled:grayscale text-white font-bold px-5 sm:px-6 py-2.5 sm:py-3 rounded-2xl transition-all shadow-lg shadow-aubergine-500/20 text-xs sm:text-sm flex items-center justify-center gap-2 btn-interactive w-full sm:w-auto">
-              <i className="fas fa-video"></i> Join Call
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* 5-Stage Life Mode Switcher Bar */}
-      <div className="bg-white/80 backdrop-blur-md rounded-2xl p-2 border border-slate-200/80 shadow-sm flex items-center gap-1.5 overflow-x-auto hide-scrollbar">
-        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 px-3 flex-shrink-0">Life Stage:</span>
-        {LIFE_MODES.map(mode => {
-          const isActive = activeLifeMode === mode.id;
-          return (
-            <button
-              key={mode.id}
-              onClick={() => handleSelectLifeMode(mode.id)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all flex-shrink-0 ${
-                isActive
-                  ? 'bg-gradient-to-r from-aubergine-600 to-magenta-600 text-white shadow-md shadow-aubergine-500/20 scale-[1.02]'
-                  : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-100'
-              }`}
-              title={mode.desc}
-            >
-              <i className={`fas ${mode.icon} text-xs`}></i>
-              <span>{mode.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Profile Completion Alert */}
-      {!onboardingDone && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-lg shrink-0"><i className="fas fa-star"></i></div>
-            <div>
-              <p className="font-bold text-amber-900 text-sm">Personalize your HealNari experience</p>
-              <p className="text-xs text-amber-700">Complete your profile to get tailored insights.</p>
-            </div>
-          </div>
-          <button onClick={() => setShowOnboarding(true)} className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors whitespace-nowrap btn-interactive">
-            Complete Profile
-          </button>
+      {/* 2. YOUR NEXT STEPS (Task-Driven Action Center) */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+        <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2.5">
+          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <i className="fas fa-list-check text-aubergine-700"></i>
+            <span>Your Next Steps</span>
+          </h2>
+          <span className="text-xs text-slate-400 font-medium">Daily health tasks</span>
         </div>
-      )}
 
-      {/* AI Health Companion Discovery Card */}
-      <PatientAiDashboardCard navigate={navigate} />
-
-      {/* Pending Payment Alert Banner for Approved Consultations */}
-      {pendingPaymentApt && (
-        <div className="bg-gradient-to-r from-aubergine-50 via-purple-50 to-pink-50 border-2 border-aubergine-200 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-slide-up">
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-aubergine-600 text-white flex items-center justify-center text-lg shrink-0 shadow-md shadow-aubergine-600/20">
-              <i className="fas fa-credit-card"></i>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="font-extrabold text-aubergine-900 text-sm sm:text-base">Consultation Approved by Dr. {pendingPaymentApt.doctorName || 'Specialist'}</p>
-                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
-                  Payment Required
-                </span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Action 1: Pending Payment if applicable */}
+          {pendingPaymentApt ? (
+            <div
+              onClick={() => navigate('/patient-dashboard/appointments?tab=action_required')}
+              className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/50 hover:bg-amber-50 cursor-pointer transition-all flex flex-col justify-between"
+            >
+              <div className="flex items-start gap-2.5">
+                <i className="fas fa-credit-card text-amber-600 mt-0.5 text-sm"></i>
+                <div>
+                  <p className="text-xs font-bold text-amber-900">Confirm Appointment</p>
+                  <p className="text-[11px] text-amber-700 mt-0.5">Pay consultation fee for Dr. {pendingPaymentApt.doctorName || 'Specialist'}</p>
+                </div>
               </div>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Complete payment to lock in your confirmed appointment for {pendingPaymentApt.date ? new Date(pendingPaymentApt.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'your scheduled date'} at {pendingPaymentApt.time}.
-              </p>
+              <span className="text-[10px] font-bold text-amber-800 mt-2 self-end flex items-center gap-1">
+                Pay Now <i className="fas fa-arrow-right text-[8px]"></i>
+              </span>
             </div>
-          </div>
-          <button
-            onClick={() => navigate('/patient-dashboard/appointments?tab=action_required')}
-            className="bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:opacity-95 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm transition-all shadow-md shadow-aubergine-500/20 whitespace-nowrap btn-interactive flex items-center justify-center gap-2 shrink-0"
+          ) : !onboardingDone ? (
+            <div
+              onClick={() => setShowOnboarding(true)}
+              className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 cursor-pointer transition-all flex flex-col justify-between"
+            >
+              <div className="flex items-start gap-2.5">
+                <i className="fas fa-user-check text-aubergine-700 mt-0.5 text-sm"></i>
+                <div>
+                  <p className="text-xs font-bold text-slate-900">Health Profile</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Complete your medical background &amp; allergies.</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold text-aubergine-800 mt-2 self-end flex items-center gap-1">
+                Complete Profile <i className="fas fa-arrow-right text-[8px]"></i>
+              </span>
+            </div>
+          ) : (
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/40 flex items-start gap-2.5">
+              <i className="fas fa-check-circle text-emerald-600 mt-0.5 text-sm"></i>
+              <div>
+                <p className="text-xs font-bold text-slate-900">Profile Verified</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Medical background &amp; records up to date.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Action 2: Daily Medication */}
+          <div
+            onClick={() => navigate('/patient-dashboard/prescriptions')}
+            className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 cursor-pointer transition-all flex flex-col justify-between"
           >
-            <span>Pay &amp; Confirm</span>
-            <i className="fas fa-arrow-right text-xs"></i>
-          </button>
-        </div>
-      )}
-
-      {/* Bento Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-        {/* Row 1: Daily Foundations */}
-        <WellnessScoreWidget vitals={vitals} lifestyle={lifestyleLogs[dateKey]} waterCount={waterCount} moodLogged={!!(cycleLogs[dateKey]?.mood)} discreet={discreet} />
-        <HydrationTracker waterCount={waterCount} setWaterCount={setWaterCount} toast={toast} discreet={discreet} />
-        <DailyMedicationChecklist meds={own?.meds} requestRefill={requestRefill} toast={toast} discreet={discreet} />
-
-        {/* Row 2: Evidence-Based Health Focus Goals & Vitals */}
-        <HealthFocusGoalsWidget toast={toast} discreet={discreet} />
-        <div className="grid grid-rows-2 gap-6 lg:col-span-1">
-          <VitalsSnapshot vitals={vitals} discreet={discreet} navigate={navigate} />
-          <MoodEnergyLogger logCycle={logCycle} cycleLogs={cycleLogs} toast={toast} />
-        </div>
-
-        {/* Row 3: Personalized Nutrition & Mindful Movement */}
-        <PersonalizedNutritionWidget navigate={navigate} discreet={discreet} />
-        <MindfulMovementWidget toast={toast} discreet={discreet} />
-        
-        {/* Dynamic Mode Feature Card */}
-        {activeLifeMode === 'cycle' && <WeeklyCycleRibbon toast={toast} />}
-        {activeLifeMode === 'pcos' && <PcosMetabolicCard navigate={navigate} />}
-        {activeLifeMode === 'ttc' && <TtcFertilityCard navigate={navigate} />}
-        {activeLifeMode === 'pregnancy' && <PregnancyJourneyCard navigate={navigate} toast={toast} />}
-        {activeLifeMode === 'menopause' && <PerimenopauseCard navigate={navigate} />}
-
-        {/* Row 4: Well-being & Emotional Check-in + Prescribed Protocol */}
-        <WellbeingCheckinWidget toast={toast} discreet={discreet} />
-        <LifestylePlanWidget navigate={navigate} discreet={discreet} />
-
-        {/* Row 3 - Quick Actions & Appointments */}
-        <div className="lg:col-span-3 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 grid sm:grid-cols-2 gap-6">
-            <div onClick={() => setShowSymptomChecker(true)} className="glass-panel card-premium rounded-3xl p-6 group cursor-pointer flex flex-col justify-between">
-              <div className="w-12 h-12 bg-gradient-to-br from-rose-400 to-rose-600 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-rose-500/30 group-hover:scale-110 transition-transform"><i className="fas fa-heart-pulse text-xl"></i></div>
+            <div className="flex items-start gap-2.5">
+              <i className="fas fa-pills text-aubergine-700 mt-0.5 text-sm"></i>
               <div>
-                <h3 className="font-bold text-slate-800 mb-1">Symptom Checker</h3>
-                <p className="text-xs text-slate-500">Log your symptoms to your cycle record.</p>
-                <span className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold text-rose-600 uppercase tracking-wide group-hover:gap-2 transition-all">Start Check <i className="fas fa-arrow-right"></i></span>
+                <p className="text-xs font-bold text-slate-900">Today's Medications</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {own?.meds?.length ? `${own.meds.length} active prescriptions scheduled.` : 'No active medications required today.'}
+                </p>
               </div>
             </div>
+            <span className="text-[10px] font-bold text-aubergine-800 mt-2 self-end flex items-center gap-1">
+              View Schedule <i className="fas fa-arrow-right text-[8px]"></i>
+            </span>
+          </div>
 
-            <div onClick={() => setShowLabReports(true)} className="glass-panel card-premium rounded-3xl p-6 group cursor-pointer flex flex-col justify-between relative overflow-hidden">
-              {pendingReportCount > 0 && <span className="absolute top-4 right-4 bg-rose-500 text-white text-[10px] font-black px-2 py-1 rounded-full animate-bounce">{pendingReportCount} New</span>}
-              <div className="w-12 h-12 bg-gradient-to-br from-aubergine-500 to-magenta-600 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg shadow-aubergine-500/30 group-hover:scale-110 transition-transform"><i className="fas fa-flask text-xl"></i></div>
+          {/* Action 3: Diagnostic Lab Results */}
+          <div
+            onClick={() => setShowLabReports(true)}
+            className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 cursor-pointer transition-all flex flex-col justify-between"
+          >
+            <div className="flex items-start gap-2.5">
+              <i className="fas fa-flask text-aubergine-700 mt-0.5 text-sm"></i>
               <div>
-                <h3 className="font-bold text-slate-800 mb-1">Lab Reports</h3>
-                <p className="text-xs text-slate-500">Upload & track your reports.</p>
-                <span className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-bold text-aubergine-700 uppercase tracking-wide group-hover:gap-2 transition-all">View Results <i className="fas fa-arrow-right"></i></span>
+                <p className="text-xs font-bold text-slate-900">Diagnostic Reports</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  {pendingReportCount > 0 ? `${pendingReportCount} report(s) ready for review.` : 'Upload lab tests or track pending results.'}
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-aubergine-800 mt-2 self-end flex items-center gap-1">
+              {pendingReportCount > 0 ? 'Review Results' : 'Manage Reports'} <i className="fas fa-arrow-right text-[8px]"></i>
+            </span>
+          </div>
+
+          {/* Action 4: Symptom & Wellness Log */}
+          <div
+            onClick={() => setShowSymptomChecker(true)}
+            className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 cursor-pointer transition-all flex flex-col justify-between"
+          >
+            <div className="flex items-start gap-2.5">
+              <i className="fas fa-clipboard-user text-aubergine-700 mt-0.5 text-sm"></i>
+              <div>
+                <p className="text-xs font-bold text-slate-900">Daily Health Log</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Log today's symptoms, vitals, or energy.</p>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-aubergine-800 mt-2 self-end flex items-center gap-1">
+              Log Today <i className="fas fa-arrow-right text-[8px]"></i>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. TWO-COLUMN CLINICAL OVERVIEW */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* LEFT COLUMN: Care Plan & Today's Diet */}
+        <div className="space-y-6">
+          {/* Current Care Plan */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-4 pb-2.5 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <h3 className="font-bold text-slate-900 text-sm">Active Care Plan</h3>
+              </div>
+              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                Under Clinical Supervision
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">
+                      {own?.diagnosis && own.diagnosis !== 'Pending' ? own.diagnosis : 'Comprehensive Healthcare Protocol'}
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Attending: {nextAppointment?.doctorName ? `Dr. ${nextAppointment.doctorName}` : 'HealNari Clinical Team'}
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded">
+                    MRN #{own?.mrn || user?.id?.slice(0, 8) || 'EMR-SYNC'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-200 text-center">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Care Stage</span>
+                    <span className="text-xs font-bold text-slate-800">Active Phase</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Next Review</span>
+                    <span className="text-xs font-bold text-slate-800">{daysToNext !== null ? `in ${daysToNext}d` : 'Scheduled'}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Adherence</span>
+                    <span className="text-xs font-bold text-emerald-700">Good</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => navigate('/patient-dashboard/lifestyle')}
+                  className="flex-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold py-2 rounded-xl text-xs transition-colors text-center"
+                >
+                  View Care Protocol
+                </button>
+                <button
+                  onClick={() => openLifestylePlanPrintWindow({
+                    patientName: user?.name || own?.name || 'Patient',
+                    age: own?.age || 28,
+                    gender: 'Female',
+                    doctorName: nextAppointment?.doctorName || 'Dr. Sarah Mitchell',
+                    date: todayLabel,
+                    dietPlan: 'Low-glycemic anti-inflammatory nutrition protocol with balanced micro-nutrients.',
+                    exercisePlan: 'Daily 30-minute moderate walking and restorative yoga.',
+                  })}
+                  className="px-3 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-xl text-xs font-bold transition-colors"
+                  title="Print Clinical Care Plan"
+                >
+                  <i className="fas fa-print"></i>
+                </button>
               </div>
             </div>
           </div>
 
-          <div className="glass-panel rounded-3xl p-6">
-            <h3 className="font-bold text-slate-800 text-sm mb-4 flex items-center justify-between">
-              <span className="flex items-center gap-2"><i className="fas fa-calendar-check text-emerald-500"></i> Upcoming Visits</span>
-              <button onClick={() => setShowQuickBook(true)} className="text-[10px] font-bold bg-aubergine-50 text-aubergine-700 hover:bg-aubergine-100 px-3 py-1.5 rounded-full transition-colors">+ Book</button>
-            </h3>
-            <div className="space-y-3">
-              {upcomingAppointments.slice(0, 2).map(apt => (
-                <div key={apt.id} className="p-3 rounded-xl border border-slate-100 bg-white hover:border-aubergine-200 transition-colors cursor-pointer shadow-sm group"
-                  onClick={() => navigate('/patient-dashboard/appointments')}>
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h4 className="font-bold text-sm text-slate-800 group-hover:text-aubergine-700 transition-colors">Dr. {apt.doctorName}</h4>
-                      <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wide">{apt.reason || 'Consultation'}</p>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-[9px] font-black tracking-wide ${apt.type === 'Video Consult' ? 'bg-aubergine-50 text-aubergine-700' : 'bg-slate-100 text-slate-600'}`}>
-                      {apt.type === 'Video Consult' ? 'VIDEO' : 'CLINIC'}
+          {/* Today's Diet Plan */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
+              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <i className="fas fa-utensils text-aubergine-700"></i>
+                <span>Today's Nutrition Plan</span>
+              </h3>
+              <span className="text-xs font-bold text-slate-500">2 / 4 tracked</span>
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              {[
+                { meal: 'Breakfast', desc: 'Protein-rich oats with soaked chia & pumpkin seeds', done: true },
+                { meal: 'Lunch', desc: 'Low-GI quinoa bowl with steamed greens & tofu/paneer', done: true },
+                { meal: 'Afternoon Snack', desc: 'Herbal spearmint infusion with handful of roasted walnuts', done: false },
+                { meal: 'Dinner', desc: 'Light warm lentil soup with stir-fried seasonal vegetables', done: false },
+              ].map((m) => (
+                <div key={m.meal} className={`p-2.5 rounded-xl border flex items-center justify-between ${
+                  m.done ? 'bg-slate-50/60 border-slate-200 text-slate-500' : 'bg-white border-slate-200 text-slate-800'
+                }`}>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] ${
+                      m.done ? 'bg-emerald-500 text-white' : 'border border-slate-300 text-transparent'
+                    }`}>
+                      <i className="fas fa-check"></i>
                     </span>
-                  </div>
-                  <div className="flex items-center gap-3 text-[11px] text-slate-600 font-medium">
-                    <span className="flex items-center gap-1.5"><i className="fas fa-calendar text-aubergine-400"></i>{apt.date ? new Date(apt.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : '—'}</span>
-                    <span className="flex items-center gap-1.5"><i className="fas fa-clock text-aubergine-400"></i>{apt.time}</span>
+                    <div className="truncate">
+                      <span className="font-bold text-slate-900 mr-2">{m.meal}:</span>
+                      <span className="text-slate-600">{m.desc}</span>
+                    </div>
                   </div>
                 </div>
               ))}
-              {upcomingAppointments.length === 0 && (
+            </div>
+
+            <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex justify-between items-center text-xs">
+              <span className="text-slate-500">Clinical macro goal: <strong>Low Glycemic</strong></span>
+              <button
+                onClick={() => navigate('/patient-dashboard/lifestyle')}
+                className="text-aubergine-800 hover:text-aubergine-900 font-bold"
+              >
+                Full Meal Chart →
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: Active Medications & Lab Results */}
+        <div className="space-y-6">
+          {/* Active Prescriptions */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
+              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <i className="fas fa-prescription-bottle-medical text-aubergine-700"></i>
+                <span>Active Medications</span>
+              </h3>
+              <button
+                onClick={() => navigate('/patient-dashboard/prescriptions')}
+                className="text-xs font-bold text-aubergine-800 hover:underline"
+              >
+                View All ({own?.meds?.length || 0})
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              {own?.meds && own.meds.length > 0 ? (
+                own.meds.slice(0, 3).map((m) => (
+                  <div key={m.id || m.medName} className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between gap-3 text-xs">
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">{m.medName}</h4>
+                      <p className="text-slate-500 text-xs mt-0.5">
+                        {m.dosage || 'Standard dose'} • {m.frequency || 'Daily'} • {m.timing || 'After food'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (requestRefill && own?.id) {
+                          requestRefill(own.id, m.id);
+                          toast(`Refill request sent for ${m.medName}`, 'success');
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 whitespace-nowrap shadow-2xs"
+                    >
+                      Refill
+                    </button>
+                  </div>
+                ))
+              ) : (
                 <div className="text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  <p className="text-xs text-slate-500 font-medium">No upcoming visits.</p>
+                  <i className="fas fa-pills text-2xl text-slate-300 mb-1 block"></i>
+                  <p className="text-xs text-slate-500 font-medium">No active medications prescribed.</p>
                 </div>
               )}
             </div>
           </div>
-          {/* Digital Care Pass & Emergency QR Card */}
-          <div className="glass-panel rounded-3xl p-6 bg-gradient-to-br from-aubergine-900 via-slate-900 to-aubergine-950 text-white relative overflow-hidden shadow-lg border border-purple-500/30 space-y-4">
-            <div className="absolute top-0 right-0 -mr-6 -mt-6 w-24 h-24 bg-pink-500/20 rounded-full blur-2xl pointer-events-none"></div>
 
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
-                Emergency Health Pass
-              </span>
-              <i className="fas fa-qrcode text-purple-300 text-sm"></i>
-            </div>
-
-            <div>
-              <h3 className="font-black text-sm text-white">My Emergency Care Pass</h3>
-              <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">
-                Instant access to your verified medical QR, blood group, drug allergies, and doctor referral pass.
-              </p>
-            </div>
-
-            <div className="flex gap-2">
+          {/* Diagnostic Lab Results */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
+              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <i className="fas fa-vial-virus text-aubergine-700"></i>
+                <span>Diagnostic Lab Results</span>
+              </h3>
               <button
-                onClick={() => setShowCarePassModal(true)}
-                className="flex-1 bg-gradient-to-r from-aubergine-600 to-magenta-600 hover:from-aubergine-500 hover:to-magenta-500 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
+                onClick={() => setShowLabReports(true)}
+                className="text-xs font-bold text-aubergine-800 hover:underline"
               >
-                <i className="fas fa-id-card text-xs"></i> View Health Pass
+                Manage Reports
               </button>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold text-slate-900">
+                  {pendingReportCount > 0 ? `${pendingReportCount} New Report(s) Available` : 'All Diagnostic Tests Synchronized'}
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Hormonal panel, metabolic markers, and routine blood tests.
+                </p>
+              </div>
               <button
-                onClick={() => {
-                  const text = `🏥 HealNari Health Pass for ${user?.name || 'Patient'}\nBlood Group: ${own?.bloodGroup || 'B+'}\nAllergies: ${own?.allergies?.join(', ') || 'NKDA'}\nHelpline: +91 98765 43210`;
-                  navigator.clipboard.writeText(text).then(() => {
-                    toast('Emergency medical summary copied!', 'success');
-                  });
-                }}
-                className="bg-white/10 hover:bg-white/20 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition-colors flex items-center justify-center gap-1"
-                title="Copy emergency medical summary"
+                onClick={() => setShowLabReports(true)}
+                className="bg-aubergine-800 hover:bg-aubergine-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-colors shadow-2xs"
               >
-                <i className="fas fa-copy"></i>
+                {pendingReportCount > 0 ? 'Review' : 'Upload'}
               </button>
             </div>
           </div>
         </div>
+      </div>
 
+      {/* 4. HEALTH PROGRESS & DAILY FOUNDATIONS */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">Health Progress &amp; Adherence</h2>
+            <p className="text-xs text-slate-500">Self-monitoring and vital indicators.</p>
+          </div>
+          <span className="text-xs font-bold text-slate-400">Past 7 Days</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <HydrationTracker waterCount={waterCount} setWaterCount={setWaterCount} toast={toast} discreet={discreet} />
+          <VitalsSnapshot vitals={vitals} discreet={discreet} navigate={navigate} />
+          <MoodEnergyLogger logCycle={logCycle} cycleLogs={cycleLogs} toast={toast} />
+          <WellnessScoreWidget vitals={vitals} lifestyle={lifestyleLogs[dateKey]} waterCount={waterCount} moodLogged={!!(cycleLogs[dateKey]?.mood)} discreet={discreet} />
+        </div>
       </div>
 
       {/* Clinical SaMD Notice */}

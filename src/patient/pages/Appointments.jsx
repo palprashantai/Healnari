@@ -1165,6 +1165,12 @@ function PatientAppointments() {
     }
   };
 
+  const todaysActiveAppointment = upcoming.find(a => {
+    if (!a.date) return false;
+    const isToday = a.date === todayLocalStr();
+    return isToday && isVideoEnabled(a) && a.type === 'Video Consult';
+  });
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -1178,6 +1184,52 @@ function PatientAppointments() {
           <i className="fas fa-plus"></i> Request Consultation
         </button>
       </div>
+
+      {/* Live Virtual Waiting Room & Queue Status Card */}
+      {todaysActiveAppointment && (
+        <div className="bg-gradient-to-r from-aubergine-900 via-slate-900 to-aubergine-950 text-white rounded-2xl p-5 shadow-lg border border-aubergine-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-xl shrink-0">
+              <i className="fas fa-video animate-pulse"></i>
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                  Virtual Waiting Room Active
+                </span>
+                <span className="text-xs text-slate-400">
+                  Target Slot: <strong className="text-white">{todaysActiveAppointment.time}</strong>
+                </span>
+              </div>
+              <h3 className="text-base font-black text-white mt-1">
+                Consultation with {todaysActiveAppointment.doctor} ({todaysActiveAppointment.specialty})
+              </h3>
+              <p className="text-xs text-slate-300 mt-0.5 flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 text-emerald-400 font-bold">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                  Doctor's clinic is online
+                </span>
+                <span>• Estimated wait: ~4–8 mins</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 w-full md:w-auto">
+            <button
+              onClick={() => setAiPrepTarget(todaysActiveAppointment)}
+              className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold px-3 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <i className="fas fa-sparkles text-aubergine-300"></i> AI Visit Prep
+            </button>
+            <button
+              onClick={() => setVideoTarget(todaysActiveAppointment)}
+              className="flex-1 md:flex-none bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95 cursor-pointer"
+            >
+              <i className="fas fa-video"></i> Enter Consultation Room
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Success Banner */}
       {successApt && (

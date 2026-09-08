@@ -10,6 +10,7 @@ import {
 import { ApiTags, ApiOperation, ApiParam, ApiProperty } from '@nestjs/swagger';
 import {
   IsEnum,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
@@ -114,6 +115,12 @@ export class InstantCallDto {
   patientId: string;
 }
 
+export class DelayBroadcastDto {
+  @ApiProperty({ example: 15 })
+  @IsNumber()
+  delayMinutes: number;
+}
+
 @ApiTags('Appointments')
 @Controller('api/appointments')
 export class AppointmentsController {
@@ -140,12 +147,58 @@ export class AppointmentsController {
   }
 
   @ApiOperation({
+    summary: 'Get authoritative live queue breakdown for doctor today',
+  })
+  @Get('queue/live')
+  async getLiveQueue(@CurrentUser() user: AuthUser) {
+    const data = await this.appointmentsService.getDoctorLiveQueue(user);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({
     summary: "Advance the caller (doctor)'s today queue by one step",
   })
   @Post('call-next')
   async callNext(@CurrentUser() user: AuthUser) {
     const data = await this.appointmentsService.callNext(user);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.QUEUE_TOKEN_UPDATED);
+  }
+
+  @ApiOperation({
+    summary: "Call next patient in queue (alias endpoint)",
+  })
+  @Post('queue/call-next')
+  async queueCallNext(@CurrentUser() user: AuthUser) {
+    const data = await this.appointmentsService.callNext(user);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.QUEUE_TOKEN_UPDATED);
+  }
+
+  @ApiOperation({
+    summary: 'Check in for an appointment on the day of consultation',
+  })
+  @ApiParam({ name: 'id' })
+  @Post(':id/check-in')
+  async checkIn(
+    @CurrentUser() user: AuthUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    const data = await this.appointmentsService.checkInAppointment(user, id);
+    return ResponseHelper.success(data, 'Successfully checked in to queue');
+  }
+
+  @ApiOperation({
+    summary: 'Broadcast delay alert to all waiting patients in queue',
+  })
+  @Post('queue/delay-broadcast')
+  async delayBroadcast(
+    @CurrentUser() user: AuthUser,
+    @Body() body: DelayBroadcastDto,
+  ) {
+    const data = await this.appointmentsService.broadcastDelayAlert(
+      user,
+      body.delayMinutes,
+    );
+    return ResponseHelper.success(data, 'Delay notification broadcast successfully');
   }
 
   @ApiOperation({

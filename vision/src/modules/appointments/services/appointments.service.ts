@@ -13,8 +13,28 @@ import {
   Appointment,
   AppointmentStatus,
   AppointmentType,
+  CheckInStatus,
+  QueueLiveOverview,
 } from '@/shared/interfaces/appointment.interface';
 import { Profile, ProfileRole } from '@/shared/interfaces/profile.interface';
+
+/**
+ * Deterministically parses 12h/24h time strings like '10:00 AM', '9:30 AM', '12:15 PM'
+ * into total integer minutes from midnight (0 - 1439).
+ * Eliminates naive string comparison bugs ('10:00 AM' < '9:00 AM').
+ */
+export function parseTimeToMinutes(timeStr: string): number {
+  if (!timeStr) return 0;
+  const cleaned = timeStr.trim();
+  const isPM = cleaned.toLowerCase().includes('pm');
+  const match = cleaned.match(/(\d+):(\d+)/);
+  if (!match) return 0;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  if (isPM && hours < 12) hours += 12;
+  if (!isPM && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+}
 import { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ERROR_MESSAGES, ERROR_CODES } from '@/core/constants/errors.constant';
 import { CreateAppointmentDto } from '@/modules/appointments/controllers/appointments.controller';
@@ -1295,27 +1315,179 @@ export class AppointmentsService {
     return withNames;
   }
 
-  /** Advances the calling doctor's today queue: current In Progress -> Done,
-   * next Waiting -> In Progress, next Upcoming (by time) -> Waiting.
-   * BUG-012 fix: re-reads the live queue from the DB inside an atomic update
-   * to prevent rapid double-calls from advancing the queue twice. */
-  async callNext(user: AuthUser) {
-    if (user.profile.role !== ProfileRole.DOCTOR)
+  /**
+   * Retrieves authoritative Live OPD / Telemedicine Queue for the doctor today.
+   * Strictly separates:
+   * 1. Active Consultation (In Progress)
+   * 2. Next Patient (Top waiting & checked-in)
+   * 3. Live Waiting Queue (Checked-in / Waiting in lobby)
+   * 4. Upcoming Today (Confirmed appointments for later today, not yet checked in)
+   * 5. Completed Today (Finished consultations)
+   * 6. Operational metrics (delay, wait estimates, counts)
+   */
+  async getDoctorLiveQueue(user: AuthUser): Promise<QueueLiveOverview> {
+    if (user.profile.role !== ProfileRole.DOCTOR) {
       throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    }
+
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+    // Query all today's appointments for this doctor
+    const { data: rawAppointments } = await this.supabase.admin
+      .from('appointments')
+      .select(
+        '*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url, phone), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)',
+      )
+      .eq('doctor_id', user.id)
+      .eq('scheduled_date', today)
+      .is('deleted_at', null);
+
+    const appointments = await this.withNames(rawAppointments || []);
+
+    // 1. Sort all today's appointments by chronological slot time (24-hour minutes)
+    appointments.sort((a, b) => parseTimeToMinutes(a.scheduled_time) - parseTimeToMinutes(b.scheduled_time));
+
+    // 2. Assign stable, deterministic daily tokens (T-01, T-02, ...)
+    appointments.forEach((apt, idx) => {
+      apt.queue_token = `T-${String(idx + 1).padStart(2, '0')}`;
+    });
+
+    // 3. Partition into operational queue segments
+    const activeConsultation = appointments.find((a) => a.status === AppointmentStatus.IN_PROGRESS) || null;
+
+    // Live waiting queue: status is WAITING (checked-in and ready)
+    const waitingQueue = appointments
+      .filter((a) => a.status === AppointmentStatus.WAITING)
+      .sort((a, b) => {
+        const pDiff = (b.queue_priority || 0) - (a.queue_priority || 0);
+        if (pDiff !== 0) return pDiff;
+        const tDiff = parseTimeToMinutes(a.scheduled_time) - parseTimeToMinutes(b.scheduled_time);
+        if (tDiff !== 0) return tDiff;
+        const aChecked = a.checked_in_at ? new Date(a.checked_in_at).getTime() : 0;
+        const bChecked = b.checked_in_at ? new Date(b.checked_in_at).getTime() : 0;
+        return aChecked - bChecked;
+      });
+
+    // Upcoming appointments today: confirmed/approved but not yet checked in
+    const upcomingAppointments = appointments.filter((a) =>
+      [AppointmentStatus.UPCOMING, AppointmentStatus.APPROVED].includes(a.status)
+    );
+
+    // Completed consultations today: Done
+    const completedAppointments = appointments.filter((a) => a.status === AppointmentStatus.DONE);
+
+    // Requests: pending approval
+    const requests = appointments.filter((a) =>
+      [AppointmentStatus.REQUESTED, AppointmentStatus.HOLD].includes(a.status)
+    );
+
+    const noShowOrCancelled = appointments.filter((a) =>
+      [AppointmentStatus.NO_SHOW, AppointmentStatus.CANCELLED].includes(a.status)
+    );
+
+    // 4. Calculate dynamic wait times & schedule delay
+    const AVG_MINUTES = 15;
+    let activeElapsedMins = 0;
+    let activeRemainingMins = 0;
+
+    if (activeConsultation) {
+      if (activeConsultation.started_at) {
+        activeElapsedMins = Math.max(0, Math.floor((Date.now() - new Date(activeConsultation.started_at).getTime()) / 60000));
+      }
+      activeRemainingMins = Math.max(2, AVG_MINUTES - activeElapsedMins);
+    }
+
+    // Assign dynamic est. wait minutes to each waiting patient
+    waitingQueue.forEach((p, idx) => {
+      p.estimated_wait_minutes = activeRemainingMins + idx * AVG_MINUTES;
+    });
+
+    // Calculate current doctor schedule delay
+    let scheduleDelayMinutes = 0;
+    if (activeConsultation) {
+      const activeSlotMinutes = parseTimeToMinutes(activeConsultation.scheduled_time);
+      if (nowMinutes > activeSlotMinutes + AVG_MINUTES) {
+        scheduleDelayMinutes = nowMinutes - (activeSlotMinutes + AVG_MINUTES);
+      }
+    } else if (waitingQueue.length > 0) {
+      const firstSlot = parseTimeToMinutes(waitingQueue[0].scheduled_time);
+      if (nowMinutes > firstSlot + 5) {
+        scheduleDelayMinutes = nowMinutes - firstSlot;
+      }
+    }
+
+    const nextPatient = waitingQueue.length > 0 ? waitingQueue[0] : null;
+
+    return {
+      activeConsultation,
+      nextPatient,
+      waitingQueue,
+      upcomingAppointments,
+      completedAppointments,
+      metrics: {
+        waitingCount: waitingQueue.length,
+        inConsultationCount: activeConsultation ? 1 : 0,
+        nextPatientDisplay: nextPatient ? `${nextPatient.patientName} (${nextPatient.queue_token})` : 'None waiting',
+        completedCount: completedAppointments.length,
+        scheduleDelayMinutes,
+        requestsCount: requests.length,
+        noShowCount: noShowOrCancelled.length,
+      },
+    };
+  }
+
+  /**
+   * Concurrency-safe, authoritative Next Patient call.
+   * Strictly validates doctor eligibility, active consultation state,
+   * and advances the highest priority checked-in waiting patient.
+   */
+  async callNext(user: AuthUser) {
+    if (user.profile.role !== ProfileRole.DOCTOR) {
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    }
 
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-    // Atomically close the current In Progress appointment. We use an
-    // UPDATE ... WHERE status = IN_PROGRESS so if a concurrent call already
-    // transitioned it, we get 0 rows back and skip double-notification.
+    // 1. Query today's waiting list for this doctor
+    const { data: waitingRows } = await this.supabase.admin
+      .from('appointments')
+      .select('id, patient_id, type, scheduled_time, queue_priority, checked_in_at')
+      .eq('doctor_id', user.id)
+      .eq('scheduled_date', today)
+      .eq('status', AppointmentStatus.WAITING)
+      .is('deleted_at', null);
+
+    if (!waitingRows || waitingRows.length === 0) {
+      throw new BadRequestException('No checked-in patients are currently waiting in your queue to be called.');
+    }
+
+    // 2. Select next patient using our deterministic algorithm
+    waitingRows.sort((a, b) => {
+      const pDiff = (b.queue_priority || 0) - (a.queue_priority || 0);
+      if (pDiff !== 0) return pDiff;
+      const tDiff = parseTimeToMinutes(a.scheduled_time) - parseTimeToMinutes(b.scheduled_time);
+      if (tDiff !== 0) return tDiff;
+      const aChecked = a.checked_in_at ? new Date(a.checked_in_at).getTime() : 0;
+      const bChecked = b.checked_in_at ? new Date(b.checked_in_at).getTime() : 0;
+      return aChecked - bChecked;
+    });
+
+    const candidate = waitingRows[0];
+
+    // 3. Atomically close any existing In Progress appointment if doctor is advancing
     const { data: closedRows } = await this.supabase.admin
       .from('appointments')
-      .update({ status: AppointmentStatus.DONE })
+      .update({
+        status: AppointmentStatus.DONE,
+        ended_at: now.toISOString(),
+      })
       .eq('doctor_id', user.id)
       .eq('scheduled_date', today)
       .eq('status', AppointmentStatus.IN_PROGRESS)
-      .select('id, patient_id, type');
+      .select('id, patient_id, type, started_at');
 
     if (closedRows?.length) {
       const closed = closedRows[0];
@@ -1323,7 +1495,7 @@ export class AppointmentsService {
         await this.notifications.create(closed.patient_id, {
           type: 'call_cancelled',
           title: 'Consultation Concluded',
-          message: 'The consultation call with your doctor has ended.',
+          message: 'Your consultation with the doctor has concluded.',
           data: {
             appointmentId: closed.id,
             calleeRole: ProfileRole.PATIENT,
@@ -1333,70 +1505,168 @@ export class AppointmentsService {
       }
     }
 
-    // Atomically advance the first Waiting appointment to In Progress.
-    // The subquery approach isn't available in Supabase client, so we
-    // read the candidate then update it; the status condition in the
-    // update acts as the final atomic guard.
+    // 4. Atomically transition candidate to IN_PROGRESS
+    const { data: advancedRows } = await this.supabase.admin
+      .from('appointments')
+      .update({
+        status: AppointmentStatus.IN_PROGRESS,
+        started_at: now.toISOString(),
+        called_at: now.toISOString(),
+      })
+      .eq('id', candidate.id)
+      .eq('status', AppointmentStatus.WAITING) // Atomic guard: ensures candidate wasn't already claimed
+      .select('id, patient_id');
+
+    if (!advancedRows?.length) {
+      throw new ConflictException('Queue state changed concurrently. Please refresh the queue.');
+    }
+
+    // 5. Notify patient that they are being called
+    await this.notifications.create(candidate.patient_id, {
+      type: 'appointment_called',
+      title: 'Doctor Ready: Join Consultation Now',
+      message: `Dr. ${user.profile.full_name} is ready for your consultation. Please tap to join your room immediately.`,
+      data: {
+        appointmentId: candidate.id,
+        calleeRole: ProfileRole.PATIENT,
+        callerAvatarUrl: user.profile.avatar_url || undefined,
+        path: '/patient-dashboard/appointments',
+      },
+    });
+
+    return this.list(user);
+  }
+
+  /**
+   * Authoritative patient or clinic check-in.
+   * Moves a confirmed/upcoming appointment into WAITING status with checked_in_at timestamp.
+   */
+  async checkInAppointment(user: AuthUser, id: string) {
+    const { data: appointment } = await this.supabase.admin
+      .from('appointments')
+      .select('*, patient:profiles!appointments_patient_id_fkey(full_name), doctor:profiles!appointments_doctor_id_fkey(full_name)')
+      .eq('id', id)
+      .is('deleted_at', null)
+      .maybeSingle();
+
+    if (!appointment) throw new NotFoundException(ERROR_MESSAGES.APPOINTMENT_NOT_FOUND);
+
+    if (appointment.patient_id !== user.id && appointment.doctor_id !== user.id && user.profile.role !== ProfileRole.DOCTOR) {
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    }
+
+    if (appointment.status === AppointmentStatus.WAITING || appointment.status === AppointmentStatus.IN_PROGRESS) {
+      return (await this.withNames([appointment]))[0];
+    }
+
+    if (appointment.status === AppointmentStatus.DONE || appointment.status === AppointmentStatus.CANCELLED) {
+      throw new BadRequestException(`Cannot check in for an appointment that is already ${appointment.status.toLowerCase()}.`);
+    }
+
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    if (appointment.scheduled_date !== today) {
+      throw new BadRequestException('Check-in is only permitted on the day of your scheduled consultation.');
+    }
+
+    // Verify payment requirement
+    if (!appointment.payment_id) {
+      const { data: payment } = await this.supabase.admin
+        .from('payments')
+        .select('id')
+        .eq('appointment_id', id)
+        .eq('status', 'Paid')
+        .maybeSingle();
+
+      if (!payment && appointment.fee > 0) {
+        throw new BadRequestException('Payment must be completed before checking into the waiting room.');
+      }
+    }
+
+    const { data: updated, error } = await this.supabase.admin
+      .from('appointments')
+      .update({
+        status: AppointmentStatus.WAITING,
+        checked_in_at: now.toISOString(),
+        check_in_status: CheckInStatus.CHECKED_IN,
+      })
+      .eq('id', id)
+      .select('*, patient:profiles!appointments_patient_id_fkey(full_name, avatar_url), doctor:profiles!appointments_doctor_id_fkey(full_name, avatar_url)')
+      .maybeSingle();
+
+    if (error || !updated) {
+      throw new InternalServerErrorException('Failed to complete check-in. Please try again.');
+    }
+
+    const [withNames] = await this.withNames([updated]);
+
+    // Notify doctor that patient has arrived/checked in
+    await this.notifications.create(appointment.doctor_id, {
+      type: 'patient_waiting',
+      title: 'Patient Checked In',
+      message: `${withNames.patientName} has checked in and is waiting in your queue.`,
+      idempotencyKey: `checkin_${appointment.id}`,
+      data: {
+        appointmentId: appointment.id,
+        calleeRole: ProfileRole.DOCTOR,
+        callerAvatarUrl: withNames.patientAvatarUrl || undefined,
+        path: '/doctor-dashboard/appointments',
+      },
+    });
+
+    return withNames;
+  }
+
+  /**
+   * Contextual delay broadcast to waiting patients.
+   * Validates that waiting patients exist, then sends push/email alert and logs the action.
+   */
+  async broadcastDelayAlert(user: AuthUser, delayMinutes: number) {
+    if (user.profile.role !== ProfileRole.DOCTOR) {
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    }
+
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
     const { data: waitingList } = await this.supabase.admin
       .from('appointments')
       .select('id, patient_id')
       .eq('doctor_id', user.id)
       .eq('scheduled_date', today)
       .eq('status', AppointmentStatus.WAITING)
-      .order('scheduled_time', { ascending: true })
-      .limit(1);
+      .is('deleted_at', null);
 
-    const waitingId = waitingList?.[0]?.id;
-    const waitingPatientId = waitingList?.[0]?.patient_id;
-    if (waitingId) {
-      const { data: advanced } = await this.supabase.admin
-        .from('appointments')
-        .update({ status: AppointmentStatus.IN_PROGRESS })
-        .eq('id', waitingId)
-        .eq('status', AppointmentStatus.WAITING) // atomic guard
-        .select('id');
-      if (advanced?.length) {
-        await this.notifications.create(waitingPatientId, {
-          type: 'appointment_called',
-          title: 'Consultation Starting Now',
-          message: `Dr. ${user.profile.full_name} is ready for your consultation. Tap to join your room.`,
+    if (!waitingList || waitingList.length === 0) {
+      throw new BadRequestException('No patients are currently waiting in your queue to notify.');
+    }
+
+    const patientIds = [...new Set(waitingList.map((p) => p.patient_id))];
+    const docName = user.profile.full_name || 'Specialist';
+    const message = `Dear Patient, Dr. ${docName} is running approximately ${delayMinutes} minutes behind schedule. We apologize for the wait and appreciate your patience. Your token will be called as soon as possible.`;
+
+    await Promise.all(
+      patientIds.map((pid) =>
+        this.notifications.create(pid, {
+          type: 'appointment_delayed',
+          title: `Doctor Running ${delayMinutes}m Behind`,
+          message,
           data: {
-            appointmentId: waitingId,
-            calleeRole: ProfileRole.PATIENT,
-            callerAvatarUrl: user.profile.avatar_url || undefined,
+            delayMinutes,
             path: '/patient-dashboard/appointments',
           },
-        });
-      }
-    }
+        }).catch(() => {})
+      ),
+    );
 
-    // Advance the next Upcoming appointment to Waiting.
-    const { data: upcomingList } = await this.supabase.admin
-      .from('appointments')
-      .select('id')
-      .eq('doctor_id', user.id)
-      .eq('scheduled_date', today)
-      .eq('status', AppointmentStatus.UPCOMING)
-      .not('payment_id', 'is', null)
-      .order('scheduled_time', { ascending: true })
-      .limit(1);
-
-    const upcomingId = upcomingList?.[0]?.id;
-    if (upcomingId) {
-      await this.supabase.admin
-        .from('appointments')
-        .update({ status: AppointmentStatus.WAITING })
-        .eq('id', upcomingId)
-        .eq('status', AppointmentStatus.UPCOMING); // atomic guard
-    }
-
-    return this.list(user);
+    return {
+      success: true,
+      recipientsCount: patientIds.length,
+      delayMinutes,
+    };
   }
 
-  /** No real historical call-duration data exists anywhere in this schema
-   * (no call start/end timestamps are recorded) — this is a stated
-   * per-consult estimate, not a measured average. Deliberately conservative
-   * so the ETA under-promises rather than over-promises. */
   private static readonly AVG_CONSULT_MINUTES: Record<AppointmentType, number> =
     {
       [AppointmentType.VIDEO]: 15,
@@ -1404,9 +1674,7 @@ export class AppointmentsService {
     };
 
   /** Real position in today's actual queue (the same order callNext()
-   * advances through), not the originally booked slot time — a doctor
-   * running behind shifts everyone's position and ETA live instead of the
-   * patient just watching their booked 4:00 PM come and go. */
+   * advances through), using numerical minute sorting instead of string order. */
   async getQueueStatus(user: AuthUser, id: string) {
     const { data: appointment } = await this.supabase.admin
       .from('appointments')
@@ -1456,7 +1724,7 @@ export class AppointmentsService {
 
     const { data: todays } = await this.supabase.admin
       .from('appointments')
-      .select('id, status, scheduled_time, type')
+      .select('id, status, scheduled_time, type, queue_priority, checked_in_at')
       .eq('doctor_id', appointment.doctor_id)
       .eq('scheduled_date', appointment.scheduled_date)
       .in('status', [
@@ -1464,10 +1732,14 @@ export class AppointmentsService {
         AppointmentStatus.WAITING,
         AppointmentStatus.IN_PROGRESS,
       ])
-      .not('payment_id', 'is', null)
-      .order('scheduled_time', { ascending: true });
+      .not('payment_id', 'is', null);
 
-    const activeQueue = todays || [];
+    const activeQueue = (todays || []).sort((a, b) => {
+      const pDiff = (b.queue_priority || 0) - (a.queue_priority || 0);
+      if (pDiff !== 0) return pDiff;
+      return parseTimeToMinutes(a.scheduled_time) - parseTimeToMinutes(b.scheduled_time);
+    });
+
     const index = activeQueue.findIndex((a) => a.id === id);
     if (index === -1) {
       return {
