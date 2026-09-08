@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build && tsc-alias -p tsconfig.json",
+    "build": "nest build && tsc-alias -p tsconfig.build.json",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "cross-env NODE_OPTIONS=--dns-result-order=ipv4first nest start",
     "start:dev": "cross-env NODE_OPTIONS=--dns-result-order=ipv4first nest start --watch",
