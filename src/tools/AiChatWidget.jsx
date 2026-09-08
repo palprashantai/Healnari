@@ -231,6 +231,12 @@ function parseMessageStatus(rawText) {
   return { status: null, cleanText: rawText };
 }
 
+export const openAiChatWidget = (prompt = '') => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('open-healnari-ai-chat', { detail: { prompt } }));
+  }
+};
+
 export default function AiChatWidget({ context = 'landing', activePatient = null }) {
   const theme = THEMES[context] || THEMES.landing;
   const location = useLocation();
@@ -252,6 +258,18 @@ export default function AiChatWidget({ context = 'landing', activePatient = null
   const [savedNotes,  setSavedNotes]  = useState(new Set());
 
   const [isOpen, setIsOpen] = useState(false);
+
+  // Global listener to allow opening widget programmatically from anywhere
+  useEffect(() => {
+    const handleOpen = (e) => {
+      setIsOpen(true);
+      if (e?.detail?.prompt) {
+        setInput(e.detail.prompt);
+      }
+    };
+    window.addEventListener('open-healnari-ai-chat', handleOpen);
+    return () => window.removeEventListener('open-healnari-ai-chat', handleOpen);
+  }, []);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isHovering, setIsHovering] = useState(false);

@@ -575,6 +575,7 @@ function AuthModal({ onClose, initialEmail = '', initialRole = 'patient', initia
                             className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-aubergine-500 focus:ring-2 focus:ring-aubergine-200 outline-none transition-all text-xs font-bold text-slate-800 appearance-none"
                           >
                             <option value="Female">Female</option>
+                            <option value="Male">Male</option>
                             <option value="Other">Other / Non-binary</option>
                           </select>
                           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">

@@ -5,12 +5,15 @@ import { Modal } from './Modal.jsx';
 import { useToast } from './Toast.jsx';
 import { generateQrUrl } from '../lib/qrCode.js';
 
-export function DoctorShareModal({ isOpen, onClose, doctor }) {
+export function DoctorShareModal({ isOpen, onClose, doctor, mode = 'auto' }) {
   const toast = useToast();
+  const { user } = useAuth();
+  const isPatientView = mode === 'refer' || (mode === 'auto' && user?.role === 'patient');
+
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
-  const [activeTab, setActiveTab] = useState('qr'); // 'qr', 'link', 'whatsapp', 'embed'
-  const [posterTemplate, setPosterTemplate] = useState('desk'); // 'desk', 'wall', 'cards'
+  const [activeTab, setActiveTab] = useState(() => (isPatientView ? 'refer' : 'qr'));
+  const [posterTemplate, setPosterTemplate] = useState('desk');
 
   const doc = doctor || {};
   const docId = doc.id || (doc.name ? doc.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'sarah-mitchell');
@@ -24,12 +27,17 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
   // Real doctor photo resolution
   const resolvePhoto = (d) => {
     if (d?.avatar_url) return d.avatar_url;
+    if (d?.avatarUrl) return d.avatarUrl;
     if (d?.image) return d.image;
     if (d?.profile_pic) return d.profile_pic;
+    if (d?.user_image) return d.user_image;
+    if (d?.photo) return d.photo;
     const nameStr = (d?.name || d?.full_name || '').toLowerCase();
     if (nameStr.includes('ananya')) return '/generated/doc1.webp';
     if (nameStr.includes('ritu')) return '/generated/doc2.webp';
     if (nameStr.includes('shreya')) return '/generated/doc3.webp';
+    if (nameStr.includes('rajesh')) return '/generated/doc4.webp';
+    if (nameStr.includes('sarah') || nameStr.includes('mitchell')) return '/generated/doc4.webp';
     return '/generated/doc4.webp';
   };
 
@@ -37,7 +45,10 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
 
   useEffect(() => {
     setSelectedPhoto(resolvePhoto(doc));
-  }, [doc]);
+    if (isPatientView) {
+      setActiveTab('refer');
+    }
+  }, [doc, isPatientView]);
 
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://healnari.care';
   const publicProfileUrl = `${origin}/dr/${docId}`;
@@ -77,11 +88,31 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
     });
   };
 
-  const whatsappMessage = encodeURIComponent(
-    `Hello! You can view my verified clinical profile and book a direct video consultation with me (${docName} — ${docSpecialty}) on HealNari here:\n\n${publicProfileUrl}\n\n• NMC Verified & HIPAA Compliant\n• Fee: ${formatCurrency(consultFee, docCurrency || 'INR')}\n• Direct digital prescription & follow-up care`
-  );
+  const referralText = `Hi! I recommend consulting with ${docName} (${docSpecialty}) on HealNari. You can view their verified credentials, reviews, and book direct appointments here:\n\n${publicProfileUrl}\n\n• Verified Specialist • Digital Prescription & Follow-up`;
+  const doctorSelfText = `Hello! You can view my verified clinical profile and book a direct video consultation with me (${docName} — ${docSpecialty}) on HealNari here:\n\n${publicProfileUrl}\n\n• NMC Verified & HIPAA Compliant\n• Fee: ${formatCurrency(consultFee, docCurrency || 'INR')}\n• Direct digital prescription & follow-up care`;
 
+  const shareText = isPatientView ? referralText : doctorSelfText;
+  const whatsappMessage = encodeURIComponent(shareText);
   const whatsappUrl = `https://api.whatsapp.com/send?text=${whatsappMessage}`;
+
+  const handleNativeShare = async () => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: `${docName} - ${docSpecialty} on HealNari`,
+          text: shareText,
+          url: publicProfileUrl,
+        });
+        toast('Shared successfully!', 'success');
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          copyToClipboard(publicProfileUrl, 'link');
+        }
+      }
+    } else {
+      copyToClipboard(publicProfileUrl, 'link');
+    }
+  };
 
   const embedCode = `<a href="${publicProfileUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:8px;background:#6B46C1;color:#ffffff;padding:12px 20px;border-radius:12px;text-decoration:none;font-family:sans-serif;font-weight:bold;font-size:14px;box-shadow:0 4px 14px rgba(107,70,193,0.3);">
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/><path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/><circle cx="20" cy="10" r="2"/></svg>
@@ -709,7 +740,7 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Doctor Profile &amp; QR Print Studio" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={isPatientView ? `Refer ${docName}` : "Doctor Profile & QR Print Studio"} size="lg">
       <div className="space-y-6">
         
         {/* Doctor Summary Banner */}
@@ -742,39 +773,165 @@ export function DoctorShareModal({ isOpen, onClose, doctor }) {
 
         {/* Tab Switcher */}
         <div className="flex bg-slate-100 p-1 rounded-2xl gap-1 text-xs font-bold overflow-x-auto hide-scrollbar sm:grid sm:grid-cols-4">
-          <button
-            onClick={() => setActiveTab('qr')}
-            className={`flex-1 sm:flex-none py-2 px-2.5 sm:px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'qr' ? 'bg-white text-aubergine-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            <i className="fas fa-qrcode text-aubergine-600"></i> QR Print Studio
-          </button>
-          <button
-            onClick={() => setActiveTab('link')}
-            className={`flex-1 sm:flex-none py-2 px-2.5 sm:px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'link' ? 'bg-white text-aubergine-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            <i className="fas fa-link text-aubergine-600"></i> Direct Link
-          </button>
-          <button
-            onClick={() => setActiveTab('whatsapp')}
-            className={`flex-1 sm:flex-none py-2 px-2.5 sm:px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'whatsapp' ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            <i className="fab fa-whatsapp text-emerald-600"></i> WhatsApp
-          </button>
-          <button
-            onClick={() => setActiveTab('embed')}
-            className={`flex-1 sm:flex-none py-2 px-2.5 sm:px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'embed' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            <i className="fas fa-code text-slate-600"></i> Website Button
-          </button>
+          {isPatientView ? (
+            <>
+              <button
+                onClick={() => setActiveTab('refer')}
+                className={`flex-1 sm:flex-none py-2 px-2.5 sm:px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'refer' ? 'bg-white text-aubergine-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <i className="fas fa-share-nodes text-purple-600"></i> Share &amp; Refer
+              </button>
+              <button
+                onClick={() => setActiveTab('whatsapp')}
+                className={`flex-1 sm:flex-none py-2 px-2.5 sm:px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'whatsapp' ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <i className="fab fa-whatsapp text-emerald-600"></i> WhatsApp
+              </button>
+              <button
+                onClick={() => setActiveTab('qr')}
+                className={`flex-1 sm:flex-none py-2 px-2.5 sm:px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'qr' ? 'bg-white text-aubergine-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <i className="fas fa-qrcode text-aubergine-600"></i> QR Code
+              </button>
+              <button
+                onClick={() => setActiveTab('link')}
+                className={`flex-1 sm:flex-none py-2 px-2.5 sm:px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'link' ? 'bg-white text-aubergine-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <i className="fas fa-link text-aubergine-600"></i> Direct Link
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setActiveTab('qr')}
+                className={`flex-1 sm:flex-none py-2 px-2.5 sm:px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'qr' ? 'bg-white text-aubergine-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <i className="fas fa-qrcode text-aubergine-600"></i> QR Print Studio
+              </button>
+              <button
+                onClick={() => setActiveTab('link')}
+                className={`flex-1 sm:flex-none py-2 px-2.5 sm:px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'link' ? 'bg-white text-aubergine-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <i className="fas fa-link text-aubergine-600"></i> Direct Link
+              </button>
+              <button
+                onClick={() => setActiveTab('whatsapp')}
+                className={`flex-1 sm:flex-none py-2 px-2.5 sm:px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'whatsapp' ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <i className="fab fa-whatsapp text-emerald-600"></i> WhatsApp
+              </button>
+              <button
+                onClick={() => setActiveTab('embed')}
+                className={`flex-1 sm:flex-none py-2 px-2.5 sm:px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
+                  activeTab === 'embed' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <i className="fas fa-code text-slate-600"></i> Website Button
+              </button>
+            </>
+          )}
         </div>
+
+        {/* TAB: Quick Patient Refer & Share */}
+        {activeTab === 'refer' && (
+          <div className="space-y-4 animate-fade-in">
+            {/* Referral Info Card */}
+            <div className="p-4 bg-purple-50/70 border border-purple-200/80 rounded-2xl flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-base shrink-0">
+                <i className="fas fa-user-plus"></i>
+              </div>
+              <div>
+                <h5 className="font-extrabold text-sm text-purple-950">Refer {docName} to Friends &amp; Family</h5>
+                <p className="text-xs text-purple-800/80 mt-0.5 leading-relaxed">
+                  Help someone you know receive verified healthcare from {docName}. They can view credentials, transparent pricing, and book a consultation instantly.
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Share Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl text-xs sm:text-sm shadow-md shadow-emerald-600/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95"
+              >
+                <i className="fab fa-whatsapp text-base"></i>
+                <span>Refer via WhatsApp</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={handleNativeShare}
+                className="w-full bg-purple-700 hover:bg-purple-800 text-white font-bold py-3 px-4 rounded-xl text-xs sm:text-sm shadow-md shadow-purple-700/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+              >
+                <i className="fas fa-share-nodes text-base"></i>
+                <span>Share to Other Apps</span>
+              </button>
+            </div>
+
+            {/* Copy Link Section */}
+            <div className="pt-2">
+              <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                Direct Referral Link:
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={publicProfileUrl}
+                  className="flex-1 bg-slate-50 border border-slate-200 text-slate-800 text-xs sm:text-sm rounded-xl px-3.5 py-2.5 font-mono select-all focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(publicProfileUrl, 'link')}
+                  className="bg-purple-700 hover:bg-purple-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                >
+                  <i className={`fas ${copiedLink ? 'fa-check text-emerald-400' : 'fa-copy'}`}></i>
+                  <span>{copiedLink ? 'Copied!' : 'Copy Link'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Email / SMS Quick Referral Row */}
+            <div className="pt-2 border-t border-slate-100 flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-bold text-slate-400 mr-1">Other options:</span>
+              <a
+                href={`mailto:?subject=${encodeURIComponent(`Recommended Doctor: ${docName} on HealNari`)}&body=${encodeURIComponent(shareText)}`}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-colors"
+              >
+                <i className="fas fa-envelope text-slate-500"></i> Email
+              </a>
+              <a
+                href={`sms:?body=${encodeURIComponent(shareText)}`}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-colors"
+              >
+                <i className="fas fa-comment-sms text-slate-500"></i> SMS
+              </a>
+              <button
+                type="button"
+                onClick={() => setActiveTab('qr')}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <i className="fas fa-qrcode text-slate-500"></i> Show QR Code
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* TAB: QR Print Studio */}
         {activeTab === 'qr' && (

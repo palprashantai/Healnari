@@ -510,6 +510,9 @@ export const conditionsData = {
       }
     ],
     relatedGuides: ['pcos-weight-loss', 'pcos-personalized-nutrition', 'anti-inflammatory-foods', 'cortisol-balance'],
+    featuredDoctorIds: ['demo-0', 'demo-3']
+  },
+
   'general-medicine-primary-care': {
     id: 'general-medicine-primary-care',
     title: "Online General Physician & Primary Care Consultation",

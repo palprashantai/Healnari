@@ -95,6 +95,11 @@
     color: var(--color-text-headings);
   }
 
+  .text-white h1, .text-white h2, .text-white h3, .text-white h4,
+  .text-white :is(h1, h2, h3, h4) {
+    color: inherit;
+  }
+
   .font-serif-brand {
     font-family: 'Playfair Display', Georgia, serif;
     font-weight: 700;

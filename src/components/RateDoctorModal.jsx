@@ -23,6 +23,28 @@ const RATING_LABELS = {
   5: 'Excellent & Outstanding',
 };
 
+export const resolveDoctorAvatar = (d) => {
+  if (!d) return '/generated/doc4.webp';
+  if (d.avatar_url) return d.avatar_url;
+  if (d.avatarUrl) return d.avatarUrl;
+  if (d.image) return d.image;
+  if (d.profile_pic) return d.profile_pic;
+  if (d.user_image) return d.user_image;
+  if (d.photo) return d.photo;
+  const nameStr = (d.full_name || d.name || d.doctor || '').toLowerCase();
+  if (nameStr.includes('ananya')) return '/generated/doc1.webp';
+  if (nameStr.includes('ritu')) return '/generated/doc2.webp';
+  if (nameStr.includes('shreya')) return '/generated/doc3.webp';
+  if (nameStr.includes('rajesh')) return '/generated/doc4.webp';
+  if (nameStr.includes('sarah') || nameStr.includes('mitchell')) return '/generated/doc4.webp';
+  const idStr = String(d.id || d.doctorId || '');
+  if (idStr === 'demo-1' || idStr.endsWith('-1')) return '/generated/doc1.webp';
+  if (idStr === 'demo-2' || idStr.endsWith('-2')) return '/generated/doc2.webp';
+  if (idStr === 'demo-3' || idStr.endsWith('-3')) return '/generated/doc3.webp';
+  if (idStr === 'demo-0' || idStr === 'demo-4') return '/generated/doc4.webp';
+  return '/generated/doc4.webp';
+};
+
 export function RateDoctorModal({ isOpen, onClose, doctor, onSuccess }) {
   const toast = useToast();
   const [rating, setRating] = useState(5);
@@ -30,6 +52,11 @@ export function RateDoctorModal({ isOpen, onClose, doctor, onSuccess }) {
   const [selectedTags, setSelectedTags] = useState(['Empathetic & Caring', 'Highly Recommended']);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  React.useEffect(() => {
+    setImgError(false);
+  }, [doctor]);
 
   if (!doctor) return null;
 
@@ -75,18 +102,24 @@ export function RateDoctorModal({ isOpen, onClose, doctor, onSuccess }) {
   const activeStarValue = hoverRating || rating;
   const docName = doctor.full_name || doctor.name || 'Doctor';
   const docSpecialty = doctor.specialty || 'Specialist';
+  const docAvatar = resolveDoctorAvatar(doctor);
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Rate Your Consultation" size="md">
       <div className="space-y-3.5 pt-0.5 text-slate-800 pb-1">
         {/* Doctor Summary Banner */}
         <div className="flex items-center gap-3 p-3 bg-aubergine-50/70 border border-aubergine-100 rounded-2xl">
-          <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-aubergine-100 flex-shrink-0 border border-aubergine-200">
-            {doctor.avatar_url ? (
-              <img src={doctor.avatar_url} alt={docName} className="w-full h-full object-cover" />
+          <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-aubergine-100 flex-shrink-0 border border-aubergine-200 shadow-2xs">
+            {docAvatar && !imgError ? (
+              <img
+                src={docAvatar}
+                alt={docName}
+                onError={() => setImgError(true)}
+                className="w-full h-full object-cover"
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center font-bold text-aubergine-700 text-base">
-                {docName.charAt(0)}
+                {docName.replace(/^Dr\.?\s*/i, '').charAt(0) || 'D'}
               </div>
             )}
           </div>

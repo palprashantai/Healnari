@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal.jsx';
 import { apiFetch } from '../lib/apiClient.js';
 import { formatCurrency } from '../lib/currency.js';
-import { RateDoctorModal } from './RateDoctorModal.jsx';
+import { RateDoctorModal, resolveDoctorAvatar } from './RateDoctorModal.jsx';
+import { DoctorShareModal } from './DoctorShareModal.jsx';
 
 function timeAgo(iso) {
   if (!iso) return 'Recent';
@@ -21,6 +22,7 @@ export function DoctorDetailModal({ isOpen, onClose, doctor, onBook }) {
   const [reviewsData, setReviewsData] = useState(null);
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [isRateOpen, setIsRateOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen && doctor) {
@@ -104,8 +106,8 @@ export function DoctorDetailModal({ isOpen, onClose, doctor, onBook }) {
 
             <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-4 text-center sm:text-left">
               <div className="relative w-24 h-24 rounded-2xl overflow-hidden bg-white/10 border-2 border-white/20 shadow-xl flex-shrink-0">
-                {doctor.avatar_url ? (
-                  <img src={doctor.avatar_url} alt={docName} className="w-full h-full object-cover" />
+                {resolveDoctorAvatar(doctor) ? (
+                  <img src={resolveDoctorAvatar(doctor)} alt={docName} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center font-black text-3xl text-white">
                     {docName.charAt(0)}
@@ -306,6 +308,15 @@ export function DoctorDetailModal({ isOpen, onClose, doctor, onBook }) {
             </button>
             <button
               type="button"
+              onClick={() => setIsShareOpen(true)}
+              className="w-full sm:w-auto px-4 py-3 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
+              title="Refer or share this doctor with friends and family"
+            >
+              <i className="fas fa-share-nodes text-purple-600"></i>
+              <span>Refer Doctor</span>
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 onClose();
                 onBook?.(doctor);
@@ -324,6 +335,14 @@ export function DoctorDetailModal({ isOpen, onClose, doctor, onBook }) {
         onClose={() => setIsRateOpen(false)}
         doctor={doctor}
         onSuccess={handleReviewAdded}
+      />
+
+      {/* Refer / Share Doctor Modal */}
+      <DoctorShareModal
+        isOpen={isShareOpen}
+        onClose={() => setIsShareOpen(false)}
+        doctor={doctor}
+        mode="refer"
       />
     </>
   );

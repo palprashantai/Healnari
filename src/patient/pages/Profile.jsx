@@ -213,7 +213,7 @@ function PatientProfile() {
           </button>
         </div>
         <div className="text-center sm:text-left">
-          <h2 className="text-2xl font-black">{form.name}</h2>
+          <h2 className="text-2xl font-black text-white">{form.name}</h2>
           <p className="text-white/70 text-sm mt-1">{form.email}</p>
           <div className="flex flex-wrap gap-2 mt-3 justify-center sm:justify-start">
             <span className="bg-white/20 border border-white/20 text-white text-xs font-bold px-3 py-1 rounded-full">Patient</span>

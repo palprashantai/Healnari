@@ -14,8 +14,8 @@ import { PreJoinCheck } from '../../components/PreJoinCheck.jsx';
 import { formatCurrency } from '../../lib/currency.js';
 import { AIButton } from '../../components/AiButton.jsx';
 import { AIPaywallModal } from '../../components/ai/AIPaywallModal.jsx';
-import { AISubscriptionCard } from '../../components/ai/AISubscriptionCard.jsx';
-import { RateDoctorModal } from '../../components/RateDoctorModal.jsx';
+import { RateDoctorModal, resolveDoctorAvatar } from '../../components/RateDoctorModal.jsx';
+import { DoctorShareModal } from '../../components/DoctorShareModal.jsx';
 
 /** Binds a MediaStream to a <video> element — React has no declarative prop
  * for srcObject, so this stays a thin imperative wrapper. */
@@ -913,10 +913,17 @@ function PatientAppointments() {
     const doc = doctorById.get(a.doctorId);
     const rawStatus = a.status || 'Requested';
     const displayStatus = STATUS_LABEL[rawStatus] || rawStatus;
+    const docName = (a.doctorName || doc?.full_name || 'Specialist').startsWith('Dr.') ? (a.doctorName || doc?.full_name) : `Dr. ${a.doctorName || doc?.full_name || 'Specialist'}`;
+    const doctorAvatar = resolveDoctorAvatar({
+      avatar_url: a.doctorAvatar || a.doctor_avatar || doc?.avatar_url || doc?.image || doc?.avatarUrl,
+      full_name: docName,
+      id: a.doctorId,
+    });
     return {
       id: a.id,
       doctorId: a.doctorId,
-      doctor: (a.doctorName || doc?.full_name || 'Specialist').startsWith('Dr.') ? (a.doctorName || doc?.full_name) : `Dr. ${a.doctorName || doc?.full_name || 'Specialist'}`,
+      doctor: docName,
+      doctorAvatar,
       specialty: doc?.specialty || a.specialty || 'Specialist',
       date: a.date,
       dateLabel: a.date ? new Date(a.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
@@ -960,6 +967,7 @@ function PatientAppointments() {
   const [videoTarget, setVideoTarget] = useState(null);
   const [aiPrepTarget, setAiPrepTarget] = useState(null);
   const [ratingDoctor, setRatingDoctor] = useState(null);
+  const [referDoctor, setReferDoctor] = useState(null);
   const [autoJoinTarget, setAutoJoinTarget] = useState(false);
   const [successApt, setSuccessApt] = useState(null);
   const [search, setSearch] = useState('');
@@ -1317,9 +1325,17 @@ function PatientAppointments() {
           {filteredData.map(apt => (
             <div key={apt.id} className="responsive-table-card">
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="font-extrabold text-slate-800 text-sm">{apt.doctor}</h3>
-                  <p className="text-xs text-slate-500">{apt.specialty}</p>
+                <div className="flex items-center gap-2.5">
+                  <img
+                    src={apt.doctorAvatar}
+                    alt={apt.doctor}
+                    className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0 bg-aubergine-50 shadow-2xs"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                  <div>
+                    <h3 className="font-extrabold text-slate-800 text-sm">{apt.doctor}</h3>
+                    <p className="text-xs text-slate-500">{apt.specialty}</p>
+                  </div>
                 </div>
                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${STATUS_BADGE[apt.status] || 'bg-slate-100 text-slate-600'}`}>
                   {apt.status}
@@ -1409,6 +1425,7 @@ function PatientAppointments() {
                           id: apt.doctorId,
                           full_name: apt.doctor,
                           specialty: apt.specialty,
+                          avatar_url: apt.doctorAvatar,
                         });
                       }}
                       className="crm-btn-secondary text-xs py-2 px-3 text-amber-800 hover:text-amber-950 hover:bg-amber-50 border-amber-200 flex items-center justify-center gap-1 font-bold"
@@ -1418,17 +1435,18 @@ function PatientAppointments() {
                     </button>
                     <button
                       onClick={() => {
-                        const docSlug = (apt.doctor || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-                        const docUrl = `${window.location.origin}/dr/${apt.doctorId || docSlug}`;
-                        const msg = encodeURIComponent(
-                          `Hi! I recommend consulting with ${apt.doctor} (${apt.specialty}) on HealNari. You can view their verified profile and book direct appointments here:\n\n${docUrl}`
-                        );
-                        window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+                        setReferDoctor({
+                          id: apt.doctorId,
+                          name: apt.doctor,
+                          full_name: apt.doctor,
+                          specialty: apt.specialty,
+                          avatar_url: apt.doctorAvatar,
+                        });
                       }}
-                      className="crm-btn-secondary text-xs py-2 px-3 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 flex items-center justify-center gap-1"
-                      title="Share recommendation on WhatsApp"
+                      className="crm-btn-secondary text-xs py-2 px-3 text-purple-700 hover:text-purple-950 hover:bg-purple-50 border-purple-200 flex items-center justify-center gap-1 font-bold"
+                      title="Refer this doctor to friends & family"
                     >
-                      <i className="fab fa-whatsapp text-emerald-600"></i>
+                      <i className="fas fa-share-nodes text-purple-600"></i> Refer
                     </button>
                     <button onClick={() => { setBookPrefill({ doctorId: apt.doctorId, followUp: true }); setShowBook(true); }}
                       className="flex-1 crm-btn-primary text-xs py-2 flex items-center justify-center gap-1.5 touch-target">
@@ -1463,8 +1481,18 @@ function PatientAppointments() {
               {filteredData.map(apt => (
                 <tr key={apt.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
-                    <div className="font-bold text-slate-800">{apt.doctor}</div>
-                    <div className="text-xs text-slate-500">{apt.specialty}</div>
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={apt.doctorAvatar}
+                        alt={apt.doctor}
+                        className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0 bg-aubergine-50 shadow-2xs"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                      <div>
+                        <div className="font-bold text-slate-800">{apt.doctor}</div>
+                        <div className="text-xs text-slate-500">{apt.specialty}</div>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="font-bold text-aubergine-700">{apt.dateLabel}</div>
@@ -1539,6 +1567,7 @@ function PatientAppointments() {
                               id: apt.doctorId,
                               full_name: apt.doctor,
                               specialty: apt.specialty,
+                              avatar_url: apt.doctorAvatar,
                             });
                           }}
                           className="crm-btn-secondary text-[11px] h-8 px-2.5 text-amber-800 hover:text-amber-950 hover:bg-amber-50 border-amber-200 font-bold flex items-center gap-1"
@@ -1549,18 +1578,19 @@ function PatientAppointments() {
                         </button>
                         <button
                           onClick={() => {
-                            const docSlug = (apt.doctor || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
-                            const docUrl = `${window.location.origin}/dr/${apt.doctorId || docSlug}`;
-                            const msg = encodeURIComponent(
-                              `Hi! I recommend consulting with ${apt.doctor} (${apt.specialty}) on HealNari. You can view their verified profile and book direct appointments here:\n\n${docUrl}`
-                            );
-                            window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
+                            setReferDoctor({
+                              id: apt.doctorId,
+                              name: apt.doctor,
+                              full_name: apt.doctor,
+                              specialty: apt.specialty,
+                              avatar_url: apt.doctorAvatar,
+                            });
                           }}
-                          className="crm-btn-secondary text-[11px] h-8 px-2.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50"
-                          title={`Recommend ${apt.doctor} to Friends & Family on WhatsApp`}
+                          className="crm-btn-secondary text-[11px] h-8 px-2.5 text-purple-700 hover:text-purple-950 hover:bg-purple-50 border-purple-200 font-bold flex items-center gap-1"
+                          title={`Refer Dr. ${apt.doctor} to Friends & Family`}
                         >
-                          <i className="fab fa-whatsapp text-emerald-600 text-xs sm:mr-1"></i>
-                          <span className="hidden sm:inline">Recommend</span>
+                          <i className="fas fa-share-nodes text-purple-600 text-xs sm:mr-1"></i>
+                          <span className="hidden sm:inline">Refer</span>
                         </button>
                         <button onClick={() => { setBookPrefill({ doctorId: apt.doctorId, followUp: true }); setShowBook(true); }}
                           className="crm-btn-primary text-[11px] h-8 px-3">
@@ -1680,6 +1710,12 @@ function PatientAppointments() {
         onReviewed={() => {
           toast('Thank you! Your verified rating and review have been submitted.', 'success');
         }}
+      />
+      <DoctorShareModal
+        isOpen={!!referDoctor}
+        onClose={() => setReferDoctor(null)}
+        doctor={referDoctor}
+        mode="refer"
       />
     </div>
   );

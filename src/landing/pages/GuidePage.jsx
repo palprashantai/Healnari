@@ -258,7 +258,7 @@ function GuidePage() {
             </span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black font-display leading-tight tracking-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black font-display leading-tight tracking-tight text-white">
             {guide.title}
           </h1>
 

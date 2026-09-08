@@ -24,9 +24,18 @@ export function AiHub({ role = 'doctor' }) {
   const toastFn = useToast();
   const toast = typeof toastFn === 'function' ? toastFn : (toastFn?.toast || ((m) => alert(m)));
 
-  // Parse active tab from URL query params (e.g. ?tab=features) or default to 'overview'
+  const getNormalizedTab = (tab) => {
+    if (!tab) return 'overview';
+    const t = tab.toLowerCase();
+    if (t === 'plans' || t === 'pricing' || t === 'subscription') return 'plan';
+    if (t === 'invoices' || t === 'receipts' || t === 'payments') return 'billing';
+    if (t === 'stats' || t === 'logs') return 'usage';
+    return t;
+  };
+
+  // Parse active tab from URL query params (e.g. ?tab=features, ?tab=billing) or default to 'overview'
   const searchParams = new URLSearchParams(location.search);
-  const initialTab = searchParams.get('tab') || 'overview';
+  const initialTab = getNormalizedTab(searchParams.get('tab'));
   const [activeTab, setActiveTab] = useState(initialTab);
 
   // Sync tab with URL
@@ -34,6 +43,17 @@ export function AiHub({ role = 'doctor' }) {
     setActiveTab(tabKey);
     navigate(`?tab=${tabKey}`, { replace: true });
   };
+
+  // Sync activeTab when URL search params change
+  useEffect(() => {
+    const tabParam = new URLSearchParams(location.search).get('tab');
+    if (tabParam) {
+      const normalized = getNormalizedTab(tabParam);
+      if (normalized !== activeTab) {
+        setActiveTab(normalized);
+      }
+    }
+  }, [location.search]);
 
   // State
   const [statusData, setStatusData] = useState(null);
@@ -466,22 +486,39 @@ export function AiHub({ role = 'doctor' }) {
         </div>
 
         {/* Quick actions in header */}
-        <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
-          <div className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 shrink-0">
-            {isIndian ? '🇮🇳 Indian (INR)' : '🇺🇸 Global (USD)'}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 w-full sm:w-auto justify-start sm:justify-end">
+          {/* Currency Pill */}
+          <div className="h-10 px-3.5 rounded-xl bg-slate-50 border border-slate-200/90 text-xs font-bold text-slate-700 flex items-center gap-2 shrink-0 shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+            <span>{isIndian ? '🇮🇳 Indian (INR)' : '🇺🇸 Global (USD)'}</span>
           </div>
 
-          <div className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-1.5 text-right">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">Uses Left</span>
-            <span className="text-sm font-black text-slate-800 font-mono">
-              {tokensRemaining.toLocaleString()} <span className="text-[11px] font-normal text-slate-500">uses</span>
-            </span>
+          {/* Uses Left Pill */}
+          <div className="h-10 px-3.5 rounded-xl bg-purple-50/70 border border-purple-200/80 text-xs flex items-center gap-2 shrink-0 shadow-2xs">
+            <div className="w-5 h-5 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center text-[10px] shrink-0 font-black">
+              <i className="fas fa-sparkles"></i>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-purple-900/75 uppercase tracking-wider">Uses Left:</span>
+              <span className="text-sm font-black text-purple-950 font-mono">
+                {tokensRemaining.toLocaleString()}
+              </span>
+            </div>
           </div>
+
+          {/* Manage Plan Action */}
           <button
+            type="button"
             onClick={() => handleTabChange('plan')}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors border border-purple-200 flex items-center gap-1.5 shrink-0"
+            className={`h-10 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 shadow-2xs hover:shadow-xs cursor-pointer active:scale-95 ${
+              activeTab === 'plan'
+                ? 'bg-purple-700 text-white border border-purple-700 shadow-purple-700/20'
+                : 'bg-white hover:bg-purple-50/80 text-purple-700 border border-purple-200/90 hover:border-purple-300'
+            }`}
+            title="View or change your AI subscription plan"
           >
-            <i className="fas fa-credit-card text-[11px]"></i> Manage Plan
+            <i className="fas fa-credit-card text-xs"></i>
+            <span>Manage Plan</span>
           </button>
         </div>
       </div>

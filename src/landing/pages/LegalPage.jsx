@@ -183,7 +183,7 @@ function LegalPage() {
 
       <div className="bg-aubergine-900 text-white py-12 px-5 sm:px-8">
         <div className="max-w-4xl mx-auto space-y-4">
-          <h1 className="text-3xl md:text-5xl font-black font-display">{policy.title}</h1>
+          <h1 className="text-3xl md:text-5xl font-black font-display text-white">{policy.title}</h1>
           <p className="text-aubergine-200 text-sm">Last Updated: {policy.updated}</p>
         </div>
       </div>

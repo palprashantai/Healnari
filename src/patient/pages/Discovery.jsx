@@ -233,9 +233,11 @@ function BookingModal({ doc, patientCountry = 'IN', isOpen, onClose, toast, addA
 }
 
 import { DoctorDetailModal } from '../../components/DoctorDetailModal.jsx';
+import { DoctorShareModal } from '../../components/DoctorShareModal.jsx';
+import { resolveDoctorAvatar } from '../../components/RateDoctorModal.jsx';
 
 /* ─── Doctor Card ────────────────────────────── */
-function DoctorCard({ doc, patientCountry = 'IN', onBook, onFavorite, favorites, onViewProfile }) {
+function DoctorCard({ doc, patientCountry = 'IN', onBook, onFavorite, favorites, onViewProfile, onShare }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const isFav = favorites.includes(doc.id);
   const pricing = useMemo(() => {
@@ -247,6 +249,7 @@ function DoctorCard({ doc, patientCountry = 'IN', onBook, onFavorite, favorites,
   const qualifications = doc.qualifications || 'MBBS, MD';
   const expYears = doc.experience_years || 10;
   const languages = doc.languages || 'English, Hindi';
+  const docPhoto = resolveDoctorAvatar(doc);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col hover:shadow-md transition-all">
@@ -259,9 +262,9 @@ function DoctorCard({ doc, patientCountry = 'IN', onBook, onFavorite, favorites,
             className="relative w-14 h-14 rounded-2xl bg-aubergine-50 flex-shrink-0 border-2 border-aubergine-100 flex items-center justify-center text-lg font-black text-aubergine-700 overflow-hidden cursor-pointer group"
             title="View full doctor credentials"
           >
-            {doc.avatar_url ? (
+            {docPhoto ? (
               <img 
-                src={doc.avatar_url} 
+                src={docPhoto} 
                 alt={doc.name} 
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
               />
@@ -280,13 +283,23 @@ function DoctorCard({ doc, patientCountry = 'IN', onBook, onFavorite, favorites,
               >
                 {doc.name}
               </h3>
-              <button 
-                onClick={() => onFavorite(doc.id)}
-                className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${isFav ? 'bg-rose-100 text-rose-500' : 'bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-400'}`}
-                title={isFav ? 'Remove from favorites' : 'Add to favorites'}
-              >
-                <i className="fas fa-heart text-xs"></i>
-              </button>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onShare?.(doc)}
+                  className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 hover:bg-purple-100 hover:text-purple-700 flex items-center justify-center transition-all"
+                  title="Share / Refer Doctor"
+                >
+                  <i className="fas fa-share-nodes text-xs"></i>
+                </button>
+                <button 
+                  onClick={() => onFavorite(doc.id)}
+                  className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${isFav ? 'bg-rose-100 text-rose-500' : 'bg-slate-100 text-slate-400 hover:bg-rose-50 hover:text-rose-400'}`}
+                  title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+                >
+                  <i className="fas fa-heart text-xs"></i>
+                </button>
+              </div>
             </div>
 
             <p className="text-xs text-aubergine-700 font-bold uppercase tracking-wide mt-0.5 truncate">
@@ -412,6 +425,16 @@ function DoctorCard({ doc, patientCountry = 'IN', onBook, onFavorite, favorites,
       <div className="px-5 pb-5 pt-1 flex gap-2">
         <button
           type="button"
+          onClick={() => onShare?.(doc)}
+          className="border border-purple-200 hover:border-purple-300 bg-purple-50/50 hover:bg-purple-100/60 text-purple-700 font-bold py-2.5 px-3 rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5"
+          title="Refer this doctor to friends or family"
+        >
+          <i className="fas fa-share-nodes text-purple-600"></i>
+          <span>Refer</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => onViewProfile(doc)}
           className="border border-slate-200 hover:border-aubergine-300 hover:bg-aubergine-50/40 text-slate-700 font-bold py-2.5 px-3 rounded-xl text-xs transition-colors flex items-center justify-center gap-1"
           title="View profile & reviews"
@@ -441,6 +464,7 @@ function PatientDiscovery() {
   const { addAppointment, favorites, toggleFavorite, syncPayment } = useClinicData();
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [profileDoc, setProfileDoc] = useState(null);
+  const [shareDoc, setShareDoc] = useState(null);
   const [search, setSearch] = useState('');
   const [specialty, setSpecialty] = useState('All');
   const [showConcernPicker, setShowConcernPicker] = useState(false);
@@ -605,6 +629,7 @@ function PatientDiscovery() {
             onFavorite={handleFavorite} 
             favorites={favorites} 
             onViewProfile={d => setProfileDoc(d)}
+            onShare={d => setShareDoc(d)}
           />
         ))}
         {!loading && filtered.length === 0 && (
@@ -628,6 +653,14 @@ function PatientDiscovery() {
           setProfileDoc(null);
           setSelectedDoc(d);
         }}
+      />
+
+      {/* Share / Refer Doctor Modal */}
+      <DoctorShareModal
+        isOpen={!!shareDoc}
+        onClose={() => setShareDoc(null)}
+        doctor={shareDoc}
+        mode="refer"
       />
 
       <PaymentModal

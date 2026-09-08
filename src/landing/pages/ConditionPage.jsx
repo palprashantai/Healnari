@@ -572,7 +572,7 @@ function ConditionPage() {
           <span className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
             <i className="fas fa-stethoscope text-emerald-300"></i> Root-Cause Clinical Care
           </span>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black font-display">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-black font-display text-white">
             Start Your Personalized Recovery Protocol Today
           </h2>
           <p className="text-pink-100 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">

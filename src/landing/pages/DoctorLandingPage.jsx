@@ -369,7 +369,7 @@ function DoctorLandingPage() {
                   <span className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-xs font-semibold px-4 py-1.5 rounded-full uppercase tracking-wider">
                     <i className="fas fa-stethoscope text-emerald-300"></i> Join 200+ Verified Specialists
                   </span>
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-display leading-tight">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold font-display leading-tight text-white">
                     Start Your Digital Clinic Today
                   </h2>
                   <p className="text-pink-100 text-base md:text-lg leading-relaxed font-normal">
