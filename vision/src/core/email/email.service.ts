@@ -1,5 +1,5 @@
 import dns from 'node:dns';
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
@@ -274,7 +274,7 @@ export class EmailService implements OnModuleInit {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly configService: ConfigService,
-    private readonly cronLock: CronLockService,
+    @Optional() private readonly cronLock?: CronLockService,
   ) {
     // 1. Resolve Frontend URL
     this.frontendUrl = (
@@ -934,12 +934,19 @@ export class EmailService implements OnModuleInit {
     }
   }
 
+  private async executeLocked(name: string, fn: () => Promise<any>) {
+    if (this.cronLock?.runWithLock) {
+      return this.cronLock.runWithLock(name, fn);
+    }
+    return fn();
+  }
+
   /**
    * Background task to process failed emails every minute across distributed nodes.
    */
   @Cron(CronExpression.EVERY_MINUTE, { name: 'email_retry_queue' })
   async processRetryQueue() {
-    await this.cronLock.runWithLock('email_retry_queue', async () => {
+    await this.executeLocked('email_retry_queue', async () => {
       if (!this.transporter) return;
 
       const nowIso = new Date().toISOString();

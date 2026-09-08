@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
@@ -13,8 +13,15 @@ export class PrescriptionsCronService {
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
     private readonly email: EmailService,
-    private readonly cronLock: CronLockService,
+    @Optional() private readonly cronLock?: CronLockService,
   ) {}
+
+  private async executeLocked(name: string, fn: () => Promise<any>) {
+    if (this.cronLock?.runWithLock) {
+      return this.cronLock.runWithLock(name, fn);
+    }
+    return fn();
+  }
 
   /**
    * Runs daily at 9:00 AM IST.
@@ -26,7 +33,7 @@ export class PrescriptionsCronService {
     timeZone: 'Asia/Kolkata',
   })
   async sendPrescriptionRefillReminders() {
-    await this.cronLock.runWithLock('prescription_refill_reminders', async () => {
+    await this.executeLocked('prescription_refill_reminders', async () => {
       this.logger.log('Starting daily prescription refill reminder sweep (IST)...');
 
       const today = new Date();
@@ -159,7 +166,7 @@ export class PrescriptionsCronService {
     timeZone: 'Asia/Kolkata',
   })
   async sendLifestyleDailyReminder() {
-    await this.cronLock.runWithLock('lifestyle_daily_habit_reminder', async () => {
+    await this.executeLocked('lifestyle_daily_habit_reminder', async () => {
       this.logger.log('Starting daily lifestyle habit reminder sweep (IST)...');
       const today = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Kolkata',
@@ -218,7 +225,7 @@ export class PrescriptionsCronService {
     timeZone: 'Asia/Kolkata',
   })
   async sendRecommendedFollowUpReminders() {
-    await this.cronLock.runWithLock('prescription_follow_up_reminders', async () => {
+    await this.executeLocked('prescription_follow_up_reminders', async () => {
       this.logger.log('Starting recommended follow-up appointment sweep (IST)...');
 
       // Find appointments completed 10-16 days ago that have not yet had a follow-up reminder sent
@@ -366,7 +373,7 @@ export class PrescriptionsCronService {
     timeZone: 'Asia/Kolkata',
   })
   async sendPendingLabReportReminders() {
-    await this.cronLock.runWithLock('prescription_pending_lab_reminders', async () => {
+    await this.executeLocked('prescription_pending_lab_reminders', async () => {
       this.logger.log('Starting pending lab test report sweep (IST)...');
 
       const threeDaysAgo = new Date(

@@ -5,6 +5,7 @@ import {
   BadRequestException,
   HttpException,
   HttpStatus,
+  Optional,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import * as crypto from 'crypto';
@@ -130,8 +131,15 @@ export class AiSubscriptionService {
     private readonly creditLedgerService: AiCreditLedgerService,
     private readonly fxRateService: FXRateService,
     private readonly notifications: NotificationsService,
-    private readonly cronLock: CronLockService,
+    @Optional() private readonly cronLock?: CronLockService,
   ) {}
+
+  private async executeLocked(name: string, fn: () => Promise<any>) {
+    if (this.cronLock?.runWithLock) {
+      return this.cronLock.runWithLock(name, fn);
+    }
+    return fn();
+  }
 
   /**
    * Authoritatively retrieves user's active AI subscription from PostgreSQL database.
@@ -1107,7 +1115,7 @@ export class AiSubscriptionService {
     timeZone: 'Asia/Kolkata',
   })
   async handleSubscriptionExpirySweep() {
-    await this.cronLock.runWithLock('ai_subscription_expiry_sweep', async () => {
+    await this.executeLocked('ai_subscription_expiry_sweep', async () => {
       this.logger.log('Running daily AI subscription expiry sweep (IST)...');
       const now = new Date();
       const nowIso = now.toISOString();
@@ -1217,7 +1225,7 @@ export class AiSubscriptionService {
     timeZone: 'Asia/Kolkata',
   })
   async handleMonthlyCreditReset() {
-    await this.cronLock.runWithLock('ai_monthly_credit_reset', async () => {
+    await this.executeLocked('ai_monthly_credit_reset', async () => {
       this.logger.log('Resetting monthly AI credits for active users on 1st of month (IST)...');
       const nowIso = new Date().toISOString();
       try {

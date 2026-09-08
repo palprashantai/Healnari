@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
@@ -13,8 +13,15 @@ export class DoctorsCronService {
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
     private readonly email: EmailService,
-    private readonly cronLock: CronLockService,
+    @Optional() private readonly cronLock?: CronLockService,
   ) {}
+
+  private async executeLocked(name: string, fn: () => Promise<any>) {
+    if (this.cronLock?.runWithLock) {
+      return this.cronLock.runWithLock(name, fn);
+    }
+    return fn();
+  }
 
   /**
    * Runs daily at 7:45 AM (Asia/Kolkata).
@@ -26,7 +33,7 @@ export class DoctorsCronService {
     timeZone: 'Asia/Kolkata',
   })
   async sendDoctorDailyAgenda() {
-    return this.cronLock.runWithLock('doctor_daily_agenda', async () => {
+    return this.executeLocked('doctor_daily_agenda', async () => {
       this.logger.log('Starting daily doctor agenda digest sweep...');
 
       const todayStr = new Intl.DateTimeFormat('en-CA', {
@@ -156,7 +163,7 @@ export class DoctorsCronService {
     timeZone: 'Asia/Kolkata',
   })
   async archiveStaleConsultations() {
-    return this.cronLock.runWithLock('doctor_stale_consultation_archival', async () => {
+    return this.executeLocked('doctor_stale_consultation_archival', async () => {
       this.logger.log('Starting stale consultation archival sweep...');
 
       const todayStr = new Intl.DateTimeFormat('en-CA', {

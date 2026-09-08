@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
@@ -11,8 +11,15 @@ export class CyclePredictionCronService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
-    private readonly cronLock: CronLockService,
+    @Optional() private readonly cronLock?: CronLockService,
   ) {}
+
+  private async executeLocked(name: string, fn: () => Promise<any>) {
+    if (this.cronLock?.runWithLock) {
+      return this.cronLock.runWithLock(name, fn);
+    }
+    return fn();
+  }
 
   /**
    * Runs daily at 7:00 AM IST.
@@ -24,7 +31,7 @@ export class CyclePredictionCronService {
     timeZone: 'Asia/Kolkata',
   })
   async sendPeriodApproachingAlerts() {
-    await this.cronLock.runWithLock('cycle_period_prediction', async () => {
+    await this.executeLocked('cycle_period_prediction', async () => {
       this.logger.log('Starting daily cycle & period prediction sweep (IST)...');
 
       const todayStr = new Intl.DateTimeFormat('en-CA', {
@@ -147,7 +154,7 @@ export class CyclePredictionCronService {
     timeZone: 'Asia/Kolkata',
   })
   async sendFertileWindowAlerts() {
-    await this.cronLock.runWithLock('cycle_fertile_window', async () => {
+    await this.executeLocked('cycle_fertile_window', async () => {
       this.logger.log('Starting fertile window & ovulation sweep (IST)...');
 
       const todayStr = new Intl.DateTimeFormat('en-CA', {

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { CashfreeService } from '@/core/cashfree/cashfree.service';
@@ -15,8 +15,15 @@ export class BillingCronService {
     private readonly cashfree: CashfreeService,
     private readonly notifications: NotificationsService,
     private readonly email: EmailService,
-    private readonly cronLock: CronLockService,
+    @Optional() private readonly cronLock?: CronLockService,
   ) {}
+
+  private async executeLocked(name: string, fn: () => Promise<any>) {
+    if (this.cronLock?.runWithLock) {
+      return this.cronLock.runWithLock(name, fn);
+    }
+    return fn();
+  }
 
   /**
    * Runs every 15 minutes.
@@ -27,7 +34,7 @@ export class BillingCronService {
    */
   @Cron('0 */15 * * * *', { name: 'billing_automated_refunds' })
   async processAutomatedRefundsForCancelledAppointments() {
-    return this.cronLock.runWithLock('billing_automated_refunds', async () => {
+    return this.executeLocked('billing_automated_refunds', async () => {
       this.logger.log('Starting automated refund processing sweep...');
 
       // Find candidate payments in 'Refund Pending' state
@@ -84,10 +91,13 @@ export class BillingCronService {
               if (
                 cfRes?.refund_status === 'SUCCESS' ||
                 cfRes?.refund_status === 'PENDING' ||
-                cfRes?.cf_refund_id
+                cfRes?.cf_refund_id ||
+                cfRes?.refund_id
               ) {
                 refundSuccessful = true;
-                if (cfRes.cf_refund_id) refundRef = String(cfRes.cf_refund_id);
+                if (cfRes.cf_refund_id || cfRes.refund_id) {
+                  refundRef = String(cfRes.cf_refund_id || cfRes.refund_id);
+                }
               } else {
                 this.logger.warn(
                   `Cashfree refund returned non-success for payment ${payment.id}: ${JSON.stringify(cfRes)}`,
@@ -193,7 +203,7 @@ export class BillingCronService {
     timeZone: 'Asia/Kolkata',
   })
   async sendCarePlanRenewalReminders() {
-    return this.cronLock.runWithLock('billing_care_plan_renewals', async () => {
+    return this.executeLocked('billing_care_plan_renewals', async () => {
       this.logger.log('Starting patient care plan & package renewal sweep...');
 
       const todayStr = new Intl.DateTimeFormat('en-CA', {

@@ -46,6 +46,9 @@ export class CronLockService {
       return { executed: false };
     }
 
+    // Mark as locally running immediately to avoid race conditions during async remote lock acquisition
+    this.localRunningJobs.add(jobName);
+
     const lockKey = this.hashJobNameToLockKey(jobName);
     let lockAcquired = false;
 
@@ -56,6 +59,7 @@ export class CronLockService {
       });
 
       if (!error && data === false) {
+        this.localRunningJobs.delete(jobName);
         this.logger.debug(
           `[${jobName}] Skipped: Distributed advisory lock held by another cluster instance.`,
         );
@@ -70,7 +74,6 @@ export class CronLockService {
       this.logger.debug(`[${jobName}] try_advisory_lock RPC fallback to local process lock.`);
     }
 
-    this.localRunningJobs.add(jobName);
     const startTime = Date.now();
     this.logger.log(`[${jobName}] Started execution...`);
 

@@ -6,6 +6,7 @@ import {
   InternalServerErrorException,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from '@/core/supabase/supabase.service';
@@ -61,8 +62,15 @@ export class AppointmentsService {
     private readonly ai: AiService,
     private readonly email: EmailService,
     private readonly fxRateService: FXRateService,
-    private readonly cronLock: CronLockService,
+    @Optional() private readonly cronLock?: CronLockService,
   ) { }
+
+  private async executeLocked(name: string, fn: () => Promise<any>) {
+    if (this.cronLock?.runWithLock) {
+      return this.cronLock.runWithLock(name, fn);
+    }
+    return fn();
+  }
 
   private appointmentWhen(a: Appointment) {
     return `${a.scheduled_date} at ${a.scheduled_time}`;
@@ -1878,7 +1886,7 @@ export class AppointmentsService {
 
   @Cron(CronExpression.EVERY_HOUR, { name: 'appointments_reminder_24h' })
   async send24HourReminders() {
-    await this.cronLock.runWithLock('appointments_reminder_24h', async () => {
+    await this.executeLocked('appointments_reminder_24h', async () => {
       const now = new Date();
       const windowStart = new Date(now.getTime() + 23 * 60 * 60 * 1000); // 23h from now
       const windowEnd = new Date(now.getTime() + 25 * 60 * 60 * 1000); // 25h from now
@@ -1929,7 +1937,7 @@ export class AppointmentsService {
 
   @Cron('0,30 * * * *', { name: 'appointments_no_show_processor' }) // Every 30 minutes
   async processNoShows() {
-    await this.cronLock.runWithLock('appointments_no_show_processor', async () => {
+    await this.executeLocked('appointments_no_show_processor', async () => {
       const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
 
       // BUG-010 fix: explicitly exclude rows with null scheduled_at (pre-migration
@@ -1963,7 +1971,7 @@ export class AppointmentsService {
 
   @Cron('0,30 * * * *', { name: 'appointments_unpaid_cancellation_sweep' })
   async processUnpaidApprovals() {
-    await this.cronLock.runWithLock('appointments_unpaid_cancellation_sweep', async () => {
+    await this.executeLocked('appointments_unpaid_cancellation_sweep', async () => {
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
 
       // BUG-006 fix: fetch candidate IDs first, then exclude any that have a
@@ -2063,7 +2071,7 @@ export class AppointmentsService {
    * there's no historical no-show dataset in this schema to train on. */
   @Cron(CronExpression.EVERY_5_MINUTES, { name: 'appointments_reminder_30min' })
   async sendUpcomingReminders() {
-    await this.cronLock.runWithLock('appointments_reminder_30min', async () => {
+    await this.executeLocked('appointments_reminder_30min', async () => {
       const now = new Date();
       const windowEnd = new Date(now.getTime() + 30 * 60 * 1000);
 
@@ -2159,7 +2167,7 @@ export class AppointmentsService {
    * for as long as the delay persists. */
   @Cron(CronExpression.EVERY_5_MINUTES, { name: 'appointments_queue_delay' })
   async sendDelayNotifications() {
-    await this.cronLock.runWithLock('appointments_queue_delay', async () => {
+    await this.executeLocked('appointments_queue_delay', async () => {
       const today = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Kolkata',
       }).format(new Date());
@@ -2273,7 +2281,7 @@ export class AppointmentsService {
 
   @Cron(CronExpression.EVERY_5_MINUTES, { name: 'appointments_unpaid_release' })
   async releaseUnpaidSlots() {
-    await this.cronLock.runWithLock('appointments_unpaid_release', async () => {
+    await this.executeLocked('appointments_unpaid_release', async () => {
       // Free explicitly HELD slots that have expired (10 minutes)
       const nowStr = new Date().toISOString();
       const { data: expiredHolds, error: holdError } = await this.supabase.admin

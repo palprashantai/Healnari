@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
@@ -13,8 +13,15 @@ export class AdminCronService {
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
     private readonly email: EmailService,
-    private readonly cronLock: CronLockService,
+    @Optional() private readonly cronLock?: CronLockService,
   ) {}
+
+  private async executeLocked(name: string, fn: () => Promise<any>) {
+    if (this.cronLock?.runWithLock) {
+      return this.cronLock.runWithLock(name, fn);
+    }
+    return fn();
+  }
 
   /**
    * Runs daily at Midnight (00:00 IST).
@@ -27,7 +34,7 @@ export class AdminCronService {
     timeZone: 'Asia/Kolkata',
   })
   async reconcileDailyPlatformRevenue() {
-    await this.cronLock.runWithLock('admin_daily_revenue_reconciliation', async () => {
+    await this.executeLocked('admin_daily_revenue_reconciliation', async () => {
       this.logger.log('Starting daily platform revenue reconciliation sweep (IST)...');
 
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -127,7 +134,7 @@ export class AdminCronService {
     timeZone: 'Asia/Kolkata',
   })
   async escalatePendingDoctorKyc() {
-    await this.cronLock.runWithLock('admin_doctor_kyc_escalation', async () => {
+    await this.executeLocked('admin_doctor_kyc_escalation', async () => {
       this.logger.log('Starting pending doctor KYC escalation sweep (IST)...');
 
       const fortyEightHoursAgo = new Date(

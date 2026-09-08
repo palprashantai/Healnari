@@ -92,7 +92,8 @@ describe('Background Cron Services Suite', () => {
       const { supabase } = createSupabaseMock({
         payments: [
           { data: mockPendingPayments, error: null },
-          { data: { id: 'pay-123', status: 'Refunded' }, error: null },
+          { data: mockPendingPayments, error: null },
+          { data: [{ id: 'pay-123', status: 'Refunded' }], error: null },
         ],
         appointments: [{ data: { id: 'apt-999' }, error: null }],
         refund_requests: [{ data: {}, error: null }],
