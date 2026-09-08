@@ -17,6 +17,7 @@ import { AuditLogInterceptor } from '@/core/interceptors/audit-log.interceptor';
 import { AdminModule } from '@/modules/admin/admin.module';
 import { AiModule } from '@/modules/ai/ai.module';
 import { SupabaseModule } from '@/core/supabase/supabase.module';
+import { SchedulerModule } from '@/core/scheduler/scheduler.module';
 import { CommissionModule } from '@/core/commission/commission.module';
 import { FXModule } from '@/core/fx/fx.module';
 import { BillingModule } from '@/modules/billing/billing.module';
@@ -38,6 +39,7 @@ import { LeadsModule } from '@/modules/leads/leads.module';
       },
     ]),
     SupabaseModule,
+    SchedulerModule,
     CommissionModule,
     FXModule,
     AuthModule,

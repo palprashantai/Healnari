@@ -137,6 +137,62 @@ export const CRON_CATALOG: Record<string, CronMetadata> = {
       'Alerts patients when 7 days remain on their 3-Month / 6-Month care packages.',
     defaultSchedule: '0 9 * * *',
   },
+  appointments_reminder_24h: {
+    name: 'appointments_reminder_24h',
+    displayName: '24-Hour Consultation Notice',
+    category: 'Appointments',
+    description:
+      'Notifies patients and doctors 24 hours ahead of their scheduled consultation.',
+    defaultSchedule: '0 * * * *',
+  },
+  appointments_no_show_processor: {
+    name: 'appointments_no_show_processor',
+    displayName: 'No-Show Consultation Sweeper',
+    category: 'Appointments',
+    description:
+      'Marks past appointments older than 2 hours without check-in as No-Show.',
+    defaultSchedule: '0,30 * * * *',
+  },
+  appointments_unpaid_cancellation_sweep: {
+    name: 'appointments_unpaid_cancellation_sweep',
+    displayName: 'Unpaid Approval Auto-Cancellation',
+    category: 'Appointments',
+    description:
+      'Auto-cancels doctor-approved consultation requests if payment is not completed within 24 hours.',
+    defaultSchedule: '0,30 * * * *',
+  },
+  lifestyle_daily_habit_reminder: {
+    name: 'lifestyle_daily_habit_reminder',
+    displayName: 'Daily Wellness & Diet Check-in',
+    category: 'Patient',
+    description:
+      'Sends daily reminders at 8 AM IST for patients on active holistic lifestyle plans.',
+    defaultSchedule: '0 8 * * *',
+  },
+  email_retry_queue: {
+    name: 'email_retry_queue',
+    displayName: 'Transactional Email Resiliency Dispatcher',
+    category: 'Admin',
+    description:
+      'Retries transiently failed emails from email_logs using exponential backoff across nodes.',
+    defaultSchedule: '* * * * *',
+  },
+  ai_subscription_expiry_sweep: {
+    name: 'ai_subscription_expiry_sweep',
+    displayName: 'AI Subscription Expiry & Renewal Sweep',
+    category: 'Billing',
+    description:
+      'Downgrades expired AI plans to Free Starter and notifies users 3 days prior to expiration.',
+    defaultSchedule: '0 0 * * *',
+  },
+  ai_monthly_credit_reset: {
+    name: 'ai_monthly_credit_reset',
+    displayName: 'Monthly AI Credit Allocation Reset',
+    category: 'Billing',
+    description:
+      'Allocates monthly token refresh for active subscribers on the 1st of every calendar month.',
+    defaultSchedule: '0 0 1 * *',
+  },
 };
 
 @Injectable()

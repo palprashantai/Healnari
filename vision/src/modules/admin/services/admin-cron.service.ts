@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { EmailService } from '@/core/email/email.service';
+import { CronLockService } from '@/core/scheduler/cron-lock.service';
 
 @Injectable()
 export class AdminCronService {
@@ -12,21 +13,22 @@ export class AdminCronService {
     private readonly supabase: SupabaseService,
     private readonly notifications: NotificationsService,
     private readonly email: EmailService,
+    private readonly cronLock: CronLockService,
   ) {}
 
   /**
-   * Runs daily at Midnight (00:00).
+   * Runs daily at Midnight (00:00 IST).
    * Aggregates completed payments from the past 24 hours using STORED
    * per-transaction commission snapshots (platform_fee_amount /
-   * provider_payout_amount). Never applies a hardcoded rate — each
-   * doctor's individual commission is already baked into the payment row
-   * at transaction time by BillingService + CommissionCalculator.
+   * provider_payout_amount).
    */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
     name: 'admin_daily_revenue_reconciliation',
+    timeZone: 'Asia/Kolkata',
   })
   async reconcileDailyPlatformRevenue() {
-    this.logger.log('Starting daily platform revenue reconciliation sweep...');
+    await this.cronLock.runWithLock('admin_daily_revenue_reconciliation', async () => {
+      this.logger.log('Starting daily platform revenue reconciliation sweep (IST)...');
 
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const now = new Date().toISOString();
@@ -112,82 +114,88 @@ export class AdminCronService {
         }),
       );
     }
+    });
   }
 
   /**
-   * Runs weekly on Mondays at 12:00 PM.
+   * Runs weekly on Mondays at 12:00 PM IST.
    * Checks for doctors who submitted KYC verification documents >48 hours ago
    * and are still pending admin verification, sending an escalation alert to administrators.
    */
-  @Cron('0 0 12 * * 1', { name: 'admin_doctor_kyc_escalation' })
+  @Cron('0 0 12 * * 1', {
+    name: 'admin_doctor_kyc_escalation',
+    timeZone: 'Asia/Kolkata',
+  })
   async escalatePendingDoctorKyc() {
-    this.logger.log('Starting pending doctor KYC escalation sweep...');
+    await this.cronLock.runWithLock('admin_doctor_kyc_escalation', async () => {
+      this.logger.log('Starting pending doctor KYC escalation sweep (IST)...');
 
-    const fortyEightHoursAgo = new Date(
-      Date.now() - 48 * 60 * 60 * 1000,
-    ).toISOString();
+      const fortyEightHoursAgo = new Date(
+        Date.now() - 48 * 60 * 60 * 1000,
+      ).toISOString();
 
-    const { data: pendingDoctors, error } = await this.supabase.admin
-      .from('profiles')
-      .select('id, full_name, kyc_submitted_at, kyc_verified')
-      .eq('role', 'doctor')
-      .eq('kyc_verified', false)
-      .not('kyc_submitted_at', 'is', null)
-      .lte('kyc_submitted_at', fortyEightHoursAgo);
+      const { data: pendingDoctors, error } = await this.supabase.admin
+        .from('profiles')
+        .select('id, full_name, kyc_submitted_at, kyc_verified')
+        .eq('role', 'doctor')
+        .eq('kyc_verified', false)
+        .not('kyc_submitted_at', 'is', null)
+        .lte('kyc_submitted_at', fortyEightHoursAgo);
 
-    if (error || !pendingDoctors?.length) {
-      this.logger.log('No overdue pending doctor KYC reviews found.');
-      return;
-    }
+      if (error || !pendingDoctors?.length) {
+        this.logger.log('No overdue pending doctor KYC reviews found.');
+        return;
+      }
 
-    const { data: admins } = await this.supabase.admin
-      .from('profiles')
-      .select('id, email, full_name')
-      .eq('role', 'admin');
+      const { data: admins } = await this.supabase.admin
+        .from('profiles')
+        .select('id, email, full_name')
+        .eq('role', 'admin');
 
-    if (!admins?.length) return;
+      if (!admins?.length) return;
 
-    await Promise.all(
-      admins.map((admin) => {
-        // 1. In-App + Web Push
-        this.notifications
-          .create(admin.id, {
-            type: 'admin_kyc_escalation',
-            title: 'Doctor KYC Reviews Overdue',
-            message: `${pendingDoctors.length} doctor profile(s) have been waiting for verification for over 48 hours. Please review their medical licenses.`,
-            data: { pendingCount: pendingDoctors.length },
-          })
-          .catch(() => {});
-
-        // 2. Email Escalation via database-managed template
-        if (admin.email) {
-          const doctorListHtml = pendingDoctors
-            .map(
-              (d) =>
-                `<li style="margin-bottom:6px;"><strong>Dr. ${d.full_name || 'Unknown'}</strong> (Submitted: ${new Date(d.kyc_submitted_at).toLocaleDateString()})</li>`,
-            )
-            .join('');
-          this.email
-            .sendTemplateEmail({
-              templateKey: 'admin_doctor_kyc_escalation',
-              to: admin.email,
-              variables: {
-                adminName: admin.full_name || 'Admin',
-                pendingCount: pendingDoctors.length,
-                doctorListHtml,
-                verificationsUrl: this.email.getUrl('/admin-dashboard/verification'),
-              },
-              entityType: 'doctor_kyc_escalation',
-              entityId: new Date().toISOString().slice(0, 10),
-              event: 'admin_doctor_kyc_escalation',
+      await Promise.all(
+        admins.map((admin) => {
+          // 1. In-App + Web Push
+          this.notifications
+            .create(admin.id, {
+              type: 'admin_kyc_escalation',
+              title: 'Doctor KYC Reviews Overdue',
+              message: `${pendingDoctors.length} doctor profile(s) have been waiting for verification for over 48 hours. Please review their medical licenses.`,
+              data: { pendingCount: pendingDoctors.length },
             })
             .catch(() => {});
-        }
-      }),
-    );
 
-    this.logger.log(
-      `Escalated ${pendingDoctors.length} overdue KYC review(s) to ${admins.length} admin(s).`,
-    );
+          // 2. Email Escalation via database-managed template
+          if (admin.email) {
+            const doctorListHtml = pendingDoctors
+              .map(
+                (d) =>
+                  `<li style="margin-bottom:6px;"><strong>Dr. ${d.full_name || 'Unknown'}</strong> (Submitted: ${new Date(d.kyc_submitted_at).toLocaleDateString()})</li>`,
+              )
+              .join('');
+            this.email
+              .sendTemplateEmail({
+                templateKey: 'admin_doctor_kyc_escalation',
+                to: admin.email,
+                variables: {
+                  adminName: admin.full_name || 'Admin',
+                  pendingCount: pendingDoctors.length,
+                  doctorListHtml,
+                  verificationsUrl: this.email.getUrl('/admin-dashboard/verification'),
+                },
+                entityType: 'doctor_kyc_escalation',
+                entityId: new Date().toISOString().slice(0, 10),
+                event: 'admin_doctor_kyc_escalation',
+              })
+              .catch(() => {});
+          }
+        }),
+      );
+
+      this.logger.log(
+        `Escalated ${pendingDoctors.length} overdue KYC review(s) to ${admins.length} admin(s).`,
+      );
+    });
   }
 }

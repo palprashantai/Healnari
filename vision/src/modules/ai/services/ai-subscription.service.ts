@@ -12,6 +12,7 @@ import { SupabaseService } from '@/core/supabase/supabase.service';
 import { CashfreeService } from '@/core/cashfree/cashfree.service';
 import { FXRateService } from '@/core/fx/fx-rate.service';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { CronLockService } from '@/core/scheduler/cron-lock.service';
 import { AiPricingService } from './ai-pricing.service';
 import { AiCreditLedgerService } from './ai-credit-ledger.service';
 import {
@@ -129,6 +130,7 @@ export class AiSubscriptionService {
     private readonly creditLedgerService: AiCreditLedgerService,
     private readonly fxRateService: FXRateService,
     private readonly notifications: NotificationsService,
+    private readonly cronLock: CronLockService,
   ) {}
 
   /**
@@ -1100,131 +1102,141 @@ export class AiSubscriptionService {
   /**
    * Daily Cron: Checks for expired paid subscriptions and sends 3-day renewal reminders
    */
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { name: 'ai_subscription_expiry_sweep' })
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, {
+    name: 'ai_subscription_expiry_sweep',
+    timeZone: 'Asia/Kolkata',
+  })
   async handleSubscriptionExpirySweep() {
-    this.logger.log('Running daily AI subscription expiry sweep...');
-    const now = new Date();
-    const nowIso = now.toISOString();
+    await this.cronLock.runWithLock('ai_subscription_expiry_sweep', async () => {
+      this.logger.log('Running daily AI subscription expiry sweep (IST)...');
+      const now = new Date();
+      const nowIso = now.toISOString();
 
-    try {
-      // 1. Fetch active paid subscriptions that have passed their current_period_end
-      const { data: expiredSubs } = await this.supabase.admin
-        .from('ai_subscriptions')
-        .select('*')
-        .eq('status', 'active')
-        .not('current_period_end', 'is', null)
-        .lt('current_period_end', nowIso);
+      try {
+        // 1. Fetch active paid subscriptions that have passed their current_period_end
+        const { data: expiredSubs } = await this.supabase.admin
+          .from('ai_subscriptions')
+          .select('*')
+          .eq('status', 'active')
+          .not('current_period_end', 'is', null)
+          .lt('current_period_end', nowIso);
 
-      if (expiredSubs && expiredSubs.length > 0) {
-        for (const sub of expiredSubs) {
-          if (sub.plan_id.includes('plan_1') || sub.plan_id.includes('free')) continue;
-          const isDoctor = sub.role === 'doctor';
-          const defaultPlan = isDoctor ? 'doctor_plan_1' : 'patient_plan_1';
-          const defaultCredits = isDoctor ? 25 : 15;
+        if (expiredSubs && expiredSubs.length > 0) {
+          for (const sub of expiredSubs) {
+            if (sub.plan_id.includes('plan_1') || sub.plan_id.includes('free')) continue;
+            const isDoctor = sub.role === 'doctor';
+            const defaultPlan = isDoctor ? 'doctor_plan_1' : 'patient_plan_1';
+            const defaultCredits = isDoctor ? 25 : 15;
 
-          await this.supabase.admin
-            .from('ai_subscriptions')
-            .update({
-              plan_id: defaultPlan,
-              monthly_ai_credits: defaultCredits,
-              credits_used: 0,
-              current_period_end: null,
-              cancel_at_period_end: false,
-              updated_at: nowIso,
-            })
-            .eq('id', sub.id);
-
-          try {
             await this.supabase.admin
-              .from('ai_credit_accounts')
-              .upsert(
-                {
-                  user_id: sub.user_id,
-                  balance: defaultCredits,
-                  lifetime_consumed: 0,
-                  updated_at: nowIso,
+              .from('ai_subscriptions')
+              .update({
+                plan_id: defaultPlan,
+                monthly_ai_credits: defaultCredits,
+                credits_used: 0,
+                current_period_end: null,
+                cancel_at_period_end: false,
+                updated_at: nowIso,
+              })
+              .eq('id', sub.id);
+
+            try {
+              await this.supabase.admin
+                .from('ai_credit_accounts')
+                .upsert(
+                  {
+                    user_id: sub.user_id,
+                    balance: defaultCredits,
+                    lifetime_consumed: 0,
+                    updated_at: nowIso,
+                  },
+                  { onConflict: 'user_id' },
+                );
+
+              await this.supabase.admin.from('ai_credit_ledger').insert({
+                user_id: sub.user_id,
+                entry_type: 'RESET',
+                amount: defaultCredits,
+                balance_after: defaultCredits,
+                feature: null,
+                reference_id: `cron_expiry_${sub.id}_${nowIso.slice(0, 10)}`,
+                reason: 'Subscription period ended: Transitioned to Free Starter tier',
+                metadata: {
+                  previous_plan: sub.plan_id,
+                  new_plan: defaultPlan,
+                  timestamp: nowIso,
                 },
-                { onConflict: 'user_id' },
-              );
+              });
+            } catch {}
 
-            await this.supabase.admin.from('ai_credit_ledger').insert({
-              user_id: sub.user_id,
-              entry_type: 'RESET',
-              amount: defaultCredits,
-              balance_after: defaultCredits,
-              feature: null,
-              reference_id: `cron_expiry_${sub.id}_${nowIso.slice(0, 10)}`,
-              reason: 'Subscription period ended: Transitioned to Free Starter tier',
-              metadata: {
-                previous_plan: sub.plan_id,
-                new_plan: defaultPlan,
-                timestamp: nowIso,
-              },
-            });
-          } catch {}
-
-          await this.notifications.create(sub.user_id, {
-            type: 'subscription_expired',
-            title: 'AI Subscription Expired',
-            message: 'Your AI plan period has ended. Your account has transitioned to the standard Starter tier. Tap here to renew your plan.',
-            data: { path: isDoctor ? '/doctor-dashboard/ai' : '/patient-dashboard/ai' },
-          }).catch(() => {});
+            await this.notifications.create(sub.user_id, {
+              type: 'subscription_expired',
+              title: 'AI Subscription Expired',
+              message: 'Your AI plan period has ended. Your account has transitioned to the standard Starter tier. Tap here to renew your plan.',
+              data: { path: isDoctor ? '/doctor-dashboard/ai' : '/patient-dashboard/ai' },
+            }).catch(() => {});
+          }
+          this.logger.log(`Downgraded ${expiredSubs.length} expired AI subscriptions.`);
         }
-        this.logger.log(`Downgraded ${expiredSubs.length} expired AI subscriptions.`);
-      }
 
-      // 2. Pre-expiry renewal reminders (3 days before expiration)
-      const inThreeDays = new Date(now.getTime() + 3 * 86400000).toISOString();
-      const { data: dueRenewals } = await this.supabase.admin
-        .from('ai_subscriptions')
-        .select('*')
-        .eq('status', 'active')
-        .not('current_period_end', 'is', null)
-        .gte('current_period_end', nowIso)
-        .lte('current_period_end', inThreeDays);
+        // 2. Pre-expiry renewal reminders (3 days before expiration)
+        const inThreeDays = new Date(now.getTime() + 3 * 86400000).toISOString();
+        const { data: dueRenewals } = await this.supabase.admin
+          .from('ai_subscriptions')
+          .select('*')
+          .eq('status', 'active')
+          .not('current_period_end', 'is', null)
+          .gte('current_period_end', nowIso)
+          .lte('current_period_end', inThreeDays);
 
-      if (dueRenewals && dueRenewals.length > 0) {
-        for (const sub of dueRenewals) {
-          if (sub.plan_id.includes('plan_1') || sub.plan_id.includes('free')) continue;
-          const isDoctor = sub.role === 'doctor';
-          await this.notifications.create(sub.user_id, {
-            type: 'subscription_renewal_due',
-            title: 'AI Subscription Renewal Due Soon',
-            message: 'Your AI subscription will expire in 3 days. Renew today to maintain uninterrupted access to all clinical AI capabilities.',
-            idempotencyKey: `ai_renew_${sub.id}_${nowIso.slice(0, 10)}`,
-            data: { path: isDoctor ? '/doctor-dashboard/ai' : '/patient-dashboard/ai' },
-          }).catch(() => {});
+        if (dueRenewals && dueRenewals.length > 0) {
+          for (const sub of dueRenewals) {
+            if (sub.plan_id.includes('plan_1') || sub.plan_id.includes('free')) continue;
+            const isDoctor = sub.role === 'doctor';
+            await this.notifications.create(sub.user_id, {
+              type: 'subscription_renewal_due',
+              title: 'AI Subscription Renewal Due Soon',
+              message: 'Your AI subscription will expire in 3 days. Renew today to maintain uninterrupted access to all clinical AI capabilities.',
+              idempotencyKey: `ai_renew_${sub.id}_${nowIso.slice(0, 10)}`,
+              data: { path: isDoctor ? '/doctor-dashboard/ai' : '/patient-dashboard/ai' },
+            }).catch(() => {});
+          }
         }
+      } catch (err: any) {
+        this.logger.error(`Error during AI subscription expiry sweep: ${err?.message}`);
       }
-    } catch (err: any) {
-      this.logger.error(`Error during AI subscription expiry sweep: ${err?.message}`);
-    }
+    });
   }
 
   /**
    * Cron Job: Resets monthly credits on 1st of every month for active subscriptions.
    * Only resets free tier plans or paid plans whose paid period is still valid.
    */
-  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT)
+  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT, {
+    name: 'ai_monthly_credit_reset',
+    timeZone: 'Asia/Kolkata',
+  })
   async handleMonthlyCreditReset() {
-    this.logger.log('Resetting monthly AI credits for active users on 1st of month...');
-    const nowIso = new Date().toISOString();
-    try {
-      // 1. Reset free tiers
-      await this.supabase.admin
-        .from('ai_subscriptions')
-        .update({ credits_used: 0, updated_at: nowIso })
-        .eq('status', 'active')
-        .or('plan_id.ilike.%plan_1%,plan_id.ilike.%free%');
+    await this.cronLock.runWithLock('ai_monthly_credit_reset', async () => {
+      this.logger.log('Resetting monthly AI credits for active users on 1st of month (IST)...');
+      const nowIso = new Date().toISOString();
+      try {
+        // 1. Reset free tiers
+        await this.supabase.admin
+          .from('ai_subscriptions')
+          .update({ credits_used: 0, updated_at: nowIso })
+          .eq('status', 'active')
+          .or('plan_id.ilike.%plan_1%,plan_id.ilike.%free%');
 
-      // 2. Reset active paid subscriptions still within their validity window
-      await this.supabase.admin
-        .from('ai_subscriptions')
-        .update({ credits_used: 0, updated_at: nowIso })
-        .eq('status', 'active')
-        .gte('current_period_end', nowIso);
-    } catch (err: any) {
-      this.logger.error(`Monthly AI credit reset error: ${err?.message}`);
-    }
+        // 2. Reset active paid subscriptions still within their validity window
+        await this.supabase.admin
+          .from('ai_subscriptions')
+          .update({ credits_used: 0, updated_at: nowIso })
+          .eq('status', 'active')
+          .gte('current_period_end', nowIso);
+      } catch (err: any) {
+        this.logger.error(`Monthly AI credit reset error: ${err?.message}`);
+      }
+    });
   }
 }

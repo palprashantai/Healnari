@@ -42,6 +42,7 @@ import { NotificationsService } from '@/modules/notifications/services/notificat
 import { AiService } from '@/modules/ai/services/ai.service';
 import { EmailService } from '@/core/email/email.service';
 import { FXRateService } from '@/core/fx/fx-rate.service';
+import { CronLockService } from '@/core/scheduler/cron-lock.service';
 import {
   resolveCountryCurrency,
   embedPricingLock,
@@ -60,6 +61,7 @@ export class AppointmentsService {
     private readonly ai: AiService,
     private readonly email: EmailService,
     private readonly fxRateService: FXRateService,
+    private readonly cronLock: CronLockService,
   ) { }
 
   private appointmentWhen(a: Appointment) {
@@ -1876,173 +1878,182 @@ export class AppointmentsService {
 
   @Cron(CronExpression.EVERY_HOUR, { name: 'appointments_reminder_24h' })
   async send24HourReminders() {
-    const now = new Date();
-    const windowStart = new Date(now.getTime() + 23 * 60 * 60 * 1000); // 23h from now
-    const windowEnd = new Date(now.getTime() + 25 * 60 * 60 * 1000); // 25h from now
+    await this.cronLock.runWithLock('appointments_reminder_24h', async () => {
+      const now = new Date();
+      const windowStart = new Date(now.getTime() + 23 * 60 * 60 * 1000); // 23h from now
+      const windowEnd = new Date(now.getTime() + 25 * 60 * 60 * 1000); // 25h from now
 
-    const { data: due, error } = await this.supabase.admin
-      .from('appointments')
-      .select('id, patient_id, doctor_id, scheduled_date, scheduled_time, type')
-      .in('status', [AppointmentStatus.UPCOMING])
-      .not('payment_id', 'is', null)
-      .is('reminder_24h_sent_at', null)
-      .gte('scheduled_at', windowStart.toISOString())
-      .lte('scheduled_at', windowEnd.toISOString());
+      const { data: due, error } = await this.supabase.admin
+        .from('appointments')
+        .select('id, patient_id, doctor_id, scheduled_date, scheduled_time, type')
+        .in('status', [AppointmentStatus.UPCOMING])
+        .not('payment_id', 'is', null)
+        .is('reminder_24h_sent_at', null)
+        .gte('scheduled_at', windowStart.toISOString())
+        .lte('scheduled_at', windowEnd.toISOString());
 
-    // BUG-011: Uses atomic claim-then-notify pattern (same as sendUpcomingReminders):
-    // 1) SELECT candidates with reminder_24h_sent_at IS NULL (identifies due rows)
-    // 2) UPDATE ... IS NULL to atomically claim them before sending (prevents duplicate reminders
-    //    if two NestJS instances or cron invocations fire at the same moment).
-    if (error) {
-      this.logger.warn(`24h reminder sweep query failed: ${error.message}`);
-      return;
-    }
-    if (!due?.length) return;
+      // BUG-011: Uses atomic claim-then-notify pattern (same as sendUpcomingReminders):
+      // 1) SELECT candidates with reminder_24h_sent_at IS NULL (identifies due rows)
+      // 2) UPDATE ... IS NULL to atomically claim them before sending (prevents duplicate reminders
+      //    if two NestJS instances or cron invocations fire at the same moment).
+      if (error) {
+        this.logger.warn(`24h reminder sweep query failed: ${error.message}`);
+        return;
+      }
+      if (!due?.length) return;
 
-    const { data: claimed } = await this.supabase.admin
-      .from('appointments')
-      .update({ reminder_24h_sent_at: new Date().toISOString() })
-      .in(
-        'id',
-        due.map((a) => a.id),
-      )
-      .is('reminder_24h_sent_at', null)
-      .select('id, patient_id, doctor_id, scheduled_time, type');
+      const { data: claimed } = await this.supabase.admin
+        .from('appointments')
+        .update({ reminder_24h_sent_at: new Date().toISOString() })
+        .in(
+          'id',
+          due.map((a) => a.id),
+        )
+        .is('reminder_24h_sent_at', null)
+        .select('id, patient_id, doctor_id, scheduled_time, type');
 
-    if (!claimed?.length) return;
+      if (!claimed?.length) return;
 
-    for (const apt of claimed) {
-      this.notifications
-        .create(apt.patient_id, {
-          type: 'appointment_reminder',
-          title: 'Upcoming Appointment (24h)',
-          message: `You have a ${apt.type} appointment tomorrow at ${apt.scheduled_time}.`,
-          data: { appointmentId: apt.id },
-        })
-        .catch(() => { });
-    }
+      for (const apt of claimed) {
+        this.notifications
+          .create(apt.patient_id, {
+            type: 'appointment_reminder',
+            title: 'Upcoming Appointment (24h)',
+            message: `You have a ${apt.type} appointment tomorrow at ${apt.scheduled_time}.`,
+            data: { appointmentId: apt.id },
+          })
+          .catch(() => { });
+      }
+    });
   }
 
   @Cron('0,30 * * * *', { name: 'appointments_no_show_processor' }) // Every 30 minutes
   async processNoShows() {
-    const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
+    await this.cronLock.runWithLock('appointments_no_show_processor', async () => {
+      const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
 
-    // BUG-010 fix: explicitly exclude rows with null scheduled_at (pre-migration
-    // appointments) so the intent is clear and the log count is accurate.
-    const { data: noShows, error } = await this.supabase.admin
-      .from('appointments')
-      .select('id, patient_id, doctor_id')
-      .in('status', [AppointmentStatus.UPCOMING, AppointmentStatus.WAITING])
-      .not('scheduled_at', 'is', null)
-      .lte('scheduled_at', cutoff.toISOString());
+      // BUG-010 fix: explicitly exclude rows with null scheduled_at (pre-migration
+      // appointments) so the intent is clear and the log count is accurate.
+      const { data: noShows, error } = await this.supabase.admin
+        .from('appointments')
+        .select('id, patient_id, doctor_id')
+        .in('status', [AppointmentStatus.UPCOMING, AppointmentStatus.WAITING])
+        .not('scheduled_at', 'is', null)
+        .lte('scheduled_at', cutoff.toISOString());
 
-    if (error || !noShows?.length) return;
+      if (error || !noShows?.length) return;
 
-    const ids = noShows.map((a) => a.id);
-    const { error: updateError } = await this.supabase.admin
-      .from('appointments')
-      .update({ status: AppointmentStatus.NO_SHOW })
-      .in('id', ids);
+      const ids = noShows.map((a) => a.id);
+      const { error: updateError } = await this.supabase.admin
+        .from('appointments')
+        .update({ status: AppointmentStatus.NO_SHOW })
+        .in('id', ids);
 
-    if (updateError) {
-      this.logger.error(
-        `Failed to mark appointments as NO_SHOW: ${updateError.message}`,
-      );
-    } else {
-      this.logger.log(
-        `Marked ${ids.length} overdue appointment(s) as NO_SHOW.`,
-      );
-    }
+      if (updateError) {
+        this.logger.error(
+          `Failed to mark appointments as NO_SHOW: ${updateError.message}`,
+        );
+      } else {
+        this.logger.log(
+          `Marked ${ids.length} overdue appointment(s) as NO_SHOW.`,
+        );
+      }
+    });
   }
 
   @Cron('0,30 * * * *', { name: 'appointments_unpaid_cancellation_sweep' })
   async processUnpaidApprovals() {
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+    await this.cronLock.runWithLock('appointments_unpaid_cancellation_sweep', async () => {
+      const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
 
-    // BUG-006 fix: fetch candidate IDs first, then exclude any that have a
-    // Pending or Paid payment row — an in-flight gateway payment must not be
-    // cancelled by the sweep firing between payment creation and webhook receipt.
-    const { data: candidates, error } = await this.supabase.admin
-      .from('appointments')
-      .select('id')
-      .eq('status', AppointmentStatus.APPROVED)
-      .lte('updated_at', cutoff.toISOString());
+      // BUG-006 fix: fetch candidate IDs first, then exclude any that have a
+      // Pending or Paid payment row — an in-flight gateway payment must not be
+      // cancelled by the sweep firing between payment creation and webhook receipt.
+      const { data: candidates, error } = await this.supabase.admin
+        .from('appointments')
+        .select('id')
+        .eq('status', AppointmentStatus.APPROVED)
+        .lte('updated_at', cutoff.toISOString());
 
-    if (error || !candidates?.length) return;
+      if (error || !candidates?.length) return;
 
-    const candidateIds = candidates.map((a) => a.id);
+      const candidateIds = candidates.map((a) => a.id);
 
-    // Exclude any appointment that already has an active payment attempt
-    const { data: activePayments } = await this.supabase.admin
-      .from('payments')
-      .select('appointment_id')
-      .in('appointment_id', candidateIds)
-      .in('status', ['Pending', 'Paid']);
+      // Exclude any appointment that already has an active payment attempt
+      const { data: activePayments } = await this.supabase.admin
+        .from('payments')
+        .select('appointment_id')
+        .in('appointment_id', candidateIds)
+        .in('status', ['Pending', 'Paid']);
 
-    const blockedIds = new Set((activePayments || []).map((p) => p.appointment_id));
-    const safeToCancel = candidateIds.filter((id) => !blockedIds.has(id));
+      const blockedIds = new Set((activePayments || []).map((p) => p.appointment_id));
+      const safeToCancel = candidateIds.filter((id) => !blockedIds.has(id));
 
-    if (!safeToCancel.length) return;
+      if (!safeToCancel.length) return;
 
-    const { data: unpaid, error: fetchError } = await this.supabase.admin
-      .from('appointments')
-      .select(
-        'id, patient_id, doctor_id, scheduled_date, scheduled_time, patient:profiles!appointments_patient_id_fkey(full_name, email), doctor:profiles!appointments_doctor_id_fkey(full_name)',
-      )
-      .in('id', safeToCancel);
+      const { data: unpaid, error: fetchError } = await this.supabase.admin
+        .from('appointments')
+        .select(
+          'id, patient_id, doctor_id, scheduled_date, scheduled_time, patient:profiles!appointments_patient_id_fkey(full_name, email), doctor:profiles!appointments_doctor_id_fkey(full_name)',
+        )
+        .in('id', safeToCancel);
 
-    if (fetchError || !unpaid?.length) return;
+      if (fetchError || !unpaid?.length) return;
 
-    const ids = unpaid.map((a) => a.id);
-    const { error: updateError } = await this.supabase.admin
-      .from('appointments')
-      .update({ status: AppointmentStatus.CANCELLED })
-      .in('id', ids);
+      const ids = unpaid.map((a) => a.id);
+      const { error: updateError } = await this.supabase.admin
+        .from('appointments')
+        .update({
+          status: AppointmentStatus.CANCELLED,
+          cancellation_reason: 'Automated cancellation: payment window expired.',
+        })
+        .in('id', ids);
 
-    if (updateError) {
-      this.logger.error(
-        `Failed to cancel unpaid appointments: ${updateError.message}`,
-      );
-    } else {
-      this.logger.log(
-        `Cancelled ${ids.length} unpaid approved appointment(s) (${blockedIds.size} skipped — active payment in flight).`,
-      );
+      if (updateError) {
+        this.logger.error(
+          `Failed to cancel unpaid appointments: ${updateError.message}`,
+        );
+      } else {
+        this.logger.log(
+          `Cancelled ${ids.length} unpaid approved appointment(s) (${blockedIds.size} skipped — active payment in flight).`,
+        );
 
-      await Promise.all(
-        unpaid.map(async (a: any) => {
-          this.notifications.create(a.patient_id, {
-            type: 'appointment_cancelled',
-            title: 'Consultation Request Expired',
-            message: `Your consultation request with Dr. ${a.doctor?.full_name || 'your doctor'} has expired because payment was not completed within the time window. You can rebook whenever you are ready.`,
-            data: { appointmentId: a.id, path: '/doctors' },
-          });
+        await Promise.all(
+          unpaid.map(async (a: any) => {
+            this.notifications.create(a.patient_id, {
+              type: 'appointment_cancelled',
+              title: 'Consultation Request Expired',
+              message: `Your consultation request with Dr. ${a.doctor?.full_name || 'your doctor'} has expired because payment was not completed within the time window. You can rebook whenever you are ready.`,
+              data: { appointmentId: a.id, path: '/doctors' },
+            });
 
-          if (this.email.isConfigured && a.patient?.email) {
-            const when = a.scheduled_date ? `${a.scheduled_date} at ${a.scheduled_time}` : 'your requested time';
-            await this.email
-              .sendTemplateEmail({
-                templateKey: 'appointment_unpaid_cancelled',
-                to: a.patient.email,
-                variables: {
-                  patientName: a.patient.full_name || 'Patient',
-                  doctorName: a.doctor?.full_name || 'Specialist',
-                  when,
-                  dashboardUrl: this.email.getUrl('/doctors'),
-                },
-                entityType: 'appointment',
-                entityId: a.id,
-                event: 'appointment_unpaid_cancelled',
-              })
-              .catch((e) =>
-                this.logger.error(
-                  `Failed to send unpaid cancellation email to ${a.patient.email}`,
-                  e.stack,
-                ),
-              );
-          }
-        }),
-      );
-    }
+            if (this.email.isConfigured && a.patient?.email) {
+              const when = a.scheduled_date ? `${a.scheduled_date} at ${a.scheduled_time}` : 'your requested time';
+              await this.email
+                .sendTemplateEmail({
+                  templateKey: 'appointment_unpaid_cancelled',
+                  to: a.patient.email,
+                  variables: {
+                    patientName: a.patient.full_name || 'Patient',
+                    doctorName: a.doctor?.full_name || 'Specialist',
+                    when,
+                    dashboardUrl: this.email.getUrl('/doctors'),
+                  },
+                  entityType: 'appointment',
+                  entityId: a.id,
+                  event: 'appointment_unpaid_cancelled',
+                })
+                .catch((e) =>
+                  this.logger.error(
+                    `Failed to send unpaid cancellation email to ${a.patient.email}`,
+                    e.stack,
+                  ),
+                );
+            }
+          }),
+        );
+      }
+    });
   }
 
   /** Runs every 5 minutes, pushes a reminder to any patient whose upcoming
@@ -2052,84 +2063,90 @@ export class AppointmentsService {
    * there's no historical no-show dataset in this schema to train on. */
   @Cron(CronExpression.EVERY_5_MINUTES, { name: 'appointments_reminder_30min' })
   async sendUpcomingReminders() {
-    const now = new Date();
-    const windowEnd = new Date(now.getTime() + 30 * 60 * 1000);
+    await this.cronLock.runWithLock('appointments_reminder_30min', async () => {
+      const now = new Date();
+      const windowEnd = new Date(now.getTime() + 30 * 60 * 1000);
 
-    const { data: due, error } = await this.supabase.admin
-      .from('appointments')
-      .select('id, patient_id, doctor_id, scheduled_date, scheduled_time, type')
-      .in('status', [AppointmentStatus.UPCOMING, AppointmentStatus.WAITING])
-      .not('payment_id', 'is', null)
-      .is('reminder_sent_at', null)
-      .gte('scheduled_at', now.toISOString())
-      .lte('scheduled_at', windowEnd.toISOString());
+      const { data: due, error } = await this.supabase.admin
+        .from('appointments')
+        .select('id, patient_id, doctor_id, scheduled_date, scheduled_time, type')
+        .in('status', [AppointmentStatus.UPCOMING, AppointmentStatus.WAITING])
+        .not('payment_id', 'is', null)
+        .is('reminder_sent_at', null)
+        .gte('scheduled_at', now.toISOString())
+        .lte('scheduled_at', windowEnd.toISOString());
 
-    if (error) {
-      this.logger.warn(`Reminder sweep query failed: ${error.message}`);
-      return;
-    }
-    if (!due?.length) return;
+      if (error) {
+        this.logger.warn(`Reminder sweep query failed: ${error.message}`);
+        return;
+      }
+      if (!due?.length) return;
 
-    // AUDIT_REPORT.md OPS-4 — claim first, notify second.
-    const { data: claimed, error: claimError } = await this.supabase.admin
-      .from('appointments')
-      .update({ reminder_sent_at: new Date().toISOString() })
-      .in(
-        'id',
-        due.map((a) => a.id),
-      )
-      .is('reminder_sent_at', null)
-      .select('id, patient_id, doctor_id, scheduled_time, type, patient:profiles!appointments_patient_id_fkey(full_name, email)');
+      // AUDIT_REPORT.md OPS-4 — claim first, notify second.
+      const { data: claimed, error: claimError } = await this.supabase.admin
+        .from('appointments')
+        .update({ reminder_sent_at: new Date().toISOString() })
+        .in(
+          'id',
+          due.map((a) => a.id),
+        )
+        .is('reminder_sent_at', null)
+        .select('id, patient_id, doctor_id, scheduled_time, type, patient:profiles!appointments_patient_id_fkey(full_name, email)');
 
-    if (claimError || !claimed?.length) return;
+      if (claimError || !claimed?.length) return;
 
-    const doctorIds = [...new Set(claimed.map((a) => a.doctor_id))];
-    const { data: doctors } = await this.supabase.admin
-      .from('profiles')
-      .select('id, full_name')
-      .in('id', doctorIds);
-    const doctorNameById = new Map(
-      (doctors || []).map((d) => [d.id, d.full_name]),
-    );
+      const doctorIds = [...new Set(claimed.map((a) => a.doctor_id))];
+      const { data: doctors } = await this.supabase.admin
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', doctorIds);
+      const doctorNameById = new Map(
+        (doctors || []).map((d) => [d.id, d.full_name]),
+      );
 
-    await Promise.all(
-      claimed.map(async (apt: any) => {
-        await this.notifications
-          .create(apt.patient_id, {
-            type: 'appointment_reminder',
-            title: 'Upcoming Consultation',
-            message: `Your ${apt.type === AppointmentType.VIDEO ? 'video consultation' : 'clinic visit'} with Dr. ${doctorNameById.get(apt.doctor_id) || 'your doctor'} starts at ${apt.scheduled_time} today. Tap to prepare and view your consultation details.`,
-            idempotencyKey: `apt_reminder_${apt.id}_${now.toISOString().slice(0, 10)}`,
-            data: {
-              appointmentId: apt.id,
-              path: '/patient-dashboard/appointments',
-            },
-          })
-          .catch(() => { });
+      const todayTag = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+      }).format(new Date());
 
-        if (apt.patient?.email) {
-          this.email
-            .sendTemplateEmail({
-              templateKey: 'appointment_reminder_upcoming',
-              to: apt.patient.email,
-              variables: {
-                patientName: apt.patient.full_name || 'Patient',
-                doctorName: doctorNameById.get(apt.doctor_id) || 'Doctor',
-                when: `${apt.scheduled_time} today`,
-                label: apt.type === AppointmentType.VIDEO ? 'Video Consultation' : 'Clinic Visit',
-                timeRemaining: '30 minutes',
-                dashboardUrl: this.email.getUrl('/patient-dashboard/appointments'),
+      await Promise.all(
+        claimed.map(async (apt: any) => {
+          await this.notifications
+            .create(apt.patient_id, {
+              type: 'appointment_reminder',
+              title: 'Upcoming Consultation',
+              message: `Your ${apt.type === AppointmentType.VIDEO ? 'video consultation' : 'clinic visit'} with Dr. ${doctorNameById.get(apt.doctor_id) || 'your doctor'} starts at ${apt.scheduled_time} today. Tap to prepare and view your consultation details.`,
+              idempotencyKey: `apt_reminder_${apt.id}_${todayTag}`,
+              data: {
+                appointmentId: apt.id,
+                path: '/patient-dashboard/appointments',
               },
-              entityType: 'appointment',
-              entityId: apt.id,
-              event: 'appointment_reminder_upcoming',
             })
             .catch(() => { });
-        }
-      }),
-    );
 
-    this.logger.log(`Sent ${claimed.length} appointment reminder(s).`);
+          if (apt.patient?.email) {
+            this.email
+              .sendTemplateEmail({
+                templateKey: 'appointment_reminder_upcoming',
+                to: apt.patient.email,
+                variables: {
+                  patientName: apt.patient.full_name || 'Patient',
+                  doctorName: doctorNameById.get(apt.doctor_id) || 'Doctor',
+                  when: `${apt.scheduled_time} today`,
+                  label: apt.type === AppointmentType.VIDEO ? 'Video Consultation' : 'Clinic Visit',
+                  timeRemaining: '30 minutes',
+                  dashboardUrl: this.email.getUrl('/patient-dashboard/appointments'),
+                },
+                entityType: 'appointment',
+                entityId: apt.id,
+                event: 'appointment_reminder_upcoming',
+              })
+              .catch(() => { });
+          }
+        }),
+      );
+
+      this.logger.log(`Sent ${claimed.length} appointment reminder(s).`);
+    });
   }
 
   /** Runs every 5 minutes alongside the reminder sweep. Projects each
@@ -2142,129 +2159,138 @@ export class AppointmentsService {
    * for as long as the delay persists. */
   @Cron(CronExpression.EVERY_5_MINUTES, { name: 'appointments_queue_delay' })
   async sendDelayNotifications() {
-    const nowD = new Date();
-    const today = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, '0')}-${String(nowD.getDate()).padStart(2, '0')}`;
-    const { data: todaysActive, error } = await this.supabase.admin
-      .from('appointments')
-      .select(
-        'id, doctor_id, patient_id, scheduled_time, scheduled_at, status, type, delay_notified_at',
-      )
-      .eq('scheduled_date', today)
-      .in('status', [
-        AppointmentStatus.UPCOMING,
-        AppointmentStatus.WAITING,
-        AppointmentStatus.IN_PROGRESS,
-      ])
-      .not('payment_id', 'is', null)
-      .order('scheduled_time', { ascending: true });
+    await this.cronLock.runWithLock('appointments_queue_delay', async () => {
+      const today = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata',
+      }).format(new Date());
 
-    if (error || !todaysActive?.length) return;
-
-    const byDoctor = new Map<string, typeof todaysActive>();
-    for (const apt of todaysActive) {
-      if (!byDoctor.has(apt.doctor_id)) byDoctor.set(apt.doctor_id, []);
-      byDoctor.get(apt.doctor_id)!.push(apt);
-    }
-
-    const doctorIds = [...byDoctor.keys()];
-    const { data: doctors } = await this.supabase.admin
-      .from('profiles')
-      .select('id, full_name')
-      .in('id', doctorIds);
-    const doctorNameById = new Map(
-      (doctors || []).map((d) => [d.id, d.full_name]),
-    );
-
-    const now = Date.now();
-    const toMark: string[] = [];
-    const candidates = new Map<
-      string,
-      {
-        patientId: string;
-        doctorId: string;
-        scheduledTime: string;
-        delayMinutes: number;
-      }
-    >();
-
-    for (const [doctorId, queue] of byDoctor) {
-      queue.forEach((apt, index) => {
-        if (
-          apt.status === AppointmentStatus.IN_PROGRESS ||
-          apt.delay_notified_at
+      const { data: todaysActive, error } = await this.supabase.admin
+        .from('appointments')
+        .select(
+          'id, doctor_id, patient_id, scheduled_time, scheduled_at, status, type, delay_notified_at',
         )
-          return;
+        .eq('scheduled_date', today)
+        .in('status', [
+          AppointmentStatus.UPCOMING,
+          AppointmentStatus.WAITING,
+          AppointmentStatus.IN_PROGRESS,
+        ])
+        .not('payment_id', 'is', null)
+        .order('scheduled_time', { ascending: true });
 
-        const avgMinutes =
-          AppointmentsService.AVG_CONSULT_MINUTES[
-          apt.type as AppointmentType
-          ] ?? 15;
-        const projectedStartMs = now + index * avgMinutes * 60 * 1000;
-        const delayMinutes =
-          (projectedStartMs - new Date(apt.scheduled_at).getTime()) / 60000;
+      if (error || !todaysActive?.length) return;
 
-        if (delayMinutes > 15) {
-          toMark.push(apt.id);
-          candidates.set(apt.id, {
-            patientId: apt.patient_id,
-            doctorId,
-            scheduledTime: apt.scheduled_time,
-            delayMinutes,
-          });
+      const byDoctor = new Map<string, typeof todaysActive>();
+      for (const apt of todaysActive) {
+        if (!byDoctor.has(apt.doctor_id)) byDoctor.set(apt.doctor_id, []);
+        byDoctor.get(apt.doctor_id)!.push(apt);
+      }
+
+      const doctorIds = [...byDoctor.keys()];
+      const { data: doctors } = await this.supabase.admin
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', doctorIds);
+      const doctorNameById = new Map(
+        (doctors || []).map((d) => [d.id, d.full_name]),
+      );
+
+      const now = Date.now();
+      const toMark: string[] = [];
+      const candidates = new Map<
+        string,
+        {
+          patientId: string;
+          doctorId: string;
+          scheduledTime: string;
+          delayMinutes: number;
         }
-      });
-    }
+      >();
 
-    if (!toMark.length) return;
+      for (const [doctorId, queue] of byDoctor) {
+        queue.forEach((apt, index) => {
+          if (
+            apt.status === AppointmentStatus.IN_PROGRESS ||
+            apt.delay_notified_at
+          )
+            return;
 
-    // AUDIT_REPORT.md OPS-4 — claim first (one atomic batch UPDATE guarded
-    // by delay_notified_at IS NULL), notify only what this instance actually
-    // won. Same race as sendUpcomingReminders otherwise: two instances could
-    // both compute the same candidate list and both notify before either
-    // one's mark-as-sent UPDATE lands.
-    const { data: claimed } = await this.supabase.admin
-      .from('appointments')
-      .update({ delay_notified_at: new Date().toISOString() })
-      .in('id', toMark)
-      .is('delay_notified_at', null)
-      .select('id');
+          const avgMinutes =
+            AppointmentsService.AVG_CONSULT_MINUTES[
+            apt.type as AppointmentType
+            ] ?? 15;
+          const projectedStartMs = now + index * avgMinutes * 60 * 1000;
+          const delayMinutes =
+            (projectedStartMs - new Date(apt.scheduled_at).getTime()) / 60000;
 
-    for (const row of claimed || []) {
-      const c = candidates.get(row.id);
-      if (!c) continue;
-      this.notifications
-        .create(c.patientId, {
-          type: 'appointment_delayed',
-          title: 'Consultation Schedule Update',
-          message: `Dr. ${doctorNameById.get(c.doctorId) || 'Your doctor'} is running approximately ${Math.round(c.delayMinutes)} minutes behind schedule for your ${c.scheduledTime} appointment. Thank you for your patience; we will notify you when your consultation begins.`,
-          idempotencyKey: `apt_delay_${row.id}_${today}`,
-          data: {
-            appointmentId: row.id,
-            path: '/patient-dashboard/appointments',
-          },
-        })
-        .catch(() => { });
-    }
+          if (delayMinutes > 15) {
+            toMark.push(apt.id);
+            candidates.set(apt.id, {
+              patientId: apt.patient_id,
+              doctorId,
+              scheduledTime: apt.scheduled_time,
+              delayMinutes,
+            });
+          }
+        });
+      }
 
-    if (claimed?.length)
-      this.logger.log(`Sent ${claimed.length} delay notification(s).`);
+      if (!toMark.length) return;
+
+      // AUDIT_REPORT.md OPS-4 — claim first (one atomic batch UPDATE guarded
+      // by delay_notified_at IS NULL), notify only what this instance actually
+      // won. Same race as sendUpcomingReminders otherwise: two instances could
+      // both compute the same candidate list and both notify before either
+      // one's mark-as-sent UPDATE lands.
+      const { data: claimed } = await this.supabase.admin
+        .from('appointments')
+        .update({ delay_notified_at: new Date().toISOString() })
+        .in('id', toMark)
+        .is('delay_notified_at', null)
+        .select('id');
+
+      for (const row of claimed || []) {
+        const c = candidates.get(row.id);
+        if (!c) continue;
+        this.notifications
+          .create(c.patientId, {
+            type: 'appointment_delayed',
+            title: 'Consultation Schedule Update',
+            message: `Dr. ${doctorNameById.get(c.doctorId) || 'Your doctor'} is running approximately ${Math.round(c.delayMinutes)} minutes behind schedule for your ${c.scheduledTime} appointment. Thank you for your patience; we will notify you when your consultation begins.`,
+            idempotencyKey: `apt_delay_${row.id}_${today}`,
+            data: {
+              appointmentId: row.id,
+              path: '/patient-dashboard/appointments',
+            },
+          })
+          .catch(() => { });
+      }
+
+      if (claimed?.length)
+        this.logger.log(`Sent ${claimed.length} delay notification(s).`);
+    });
   }
 
   @Cron(CronExpression.EVERY_5_MINUTES, { name: 'appointments_unpaid_release' })
   async releaseUnpaidSlots() {
-    // Free explicitly HELD slots that have expired (10 minutes)
-    const nowStr = new Date().toISOString();
-    const { data: expiredHolds, error: holdError } = await this.supabase.admin
-      .from('appointments')
-      .update({ status: AppointmentStatus.CANCELLED })
-      .eq('status', 'HOLD')
-      .lt('hold_expires_at', nowStr)
-      .select('id');
+    await this.cronLock.runWithLock('appointments_unpaid_release', async () => {
+      // Free explicitly HELD slots that have expired (10 minutes)
+      const nowStr = new Date().toISOString();
+      const { data: expiredHolds, error: holdError } = await this.supabase.admin
+        .from('appointments')
+        .update({
+          status: AppointmentStatus.CANCELLED,
+          cancellation_reason: 'Hold slot expired without checkout.',
+        })
+        .eq('status', 'HOLD')
+        .lt('hold_expires_at', nowStr)
+        .select('id');
 
-    if (holdError) {
-      this.logger.error('Failed to release expired hold slots:', holdError);
-    } else if (expiredHolds?.length) {
-      this.logger.log(`Released ${expiredHolds.length} expired hold slots.`);
-    }
+      if (holdError) {
+        this.logger.error('Failed to release expired hold slots:', holdError);
+      } else if (expiredHolds?.length) {
+        this.logger.log(`Released ${expiredHolds.length} expired hold slots.`);
+      }
+    });
   }
 }

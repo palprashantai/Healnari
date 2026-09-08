@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { FALLBACK_EMAIL_TEMPLATES } from './email-templates.fallback';
+import { CronLockService } from '@/core/scheduler/cron-lock.service';
 
 // Patch nodemailer's shared networkInterfaces to strip IPv6.
 // Render and many cloud containers have no IPv6 outbound routing; if an SMTP attempt fails over IPv4,
@@ -273,6 +274,7 @@ export class EmailService implements OnModuleInit {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly configService: ConfigService,
+    private readonly cronLock: CronLockService,
   ) {
     // 1. Resolve Frontend URL
     this.frontendUrl = (
@@ -883,17 +885,48 @@ export class EmailService implements OnModuleInit {
 
   /**
    * Queues a failed email for background retry with exponential backoff.
+   * Persists the retry record in email_logs to survive server restarts.
    */
-  private queueForRetry(payload: MailPayload, attempts = 1) {
+  private async queueForRetry(payload: MailPayload, attempts = 1) {
     if (attempts <= this.MAX_RETRIES) {
-      // Exponential backoff: 1 min, 3 min, 7 min
+      // Exponential backoff: 1 min, 2 min, 4 min
       const delayMs = Math.pow(2, attempts) * 30 * 1000;
-      const nextRetryAt = Date.now() + delayMs;
+      const nextRetryDate = new Date(Date.now() + delayMs);
 
       this.logger.warn(
         `Queueing email to ${maskEmail(payload.to)} for retry (Attempt ${attempts}/${this.MAX_RETRIES}, next in ${delayMs / 1000}s)`,
       );
-      this.retryQueue.push({ payload, attempts, nextRetryAt });
+
+      const dbPayload = {
+        to: payload.to,
+        subject: payload.subject,
+        html: payload.html,
+        text: payload.text,
+        templateKey: payload.templateKey,
+        entityType: payload.entityType,
+        entityId: payload.entityId,
+        event: payload.event,
+        variables: payload.variables,
+      };
+
+      try {
+        await this.supabase.admin.from('email_logs').insert({
+          template_key: payload.templateKey || 'direct_mail',
+          recipient: maskEmail(payload.to),
+          subject: payload.subject,
+          event: payload.event || null,
+          entity_type: payload.entityType || null,
+          entity_id: payload.entityId || null,
+          status: 'PENDING_RETRY',
+          retry_attempts: attempts,
+          next_retry_at: nextRetryDate.toISOString(),
+          payload: dbPayload,
+          variables: payload.variables || {},
+        });
+      } catch (dbErr: any) {
+        this.logger.debug(`Could not persist retry to email_logs: ${dbErr.message}`);
+        this.retryQueue.push({ payload, attempts, nextRetryAt: nextRetryDate.getTime() });
+      }
     } else {
       this.logger.error(
         `Permanently dropping email to ${maskEmail(payload.to)} after ${this.MAX_RETRIES} attempts.`,
@@ -902,57 +935,143 @@ export class EmailService implements OnModuleInit {
   }
 
   /**
-   * Background task to process failed emails every minute.
+   * Background task to process failed emails every minute across distributed nodes.
    */
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_MINUTE, { name: 'email_retry_queue' })
   async processRetryQueue() {
-    if (this.retryQueue.length === 0 || !this.transporter) return;
+    await this.cronLock.runWithLock('email_retry_queue', async () => {
+      if (!this.transporter) return;
 
-    const now = Date.now();
-    const readyItems = this.retryQueue.filter((item) => item.nextRetryAt <= now);
-    if (readyItems.length === 0) return;
+      const nowIso = new Date().toISOString();
 
-    this.logger.log(
-      `Processing ${readyItems.length} email(s) ready for retry in queue...`,
-    );
+      // 1. Process persistent retries from email_logs
+      const { data: dbItems, error } = await this.supabase.admin
+        .from('email_logs')
+        .select('id, recipient, subject, retry_attempts, payload, status')
+        .eq('status', 'PENDING_RETRY')
+        .lte('next_retry_at', nowIso)
+        .lt('retry_attempts', this.MAX_RETRIES)
+        .order('next_retry_at', { ascending: true })
+        .limit(20);
 
-    // Keep items not ready yet
-    this.retryQueue = this.retryQueue.filter((item) => item.nextRetryAt > now);
+      if (!error && dbItems && dbItems.length > 0) {
+        this.logger.log(`Processing ${dbItems.length} persistent retry email(s) from database...`);
 
-    for (const item of readyItems) {
-      try {
-        const info = await this.transporter.sendMail({
-          from: this.from,
-          to: item.payload.to,
-          subject: item.payload.subject,
-          html: item.payload.html,
-          text: item.payload.text,
-          attachments: item.payload.attachments,
-        });
+        for (const item of dbItems) {
+          // Atomically claim by transitioning status to RETRYING
+          const { data: claimed } = await this.supabase.admin
+            .from('email_logs')
+            .update({ status: 'RETRYING' })
+            .eq('id', item.id)
+            .eq('status', 'PENDING_RETRY')
+            .select('id');
 
-        this.logger.log(
-          `Successfully sent retried email to ${maskEmail(item.payload.to)} via SMTP (${info.messageId})`,
-        );
+          if (!claimed || claimed.length === 0) continue;
 
-        this.logToDatabase({
-          ...item.payload,
-          status: 'SENT',
-          providerMessageId: info.messageId,
-        }).catch(() => {});
-      } catch (err: any) {
-        const classified = classifySmtpError(err);
-        this.logger.warn(
-          `Retry attempt ${item.attempts} failed for ${maskEmail(item.payload.to)} [${classified.code}]: ${classified.message}`,
-        );
+          const p = item.payload as MailPayload;
+          if (!p || !p.to) {
+            await this.supabase.admin
+              .from('email_logs')
+              .update({ status: 'FAILED', error: 'Invalid payload in retry record' })
+              .eq('id', item.id);
+            continue;
+          }
 
-        if (classified.isTemporary) {
-          this.queueForRetry(item.payload, item.attempts + 1);
-        } else {
-          this.logger.warn(
-            `Dropping retried email to ${maskEmail(item.payload.to)} due to permanent error [${classified.code}]`,
-          );
+          const currentAttempt = (item.retry_attempts || 0) + 1;
+
+          try {
+            const info = await this.transporter.sendMail({
+              from: this.from,
+              to: p.to,
+              subject: p.subject,
+              html: p.html,
+              text: p.text,
+            });
+
+            this.logger.log(
+              `Successfully sent retried email to ${maskEmail(p.to)} via SMTP (${info.messageId})`,
+            );
+
+            await this.supabase.admin
+              .from('email_logs')
+              .update({
+                status: 'SENT',
+                provider_message_id: info.messageId,
+                retry_attempts: currentAttempt,
+                error: null,
+              })
+              .eq('id', item.id);
+          } catch (err: any) {
+            const classified = classifySmtpError(err);
+            this.logger.warn(
+              `Retry attempt ${currentAttempt} failed for ${maskEmail(p.to)} [${classified.code}]: ${classified.message}`,
+            );
+
+            if (classified.isTemporary && currentAttempt < this.MAX_RETRIES) {
+              const delayMs = Math.pow(2, currentAttempt) * 30 * 1000;
+              const nextRetry = new Date(Date.now() + delayMs).toISOString();
+
+              await this.supabase.admin
+                .from('email_logs')
+                .update({
+                  status: 'PENDING_RETRY',
+                  retry_attempts: currentAttempt,
+                  next_retry_at: nextRetry,
+                  error: `[${classified.code}] ${classified.diagnostics}`,
+                })
+                .eq('id', item.id);
+            } else {
+              await this.supabase.admin
+                .from('email_logs')
+                .update({
+                  status: 'FAILED',
+                  retry_attempts: currentAttempt,
+                  error: `[${classified.code}] ${classified.diagnostics}`,
+                })
+                .eq('id', item.id);
+            }
+          }
         }
       }
-    }
+
+      // 2. Also process in-memory fallback items if any exist
+      const now = Date.now();
+      const readyMemoryItems = this.retryQueue.filter((item) => item.nextRetryAt <= now);
+      if (readyMemoryItems.length > 0) {
+        this.retryQueue = this.retryQueue.filter((item) => item.nextRetryAt > now);
+
+        for (const item of readyMemoryItems) {
+          try {
+            const info = await this.transporter.sendMail({
+              from: this.from,
+              to: item.payload.to,
+              subject: item.payload.subject,
+              html: item.payload.html,
+              text: item.payload.text,
+              attachments: item.payload.attachments,
+            });
+
+            this.logger.log(
+              `Successfully sent memory-retried email to ${maskEmail(item.payload.to)} via SMTP (${info.messageId})`,
+            );
+
+            this.logToDatabase({
+              ...item.payload,
+              status: 'SENT',
+              providerMessageId: info.messageId,
+            }).catch(() => {});
+          } catch (err: any) {
+            const classified = classifySmtpError(err);
+            this.logger.warn(
+              `Memory retry attempt ${item.attempts} failed for ${maskEmail(item.payload.to)}: ${classified.message}`,
+            );
+
+            if (classified.isTemporary && item.attempts < this.MAX_RETRIES) {
+              this.queueForRetry(item.payload, item.attempts + 1);
+            }
+          }
+        }
+      }
+    });
   }
 }
