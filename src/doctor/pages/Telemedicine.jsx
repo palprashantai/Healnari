@@ -457,7 +457,7 @@ function StylusHandwritingCanvas({ strokes = [], setStrokes, onExport, className
 }
 
 /* ─── Creative Active Telemedicine Studio ─── */
-function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
+function ActiveCallUI({ session, onEnd, onCancel, onDeclined, autoJoin = false }) {
   const toast = useToast();
   const { user } = useAuth();
   const { patients } = useClinicData();
@@ -677,40 +677,65 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
     if (call.error) toast(call.error, 'error');
   }, [call.error, toast]);
 
-  // ── Debounced Draft Auto-Save ──
+  // ── Debounced Draft Auto-Save (Local + Server) ──
   useEffect(() => {
     if (!clinicalNotes && draftMeds.length === 0) return;
     const timer = setTimeout(() => {
+      const payload = {
+        clinicalNotes,
+        draftMeds,
+        draftLabs,
+        diagnosis,
+        followUpAdvice,
+        savedAt: new Date().toISOString(),
+      };
       try {
-        localStorage.setItem(draftKey, JSON.stringify({
-          clinicalNotes,
-          draftMeds,
-          draftLabs,
-          diagnosis,
-          followUpAdvice,
-          savedAt: new Date().toISOString(),
-        }));
+        localStorage.setItem(draftKey, JSON.stringify(payload));
         setDraftSavedAt(new Date());
       } catch (_) {}
+      apiFetch(`/telemedicine/${session.id}/draft`, {
+        method: 'POST',
+        body: payload,
+      }).catch(() => {});
     }, 1500);
     return () => clearTimeout(timer);
-  }, [clinicalNotes, draftMeds, draftLabs, diagnosis, followUpAdvice]);
+  }, [clinicalNotes, draftMeds, draftLabs, diagnosis, followUpAdvice, session.id]);
 
-  // Restore draft on mount
+  // Restore draft on mount (Checks local cache and remote server draft)
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(draftKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.clinicalNotes) setClinicalNotes(parsed.clinicalNotes);
-        if (parsed.draftMeds?.length) setDraftMeds(parsed.draftMeds);
-        if (parsed.draftLabs?.length) setDraftLabs(parsed.draftLabs);
-        if (parsed.diagnosis) setDiagnosis(parsed.diagnosis);
-        if (parsed.followUpAdvice) setFollowUpAdvice(parsed.followUpAdvice);
-        toast('📋 Draft session restored', 'info');
-      }
-    } catch (_) {}
-  }, []);
+    let cancelled = false;
+    (async () => {
+      let restored = false;
+      try {
+        const saved = localStorage.getItem(draftKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.clinicalNotes) setClinicalNotes(parsed.clinicalNotes);
+          if (parsed.draftMeds?.length) setDraftMeds(parsed.draftMeds);
+          if (parsed.draftLabs?.length) setDraftLabs(parsed.draftLabs);
+          if (parsed.diagnosis) setDiagnosis(parsed.diagnosis);
+          if (parsed.followUpAdvice) setFollowUpAdvice(parsed.followUpAdvice);
+          restored = true;
+        }
+      } catch (_) {}
+
+      try {
+        const remote = await apiFetch(`/telemedicine/${session.id}/draft`);
+        const remoteDraft = remote?.data || remote;
+        if (!cancelled && remoteDraft) {
+          if (remoteDraft.clinicalNotes) setClinicalNotes(remoteDraft.clinicalNotes);
+          if (remoteDraft.draftMeds?.length) setDraftMeds(remoteDraft.draftMeds);
+          if (remoteDraft.draftLabs?.length) setDraftLabs(remoteDraft.draftLabs);
+          if (remoteDraft.diagnosis) setDiagnosis(remoteDraft.diagnosis);
+          if (remoteDraft.followUpAdvice) setFollowUpAdvice(remoteDraft.followUpAdvice);
+          restored = true;
+        }
+      } catch (_) {}
+
+      if (restored) toast('📋 Clinical draft session restored', 'info');
+    })();
+    return () => { cancelled = true; };
+  }, [session.id, draftKey, toast]);
 
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 
@@ -1080,7 +1105,10 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
   const STATUS_COPY = {
     'requesting-media': 'Requesting camera & microphone access…',
     connecting: `Connecting with ${session.patient}…`,
-    'peer-left': `${session.patient} has disconnected`,
+    reconnecting: call.reconnectCountdown
+      ? `Patient connection interrupted. Waiting for reconnection (${call.reconnectCountdown}s)…`
+      : `Reconnecting with ${session.patient}…`,
+    'peer-left': `${session.patient} has disconnected. You can wait or complete your consultation notes.`,
     failed: call.error || 'Connection failed',
     ended: 'Call ended',
   };
@@ -1124,7 +1152,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
 
             <div className="flex gap-3">
               <button
-                onClick={() => { call.hangUp(); onEnd('', [], []); }}
+                onClick={() => { call.hangUp(); onCancel ? onCancel() : onEnd('', [], []); }}
                 className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-4 rounded-2xl transition-all text-sm"
               >
                 Cancel
@@ -3498,6 +3526,8 @@ function DoctorTelemedicine() {
           appointmentId: activeCall.id,
           diagnosis: activeCall.type || 'Teleconsultation',
           instructions: notes || '',
+          isDraft: false,
+          idempotencyKey: `rx_${activeCall.id}`,
           medicines: effectiveMeds.map(m => ({
             name: m.name || m.rawText || 'Medication',
             dosage: m.dosage || 'Standard',
@@ -3565,14 +3595,23 @@ function DoctorTelemedicine() {
       }
 
       await updateAppointmentStatus(activeCall.id, 'Done');
+      sessionStorage.removeItem('healnari_active_consultation_id');
+      try { localStorage.removeItem(`healnari_rx_draft_${activeCall.id}`); } catch (_) {}
       await loadQueue();
       toast('Consultation ended. Prescription sent to patient!', 'success');
     } catch (err) {
       toast(err.message || 'Failed to finalize consultation', 'error');
     } finally {
+      sessionStorage.removeItem('healnari_active_consultation_id');
       setActiveCall(null);
       setSkipPreJoin(false);
     }
+  };
+
+  const handleCancelCall = () => {
+    setActiveCall(null);
+    setSkipPreJoin(false);
+    sessionStorage.removeItem('healnari_active_consultation_id');
   };
 
   // Patient declined — the backend already reverted the appointment out of
@@ -3580,6 +3619,7 @@ function DoctorTelemedicine() {
   // notes prompt — the consult never actually happened).
   const handleDeclined = () => {
     toast(`${activeCall?.patient || 'The patient'} declined the call.`, 'info');
+    sessionStorage.removeItem('healnari_active_consultation_id');
     setActiveCall(null);
     setSkipPreJoin(false);
     loadQueue();
@@ -3642,7 +3682,7 @@ function DoctorTelemedicine() {
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Live: {activeCall.patient}
             <span className="text-xs text-slate-500 font-medium">— use "End Consultation" below to save your notes and finish</span>
           </h2>
-          <ActiveCallUI session={activeCall} onEnd={endCall} onDeclined={handleDeclined} autoJoin={skipPreJoin} />
+          <ActiveCallUI session={activeCall} onEnd={endCall} onCancel={handleCancelCall} onDeclined={handleDeclined} autoJoin={skipPreJoin} />
         </div>
       ) : (
         <>

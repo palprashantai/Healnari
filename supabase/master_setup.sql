@@ -4653,6 +4653,33 @@ ALTER TABLE public.payments
 
 
 -- ==========================================
+-- MIGRATION: 0059_cms_and_landing_enhancements.sql
+-- ==========================================
+
+-- 0059_cms_and_landing_enhancements.sql
+-- Migration: Add slug, summary, content, and rich fields to cms_articles and landing_settings
+
+-- 1. Enhance cms_articles
+ALTER TABLE public.cms_articles 
+  ADD COLUMN IF NOT EXISTS summary TEXT,
+  ADD COLUMN IF NOT EXISTS content TEXT,
+  ADD COLUMN IF NOT EXISTS slug TEXT,
+  ADD COLUMN IF NOT EXISTS read_time TEXT DEFAULT '5 min read',
+  ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}'::text[];
+
+-- Create index on slug if not exists
+CREATE INDEX IF NOT EXISTS idx_cms_articles_slug ON public.cms_articles(slug);
+
+-- 2. Enhance landing_settings
+ALTER TABLE public.landing_settings
+  ADD COLUMN IF NOT EXISTS announcements JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS faqs JSONB DEFAULT '{"patient": [], "provider": []}'::jsonb,
+  ADD COLUMN IF NOT EXISTS testimonials JSONB DEFAULT '{"patient": [], "provider": []}'::jsonb,
+  ADD COLUMN IF NOT EXISTS seo_metadata JSONB DEFAULT '{"patient": {}, "provider": {}}'::jsonb,
+  ADD COLUMN IF NOT EXISTS hero_cta JSONB DEFAULT '{"patient": {}, "provider": {}}'::jsonb;
+
+
+-- ==========================================
 -- MIGRATION: 0059_payout_fintech_hardening.sql
 -- ==========================================
 
@@ -4882,6 +4909,1771 @@ ON CONFLICT (feature, role, version) DO UPDATE SET
   system_prompt = EXCLUDED.system_prompt,
   user_prompt_template = EXCLUDED.user_prompt_template,
   is_active = EXCLUDED.is_active;
+
+
+-- ==========================================
+-- MIGRATION: 0061_global_ai_monetization_multi_currency.sql
+-- ==========================================
+
+-- 0061_global_ai_monetization_multi_currency.sql
+-- Global AI Multi-Country, Multi-Currency, Regional Pricing, Credit Ledger & Profitability Engine
+
+-- 1. Countries Table
+CREATE TABLE IF NOT EXISTS public.countries (
+  code TEXT PRIMARY KEY,                       -- ISO 3166-1 alpha-2: 'IN', 'US', 'AE', 'GB', 'DE', 'CA', 'AU'
+  name TEXT NOT NULL,
+  region TEXT NOT NULL DEFAULT 'Global',       -- 'Asia', 'North America', 'Middle East', 'Europe', 'Oceania'
+  default_currency TEXT NOT NULL DEFAULT 'USD',-- ISO 4217: 'INR', 'USD', 'AED', 'GBP', 'EUR'
+  supported_currencies TEXT[] NOT NULL DEFAULT '{"USD"}'::text[],
+  timezone TEXT NOT NULL DEFAULT 'UTC',
+  locale TEXT NOT NULL DEFAULT 'en-US',
+  phone_prefix TEXT NOT NULL DEFAULT '+1',
+  tax_rate NUMERIC(5, 2) NOT NULL DEFAULT 0.00,
+  tax_name TEXT NOT NULL DEFAULT 'Standard Tax',-- 'GST', 'VAT', 'Sales Tax', 'MwSt'
+  tax_type TEXT NOT NULL DEFAULT 'inclusive' CHECK (tax_type IN ('inclusive', 'exclusive')),
+  payment_gateway TEXT NOT NULL DEFAULT 'stripe' CHECK (payment_gateway IN ('cashfree', 'stripe', 'razorpay', 'manual')),
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  is_ai_enabled BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 2. Currencies Table
+CREATE TABLE IF NOT EXISTS public.currencies (
+  code TEXT PRIMARY KEY,                       -- ISO 4217: 'USD', 'INR', 'AED', 'EUR', 'GBP', 'CAD', 'AUD'
+  symbol TEXT NOT NULL,
+  name TEXT NOT NULL,
+  minor_decimals INTEGER NOT NULL DEFAULT 2,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  is_reporting_currency BOOLEAN NOT NULL DEFAULT false,
+  usd_base_rate NUMERIC(12, 6) NOT NULL DEFAULT 1.0, -- 1 USD = X Currency (for normalized management reporting)
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 3. AI Products Table
+CREATE TABLE IF NOT EXISTS public.ai_products (
+  id TEXT PRIMARY KEY,                         -- 'prod_patient_ai', 'prod_doctor_ai'
+  name TEXT NOT NULL,
+  description TEXT,
+  target_role TEXT NOT NULL CHECK (target_role IN ('patient', 'doctor', 'all')),
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 4. AI Plans Table (Global Logical Identity)
+CREATE TABLE IF NOT EXISTS public.ai_plans (
+  id TEXT PRIMARY KEY,                         -- 'patient_free', 'patient_premium', 'doctor_free', 'doctor_pro', 'credit_pack_100'
+  product_id TEXT NOT NULL REFERENCES public.ai_products(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT,
+  billing_cycle TEXT NOT NULL DEFAULT 'monthly' CHECK (billing_cycle IN ('monthly', 'yearly', 'pay_per_use', 'credit_pack', 'lifetime')),
+  plan_type TEXT NOT NULL DEFAULT 'subscription' CHECK (plan_type IN ('subscription', 'credit_pack', 'pay_per_use', 'add_on')),
+  included_monthly_credits INTEGER NOT NULL DEFAULT 0,
+  bonus_credits INTEGER NOT NULL DEFAULT 0,
+  rollover_unused_credits BOOLEAN NOT NULL DEFAULT false,
+  max_credit_cap INTEGER,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  is_public BOOLEAN NOT NULL DEFAULT true,
+  plan_version INTEGER NOT NULL DEFAULT 1,
+  features TEXT[] NOT NULL DEFAULT '{}'::text[],
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 5. AI Regional Prices Table (Explicit Market-Specific Pricing & Versioning)
+CREATE TABLE IF NOT EXISTS public.ai_regional_prices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  plan_id TEXT NOT NULL REFERENCES public.ai_plans(id) ON DELETE CASCADE,
+  country_code TEXT NOT NULL REFERENCES public.countries(code) ON DELETE CASCADE,
+  currency TEXT NOT NULL REFERENCES public.currencies(code) ON DELETE CASCADE,
+  base_amount NUMERIC(10, 2) NOT NULL,        -- Explicit price: e.g. 299.00 INR, 9.99 USD, 19.00 AED
+  price_version INTEGER NOT NULL DEFAULT 1,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  effective_from TIMESTAMPTZ NOT NULL DEFAULT now(),
+  effective_to TIMESTAMPTZ,
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT uq_ai_regional_prices UNIQUE (plan_id, country_code, currency, price_version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_regional_prices_lookup ON public.ai_regional_prices (plan_id, country_code, currency, is_active);
+
+-- 6. AI Feature Country Availability Matrix
+CREATE TABLE IF NOT EXISTS public.ai_feature_country_availability (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  feature_key TEXT NOT NULL REFERENCES public.ai_feature_flags(feature_key) ON DELETE CASCADE,
+  country_code TEXT NOT NULL REFERENCES public.countries(code) ON DELETE CASCADE,
+  is_enabled BOOLEAN NOT NULL DEFAULT true,
+  beta_mode BOOLEAN NOT NULL DEFAULT false,
+  credit_cost_override INTEGER,
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT uq_ai_feature_country UNIQUE (feature_key, country_code)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_feat_country_lookup ON public.ai_feature_country_availability (feature_key, country_code);
+
+-- 7. AI Credit Accounts Table
+CREATE TABLE IF NOT EXISTS public.ai_credit_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  balance INTEGER NOT NULL DEFAULT 5,
+  lifetime_granted INTEGER NOT NULL DEFAULT 5,
+  lifetime_consumed INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_credit_accounts_user ON public.ai_credit_accounts (user_id);
+
+-- 8. AI Credit Ledger (Immutable Auditable Double-Entry Log)
+CREATE TABLE IF NOT EXISTS public.ai_credit_ledger (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  entry_type TEXT NOT NULL CHECK (entry_type IN ('GRANT', 'CONSUME', 'REFUND', 'BONUS', 'ADJUSTMENT', 'EXPIRATION')),
+  amount INTEGER NOT NULL,                     -- Positive for added, negative for deducted
+  balance_after INTEGER NOT NULL,
+  feature TEXT,                                -- Feature key associated with consumption
+  reference_id TEXT,                           -- Request ID, Transaction ID, or Subscription ID
+  reason TEXT NOT NULL,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_credit_ledger_user_date ON public.ai_credit_ledger (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_credit_ledger_type ON public.ai_credit_ledger (entry_type);
+
+-- 9. AI Model Costs Table (Versioned Provider Costs)
+CREATE TABLE IF NOT EXISTS public.ai_model_costs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  provider TEXT NOT NULL,                      -- 'gemini', 'openai', 'anthropic'
+  model TEXT NOT NULL,                         -- 'gemini-1.5-flash', 'gemini-1.5-pro', 'gpt-4o-mini', 'text-embedding-004'
+  input_cost_per_million NUMERIC(10, 6) NOT NULL,
+  output_cost_per_million NUMERIC(10, 6) NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  effective_from TIMESTAMPTZ NOT NULL DEFAULT now(),
+  effective_to TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  CONSTRAINT uq_ai_model_costs_model_ver UNIQUE (model, version)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_model_costs_model ON public.ai_model_costs (model, is_active);
+
+-- 10. AI Coupons Table
+CREATE TABLE IF NOT EXISTS public.ai_coupons (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code TEXT UNIQUE NOT NULL,
+  discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed_amount')),
+  discount_value NUMERIC(10, 2) NOT NULL,
+  allowed_country TEXT REFERENCES public.countries(code) ON DELETE SET NULL, -- NULL = global
+  allowed_currency TEXT REFERENCES public.currencies(code) ON DELETE SET NULL, -- Required if fixed_amount
+  allowed_plan_ids TEXT[] DEFAULT '{}'::text[],
+  max_uses INTEGER DEFAULT 1000,
+  current_uses INTEGER DEFAULT 0,
+  valid_from TIMESTAMPTZ NOT NULL DEFAULT now(),
+  valid_until TIMESTAMPTZ,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_coupons_code ON public.ai_coupons (code, is_active);
+
+-- 11. AI Transactions Table (Immutable Financial Records)
+CREATE TABLE IF NOT EXISTS public.ai_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  plan_id TEXT NOT NULL REFERENCES public.ai_plans(id),
+  country_code TEXT NOT NULL REFERENCES public.countries(code),
+  original_currency TEXT NOT NULL REFERENCES public.currencies(code),
+  base_amount NUMERIC(10, 2) NOT NULL,
+  tax_rate NUMERIC(5, 2) NOT NULL DEFAULT 0.00,
+  tax_amount NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+  discount_amount NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+  final_amount NUMERIC(10, 2) NOT NULL,
+  reporting_currency TEXT NOT NULL DEFAULT 'USD',
+  reporting_amount NUMERIC(10, 2) NOT NULL,
+  fx_rate_applied NUMERIC(12, 6) NOT NULL DEFAULT 1.0,
+  gateway TEXT NOT NULL DEFAULT 'cashfree',
+  gateway_txn_id TEXT,
+  status TEXT NOT NULL DEFAULT 'paid' CHECK (status IN ('paid', 'pending', 'failed', 'refunded')),
+  refund_amount NUMERIC(10, 2) DEFAULT 0.00,
+  coupon_code TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_transactions_user ON public.ai_transactions (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_transactions_country_date ON public.ai_transactions (country_code, created_at DESC);
+
+-- 12. AI Admin Audit Logs Table
+CREATE TABLE IF NOT EXISTS public.ai_admin_audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  admin_name TEXT NOT NULL DEFAULT 'System Admin',
+  action TEXT NOT NULL,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  old_value JSONB,
+  new_value JSONB,
+  reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_audit_logs_action ON public.ai_admin_audit_logs (action, created_at DESC);
+
+-- ============================================================================
+-- SEED DATA
+-- ============================================================================
+
+-- Currencies: STRICTLY INR AND USD ONLY per business rules
+INSERT INTO public.currencies (code, symbol, name, minor_decimals, is_active, is_reporting_currency, usd_base_rate) VALUES
+  ('USD', '$', 'US Dollar', 2, true, true, 1.0),
+  ('INR', '₹', 'Indian Rupee', 2, true, false, 84.60)
+ON CONFLICT (code) DO UPDATE SET
+  symbol = EXCLUDED.symbol,
+  usd_base_rate = EXCLUDED.usd_base_rate,
+  updated_at = now();
+
+-- Countries: STRICTLY India (IN - INR) and International/US (US - USD) ONLY
+INSERT INTO public.countries (code, name, region, default_currency, supported_currencies, timezone, locale, phone_prefix, tax_rate, tax_name, tax_type, payment_gateway, is_active, is_ai_enabled) VALUES
+  ('IN', 'India', 'Asia', 'INR', '{"INR"}'::text[], 'Asia/Kolkata', 'en-IN', '+91', 18.00, 'GST', 'inclusive', 'cashfree', true, true),
+  ('US', 'United States', 'North America', 'USD', '{"USD"}'::text[], 'America/New_York', 'en-US', '+1', 0.00, 'Sales Tax', 'exclusive', 'stripe', true, true)
+ON CONFLICT (code) DO UPDATE SET
+  name = EXCLUDED.name,
+  default_currency = EXCLUDED.default_currency,
+  tax_rate = EXCLUDED.tax_rate,
+  tax_name = EXCLUDED.tax_name,
+  payment_gateway = EXCLUDED.payment_gateway,
+  updated_at = now();
+
+-- AI Products
+INSERT INTO public.ai_products (id, name, description, target_role, is_active) VALUES
+  ('prod_patient_ai', 'HealNari Patient AI Suite', 'Comprehensive AI health companion, PCOS biomarker guide, lab decoder, and consult prep', 'patient', true),
+  ('prod_doctor_ai', 'HealNari Doctor Clinical AI', 'Doctor intelligence with automated SOAP notes, Rx autocomplete, and drug interaction shield', 'doctor', true)
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  updated_at = now();
+
+-- AI Plans (Global Logical Identities)
+INSERT INTO public.ai_plans (id, product_id, name, description, billing_cycle, plan_type, included_monthly_credits, bonus_credits, is_active, is_public, plan_version, features) VALUES
+  ('patient_free', 'prod_patient_ai', 'HealNari Free Companion', 'Free introductory cycle companion and basic wellness guide', 'monthly', 'subscription', 10, 0, true, true, 1, '{"PATIENT_CHAT"}'::text[]),
+  ('patient_premium', 'prod_patient_ai', 'HealNari AI Premium', 'Unlimited cycle calibration, lab decoder, consult prep, and 500 AI credits/mo', 'monthly', 'subscription', 500, 50, true, true, 1, '{"PATIENT_CHAT","PATIENT_LAB_ANALYSIS","PATIENT_CONSULT_PREP"}'::text[]),
+  ('patient_premium_yearly', 'prod_patient_ai', 'HealNari AI Premium Annual', 'Annual VIP subscription with 2 months free and 500 AI credits/mo', 'yearly', 'subscription', 500, 200, true, true, 1, '{"PATIENT_CHAT","PATIENT_LAB_ANALYSIS","PATIENT_CONSULT_PREP"}'::text[]),
+  ('doctor_free', 'prod_doctor_ai', 'Doctor Standard', 'Basic prescription autocomplete and drug safety checks', 'monthly', 'subscription', 20, 0, true, true, 1, '{"DOCTOR_RX_AUTOCOMPLETE","DOCTOR_DRUG_SAFETY"}'::text[]),
+  ('doctor_pro', 'prod_doctor_ai', 'Doctor AI Pro', 'Full pre-consult patient briefs, vector RAG SOAP notes, and 1,000 AI credits/mo', 'monthly', 'subscription', 1000, 100, true, true, 1, '{"DOCTOR_PATIENT_BRIEF","DOCTOR_SOAP_NOTES","DOCTOR_RX_AUTOCOMPLETE","DOCTOR_DRUG_SAFETY","DOCTOR_CONSULT_SUMMARY"}'::text[]),
+  ('doctor_pro_yearly', 'prod_doctor_ai', 'Doctor AI Pro Annual', 'Annual clinical subscription with unlimited autocomplete and 1,000 AI credits/mo', 'yearly', 'subscription', 1000, 300, true, true, 1, '{"DOCTOR_PATIENT_BRIEF","DOCTOR_SOAP_NOTES","DOCTOR_RX_AUTOCOMPLETE","DOCTOR_DRUG_SAFETY","DOCTOR_CONSULT_SUMMARY"}'::text[])
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  included_monthly_credits = EXCLUDED.included_monthly_credits,
+  features = EXCLUDED.features,
+  updated_at = now();
+
+-- Regional Prices (Independent Commercial Pricing: Only INR & USD)
+INSERT INTO public.ai_regional_prices (plan_id, country_code, currency, base_amount, price_version, is_active) VALUES
+  -- Patient Premium Monthly
+  ('patient_premium', 'IN', 'INR', 999.00, 1, true),
+  ('patient_premium', 'US', 'USD', 35.00, 1, true),
+
+  -- Patient Premium Yearly
+  ('patient_premium_yearly', 'IN', 'INR', 9999.00, 1, true),
+  ('patient_premium_yearly', 'US', 'USD', 349.00, 1, true),
+
+  -- Doctor Pro Monthly
+  ('doctor_pro', 'IN', 'INR', 1999.00, 1, true),
+  ('doctor_pro', 'US', 'USD', 60.00, 1, true),
+
+  -- Doctor Pro Yearly
+  ('doctor_pro_yearly', 'IN', 'INR', 19999.00, 1, true),
+  ('doctor_pro_yearly', 'US', 'USD', 599.00, 1, true)
+ON CONFLICT (plan_id, country_code, currency, price_version) DO UPDATE SET
+  base_amount = EXCLUDED.base_amount,
+  is_active = EXCLUDED.is_active,
+  updated_at = now();
+
+-- AI Model Costs (Infrastructure Token Economics)
+INSERT INTO public.ai_model_costs (provider, model, input_cost_per_million, output_cost_per_million, version, is_active) VALUES
+  ('gemini', 'gemini-1.5-flash', 0.075000, 0.300000, 1, true),
+  ('gemini', 'gemini-1.5-pro', 1.250000, 5.000000, 1, true),
+  ('openai', 'gpt-4o-mini', 0.150000, 0.600000, 1, true),
+  ('openai', 'gpt-4o', 2.500000, 10.000000, 1, true),
+  ('gemini', 'text-embedding-004', 0.025000, 0.000000, 1, true)
+ON CONFLICT (model, version) DO UPDATE SET
+  input_cost_per_million = EXCLUDED.input_cost_per_million,
+  output_cost_per_million = EXCLUDED.output_cost_per_million,
+  is_active = EXCLUDED.is_active;
+
+-- Seed Sample Coupons
+INSERT INTO public.ai_coupons (code, discount_type, discount_value, allowed_country, allowed_currency, max_uses, current_uses, is_active) VALUES
+  ('HEALNARI20', 'percentage', 20.00, NULL, NULL, 500, 0, true),
+  ('WELCOME100', 'fixed_amount', 100.00, 'IN', 'INR', 1000, 0, true),
+  ('USAPROMO5', 'fixed_amount', 5.00, 'US', 'USD', 500, 0, true)
+ON CONFLICT (code) DO NOTHING;
+
+
+-- ==========================================
+-- MIGRATION: 0062_ai_product_control_simplification.sql
+-- ==========================================
+
+-- 0062_ai_product_control_simplification.sql
+-- Enhances AI Product Control schema for non-technical admins:
+-- 1. Adds usage_type, unit, is_system, and status to ai_feature_flags
+-- 2. Adds feature_limits JSONB to ai_plans for dynamic per-plan limits (Limited vs Unlimited)
+
+ALTER TABLE public.ai_feature_flags
+  ADD COLUMN IF NOT EXISTS usage_type TEXT NOT NULL DEFAULT 'credits',
+  ADD COLUMN IF NOT EXISTS unit TEXT NOT NULL DEFAULT 'credits',
+  ADD COLUMN IF NOT EXISTS is_system BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
+
+ALTER TABLE public.ai_plans
+  ADD COLUMN IF NOT EXISTS feature_limits JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+-- Populate feature catalog attributes for standard system features
+UPDATE public.ai_feature_flags
+SET
+  usage_type = 'messages',
+  unit = 'messages',
+  is_system = true,
+  status = 'active'
+WHERE feature_key = 'PATIENT_CHAT';
+
+UPDATE public.ai_feature_flags
+SET
+  usage_type = 'documents',
+  unit = 'documents',
+  is_system = true,
+  status = 'active'
+WHERE feature_key = 'PATIENT_LAB_ANALYSIS';
+
+UPDATE public.ai_feature_flags
+SET
+  usage_type = 'generations',
+  unit = 'briefs',
+  is_system = true,
+  status = 'active'
+WHERE feature_key = 'PATIENT_CONSULT_PREP';
+
+UPDATE public.ai_feature_flags
+SET
+  usage_type = 'generations',
+  unit = 'briefs',
+  is_system = true,
+  status = 'active'
+WHERE feature_key = 'DOCTOR_PATIENT_BRIEF';
+
+UPDATE public.ai_feature_flags
+SET
+  usage_type = 'documents',
+  unit = 'notes',
+  is_system = true,
+  status = 'active'
+WHERE feature_key = 'DOCTOR_SOAP_NOTES';
+
+UPDATE public.ai_feature_flags
+SET
+  usage_type = 'calls',
+  unit = 'prescriptions',
+  is_system = true,
+  status = 'active'
+WHERE feature_key = 'DOCTOR_RX_AUTOCOMPLETE';
+
+UPDATE public.ai_feature_flags
+SET
+  usage_type = 'calls',
+  unit = 'checks',
+  is_system = true,
+  status = 'active'
+WHERE feature_key = 'DOCTOR_DRUG_SAFETY';
+
+UPDATE public.ai_feature_flags
+SET
+  usage_type = 'generations',
+  unit = 'summaries',
+  is_system = true,
+  status = 'active'
+WHERE feature_key = 'DOCTOR_CONSULT_SUMMARY';
+
+-- Populate clean, dynamic feature_limits for existing AI Plans
+UPDATE public.ai_plans
+SET feature_limits = '{
+  "PATIENT_CHAT": { "limit": 10, "is_unlimited": false, "unit": "messages" }
+}'::jsonb
+WHERE id = 'patient_free';
+
+UPDATE public.ai_plans
+SET feature_limits = '{
+  "PATIENT_CHAT": { "limit": null, "is_unlimited": true, "unit": "messages" },
+  "PATIENT_LAB_ANALYSIS": { "limit": null, "is_unlimited": true, "unit": "documents" },
+  "PATIENT_CONSULT_PREP": { "limit": null, "is_unlimited": true, "unit": "briefs" }
+}'::jsonb
+WHERE id IN ('patient_premium', 'patient_premium_yearly');
+
+UPDATE public.ai_plans
+SET feature_limits = '{
+  "DOCTOR_RX_AUTOCOMPLETE": { "limit": 20, "is_unlimited": false, "unit": "prescriptions" },
+  "DOCTOR_DRUG_SAFETY": { "limit": 20, "is_unlimited": false, "unit": "checks" }
+}'::jsonb
+WHERE id = 'doctor_free';
+
+UPDATE public.ai_plans
+SET feature_limits = '{
+  "DOCTOR_PATIENT_BRIEF": { "limit": null, "is_unlimited": true, "unit": "briefs" },
+  "DOCTOR_SOAP_NOTES": { "limit": 50, "is_unlimited": false, "unit": "notes" },
+  "DOCTOR_RX_AUTOCOMPLETE": { "limit": null, "is_unlimited": true, "unit": "prescriptions" },
+  "DOCTOR_DRUG_SAFETY": { "limit": null, "is_unlimited": true, "unit": "checks" },
+  "DOCTOR_CONSULT_SUMMARY": { "limit": null, "is_unlimited": true, "unit": "summaries" }
+}'::jsonb
+WHERE id IN ('doctor_pro', 'doctor_pro_yearly');
+
+
+-- ==========================================
+-- MIGRATION: 0063_ai_subscriptions_hardening.sql
+-- ==========================================
+
+-- 0063_ai_subscriptions_hardening.sql
+-- Hardens ai_subscriptions schema, adds missing financial & lifecycle columns,
+-- and registers token top-up packs in ai_plans so financial transactions remain strictly relational.
+
+-- 1. Add missing columns to ai_subscriptions
+ALTER TABLE public.ai_subscriptions
+  ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'INR',
+  ADD COLUMN IF NOT EXISTS amount NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN NOT NULL DEFAULT false;
+
+-- 2. Ensure Token Pack Plans exist in ai_plans so foreign key constraints on ai_transactions are satisfied
+INSERT INTO public.ai_plans (id, product_id, name, description, billing_cycle, plan_type, included_monthly_credits, is_active, is_public)
+VALUES
+  ('pack_100', 'prod_patient_ai', '100 AI Tokens Pack', 'One-time top-up of 100 AI tokens', 'credit_pack', 'credit_pack', 100, true, true),
+  ('pack_500', 'prod_patient_ai', '500 AI Tokens Pack', 'One-time top-up of 500 AI tokens', 'credit_pack', 'credit_pack', 500, true, true),
+  ('pack_1000', 'prod_patient_ai', '1,000 AI Tokens Pack', 'One-time top-up of 1,000 AI tokens', 'credit_pack', 'credit_pack', 1000, true, true)
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  is_active = true,
+  updated_at = now();
+
+-- 3. Regional prices for token packs (INR and USD)
+INSERT INTO public.ai_regional_prices (plan_id, country_code, currency, base_amount, price_version, is_active)
+VALUES
+  ('pack_100', 'IN', 'INR', 199.00, 1, true),
+  ('pack_100', 'US', 'USD', 5.00, 1, true),
+  ('pack_500', 'IN', 'INR', 699.00, 1, true),
+  ('pack_500', 'US', 'USD', 15.00, 1, true),
+  ('pack_1000', 'IN', 'INR', 1199.00, 1, true),
+  ('pack_1000', 'US', 'USD', 25.00, 1, true)
+ON CONFLICT (plan_id, country_code, currency, price_version) DO UPDATE SET
+  base_amount = EXCLUDED.base_amount,
+  is_active = true,
+  updated_at = now();
+
+
+-- ==========================================
+-- MIGRATION: 0064_ai_feature_roles_alignment.sql
+-- ==========================================
+
+-- 0064_ai_feature_roles_alignment.sql
+-- Non-destructive role alignment migration for AI feature flags.
+-- Enables patient access to Medication & Food Safety Shield (DOCTOR_DRUG_SAFETY)
+-- and doctor access to Consultation Preparation & Diagnostic Synthesis (PATIENT_CONSULT_PREP).
+
+UPDATE public.ai_feature_flags
+SET applicable_roles = ARRAY['doctor', 'patient'],
+    updated_at = now()
+WHERE feature_key = 'DOCTOR_DRUG_SAFETY';
+
+UPDATE public.ai_feature_flags
+SET applicable_roles = ARRAY['patient', 'doctor'],
+    updated_at = now()
+WHERE feature_key = 'PATIENT_CONSULT_PREP';
+
+
+-- ==========================================
+-- MIGRATION: 0065_six_plans_consolidation.sql
+-- ==========================================
+
+-- 0065_six_plans_consolidation.sql
+-- AI Healthcare Product + Plan System: Simplification to Exactly 6 Plans
+-- 3 Doctor Plans & 3 Patient Plans with strict role separation and unified 1-use accounting
+
+-- 1. Ensure canonical 6 plans in ai_plans table
+INSERT INTO public.ai_plans (id, product_id, name, description, billing_cycle, plan_type, included_monthly_credits, is_active, is_public, plan_version, features, feature_limits)
+VALUES
+  -- ── DOCTOR PLANS ──
+  (
+    'doctor_plan_1',
+    'prod_doctor_ai',
+    'Doctor Starter',
+    'Essential clinical tools with prescription autocomplete and drug-food safety checks',
+    'monthly',
+    'subscription',
+    25,
+    true,
+    true,
+    1,
+    '{"DOCTOR_RX_AUTOCOMPLETE","DOCTOR_DRUG_SAFETY"}'::text[],
+    '{
+      "DOCTOR_RX_AUTOCOMPLETE": { "limit": 25, "is_unlimited": false, "unit": "uses" },
+      "DOCTOR_DRUG_SAFETY": { "limit": 25, "is_unlimited": false, "unit": "uses" }
+    }'::jsonb
+  ),
+  (
+    'doctor_plan_2',
+    'prod_doctor_ai',
+    'Doctor Pro',
+    'High-volume clinical workflow automation with pre-consult briefs and post-consult summaries',
+    'monthly',
+    'subscription',
+    100,
+    true,
+    true,
+    1,
+    '{"DOCTOR_RX_AUTOCOMPLETE","DOCTOR_DRUG_SAFETY","DOCTOR_PATIENT_BRIEF","DOCTOR_CONSULT_SUMMARY"}'::text[],
+    '{
+      "DOCTOR_RX_AUTOCOMPLETE": { "limit": 100, "is_unlimited": false, "unit": "uses" },
+      "DOCTOR_DRUG_SAFETY": { "limit": 100, "is_unlimited": false, "unit": "uses" },
+      "DOCTOR_PATIENT_BRIEF": { "limit": 100, "is_unlimited": false, "unit": "uses" },
+      "DOCTOR_CONSULT_SUMMARY": { "limit": 100, "is_unlimited": false, "unit": "uses" }
+    }'::jsonb
+  ),
+  (
+    'doctor_plan_3',
+    'prod_doctor_ai',
+    'Doctor Premium',
+    'Full clinical intelligence with automated SOAP note generation and comprehensive practice documentation',
+    'monthly',
+    'subscription',
+    300,
+    true,
+    true,
+    1,
+    '{"DOCTOR_RX_AUTOCOMPLETE","DOCTOR_DRUG_SAFETY","DOCTOR_PATIENT_BRIEF","DOCTOR_CONSULT_SUMMARY","DOCTOR_SOAP_NOTES"}'::text[],
+    '{
+      "DOCTOR_RX_AUTOCOMPLETE": { "limit": 300, "is_unlimited": false, "unit": "uses" },
+      "DOCTOR_DRUG_SAFETY": { "limit": 300, "is_unlimited": false, "unit": "uses" },
+      "DOCTOR_PATIENT_BRIEF": { "limit": 300, "is_unlimited": false, "unit": "uses" },
+      "DOCTOR_CONSULT_SUMMARY": { "limit": 300, "is_unlimited": false, "unit": "uses" },
+      "DOCTOR_SOAP_NOTES": { "limit": 300, "is_unlimited": false, "unit": "uses" }
+    }'::jsonb
+  ),
+
+  -- ── PATIENT PLANS ──
+  (
+    'patient_plan_1',
+    'prod_patient_ai',
+    'Patient Basic',
+    'Free introductory cycle companion and women wellness educational guidance',
+    'monthly',
+    'subscription',
+    15,
+    true,
+    true,
+    1,
+    '{"PATIENT_CHAT"}'::text[],
+    '{
+      "PATIENT_CHAT": { "limit": 15, "is_unlimited": false, "unit": "uses" }
+    }'::jsonb
+  ),
+  (
+    'patient_plan_2',
+    'prod_patient_ai',
+    'Patient Pro',
+    'Comprehensive health companion with AI lab report decoder and visit preparation briefs',
+    'monthly',
+    'subscription',
+    60,
+    true,
+    true,
+    1,
+    '{"PATIENT_CHAT","PATIENT_LAB_ANALYSIS","PATIENT_CONSULT_PREP"}'::text[],
+    '{
+      "PATIENT_CHAT": { "limit": 60, "is_unlimited": false, "unit": "uses" },
+      "PATIENT_LAB_ANALYSIS": { "limit": 60, "is_unlimited": false, "unit": "uses" },
+      "PATIENT_CONSULT_PREP": { "limit": 60, "is_unlimited": false, "unit": "uses" }
+    }'::jsonb
+  ),
+  (
+    'patient_plan_3',
+    'prod_patient_ai',
+    'Patient Premium',
+    'Continuous VIP care with unlimited in-depth symptom analysis and priority health guidance',
+    'monthly',
+    'subscription',
+    150,
+    true,
+    true,
+    1,
+    '{"PATIENT_CHAT","PATIENT_LAB_ANALYSIS","PATIENT_CONSULT_PREP"}'::text[],
+    '{
+      "PATIENT_CHAT": { "limit": 150, "is_unlimited": false, "unit": "uses" },
+      "PATIENT_LAB_ANALYSIS": { "limit": 150, "is_unlimited": false, "unit": "uses" },
+      "PATIENT_CONSULT_PREP": { "limit": 150, "is_unlimited": false, "unit": "uses" }
+    }'::jsonb
+  )
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  billing_cycle = 'monthly',
+  plan_type = 'subscription',
+  included_monthly_credits = EXCLUDED.included_monthly_credits,
+  is_active = true,
+  is_public = true,
+  features = EXCLUDED.features,
+  feature_limits = EXCLUDED.feature_limits,
+  updated_at = now();
+
+-- 2. Deactivate obsolete plans (yearly and token packs) so only the 6 canonical plans are public/active
+UPDATE public.ai_plans
+SET is_active = false, is_public = false, updated_at = now()
+WHERE id IN (
+  'patient_premium_yearly',
+  'doctor_pro_yearly',
+  'pack_100',
+  'pack_500',
+  'pack_1000'
+);
+
+-- 3. Regional Pricing for Exactly the 6 Canonical Plans (INR & USD)
+-- Doctor Plan 1 (Starter - Free)
+INSERT INTO public.ai_regional_prices (plan_id, country_code, currency, base_amount, price_version, is_active)
+VALUES
+  ('doctor_plan_1', 'IN', 'INR', 0.00, 1, true),
+  ('doctor_plan_1', 'US', 'USD', 0.00, 1, true)
+ON CONFLICT (plan_id, country_code, currency, price_version) DO UPDATE SET
+  base_amount = 0.00, is_active = true, updated_at = now();
+
+-- Doctor Plan 2 (Pro - ₹1,499 / $19)
+INSERT INTO public.ai_regional_prices (plan_id, country_code, currency, base_amount, price_version, is_active)
+VALUES
+  ('doctor_plan_2', 'IN', 'INR', 1499.00, 1, true),
+  ('doctor_plan_2', 'US', 'USD', 19.00, 1, true)
+ON CONFLICT (plan_id, country_code, currency, price_version) DO UPDATE SET
+  base_amount = EXCLUDED.base_amount, is_active = true, updated_at = now();
+
+-- Doctor Plan 3 (Premium - ₹2,999 / $39)
+INSERT INTO public.ai_regional_prices (plan_id, country_code, currency, base_amount, price_version, is_active)
+VALUES
+  ('doctor_plan_3', 'IN', 'INR', 2999.00, 1, true),
+  ('doctor_plan_3', 'US', 'USD', 39.00, 1, true)
+ON CONFLICT (plan_id, country_code, currency, price_version) DO UPDATE SET
+  base_amount = EXCLUDED.base_amount, is_active = true, updated_at = now();
+
+-- Patient Plan 1 (Basic - Free)
+INSERT INTO public.ai_regional_prices (plan_id, country_code, currency, base_amount, price_version, is_active)
+VALUES
+  ('patient_plan_1', 'IN', 'INR', 0.00, 1, true),
+  ('patient_plan_1', 'US', 'USD', 0.00, 1, true)
+ON CONFLICT (plan_id, country_code, currency, price_version) DO UPDATE SET
+  base_amount = 0.00, is_active = true, updated_at = now();
+
+-- Patient Plan 2 (Pro - ₹499 / $7)
+INSERT INTO public.ai_regional_prices (plan_id, country_code, currency, base_amount, price_version, is_active)
+VALUES
+  ('patient_plan_2', 'IN', 'INR', 499.00, 1, true),
+  ('patient_plan_2', 'US', 'USD', 7.00, 1, true)
+ON CONFLICT (plan_id, country_code, currency, price_version) DO UPDATE SET
+  base_amount = EXCLUDED.base_amount, is_active = true, updated_at = now();
+
+-- Patient Plan 3 (Premium - ₹999 / $14)
+INSERT INTO public.ai_regional_prices (plan_id, country_code, currency, base_amount, price_version, is_active)
+VALUES
+  ('patient_plan_3', 'IN', 'INR', 999.00, 1, true),
+  ('patient_plan_3', 'US', 'USD', 14.00, 1, true)
+ON CONFLICT (plan_id, country_code, currency, price_version) DO UPDATE SET
+  base_amount = EXCLUDED.base_amount, is_active = true, updated_at = now();
+
+-- 4. Re-align feature flags to strict role separation and unified 1-use cost
+UPDATE public.ai_feature_flags
+SET applicable_roles = ARRAY['patient'],
+    credit_cost = 1,
+    unit = 'uses',
+    usage_type = 'uses',
+    updated_at = now()
+WHERE feature_key IN ('PATIENT_CHAT', 'PATIENT_LAB_ANALYSIS', 'PATIENT_CONSULT_PREP');
+
+UPDATE public.ai_feature_flags
+SET applicable_roles = ARRAY['doctor'],
+    credit_cost = 1,
+    unit = 'uses',
+    usage_type = 'uses',
+    updated_at = now()
+WHERE feature_key IN (
+  'DOCTOR_PATIENT_BRIEF',
+  'DOCTOR_SOAP_NOTES',
+  'DOCTOR_RX_AUTOCOMPLETE',
+  'DOCTOR_DRUG_SAFETY',
+  'DOCTOR_CONSULT_SUMMARY'
+);
+
+-- 5. Migrate existing subscriptions to canonical plan IDs
+UPDATE public.ai_subscriptions
+SET plan_id = 'patient_plan_1',
+    monthly_ai_credits = 15,
+    updated_at = now()
+WHERE plan_id = 'patient_free' OR (role = 'patient' AND (plan_id IS NULL OR plan_id = 'free'));
+
+UPDATE public.ai_subscriptions
+SET plan_id = 'patient_plan_2',
+    monthly_ai_credits = 60,
+    updated_at = now()
+WHERE plan_id IN ('patient_premium', 'patient_premium_yearly');
+
+UPDATE public.ai_subscriptions
+SET plan_id = 'doctor_plan_1',
+    monthly_ai_credits = 25,
+    updated_at = now()
+WHERE plan_id = 'doctor_free' OR (role = 'doctor' AND (plan_id IS NULL OR plan_id = 'free'));
+
+UPDATE public.ai_subscriptions
+SET plan_id = 'doctor_plan_2',
+    monthly_ai_credits = 100,
+    updated_at = now()
+WHERE plan_id IN ('doctor_pro', 'doctor_pro_yearly');
+
+
+-- ==========================================
+-- MIGRATION: 0066_add_ai_widget_to_plans.sql
+-- ==========================================
+
+-- =====================================================================
+-- MIGRATION: 0066_add_ai_widget_to_plans.sql
+-- Description: Add explicit AI Widget configuration to plans and feature flags
+-- =====================================================================
+
+-- 1. Add dedicated columns to ai_plans for explicit widget management
+ALTER TABLE IF EXISTS ai_plans 
+  ADD COLUMN IF NOT EXISTS has_ai_widget BOOLEAN DEFAULT true,
+  ADD COLUMN IF NOT EXISTS ai_widget_monthly_limit INTEGER DEFAULT 25;
+
+-- 2. Update the 6 canonical plans with explicit widget settings
+UPDATE ai_plans 
+SET 
+  has_ai_widget = true,
+  ai_widget_monthly_limit = CASE id
+    WHEN 'doctor_plan_1'  THEN 25
+    WHEN 'doctor_plan_2'  THEN 100
+    WHEN 'doctor_plan_3'  THEN 300
+    WHEN 'patient_plan_1' THEN 15
+    WHEN 'patient_plan_2' THEN 60
+    WHEN 'patient_plan_3' THEN 150
+    ELSE 10
+  END,
+  updated_at = NOW()
+WHERE id IN ('doctor_plan_1', 'doctor_plan_2', 'doctor_plan_3', 'patient_plan_1', 'patient_plan_2', 'patient_plan_3');
+
+-- 3. Register DOCTOR_CHAT / AI Widget in ai_feature_flags if not already present
+INSERT INTO ai_feature_flags (
+  feature_key,
+  name,
+  description,
+  is_enabled,
+  applicable_roles,
+  credit_cost,
+  unit,
+  usage_type,
+  is_system,
+  status
+)
+VALUES (
+  'DOCTOR_CHAT',
+  'Clinical AI Chat Widget',
+  'Interactive clinical guidance, guideline lookup, and case inquiry assistant',
+  true,
+  ARRAY['doctor'],
+  1,
+  'uses',
+  'uses',
+  true,
+  'active'
+)
+ON CONFLICT (feature_key) DO UPDATE SET
+  applicable_roles = ARRAY['doctor'],
+  credit_cost = 1,
+  unit = 'uses',
+  usage_type = 'uses',
+  is_enabled = true,
+  status = 'active',
+  updated_at = NOW();
+
+-- 4. Ensure all 3 doctor plans include DOCTOR_CHAT in features and feature_limits
+UPDATE ai_plans
+SET 
+  features = ARRAY(
+    SELECT DISTINCT unnest(array_append(features, 'DOCTOR_CHAT'))
+  ),
+  feature_limits = jsonb_set(
+    COALESCE(feature_limits, '{}'::jsonb),
+    '{DOCTOR_CHAT}',
+    jsonb_build_object(
+      'unit', 'uses',
+      'limit', CASE id
+        WHEN 'doctor_plan_1' THEN 25
+        WHEN 'doctor_plan_2' THEN 100
+        WHEN 'doctor_plan_3' THEN 300
+        ELSE 25
+      END,
+      'is_unlimited', false
+    )
+  ),
+  updated_at = NOW()
+WHERE id IN ('doctor_plan_1', 'doctor_plan_2', 'doctor_plan_3');
+
+-- 5. Ensure all 3 patient plans include PATIENT_CHAT in features and feature_limits
+UPDATE ai_plans
+SET 
+  features = ARRAY(
+    SELECT DISTINCT unnest(array_append(features, 'PATIENT_CHAT'))
+  ),
+  feature_limits = jsonb_set(
+    COALESCE(feature_limits, '{}'::jsonb),
+    '{PATIENT_CHAT}',
+    jsonb_build_object(
+      'unit', 'uses',
+      'limit', CASE id
+        WHEN 'patient_plan_1' THEN 15
+        WHEN 'patient_plan_2' THEN 60
+        WHEN 'patient_plan_3' THEN 150
+        ELSE 15
+      END,
+      'is_unlimited', false
+    )
+  ),
+  updated_at = NOW()
+WHERE id IN ('patient_plan_1', 'patient_plan_2', 'patient_plan_3');
+
+
+-- ==========================================
+-- MIGRATION: 0067_purge_old_and_duplicate_plans.sql
+-- ==========================================
+
+-- =====================================================================
+-- MIGRATION: 0067_purge_old_and_duplicate_plans.sql
+-- Description: Permanently remove obsolete plans, duplicate variants,
+--              token packs, and obsolete regional pricing records.
+-- =====================================================================
+
+DO $$
+DECLARE
+  old_plan_ids TEXT[] := ARRAY[
+    'doctor_free', 'doctor_pro', 'doctor_pro_yearly',
+    'patient_free', 'patient_premium', 'patient_premium_yearly',
+    'pack_100', 'pack_500', 'pack_1000'
+  ];
+BEGIN
+  -- 1. Re-link any legacy active subscriptions to canonical plans
+  UPDATE ai_subscriptions
+  SET plan_id = 'doctor_plan_1', updated_at = NOW()
+  WHERE plan_id = 'doctor_free';
+
+  UPDATE ai_subscriptions
+  SET plan_id = 'doctor_plan_2', updated_at = NOW()
+  WHERE plan_id IN ('doctor_pro', 'doctor_pro_yearly');
+
+  UPDATE ai_subscriptions
+  SET plan_id = 'patient_plan_1', updated_at = NOW()
+  WHERE plan_id = 'patient_free';
+
+  UPDATE ai_subscriptions
+  SET plan_id = 'patient_plan_2', updated_at = NOW()
+  WHERE plan_id IN ('patient_premium', 'patient_premium_yearly');
+
+  -- 2. Re-link any legacy transactions to canonical plans
+  UPDATE ai_transactions
+  SET plan_id = 'doctor_plan_2'
+  WHERE plan_id = 'doctor_pro';
+
+  -- 3. Delete obsolete regional prices
+  DELETE FROM ai_regional_prices
+  WHERE plan_id = ANY(old_plan_ids);
+
+  -- 4. Delete obsolete plans from ai_plans
+  DELETE FROM ai_plans
+  WHERE id = ANY(old_plan_ids);
+
+  RAISE NOTICE 'Obsolete and duplicate plans purged successfully. Exactly 6 canonical plans remain.';
+END $$;
+
+
+-- ==========================================
+-- MIGRATION: 0068_analytics_canonical_unification.sql
+-- ==========================================
+
+-- =====================================================================
+-- MIGRATION: 0068_analytics_canonical_unification.sql
+-- Description: Analytics performance indexes and canonical RPC alignment
+--              guaranteeing single source of truth across Admin, Doctor, Patient.
+-- =====================================================================
+
+-- 1. Performance Indexes for Real-Time Financial & Funnel Aggregations
+CREATE INDEX IF NOT EXISTS idx_payments_analytics 
+  ON public.payments (created_at DESC, status, doctor_id, patient_id);
+
+CREATE INDEX IF NOT EXISTS idx_appointments_analytics 
+  ON public.appointments (scheduled_date DESC, status, doctor_id, patient_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_transactions_analytics 
+  ON public.ai_transactions (created_at DESC, status, plan_id, country_code);
+
+-- 2. Align get_doctor_analytics to Canonical Formulas
+-- Ensures Doctor Analytics revenue matches Doctor Billing and Payout calculations
+CREATE OR REPLACE FUNCTION public.get_doctor_analytics(p_doctor_id UUID)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_total_revenue NUMERIC := 0;
+  v_gross_billings NUMERIC := 0;
+  v_platform_commission NUMERIC := 0;
+  v_total_consultations INT := 0;
+  v_total_patients INT := 0;
+  v_no_show_rate NUMERIC := 0;
+  v_monthly_trend JSONB := '[]'::JSONB;
+  v_weekly_load JSONB := '[]'::JSONB;
+  v_consult_type_split JSONB := '{}'::JSONB;
+  v_appt_status_split JSONB := '{}'::JSONB;
+  v_top_diagnoses JSONB := '[]'::JSONB;
+  v_age_demographics JSONB := '[]'::JSONB;
+  v_total_booked INT := 0;
+  v_no_shows INT := 0;
+  v_completed INT := 0;
+  v_doctor_currency TEXT := 'INR';
+BEGIN
+  -- Get doctor's operating currency
+  SELECT COALESCE(currency, 'INR') INTO v_doctor_currency
+  FROM public.profiles
+  WHERE id = p_doctor_id;
+
+  -- Canonical Earnings: Doctor's NET earnings (provider_payout_amount), NOT gross patient payments
+  SELECT 
+    COALESCE(SUM(COALESCE(provider_payout_amount, amount * 0.90)), 0),
+    COALESCE(SUM(COALESCE(original_amount, amount)), 0),
+    COALESCE(SUM(COALESCE(platform_fee_amount, amount * 0.10)), 0)
+  INTO v_total_revenue, v_gross_billings, v_platform_commission
+  FROM public.payments
+  WHERE doctor_id = p_doctor_id AND status = 'Paid';
+
+  -- Consultations count
+  SELECT COUNT(*) INTO v_completed
+  FROM public.appointments
+  WHERE doctor_id = p_doctor_id AND status = 'Done' AND deleted_at IS NULL;
+
+  v_total_consultations := v_completed;
+
+  -- Total unique patients
+  SELECT COUNT(DISTINCT patient_id) INTO v_total_patients
+  FROM public.appointments
+  WHERE doctor_id = p_doctor_id AND deleted_at IS NULL;
+
+  -- Safe No-show rate
+  SELECT COUNT(*) INTO v_total_booked
+  FROM public.appointments
+  WHERE doctor_id = p_doctor_id AND deleted_at IS NULL;
+
+  SELECT COUNT(*) INTO v_no_shows
+  FROM public.appointments
+  WHERE doctor_id = p_doctor_id AND status = 'No-Show' AND deleted_at IS NULL;
+
+  IF v_total_booked > 0 THEN
+    v_no_show_rate := ROUND((v_no_shows::NUMERIC / v_total_booked::NUMERIC) * 100, 1);
+  ELSE
+    v_no_show_rate := 0;
+  END IF;
+
+  -- Monthly Trend (6 months)
+  SELECT jsonb_agg(row_to_json(m)) INTO v_monthly_trend
+  FROM (
+    SELECT 
+      to_char(series.month, 'Mon') AS month,
+      COALESCE(SUM(COALESCE(p.provider_payout_amount, p.amount * 0.90)), 0) AS revenue,
+      COUNT(a.id) AS consultations
+    FROM generate_series(
+      date_trunc('month', now() - INTERVAL '5 months'),
+      date_trunc('month', now()),
+      INTERVAL '1 month'
+    ) series(month)
+    LEFT JOIN public.appointments a 
+      ON a.doctor_id = p_doctor_id 
+      AND a.status = 'Done' 
+      AND a.deleted_at IS NULL
+      AND date_trunc('month', COALESCE(a.scheduled_at, a.created_at)) = series.month
+    LEFT JOIN public.payments p 
+      ON p.doctor_id = p_doctor_id 
+      AND p.status = 'Paid' 
+      AND date_trunc('month', p.created_at) = series.month
+    GROUP BY series.month
+    ORDER BY series.month ASC
+  ) m;
+
+  -- Appointment Status Split
+  SELECT jsonb_build_object(
+    'Completed', COALESCE(SUM(CASE WHEN status = 'Done' THEN 1 ELSE 0 END), 0),
+    'Scheduled', COALESCE(SUM(CASE WHEN status IN ('Upcoming', 'Waiting', 'In-Progress', 'Approved') THEN 1 ELSE 0 END), 0),
+    'Cancelled', COALESCE(SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END), 0),
+    'NoShow', COALESCE(SUM(CASE WHEN status = 'No-Show' THEN 1 ELSE 0 END), 0)
+  ) INTO v_appt_status_split
+  FROM public.appointments
+  WHERE doctor_id = p_doctor_id AND deleted_at IS NULL;
+
+  -- Consult Type Split
+  SELECT jsonb_build_object(
+    'video', COALESCE(SUM(CASE WHEN type = 'video' THEN 1 ELSE 0 END), 0),
+    'clinic', COALESCE(SUM(CASE WHEN type = 'clinic' THEN 1 ELSE 0 END), 0)
+  ) INTO v_consult_type_split
+  FROM public.appointments
+  WHERE doctor_id = p_doctor_id AND deleted_at IS NULL;
+
+  RETURN jsonb_build_object(
+    'totalRevenue', v_total_revenue,
+    'grossBillings', v_gross_billings,
+    'platformCommission', v_platform_commission,
+    'totalConsultations', v_total_consultations,
+    'totalPatients', v_total_patients,
+    'noShowRate', v_no_show_rate,
+    'currency', v_doctor_currency,
+    'monthlyTrend', COALESCE(v_monthly_trend, '[]'::JSONB),
+    'weeklyLoad', v_weekly_load,
+    'consultTypeSplit', v_consult_type_split,
+    'appointmentStatusSplit', v_appt_status_split,
+    'topDiagnoses', v_top_diagnoses,
+    'ageDemographics', v_age_demographics
+  );
+END;
+$$;
+
+
+-- ==========================================
+-- MIGRATION: 0069_multi_currency_money_model.sql
+-- ==========================================
+
+-- 0069_multi_currency_money_model.sql
+-- Production-grade multi-currency money model, transaction-level FX lock, and discrepancy audit
+
+-- 1. Extend appointments table with fee, frozen base fee, patient payable amount, and locked FX quote
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS fee numeric(12, 2);
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS base_fee_amount numeric(12, 2);
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS base_fee_currency text DEFAULT 'INR';
+
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS patient_payable_amount numeric(12, 2);
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS patient_payable_currency text DEFAULT 'INR';
+
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS exchange_rate numeric(14, 6) DEFAULT 1.0;
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS exchange_rate_source text DEFAULT 'healnari_treasury_matrix_v1';
+ALTER TABLE public.appointments ADD COLUMN IF NOT EXISTS exchange_rate_timestamp timestamptz DEFAULT now();
+
+-- 2. Extend payments table with complete 4-part money model columns
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS base_amount numeric(12, 2);
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS base_currency text DEFAULT 'INR';
+
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS paid_amount numeric(12, 2);
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS paid_currency text DEFAULT 'INR';
+
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS doctor_payout_amount numeric(12, 2);
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS doctor_payout_currency text DEFAULT 'INR';
+
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS platform_commission_amount numeric(12, 2);
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS platform_commission_currency text DEFAULT 'INR';
+
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS discrepancy_flag boolean DEFAULT false;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS discrepancy_reason text;
+
+-- 3. Backfill existing appointments safely
+UPDATE public.appointments a
+SET
+  fee = COALESCE(a.fee, a.base_fee_amount, p.consultation_fee, 799),
+  base_fee_amount = COALESCE(a.base_fee_amount, a.fee, p.consultation_fee, 799),
+  base_fee_currency = COALESCE(a.base_fee_currency, p.currency, a.currency, 'INR'),
+  patient_payable_amount = COALESCE(a.patient_payable_amount, a.fee, p.consultation_fee, 799),
+  patient_payable_currency = COALESCE(a.patient_payable_currency, a.currency, 'INR')
+FROM public.profiles p
+WHERE a.doctor_id = p.id AND (a.base_fee_amount IS NULL OR a.fee IS NULL);
+
+UPDATE public.appointments
+SET
+  fee = COALESCE(fee, base_fee_amount, 799),
+  base_fee_amount = COALESCE(base_fee_amount, fee, 799),
+  base_fee_currency = COALESCE(base_fee_currency, currency, 'INR'),
+  patient_payable_amount = COALESCE(patient_payable_amount, fee, 799),
+  patient_payable_currency = COALESCE(patient_payable_currency, currency, 'INR')
+WHERE base_fee_amount IS NULL OR fee IS NULL;
+
+-- 4. Backfill existing payments safely
+UPDATE public.payments
+SET
+  base_amount = COALESCE(base_amount, original_amount, amount),
+  base_currency = COALESCE(base_currency, original_currency, currency, 'INR'),
+  paid_amount = COALESCE(paid_amount, original_amount, amount),
+  paid_currency = COALESCE(paid_currency, original_currency, currency, 'INR'),
+  doctor_payout_amount = COALESCE(doctor_payout_amount, provider_payout_amount, ROUND(amount * 0.90, 2)),
+  doctor_payout_currency = COALESCE(doctor_payout_currency, provider_payout_currency, currency, 'INR'),
+  platform_commission_amount = COALESCE(platform_commission_amount, platform_fee_amount, ROUND(amount * 0.10, 2)),
+  platform_commission_currency = COALESCE(platform_commission_currency, platform_fee_currency, currency, 'INR')
+WHERE base_amount IS NULL;
+
+-- 5. Indexes for multi-currency lookup performance
+CREATE INDEX IF NOT EXISTS idx_appointments_payable_curr ON public.appointments (patient_payable_currency);
+CREATE INDEX IF NOT EXISTS idx_payments_paid_curr ON public.payments (paid_currency);
+CREATE INDEX IF NOT EXISTS idx_payments_payout_curr ON public.payments (doctor_payout_currency);
+CREATE INDEX IF NOT EXISTS idx_payments_discrepancy ON public.payments (discrepancy_flag) WHERE discrepancy_flag = true;
+
+
+-- ==========================================
+-- MIGRATION: 0070_strict_multi_currency_model.sql
+-- ==========================================
+
+-- 0070_strict_multi_currency_model.sql
+-- Enforces 4-part money model (Base Price vs Paid Amount) with FX metadata
+-- across payouts, refund_requests, invoices, and ai_transactions.
+
+-- ==========================================
+-- 1. PAYOUTS
+-- ==========================================
+ALTER TABLE public.payouts ADD COLUMN IF NOT EXISTS original_amount numeric(12, 2);
+ALTER TABLE public.payouts ADD COLUMN IF NOT EXISTS original_currency text DEFAULT 'INR';
+ALTER TABLE public.payouts ADD COLUMN IF NOT EXISTS source_amount numeric(12, 2);
+ALTER TABLE public.payouts ADD COLUMN IF NOT EXISTS source_currency text DEFAULT 'INR';
+ALTER TABLE public.payouts ADD COLUMN IF NOT EXISTS payout_amount numeric(12, 2);
+ALTER TABLE public.payouts ADD COLUMN IF NOT EXISTS payout_currency text DEFAULT 'INR';
+ALTER TABLE public.payouts ADD COLUMN IF NOT EXISTS exchange_rate numeric(14, 6) DEFAULT 1.0;
+ALTER TABLE public.payouts ADD COLUMN IF NOT EXISTS exchange_rate_source text DEFAULT 'healnari_treasury_matrix_v1';
+ALTER TABLE public.payouts ADD COLUMN IF NOT EXISTS exchange_rate_timestamp timestamptz DEFAULT now();
+
+-- Backfill payouts safely
+UPDATE public.payouts
+SET
+  source_amount = COALESCE(source_amount, original_amount, amount),
+  source_currency = COALESCE(source_currency, original_currency, currency, 'INR'),
+  payout_amount = COALESCE(payout_amount, amount),
+  payout_currency = COALESCE(payout_currency, currency, 'INR')
+WHERE source_amount IS NULL;
+
+-- ==========================================
+-- 2. REFUND REQUESTS
+-- ==========================================
+ALTER TABLE public.refund_requests ADD COLUMN IF NOT EXISTS original_paid_amount numeric(12, 2);
+ALTER TABLE public.refund_requests ADD COLUMN IF NOT EXISTS original_paid_currency text DEFAULT 'INR';
+ALTER TABLE public.refund_requests ADD COLUMN IF NOT EXISTS refund_amount numeric(12, 2);
+ALTER TABLE public.refund_requests ADD COLUMN IF NOT EXISTS refund_currency text DEFAULT 'INR';
+
+-- Backfill refund_requests safely
+UPDATE public.refund_requests
+SET
+  original_paid_amount = COALESCE(original_paid_amount, amount),
+  original_paid_currency = COALESCE(original_paid_currency, currency, 'INR'),
+  refund_amount = COALESCE(refund_amount, amount),
+  refund_currency = COALESCE(refund_currency, currency, 'INR')
+WHERE original_paid_amount IS NULL;
+
+-- ==========================================
+-- 3. AI TRANSACTIONS
+-- ==========================================
+-- AI Transactions table in 0061 already has:
+-- original_currency, base_amount, final_amount, reporting_currency, reporting_amount, fx_rate_applied
+-- Let's standardize it to base/paid model
+ALTER TABLE public.ai_transactions ADD COLUMN IF NOT EXISTS base_currency text DEFAULT 'INR';
+ALTER TABLE public.ai_transactions ADD COLUMN IF NOT EXISTS paid_amount numeric(12, 2);
+ALTER TABLE public.ai_transactions ADD COLUMN IF NOT EXISTS paid_currency text DEFAULT 'INR';
+ALTER TABLE public.ai_transactions ADD COLUMN IF NOT EXISTS exchange_rate numeric(14, 6) DEFAULT 1.0;
+ALTER TABLE public.ai_transactions ADD COLUMN IF NOT EXISTS exchange_rate_source text DEFAULT 'healnari_treasury_matrix_v1';
+ALTER TABLE public.ai_transactions ADD COLUMN IF NOT EXISTS exchange_rate_timestamp timestamptz DEFAULT now();
+
+-- Backfill ai_transactions safely
+UPDATE public.ai_transactions
+SET
+  base_currency = COALESCE(base_currency, original_currency, 'INR'),
+  paid_amount = COALESCE(paid_amount, final_amount),
+  paid_currency = COALESCE(paid_currency, original_currency, 'INR'),
+  exchange_rate = COALESCE(exchange_rate, fx_rate_applied, 1.0)
+WHERE paid_amount IS NULL;
+
+-- ==========================================
+-- 4. INVOICES
+-- ==========================================
+-- If invoices table exists, apply to invoices dynamically using EXECUTE
+DO $$
+BEGIN
+    IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'invoices') THEN
+        EXECUTE 'ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS base_amount numeric(12, 2)';
+        EXECUTE 'ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS base_currency text DEFAULT ''INR''';
+        EXECUTE 'ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS paid_amount numeric(12, 2)';
+        EXECUTE 'ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS paid_currency text DEFAULT ''INR''';
+        EXECUTE 'ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS exchange_rate numeric(14, 6) DEFAULT 1.0';
+        EXECUTE 'ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS exchange_rate_source text DEFAULT ''healnari_treasury_matrix_v1''';
+        EXECUTE 'ALTER TABLE public.invoices ADD COLUMN IF NOT EXISTS exchange_rate_timestamp timestamptz DEFAULT now()';
+
+        EXECUTE 'UPDATE public.invoices
+        SET
+          base_amount = COALESCE(base_amount, amount),
+          base_currency = COALESCE(base_currency, currency, ''INR''),
+          paid_amount = COALESCE(paid_amount, amount),
+          paid_currency = COALESCE(paid_currency, currency, ''INR'')
+        WHERE base_amount IS NULL';
+    END IF;
+END $$;
+
+
+-- ==========================================
+-- MIGRATION: 0071_payments_disputed_status.sql
+-- ==========================================
+
+-- 0071_payments_disputed_status.sql
+-- Expand payments_status_check constraint to support 'Disputed' status when gateway discrepancies are flagged.
+
+ALTER TABLE public.payments DROP CONSTRAINT IF EXISTS payments_status_check;
+
+ALTER TABLE public.payments ADD CONSTRAINT payments_status_check
+  CHECK (status IN ('Paid', 'Pending', 'Insurance Claimed', 'Refunded', 'Failed', 'Refund Pending', 'Disputed'));
+
+
+-- ==========================================
+-- MIGRATION: 0072_patient_concurrency_and_credit_integrity.sql
+-- ==========================================
+
+-- 0072_patient_concurrency_and_credit_integrity.sql
+-- Production System Hardening:
+-- 1. Prevent patient from concurrently booking multiple appointments at the exact same minute across doctors or tabs.
+-- 2. Enforce non-negative credit balance constraint on AI credit accounts.
+-- 3. Add compound index for fast payment-to-appointment reconciliation queries.
+
+-- 1. Patient Double-Booking Prevention Index
+CREATE UNIQUE INDEX IF NOT EXISTS appointments_patient_no_double_booking
+  ON public.appointments (patient_id, scheduled_date, scheduled_time)
+  WHERE status NOT IN ('Cancelled', 'No Show') AND deleted_at IS NULL;
+
+-- 2. AI Credit Accounts Non-Negative Balance Constraint
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'check_ai_credit_balance_non_negative'
+  ) THEN
+    ALTER TABLE public.ai_credit_accounts
+      ADD CONSTRAINT check_ai_credit_balance_non_negative CHECK (balance >= 0);
+  END IF;
+END $$;
+
+-- 3. Payments Hot-Path Compound Index (used in appointment reconciliation & booking settlement checks)
+CREATE INDEX IF NOT EXISTS idx_payments_appointment_status
+  ON public.payments (appointment_id, status);
+
+
+-- ==========================================
+-- MIGRATION: 0073_provider_applications.sql
+-- ==========================================
+
+-- Migration: provider_applications
+-- Stores pre-registration specialist applications from the public landing page.
+-- Admin sees these in the verification queue alongside existing unverified doctor profiles.
+
+create table if not exists public.provider_applications (
+  id                uuid        primary key default gen_random_uuid(),
+  full_name         text        not null,
+  email             text        not null,
+  phone             text        not null,
+  country_code      text        not null default 'IN',
+  registration_no   text        not null,
+  medical_council   text        not null,
+  specialty         text        not null,
+  experience_years  text        not null,
+  consultation_fee  text,
+  clinic_name       text,
+  license_file_name text,
+  license_file_size text,
+  license_file_type text,
+  status            text        not null default 'pending'
+                                check (status in ('pending', 'reviewing', 'approved', 'rejected')),
+  admin_notes       text,
+  submitted_at      timestamptz not null default now(),
+  reviewed_at       timestamptz,
+  created_at        timestamptz not null default now()
+);
+
+create index if not exists provider_applications_status_idx
+  on public.provider_applications (status, submitted_at desc);
+
+create index if not exists provider_applications_email_idx
+  on public.provider_applications (email);
+
+alter table public.provider_applications enable row level security;
+
+-- Anyone (including unauthenticated visitors from the landing page) can submit
+drop policy if exists "provider_applications_insert_anon" on public.provider_applications;
+create policy "provider_applications_insert_anon"
+  on public.provider_applications
+  for insert to anon, authenticated
+  with check (true);
+
+-- Only admins can read / update applications
+drop policy if exists "provider_applications_select_admin" on public.provider_applications;
+create policy "provider_applications_select_admin"
+  on public.provider_applications
+  for select to authenticated
+  using (current_app_role() = 'admin');
+
+drop policy if exists "provider_applications_update_admin" on public.provider_applications;
+create policy "provider_applications_update_admin"
+  on public.provider_applications
+  for update to authenticated
+  using (current_app_role() = 'admin');
+
+grant insert on public.provider_applications to anon;
+grant select, insert, update on public.provider_applications to authenticated;
+
+
+-- ==========================================
+-- MIGRATION: 0074_provider_applications_file_url.sql
+-- ==========================================
+
+-- Migration: Add license_file_url to provider_applications
+alter table public.provider_applications add column if not exists license_file_url text;
+
+
+-- ==========================================
+-- MIGRATION: 0075_seed_doctor_email_templates.sql
+-- ==========================================
+
+-- Migration: Seed Doctor Welcome & KYC Verification Email Templates into message_templates
+
+insert into public.message_templates (
+  slug, name, type, audience, category, subject, preheader, description, is_system, variables_hint, content
+) values
+(
+  'doctor_kyc_approved',
+  'Doctor Credentials Verification Approved',
+  'email',
+  'Doctor',
+  'compliance',
+  '🎉 Credentials Verified — Welcome to HealNari Practice Network',
+  'Your medical provider credentials have been verified.',
+  'Sent to doctor once administrator verifies medical license and credentials.',
+  true,
+  '["doctorName", "dashboardUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">✓ Verified Provider</div>
+    <h2 style="color: #065F46; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Welcome to HealNari Practice Network</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Dear Dr. <strong>{{doctorName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">We are delighted to confirm that your medical registration, degree certificates, and clinical credentials have been <strong>verified and approved</strong> by our medical governance board.</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Your public specialist profile is now active. You can now set your consultation availability slots, receive patient bookings, and issue digital prescriptions.</p>
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #059669; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block;">Go to Doctor Portal &rarr;</a>
+    </div>
+  </div>'
+),
+(
+  'doctor_welcome_credentials',
+  'Doctor Provider Account Welcome Credentials',
+  'email',
+  'Doctor',
+  'onboarding',
+  '🩺 Welcome Dr. {{doctorName}} — Your HealNari Provider Credentials & Login Details',
+  'Your doctor provider account has been approved and created.',
+  'Sent to doctor when administrator approves pre-registration application, generating account login credentials.',
+  true,
+  '["doctorName", "email", "password", "loginUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #F3E8FF; border: 1px solid #DDD6FE; color: #6B46C1; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Provider Access</div>
+    <h2 style="color: #4C1D95; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Welcome to HealNari Provider Network</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Dear Dr. <strong>{{doctorName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Congratulations! Your specialist provider application has been approved. A doctor account has been set up for you with the following login credentials:</p>
+    
+    <div style="background-color: #F8F6FF; border: 1px solid #DDD6FE; border-radius: 12px; padding: 18px; margin: 20px 0;">
+      <p style="margin: 4px 0; font-size: 13px; color: #4C1D95;"><strong>Login Email:</strong> <span style="font-family: monospace; color: #6B46C1; font-size: 14px; font-weight: bold;">{{email}}</span></p>
+      <p style="margin: 8px 0 4px 0; font-size: 13px; color: #4C1D95;"><strong>Temporary Password:</strong> <span style="font-family: monospace; color: #6B46C1; font-size: 14px; font-weight: bold;">{{password}}</span></p>
+      <p style="margin: 12px 0 0 0; font-size: 11px; color: #6B21A8;">* Please change your password after logging into your dashboard for security.</p>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{loginUrl}}" style="background-color: #6B46C1; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block; box-shadow: 0 4px 14px rgba(107, 70, 193, 0.25);">Log In to Provider Dashboard &rarr;</a>
+    </div>
+  </div>'
+),
+(
+  'doctor_kyc_rejected',
+  'Doctor KYC Verification Clarification Request',
+  'email',
+  'Doctor',
+  'compliance',
+  'KYC Verification Update — Document Clarification Required',
+  'Clarification required for medical credentials.',
+  'Sent to doctor if KYC documents require correction or re-upload.',
+  true,
+  '["doctorName", "reason", "dashboardUrl"]'::jsonb,
+  '<div style="margin-bottom: 20px;">
+    <div style="display: inline-block; background-color: #FFE4E6; border: 1px solid #FECDD3; color: #9F1239; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;">Action Required</div>
+    <h2 style="color: #9F1239; font-size: 21px; font-weight: 800; margin: 0 0 12px 0; line-height: 1.3;">Verification Clarification Needed</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">Dear Dr. <strong>{{doctorName}}</strong>,</p>
+    <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">Thank you for submitting your verification details. Our medical governance board requested clarification regarding your uploaded document.</p>
+    
+    <div style="background-color: #FFF1F2; border: 1px solid #FECDD3; border-radius: 10px; padding: 16px; margin: 20px 0;">
+      <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 800; color: #9F1239; uppercase;">Review Notes:</p>
+      <p style="margin: 0; font-size: 13px; color: #BE123C; line-height: 1.5;">{{reason}}</p>
+    </div>
+
+    <div style="text-align: center; margin: 26px 0;">
+      <a href="{{dashboardUrl}}" style="background-color: #E11D48; color: #FFFFFF; text-decoration: none; padding: 14px 32px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block;">Re-upload Documents &rarr;</a>
+    </div>
+  </div>'
+)
+on conflict (slug) do update set
+  name = excluded.name,
+  type = excluded.type,
+  audience = excluded.audience,
+  category = excluded.category,
+  subject = excluded.subject,
+  preheader = excluded.preheader,
+  description = excluded.description,
+  variables_hint = excluded.variables_hint,
+  content = excluded.content,
+  updated_at = now();
+
+
+-- ==========================================
+-- MIGRATION: 0076_appointment_double_booking_constraint.sql
+-- ==========================================
+
+-- Migration 0076: Prevent Double Booking
+-- Replaces application-level checks with a strict database-level unique index.
+-- This ensures a doctor cannot be booked twice for the same date and time unless the previous appointment was cancelled.
+
+CREATE UNIQUE INDEX IF NOT EXISTS appointments_no_double_booking_idx 
+ON public.appointments (doctor_id, scheduled_date, scheduled_time) 
+WHERE status NOT IN ('Cancelled', 'No Show');
+
+
+-- ==========================================
+-- MIGRATION: 0077_composite_indexes.sql
+-- ==========================================
+
+-- Migration 0077: Performance Indexes
+-- Adds composite indexes to support dashboard queries and clinical timeline loading.
+
+CREATE INDEX IF NOT EXISTS appointments_dashboard_idx 
+ON public.appointments (doctor_id, scheduled_date, status);
+
+CREATE INDEX IF NOT EXISTS clinical_notes_history_idx 
+ON public.clinical_notes (patient_id, created_at DESC);
+
+
+-- ==========================================
+-- MIGRATION: 0078_clinical_fks_restrict.sql
+-- ==========================================
+
+-- Migration 0078: Healthcare Data Integrity
+-- Modifies ON DELETE CASCADE to ON DELETE RESTRICT for critical clinical records
+-- to ensure a profile deletion does not accidentally destroy historical medical records.
+
+ALTER TABLE public.prescriptions DROP CONSTRAINT IF EXISTS prescriptions_patient_id_fkey;
+ALTER TABLE public.prescriptions ADD CONSTRAINT prescriptions_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id) ON DELETE RESTRICT;
+
+ALTER TABLE public.lab_reports DROP CONSTRAINT IF EXISTS lab_reports_patient_id_fkey;
+ALTER TABLE public.lab_reports ADD CONSTRAINT lab_reports_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id) ON DELETE RESTRICT;
+
+ALTER TABLE public.clinical_notes DROP CONSTRAINT IF EXISTS clinical_notes_patient_id_fkey;
+ALTER TABLE public.clinical_notes ADD CONSTRAINT clinical_notes_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id) ON DELETE RESTRICT;
+
+ALTER TABLE public.cycle_logs DROP CONSTRAINT IF EXISTS cycle_logs_patient_id_fkey;
+ALTER TABLE public.cycle_logs ADD CONSTRAINT cycle_logs_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id) ON DELETE RESTRICT;
+
+
+-- ==========================================
+-- MIGRATION: 0079_payment_numeric_types.sql
+-- ==========================================
+
+-- Migration 0079: Strict Financial Precision
+-- Upgrades standard numeric(10,2) to numeric(12,4) to support strict multi-currency conversion precision.
+
+ALTER TABLE public.payments ALTER COLUMN amount TYPE numeric(12, 4);
+
+
+-- ==========================================
+-- MIGRATION: 0080_fix_phi_audit_logs_target_patient_id.sql
+-- ==========================================
+
+-- ============================================================================
+-- Migration 0080: Fix phi_audit_logs schema by adding target_patient_id column
+-- ============================================================================
+-- Resolves "Could not find the 'target_patient_id' column of 'phi_audit_logs' in the schema cache"
+-- and restores full PHI audit log tracing for Patients, Doctors, and Admins.
+
+ALTER TABLE public.phi_audit_logs
+  ADD COLUMN IF NOT EXISTS target_patient_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS phi_audit_logs_patient_idx ON public.phi_audit_logs (target_patient_id);
+
+-- Refresh PostgREST schema cache to ensure immediate recognition of new column
+NOTIFY pgrst, 'reload schema';
+
+
+-- ==========================================
+-- MIGRATION: 0081_clinical_safety_status.sql
+-- ==========================================
+
+-- Migration: 0081_clinical_safety_status
+-- Purpose: Hardens the state machines, data integrity, and immutability for clinical records per audit.
+
+-- 1. Prescriptions Status Hardening
+ALTER TABLE public.prescriptions DROP CONSTRAINT IF EXISTS prescriptions_status_check;
+ALTER TABLE public.prescriptions ADD CONSTRAINT prescriptions_status_check 
+  CHECK (status IN ('Draft', 'Finalized', 'Cancelled', 'Active', 'Expired'));
+
+-- 2. Lab Reports Status Hardening
+ALTER TABLE public.lab_reports DROP CONSTRAINT IF EXISTS lab_reports_status_check;
+ALTER TABLE public.lab_reports ADD CONSTRAINT lab_reports_status_check 
+  CHECK (status IN ('Ordered', 'Sample Collected', 'Processing', 'Report Available', 'Reviewed', 'Cancelled', 'Pending', 'Completed'));
+
+-- Add report_url for secure file references if it doesn't exist
+ALTER TABLE public.lab_reports ADD COLUMN IF NOT EXISTS report_url text;
+
+-- 3. Ensure lab_report_requests table exists (if migration 0014 was not yet applied to this DB)
+CREATE TABLE IF NOT EXISTS public.lab_report_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  doctor_id uuid NOT NULL REFERENCES public.profiles(id),
+  patient_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE RESTRICT,
+  requested_tests text NOT NULL,
+  due_date date,
+  notes text,
+  status text NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Fulfilled', 'Cancelled')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS lab_report_requests_patient_idx ON public.lab_report_requests (patient_id);
+CREATE INDEX IF NOT EXISTS lab_report_requests_doctor_idx ON public.lab_report_requests (doctor_id);
+
+ALTER TABLE public.lab_report_requests ENABLE ROW LEVEL SECURITY;
+
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'lab_report_requests' AND policyname = 'lab_report_requests_select_own'
+  ) THEN
+    CREATE POLICY "lab_report_requests_select_own" ON public.lab_report_requests
+      FOR SELECT USING (patient_id = auth.uid() OR doctor_id = auth.uid() OR public.current_app_role() = 'doctor');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'lab_report_requests' AND policyname = 'lab_report_requests_write_doctor'
+  ) THEN
+    CREATE POLICY "lab_report_requests_write_doctor" ON public.lab_report_requests
+      FOR ALL USING (public.current_app_role() = 'doctor') WITH CHECK (public.current_app_role() = 'doctor');
+  END IF;
+END $$;
+
+-- 4. Remove Dangerous Cascading Deletes on Core Clinical Records
+ALTER TABLE public.appointments DROP CONSTRAINT IF EXISTS appointments_patient_id_fkey;
+ALTER TABLE public.appointments ADD CONSTRAINT appointments_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id) ON DELETE RESTRICT;
+
+ALTER TABLE public.appointments DROP CONSTRAINT IF EXISTS appointments_doctor_id_fkey;
+ALTER TABLE public.appointments ADD CONSTRAINT appointments_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES public.profiles(id) ON DELETE RESTRICT;
+
+ALTER TABLE public.lab_report_requests DROP CONSTRAINT IF EXISTS lab_report_requests_patient_id_fkey;
+ALTER TABLE public.lab_report_requests ADD CONSTRAINT lab_report_requests_patient_id_fkey FOREIGN KEY (patient_id) REFERENCES public.profiles(id) ON DELETE RESTRICT;
+
+-- 5. Clinical Linkages: Add appointment_id to associate records directly with consultations
+ALTER TABLE public.prescriptions ADD COLUMN IF NOT EXISTS appointment_id uuid REFERENCES public.appointments(id) ON DELETE RESTRICT;
+CREATE INDEX IF NOT EXISTS prescriptions_appointment_idx ON public.prescriptions(appointment_id);
+
+ALTER TABLE public.lab_report_requests ADD COLUMN IF NOT EXISTS appointment_id uuid REFERENCES public.appointments(id) ON DELETE RESTRICT;
+CREATE INDEX IF NOT EXISTS lab_report_requests_appointment_idx ON public.lab_report_requests(appointment_id);
+
+ALTER TABLE public.lab_reports ADD COLUMN IF NOT EXISTS appointment_id uuid REFERENCES public.appointments(id) ON DELETE RESTRICT;
+CREATE INDEX IF NOT EXISTS lab_reports_appointment_idx ON public.lab_reports(appointment_id);
+
+ALTER TABLE public.lab_reports ADD COLUMN IF NOT EXISTS request_id uuid REFERENCES public.lab_report_requests(id);
+
+-- 6. Trigger: Enforce Immutability of Finalized Prescriptions
+CREATE OR REPLACE FUNCTION public.check_prescription_immutability()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF OLD.status = 'Finalized' THEN
+    -- Disallow reverting status to Draft or arbitrary states
+    IF NEW.status NOT IN ('Finalized', 'Cancelled') THEN
+      RAISE EXCEPTION 'Cannot change status of a finalized prescription to %', NEW.status;
+    END IF;
+    -- Disallow modifying clinical payload once Finalized
+    IF NEW.status = OLD.status AND (
+         NEW.med_name IS DISTINCT FROM OLD.med_name OR
+         NEW.dosage IS DISTINCT FROM OLD.dosage OR
+         NEW.schedule IS DISTINCT FROM OLD.schedule OR
+         NEW.duration IS DISTINCT FROM OLD.duration OR
+         NEW.instructions IS DISTINCT FROM OLD.instructions OR
+         NEW.patient_id IS DISTINCT FROM OLD.patient_id OR
+         NEW.doctor_id IS DISTINCT FROM OLD.doctor_id
+       ) THEN
+      RAISE EXCEPTION 'Cannot modify clinical content of a finalized prescription. It must be cancelled or a new prescription issued.';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_lock_finalized_prescriptions ON public.prescriptions;
+CREATE TRIGGER trg_lock_finalized_prescriptions
+  BEFORE UPDATE ON public.prescriptions
+  FOR EACH ROW EXECUTE FUNCTION public.check_prescription_immutability();
+
+CREATE OR REPLACE FUNCTION public.prevent_finalized_prescription_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF OLD.status = 'Finalized' THEN
+    RAISE EXCEPTION 'Cannot hard delete a finalized prescription. Use soft delete (deleted_at) or cancellation.';
+  END IF;
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_prevent_finalized_prescription_delete ON public.prescriptions;
+CREATE TRIGGER trg_prevent_finalized_prescription_delete
+  BEFORE DELETE ON public.prescriptions
+  FOR EACH ROW EXECUTE FUNCTION public.prevent_finalized_prescription_delete();
+
+
+-- ==========================================
+-- MIGRATION: 0082_doctor_reviews.sql
+-- ==========================================
+
+-- Migration 0082: Doctor reviews and patient ratings
+create table if not exists public.doctor_reviews (
+  id uuid primary key default gen_random_uuid(),
+  doctor_id uuid not null references public.profiles(id) on delete cascade,
+  patient_id uuid references public.profiles(id) on delete set null,
+  patient_name text not null,
+  appointment_id uuid references public.appointments(id) on delete set null,
+  rating integer not null check (rating >= 1 and rating <= 5),
+  tags text[] default '{}',
+  comment text,
+  is_verified boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_doctor_reviews_doctor_id on public.doctor_reviews(doctor_id);
+create index if not exists idx_doctor_reviews_patient_id on public.doctor_reviews(patient_id);
+
+
+-- ==========================================
+-- MIGRATION: 0083_telemedicine_consultation_sessions.sql
+-- ==========================================
+
+-- ==========================================
+-- MIGRATION: 0083_telemedicine_consultation_sessions.sql
+-- ==========================================
+-- Introduces authoritative consultation sessions and event tracking
+-- Decouples ephemeral WebRTC signaling states from appointment bookings
+-- Tracks doctor/patient presence, clinical drafts, and duration metrics
+
+-- 1. Consultation Sessions Table
+CREATE TABLE IF NOT EXISTS public.consultation_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  appointment_id UUID NOT NULL REFERENCES public.appointments(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'waiting'
+    CHECK (status IN (
+      'waiting',
+      'connecting',
+      'connected',
+      'temporarily_disconnected',
+      'reconnecting',
+      'call_dropped',
+      'clinical_wrapup',
+      'completed',
+      'abandoned'
+    )),
+  doctor_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  patient_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  doctor_joined_at TIMESTAMPTZ,
+  patient_joined_at TIMESTAMPTZ,
+  started_at TIMESTAMPTZ,
+  ended_at TIMESTAMPTZ,
+  last_connected_at TIMESTAMPTZ,
+  last_disconnected_at TIMESTAMPTZ,
+  total_connected_seconds INTEGER NOT NULL DEFAULT 0,
+  disconnection_count INTEGER NOT NULL DEFAULT 0,
+  draft_notes JSONB DEFAULT NULL,
+  media_mode TEXT NOT NULL DEFAULT 'video' CHECK (media_mode IN ('video', 'audio_only')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT consultation_sessions_appointment_unique UNIQUE (appointment_id)
+);
+
+CREATE INDEX IF NOT EXISTS consultation_sessions_doctor_idx ON public.consultation_sessions (doctor_id, status);
+CREATE INDEX IF NOT EXISTS consultation_sessions_patient_idx ON public.consultation_sessions (patient_id, status);
+CREATE INDEX IF NOT EXISTS consultation_sessions_appointment_idx ON public.consultation_sessions (appointment_id);
+
+-- 2. Consultation Events Table (Immutable Audit Trail)
+CREATE TABLE IF NOT EXISTS public.consultation_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID REFERENCES public.consultation_sessions(id) ON DELETE CASCADE,
+  appointment_id UUID NOT NULL REFERENCES public.appointments(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL,
+  triggered_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+  payload JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS consultation_events_appointment_idx ON public.consultation_events (appointment_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS consultation_events_session_idx ON public.consultation_events (session_id, created_at ASC);
+
+-- 3. Enhance appointments table with authoritative timestamps if not exists
+ALTER TABLE public.appointments
+  ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS consultation_duration_seconds INTEGER DEFAULT 0;
+
+-- 4. Enable Row Level Security (RLS)
+ALTER TABLE public.consultation_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.consultation_events ENABLE ROW LEVEL SECURITY;
+
+-- 5. Policies for consultation_sessions
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'consultation_sessions' AND policyname = 'Users can view their own consultation sessions'
+  ) THEN
+    CREATE POLICY "Users can view their own consultation sessions"
+      ON public.consultation_sessions FOR SELECT
+      USING (
+        auth.uid() = doctor_id OR
+        auth.uid() = patient_id OR
+        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'staff'))
+      );
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'consultation_sessions' AND policyname = 'Doctors can update their assigned consultation sessions'
+  ) THEN
+    CREATE POLICY "Doctors can update their assigned consultation sessions"
+      ON public.consultation_sessions FOR UPDATE
+      USING (
+        auth.uid() = doctor_id OR
+        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'staff'))
+      );
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'consultation_sessions' AND policyname = 'Patients can update their joined state in consultation sessions'
+  ) THEN
+    CREATE POLICY "Patients can update their joined state in consultation sessions"
+      ON public.consultation_sessions FOR UPDATE
+      USING (auth.uid() = patient_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'consultation_events' AND policyname = 'Users can view events for their consultations'
+  ) THEN
+    CREATE POLICY "Users can view events for their consultations"
+      ON public.consultation_events FOR SELECT
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.appointments a
+          WHERE a.id = consultation_events.appointment_id
+            AND (a.doctor_id = auth.uid() OR a.patient_id = auth.uid())
+        ) OR
+        EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'staff'))
+      );
+  END IF;
+END $$;
 
 
 -- ==========================================

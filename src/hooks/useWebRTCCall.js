@@ -7,59 +7,60 @@ const SOCKET_URL = RAW_API_URL ? RAW_API_URL.replace(/\/api\/?$/, '') : 'http://
 
 // Fallback if the backend's /telemedicine/ice-servers call fails outright —
 // public STUN only, enough for most home/office networks. The backend
-// always tries to add a TURN credential on top of this same STUN pair (see
-// TelemedicineService.getIceServers) for peers behind restrictive NATs.
+// always tries to add a TURN credential on top of this same STUN pair.
 const FALLBACK_ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
 ];
 
-/** Pulls the candidate type (host / srflx / relay / prflx) out of an ICE
- * candidate's SDP string — the single most useful piece of information for
- * diagnosing "why won't this call connect": if no `relay` candidates ever
- * appear on either side, TURN isn't reachable/configured, and calls will
- * fail for any pair of peers whose NATs (or router's lack of NAT
- * hairpinning — a common same-WiFi failure) can't be bridged by STUN alone. */
+/** Pulls candidate type (host / srflx / relay / prflx) out of candidate SDP */
 function candidateType(candidate) {
   const str = candidate?.candidate || '';
   return str.match(/typ (\w+)/)?.[1] || 'unknown';
 }
 
 /**
- * Peer-to-peer WebRTC video call, signaled over the appointment's
- * `call:<appointmentId>` Socket.IO room (see vision's CallGateway).
- *
- * Lifecycle is driven entirely by `active`: turning it on acquires the
- * camera/mic, connects the signaling socket, joins the room, and negotiates
- * a connection; turning it off (or unmounting) tears everything down. The
- * room's second joiner always creates the SDP offer — the gateway tells a
- * joining client whether a peer is already present, and that's the sole
- * signal used to decide who offers, so both sides can never offer at once.
- *
- * `hangUp()` only tells the other side you're leaving — actual camera/mic
- * release and connection teardown happens when the caller flips `active`
- * to false or unmounts, so there's exactly one place resources get freed.
+ * Enterprise Production WebRTC Call Hook
+ * Features:
+ * - W3C Perfect Negotiation (polite vs impolite peer to eliminate glare/collisions)
+ * - Automatic audio-only fallback if camera is unavailable or denied
+ * - Reconnection grace window (120s) with non-alarming UI state
+ * - Multi-tab single active session detection
+ * - Authoritative server heartbeat & duration tracking
+ * - Explicit distinction between transient disconnect and intentional consultation completion
  */
 export function useWebRTCCall({ appointmentId, active }) {
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
-  // idle | requesting-media | connecting | connected | peer-left | ended | failed
+  // idle | requesting-media | connecting | connected | reconnecting | peer-left | ended | failed
   const [connectionState, setConnectionState] = useState('idle');
-  // good | fair | poor | null (null until connected and a first stats sample lands)
+  // good | fair | poor | null
   const [connectionQuality, setConnectionQuality] = useState(null);
   const [error, setError] = useState(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isAudioOnly, setIsAudioOnly] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [peerMuted, setPeerMuted] = useState(false);
   const [peerVideoOff, setPeerVideoOff] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+  const [reconnectCountdown, setReconnectCountdown] = useState(null);
+  const [duplicateSession, setDuplicateSession] = useState(false);
+  const [isDoctorEnded, setIsDoctorEnded] = useState(false);
 
   const socketRef = useRef(null);
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
-  const cameraTrackRef = useRef(null); // held aside during screen share so we can revert to it
+  const cameraTrackRef = useRef(null);
   const pendingCandidatesRef = useRef([]);
   const qualityIntervalRef = useRef(null);
+  const heartbeatIntervalRef = useRef(null);
+  const countdownIntervalRef = useRef(null);
+
+  const isPoliteRef = useRef(true);
+  const makingOfferRef = useRef(false);
+  const ignoreOfferRef = useRef(false);
+  const elapsedRef = useRef(0);
 
   useEffect(() => {
     if (!active || !appointmentId) return undefined;
@@ -69,18 +70,25 @@ export function useWebRTCCall({ appointmentId, active }) {
 
     const localCandidateStats = { host: 0, srflx: 0, relay: 0, prflx: 0, unknown: 0 };
     const remoteCandidateStats = { host: 0, srflx: 0, relay: 0, prflx: 0, unknown: 0 };
-    const isOffererRef = { current: false };
-    const restartAttemptedRef = { current: false };
 
     setError(null);
+    setDuplicateSession(false);
+    setIsDoctorEnded(false);
     setConnectionState('requesting-media');
 
     const makeOffer = async (pc, socket, opts) => {
-      isOffererRef.current = true;
-      const offer = await pc.createOffer(opts);
-      await pc.setLocalDescription(offer);
-      log(opts?.iceRestart ? 'ICE restart: sending new offer' : 'Sending SDP offer', offer.type);
-      socket.emit('call:offer', { appointmentId, sdp: pc.localDescription });
+      try {
+        makingOfferRef.current = true;
+        const offer = await pc.createOffer(opts);
+        if (pc.signalingState !== 'stable') return;
+        await pc.setLocalDescription(offer);
+        log(opts?.iceRestart ? 'ICE restart: sending new offer' : 'Sending SDP offer', offer.type);
+        socket.emit('call:offer', { appointmentId, sdp: pc.localDescription });
+      } catch (err) {
+        log('Failed to create/send offer:', err);
+      } finally {
+        makingOfferRef.current = false;
+      }
     };
 
     const flushPendingCandidates = async (pc) => {
@@ -88,30 +96,54 @@ export function useWebRTCCall({ appointmentId, active }) {
         log(`Flushing ${pendingCandidatesRef.current.length} queued remote ICE candidate(s)`);
       }
       for (const candidate of pendingCandidatesRef.current) {
-        await pc.addIceCandidate(candidate).catch((e) => log('addIceCandidate (queued) failed', e));
+        await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch((e) => log('addIceCandidate (queued) failed', e));
       }
       pendingCandidatesRef.current = [];
     };
 
-    log('Requesting camera/mic and ICE server config...');
+    const acquireMediaWithFallback = async () => {
+      log('Requesting camera/mic...');
+      try {
+        const fullStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        return { stream: fullStream, audioOnly: false };
+      } catch (err) {
+        log('Video+audio acquisition failed, attempting audio-only fallback:', err?.message);
+        try {
+          const audioStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+          log('Audio-only fallback acquired successfully');
+          return { stream: audioStream, audioOnly: true };
+        } catch (audioErr) {
+          throw err;
+        }
+      }
+    };
 
     Promise.all([
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true }),
+      acquireMediaWithFallback(),
       apiFetch('/telemedicine/ice-servers').catch((e) => {
         log('ICE server fetch failed, using public-STUN fallback', e?.message);
         return FALLBACK_ICE_SERVERS;
       }),
     ])
-      .then(([stream, iceServers]) => {
+      .then(([{ stream, audioOnly }, iceServers]) => {
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
+
+        if (audioOnly) {
+          setIsAudioOnly(true);
+          setIsVideoOff(true);
+        }
+
         const servers = iceServers?.length ? iceServers : FALLBACK_ICE_SERVERS;
-        const hasTurn = servers.some((s) => (Array.isArray(s.urls) ? s.urls : [s.urls]).some((u) => u?.startsWith('turn:') || u?.startsWith('turns:')));
-        log(
-          `Got media (${stream.getTracks().map((t) => t.kind).join('+')}) and ${servers.length} ICE server(s) — TURN relay ${hasTurn ? 'AVAILABLE' : 'NOT CONFIGURED (STUN-only — calls between peers behind symmetric NATs, or on routers without NAT hairpinning, will likely fail)'}`,
+        const hasTurn = servers.some((s) =>
+          (Array.isArray(s.urls) ? s.urls : [s.urls]).some((u) => u?.startsWith('turn:') || u?.startsWith('turns:'))
         );
+        log(
+          `Got media (${stream.getTracks().map((t) => t.kind).join('+')}) and ${servers.length} ICE server(s) — TURN ${hasTurn ? 'AVAILABLE' : 'STUN-ONLY'}`,
+        );
+
         localStreamRef.current = stream;
         cameraTrackRef.current = stream.getVideoTracks()[0] || null;
         setLocalStream(stream);
@@ -128,15 +160,7 @@ export function useWebRTCCall({ appointmentId, active }) {
           }
           const type = candidateType(e.candidate);
           localCandidateStats[type] = (localCandidateStats[type] || 0) + 1;
-          log(`Local ICE candidate gathered: type=${type}`, e.candidate.candidate);
           socketRef.current?.emit('call:ice-candidate', { appointmentId, candidate: e.candidate });
-        };
-
-        pc.onicecandidateerror = (e) => {
-          // Fires when a specific STUN/TURN server itself errors (wrong
-          // credentials, unreachable, etc.) — this is the single most
-          // direct signal for "TURN server is misconfigured".
-          log(`ICE candidate ERROR — url=${e.url} errorCode=${e.errorCode} errorText="${e.errorText}"`);
         };
 
         pc.ontrack = (e) => {
@@ -144,42 +168,40 @@ export function useWebRTCCall({ appointmentId, active }) {
           setRemoteStream(e.streams[0]);
         };
 
-        pc.onicegatheringstatechange = () => log(`iceGatheringState -> ${pc.iceGatheringState}`);
-
         pc.oniceconnectionstatechange = () => {
           if (!pcRef.current) return;
           log(`iceConnectionState -> ${pc.iceConnectionState}`);
-          if (pc.iceConnectionState === 'failed' && isOffererRef.current && !restartAttemptedRef.current) {
-            // Only the original offerer restarts, mirroring the "second
-            // joiner offers" convention — avoids both sides racing to
-            // renegotiate at once. One attempt only, to avoid loops.
-            restartAttemptedRef.current = true;
-            log('ICE failed — attempting one ICE restart...');
-            makeOffer(pc, socketRef.current, { iceRestart: true }).catch((e) => log('ICE restart failed to (re)send offer', e));
+          if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+            log('ICE disconnected/failed — attempting ICE restart renegotiation');
+            if (!isPoliteRef.current && socketRef.current) {
+              makeOffer(pc, socketRef.current, { iceRestart: true });
+            }
           }
         };
 
         pc.onconnectionstatechange = () => {
-          if (!pcRef.current) return; // torn down already — ignore late events
+          if (!pcRef.current) return;
           log(`connectionState -> ${pc.connectionState}`);
           if (pc.connectionState === 'connected') {
             setConnectionState('connected');
+            setReconnecting(false);
+            setReconnectCountdown(null);
+            socketRef.current?.emit('call:connected', { appointmentId });
             log('Candidate tally at connect — local:', { ...localCandidateStats }, 'remote:', { ...remoteCandidateStats });
+          } else if (pc.connectionState === 'disconnected') {
+            setConnectionState('reconnecting');
+            setReconnecting(true);
           } else if (pc.connectionState === 'failed') {
-            // Most often two peers whose NAT/router combination pure STUN
-            // can't bridge (symmetric NAT, or — notably — a router that
-            // doesn't support NAT hairpinning even when BOTH peers are on
-            // the same WiFi) with no usable TURN relay to fall back on.
-            setConnectionState('failed');
-            setError('Could not establish a stable connection. Please check your internet and try again.');
+            // Attempt recovery before declaring total failure
+            setConnectionState('reconnecting');
+            setReconnecting(true);
+            if (socketRef.current) {
+              makeOffer(pc, socketRef.current, { iceRestart: true });
+            }
           }
         };
 
-        // Coarse connection-quality signal from getStats(), sampled every 3s
-        // while connected — round-trip time plus the delta packet-loss ratio
-        // since the last sample (packetsLost/packetsReceived are cumulative
-        // counters, so a delta is needed rather than the raw totals) mapped
-        // to a good/fair/poor badge simple enough to act on mid-call.
+        // Network quality sampling (every 3s)
         let prevPacketStats = null;
         qualityIntervalRef.current = setInterval(async () => {
           if (!pcRef.current || pc.connectionState !== 'connected') {
@@ -213,13 +235,28 @@ export function useWebRTCCall({ appointmentId, active }) {
             else if ((rtt !== null && rtt > 0.15) || lossRatio > 0.02) quality = 'fair';
             setConnectionQuality(quality);
           } catch {
-            // getStats can throw if the pc closed mid-call; ignore, next tick retries.
+            // Ignore stats errors on teardown
           }
         }, 3000);
+
+        // Server authoritative duration heartbeat (every 10s while connected)
+        heartbeatIntervalRef.current = setInterval(() => {
+          if (pcRef.current?.connectionState === 'connected') {
+            elapsedRef.current += 10;
+            apiFetch(`/telemedicine/${appointmentId}/session/heartbeat`, {
+              method: 'POST',
+              body: { elapsedSeconds: elapsedRef.current, isAudioOnly: audioOnly },
+            }).catch(() => {});
+          }
+        }, 10000);
 
         const socket = io(SOCKET_URL, {
           transports: ['websocket', 'polling'],
           auth: { token: getTokens()?.accessToken || null },
+          reconnection: true,
+          reconnectionAttempts: 15,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
         });
         socketRef.current = socket;
 
@@ -234,72 +271,118 @@ export function useWebRTCCall({ appointmentId, active }) {
           setConnectionState('failed');
         });
 
-        // Only the participant who joins a non-empty room offers — the
-        // gateway is the single source of truth on who was there first.
-        socket.on('call:room-info', ({ peerPresent }) => {
-          log(`call:room-info — peerPresent=${peerPresent} (${peerPresent ? 'we offer' : 'waiting to receive an offer'})`);
-          if (peerPresent) makeOffer(pc, socket);
+        socket.on('call:duplicate-session', ({ message }) => {
+          log('Duplicate session notification received:', message);
+          setError(message || 'Consultation was opened in another window or device.');
+          setDuplicateSession(true);
+          setConnectionState('failed');
         });
 
-        socket.on('call:offer', async ({ sdp }) => {
-          if (!pcRef.current) return;
-          log('Received SDP offer, answering...');
-          await pcRef.current.setRemoteDescription(sdp);
-          await flushPendingCandidates(pcRef.current);
-          const answer = await pcRef.current.createAnswer();
-          await pcRef.current.setLocalDescription(answer);
-          log('Sending SDP answer');
-          socket.emit('call:answer', { appointmentId, sdp: pcRef.current.localDescription });
-        });
-
-        socket.on('call:answer', async ({ sdp }) => {
-          if (!pcRef.current) return;
-          log('Received SDP answer');
-          await pcRef.current.setRemoteDescription(sdp);
-          await flushPendingCandidates(pcRef.current);
-        });
-
-        socket.on('call:ice-candidate', async ({ candidate }) => {
-          if (!pcRef.current) return;
-          const type = candidateType(candidate);
-          remoteCandidateStats[type] = (remoteCandidateStats[type] || 0) + 1;
-          if (pcRef.current.remoteDescription) {
-            log(`Remote ICE candidate received: type=${type} (adding now)`);
-            await pcRef.current.addIceCandidate(candidate).catch((e) => log('addIceCandidate failed', e));
-          } else {
-            log(`Remote ICE candidate received: type=${type} (queued — no remote description yet)`);
-            pendingCandidatesRef.current.push(candidate);
+        socket.on('call:room-info', ({ peerPresent, isPolite }) => {
+          isPoliteRef.current = !!isPolite;
+          log(`call:room-info — peerPresent=${peerPresent} isPolite=${isPolite}`);
+          if (peerPresent && !isPolite) {
+            makeOffer(pc, socket);
           }
-        });
-
-        socket.on('call:peer-left', () => {
-          // The server fires this on ANY socket disconnect, not just an
-          // intentional hangup — a brief WiFi drop or a mobile network
-          // handoff (WiFi<->cellular) disconnects the *signaling* socket
-          // (Socket.IO auto-reconnects it a moment later) without
-          // necessarily touching the underlying WebRTC media connection at
-          // all. If our own pc still reports "connected", trust that over
-          // the signaling blip instead of falsely declaring the call over —
-          // and don't leave the UI stuck on "peer left" forever once they
-          // reconnect (call:peer-joined below clears it).
-          if (pcRef.current?.connectionState === 'connected') {
-            log('call:peer-left received but our RTCPeerConnection is still connected — treating as a transient signaling blip, not a real hangup');
-            return;
-          }
-          log('Peer left the call');
-          setRemoteStream(null);
-          setConnectionState('peer-left');
         });
 
         socket.on('call:peer-joined', () => {
           log('Peer (re)joined the room');
-          // Recovers from the transient-disconnect case above: if we'd
-          // shown "peer-left" but the underlying connection is fine, or
-          // recovers shortly after, reflect that instead of staying stuck.
-          setConnectionState((prev) => {
-            if (prev !== 'peer-left') return prev;
-            return pcRef.current?.connectionState === 'connected' ? 'connected' : 'connecting';
-          });
+          setReconnecting(false);
+          setReconnectCountdown(null);
+          if (!isPoliteRef.current) {
+            makeOffer(pc, socket, { iceRestart: true });
+          }
+        });
+
+        // W3C Perfect Negotiation offer handler
+        socket.on('call:offer', async ({ sdp }) => {
+          if (!pcRef.current) return;
+          try {
+            const offerCollision = makingOfferRef.current || pcRef.current.signalingState !== 'stable';
+            ignoreOfferRef.current = !isPoliteRef.current && offerCollision;
+            if (ignoreOfferRef.current) {
+              log('Collision: impolite peer ignoring remote offer');
+              return;
+            }
+
+            if (offerCollision && isPoliteRef.current) {
+              log('Collision: polite peer rolling back local description');
+              await pcRef.current.setLocalDescription({ type: 'rollback' }).catch(() => {});
+            }
+
+            log('Received SDP offer, answering...');
+            await pcRef.current.setRemoteDescription(new RTCSessionDescription(sdp));
+            await flushPendingCandidates(pcRef.current);
+            const answer = await pcRef.current.createAnswer();
+            await pcRef.current.setLocalDescription(answer);
+            socket.emit('call:answer', { appointmentId, sdp: pcRef.current.localDescription });
+          } catch (err) {
+            log('Error handling remote offer:', err);
+          }
+        });
+
+        socket.on('call:answer', async ({ sdp }) => {
+          if (!pcRef.current) return;
+          try {
+            log('Received SDP answer');
+            await pcRef.current.setRemoteDescription(new RTCSessionDescription(sdp));
+            await flushPendingCandidates(pcRef.current);
+          } catch (err) {
+            log('Error handling remote answer:', err);
+          }
+        });
+
+        socket.on('call:ice-candidate', async ({ candidate }) => {
+          if (!pcRef.current || !candidate) return;
+          const type = candidateType(candidate);
+          remoteCandidateStats[type] = (remoteCandidateStats[type] || 0) + 1;
+          if (pcRef.current.remoteDescription) {
+            await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate)).catch((e) => log('addIceCandidate failed', e));
+          } else {
+            pendingCandidatesRef.current.push(candidate);
+          }
+        });
+
+        socket.on('call:peer-disconnected', ({ reconnectWindowSeconds }) => {
+          log(`call:peer-disconnected: peer temporarily lost connection. Starting ${reconnectWindowSeconds || 120}s countdown.`);
+          setReconnecting(true);
+          let remaining = reconnectWindowSeconds || 120;
+          setReconnectCountdown(remaining);
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = setInterval(() => {
+            remaining -= 1;
+            if (remaining <= 0) {
+              clearInterval(countdownIntervalRef.current);
+              setReconnectCountdown(0);
+              setConnectionState('peer-left');
+            } else {
+              setReconnectCountdown(remaining);
+            }
+          }, 1000);
+        });
+
+        socket.on('call:peer-connected', () => {
+          log('call:peer-connected received from peer');
+          setReconnecting(false);
+          setReconnectCountdown(null);
+          clearInterval(countdownIntervalRef.current);
+          setConnectionState('connected');
+        });
+
+        socket.on('call:peer-left', ({ intentional }) => {
+          log(`call:peer-left received (intentional=${intentional})`);
+          clearInterval(countdownIntervalRef.current);
+          setRemoteStream(null);
+          setConnectionState('peer-left');
+          setReconnecting(false);
+        });
+
+        socket.on('call:ended', () => {
+          log('call:ended received (consultation completed)');
+          clearInterval(countdownIntervalRef.current);
+          setConnectionState('ended');
+          setIsDoctorEnded(true);
         });
 
         socket.on('call:peer-media-state', ({ muted, videoOff }) => {
@@ -310,7 +393,11 @@ export function useWebRTCCall({ appointmentId, active }) {
       .catch((err) => {
         if (cancelled) return;
         log('Setup failed (media or ICE-server fetch):', err);
-        setError(err?.message === 'Permission denied' ? 'Camera/microphone access was denied.' : (err?.message || 'Could not access camera/microphone.'));
+        setError(
+          err?.name === 'NotAllowedError' || err?.message === 'Permission denied'
+            ? 'Camera/microphone access was denied. Please allow camera and microphone in your browser settings.'
+            : (err?.message || 'Could not access audio or video devices.')
+        );
         setConnectionState('failed');
       });
 
@@ -326,16 +413,23 @@ export function useWebRTCCall({ appointmentId, active }) {
       cameraTrackRef.current = null;
       pendingCandidatesRef.current = [];
       clearInterval(qualityIntervalRef.current);
+      clearInterval(heartbeatIntervalRef.current);
+      clearInterval(countdownIntervalRef.current);
       qualityIntervalRef.current = null;
+      heartbeatIntervalRef.current = null;
+      countdownIntervalRef.current = null;
       setLocalStream(null);
       setRemoteStream(null);
       setConnectionState('idle');
       setConnectionQuality(null);
       setIsMuted(false);
       setIsVideoOff(false);
+      setIsAudioOnly(false);
       setIsScreenSharing(false);
       setPeerMuted(false);
       setPeerVideoOff(false);
+      setReconnecting(false);
+      setReconnectCountdown(null);
     };
   }, [active, appointmentId]);
 
@@ -389,8 +483,6 @@ export function useWebRTCCall({ appointmentId, active }) {
       setLocalStream(rebuilt);
       setIsScreenSharing(true);
 
-      // Browser's native "Stop sharing" control ends the track directly —
-      // catch that to revert to the camera instead of freezing on a dead frame.
       screenTrack.onended = () => {
         const camTrack = cameraTrackRef.current;
         const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video');
@@ -404,7 +496,7 @@ export function useWebRTCCall({ appointmentId, active }) {
         setIsScreenSharing(false);
       };
     } catch {
-      // User cancelled the screen-share picker — no-op.
+      // Screen share cancelled
     }
   }, [isScreenSharing]);
 
@@ -413,10 +505,17 @@ export function useWebRTCCall({ appointmentId, active }) {
     setConnectionState('ended');
   }, [appointmentId]);
 
+  /** Doctor explicitly concludes consultation */
+  const endConsultation = useCallback(() => {
+    socketRef.current?.emit('call:end', { appointmentId });
+    setConnectionState('ended');
+  }, [appointmentId]);
+
   return {
     localStream, remoteStream, connectionState, connectionQuality, error,
-    isMuted, isVideoOff, isScreenSharing, peerMuted, peerVideoOff,
-    toggleMute, toggleVideo, toggleScreenShare, hangUp,
+    isMuted, isVideoOff, isAudioOnly, isScreenSharing, peerMuted, peerVideoOff,
+    reconnecting, reconnectCountdown, duplicateSession, isDoctorEnded,
+    toggleMute, toggleVideo, toggleScreenShare, hangUp, endConsultation,
   };
 }
 

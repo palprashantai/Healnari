@@ -229,4 +229,167 @@ export class TelemedicineService {
       return stunServers;
     }
   }
+
+  /**
+   * Save debounced clinical notes/prescription draft to server-side session.
+   * Ensures clinical work is preserved even if the browser crashes or doctor changes devices.
+   */
+  async saveDraft(user: AuthUser, appointmentId: string, draftData: any) {
+    if (user.profile.role !== ProfileRole.DOCTOR)
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    const appointment = await this.guardAppointmentAccess(user, appointmentId);
+
+    // Upsert session row if table exists
+    const now = new Date().toISOString();
+    try {
+      const { data: session } = await this.supabase.admin
+        .from('consultation_sessions')
+        .upsert(
+          {
+            appointment_id: appointmentId,
+            doctor_id: appointment.doctor_id,
+            patient_id: appointment.patient_id,
+            draft_notes: draftData,
+            updated_at: now,
+          },
+          { onConflict: 'appointment_id' },
+        )
+        .select()
+        .maybeSingle();
+
+      await this.recordSessionEvent(
+        appointmentId,
+        'DRAFT_SAVED',
+        user.id,
+        { hasMeds: !!draftData?.draftMeds?.length, hasNotes: !!draftData?.clinicalNotes },
+      );
+
+      return session || { draft_notes: draftData, updated_at: now };
+    } catch (err) {
+      this.logger.warn(`Could not save draft to consultation_sessions: ${err.message}`);
+      return { draft_notes: draftData, updated_at: now };
+    }
+  }
+
+  /**
+   * Retrieve active draft for an appointment
+   */
+  async getDraft(user: AuthUser, appointmentId: string) {
+    const appointment = await this.guardAppointmentAccess(user, appointmentId);
+    try {
+      const { data } = await this.supabase.admin
+        .from('consultation_sessions')
+        .select('draft_notes, updated_at')
+        .eq('appointment_id', appointmentId)
+        .maybeSingle();
+      return data?.draft_notes || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Record periodic heartbeat from active WebRTC session to ensure authoritative duration
+   */
+  async recordHeartbeat(
+    user: AuthUser,
+    appointmentId: string,
+    stats?: { elapsedSeconds?: number; quality?: string; isAudioOnly?: boolean },
+  ) {
+    const appointment = await this.guardAppointmentAccess(user, appointmentId);
+    const now = new Date().toISOString();
+    const elapsed = Math.max(0, Number(stats?.elapsedSeconds) || 0);
+
+    try {
+      // Update consultation_sessions
+      await this.supabase.admin
+        .from('consultation_sessions')
+        .upsert(
+          {
+            appointment_id: appointmentId,
+            doctor_id: appointment.doctor_id,
+            patient_id: appointment.patient_id,
+            status: 'connected',
+            last_connected_at: now,
+            total_connected_seconds: elapsed,
+            media_mode: stats?.isAudioOnly ? 'audio_only' : 'video',
+            updated_at: now,
+          },
+          { onConflict: 'appointment_id' },
+        );
+
+      // Update appointment table summary column
+      if (elapsed > 0) {
+        await this.supabase.admin
+          .from('appointments')
+          .update({
+            consultation_duration_seconds: elapsed,
+            started_at: appointment.started_at || now,
+          })
+          .eq('id', appointmentId);
+      }
+    } catch (err) {
+      this.logger.warn(`Heartbeat update skipped: ${err.message}`);
+    }
+
+    return { ok: true, serverTime: now, recordedSeconds: elapsed };
+  }
+
+  /**
+   * Get authoritative session state and duration
+   */
+  async getSessionStatus(user: AuthUser, appointmentId: string) {
+    const appointment = await this.guardAppointmentAccess(user, appointmentId);
+    const now = new Date().toISOString();
+
+    try {
+      const { data: session } = await this.supabase.admin
+        .from('consultation_sessions')
+        .select()
+        .eq('appointment_id', appointmentId)
+        .maybeSingle();
+
+      return {
+        appointmentId,
+        appointmentStatus: appointment.status,
+        sessionStatus: session?.status || 'waiting',
+        startedAt: session?.started_at || appointment.started_at || null,
+        totalConnectedSeconds: session?.total_connected_seconds || appointment.consultation_duration_seconds || 0,
+        doctorJoinedAt: session?.doctor_joined_at || null,
+        patientJoinedAt: session?.patient_joined_at || null,
+        lastConnectedAt: session?.last_connected_at || null,
+        serverNow: now,
+      };
+    } catch {
+      return {
+        appointmentId,
+        appointmentStatus: appointment.status,
+        sessionStatus: 'waiting',
+        startedAt: appointment.started_at || null,
+        totalConnectedSeconds: appointment.consultation_duration_seconds || 0,
+        serverNow: now,
+      };
+    }
+  }
+
+  /**
+   * Log an immutable clinical/call event for auditability
+   */
+  async recordSessionEvent(
+    appointmentId: string,
+    eventType: string,
+    triggeredBy?: string,
+    payload?: any,
+  ) {
+    try {
+      await this.supabase.admin.from('consultation_events').insert({
+        appointment_id: appointmentId,
+        event_type: eventType,
+        triggered_by: triggeredBy || null,
+        payload: payload || {},
+      });
+    } catch (err) {
+      this.logger.debug(`Could not write to consultation_events: ${err.message}`);
+    }
+  }
 }

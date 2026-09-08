@@ -637,7 +637,6 @@ export class AiController {
   }
 
   @Post('drug-interactions')
-  @RequireAiFeature(AiFeatureKey.DOCTOR_DRUG_SAFETY)
   @ApiOperation({
     summary: 'Food-drug interaction safety shield and optimal timing advisor',
   })
@@ -645,29 +644,26 @@ export class AiController {
     @CurrentUser() user: AuthUser,
     @Body() body: DrugInteractionsDto,
   ) {
-    if (
-      user.profile.role !== ProfileRole.DOCTOR &&
-      user.profile.role !== ProfileRole.ADMIN
-    ) {
-      throw new ForbiddenException(
-        'Only doctors and administrators can access the clinical drug safety shield.',
-      );
-    }
-
     const startTime = Date.now();
     const data = await this.aiService.checkDrugInteractions(body.medications);
     const durationMs = Date.now() - startTime;
 
-    const billing = await this.chargeCreditsIfAiGenerated(
-      user,
-      data,
-      AiFeatureKey.DOCTOR_DRUG_SAFETY,
-      1,
-      durationMs,
-      400,
-      300,
-      { medicationsCount: body.medications.length },
-    );
+    let billing = { creditsUsed: 0, creditsRemaining: 0, userPlan: 'Free' };
+    if (
+      user.profile.role === ProfileRole.DOCTOR ||
+      user.profile.role === ProfileRole.ADMIN
+    ) {
+      billing = await this.chargeCreditsIfAiGenerated(
+        user,
+        data,
+        AiFeatureKey.DOCTOR_DRUG_SAFETY,
+        1,
+        durationMs,
+        400,
+        300,
+        { medicationsCount: body.medications.length },
+      );
+    }
 
     const envelope: AiResponseEnvelope = {
       data,

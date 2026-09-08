@@ -48,19 +48,21 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const appointmentId = client.data.appointmentId as string | undefined;
     if (appointmentId) {
       this.logger.log(
-        `disconnect: user=${client.data.userId} left call:${appointmentId} (socket disconnected)`,
+        `disconnect: user=${client.data.userId} left call:${appointmentId} (transient socket disconnected)`,
       );
+      // Transient network disconnect — notify peer with grace period before fatal drop
       client
         .to(`call:${appointmentId}`)
-        .emit('call:peer-left', { userId: client.data.userId });
+        .emit('call:peer-disconnected', {
+          userId: client.data.userId,
+          temporary: true,
+          reconnectWindowSeconds: 120,
+        });
     }
   }
 
   /** Joins the caller to the room for one appointment, after confirming they
-   * are actually the patient or doctor on it (same check as
-   * TelemedicineService.guardAppointmentAccess) and that it's a video
-   * consult. Tells the newcomer whether a peer is already waiting so the
-   * frontend knows which side should create the SDP offer. */
+   * are actually the patient or doctor on it and that it's a video consult. */
   @SubscribeMessage('call:join')
   async handleJoin(
     @MessageBody() body: { appointmentId: string },
@@ -111,19 +113,57 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const room = `call:${appointmentId}`;
     client.data.appointmentId = appointmentId;
+
+    // Single active tab guarantee: if this user already has an active socket in room, kick older socket
+    const existingSockets = await this.server.in(room).fetchSockets();
+    for (const s of existingSockets) {
+      if (s.id !== client.id && s.data?.userId === userId) {
+        this.logger.warn(`User ${userId} opened duplicate tab in ${room} — kicking older socket ${s.id}`);
+        s.emit('call:duplicate-session', {
+          message: 'You opened this consultation in another tab or device. This session has been paused.',
+        });
+        s.leave(room);
+        s.data.appointmentId = undefined;
+      }
+    }
+
     client.join(room);
 
     const roomSockets = await this.server.in(room).fetchSockets();
     const peerAlreadyPresent = roomSockets.some((s) => s.id !== client.id);
+    const isDoctor = userId === appointment.doctor_id;
+    // Doctor is impolite peer; Patient is polite peer in Perfect Negotiation
+    const isPolite = !isDoctor;
 
     this.logger.log(
-      `call:join user=${userId} appointment=${appointmentId} room="${room}" ` +
-        `roomSize=${roomSockets.length} peerAlreadyPresent=${peerAlreadyPresent} ` +
-        `(this client will ${peerAlreadyPresent ? 'CREATE the SDP offer' : 'wait for an offer'})`,
+      `call:join user=${userId} role=${isDoctor ? 'doctor' : 'patient'} appointment=${appointmentId} ` +
+        `roomSize=${roomSockets.length} peerAlreadyPresent=${peerAlreadyPresent} isPolite=${isPolite}`,
     );
 
-    client.emit('call:room-info', { peerPresent: peerAlreadyPresent });
-    client.to(room).emit('call:peer-joined', { userId });
+    // Update session record with join timestamp (graceful if table pending)
+    const now = new Date().toISOString();
+    try {
+      await this.supabase.admin.from('consultation_sessions').upsert(
+        {
+          appointment_id: appointmentId,
+          doctor_id: appointment.doctor_id,
+          patient_id: appointment.patient_id,
+          [isDoctor ? 'doctor_joined_at' : 'patient_joined_at']: now,
+          status: peerAlreadyPresent ? 'connecting' : 'waiting',
+          updated_at: now,
+        },
+        { onConflict: 'appointment_id' },
+      );
+    } catch {
+      // Graceful fallback
+    }
+
+    client.emit('call:room-info', {
+      peerPresent: peerAlreadyPresent,
+      isPolite,
+      role: isDoctor ? 'doctor' : 'patient',
+    });
+    client.to(room).emit('call:peer-joined', { userId, role: isDoctor ? 'doctor' : 'patient' });
   }
 
   @SubscribeMessage('call:offer')
@@ -157,23 +197,48 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() body: { appointmentId: string; candidate: unknown },
     @ConnectedSocket() client: Socket,
   ) {
-    // Candidate type (host/srflx/relay) is embedded in the SDP candidate
-    // string itself — logging it is the fastest way to see, from server
-    // logs alone, whether a relay (TURN) candidate ever got gathered at all.
-    const candidateStr =
-      (body.candidate as { candidate?: string })?.candidate || '';
-    const typeMatch = candidateStr.match(/typ (\w+)/);
-    this.logger.log(
-      `call:ice-candidate relayed appointment=${body.appointmentId} from=${client.data.userId} type=${typeMatch?.[1] || 'unknown'}`,
-    );
     client
       .to(`call:${body.appointmentId}`)
       .emit('call:ice-candidate', { candidate: body.candidate });
   }
 
-  /** Lets a peer announce it muted/unmuted or turned its camera on/off,
-   * so the other side can show an accurate "peer is muted" indicator
-   * without that state ever needing to touch the media stream itself. */
+  /** Peer explicitly confirmed WebRTC media is connected */
+  @SubscribeMessage('call:connected')
+  async handleConnected(
+    @MessageBody() body: { appointmentId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const appointmentId = body?.appointmentId || client.data.appointmentId;
+    if (!appointmentId) return;
+
+    this.logger.log(`call:connected confirmed by user=${client.data.userId} on ${appointmentId}`);
+    const now = new Date().toISOString();
+
+    try {
+      await this.supabase.admin
+        .from('consultation_sessions')
+        .update({
+          status: 'connected',
+          started_at: now,
+          last_connected_at: now,
+          updated_at: now,
+        })
+        .eq('appointment_id', appointmentId)
+        .is('started_at', null);
+
+      await this.supabase.admin
+        .from('appointments')
+        .update({ started_at: now })
+        .eq('id', appointmentId)
+        .is('started_at', null);
+    } catch {
+      // Graceful fallback
+    }
+
+    client.to(`call:${appointmentId}`).emit('call:peer-connected', { userId: client.data.userId });
+  }
+
+  /** Lets a peer announce it muted/unmuted or turned its camera on/off */
   @SubscribeMessage('call:media-state')
   handleMediaState(
     @MessageBody()
@@ -186,6 +251,7 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  /** Peer explicitly leaves the consultation room (intentional exit) */
   @SubscribeMessage('call:leave')
   handleLeave(
     @MessageBody() body: { appointmentId: string },
@@ -193,9 +259,24 @@ export class CallGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const room = `call:${body.appointmentId}`;
     this.logger.log(
-      `call:leave user=${client.data.userId} appointment=${body.appointmentId}`,
+      `call:leave intentional: user=${client.data.userId} appointment=${body.appointmentId}`,
     );
-    client.to(room).emit('call:peer-left', { userId: client.data.userId });
+    client.to(room).emit('call:peer-left', { userId: client.data.userId, intentional: true });
+    client.leave(room);
+    client.data.appointmentId = undefined;
+  }
+
+  /** Doctor completes/ends the consultation session */
+  @SubscribeMessage('call:end')
+  async handleEndCall(
+    @MessageBody() body: { appointmentId: string },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const room = `call:${body.appointmentId}`;
+    this.logger.log(
+      `call:end doctor ended consultation user=${client.data.userId} appointment=${body.appointmentId}`,
+    );
+    client.to(room).emit('call:ended', { by: client.data.userId });
     client.leave(room);
     client.data.appointmentId = undefined;
   }

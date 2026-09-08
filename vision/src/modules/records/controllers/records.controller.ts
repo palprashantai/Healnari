@@ -69,6 +69,51 @@ export class MedicineLineDto {
   @IsString()
   @MaxLength(100)
   duration?: string;
+
+  @ApiProperty({ required: false, example: 'Tablet' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  dosageForm?: string;
+
+  @ApiProperty({ required: false, example: 'Oral' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  route?: string;
+
+  @ApiProperty({ required: false, example: 'After Food' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  foodRelation?: string;
+
+  @ApiProperty({ required: false, example: 'Insulin Resistance' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  indication?: string;
+
+  @ApiProperty({ required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  isSos?: boolean;
+
+  @ApiProperty({ required: false, example: '60 Tablets' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  quantity?: string;
+
+  @ApiProperty({ required: false, default: 0 })
+  @IsOptional()
+  refills?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  instructions?: string;
 }
 
 export class CreatePrescriptionDto {
@@ -102,6 +147,11 @@ export class CreatePrescriptionDto {
   @IsString()
   handwrittenImage?: string;
 
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  attachmentUrl?: string;
+
   @ApiProperty({ required: false, default: true })
   @IsOptional()
   @IsBoolean()
@@ -111,6 +161,31 @@ export class CreatePrescriptionDto {
   @IsOptional()
   @IsUUID()
   appointmentId?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsUUID()
+  amendedFromId?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  amendmentReason?: string;
+
+  @ApiProperty({ required: false, default: 1 })
+  @IsOptional()
+  version?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  signedAt?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  signatureHash?: string;
 
   @ApiProperty({
     type: [MedicineLineDto],
@@ -123,6 +198,14 @@ export class CreatePrescriptionDto {
   @ValidateNested({ each: true })
   @Type(() => MedicineLineDto)
   medicines: MedicineLineDto[];
+}
+
+export class AmendPrescriptionDto extends CreatePrescriptionDto {
+  @ApiProperty({ example: 'Dosage adjusted after follow-up lab review' })
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  declare amendmentReason: string;
 }
 
 export class FinalizePrescriptionDto {
@@ -547,6 +630,18 @@ export class RecordsController {
   ) {
     const rx = await this.recordsService.cancelPrescription(user, groupId);
     return ResponseHelper.success(rx, 'Prescription cancelled successfully');
+  }
+
+  @Post('prescriptions/:groupId/amend')
+  @ApiOperation({ summary: 'Amend an existing finalized prescription with a new revision' })
+  @ApiParam({ name: 'groupId', description: 'Group ID of the finalized prescription to amend' })
+  async amendPrescription(
+    @CurrentUser() user: AuthUser,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Body() body: AmendPrescriptionDto,
+  ) {
+    const rx = await this.recordsService.amendPrescription(user, groupId, body);
+    return ResponseHelper.success(rx, 'Prescription amended successfully with new revision');
   }
 
   @ApiOperation({

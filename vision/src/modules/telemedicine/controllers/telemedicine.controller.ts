@@ -88,4 +88,70 @@ export class TelemedicineController {
     );
     return ResponseHelper.success(data, SUCCESS_MESSAGES.NOTE_SAVED);
   }
+
+  @ApiOperation({
+    summary: 'Get active prescription/notes draft for a consultation session',
+  })
+  @ApiParam({ name: 'appointmentId' })
+  @Get(':appointmentId/draft')
+  async getDraft(
+    @CurrentUser() user: AuthUser,
+    @Param('appointmentId', new ParseUUIDPipe()) appointmentId: string,
+  ) {
+    const data = await this.telemedicineService.getDraft(user, appointmentId);
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({
+    summary: 'Save debounced clinical notes/prescription draft (doctor only)',
+  })
+  @ApiParam({ name: 'appointmentId' })
+  @Post(':appointmentId/draft')
+  async saveDraft(
+    @CurrentUser() user: AuthUser,
+    @Param('appointmentId', new ParseUUIDPipe()) appointmentId: string,
+    @Body() body: any,
+  ) {
+    const data = await this.telemedicineService.saveDraft(
+      user,
+      appointmentId,
+      body,
+    );
+    return ResponseHelper.success(data, 'Draft saved');
+  }
+
+  @ApiOperation({
+    summary: 'Get authoritative consultation session status, duration and start timestamp',
+  })
+  @ApiParam({ name: 'appointmentId' })
+  @Get(':appointmentId/session')
+  async getSessionStatus(
+    @CurrentUser() user: AuthUser,
+    @Param('appointmentId', new ParseUUIDPipe()) appointmentId: string,
+  ) {
+    const data = await this.telemedicineService.getSessionStatus(
+      user,
+      appointmentId,
+    );
+    return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @ApiOperation({
+    summary: 'Periodic heartbeat from active WebRTC call for authoritative duration tracking',
+  })
+  @ApiParam({ name: 'appointmentId' })
+  @Post(':appointmentId/session/heartbeat')
+  async recordHeartbeat(
+    @CurrentUser() user: AuthUser,
+    @Param('appointmentId', new ParseUUIDPipe()) appointmentId: string,
+    @Body() body: { elapsedSeconds?: number; quality?: string; isAudioOnly?: boolean },
+  ) {
+    const data = await this.telemedicineService.recordHeartbeat(
+      user,
+      appointmentId,
+      body,
+    );
+    return ResponseHelper.success(data, 'Heartbeat recorded');
+  }
 }
+

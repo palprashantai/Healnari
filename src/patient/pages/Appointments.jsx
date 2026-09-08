@@ -569,12 +569,20 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
 const CALL_STATUS_COPY = {
   'requesting-media': 'Requesting camera & microphone access…',
   connecting: 'Connecting you to the doctor…',
-  'peer-left': 'The doctor left the call',
-  ended: 'Call ended',
+  reconnecting: 'Doctor connection interrupted. Reconnecting…',
+  'peer-left': 'Consultation ended or doctor disconnected.',
+  ended: 'Consultation concluded',
 };
 
 function callStatusCopy(call) {
+  if (call.duplicateSession) return 'Session opened in another window';
+  if (call.isDoctorEnded) return 'Doctor concluded consultation';
   if (call.connectionState === 'failed') return call.error || 'Connection failed';
+  if (call.connectionState === 'reconnecting' || call.reconnecting) {
+    return call.reconnectCountdown
+      ? `Reconnecting to doctor (${call.reconnectCountdown}s)…`
+      : 'Connection unstable. Reconnecting…';
+  }
   return CALL_STATUS_COPY[call.connectionState] || '● Live';
 }
 
@@ -596,14 +604,13 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
   const callViewRef = useRef(null);
   const { isFullscreen, toggle: toggleFullscreen, supported: fullscreenSupported } = useFullscreen(callViewRef);
 
-  // Manual "Join Now" tap — the doctor may not have started this call yet
-  // (this appointment could still be Upcoming/Confirmed), so ring them too.
-  // Best-effort and a no-op notification-wise if the doctor already has
-  // (backend only rings on an actual not-In-Progress -> In Progress
-  // transition), so this is safe to always fire.
+  // Manual "Join Now" tap — enter waiting room lobby so doctor is notified
   const join = () => {
     setJoined(true);
-    apiFetch(`/appointments/${appointmentId}/status`, { method: 'PUT', body: { status: 'In Progress' } }).catch(() => { });
+    apiFetch(`/appointments/${appointmentId}/status`, {
+      method: 'PUT',
+      body: { status: 'Waiting' },
+    }).catch(() => {});
   };
 
   // Accepted from the incoming-call ring screen — skip the "Join Now" tap,
@@ -743,6 +750,37 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
                 {callStatusCopy(call)}
               </p>
             </div>
+          </div>
+        )}
+
+        {call.isAudioOnly && (
+          <div className="absolute top-4 left-4 bg-blue-600/80 backdrop-blur-xs text-white text-xs px-3 py-1.5 rounded-full border border-blue-400/30 flex items-center gap-1.5 z-20">
+            <i className="fas fa-headphones"></i> Audio-Only Mode
+          </div>
+        )}
+
+        {call.reconnecting && (
+          <div className="absolute top-14 left-1/2 -translate-x-1/2 bg-amber-600/90 backdrop-blur-md text-white text-xs px-4 py-2 rounded-xl border border-amber-400/40 shadow-xl flex items-center gap-2 z-20 animate-pulse">
+            <i className="fas fa-rotate fa-spin"></i>
+            <span>Connection lost. Reconnecting to your doctor ({call.reconnectCountdown ?? 120}s)…</span>
+          </div>
+        )}
+
+        {call.isDoctorEnded && (
+          <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-30 animate-fade-in">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-3xl mb-4 shadow-lg shadow-emerald-500/20">
+              <i className="fas fa-check"></i>
+            </div>
+            <h3 className="font-black text-xl text-white">Consultation Concluded</h3>
+            <p className="text-slate-400 text-sm mt-2 max-w-sm">
+              Your doctor has concluded this consultation. Your prescription and consultation notes are being generated and will appear in your portal shortly.
+            </p>
+            <button
+              onClick={end}
+              className="mt-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition-all shadow-lg"
+            >
+              Close & View Prescriptions
+            </button>
           </div>
         )}
 
@@ -1097,6 +1135,8 @@ function PatientAppointments() {
   }, []);
 
   const isVideoEnabled = (apt) => {
+    if (apt.status === 'In Progress' || apt.status === 'Waiting') return true;
+    if (apt.status === 'Done' || apt.status === 'Cancelled' || apt.status === 'No Show') return false;
     if (!apt.date || !apt.time) return true;
     try {
       let hours = 0;
@@ -1117,7 +1157,9 @@ function PatientAppointments() {
       }
       const aptTime = new Date(apt.date);
       aptTime.setHours(hours, minutes, 0, 0);
-      return (aptTime.getTime() - nowTime.getTime()) <= 5 * 60 * 1000;
+      const diffMs = aptTime.getTime() - nowTime.getTime();
+      // Joinable from 15 minutes before slot up to 90 minutes after
+      return diffMs <= 15 * 60 * 1000 && diffMs >= -90 * 60 * 1000;
     } catch (e) {
       return true;
     }

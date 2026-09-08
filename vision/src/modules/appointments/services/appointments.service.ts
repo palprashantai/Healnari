@@ -771,6 +771,23 @@ export class AppointmentsService {
       }
     }
 
+    if (status === AppointmentStatus.IN_PROGRESS && !appointment.started_at) {
+      updatePayload.started_at = new Date().toISOString();
+    }
+
+    if (status === AppointmentStatus.DONE) {
+      const now = new Date().toISOString();
+      updatePayload.ended_at = now;
+      if (appointment.started_at) {
+        const startMs = new Date(appointment.started_at).getTime();
+        const endMs = new Date(now).getTime();
+        updatePayload.consultation_duration_seconds = Math.max(
+          0,
+          Math.floor((endMs - startMs) / 1000),
+        );
+      }
+    }
+
     if (status === AppointmentStatus.CANCELLED) {
       updatePayload.cancelled_by = user.id;
       updatePayload.cancelled_at = new Date().toISOString();
@@ -1145,6 +1162,24 @@ export class AppointmentsService {
           })
           .catch(() => { });
       }
+    } else if (
+      appointment.status === AppointmentStatus.WAITING &&
+      previousStatus !== AppointmentStatus.WAITING &&
+      appointment.type === AppointmentType.VIDEO
+    ) {
+      // Patient entered the waiting room lobby — alert the doctor
+      await this.notifications.create(appointment.doctor_id, {
+        type: 'patient_waiting',
+        title: 'Patient Ready in Lobby',
+        message: `${appointment.patientName} is ready in the video consultation lobby.`,
+        idempotencyKey: `patient_waiting_${appointment.id}`,
+        data: {
+          appointmentId: appointment.id,
+          calleeRole: ProfileRole.DOCTOR,
+          callerAvatarUrl: appointment.patientAvatarUrl || undefined,
+          path: `/doctor-dashboard/telemedicine?startCall=${appointment.id}`,
+        },
+      });
     } else if (
       appointment.status === AppointmentStatus.IN_PROGRESS &&
       previousStatus !== AppointmentStatus.IN_PROGRESS &&

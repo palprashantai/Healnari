@@ -18,6 +18,7 @@ import {
   AddDocumentDto,
   AddEmergencyContactDto,
   AddVaccinationDto,
+  AmendPrescriptionDto,
   CreateCatalogItemDto,
   CreateClinicalNoteDto,
   CreatePrescriptionDto,
@@ -190,36 +191,51 @@ export class RecordsService implements OnModuleInit {
     const groupId = body.idempotencyKey || randomUUID();
     const prescribedAt = new Date().toISOString().slice(0, 10);
     const rxStatus = body.isDraft ? 'Draft' : 'Finalized';
+    const nowIso = new Date().toISOString();
+    const signedAt = body.isDraft ? null : (body.signedAt || nowIso);
+    const attachmentUrl = body.attachmentUrl || body.handwrittenImage || null;
 
-    // Deduplicate medicine lines if same medicine is entered multiple times in the same payload
-    const seenMeds = new Set<string>();
-    const uniqueMedicines = body.medicines.filter((m) => {
-      const normalized = (m.medName || '').trim().toLowerCase();
-      if (!normalized || seenMeds.has(normalized)) return false;
-      seenMeds.add(normalized);
-      return true;
-    });
+    // Filter out empty lines while preserving valid distinct doses and tapering schedules
+    const validMedicines = (body.medicines || []).filter((m) => (m.medName || '').trim().length > 0);
 
-    const rows = uniqueMedicines.map((m) => ({
+    const rows = validMedicines.map((m) => ({
       patient_id: body.patientId,
       doctor_id: user.id,
       group_id: groupId,
       appointment_id: body.appointmentId || null,
       diagnosis: body.diagnosis,
       med_name: m.medName.trim(),
-      dosage: m.dosage,
-      schedule: m.schedule,
-      duration: m.duration,
-      instructions: body.instructions,
+      dosage: m.dosage || 'Standard',
+      schedule: m.schedule || '1-0-1',
+      duration: m.duration || '30 Days',
+      dosage_form: m.dosageForm || null,
+      route: m.route || 'Oral',
+      food_relation: m.foodRelation || null,
+      indication: m.indication || null,
+      is_sos: Boolean(m.isSos),
+      quantity: m.quantity || null,
+      refills_authorized: m.refills !== undefined ? Number(m.refills) : 0,
+      instructions: m.instructions || body.instructions,
+      attachment_url: attachmentUrl,
+      version: body.version || 1,
+      amended_from_id: body.amendedFromId || null,
+      amendment_reason: body.amendmentReason || null,
+      signed_at: signedAt,
+      signature_hash: body.signatureHash || null,
       prescribed_at: prescribedAt,
       status: rxStatus,
     }));
 
-    const { data: prescriptions } = await this.supabase.admin
+    const { data: prescriptions, error: insertError } = await this.supabase.admin
       .from('prescriptions')
       .insert(rows)
       .select()
       .is('deleted_at', null);
+
+    if (insertError) {
+      this.logger.error(`Failed to insert prescription rows: ${insertError.message}`);
+      throw new BadRequestException(`Could not save prescription: ${insertError.message}`);
+    }
 
     if (rxStatus === 'Finalized') {
       await this.notifyPatientOfPrescription(user, patient, body, groupId);
@@ -235,6 +251,42 @@ export class RecordsService implements OnModuleInit {
     }
 
     return prescriptions;
+  }
+
+  async amendPrescription(user: AuthUser, groupId: string, body: AmendPrescriptionDto) {
+    this.requireVerifiedDoctor(user);
+    const { data: existing } = await this.supabase.admin
+      .from('prescriptions')
+      .select()
+      .is('deleted_at', null)
+      .eq('group_id', groupId);
+
+    if (!existing || existing.length === 0) throw new NotFoundException(ERROR_MESSAGES.PRESCRIPTION_NOT_FOUND);
+    if (existing[0].doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    if (existing[0].status !== 'Finalized') {
+      throw new BadRequestException('Only finalized prescriptions can be amended. Drafts can be edited directly.');
+    }
+
+    // Mark existing version rows as Superseded
+    await this.supabase.admin
+      .from('prescriptions')
+      .update({ status: 'Superseded' })
+      .eq('group_id', groupId);
+
+    const prevVersion = existing[0].version || 1;
+    const newVersion = prevVersion + 1;
+    const newGroupId = randomUUID();
+
+    const amendedDto: CreatePrescriptionDto = {
+      ...body,
+      isDraft: false,
+      version: newVersion,
+      amendedFromId: existing[0].id,
+      amendmentReason: body.amendmentReason,
+      idempotencyKey: newGroupId,
+    };
+
+    return this.createPrescription(user, amendedDto);
   }
 
   async finalizePrescription(user: AuthUser, groupId: string) {

@@ -61,10 +61,24 @@ export function ClinicDataProvider({ children }) {
       prescribedOn: p.created_at ? new Date(p.created_at).toLocaleDateString() : '',
       prescribedOnRaw: p.created_at || '',
       refillsLeft: p.refills_left || 0,
+      refillsAuthorized: p.refills_authorized !== undefined ? p.refills_authorized : (p.refills_left || 0),
       validTill: p.valid_till || '',
       refillRequested: p.refill_requested || false,
       status: p.status || 'Active',
       appointmentId: p.appointment_id || null,
+      dosageForm: p.dosage_form || '',
+      route: p.route || 'Oral',
+      foodRelation: p.food_relation || '',
+      indication: p.indication || '',
+      isSos: Boolean(p.is_sos),
+      quantity: p.quantity || '',
+      attachmentUrl: p.attachment_url || null,
+      handwrittenImage: p.attachment_url || null,
+      version: p.version || 1,
+      amendedFromId: p.amended_from_id || null,
+      amendmentReason: p.amendment_reason || '',
+      signedAt: p.signed_at || null,
+      signatureHash: p.signature_hash || null,
     }));
 
     return {
@@ -352,7 +366,7 @@ export function ClinicDataProvider({ children }) {
   }, []);
 
   /** Issues one prescription with all its medicines saved together (shared
-   * group_id server-side) — rx: { diagnosis, instructions, medicines: [{ name, dosage, frequency, duration }] } */
+   * group_id server-side) — rx: { diagnosis, instructions, medicines: [...] } */
   const addRx = useCallback(async (patientId, rx) => {
     try {
       const res = await apiFetch('/records/prescriptions', {
@@ -363,17 +377,69 @@ export function ClinicDataProvider({ children }) {
           diagnosis: rx.diagnosis,
           instructions: rx.instructions,
           handwrittenImage: rx.handwrittenImage,
+          attachmentUrl: rx.attachmentUrl || rx.handwrittenImage,
           isDraft: rx.isDraft !== undefined ? rx.isDraft : true,
           idempotencyKey: rx.idempotencyKey,
+          version: rx.version || 1,
+          amendedFromId: rx.amendedFromId,
+          amendmentReason: rx.amendmentReason,
+          signedAt: rx.signedAt,
+          signatureHash: rx.signatureHash,
           medicines: (rx.medicines || []).map(m => ({
             medName: (m.name || m.medName || '').trim(),
             dosage: m.dosage || m.strength || 'Standard',
             schedule: m.frequency || m.schedule || '1-0-1',
             duration: m.duration || '30 Days',
+            dosageForm: m.dosageForm || m.form || '',
+            route: m.route || 'Oral',
+            foodRelation: m.foodRelation || m.foodTiming || '',
+            indication: m.indication || m.purpose || '',
+            isSos: Boolean(m.isSos),
+            quantity: m.quantity || '',
+            refills: m.refills !== undefined ? Number(m.refills) : 0,
+            instructions: m.instructions || '',
           })),
         }
       });
       refreshPatientsOnly(); // Scoped reload instead of 8-endpoint full platform fetch
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }, [refreshPatientsOnly]);
+
+  const amendRx = useCallback(async (groupId, rx) => {
+    try {
+      const res = await apiFetch(`/records/prescriptions/${groupId}/amend`, {
+        method: 'POST',
+        body: {
+          patientId: rx.patientId,
+          appointmentId: rx.appointmentId,
+          diagnosis: rx.diagnosis,
+          instructions: rx.instructions,
+          handwrittenImage: rx.handwrittenImage,
+          attachmentUrl: rx.attachmentUrl || rx.handwrittenImage,
+          isDraft: false,
+          amendmentReason: rx.amendmentReason || 'Clinical amendment / dosage adjustment',
+          signatureHash: rx.signatureHash,
+          medicines: (rx.medicines || []).map(m => ({
+            medName: (m.name || m.medName || '').trim(),
+            dosage: m.dosage || m.strength || 'Standard',
+            schedule: m.frequency || m.schedule || '1-0-1',
+            duration: m.duration || '30 Days',
+            dosageForm: m.dosageForm || m.form || '',
+            route: m.route || 'Oral',
+            foodRelation: m.foodRelation || m.foodTiming || '',
+            indication: m.indication || m.purpose || '',
+            isSos: Boolean(m.isSos),
+            quantity: m.quantity || '',
+            refills: m.refills !== undefined ? Number(m.refills) : 0,
+            instructions: m.instructions || '',
+          })),
+        }
+      });
+      refreshPatientsOnly();
       return res;
     } catch (err) {
       console.error(err);
@@ -790,7 +856,7 @@ export function ClinicDataProvider({ children }) {
   }, []);
 
   const value = useMemo(() => ({
-    patients, updatePatient, addPatient, addRx, finalizeRx, cancelRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
+    patients, updatePatient, addPatient, addRx, amendRx, finalizeRx, cancelRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
     uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, refreshPatients: fetchData, fetchData,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment, rescheduleAppointment, refreshAppointments,
     approveRequest, rejectRequest, callNextForDoctor,
@@ -804,7 +870,7 @@ export function ClinicDataProvider({ children }) {
     kycVerified, kycSubmitted, verifyKyc,
     loading, loadError, retryLoad: fetchData,
   }), [
-    patients, updatePatient, addPatient, addRx, finalizeRx, cancelRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
+    patients, updatePatient, addPatient, addRx, amendRx, finalizeRx, cancelRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
     uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, fetchData,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment, rescheduleAppointment, refreshAppointments,
     approveRequest, rejectRequest, callNextForDoctor,

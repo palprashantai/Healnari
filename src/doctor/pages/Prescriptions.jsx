@@ -401,24 +401,89 @@ function StylusHandwritingPad({ patient, diagnosis, doctorName, doctorReg, onExp
 /* ─── Write Rx — full page, form + live prescription-pad preview ─── */
 const RX_ID_SEED = Math.floor(Math.random() * 9000) + 1000;
 
-function WriteRxPage({ onBack, onSave, patients }) {
+export const DOSAGE_FORMS = [
+  'Tablet', 'Capsule', 'Syrup', 'Injection', 'Cream', 'Ointment',
+  'Drops', 'Inhaler', 'Sachet', 'Pessary', 'Patch', 'Lotion', 'Solution'
+];
+
+export const ROUTES = [
+  'Oral', 'Topical', 'Vaginal', 'Sublingual', 'Inhalation',
+  'Intramuscular', 'Subcutaneous', 'Intravenous', 'Ophthalmic', 'Otic'
+];
+
+export const FOOD_RELATIONS = [
+  'Before Food', 'After Food', 'With Food', 'Empty Stomach', 'Bedtime', 'Independent of Food'
+];
+
+function WriteRxPage({ onBack, onSave, patients, amendTarget = null }) {
   const { user } = useAuth();
   const toast = useToast();
-  const [rxMode, setRxMode] = useState('digital'); // 'digital', 'handwritten', 'upload'
-  const [form, setForm] = useState({ 
-    patientId: '', 
-    patient: '', 
-    diagnosis: '', 
-    meds: [{ name: '', schedule: '', duration: '' }], 
-    instructions: '',
-    dietPlan: '',
-    exercisePlan: '',
-    followUpAdvice: '',
-    handwrittenImage: null,
+  const [rxMode, setRxMode] = useState(amendTarget?.handwrittenImage ? 'handwritten' : 'digital');
+  const [form, setForm] = useState(() => {
+    if (amendTarget) {
+      return {
+        patientId: amendTarget.patientId || '',
+        patient: amendTarget.patient || '',
+        diagnosis: amendTarget.diagnosis || '',
+        meds: (amendTarget.meds || []).map(m => ({
+          dosageForm: m.dosageForm || 'Tablet',
+          name: m.name || '',
+          strength: m.strength || '',
+          route: m.route || 'Oral',
+          schedule: m.schedule || '1-0-1',
+          foodRelation: m.foodRelation || 'After Food',
+          duration: m.duration || '30 Days',
+          quantity: m.quantity || '',
+          refills: m.refillsAuthorized || m.refillsLeft || 0,
+          indication: m.indication || '',
+          isSos: !!m.isSos,
+        })),
+        instructions: amendTarget.instructions || '',
+        dietPlan: amendTarget.dietPlan || '',
+        exercisePlan: amendTarget.exercisePlan || '',
+        followUpAdvice: amendTarget.followUpAdvice || '',
+        handwrittenImage: amendTarget.handwrittenImage || null,
+        isAmendment: true,
+        amendedFromId: amendTarget.id,
+        amendmentReason: '',
+        version: (amendTarget.version || 1) + 1,
+      };
+    }
+    return {
+      patientId: '', 
+      patient: '', 
+      diagnosis: '', 
+      meds: [{ 
+        dosageForm: 'Tablet', 
+        name: '', 
+        strength: '', 
+        route: 'Oral', 
+        schedule: '1-0-1', 
+        foodRelation: 'After Food', 
+        duration: '30 Days', 
+        quantity: '', 
+        refills: 0, 
+        indication: '', 
+        isSos: false 
+      }], 
+      instructions: '',
+      dietPlan: '',
+      exercisePlan: '',
+      followUpAdvice: '',
+      handwrittenImage: null,
+      isAmendment: false,
+      amendedFromId: null,
+      amendmentReason: '',
+      version: 1,
+    };
   });
   const [template, setTemplate] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [uploadedFile, setUploadedFile] = useState(null);
+
+  // Mandatory Allergy Override Modal state
+  const [showAllergyModal, setShowAllergyModal] = useState(false);
+  const [overrideReason, setOverrideReason] = useState('');
 
   // Dynamic Catalog State (loaded purely from API)
   const [medCatalog, setMedCatalog] = useState([]);
@@ -501,13 +566,29 @@ function WriteRxPage({ onBack, onSave, patients }) {
   };
 
   const handleSelectCatalogMed = (index, item) => {
-    const fullName = item.defaultDose ? `${item.name} ${item.defaultDose}` : item.name;
+    let formPrefix = 'Tablet';
+    let cleanName = item.name;
+    const formMatch = item.name.match(/^(Tab\.|Tablet|Cap\.|Capsule|Syp\.|Syrup|Inj\.|Injection|Sachet|Cream|Ointment|Drops)\s+/i);
+    if (formMatch) {
+      cleanName = item.name.slice(formMatch[0].length).trim();
+      const p = formMatch[1].toLowerCase();
+      if (p.includes('cap')) formPrefix = 'Capsule';
+      else if (p.includes('syp') || p.includes('syrup')) formPrefix = 'Syrup';
+      else if (p.includes('inj')) formPrefix = 'Injection';
+      else if (p.includes('sachet')) formPrefix = 'Sachet';
+      else if (p.includes('cream')) formPrefix = 'Cream';
+      else if (p.includes('drop')) formPrefix = 'Drops';
+    }
+
     setForm(p => ({
       ...p,
       meds: p.meds.map((m, idx) => idx === index ? {
         ...m,
-        name: fullName,
+        name: cleanName,
+        dosageForm: formPrefix,
+        strength: item.defaultDose || m.strength || '',
         schedule: item.defaultFreq || m.schedule || '1-0-1',
+        foodRelation: item.defaultTiming || m.foodRelation || 'After Food',
         duration: item.defaultDuration || m.duration || '30 Days',
       } : m),
       instructions: (item.defaultTiming && !p.instructions?.includes(item.defaultTiming))
@@ -618,24 +699,58 @@ function WriteRxPage({ onBack, onSave, patients }) {
     setForm(prev => ({
       ...prev,
       diagnosis: protocol.diagnosis || prev.diagnosis,
-      meds: protocol.meds.map(m => ({
-        name: m.name,
-        schedule: m.schedule || '1-0-1',
-        duration: m.duration || '30 Days',
-        timing: m.timing || 'After Food',
-      })),
+      meds: protocol.meds.map(m => {
+        let formPrefix = 'Tablet';
+        const raw = m.name || '';
+        if (/cap/i.test(raw)) formPrefix = 'Capsule';
+        else if (/syp|syrup/i.test(raw)) formPrefix = 'Syrup';
+        else if (/inj/i.test(raw)) formPrefix = 'Injection';
+        else if (/sachet/i.test(raw)) formPrefix = 'Sachet';
+        else if (/cream|oint/i.test(raw)) formPrefix = 'Cream';
+        else if (/drop/i.test(raw)) formPrefix = 'Drops';
+        return {
+          dosageForm: m.dosageForm || formPrefix,
+          name: m.name,
+          strength: m.strength || m.dosage || '',
+          route: m.route || 'Oral',
+          schedule: m.schedule || '1-0-1',
+          duration: m.duration || '30 Days',
+          foodRelation: m.foodRelation || m.timing || 'After Food',
+          quantity: m.quantity || '',
+          refills: m.refills || 0,
+          indication: m.indication || '',
+          isSos: !!m.isSos || (m.schedule || '').toLowerCase().includes('sos'),
+        };
+      }),
       instructions: protocol.meds.map(m => `• ${m.name}: ${m.instructions || m.timing}`).join('\n'),
     }));
     setTemplate(protocol.name);
     toast(`Applied "${protocol.shortName || protocol.name}" (${protocol.meds.length} medications loaded)`, 'success');
   };
 
-  const addMed = () => setForm(p => ({ ...p, meds: [...p.meds, { name: '', schedule: '', duration: '' }] }));
+  const addMed = () => setForm(p => ({
+    ...p,
+    meds: [
+      ...p.meds,
+      {
+        dosageForm: 'Tablet',
+        name: '',
+        strength: '',
+        route: 'Oral',
+        schedule: '1-0-1',
+        foodRelation: 'After Food',
+        duration: '30 Days',
+        quantity: '',
+        refills: 0,
+        indication: '',
+        isSos: false,
+      }
+    ]
+  }));
   const removeMed = (i) => setForm(p => ({ ...p, meds: p.meds.filter((_, idx) => idx !== i) }));
   const updateMed = (i, k, v) => setForm(p => ({ ...p, meds: p.meds.map((m, idx) => idx === i ? { ...m, [k]: v } : m) }));
 
-  const handleIssue = async () => {
-    if (!isValid || submitting) return;
+  const executeSave = async (justification = '') => {
     setSubmitting(true);
     try {
       await onSave({
@@ -643,11 +758,28 @@ function WriteRxPage({ onBack, onSave, patients }) {
         mode: rxMode,
         handwrittenImage: form.handwrittenImage,
         uploadedFile,
+        allergyOverrideJustification: justification,
       });
       onBack();
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleIssue = async () => {
+    if (!isValid || submitting) return;
+
+    if (form.isAmendment && !form.amendmentReason?.trim()) {
+      toast('Please provide a clinical justification for this prescription amendment.', 'error');
+      return;
+    }
+
+    if (allergyConflicts.length > 0 && !overrideReason.trim()) {
+      setShowAllergyModal(true);
+      return;
+    }
+
+    await executeSave(overrideReason);
   };
 
   return (
@@ -735,6 +867,32 @@ function WriteRxPage({ onBack, onSave, patients }) {
             />
           </div>
         </div>
+
+        {/* Prescription Amendment Banner & Reason Input */}
+        {form.isAmendment && (
+          <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl text-xs text-amber-950 space-y-2 shadow-xs animate-fade-in">
+            <div className="flex items-center gap-2 font-black text-sm text-amber-900">
+              <i className="fas fa-file-pen text-amber-600 text-base"></i>
+              <span>Prescription Amendment Mode — Issuing Version {form.version}</span>
+            </div>
+            <p className="text-amber-800 text-[11px] leading-relaxed">
+              You are amending existing prescription <strong>#{form.amendedFromId?.slice(0, 8)}</strong> for <strong>{form.patient}</strong>. The prior prescription will be archived as <span className="font-bold text-amber-900 uppercase">Superseded</span> while preserving the full tamper-evident audit history.
+            </p>
+            <div>
+              <label className="text-xs font-bold text-amber-950 block mb-1">
+                Clinical Amendment Justification <span className="text-rose-600">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={form.amendmentReason}
+                onChange={e => setForm(p => ({ ...p, amendmentReason: e.target.value }))}
+                placeholder="e.g. Dose titration for elevated fasting insulin; Switched brand due to tolerance; Added adjuvant topical agent..."
+                className="w-full border border-amber-300 rounded-xl px-3.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── MODE 1: HANDWRITTEN CANVAS PAD ── */}
@@ -964,14 +1122,27 @@ function WriteRxPage({ onBack, onSave, patients }) {
                   return (
                     <div 
                       key={i} 
-                      className={`border rounded-xl p-3 space-y-2 relative transition-all ${
+                      className={`border rounded-2xl p-4 space-y-3 relative transition-all ${
                         medConflict 
                           ? 'border-rose-400 bg-rose-50/80 ring-2 ring-rose-400/30' 
-                          : 'border-slate-100 bg-slate-50/60'
+                          : 'border-slate-200 bg-white shadow-2xs'
                       }`}
                     >
-                      <div className="flex flex-col sm:grid sm:grid-cols-12 gap-2 sm:items-start min-w-0">
-                        <div className="sm:col-span-5 relative w-full min-w-0">
+                      {/* Header row: Form, Name with autocomplete, Strength, Route, Actions */}
+                      <div className="grid grid-cols-12 gap-2 items-center">
+                        <div className="col-span-4 sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Form</label>
+                          <select
+                            value={med.dosageForm || 'Tablet'}
+                            onChange={e => updateMed(i, 'dosageForm', e.target.value)}
+                            className="w-full border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-bold bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300"
+                          >
+                            {DOSAGE_FORMS.map(f => <option key={f} value={f}>{f}</option>)}
+                          </select>
+                        </div>
+
+                        <div className="col-span-8 sm:col-span-5 relative">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Medicine Name *</label>
                           <input
                             value={med.name}
                             onChange={e => {
@@ -979,8 +1150,8 @@ function WriteRxPage({ onBack, onSave, patients }) {
                               setActiveDropdownIndex(i);
                             }}
                             onFocus={() => setActiveDropdownIndex(i)}
-                            placeholder="Search or enter medicine name..."
-                            className={`w-full border rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 font-semibold ${
+                            placeholder="Search generic or brand name..."
+                            className={`w-full border rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 font-bold ${
                               medConflict 
                                 ? 'border-rose-400 focus:ring-rose-300 text-rose-900' 
                                 : 'border-slate-200 focus:ring-aubergine-300'
@@ -990,7 +1161,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
                             <button
                               type="button"
                               onClick={() => updateMed(i, 'name', '')}
-                              className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+                              className="absolute right-2.5 top-7 text-slate-400 hover:text-slate-600"
                             >
                               <i className="fas fa-xmark text-xs"></i>
                             </button>
@@ -1014,17 +1185,7 @@ function WriteRxPage({ onBack, onSave, patients }) {
                                     {item.isCustom && (
                                       <span className="text-[9px] bg-purple-100 text-purple-800 border border-purple-200 px-1.5 py-0.2 rounded font-black shrink-0">Custom</span>
                                     )}
-                                    <span className="truncate">
-                                      {/* Highlight prefix match if typing */}
-                                      {med.name && item.name.toLowerCase().startsWith(med.name.trim().toLowerCase()) ? (
-                                        <>
-                                          <span className="text-aubergine-700 bg-aubergine-100/80 px-0.5 rounded font-black">{item.name.slice(0, med.name.trim().length)}</span>
-                                          <span>{item.name.slice(med.name.trim().length)}</span>
-                                        </>
-                                      ) : (
-                                        item.name
-                                      )}
-                                    </span>
+                                    <span className="truncate">{item.name}</span>
                                   </span>
                                   <div className="flex items-center gap-1 shrink-0">
                                     {item.category && (
@@ -1062,64 +1223,162 @@ function WriteRxPage({ onBack, onSave, patients }) {
                             </div>
                           )}
                         </div>
-                        
-                        {/* Secondary row on mobile, columns on desktop */}
-                        <div className="flex items-center gap-2 sm:contents">
-                          <input value={med.schedule} onChange={e => updateMed(i, 'schedule', e.target.value)} placeholder="Schedule (e.g. 1-0-1)"
-                            className="flex-[3] sm:flex-none sm:col-span-3 w-full min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
-                          <input value={med.duration} onChange={e => updateMed(i, 'duration', e.target.value)} placeholder="Duration"
-                            className="flex-[2] sm:flex-none sm:col-span-2 w-full min-w-0 border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300" />
-                          
-                          <div className="w-8 sm:w-auto sm:col-span-1 shrink-0 flex items-center justify-center">
-                            <AiButton
-                              variant="compact"
-                              size="sm"
-                              icon="fa-wand-magic-sparkles"
-                              title="AI Auto-Complete standard dosage and frequency"
-                              className="h-8 w-8 !p-0"
-                              onClick={async () => {
-                                if (!med.name.trim()) return;
-                                try {
-                                  const res = await apiFetch('/ai/rx-autocomplete', { method: 'POST', body: { query: med.name } });
-                                  const data = res?.data || res;
-                                  if (data) {
-                                    updateMed(i, 'name', data.drugName || med.name);
-                                    updateMed(i, 'schedule', data.frequency || med.schedule);
-                                    updateMed(i, 'duration', data.duration || med.duration);
-                                    if (data.instructions && !form.instructions.includes(data.instructions)) {
-                                      setForm(prev => ({
-                                        ...prev,
-                                        instructions: prev.instructions ? `${prev.instructions}\n• ${data.drugName}: ${data.instructions}` : `• ${data.drugName}: ${data.instructions}`
-                                      }));
-                                    }
-                                  }
-                                } catch (err) {
-                                  if (err?.paywallData || err?.status === 402) {
-                                    toast?.('AI Prescriptions allowance reached. Please upgrade via AI Hub.', 'info');
-                                  } else {
-                                    toast?.(err?.message || 'Could not auto-complete prescription details', 'error');
+
+                        <div className="col-span-4 sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Strength</label>
+                          <input
+                            value={med.strength || ''}
+                            onChange={e => updateMed(i, 'strength', e.target.value)}
+                            placeholder="e.g. 500mg"
+                            className="w-full border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-aubergine-300"
+                          />
+                        </div>
+
+                        <div className="col-span-5 sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Route</label>
+                          <select
+                            value={med.route || 'Oral'}
+                            onChange={e => updateMed(i, 'route', e.target.value)}
+                            className="w-full border border-slate-200 rounded-xl px-2 py-2 text-xs font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300"
+                          >
+                            {ROUTES.map(r => <option key={r} value={r}>{r}</option>)}
+                          </select>
+                        </div>
+
+                        <div className="col-span-3 sm:col-span-1 flex items-center justify-end gap-1 pt-4">
+                          <AiButton
+                            variant="compact"
+                            size="sm"
+                            icon="fa-wand-magic-sparkles"
+                            title="AI Auto-Complete standard dosage and frequency"
+                            className="h-8 w-8 !p-0"
+                            onClick={async () => {
+                              if (!med.name.trim()) return;
+                              try {
+                                const res = await apiFetch('/ai/rx-autocomplete', { method: 'POST', body: { query: med.name } });
+                                const data = res?.data || res;
+                                if (data) {
+                                  updateMed(i, 'name', data.drugName || med.name);
+                                  updateMed(i, 'schedule', data.frequency || med.schedule);
+                                  updateMed(i, 'duration', data.duration || med.duration);
+                                  if (data.instructions && !form.instructions.includes(data.instructions)) {
+                                    setForm(prev => ({
+                                      ...prev,
+                                      instructions: prev.instructions ? `${prev.instructions}\n• ${data.drugName}: ${data.instructions}` : `• ${data.drugName}: ${data.instructions}`
+                                    }));
                                   }
                                 }
-                              }}
-                            />
-                          </div>
-
-                          <button onClick={() => removeMed(i)} disabled={form.meds.length === 1}
-                            className="w-8 sm:w-auto sm:col-span-1 shrink-0 h-8 rounded-xl bg-rose-50 text-rose-500 text-xs flex items-center justify-center hover:bg-rose-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-rose-100">
+                              } catch (err) {
+                                if (err?.paywallData || err?.status === 402) {
+                                  toast?.('AI Prescriptions allowance reached. Please upgrade via AI Hub.', 'info');
+                                } else {
+                                  toast?.(err?.message || 'Could not auto-complete prescription details', 'error');
+                                }
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeMed(i)}
+                            disabled={form.meds.length === 1}
+                            className="w-8 h-8 rounded-xl bg-rose-50 text-rose-500 text-xs flex items-center justify-center hover:bg-rose-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border border-rose-100"
+                          >
                             <i className="fas fa-trash-can"></i>
                           </button>
                         </div>
                       </div>
 
-                      {/* Quick schedule presets */}
-                      <div className="flex flex-wrap items-center gap-1.5 pl-0.5">
-                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Quick set:</span>
-                        {SCHEDULE_PRESETS.map(preset => (
-                          <button key={preset} type="button" onClick={() => updateMed(i, 'schedule', preset)}
-                            className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${med.schedule.startsWith(preset) ? 'bg-aubergine-600 text-white border-aubergine-600' : 'bg-white text-slate-500 border-slate-200 hover:border-aubergine-300 hover:text-aubergine-600'}`}>
-                            {preset}
+                      {/* Row 2: Schedule, Food Relation, Duration, Quantity, SOS */}
+                      <div className="grid grid-cols-12 gap-2 items-center pt-1 border-t border-slate-100">
+                        <div className="col-span-6 sm:col-span-3">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Dosing Schedule</label>
+                          <input
+                            value={med.schedule}
+                            onChange={e => updateMed(i, 'schedule', e.target.value)}
+                            placeholder="e.g. 1-0-1 or BD"
+                            className="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-aubergine-300"
+                          />
+                        </div>
+
+                        <div className="col-span-6 sm:col-span-3">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Food Relation</label>
+                          <select
+                            value={med.foodRelation || 'After Food'}
+                            onChange={e => updateMed(i, 'foodRelation', e.target.value)}
+                            className="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-aubergine-300"
+                          >
+                            {FOOD_RELATIONS.map(fr => <option key={fr} value={fr}>{fr}</option>)}
+                          </select>
+                        </div>
+
+                        <div className="col-span-4 sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Duration</label>
+                          <input
+                            value={med.duration}
+                            onChange={e => updateMed(i, 'duration', e.target.value)}
+                            placeholder="e.g. 30 Days"
+                            className="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-aubergine-300"
+                          />
+                        </div>
+
+                        <div className="col-span-4 sm:col-span-2">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Total Qty</label>
+                          <input
+                            value={med.quantity || ''}
+                            onChange={e => updateMed(i, 'quantity', e.target.value)}
+                            placeholder="e.g. 30"
+                            className="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-aubergine-300"
+                          />
+                        </div>
+
+                        <div className="col-span-4 sm:col-span-2 flex items-center gap-2 pt-4">
+                          <button
+                            type="button"
+                            onClick={() => updateMed(i, 'isSos', !med.isSos)}
+                            className={`w-full py-1.5 px-2 rounded-xl text-xs font-black transition-colors flex items-center justify-center gap-1 border ${
+                              med.isSos 
+                                ? 'bg-amber-500 text-white border-amber-600 shadow-xs' 
+                                : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                            }`}
+                          >
+                            <i className="fas fa-bell"></i> {med.isSos ? 'SOS / PRN' : 'Regular'}
                           </button>
-                        ))}
+                        </div>
+                      </div>
+
+                      {/* Row 3: Quick presets + Indication */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 text-xs">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Quick Dosing:</span>
+                          {SCHEDULE_PRESETS.map(preset => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => {
+                                updateMed(i, 'schedule', preset);
+                                if (preset === 'SOS') updateMed(i, 'isSos', true);
+                              }}
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border transition-colors ${
+                                med.schedule.startsWith(preset) 
+                                ? 'bg-aubergine-700 text-white border-aubergine-700' 
+                                : 'bg-white text-slate-600 border-slate-200 hover:border-aubergine-300'
+                              }`}
+                            >
+                              {preset}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-1 sm:max-w-xs">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider shrink-0">Indication:</span>
+                          <input
+                            type="text"
+                            value={med.indication || ''}
+                            onChange={e => updateMed(i, 'indication', e.target.value)}
+                            placeholder="e.g. Cycle regulation / Pain"
+                            className="w-full border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-medium bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-aubergine-300"
+                          />
+                        </div>
                       </div>
 
                       {/* Dynamic Real-time Allergy Alert per medication */}
@@ -1419,10 +1678,20 @@ function WriteRxPage({ onBack, onSave, patients }) {
                       <div key={i} className="flex items-start gap-2 text-xs">
                         <span className="font-bold text-slate-500 mt-0.5">Rx{i + 1}.</span>
                         <div className="flex-1">
-                          <p className="font-bold text-slate-800">{m.name}</p>
+                          <p className="font-bold text-slate-800">
+                            <span className="text-aubergine-700 font-black mr-1">{m.dosageForm || 'Tab'}.</span>
+                            {m.name} {m.strength && <span className="text-slate-600 font-semibold">({m.strength})</span>}
+                            {m.isSos && <span className="ml-1.5 text-[9px] bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.2 rounded font-bold">SOS</span>}
+                          </p>
                           {m.schedule ? <DoseSchedule schedule={`${m.schedule}${m.duration ? ` (${m.duration})` : ''}`} className="mt-1" /> : (
                             <p className="text-slate-400">{m.duration || 'schedule & duration pending'}</p>
                           )}
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[10px] text-slate-500 font-sans">
+                            {m.foodRelation && <span>🍽️ {m.foodRelation}</span>}
+                            {m.route && m.route !== 'Oral' && <span>📍 {m.route}</span>}
+                            {m.quantity && <span>📦 Qty: {m.quantity}</span>}
+                            {m.indication && <span className="text-aubergine-700 font-medium">({m.indication})</span>}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -1627,6 +1896,64 @@ function WriteRxPage({ onBack, onSave, patients }) {
           </form>
         </Modal>
       )}
+      {/* Mandatory Allergy Override Modal */}
+      {showAllergyModal && (
+        <Modal isOpen={showAllergyModal} onClose={() => setShowAllergyModal(false)} title="Clinical Allergy Alert — Mandatory Override" size="md">
+          <div className="space-y-4 p-2">
+            <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-4 text-rose-950 space-y-2">
+              <div className="flex items-center gap-2 text-rose-800 font-black text-sm">
+                <i className="fas fa-triangle-exclamation text-rose-600 text-lg"></i>
+                <span>Documented Allergy Contraindication</span>
+              </div>
+              <p className="text-xs text-rose-900 leading-relaxed">
+                Patient <strong>{form.patient}</strong> has documented allergies to: <strong className="underline">{patientAllergies.join(', ')}</strong>.
+              </p>
+              <ul className="text-xs text-rose-900 list-disc list-inside space-y-1 font-semibold">
+                {allergyConflicts.map((c, i) => (
+                  <li key={i}>{c.reason}</li>
+                ))}
+              </ul>
+              <div className="text-[11px] text-rose-700 bg-rose-100/80 p-2.5 rounded-xl border border-rose-200 mt-2 font-medium">
+                ⚠️ Issuing this prescription requires senior clinical justification. This override will be recorded in the permanent audit trail with your timestamp and practitioner ID.
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                Clinical Override Justification <span className="text-rose-600">*</span>
+              </label>
+              <textarea
+                rows={3}
+                value={overrideReason}
+                onChange={e => setOverrideReason(e.target.value)}
+                placeholder="e.g. Patient underwent tolerance desensitization / benefit outweighs risk / alternative agent unavailable with close monitoring..."
+                className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-rose-400 bg-white"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowAllergyModal(false)}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition-colors"
+              >
+                Cancel &amp; Change Drug
+              </button>
+              <button
+                type="button"
+                disabled={!overrideReason.trim() || submitting}
+                onClick={async () => {
+                  setShowAllergyModal(false);
+                  await executeSave(overrideReason);
+                }}
+                className="flex-1 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-1.5"
+              >
+                <i className="fas fa-shield-halved"></i> Confirm Override &amp; Issue
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -1652,9 +1979,29 @@ function toRxCards(patients) {
         patient: p.name,
         date: meds[0]?.prescribedOn || '',
         diagnosis: meds.find(m => m.diagnosis)?.diagnosis || (p.diagnosis && p.diagnosis !== 'Pending' ? p.diagnosis : 'General'),
-        status: meds.some(m => m.refillsLeft > 0) ? 'Active' : 'Expired',
+        status: meds[0]?.status || (meds.some(m => m.refillsLeft > 0) ? 'Active' : 'Expired'),
         validTill: meds.reduce((latest, m) => (!latest || (m.validTill && m.validTill > latest)) ? m.validTill : latest, ''),
-        meds: meds.map(m => ({ id: m.id, name: m.name, schedule: m.dosage ? `${m.dosage} (${m.frequency || ''})` : (m.frequency || ''), duration: m.duration || '', refillsLeft: m.refillsLeft, refillRequested: m.refillRequested })),
+        version: meds[0]?.version || 1,
+        amendedFromId: meds[0]?.amendedFromId || null,
+        amendmentReason: meds[0]?.amendmentReason || null,
+        signedAt: meds[0]?.signedAt || null,
+        signatureHash: meds[0]?.signatureHash || null,
+        meds: meds.map(m => ({
+          id: m.id,
+          name: m.name,
+          dosageForm: m.dosageForm || 'Tablet',
+          strength: m.strength || m.dosage || '',
+          route: m.route || 'Oral',
+          foodRelation: m.foodRelation || 'After Food',
+          indication: m.indication || '',
+          isSos: !!m.isSos,
+          quantity: m.quantity || '',
+          refillsAuthorized: m.refillsAuthorized || 0,
+          schedule: m.schedule || (m.dosage ? `${m.dosage} (${m.frequency || ''})` : (m.frequency || '')),
+          duration: m.duration || '',
+          refillsLeft: m.refillsLeft,
+          refillRequested: m.refillRequested
+        })),
         instructions: meds.find(m => m.instructions)?.instructions || '',
         refillRequested: meds.some(m => m.refillRequested),
         handwrittenImage: meds[0]?.handwrittenImage || meds[0]?.file_url || null,
@@ -1667,9 +2014,10 @@ function toRxCards(patients) {
 function DoctorPrescriptions() {
   const toast = useToast();
   const { user } = useAuth();
-  const { patients, addRx, approveRefill: approveRefillApi } = useClinicData();
+  const { patients, addRx, amendRx, approveRefill: approveRefillApi } = useClinicData();
   const prescriptions = useMemo(() => toRxCards(patients), [patients]);
   const [showWrite, setShowWrite] = useState(false);
+  const [amendTarget, setAmendTarget] = useState(null);
   const [refillTarget, setRefillTarget] = useState(null);
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('All');
@@ -1770,6 +2118,12 @@ function DoctorPrescriptions() {
       followUp: followUpAdvice,
       dietPlan,
       exercisePlan,
+      version: rx.version || 1,
+      amendedFromId: rx.amendedFromId,
+      amendmentReason: rx.amendmentReason,
+      status: rx.status,
+      signedAt: rx.signedAt,
+      signatureHash: rx.signatureHash,
     });
   };
 
@@ -1834,7 +2188,21 @@ function DoctorPrescriptions() {
         ? [{ name: 'Handwritten Clinical Prescription (Attached)', dosage: 'As drawn on Rx', frequency: 'As directed', duration: 'Course duration specified' }]
         : isUpload
         ? [{ name: 'Scanned Clinical Prescription (Attached)', dosage: 'As written on paper Rx', frequency: 'As directed', duration: 'As specified' }]
-        : form.meds.filter(m => m.name).map(m => ({ name: m.name, dosage: '', frequency: m.schedule, duration: m.duration }));
+        : form.meds.filter(m => m.name).map(m => ({
+            name: m.name,
+            dosage: m.strength || '',
+            dosageForm: m.dosageForm || 'Tablet',
+            strength: m.strength || '',
+            route: m.route || 'Oral',
+            frequency: m.schedule,
+            schedule: m.schedule,
+            foodRelation: m.foodRelation || 'After Food',
+            duration: m.duration,
+            quantity: m.quantity || '',
+            refillsAuthorized: Number(m.refills) || 0,
+            indication: m.indication || '',
+            isSos: !!m.isSos,
+          }));
 
       // If lifestyle-only consultation (no pharmaceuticals), register advisory protocol
       if (medicines.length === 0 && (form.dietPlan || form.exercisePlan || form.instructions || form.followUpAdvice)) {
@@ -1856,21 +2224,43 @@ function DoctorPrescriptions() {
           })
         : (form.instructions || (isHandwritten ? 'Please follow the handwritten instructions on your attached prescription.' : 'Follow clinical prescription as directed.'));
 
-      await addRx(form.patientId, {
-        diagnosis: form.diagnosis,
-        instructions,
-        medicines,
-        followUpAdvice: form.followUpAdvice || '',
-        handwrittenImage: form.handwrittenImage,
-      });
-      toast(`Prescription (${isHandwritten ? 'Handwritten' : isUpload ? 'Scanned' : 'Digital'}) issued to ${form.patient}. Patient notified.`, 'success');
+      if (form.isAmendment && form.amendedFromId) {
+        await amendRx(form.amendedFromId, {
+          diagnosis: form.diagnosis,
+          instructions,
+          medicines,
+          followUpAdvice: form.followUpAdvice || '',
+          handwrittenImage: form.handwrittenImage,
+          amendmentReason: form.amendmentReason,
+        });
+        toast(`Prescription amended successfully (Version ${form.version || 2}) for ${form.patient}. Patient notified.`, 'success');
+      } else {
+        await addRx(form.patientId, {
+          diagnosis: form.diagnosis,
+          instructions,
+          medicines,
+          followUpAdvice: form.followUpAdvice || '',
+          handwrittenImage: form.handwrittenImage,
+        });
+        toast(`Prescription (${isHandwritten ? 'Handwritten' : isUpload ? 'Scanned' : 'Digital'}) issued to ${form.patient}. Patient notified.`, 'success');
+      }
     } catch (err) {
       toast(err.message || 'Failed to issue prescription', 'error');
     }
   };
 
   if (showWrite) {
-    return <WriteRxPage onBack={() => setShowWrite(false)} onSave={handleNewRx} patients={patients} />;
+    return (
+      <WriteRxPage
+        onBack={() => {
+          setShowWrite(false);
+          setAmendTarget(null);
+        }}
+        onSave={handleNewRx}
+        patients={patients}
+        amendTarget={amendTarget}
+      />
+    );
   }
 
   return (
@@ -1901,8 +2291,13 @@ function DoctorPrescriptions() {
               </div>
             )}
           </div>
-          <button onClick={() => setShowWrite(true)}
-            className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-sm transition-colors">
+          <button
+            onClick={() => {
+              setAmendTarget(null);
+              setShowWrite(true);
+            }}
+            className="bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-sm transition-colors"
+          >
             <i className="fas fa-file-prescription"></i> Write Prescription
           </button>
         </div>
@@ -1975,12 +2370,27 @@ function DoctorPrescriptions() {
                   <i className="fas fa-file-prescription"></i>
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-black text-slate-800">{rx.patient}</h3>
+                    {rx.version > 1 && (
+                      <span className="text-[10px] bg-purple-100 text-purple-800 border border-purple-200 font-bold px-2 py-0.5 rounded-full">
+                        v{rx.version} Amended
+                      </span>
+                    )}
+                    {rx.status === 'Superseded' && (
+                      <span className="text-[10px] bg-rose-100 text-rose-800 border border-rose-200 font-bold px-2 py-0.5 rounded-full">
+                        Superseded
+                      </span>
+                    )}
                     {rx.refillRequested && <span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 font-bold px-2 py-0.5 rounded-full">Refill Requested</span>}
                   </div>
                   <p className="text-xs text-aubergine-700 font-bold">{rx.diagnosis}</p>
                   <p className="text-[10px] text-slate-500">{rx.date} → Valid till {rx.validTill}</p>
+                  {rx.amendmentReason && (
+                    <p className="text-[11px] text-purple-900 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100 mt-1 font-medium">
+                      <strong>Amendment note:</strong> {rx.amendmentReason}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -1993,11 +2403,40 @@ function DoctorPrescriptions() {
               <div className="grid md:grid-cols-2 gap-3 mb-4">
                 {rx.meds.map((m, i) => (
                   <div key={i} className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs">
-                    <div className="font-bold text-slate-800 mb-1.5">{m.name}</div>
-                    <DoseSchedule schedule={m.schedule} />
-                    <div className={`mt-1.5 ${m.refillsLeft === 0 ? 'text-rose-600 font-bold' : 'text-slate-500'}`}>
-                      {m.duration} • {m.refillsLeft === 0 ? 'No refills left' : `${m.refillsLeft} refills left`}
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <div className="font-bold text-slate-800">
+                        {m.dosageForm && <span className="text-aubergine-600 font-black mr-1">{m.dosageForm}.</span>}
+                        {m.name} {m.strength && <span className="text-slate-500 font-semibold font-mono">({m.strength})</span>}
+                      </div>
+                      {m.isSos && (
+                        <span className="text-[9px] bg-amber-100 text-amber-800 font-black px-1.5 py-0.5 rounded border border-amber-200">
+                          SOS
+                        </span>
+                      )}
                     </div>
+                    <DoseSchedule schedule={m.schedule} />
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-[11px] text-slate-500">
+                      {m.foodRelation && (
+                        <span className="bg-white border border-slate-200 px-1.5 py-0.5 rounded font-medium text-slate-700">
+                          🍽️ {m.foodRelation}
+                        </span>
+                      )}
+                      {m.route && m.route !== 'Oral' && (
+                        <span className="bg-white border border-slate-200 px-1.5 py-0.5 rounded font-medium text-slate-700">
+                          📍 {m.route}
+                        </span>
+                      )}
+                      {m.duration && <span>⏱️ {m.duration}</span>}
+                      {m.quantity && <span>📦 Qty: {m.quantity}</span>}
+                      <span className={m.refillsLeft === 0 ? 'text-rose-600 font-bold' : 'text-slate-500'}>
+                        • {m.refillsLeft === 0 ? 'No refills left' : `${m.refillsLeft} refills left`}
+                      </span>
+                    </div>
+                    {m.indication && (
+                      <div className="mt-1.5 text-[10.5px] text-aubergine-800 bg-aubergine-50/60 px-2 py-1 rounded-lg border border-aubergine-100">
+                        <strong>For:</strong> {m.indication}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -2009,6 +2448,12 @@ function DoctorPrescriptions() {
                   className="text-xs font-bold text-aubergine-600 border border-aubergine-200 px-4 py-2 rounded-xl hover:bg-aubergine-50 transition-colors flex items-center gap-1.5">
                   <i className="fas fa-download"></i> Download Medical Rx
                 </button>
+                {rx.status !== 'Superseded' && (
+                  <button onClick={() => { setAmendTarget(rx); setShowWrite(true); }}
+                    className="text-xs font-bold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5">
+                    <i className="fas fa-pen-to-square"></i> Amend Rx (v{(rx.version || 1) + 1})
+                  </button>
+                )}
                 {(() => {
                   try {
                     if (rx.instructions && rx.instructions.startsWith('{')) {

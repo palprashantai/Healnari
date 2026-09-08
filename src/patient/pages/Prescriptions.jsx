@@ -14,10 +14,12 @@ import { RxInstructionsDisplay } from '../../components/RxInstructionsDisplay.js
 function AiDrugSafetyModal({ rx, onClose }) {
   const [loading, setLoading] = useState(true);
   const [safetyData, setSafetyData] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
 
   React.useEffect(() => {
     if (!rx) return;
     setLoading(true);
+    setErrorMsg(null);
     const medList = (rx.medicines || []).map(m => m.name);
     apiFetch('/ai/drug-interactions', {
       method: 'POST',
@@ -27,13 +29,9 @@ function AiDrugSafetyModal({ rx, onClose }) {
         const data = res?.data || res;
         setSafetyData(data);
       })
-      .catch(() => {
-        setSafetyData({
-          hasInteractions: false,
-          summary: 'No major food-drug or multi-drug interactions detected for your prescribed regimen.',
-          foodGuidelines: ['Take with a glass of water.', 'Maintain a 2-hour gap between vitamins and dairy.'],
-          missedDoseAdvice: 'Take as soon as remembered, unless it is close to your next scheduled dose.',
-        });
+      .catch(err => {
+        setSafetyData(null);
+        setErrorMsg(err?.message || 'Clinical interaction database is temporarily unreachable. Please consult your prescribing doctor or pharmacist before combining these medications.');
       })
       .finally(() => setLoading(false));
   }, [rx]);
@@ -62,6 +60,17 @@ function AiDrugSafetyModal({ rx, onClose }) {
           <div className="p-8 text-center space-y-3">
             <i className="fas fa-spinner fa-spin text-3xl text-purple-600"></i>
             <p className="text-xs text-slate-500 font-bold">Consulting clinical pharmacology protocols…</p>
+          </div>
+        ) : errorMsg ? (
+          <div className="p-5 rounded-2xl border bg-amber-50 border-amber-200 text-amber-950 space-y-2">
+            <div className="flex items-center gap-2 font-bold text-xs text-amber-800">
+              <i className="fas fa-triangle-exclamation text-amber-600 text-sm"></i>
+              <span>Clinical Interaction Check Notice</span>
+            </div>
+            <p className="text-xs leading-relaxed font-medium">{errorMsg}</p>
+            <p className="text-[11px] text-amber-800/80 font-semibold pt-1 border-t border-amber-200/60">
+              Patient Safety Tip: Always inform your pharmacist and doctor of all active medications, vitamins, and herbal supplements before taking new medicines together.
+            </p>
           </div>
         ) : safetyData ? (
           <div className="space-y-4">
@@ -209,14 +218,33 @@ function toRxCards(myPatient) {
       diagnosis: meds.find(m => m.diagnosis)?.diagnosis || (myPatient.diagnosis && myPatient.diagnosis !== 'Pending' ? myPatient.diagnosis : 'General'),
       status: meds.some(m => m.refillsLeft > 0) ? 'Active' : 'Expired',
       validTill: meds.reduce((latest, m) => (!latest || (m.validTill && m.validTill > latest)) ? m.validTill : latest, ''),
-      medicines: meds.map(m => ({ id: m.id, name: m.name, schedule: m.frequency, duration: m.duration, refills: m.refillsLeft })),
+      version: meds[0]?.version || 1,
+      amendedFromId: meds[0]?.amendedFromId || null,
+      amendmentReason: meds[0]?.amendmentReason || '',
+      signedAt: meds[0]?.signedAt || null,
+      signatureHash: meds[0]?.signatureHash || null,
+      medicines: meds.map(m => ({
+        id: m.id,
+        name: m.name,
+        schedule: m.frequency,
+        duration: m.duration,
+        refills: m.refillsAuthorized !== undefined ? m.refillsAuthorized : (m.refillsLeft || 0),
+        dosageForm: m.dosageForm || 'Tablet',
+        strength: m.dosage || '',
+        route: m.route || 'Oral',
+        foodRelation: m.foodRelation || '',
+        indication: m.indication || '',
+        isSos: Boolean(m.isSos),
+        quantity: m.quantity || '',
+        instructions: m.instructions || '',
+      })),
       instructions: rawInstr,
       clinicalNotes: parsed.clinicalNotes,
       followUpAdvice: parsed.followUpAdvice,
       dietPlan: parsed.dietPlan,
       exercisePlan: parsed.exercisePlan,
       refillRequested: meds.some(m => m.refillRequested),
-      handwrittenImage: meds[0]?.handwrittenImage || meds[0]?.file_url || null,
+      handwrittenImage: meds[0]?.attachmentUrl || meds[0]?.handwrittenImage || meds[0]?.file_url || null,
     };
   }).sort((a, b) => new Date(b.date) - new Date(a.date));
 }
@@ -264,22 +292,71 @@ function PrescriptionModal({ rx, labRequests, onClose, onBookFollowUp }) {
           </div>
         )}
 
+        {/* Version & Amendment notice */}
+        {rx.version > 1 && (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-xs text-indigo-950 flex items-start gap-2.5">
+            <i className="fas fa-code-commit text-indigo-600 mt-0.5"></i>
+            <div>
+              <p className="font-black text-indigo-900">Clinical Revision • Version {rx.version}</p>
+              {rx.amendmentReason && (
+                <p className="text-[11px] text-indigo-800 font-medium mt-0.5">Reason: {rx.amendmentReason}</p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Medicines */}
         <div>
           <h4 className="font-bold text-slate-700 text-sm mb-2">Prescribed Medicines</h4>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {rx.medicines.map((m, i) => (
-              <div key={i} className="border border-slate-200 rounded-xl p-4 bg-slate-50">
+              <div key={i} className="border border-slate-200 rounded-2xl p-4 bg-slate-50 space-y-2">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="font-black text-slate-800 mb-1.5">{m.name}</p>
-                    <DoseSchedule schedule={m.schedule} />
-                    <p className="text-xs text-slate-500 mt-1.5">Duration: {m.duration}</p>
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="font-black text-slate-900 text-sm">{m.name}</span>
+                      {m.dosageForm && (
+                        <span className="text-[10px] uppercase font-bold bg-white text-aubergine-700 border border-aubergine-200 px-2 py-0.5 rounded-md">
+                          {m.dosageForm}
+                        </span>
+                      )}
+                      {m.isSos && (
+                        <span className="text-[10px] uppercase font-bold bg-rose-100 text-rose-800 border border-rose-200 px-2 py-0.5 rounded-md">
+                          SOS • As Needed
+                        </span>
+                      )}
+                    </div>
+                    {m.indication && (
+                      <p className="text-xs text-aubergine-800 font-semibold mb-1">
+                        <i className="fas fa-stethoscope text-[10px] mr-1 text-aubergine-600"></i>
+                        Indication: {m.indication}
+                      </p>
+                    )}
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${m.refills > 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-600 border-rose-100'}`}>
                     {m.refills > 0 ? `${m.refills} Refills Left` : 'No Refills Left'}
                   </span>
                 </div>
+
+                <DoseSchedule schedule={m.schedule} />
+
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 pt-2 border-t border-slate-200/60 font-medium">
+                  {m.foodRelation && (
+                    <span className="inline-flex items-center gap-1.5 text-emerald-800 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md text-[11px]">
+                      <i className="fas fa-utensils text-[10px]"></i>
+                      {m.foodRelation}
+                    </span>
+                  )}
+                  <span><strong>Duration:</strong> {m.duration}</span>
+                  {m.quantity && <span><strong>Dispense Qty:</strong> {m.quantity}</span>}
+                  {m.route && m.route !== 'Oral' && <span><strong>Route:</strong> {m.route}</span>}
+                </div>
+
+                {m.instructions && !m.instructions.startsWith('{') && (
+                  <p className="text-[11px] text-slate-600 italic bg-white p-2 rounded-lg border border-slate-200/60">
+                    &ldquo;{m.instructions}&rdquo;
+                  </p>
+                )}
               </div>
             ))}
           </div>
@@ -568,7 +645,14 @@ function PatientPrescriptions() {
                       <i className="fas fa-file-prescription text-lg"></i>
                     </div>
                     <div>
-                      <h3 className="font-black text-slate-800">{rx.diagnosis}</h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-black text-slate-800">{rx.diagnosis}</h3>
+                        {rx.version > 1 && (
+                          <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-md">
+                            v{rx.version} (Amended)
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-500">{rx.doctor} • {rx.date}</p>
                     </div>
                   </div>
@@ -586,16 +670,40 @@ function PatientPrescriptions() {
                 <div className="p-5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
                     {rx.medicines.map((m, i) => (
-                      <div key={i} className="border border-slate-100 rounded-xl p-3.5 bg-slate-50">
+                      <div key={i} className="border border-slate-200 rounded-2xl p-4 bg-slate-50 space-y-2">
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <div className="font-bold text-slate-800 text-sm mb-1">{m.name}</div>
-                            <DoseSchedule schedule={m.schedule} />
-                            <div className="text-xs text-slate-500 mt-1">{m.duration}</div>
+                            <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                              <span className="font-black text-slate-800 text-sm">{m.name}</span>
+                              {m.dosageForm && (
+                                <span className="text-[10px] uppercase font-bold bg-white text-aubergine-700 border border-aubergine-200 px-1.5 py-0.5 rounded">
+                                  {m.dosageForm}
+                                </span>
+                              )}
+                              {m.isSos && (
+                                <span className="text-[10px] uppercase font-bold bg-rose-100 text-rose-800 border border-rose-200 px-1.5 py-0.5 rounded">
+                                  SOS
+                                </span>
+                              )}
+                            </div>
+                            {m.indication && (
+                              <p className="text-[11px] text-aubergine-800 font-medium mb-1">For: {m.indication}</p>
+                            )}
                           </div>
                           <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${m.refills > 0 ? 'bg-aubergine-50 text-aubergine-700 border border-aubergine-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
-                            {m.refills > 0 ? `${m.refills}×` : 'None left'}
+                            {m.refills > 0 ? `${m.refills}× Refill` : 'None left'}
                           </span>
+                        </div>
+                        <DoseSchedule schedule={m.schedule} />
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 font-medium pt-1.5 border-t border-slate-200/60">
+                          {m.foodRelation && (
+                            <span className="text-[11px] text-emerald-800 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
+                              <i className="fas fa-utensils text-[9px]"></i>
+                              {m.foodRelation}
+                            </span>
+                          )}
+                          <span>{m.duration}</span>
+                          {m.quantity && <span>Qty: {m.quantity}</span>}
                         </div>
                       </div>
                     ))}
