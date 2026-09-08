@@ -517,7 +517,7 @@ function PatientPrescriptions() {
       patient: {
         name: me?.name,
         age: me?.age !== '—' ? me?.age : null,
-        gender: me?.gender || 'Female',
+        gender: me?.gender || '—',
         blood: me?.blood,
         mrn: me?.mrn,
         phone: me?.phone,

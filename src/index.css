@@ -87,9 +87,16 @@
     max-width: 100vw;
   }
 
-  /* HealNari Serif Headings */
-  h1, h2, h3, h4, .font-serif-brand {
-    font-family: 'Playfair Display', serif;
+  /* HealNari Brand Typography — Clean Sans-Serif for Clinical SaaS, Serif for Editorial */
+  h1, h2, h3, h4 {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--color-text-headings);
+  }
+
+  .font-serif-brand {
+    font-family: 'Playfair Display', Georgia, serif;
     font-weight: 700;
     letter-spacing: -0.02em;
   }
@@ -157,7 +164,7 @@
   }
   
   .btn-primary, .crm-btn-primary {
-    @apply btn-base bg-gradient-to-r from-[#6B46C1] to-[#E23E8C] hover:opacity-90 text-white shadow-md hover:shadow-lg focus-visible:ring-2 focus-visible:ring-[#6B46C1]/50;
+    @apply btn-base bg-[#6B46C1] hover:bg-[#522F9E] text-white shadow-sm hover:shadow-md focus-visible:ring-2 focus-visible:ring-[#6B46C1]/50;
   }
 
   .btn-brand {

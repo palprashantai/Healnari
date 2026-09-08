@@ -38,41 +38,41 @@ const NAV_CATEGORIES = [
     title: 'Core & Analytics',
     items: [
       { name: 'Dashboard',          icon: 'fa-chart-pie',         path: '/admin-dashboard',              end: true,  color: '#6B46C1' },
-      { name: 'AI Product Control', icon: 'fa-wand-magic-sparkles',path:'/admin-dashboard/ai',           end: false, color: '#a855f7' },
-      { name: 'Analytics & Growth', icon: 'fa-chart-line',        path: '/admin-dashboard/analytics',    end: false, color: '#f59e0b' },
-      { name: 'Revenue & Payouts',  icon: 'fa-money-bill-transfer',path:'/admin-dashboard/revenue',      end: false, color: '#ef4444' },
-      { name: 'Reports',            icon: 'fa-file-contract',     path: '/admin-dashboard/reports',      end: false, color: '#6366f1' },
+      { name: 'AI Product Control', icon: 'fa-wand-magic-sparkles',path:'/admin-dashboard/ai',           end: false, color: '#6B46C1' },
+      { name: 'Analytics & Growth', icon: 'fa-chart-line',        path: '/admin-dashboard/analytics',    end: false, color: '#6B46C1' },
+      { name: 'Revenue & Payouts',  icon: 'fa-money-bill-transfer',path:'/admin-dashboard/revenue',      end: false, color: '#6B46C1' },
+      { name: 'Reports',            icon: 'fa-file-contract',     path: '/admin-dashboard/reports',      end: false, color: '#6B46C1' },
     ]
   },
   {
     title: 'User Management',
     items: [
-      { name: 'Doctor Management',  icon: 'fa-user-doctor',       path: '/admin-dashboard/doctors',      end: false, color: '#8b5cf6' },
-      { name: 'Doctor Verification',icon: 'fa-user-check',        path: '/admin-dashboard/verification', end: false, color: '#10b981' },
-      { name: 'Patient Management', icon: 'fa-users-gear',        path: '/admin-dashboard/users',        end: false, color: '#0ea5e9' },
+      { name: 'Doctor Management',  icon: 'fa-user-doctor',       path: '/admin-dashboard/doctors',      end: false, color: '#6B46C1' },
+      { name: 'Doctor Verification',icon: 'fa-user-check',        path: '/admin-dashboard/verification', end: false, color: '#6B46C1' },
+      { name: 'Patient Management', icon: 'fa-users-gear',        path: '/admin-dashboard/users',        end: false, color: '#6B46C1' },
     ]
   },
   {
-    title: 'Platform config',
+    title: 'Platform Config',
     items: [
-      { name: 'Landing Page',       icon: 'fa-globe',             path: '/admin-dashboard/landing',      end: false, color: '#06b6d4' },
-      { name: 'CMS & Content',      icon: 'fa-pen-to-square',     path: '/admin-dashboard/cms',          end: false, color: '#d946ef' },
-      { name: 'Specialty Manager',  icon: 'fa-stethoscope',       path: '/admin-dashboard/specialties',  end: false, color: '#10b981' },
+      { name: 'Landing Page',       icon: 'fa-globe',             path: '/admin-dashboard/landing',      end: false, color: '#6B46C1' },
+      { name: 'CMS & Content',      icon: 'fa-pen-to-square',     path: '/admin-dashboard/cms',          end: false, color: '#6B46C1' },
+      { name: 'Specialty Manager',  icon: 'fa-stethoscope',       path: '/admin-dashboard/specialties',  end: false, color: '#6B46C1' },
     ]
   },
   {
     title: 'Marketing & Ops',
     items: [
-      { name: 'Communication',      icon: 'fa-bullhorn',          path: '/admin-dashboard/communications',end:false, color: '#f43f5e' },
-      { name: 'Message Templates',  icon: 'fa-pager',             path: '/admin-dashboard/templates',    end: false, color: '#fb923c' },
-      { name: 'Leads',              icon: 'fa-address-book',      path: '/admin-dashboard/leads',        end: false, color: '#14b8a6' },
+      { name: 'Communication',      icon: 'fa-bullhorn',          path: '/admin-dashboard/communications',end:false, color: '#6B46C1' },
+      { name: 'Message Templates',  icon: 'fa-pager',             path: '/admin-dashboard/templates',    end: false, color: '#6B46C1' },
+      { name: 'Leads',              icon: 'fa-address-book',      path: '/admin-dashboard/leads',        end: false, color: '#6B46C1' },
     ]
   },
   {
     title: 'System & Security',
     items: [
-      { name: 'Audit Logs (HIPAA)', icon: 'fa-shield-halved',     path: '/admin-dashboard/audit-logs',   end: false, color: '#0ea5e9' },
-      { name: 'Cron & Automations', icon: 'fa-clock-rotate-left', path: '/admin-dashboard/crons',        end: false, color: '#10b981' },
+      { name: 'Audit Logs (HIPAA)', icon: 'fa-shield-halved',     path: '/admin-dashboard/audit-logs',   end: false, color: '#6B46C1' },
+      { name: 'Cron & Automations', icon: 'fa-clock-rotate-left', path: '/admin-dashboard/crons',        end: false, color: '#6B46C1' },
     ]
   }
 ];

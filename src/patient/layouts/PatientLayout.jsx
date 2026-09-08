@@ -21,32 +21,32 @@ const MENU_CATEGORIES = [
     title: 'Core',
     items: [
       { name: 'Dashboard',          icon: 'fa-house',          path: '/patient-dashboard',              color: '#6B46C1' },
-      { name: 'AI Health Hub',      icon: 'fa-wand-magic-sparkles', path: '/patient-dashboard/ai',      color: '#a855f7', badge: 'AI' },
-      { name: 'Find a Specialist',  icon: 'fa-user-doctor',    path: '/patient-dashboard/find-doctor',   color: '#0ea5e9' },
+      { name: 'AI Health Hub',      icon: 'fa-wand-magic-sparkles', path: '/patient-dashboard/ai',      color: '#6B46C1', badge: 'AI' },
+      { name: 'Find a Specialist',  icon: 'fa-user-doctor',    path: '/patient-dashboard/find-doctor',   color: '#6B46C1' },
     ]
   },
   {
     title: 'Care & Records',
     items: [
-      { name: 'My Appointments',    icon: 'fa-calendar-check', path: '/patient-dashboard/appointments',  color: '#10b981' },
-      { name: 'Medical Records',    icon: 'fa-file-medical',   path: '/patient-dashboard/records',       color: '#f59e0b' },
-      { name: 'Prescriptions & Care', icon: 'fa-pills',        path: '/patient-dashboard/prescriptions', color: '#f43f5e' },
+      { name: 'My Appointments',    icon: 'fa-calendar-check', path: '/patient-dashboard/appointments',  color: '#6B46C1' },
+      { name: 'Medical Records',    icon: 'fa-file-medical',   path: '/patient-dashboard/records',       color: '#6B46C1' },
+      { name: 'Prescriptions & Care', icon: 'fa-pills',        path: '/patient-dashboard/prescriptions', color: '#6B46C1' },
     ]
   },
   {
-    title: 'Wellness',
+    title: 'Wellness & Specialty',
     items: [
-      { name: 'Diet & Yoga Plan',   icon: 'fa-seedling',       path: '/patient-dashboard/lifestyle',     color: '#10b981', badge: 'Active' },
-      { name: 'Health Tracking',    icon: 'fa-heart-pulse',    path: '/patient-dashboard/tracking',      color: '#6366f1' },
-      { name: 'Fertility Insights', icon: 'fa-circle-dot',     path: '/patient-dashboard/fertility',     color: '#e11d48' },
+      { name: 'Diet & Yoga Plan',   icon: 'fa-seedling',       path: '/patient-dashboard/lifestyle',     color: '#6B46C1', badge: 'Active' },
+      { name: 'Health Tracking',    icon: 'fa-heart-pulse',    path: '/patient-dashboard/tracking',      color: '#6B46C1' },
+      { name: 'Cycle & Fertility',  icon: 'fa-circle-dot',     path: '/patient-dashboard/fertility',     color: '#6B46C1' },
     ]
   },
   {
     title: 'Account',
     items: [
-      { name: 'Partner & Support',  icon: 'fa-users',          path: '/patient-dashboard/family',        color: '#d946ef' },
-      { name: 'Billing & Payments', icon: 'fa-credit-card',    path: '/patient-dashboard/billing',       color: '#14b8a6' },
-      { name: 'My Profile',         icon: 'fa-circle-user',    path: '/patient-dashboard/profile',       color: '#64748b' },
+      { name: 'Care Circle & Support', icon: 'fa-users',       path: '/patient-dashboard/family',        color: '#6B46C1' },
+      { name: 'Billing & Payments', icon: 'fa-credit-card',    path: '/patient-dashboard/billing',       color: '#6B46C1' },
+      { name: 'My Profile',         icon: 'fa-circle-user',    path: '/patient-dashboard/profile',       color: '#6B46C1' },
     ]
   }
 ];

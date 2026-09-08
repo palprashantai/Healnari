@@ -23,34 +23,34 @@ const NAV_CATEGORIES = [
     title: 'Core',
     items: [
       { name: 'Dashboard',        icon: 'fa-chart-pie',           path: '/doctor-dashboard',              end: true,  color: '#6B46C1' },
-      { name: 'AI Clinical Tools',icon: 'fa-wand-magic-sparkles', path: '/doctor-dashboard/ai',          end: false, color: '#a855f7', badge: 'AI' },
-      { name: 'Analytics & Growth',icon: 'fa-chart-line',         path: '/doctor-dashboard/analytics',    end: false, color: '#f59e0b' },
+      { name: 'AI Clinical Tools',icon: 'fa-wand-magic-sparkles', path: '/doctor-dashboard/ai',          end: false, color: '#6B46C1', badge: 'AI' },
+      { name: 'Analytics & Growth',icon: 'fa-chart-line',         path: '/doctor-dashboard/analytics',    end: false, color: '#6B46C1' },
     ]
   },
   {
     title: 'Scheduling',
     items: [
-      { name: 'Appointments',     icon: 'fa-calendar-check',      path: '/doctor-dashboard/appointments', end: false, color: '#10b981' },
-      { name: 'My Schedule',      icon: 'fa-clock',               path: '/doctor-dashboard/schedule',     end: false, color: '#059669' },
-      { name: 'Patient Requests', icon: 'fa-user-plus',           path: '/doctor-dashboard/requests',     end: false, color: '#22c55e' },
+      { name: 'Appointments',     icon: 'fa-calendar-check',      path: '/doctor-dashboard/appointments', end: false, color: '#6B46C1' },
+      { name: 'My Schedule',      icon: 'fa-clock',               path: '/doctor-dashboard/schedule',     end: false, color: '#6B46C1' },
+      { name: 'Patient Requests', icon: 'fa-user-plus',           path: '/doctor-dashboard/requests',     end: false, color: '#6B46C1' },
     ]
   },
   {
     title: 'Clinical',
     items: [
-      { name: 'Patients & EMR',   icon: 'fa-users',               path: '/doctor-dashboard/patients',     end: false, color: '#0ea5e9' },
-      { name: 'Prescriptions',    icon: 'fa-file-prescription',   path: '/doctor-dashboard/prescriptions',end: false, color: '#f43f5e' },
-      { name: 'Telemedicine',     icon: 'fa-video',               path: '/doctor-dashboard/telemedicine', end: false, color: '#6366f1' },
-      { name: 'Lab & Reports',    icon: 'fa-flask',               path: '/doctor-dashboard/reports',      end: false, color: '#f59e0b' },
+      { name: 'Patients & EMR',   icon: 'fa-users',               path: '/doctor-dashboard/patients',     end: false, color: '#6B46C1' },
+      { name: 'Prescriptions',    icon: 'fa-file-prescription',   path: '/doctor-dashboard/prescriptions',end: false, color: '#6B46C1' },
+      { name: 'Telemedicine',     icon: 'fa-video',               path: '/doctor-dashboard/telemedicine', end: false, color: '#6B46C1' },
+      { name: 'Lab & Reports',    icon: 'fa-flask',               path: '/doctor-dashboard/reports',      end: false, color: '#6B46C1' },
     ]
   },
   {
     title: 'Practice Management',
     items: [
-      { name: 'Communication',    icon: 'fa-bullhorn',            path: '/doctor-dashboard/communications',end:false, color: '#ec4899' },
-      { name: 'Earnings',         icon: 'fa-file-invoice-dollar', path: '/doctor-dashboard/billing',      end: false, color: '#14b8a6' },
-      { name: 'Staff Management', icon: 'fa-user-nurse',          path: '/doctor-dashboard/staff',        end: false, color: '#d946ef' },
-      { name: 'My Profile',       icon: 'fa-circle-user',         path: '/doctor-dashboard/profile',      end: false, color: '#64748b' },
+      { name: 'Communication',    icon: 'fa-bullhorn',            path: '/doctor-dashboard/communications',end:false, color: '#6B46C1' },
+      { name: 'Earnings',         icon: 'fa-file-invoice-dollar', path: '/doctor-dashboard/billing',      end: false, color: '#6B46C1' },
+      { name: 'Staff Management', icon: 'fa-user-nurse',          path: '/doctor-dashboard/staff',        end: false, color: '#6B46C1' },
+      { name: 'My Profile',       icon: 'fa-circle-user',         path: '/doctor-dashboard/profile',      end: false, color: '#6B46C1' },
     ]
   }
 ];

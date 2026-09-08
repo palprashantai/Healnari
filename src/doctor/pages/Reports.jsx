@@ -108,11 +108,11 @@ function LabReviewModal({ lab, isOpen, onClose, onAction }) {
         }
       }).catch(() => null);
 
-      const generated = res?.summary || res?.prepNotes || `Diagnostic Review: Values analyzed for ${testsStr}. Clinical findings suggest mild hormonal fluctuations consistent with PCOS metabolic markers. Recommended: Titrate current regimen, encourage anti-inflammatory nutrition, and schedule routine panel in 12 weeks.`;
+      const generated = res?.summary || res?.prepNotes || `Diagnostic Review: Values analyzed for ${testsStr}. Biomarkers evaluated against standard physiological reference intervals. Recommended: Continue monitored clinical regimen and repeat targeted panel in 8-12 weeks.`;
       setAction(generated);
       toast('AI draft note generated!', 'success');
     } catch {
-      setAction(`Diagnostic Review: Values analyzed for ${Array.isArray(lab.tests) ? lab.tests.join(', ') : lab.tests}. Baseline metabolic parameters evaluated. Schedule follow-up in 8-12 weeks.`);
+      setAction(`Diagnostic Review: Values analyzed for ${Array.isArray(lab.tests) ? lab.tests.join(', ') : lab.tests}. Baseline physiological parameters evaluated against clinical reference intervals. Schedule routine follow-up in 8-12 weeks.`);
     } finally {
       setAiGenerating(false);
     }

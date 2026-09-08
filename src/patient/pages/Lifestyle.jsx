@@ -68,7 +68,7 @@ export default function PatientLifestyle() {
       rxId: `HN-${String(planToPrint.rxId).slice(0, 8).toUpperCase() || 'LIFESTYLE'}`,
       date: planToPrint.date,
       doctor: { name: planToPrint.doctor },
-      patient: { name: user?.name, gender: 'Female' },
+      patient: { name: user?.name, gender: user?.gender || user?.profile?.gender || '—' },
       dietPlan: planToPrint.dietPlan,
       exercisePlan: planToPrint.exercisePlan,
     });

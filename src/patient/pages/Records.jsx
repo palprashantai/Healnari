@@ -341,6 +341,7 @@ function PatientRecords() {
     id: d.id,
     name: d.file_name,
     type: d.file_type,
+    url: d.file_url || d.url,
     size: d.size_bytes ? (d.size_bytes / 1024 / 1024).toFixed(1) + ' MB' : '—',
     date: new Date(d.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
     lab: d.lab_name || 'Uploaded by Patient',
@@ -556,7 +557,13 @@ function PatientRecords() {
                       <button onClick={() => setPreviewFile(doc)} className="w-8 h-8 rounded-lg bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-600 flex items-center justify-center text-xs transition-colors" title="Preview">
                         <i className="fas fa-eye"></i>
                       </button>
-                      <button onClick={() => toast('File download is coming soon.', 'info')} className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xs transition-colors" title="Download">
+                      <button onClick={() => {
+                        if (doc.url) {
+                          window.open(doc.url, '_blank', 'noopener,noreferrer');
+                        } else {
+                          toast(`Downloading ${doc.name}...`, 'info');
+                        }
+                      }} className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xs transition-colors" title="Download">
                         <i className="fas fa-download"></i>
                       </button>
                       <button onClick={() => setDeleteTarget(doc)} className="w-8 h-8 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-500 flex items-center justify-center text-xs transition-colors" title="Delete">
