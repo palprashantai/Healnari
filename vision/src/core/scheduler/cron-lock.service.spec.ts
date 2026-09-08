@@ -42,7 +42,7 @@ describe('CronLockService — Distributed PostgreSQL Advisory Locking', () => {
   });
 
   it('prevents overlapping local executions if same job is already running on this instance', async () => {
-    let slowTaskFinish: () => void = () => {};
+    let slowTaskFinish: () => void = () => { };
     const slowTask = new Promise<void>((resolve) => {
       slowTaskFinish = resolve;
     });
