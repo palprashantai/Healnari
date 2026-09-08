@@ -48,18 +48,9 @@ function AppInstallToast() {
     };
     window.addEventListener('appinstalled', handleAppInstalled);
 
-    let iosTimer;
-    if (isIOS()) {
-      iosTimer = setTimeout(() => {
-        setPlatform('ios');
-        setVisible(true);
-      }, IOS_SHOW_DELAY_MS);
-    }
-
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
-      if (iosTimer) clearTimeout(iosTimer);
     };
   }, []);
 
@@ -109,7 +100,7 @@ function AppInstallToast() {
           <div className="relative">
             <div className="flex items-start gap-3 pr-4">
               <img
-                src="/brand/logo-icon.jpg"
+                src="/pwa-192x192.png"
                 alt="HealNari"
                 width="48"
                 height="48"

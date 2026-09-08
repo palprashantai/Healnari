@@ -7,7 +7,23 @@ import { ToastProvider } from './components/Toast.jsx';
 import { IosInstallPrompt } from './components/IosInstallPrompt.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) => {
+        // Never retry client/auth/validation errors (4xx)
+        if (error?.status >= 400 && error?.status < 500) return false;
+        return failureCount < 2;
+      },
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 2, // 2 minutes safe client-side caching
+    },
+    mutations: {
+      // NEVER auto-retry clinical mutations, consultations, payments or prescriptions
+      retry: false,
+    },
+  },
+});
 
 import LandingPage from './landing/pages/LandingPage.jsx';
 const DoctorLandingPage = lazy(() => import('./landing/pages/DoctorLandingPage.jsx'));

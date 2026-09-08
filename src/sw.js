@@ -1,21 +1,39 @@
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
 import { clientsClaim } from 'workbox-core';
 
-// Disable workbox debug logs in development (no longer needed via setConfig in Workbox 7)
-import { registerRoute } from 'workbox-routing';
-import { StaleWhileRevalidate, CacheFirst } from 'workbox-strategies';
+import { registerRoute, NavigationRoute } from 'workbox-routing';
+import { StaleWhileRevalidate, CacheFirst, NetworkOnly } from 'workbox-strategies';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { readTokensFromIndexedDb } from './lib/tokenStore.js';
 
 const API_URL = import.meta.env.VITE_API_URL || '/api';
 
-// Auto-update service worker lifecycle
-self.skipWaiting();
+// Controlled client takeover on activation (skipWaiting is user-confirmed via message to protect active sessions)
 clientsClaim();
 
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
+
+// ─── Offline SPA Navigation Fallback ───
+// Guarantees all dashboard & condition deep-links load the cached App Shell offline
+// rather than crashing into the browser dinosaur screen.
+const navigationHandler = createHandlerBoundToURL('/index.html');
+const navigationRoute = new NavigationRoute(navigationHandler, {
+  denylist: [
+    /^\/api\//,
+    /^\/socket\.io\//,
+    /\.[a-zA-Z0-9]+$/,
+  ],
+});
+registerRoute(navigationRoute);
+
+// ─── Healthcare Data Security Boundary ───
+// Never cache sensitive clinical records, tokens, consultation notes or payments in CacheStorage.
+registerRoute(
+  ({ url }) => url.pathname.startsWith('/api') || url.pathname.startsWith('/socket.io'),
+  new NetworkOnly()
+);
 
 // Cache the Google Fonts stylesheets with a stale-while-revalidate strategy.
 registerRoute(

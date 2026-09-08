@@ -54,8 +54,17 @@ export default defineConfig(({ command, mode }) => {
           enabled: true,
           type: 'module',
         },
-        includeAssets: ['brand/logo-icon.png', 'brand/logo-full.png'],
+        includeAssets: [
+          'pwa-192x192.png',
+          'pwa-512x512.png',
+          'pwa-maskable-192x192.png',
+          'pwa-maskable-512x512.png',
+          'apple-touch-icon.png',
+          'brand/logo-icon.png',
+          'brand/logo-full.png'
+        ],
         manifest: {
+          id: '/?source=pwa',
           name: 'HealNari | Women\'s Health',
           short_name: 'HealNari',
           description: 'Root-cause, doctor-led care for PCOS, hormonal imbalance, and women\'s health.',
@@ -63,6 +72,9 @@ export default defineConfig(({ command, mode }) => {
           background_color: '#F8F6FF',
           display: 'standalone',
           start_url: '/',
+          scope: '/',
+          lang: 'en-US',
+          dir: 'ltr',
           orientation: 'portrait',
           categories: ['medical', 'health', 'lifestyle'],
           shortcuts: [
@@ -71,51 +83,51 @@ export default defineConfig(({ command, mode }) => {
               short_name: 'Track',
               description: 'Log daily symptoms, cycle, and mood',
               url: '/patient-dashboard/tracking',
-              icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
+              icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }]
             },
             {
               name: 'Book ₹799 Consult',
               short_name: 'Consult',
               description: 'Book instant consultation with a doctor',
               url: '/patient-dashboard/find-doctor',
-              icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
+              icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }]
             },
             {
               name: 'Doctor Queue & Telemed',
               short_name: 'Doctor Queue',
               description: 'Open patient appointments & teleconsultation room',
               url: '/doctor-dashboard/appointments',
-              icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
+              icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }]
             },
             {
               name: 'Prescriptions & Vault',
               short_name: 'Rx Vault',
               description: 'Access digital prescriptions & lab records',
               url: '/patient-dashboard/records',
-              icons: [{ src: '/brand/logo-icon.png', sizes: '192x192' }]
+              icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }]
             }
           ],
           icons: [
             {
-              src: '/brand/logo-icon.png',
+              src: '/pwa-192x192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: '/brand/logo-icon.png',
+              src: '/pwa-maskable-192x192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'maskable'
             },
             {
-              src: '/brand/logo-icon.png',
+              src: '/pwa-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: '/brand/logo-icon.png',
+              src: '/pwa-maskable-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable'
