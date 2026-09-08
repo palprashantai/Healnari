@@ -2,74 +2,83 @@ import React, { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Tilt3D from '../../components/Tilt3D.jsx';
 import Reveal from '../../components/Reveal.jsx';
+import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
 
 function Conditions() {
   const scrollRef = useRef(null);
 
   const specialties = [
     {
-      name: "Women's Health & Gynecology",
-      desc: "Irregular cycles, dysmenorrhea, heavy bleeding, pelvic pain & preventative care.",
-      icon: "fa-venus",
-      color: "text-aubergine-600 bg-aubergine-50 border-aubergine-100",
-      badge: "Gynaecologist",
-      href: "/gynecology-womens-health"
-    },
-    {
-      name: "PCOS & Hormonal Health",
-      desc: "Root-cause metabolic care, androgen balancing, insulin sensitivity & cystic ovaries.",
-      icon: "fa-venus-double",
-      color: "text-magenta-600 bg-magenta-50 border-magenta-100",
-      badge: "Hormone Specialist",
-      href: "/pcos-treatment-online"
-    },
-    {
-      name: "Endocrinology & Thyroid",
-      desc: "Hypo/hyperthyroidism, Hashimoto's, adrenal health & metabolic endocrine balance.",
-      icon: "fa-dna",
-      color: "text-indigo-600 bg-indigo-50 border-indigo-100",
-      badge: "Endocrinologist",
-      href: "/thyroid-consultation"
+      name: "General Medicine & Primary Care",
+      desc: "Fever, acute infections, blood pressure, fatigue, routine health checks & preventative medicine.",
+      icon: "fa-user-doctor",
+      color: "text-blue-600 bg-blue-50 border-blue-100",
+      badge: "General Physician",
+      href: "/conditions/pcos-treatment-online",
+      actionTag: "General Medicine"
     },
     {
       name: "Dermatology & Skin Care",
-      desc: "Hormonal acne, hirsutism, melasma, hyperpigmentation & skin barrier restoration.",
+      desc: "Hormonal acne, adult breakouts, eczema, melasma, hyperpigmentation & barrier repair.",
       icon: "fa-wand-magic-sparkles",
-      color: "text-rose-600 bg-rose-50 border-rose-100",
-      badge: "Dermatologist",
-      href: "/hormonal-dermatology-acne"
-    },
-    {
-      name: "Hair & Scalp Health",
-      desc: "Female pattern hair loss, telogen effluvium, scalp inflammation & follicle revitalization.",
-      icon: "fa-spa",
       color: "text-amber-600 bg-amber-50 border-amber-100",
-      badge: "Trichologist",
-      href: "/hair-loss-trichology"
+      badge: "Dermatologist",
+      href: "/conditions/hormonal-dermatology-acne",
+      actionTag: "Dermatology"
     },
     {
-      name: "Nutrition & Dietetics",
-      desc: "Clinical anti-inflammatory meal planning, gut-hormone axis & metabolic nutrition.",
-      icon: "fa-seedling",
+      name: "Endocrinology & Thyroid",
+      desc: "Hypo/hyperthyroidism, Hashimoto's, insulin resistance, adrenal health & metabolic balance.",
+      icon: "fa-dna",
+      color: "text-indigo-600 bg-indigo-50 border-indigo-100",
+      badge: "Endocrinologist",
+      href: "/conditions/thyroid-consultation",
+      actionTag: "Endocrinology"
+    },
+    {
+      name: "Gynaecology & Reproductive Health",
+      desc: "Irregular cycles, painful periods (dysmenorrhea), heavy bleeding, pelvic care & PCOS.",
+      icon: "fa-venus",
+      color: "text-rose-600 bg-rose-50 border-rose-100",
+      badge: "Gynaecologist",
+      href: "/conditions/gynecology-womens-health",
+      actionTag: "Gynaecologist"
+    },
+    {
+      name: "Hair & Scalp / Trichology",
+      desc: "Androgenic alopecia, sudden shedding (telogen effluvium), scalp health & follicle revival.",
+      icon: "fa-spa",
       color: "text-emerald-600 bg-emerald-50 border-emerald-100",
-      badge: "Clinical Dietitian",
-      href: "/clinical-nutrition-dietetics"
+      badge: "Trichologist",
+      href: "/conditions/hair-loss-trichology",
+      actionTag: "Trichologist"
     },
     {
-      name: "Yoga & Movement Support",
-      desc: "Cycle-synced movement, pelvic floor conditioning, somatic yoga & stress relief.",
-      icon: "fa-person-praying",
+      name: "Clinical Nutrition & Dietetics",
+      desc: "Personalized anti-inflammatory meal plans, metabolic nutrition, gut health & lifestyle diets.",
+      icon: "fa-seedling",
       color: "text-teal-600 bg-teal-50 border-teal-100",
+      badge: "Clinical Dietitian",
+      href: "/conditions/clinical-nutrition-dietetics",
+      actionTag: "Nutritionist"
+    },
+    {
+      name: "Mindful Movement & Yoga",
+      desc: "Somatic stress release, pelvic floor conditioning, restorative breathwork & therapeutic movement.",
+      icon: "fa-person-praying",
+      color: "text-purple-600 bg-purple-50 border-purple-100",
       badge: "Movement Coach",
-      href: "/yoga-movement-therapy"
+      href: "/conditions/yoga-movement-therapy",
+      actionTag: "Yoga & Movement"
     },
     {
       name: "Fertility & Preconception",
-      desc: "Ovulation mapping, egg quality optimization & holistic reproductive guidance.",
+      desc: "Ovulation tracking, egg quality guidance, fertility prep & comprehensive preconception care.",
       icon: "fa-baby-carriage",
-      color: "text-purple-600 bg-purple-50 border-purple-100",
+      color: "text-violet-600 bg-violet-50 border-violet-100",
       badge: "Fertility Specialist",
-      href: "/fertility-preconception-care"
+      href: "/conditions/fertility-preconception-care",
+      actionTag: "Fertility Specialist"
     }
   ];
 
@@ -147,13 +156,13 @@ function Conditions() {
       {/* Title Header */}
       <Reveal className="text-center max-w-3xl mx-auto mb-12 space-y-3 px-5 md:px-8">
         <span className="text-xs font-semibold text-aubergine-700 uppercase tracking-wider bg-aubergine-50 px-3.5 py-1.5 rounded-full border border-aubergine-100">
-          Specialist Domains
+          Specialist Care Domains
         </span>
         <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-slate-900 leading-tight font-display">
-          Comprehensive Women's Healthcare Specialties
+          Trusted Care Across Multiple Medical Specialties
         </h2>
         <p className="text-slate-600 text-sm md:text-base font-normal leading-relaxed">
-          Access an interconnected multi-specialty clinical network dedicated to treating the root cause of hormonal, reproductive, metabolic, dermatological, and lifestyle conditions.
+          Access an interconnected clinical network across General Medicine, Dermatology, Endocrinology, Gynaecology, Clinical Nutrition, and Lifestyle Health.
         </p>
       </Reveal>
 
@@ -167,6 +176,13 @@ function Conditions() {
             <Tilt3D max={4}>
               <Link
                 to={spec.href}
+                onClick={() => {
+                  trackEvent(AnalyticsEvents.SPECIALTY_CLICKED, {
+                    specialty: spec.name,
+                    badge: spec.badge,
+                    href: spec.href
+                  });
+                }}
                 className="group rounded-3xl p-6 border border-sand-200 shadow-sm flex flex-col justify-between h-full transition-all duration-300 hover:shadow-xl hover:border-aubergine-300 hover:-translate-y-1 bg-white block text-left"
               >
                 <div>

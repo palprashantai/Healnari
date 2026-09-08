@@ -97,12 +97,13 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
   const todayStr = todayLocalStr();
 
   const concernsList = [
-    'PCOS / PCOD',
-    'Hair fall / Thinning',
-    'Irregular periods',
-    'Hormonal imbalance',
-    'Acne / Weight gain',
-    'Thyroid'
+    'General Illness / Fever / Infections',
+    'Skin, Acne & Complexion',
+    'Hair Fall & Scalp Health',
+    'Thyroid & Hormonal Health',
+    'PCOS / PCOD & Cycle Regularity',
+    'Diet, Gut Health & Metabolism',
+    'Stress, Sleep & Somatic Wellness'
   ];
 
 
@@ -368,8 +369,10 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
                             {(d.full_name || 'D').charAt(0)}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-bold text-slate-800 text-sm truncate">Dr. {d.full_name}</p>
-                            <p className="text-[11px] text-slate-500 truncate mb-0.5">{d.specialty || 'Women’s Health Specialist'}</p>
+                            <p className="font-bold text-slate-800 text-sm truncate">
+                              {/^(Dr\.|Dt\.|Doctor)\s+/i.test(d.full_name || '') ? d.full_name : `Dr. ${d.full_name || 'Specialist'}`}
+                            </p>
+                            <p className="text-[11px] text-slate-500 truncate mb-0.5">{d.specialty || 'Verified Medical Specialist'}</p>
                             <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-medium">
                               <i className="far fa-clock"></i>
                               <span>{formatSchedules(d.doctor_schedules)}</span>

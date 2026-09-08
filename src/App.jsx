@@ -162,13 +162,24 @@ function App() {
               <Routes>
                 <Route path="/" element={<RootRoute />} />
                 <Route path="/for-doctors" element={<DoctorLandingPage />} />
-                <Route path="/login" element={<Navigate to="/for-doctors?auth=login" replace />} />
+                <Route path="/login" element={<Navigate to="/?auth=login" replace />} />
+                <Route path="/admin" element={<Navigate to="/admin-dashboard" replace />} />
                 <Route path="/dr/:doctorId" element={<DoctorPublicProfile />} />
                 <Route path="/book/:doctorId" element={<DoctorPublicProfile />} />
                 <Route path="/doctor/:doctorId" element={<DoctorPublicProfile />} />
                 <Route path="/conditions/:slug" element={<ConditionPage />} />
+                {/* Direct aliases for condition routes without /conditions/ prefix */}
+                <Route path="/pcos-treatment-online" element={<Navigate to="/conditions/pcos-treatment-online" replace />} />
+                <Route path="/gynecology-womens-health" element={<Navigate to="/conditions/gynecology-womens-health" replace />} />
+                <Route path="/thyroid-consultation" element={<Navigate to="/conditions/thyroid-consultation" replace />} />
+                <Route path="/hormonal-dermatology-acne" element={<Navigate to="/conditions/hormonal-dermatology-acne" replace />} />
+                <Route path="/hair-loss-trichology" element={<Navigate to="/conditions/hair-loss-trichology" replace />} />
+                <Route path="/clinical-nutrition-dietetics" element={<Navigate to="/conditions/clinical-nutrition-dietetics" replace />} />
+                <Route path="/yoga-movement-therapy" element={<Navigate to="/conditions/yoga-movement-therapy" replace />} />
+                <Route path="/fertility-preconception-care" element={<Navigate to="/conditions/fertility-preconception-care" replace />} />
                 <Route path="/glossary/:slug" element={<GlossaryArticle />} />
                 <Route path="/guides/:slug" element={<GuidePage />} />
+                <Route path="/guide/:slug" element={<GuidePage />} />
                 <Route path="/legal/:slug" element={<LegalPage />} />
 
                 <Route element={<AuthenticatedLayout />}>

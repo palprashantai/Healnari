@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { HealNariLogo } from '../../components/HealNariLogo.jsx';
 import { NavLink } from 'react-router-dom';
+import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
 
 function Header({ onStartConsult, onOpenAuth }) {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -47,12 +48,11 @@ function Header({ onStartConsult, onOpenAuth }) {
   };
 
   const navLinks = [
-    { label: 'AI Health Suite', href: '#ai-features', isAi: true },
-    { label: 'Conditions', href: '#conditions' },
-    { label: 'How it works', href: '#how-it-works' },
-    { label: 'Doctors', href: '#doctors' },
-    { label: 'Cycle Tracker', href: '#cycle-tracker' },
-    { label: 'Lab Tests', href: '#lab-tests' },
+    { label: 'Find Care', href: '#care-discovery' },
+    { label: 'Specialties', href: '#conditions' },
+    { label: 'Our Doctors', href: '#doctors' },
+    { label: 'How It Works', href: '#how-it-works' },
+    { label: 'AI Health Assistant', href: '#ai-features', isAi: true },
     { label: 'FAQ', href: '#faq' },
   ];
 
@@ -123,6 +123,9 @@ function Header({ onStartConsult, onOpenAuth }) {
         <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
           <NavLink
             to="/for-doctors"
+            onClick={() => {
+              trackEvent(AnalyticsEvents.DOCTOR_PAGE_CLICKED, { source: 'header_nav' });
+            }}
             className="hidden xl:inline-flex text-xs font-bold text-aubergine-700 bg-aubergine-50/90 hover:bg-aubergine-100 border border-aubergine-200/80 px-2.5 py-1.5 rounded-xl transition-all shadow-2xs items-center gap-1.5 whitespace-nowrap shrink-0"
             title="Join or login as a Healthcare Provider"
           >
@@ -143,16 +146,22 @@ function Header({ onStartConsult, onOpenAuth }) {
             <i className={`fas ${isDiscreet ? 'fa-eye' : 'fa-eye-slash'}`}></i>
           </button>
           <button 
-            onClick={onOpenAuth}
+            onClick={() => {
+              trackEvent(AnalyticsEvents.LOGIN_CLICKED, { source: 'header' });
+              onOpenAuth();
+            }}
             className="hidden sm:flex bg-white hover:bg-slate-50 text-slate-700 font-bold px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm border border-slate-200 transition-all btn-interactive items-center gap-1.5 whitespace-nowrap shrink-0"
           >
             <i className="fas fa-user-circle text-slate-400"></i> Login
           </button>
           <button 
-            onClick={onStartConsult}
+            onClick={() => {
+              trackEvent(AnalyticsEvents.BOOKING_STARTED, { source: 'header_cta' });
+              onStartConsult();
+            }}
             className="hidden sm:flex bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm shadow-md shadow-aubergine-100 transition-all btn-interactive items-center gap-1.5 whitespace-nowrap shrink-0"
           >
-            <i className="fas fa-calendar-plus text-xs"></i> Start Consultation
+            <i className="fas fa-calendar-check text-xs"></i> Book Consultation
           </button>
 
           {/* Mobile Menu Button */}

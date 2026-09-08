@@ -28,6 +28,24 @@ export function trackEvent(eventName, payload = {}) {
 
 // Complete Digital Health Marketplace Event Taxonomy
 export const AnalyticsEvents = {
+  // Complete Digital Health Marketplace Event Taxonomy
+  // Section 27 Micro-Conversions & Interactions
+  SPECIALTY_CLICKED: 'specialty_clicked',
+  DOCTOR_PROFILE_CLICKED: 'doctor_profile_clicked',
+  FIND_SPECIALIST_CLICKED: 'find_specialist_clicked',
+  BOOKING_STARTED: 'booking_started',
+  BOOKING_COMPLETED: 'booking_completed',
+  FAQ_OPENED: 'faq_opened',
+  AI_OPENED: 'ai_opened',
+  AI_QUESTION_STARTED: 'ai_question_started',
+  LOGIN_CLICKED: 'login_clicked',
+  DOCTOR_PAGE_CLICKED: 'doctor_page_clicked',
+  JOIN_CLICKED: 'join_clicked',
+  APPLICATION_STARTED: 'application_started',
+  APPLICATION_COMPLETED: 'application_completed',
+  PRICING_VIEWED: 'pricing_viewed',
+  FEATURES_VIEWED: 'features_viewed',
+
   // Patient Discovery & Intake Funnel
   LANDING_VIEWED: 'patient_landing_viewed',
   SPECIALIST_SEARCH_STARTED: 'specialist_search_started',

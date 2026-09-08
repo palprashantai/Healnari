@@ -12,7 +12,8 @@ import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
 import { apiFetch } from '../../lib/apiClient.js';
 
 function GuidePage() {
-  const { guideId } = useParams();
+  const { guideId, slug } = useParams();
+  const effectiveId = slug || guideId;
   const navigate = useNavigate();
 
   const [isBookingOpen, setIsBookingOpen] = useState(false);
@@ -20,7 +21,7 @@ function GuidePage() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [confirmedDetails, setConfirmedDetails] = useState(null);
 
-  const staticGuide = guidesData.find((g) => g.id === guideId || g.slug === guideId);
+  const staticGuide = guidesData.find((g) => g.id === effectiveId || g.slug === effectiveId);
   const [currentGuide, setCurrentGuide] = useState(staticGuide || null);
   const [loadingGuide, setLoadingGuide] = useState(!staticGuide);
 
@@ -30,7 +31,7 @@ function GuidePage() {
       setLoadingGuide(false);
     } else {
       setLoadingGuide(true);
-      apiFetch(`/admin/public/cms/${guideId}`)
+      apiFetch(`/admin/public/cms/${effectiveId}`)
         .then(res => {
           const article = res?.data || res;
           if (article && article.title) {
@@ -64,7 +65,7 @@ function GuidePage() {
         })
         .finally(() => setLoadingGuide(false));
     }
-  }, [guideId]);
+  }, [effectiveId]);
 
   const guide = currentGuide || guidesData[0];
 

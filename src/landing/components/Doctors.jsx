@@ -3,9 +3,32 @@ import Reveal from '../../components/Reveal.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { formatCurrency } from '../../lib/currency.js';
 import { DoctorDetailModal } from '../../components/DoctorDetailModal.jsx';
+import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
 
 /* ─── Fallback Demo Doctors ─── */
 const DEMO_DOCTORS = [
+  {
+    id: 'demo-0',
+    full_name: 'Dr. Rajesh Mehta',
+    specialty: 'General Physician & Internal Medicine',
+    qualifications: 'MBBS, MD (General Medicine)',
+    registration_no: 'NMC-83921',
+    avatar_url: '/generated/doc4.webp',
+    experience_years: 18,
+    consultation_fee: 699,
+    currency: 'INR',
+    rating: 4.95,
+    reviews_count: 189,
+    languages: 'English, Hindi, Gujarati',
+    location: 'Global Telemedicine',
+    clinic_name: 'Apex Health Clinic & Virtual Care',
+    clinic_address: 'Apollo Medical Complex, Mumbai',
+    medical_council: 'Maharashtra Medical Council',
+    ethos: 'Evidence-Based Preventative & Acute Primary Care',
+    bio: 'Senior Internal Medicine specialist with 18+ years experience in chronic lifestyle disease management, persistent fatigue, fever triage, hypertension, and preventative health.',
+    availability: 'online',
+    tags: ['General Physician'],
+  },
   {
     id: 'demo-1',
     full_name: 'Dr. Ananya Mehta',
@@ -150,6 +173,7 @@ function deriveTags(doc) {
   if (doc.tags && doc.tags.length > 0) return doc.tags;
   const sp = (doc.specialty || '').toLowerCase();
   const tags = [];
+  if (sp.includes('general') || sp.includes('internal medicine') || sp.includes('physician')) tags.push('General Physician');
   if (sp.includes('gynaecol') || sp.includes('gynecol') || sp.includes('obstetric')) tags.push('Gynaecologist');
   if (sp.includes('pcos') || sp.includes('pcod') || sp.includes('hormon')) tags.push('PCOS Specialist');
   if (sp.includes('endocrin') || sp.includes('metabolic') || sp.includes('thyroid') || sp.includes('insulin')) tags.push('Endocrinologist');
@@ -177,6 +201,9 @@ function DoctorCard({ doc, onSelect, onViewProfile }) {
   const fee = doc.consultation_fee || doc.fee || 799;
   const currency = doc.currency || 'INR';
 
+  const docCleanName = (doc.full_name || '').replace(/^(Dr\.|Dt\.|Doctor)\s+/i, '');
+  const docShort = docCleanName.split(' ')[0] || 'Doctor';
+
   return (
     <div className="flex flex-col rounded-2xl border border-sand-200 bg-white shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden h-full">
 
@@ -193,6 +220,7 @@ function DoctorCard({ doc, onSelect, onViewProfile }) {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
+              trackEvent(AnalyticsEvents.DOCTOR_PROFILE_CLICKED, { doctor: doc.full_name, specialty: doc.specialty });
               onViewProfile(doc);
             }}
             className="flex items-center gap-1 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full transition-all active:scale-95 shadow-2xs"
@@ -206,7 +234,10 @@ function DoctorCard({ doc, onSelect, onViewProfile }) {
 
         {/* Avatar */}
         <div 
-          onClick={() => onViewProfile(doc)}
+          onClick={() => {
+            trackEvent(AnalyticsEvents.DOCTOR_PROFILE_CLICKED, { doctor: doc.full_name, specialty: doc.specialty });
+            onViewProfile(doc);
+          }}
           className="relative w-20 h-20 cursor-pointer group mt-1"
           title="View profile"
         >
@@ -231,10 +262,13 @@ function DoctorCard({ doc, onSelect, onViewProfile }) {
         {/* Name, Specialty & Qualifications */}
         <div>
           <h3 
-            onClick={() => onViewProfile(doc)}
+            onClick={() => {
+              trackEvent(AnalyticsEvents.DOCTOR_PROFILE_CLICKED, { doctor: doc.full_name, specialty: doc.specialty });
+              onViewProfile(doc);
+            }}
             className="text-base font-extrabold text-slate-900 font-display leading-snug hover:text-aubergine-700 cursor-pointer transition-colors"
           >
-            {doc.full_name}
+            {/^(Dr\.|Dt\.|Doctor)\s+/i.test(doc.full_name || '') ? doc.full_name : `Dr. ${doc.full_name}`}
           </h3>
           <p className="text-aubergine-600 text-[11px] font-bold mt-0.5 uppercase tracking-wider">
             {doc.specialty}
@@ -330,7 +364,10 @@ function DoctorCard({ doc, onSelect, onViewProfile }) {
             {/* View Full Profile & Reviews Modal trigger */}
             <button
               type="button"
-              onClick={() => onViewProfile(doc)}
+              onClick={() => {
+                trackEvent(AnalyticsEvents.DOCTOR_PROFILE_CLICKED, { doctor: doc.full_name, specialty: doc.specialty });
+                onViewProfile(doc);
+              }}
               className="w-full mt-1 bg-white hover:bg-aubergine-50 text-aubergine-700 border border-aubergine-200 font-bold py-2 rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
             >
               <i className="fas fa-star text-amber-500 text-[10px]" />
@@ -350,11 +387,14 @@ function DoctorCard({ doc, onSelect, onViewProfile }) {
 
         {/* CTA */}
         <button
-          onClick={() => onSelect(doc.full_name)}
+          onClick={() => {
+            trackEvent(AnalyticsEvents.BOOKING_STARTED, { doctor: doc.full_name, specialty: doc.specialty });
+            onSelect(doc.full_name);
+          }}
           className="w-full bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold py-2.5 rounded-xl transition-all duration-200 text-sm flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
         >
           <i className="fas fa-stethoscope text-xs" />
-          Consult Dr. {doc.full_name?.split(' ')?.[1] || ''}
+          Consult Dr. {docShort}
         </button>
       </div>
     </div>
@@ -434,7 +474,7 @@ function Doctors({ onSelectDoctor }) {
           Care Led by Experienced Specialists
         </h2>
         <p className="text-slate-500 text-sm md:text-base leading-relaxed">
-          Gynaecologists, endocrinologists &amp; trichologists — all NMC-verified, all committed to root-cause care.
+          General Physicians, Dermatologists, Endocrinologists, Gynaecologists &amp; Clinical Dietitians — all NMC/Council-verified, dedicated to personalized, root-cause care.
         </p>
       </Reveal>
 

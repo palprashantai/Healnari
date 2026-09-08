@@ -127,7 +127,7 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
             </p>
           </div>
 
-          {/* Specialties Ribbon (Integrated from ProviderHero for full visual consistency) */}
+          {/* Specialties Ribbon */}
           <div className="pt-1 pb-1 flex flex-wrap justify-center lg:justify-start gap-1.5 sm:gap-2 max-w-2xl">
             {SPECIALTIES_RIBBON.map(s => (
               <span 
@@ -140,64 +140,61 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
             ))}
           </div>
 
-          {/* Interactive Specialty Search & Triage Bar */}
-          <form 
-            onSubmit={handleSearchSubmit}
-            className="bg-white p-2 sm:p-2.5 rounded-2xl border border-slate-200/90 shadow-sm max-w-xl mx-auto lg:mx-0 flex flex-col sm:flex-row items-center gap-2"
-          >
-            <div className="relative w-full sm:flex-1">
-              <label htmlFor="hero-specialty-select" className="sr-only">Select Medical Specialty</label>
-              <i className="fas fa-stethoscope absolute left-3.5 top-1/2 -translate-y-1/2 text-aubergine-500 text-sm pointer-events-none" aria-hidden="true" />
-              <select
-                id="hero-specialty-select"
-                value={selectedSpecialty}
-                onChange={(e) => setSelectedSpecialty(e.target.value)}
-                className="w-full pl-9 pr-8 py-2.5 bg-slate-50/80 hover:bg-slate-50 rounded-xl text-slate-800 text-sm font-semibold border border-transparent focus:border-aubergine-400 focus:bg-white focus:outline-none transition-colors cursor-pointer"
-              >
-                {specialties.map((spec) => (
-                  <option key={spec.id} value={spec.id}>
-                    {spec.name} {spec.subtitle ? `— (${spec.subtitle.split(',')[0]})` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full sm:w-auto bg-aubergine-600 hover:bg-aubergine-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 text-sm whitespace-nowrap shrink-0 focus-visible:ring-2 focus-visible:ring-aubergine-500 focus-visible:ring-offset-2"
-            >
-              <span>Find Specialists</span>
-              <i className="fas fa-arrow-right text-xs" aria-hidden="true" />
-            </button>
-          </form>
-
-          {/* Secondary Actions & Provider Onboarding Pathway */}
-          <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2 pt-1 text-xs sm:text-sm font-semibold text-slate-600">
+          {/* Strict 2-CTA Hierarchy (Prompt Section 5) */}
+          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-xl">
             <button
               type="button"
               onClick={() => {
-                triggerHaptic('light');
-                onOpenChecker?.();
+                triggerHaptic('medium');
+                const careSection = document.getElementById('care-discovery');
+                if (careSection) {
+                  careSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else if (onStartConsult) {
+                  onStartConsult('');
+                }
               }}
-              className="inline-flex items-center gap-1.5 text-aubergine-700 hover:text-aubergine-800 font-bold hover:underline transition-colors py-1"
+              className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-extrabold px-7 py-3.5 rounded-xl shadow-lg shadow-aubergine-200 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2.5 text-base"
             >
-              <i className="fas fa-wand-magic-sparkles text-aubergine-500" aria-hidden="true" />
-              <span>Free AI Symptom Triage</span>
+              <i className="fas fa-stethoscope text-sm" aria-hidden="true" />
+              <span>Find a Specialist</span>
             </button>
 
-            <span className="text-slate-300 hidden sm:inline">•</span>
-
-            <NavLink
-              to="/for-doctors"
-              className="inline-flex items-center gap-1.5 text-slate-700 hover:text-aubergine-700 font-bold transition-colors py-1 group"
+            <a
+              href="#how-it-works"
+              onClick={(e) => {
+                e.preventDefault();
+                const el = document.getElementById('how-it-works');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="bg-white hover:bg-slate-50 text-slate-700 font-bold px-6 py-3.5 rounded-xl border border-sand-300 shadow-xs transition-all hover:border-aubergine-300 flex items-center justify-center gap-2 text-base"
             >
-              <i className="fas fa-user-doctor text-emerald-600" aria-hidden="true" />
-              <span>Are you a Doctor? <span className="text-aubergine-600 group-hover:underline">Join our panel &rarr;</span></span>
-            </NavLink>
+              <span>How HealNari Works</span>
+              <i className="fas fa-arrow-down text-xs text-slate-400" aria-hidden="true" />
+            </a>
           </div>
 
-          {/* Verifiable Clinical Proof Badges (Including AI Diagnostics) */}
-          <div className="pt-3 border-t border-slate-200/70 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
+          {/* Micro-Reassurance Tagline */}
+          <div className="pt-1 flex flex-wrap items-center justify-center lg:justify-start gap-x-4 gap-y-1.5 text-xs text-slate-500 font-semibold">
+            <span className="flex items-center gap-1.5">
+              <i className="fas fa-check-circle text-emerald-500 text-xs" />
+              <span>No waiting rooms</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <i className="fas fa-video text-aubergine-500 text-xs" />
+              <span>45-min video visits</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <i className="fas fa-comment-medical text-indigo-500 text-xs" />
+              <span>14-day free chat follow-up</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <i className="fas fa-shield-halved text-purple-500 text-xs" />
+              <span>100% Confidential</span>
+            </span>
+          </div>
+
+          {/* Verifiable Clinical Proof Badges */}
+          <div className="pt-4 border-t border-slate-200/70 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
             <div className="flex items-start gap-2">
               <i className="fas fa-circle-check text-emerald-600 text-sm mt-0.5 shrink-0" aria-hidden="true" />
               <div>

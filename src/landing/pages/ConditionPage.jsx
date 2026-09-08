@@ -55,8 +55,9 @@ const DOCTOR_PROFILES = {
 };
 
 function ConditionPage() {
-  const { conditionId } = useParams();
-  const condition = conditionsData[conditionId];
+  const { conditionId, slug } = useParams();
+  const targetId = slug || conditionId;
+  const condition = conditionsData[targetId];
 
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState('');
@@ -69,7 +70,7 @@ function ConditionPage() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [conditionId]);
+  }, [targetId]);
 
   useEffect(() => {
     if (!condition) return;

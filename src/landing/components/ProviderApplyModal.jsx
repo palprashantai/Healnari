@@ -291,14 +291,16 @@ function ProviderApplyModal({ isOpen, onClose, onOpenLogin }) {
   };
 
   const specialties = [
-    'Gynaecologist',
-    'PCOS Specialist',
-    'Endocrinologist',
+    'General Physician / Internal Medicine',
+    'Gynaecologist & Obstetrician',
+    'Endocrinologist & Diabetologist',
     'Dermatologist',
     'Trichologist',
-    'Nutritionist',
-    'Yoga & Movement',
-    'Fertility Specialist'
+    'Clinical Nutritionist & Dietitian',
+    'Mental Health Professional',
+    'Yoga & Movement Therapist',
+    'Fertility Specialist',
+    'PCOS Specialist'
   ];
 
   return (
