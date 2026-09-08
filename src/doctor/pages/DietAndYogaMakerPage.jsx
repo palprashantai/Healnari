@@ -4,7 +4,7 @@ import { useToast } from '../../components/Toast.jsx';
 import { openLifestylePlanPrintWindow } from '../../lib/prescriptionPrint.js';
 
 // Pre-built evidence-based clinical templates
-const CLINICAL_TEMPLATES = {
+export const CLINICAL_TEMPLATES = {
   pcos: {
     id: 'pcos',
     name: 'PCOS Insulin & Hormone Sensitizing Protocol',
@@ -154,6 +154,63 @@ const CLINICAL_TEMPLATES = {
     followUp: 'Review in 4 weeks with daily pain and cycle score diary.',
     notes: 'Endometriosis is a systemic inflammatory condition. Calming the nervous system and healing the gut microbiome reduces pain significantly.',
   },
+};
+
+// Generate clean textual summary for printing and standard prescriptions
+export const formatClinicalDietText = (templateOrData) => {
+  if (!templateOrData) return '';
+  const dietType = templateOrData.dietType || 'Clinical Regimen';
+  const macros = templateOrData.macros || {};
+  const meals = templateOrData.meals || [];
+  const dos = templateOrData.dos || [];
+  const donts = templateOrData.donts || [];
+
+  let out = `CLINICAL DIETARY REGIMEN (${dietType.toUpperCase()})\n`;
+  if (macros.calories || macros.protein || macros.fiber) {
+    out += `Calorie Target: ${macros.calories || 'Individualized'} | Protein: ${macros.protein || 'Balanced'} | Carbs: ${macros.carbs || 'Low-GI'} | Fiber: ${macros.fiber || '30g+'}\n\n`;
+  }
+  if (meals.length > 0) {
+    out += `DAILY MEAL-BY-MEAL TIMETABLE:\n`;
+    meals.forEach(m => {
+      out += `• [${m.time}] ${m.meal}:\n  ${m.foods} ${m.portion ? `(Portion: ${m.portion})` : ''}\n  Clinical Note: ${m.notes || 'Follow portion guidance'}\n\n`;
+    });
+  }
+  if (dos.length > 0) {
+    out += `RECOMMENDED FOODS TO INCLUDE:\n${dos.map(d => `✓ ${d}`).join('\n')}\n\n`;
+  }
+  if (donts.length > 0) {
+    out += `FOODS TO STRICTLY AVOID / ELIMINATE:\n${donts.map(d => `✗ ${d}`).join('\n')}\n`;
+  }
+  return out.trim();
+};
+
+export const formatClinicalYogaText = (templateOrData) => {
+  if (!templateOrData) return '';
+  const yoga = templateOrData.yoga || templateOrData;
+  const phase = yoga.phase || 'Mindful Movement';
+  const frequency = yoga.frequency || '5–6 Days / Week';
+  const asanas = yoga.asanas || [];
+  const pranayama = yoga.pranayama || [];
+  const cardio = yoga.cardio || '';
+  const precautions = yoga.precautions || '';
+
+  let out = `MINDFUL MOVEMENT & YOGA THERAPY (${phase.toUpperCase()})\n`;
+  out += `Frequency: ${frequency}\n\n`;
+  if (asanas.length > 0) {
+    out += `PRESCRIBED HORMONAL ASANAS:\n`;
+    asanas.forEach((a, i) => {
+      out += `${i + 1}. ${a.name} (${a.duration})\n   Benefit: ${a.benefit}\n   Alignment & Cue: ${a.cues}\n\n`;
+    });
+  }
+  if (pranayama.length > 0) {
+    out += `PRANAYAMA & BREATHWORK PROTOCOL:\n`;
+    pranayama.forEach(p => {
+      out += `• ${p.name} (${p.duration}): ${p.benefit}\n`;
+    });
+  }
+  if (cardio) out += `\nDAILY CARDIO & STEPS: ${cardio}\n`;
+  if (precautions) out += `\nCLINICAL PRECAUTIONS & RED FLAGS: ${precautions}\n`;
+  return out.trim();
 };
 
 export default function DietAndYogaMakerPage({ patient, onBack, onSaveProtocol, activePlan }) {

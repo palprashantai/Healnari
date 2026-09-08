@@ -11,6 +11,7 @@ import { useWebRTCCall } from '../../hooks/useWebRTCCall.js';
 import { useFullscreen } from '../../hooks/useFullscreen.js';
 import { openPrescriptionPrintWindow, openLifestylePlanPrintWindow } from '../../lib/prescriptionPrint.js';
 import { getProviderCapabilities } from '../../lib/providerCapabilities.js';
+import { CLINICAL_TEMPLATES, formatClinicalDietText, formatClinicalYogaText } from './DietAndYogaMakerPage.jsx';
 import { AIButton } from '../../components/AiButton.jsx';
 import { AIPaywallModal } from '../../components/ai/AIPaywallModal.jsx';
 import { AIUsageBadge } from '../../components/ai/AIUsageBadge.jsx';
@@ -489,8 +490,13 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
   // Mobile Bottom-Sheet Drawer State
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
-  // Active Workspace Tab: 'smart_rx' | 'pen_pad' | 'labs' | 'notes' | 'patient_chart'
-  const [activeTab, setActiveTab] = useState('smart_rx');
+  const caps = getProviderCapabilities(user);
+  const isNutritionOrYogaProvider = !caps.canPrescribeDrugs && (caps.canFormulateDiet || caps.canFormulateYoga);
+
+  // Active Workspace Tab: 'diet_yoga' | 'smart_rx' | 'pen_pad' | 'labs' | 'notes' | 'patient_chart'
+  const [activeTab, setActiveTab] = useState(isNutritionOrYogaProvider ? 'diet_yoga' : 'smart_rx');
+  const [lifestyleSubTab, setLifestyleSubTab] = useState('both'); // 'both' | 'diet' | 'yoga'
+  const [selectedLifestyleTemplate, setSelectedLifestyleTemplate] = useState('');
 
   // Pen & Pad mode: 'stylus' (handwriting canvas) | 'typed' (keyboard text)
   const [padInputMode, setPadInputMode] = useState('stylus');
@@ -756,6 +762,27 @@ function ActiveCallUI({ session, onEnd, onDeclined, autoJoin = false }) {
     ]);
     setDraftLabs(prev => Array.from(new Set([...prev, ...proto.labs])));
     toast('Protocol applied successfully!', 'success');
+  };
+
+  // 1-Click Evidence-Based Diet & Yoga Template Importer
+  const handleApplyLifestyleTemplate = (templateKey) => {
+    const tmpl = CLINICAL_TEMPLATES[templateKey];
+    if (!tmpl) return;
+    setSelectedLifestyleTemplate(templateKey);
+    const dText = formatClinicalDietText(tmpl);
+    const yText = formatClinicalYogaText(tmpl);
+    setDietPlan(dText);
+    setExercisePlan(yText);
+    if (!diagnosis || diagnosis === 'General Consultation' || diagnosis === session.type) {
+      setDiagnosis(tmpl.name);
+    }
+    if (tmpl.notes && (!clinicalNotes || clinicalNotes.trim() === '')) {
+      setClinicalNotes(tmpl.notes);
+    }
+    if (tmpl.followUp) {
+      setFollowUpAdvice(tmpl.followUp);
+    }
+    toast(`Loaded ${tmpl.name}`, 'success');
   };
 
   const handleAddCustomLab = async (e) => {
@@ -1198,11 +1225,11 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                 className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all shrink-0"
               >
                 <i className="fas fa-file-signature text-xs"></i>
-                <span className="hidden xs:inline">Review & Sign</span>
-                <span className="xs:hidden">Sign</span>
-                {(draftMeds.length > 0 || draftLabs.length > 0 || freehandRx) && (
+                <span className="hidden xs:inline">{isNutritionOrYogaProvider ? 'Review & Issue Plan' : 'Review & Sign'}</span>
+                <span className="xs:hidden">{isNutritionOrYogaProvider ? 'Plan' : 'Sign'}</span>
+                {(draftMeds.length > 0 || draftLabs.length > 0 || freehandRx || dietPlan || exercisePlan) && (
                   <span className="bg-emerald-950/60 text-emerald-200 px-1.5 py-0.2 rounded-full text-[9px] font-black">
-                    {freehandRx ? '🖊️' : `${draftMeds.length + draftLabs.length}`}
+                    {freehandRx ? '🖊️' : (dietPlan || exercisePlan ? '🥗' : `${draftMeds.length + draftLabs.length}`)}
                   </span>
                 )}
               </button>
@@ -1478,30 +1505,79 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
             {/* 1-Click Smart Protocols Ribbon */}
             <div className="p-3 bg-slate-900/90 border-b border-slate-800 flex items-center gap-2 overflow-x-auto hide-scrollbar shrink-0">
               <span className="text-[10px] font-black uppercase tracking-widest text-[#A78BFA] flex items-center gap-1.5 shrink-0 pl-1">
-                <i className="fas fa-bolt text-amber-400"></i> Smart Packs:
+                <i className="fas fa-bolt text-amber-400"></i> {isNutritionOrYogaProvider ? 'Lifestyle Packs:' : 'Smart Packs:'}
               </span>
-              {CLINICAL_PROTOCOLS.map(proto => (
-                <button
-                  key={proto.id}
-                  onClick={() => handleApplyProtocol(proto)}
-                  title={proto.desc}
-                  className="bg-slate-800 hover:bg-[#6B46C1]/30 hover:border-[#A78BFA]/50 border border-slate-700 text-slate-200 hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 shadow-sm"
-                >
-                  <span>{proto.name}</span>
-                </button>
-              ))}
+              {isNutritionOrYogaProvider ? (
+                <>
+                  {[
+                    { key: 'pcos', name: '🌸 PCOS Low-GI', desc: 'Low-GI + Pelvic Asanas + Spearmint' },
+                    { key: 'fertility', name: '🌿 Fertility Nourish', desc: 'Folate + Uterine Perfusion' },
+                    { key: 'weight', name: '⚡ Metabolic Reset', desc: '1450 kcal High Protein + Steps' },
+                    { key: 'endo', name: '🛡️ Endo Anti-Inflammatory', desc: 'Gut Barrier + Yin Pelvic Rest' },
+                  ].map(proto => (
+                    <button
+                      key={proto.key}
+                      onClick={() => {
+                        handleApplyLifestyleTemplate(proto.key);
+                        setActiveTab('diet_yoga');
+                      }}
+                      title={proto.desc}
+                      className="bg-slate-800 hover:bg-emerald-950/60 hover:border-emerald-500/50 border border-slate-700 text-slate-200 hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 shadow-sm"
+                    >
+                      <span>{proto.name}</span>
+                    </button>
+                  ))}
+                </>
+              ) : (
+                <>
+                  {CLINICAL_PROTOCOLS.map(proto => (
+                    <button
+                      key={proto.id}
+                      onClick={() => handleApplyProtocol(proto)}
+                      title={proto.desc}
+                      className="bg-slate-800 hover:bg-[#6B46C1]/30 hover:border-[#A78BFA]/50 border border-slate-700 text-slate-200 hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 shadow-sm"
+                    >
+                      <span>{proto.name}</span>
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => {
+                      handleApplyLifestyleTemplate('pcos');
+                      setActiveTab('diet_yoga');
+                    }}
+                    title="Load Evidence-Based PCOS Diet & Yoga Regimen"
+                    className="bg-emerald-950/40 hover:bg-emerald-900/60 hover:border-emerald-500/50 border border-emerald-800/40 text-emerald-300 hover:text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span>🥗 Diet & Yoga Pack</span>
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Workspace Navigation Tabs */}
             <div className="px-4 pt-3 bg-slate-900/70 border-b border-slate-800 flex items-center gap-2 overflow-x-auto hide-scrollbar shrink-0">
+              {/* 🥗 Diet & Yoga Plan Tab (Primary for Nutrition/Yoga experts, universally available) */}
               <button
-                onClick={() => setActiveTab('smart_rx')}
-                className={`pb-2.5 px-3 font-bold text-xs flex items-center gap-2 border-b-2 transition-all shrink-0 ${activeTab === 'smart_rx' ? 'border-[#E23E8C] text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+                onClick={() => setActiveTab('diet_yoga')}
+                className={`pb-2.5 px-3 font-bold text-xs flex items-center gap-2 border-b-2 transition-all shrink-0 ${activeTab === 'diet_yoga' ? 'border-emerald-400 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
               >
-                <i className="fas fa-pills text-[#E23E8C]"></i>
-                <span>Smart Rx</span>
-                {draftMeds.length > 0 && <span className="bg-[#E23E8C]/20 text-[#F98BD2] text-[10px] px-1.5 py-0.5 rounded-full font-black">{draftMeds.length}</span>}
+                <i className="fas fa-seedling text-emerald-400"></i>
+                <span>Diet & Yoga</span>
+                {(dietPlan || exercisePlan) && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                )}
               </button>
+
+              {caps.canPrescribeDrugs && (
+                <button
+                  onClick={() => setActiveTab('smart_rx')}
+                  className={`pb-2.5 px-3 font-bold text-xs flex items-center gap-2 border-b-2 transition-all shrink-0 ${activeTab === 'smart_rx' ? 'border-[#E23E8C] text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+                >
+                  <i className="fas fa-pills text-[#E23E8C]"></i>
+                  <span>Smart Rx</span>
+                  {draftMeds.length > 0 && <span className="bg-[#E23E8C]/20 text-[#F98BD2] text-[10px] px-1.5 py-0.5 rounded-full font-black">{draftMeds.length}</span>}
+                </button>
+              )}
 
               <button
                 onClick={() => setActiveTab('pen_pad')}
@@ -1512,14 +1588,16 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                 {freehandRx && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>}
               </button>
 
-              <button
-                onClick={() => setActiveTab('labs')}
-                className={`pb-2.5 px-3 font-bold text-xs flex items-center gap-2 border-b-2 transition-all shrink-0 ${activeTab === 'labs' ? 'border-[#A78BFA] text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
-              >
-                <i className="fas fa-flask text-[#A78BFA]"></i>
-                <span>Lab Requests</span>
-                {draftLabs.length > 0 && <span className="bg-aubergine-500/30 text-aubergine-200 text-[10px] px-1.5 py-0.5 rounded-full font-black">{draftLabs.length}</span>}
-              </button>
+              {caps.canOrderLabs && (
+                <button
+                  onClick={() => setActiveTab('labs')}
+                  className={`pb-2.5 px-3 font-bold text-xs flex items-center gap-2 border-b-2 transition-all shrink-0 ${activeTab === 'labs' ? 'border-[#A78BFA] text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+                >
+                  <i className="fas fa-flask text-[#A78BFA]"></i>
+                  <span>Lab Requests</span>
+                  {draftLabs.length > 0 && <span className="bg-aubergine-500/30 text-aubergine-200 text-[10px] px-1.5 py-0.5 rounded-full font-black">{draftLabs.length}</span>}
+                </button>
+              )}
 
               <button
                 onClick={() => setActiveTab('notes')}
@@ -1541,6 +1619,264 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
             {/* ── Scrollable Tab Content ── */}
             <div className="flex-1 p-4 md:p-5 overflow-y-auto custom-scrollbar min-h-0 space-y-5">
               
+              {/* ─── TAB: Diet & Yoga Studio ─── */}
+              {activeTab === 'diet_yoga' && (
+                <div className="space-y-4 animate-fade-in">
+                  {/* Clinical Templates Bar */}
+                  <div className="bg-slate-950/80 rounded-2xl p-3.5 border border-slate-800 space-y-2.5 shadow-inner">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+                          <i className="fas fa-wand-magic-sparkles"></i> 1-Click Evidence-Based Protocols:
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {(dietPlan || exercisePlan) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm('Clear current diet and yoga drafts?')) {
+                                setDietPlan('');
+                                setExercisePlan('');
+                                setSelectedLifestyleTemplate('');
+                                toast('Cleared lifestyle drafts', 'info');
+                              }
+                            }}
+                            className="text-[10px] text-slate-400 hover:text-rose-400 font-bold transition-colors"
+                          >
+                            Clear All
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handlePrintLifestylePlan}
+                          disabled={!dietPlan && !exercisePlan}
+                          className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 bg-emerald-950/60 hover:bg-emerald-900/60 border border-emerald-800/60 px-2.5 py-1 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                        >
+                          <i className="fas fa-print"></i> Preview / Print Plan
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { key: 'pcos', name: '🌸 PCOS Regimen', sub: 'Low-GI & Pelvic Asanas' },
+                        { key: 'fertility', name: '🌿 Fertility Protocol', sub: 'Folate & Luteal Yoga' },
+                        { key: 'weight', name: '⚡ Metabolic Reset', sub: 'High-Protein 1450 kcal' },
+                        { key: 'endo', name: '🛡️ Endo Pain Relief', sub: 'Anti-Inflammatory & Yin' },
+                      ].map(item => {
+                        const isSelected = selectedLifestyleTemplate === item.key;
+                        return (
+                          <button
+                            key={item.key}
+                            type="button"
+                            onClick={() => handleApplyLifestyleTemplate(item.key)}
+                            className={`p-2.5 rounded-xl border text-left transition-all ${
+                              isSelected
+                                ? 'bg-emerald-950/70 border-emerald-500/80 text-white shadow-sm ring-1 ring-emerald-500/50'
+                                : 'bg-slate-900/90 border-slate-800 text-slate-300 hover:border-emerald-500/40 hover:text-white'
+                            }`}
+                          >
+                            <div className="text-xs font-bold truncate">{item.name}</div>
+                            <div className="text-[10px] text-slate-400 truncate mt-0.5">{item.sub}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Sub-view Switcher: Both, Diet Only, Yoga Only */}
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setLifestyleSubTab('both')}
+                        className={`px-3 py-1 rounded-lg font-bold transition-all ${lifestyleSubTab === 'both' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                      >
+                        Full Protocol
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLifestyleSubTab('diet')}
+                        className={`px-3 py-1 rounded-lg font-bold transition-all ${lifestyleSubTab === 'diet' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                      >
+                        Diet Only {dietPlan && <span className="text-[9px] bg-emerald-950 px-1.5 py-0.2 rounded-full ml-1">✓</span>}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLifestyleSubTab('yoga')}
+                        className={`px-3 py-1 rounded-lg font-bold transition-all ${lifestyleSubTab === 'yoga' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                      >
+                        Yoga Only {exercisePlan && <span className="text-[9px] bg-emerald-950 px-1.5 py-0.2 rounded-full ml-1">✓</span>}
+                      </button>
+                    </div>
+
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      Auto-saved to patient portal
+                    </span>
+                  </div>
+
+                  {/* 🥗 DIET & NUTRITION SECTION */}
+                  {(lifestyleSubTab === 'both' || lifestyleSubTab === 'diet') && (
+                    <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                          <i className="fas fa-seedling text-emerald-400"></i> Clinical Diet & Nutrition Regimen
+                        </label>
+                        <span className="text-[10px] bg-emerald-950/70 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-800/50 font-bold">
+                          Certified Meal Schedule
+                        </span>
+                      </div>
+
+                      <textarea
+                        rows={lifestyleSubTab === 'diet' ? 12 : 7}
+                        value={dietPlan}
+                        onChange={(e) => setDietPlan(e.target.value)}
+                        placeholder="Enter detailed meal-by-meal timetable (Awakening drink, Breakfast, Lunch, Snacks, Dinner), macro breakdown, foods to eat, and foods to avoid..."
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/50 resize-y leading-relaxed"
+                      />
+
+                      {/* Quick Add Meal & Macro Chips */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                          <span className="text-slate-500 font-bold text-[10px] uppercase">Add Meal Slot:</span>
+                          {[
+                            { label: '+ Awakening Elixir', text: '\n• [06:30 AM] Awakening Elixir: Warm water with soaked methi seeds & 5 soaked almonds' },
+                            { label: '+ Balanced Breakfast', text: '\n• [08:30 AM] High-Protein Breakfast: 2 Besan vegetable chillas with grated paneer + mint chutney (25g protein)' },
+                            { label: '+ Mid-Morning Tea', text: '\n• [11:00 AM] Mid-Morning: 1 cup spearmint tea + 1 small apple with pinch of cinnamon' },
+                            { label: '+ Low-GI Lunch', text: '\n• [01:30 PM] Low-GI Lunch: Fresh fiber salad + 2 millet rotis + thick dal + probiotic curd' },
+                            { label: '+ Evening Satiety', text: '\n• [05:00 PM] Evening Snack: Roasted makhana / boiled sprouted moong chaat' },
+                            { label: '+ Light Dinner', text: '\n• [07:30 PM] Nourishing Dinner: Clear ginger vegetable soup + stir-fried paneer/tofu with broccoli (finish 3h before sleep)' },
+                            { label: '+ Bedtime Golden Milk', text: '\n• [09:30 PM] Restorative Bedtime: Warm almond or A2 milk with pinch of nutmeg & organic turmeric' },
+                          ].map((slot, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setDietPlan(p => (p ? `${p}${slot.text}` : slot.text.trim()))}
+                              className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors"
+                            >
+                              {slot.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-wrap text-[11px] pt-1">
+                          <span className="text-slate-500 font-bold text-[10px] uppercase">Clinical Rules:</span>
+                          {[
+                            'Personalized Low-GI Plate',
+                            'Protein Target: 25-30g/meal',
+                            'Dietary Fiber: 30g+ daily',
+                            'Omega-3 & Polyphenols',
+                            'Seed Cycling (Flax/Pumpkin)',
+                            '14-Hour Overnight Fast (8pm-10am)',
+                            'Eliminate Refined Sugars & Maida',
+                          ].map(tag => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => setDietPlan(p => (p ? `${p}\n✓ ${tag}` : `✓ ${tag}`))}
+                              className="bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-800/40 text-emerald-300 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors"
+                            >
+                              + {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 🧘 YOGA & MOVEMENT SECTION */}
+                  {(lifestyleSubTab === 'both' || lifestyleSubTab === 'yoga') && (
+                    <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[11px] font-black text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                          <i className="fas fa-om text-amber-400"></i> Yoga &amp; Mindful Movement Protocol
+                        </label>
+                        <span className="text-[10px] bg-amber-950/70 text-amber-300 px-2 py-0.5 rounded-full border border-amber-800/50 font-bold">
+                          Therapeutic Movement
+                        </span>
+                      </div>
+
+                      <textarea
+                        rows={lifestyleSubTab === 'yoga' ? 12 : 7}
+                        value={exercisePlan}
+                        onChange={(e) => setExercisePlan(e.target.value)}
+                        placeholder="Enter prescribed hormonal asanas (with duration and cues), pranayama sequences, daily step counts, and cycle-specific precautions..."
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-amber-400/80 focus:ring-1 focus:ring-amber-400/50 resize-y leading-relaxed"
+                      />
+
+                      {/* Quick Add Asana & Breathwork Chips */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                          <span className="text-slate-500 font-bold text-[10px] uppercase">Add Asanas:</span>
+                          {[
+                            { label: '+ Baddha Konasana', text: '\n• Baddha Konasana (Butterfly - 5 mins): Increases pelvic blood flow to ovaries and uterus' },
+                            { label: '+ Supta Baddha Konasana', text: '\n• Supta Baddha Konasana (Reclined Butterfly - 8 mins with bolster): Downregulates sympathetic cortisol' },
+                            { label: '+ Marjaryasana (Cat-Cow)', text: '\n• Cat-Cow Flow (3 mins / 10 breaths): Mobilizes spine and stimulates pelvic organs' },
+                            { label: '+ Malasana Squat', text: '\n• Malasana (Deep Garland Squat - 3 mins): Tones pelvic floor & releases hip tension' },
+                            { label: '+ Viparita Karani', text: '\n• Viparita Karani (Legs-up-the-wall - 10 mins nightly): Lymphatic drainage & hypothalamic reset' },
+                            { label: '+ Setu Bandhasana', text: '\n• Setu Bandhasana (Supported Bridge - 4 mins with block): Stimulates thyroid and posterior chain' },
+                            { label: '+ Surya Namaskar', text: '\n• Surya Namaskar (6-8 slow mindful rounds): Metabolic enhancement and insulin sensitization' },
+                          ].map((asana, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setExercisePlan(p => (p ? `${p}${asana.text}` : asana.text.trim()))}
+                              className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors"
+                            >
+                              {asana.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 flex-wrap text-[11px] pt-1">
+                          <span className="text-slate-500 font-bold text-[10px] uppercase">Pranayama & Cardio:</span>
+                          {[
+                            'Anulom Vilom (10m morning)',
+                            'Bhramari Humming Breath (5m evening)',
+                            '4-4-4-4 Box Breathing (5m vagus activation)',
+                            'Diaphragmatic Belly Breathing',
+                            'Daily 8,500 – 10,000 steps',
+                            'Mandatory 15m post-meal stroll',
+                            'No hot yoga or intense inversions during active flow',
+                          ].map(tag => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => setExercisePlan(p => (p ? `${p}\n• ${tag}` : `• ${tag}`))}
+                              className="bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/40 text-amber-300 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors"
+                            >
+                              + {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Follow-up Note in Diet & Yoga Tab */}
+                  <div className="bg-slate-950/80 rounded-2xl p-3.5 border border-slate-800 flex items-center justify-between flex-wrap gap-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <i className="fas fa-calendar-check text-emerald-400"></i>
+                      <span className="text-slate-400 font-medium">Follow-up:</span>
+                      <span className="text-white font-bold">{followUpAdvice}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {['Review in 2 weeks', 'Review in 4 weeks', 'Review in 6 weeks'].map(opt => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setFollowUpAdvice(opt)}
+                          className="text-[10px] font-bold bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white px-2 py-1 rounded-lg border border-slate-700 transition-colors"
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* ─── TAB 1: Smart Rx Builder ─── */}
               {activeTab === 'smart_rx' && (
                 <div className="space-y-5 animate-fade-in">
@@ -2691,20 +3027,51 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
               </div>
             )}
 
+            {/* Diet & Yoga Protocol Summary in Review Modal */}
+            {(dietPlan || exercisePlan) && (
+              <div>
+                <h4 className="font-serif font-bold text-sm text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <i className="fas fa-seedling text-emerald-600"></i> Prescribed Diet & Yoga Protocol
+                </h4>
+                <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs space-y-3 text-xs">
+                  {dietPlan && (
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 block mb-1">
+                        🥗 Clinical Dietary Regimen:
+                      </span>
+                      <p className="text-slate-700 whitespace-pre-wrap leading-relaxed font-mono text-[11px] bg-emerald-50/50 p-3 rounded-xl border border-emerald-100">
+                        {dietPlan}
+                      </p>
+                    </div>
+                  )}
+                  {exercisePlan && (
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 block mb-1">
+                        🧘 Mindful Movement & Yoga Therapy:
+                      </span>
+                      <p className="text-slate-700 whitespace-pre-wrap leading-relaxed font-mono text-[11px] bg-amber-50/50 p-3 rounded-xl border border-amber-100">
+                        {exercisePlan}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Digital Signature Footer */}
             <div className="border-t-2 border-slate-200 pt-5 flex justify-between items-end">
               <div className="text-[10px] text-slate-500 max-w-xs space-y-1">
                 <p className="font-black text-slate-700 uppercase tracking-wider">🔒 Digital Healthcare Verification</p>
-                <p>This prescription is electronically generated and digitally signed as per Telemedicine Practice Guidelines.</p>
+                <p>This clinical protocol is electronically generated and digitally authenticated as per Telemedicine Practice Guidelines.</p>
               </div>
 
               <div className="text-right">
                 <div className="font-serif text-3xl font-bold text-[#2A1647] tracking-tight italic select-none">
-                  {user?.name || 'Dr. Consultant'}
+                  {user?.name || (isNutritionOrYogaProvider ? 'Clinical Specialist' : 'Dr. Consultant')}
                 </div>
                 <div className="h-0.5 w-36 bg-[#6B46C1]/40 ml-auto my-1"></div>
                 <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center justify-end gap-1">
-                  <i className="fas fa-badge-check"></i> Digitally Verified & Signed
+                  <i className="fas fa-badge-check"></i> Digitally Verified & Issued
                 </p>
               </div>
             </div>
@@ -2721,14 +3088,16 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
 
             {/* 🖨️ 1-Click Print / Download PDF */}
             <div className="flex gap-2">
-              <button
-                onClick={handlePrintPrescription}
-                className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-5 rounded-2xl transition-all text-xs flex items-center gap-2 shadow-sm"
-              >
-                <i className="fas fa-print"></i> Print Medical Rx
-              </button>
+              {caps.canPrescribeDrugs && (
+                <button
+                  onClick={handlePrintPrescription}
+                  className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-3.5 px-5 rounded-2xl transition-all text-xs flex items-center gap-2 shadow-sm"
+                >
+                  <i className="fas fa-print"></i> Print Medical Rx
+                </button>
+              )}
 
-              {(dietPlan || exercisePlan) && (
+              {(dietPlan || exercisePlan || isNutritionOrYogaProvider) && (
                 <button
                   onClick={handlePrintLifestylePlan}
                   className="bg-emerald-900 hover:bg-emerald-800 text-white font-bold py-3.5 px-5 rounded-2xl transition-all text-xs flex items-center gap-2 shadow-sm"
@@ -2745,7 +3114,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
               }}
               className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black py-3.5 px-6 rounded-2xl transition-all shadow-xl shadow-emerald-500/25 hover:shadow-2xl hover:-translate-y-0.5 flex items-center justify-center gap-2 text-sm ml-auto"
             >
-              <i className="fas fa-paper-plane"></i> Sign & Send to Patient Portal
+              <i className="fas fa-paper-plane"></i> {isNutritionOrYogaProvider ? 'Issue & Send Plan to Patient Portal' : 'Sign & Send to Patient Portal'}
             </button>
           </div>
         </div>

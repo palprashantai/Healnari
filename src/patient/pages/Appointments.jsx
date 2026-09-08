@@ -107,7 +107,8 @@ function AiConsultPrepModal({ isOpen, onClose, appointment }) {
   const copyToClipboard = () => {
     if (!prepData) return;
     const questions = prepData.questionsForDoctor || [];
-    const text = `Visit Prep for Dr. ${appointment?.doctor}:\n\nQuestions for Doctor:\n` +
+    const doctorDisplay = (appointment?.doctor || 'Doctor').startsWith('Dr.') ? appointment.doctor : `Dr. ${appointment?.doctor || 'Doctor'}`;
+    const text = `Visit Prep for ${doctorDisplay}:\n\nQuestions for Doctor:\n` +
       questions.map((q, idx) => `${idx + 1}. ${q}`).join('\n') +
       (prepData.checklistBeforeCall?.length ? `\n\nChecklist:\n` + prepData.checklistBeforeCall.map(c => `• ${c}`).join('\n') : '');
     navigator.clipboard.writeText(text);
@@ -536,7 +537,7 @@ function BookingModal({ isOpen, onClose, onBook, prefill = {}, doctors }) {
             </div>
           )}
           <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-4 text-xs space-y-1.5">
-            <div className="flex justify-between"><span className="font-bold text-slate-600">Doctor</span><span className="text-slate-800">Dr. {selectedDoctor?.full_name}</span></div>
+            <div className="flex justify-between"><span className="font-bold text-slate-600">Doctor</span><span className="text-slate-800">{selectedDoctor?.full_name ? (/^(Dr\.|Dt\.|Doctor)\s+/i.test(selectedDoctor.full_name) ? selectedDoctor.full_name : `Dr. ${selectedDoctor.full_name}`) : 'Doctor'}</span></div>
             <div className="flex justify-between"><span className="font-bold text-slate-600">Type</span><span className="text-slate-800">{form.type}</span></div>
             <div className="flex justify-between"><span className="font-bold text-slate-600">Date & Time</span><span className="text-slate-800">{form.date} • {form.slot || '—'}</span></div>
             <div className="flex justify-between">

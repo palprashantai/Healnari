@@ -63,11 +63,17 @@ function PatientBilling() {
       .catch(() => {});
   }, []);
 
+  const cleanDoctorName = (name) => {
+    if (!name) return '—';
+    const clean = String(name).trim();
+    return /^(Dr\.|Dt\.|Doctor)\s+/i.test(clean) ? clean : `Dr. ${clean}`;
+  };
+
   const transactions = useMemo(() => rawTransactions.map(t => ({
     id: t.id,
     txn_ref: t.txn_ref,
     date: new Date(t.created_at).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' }),
-    doctor: t.doctorName ? `Dr. ${t.doctorName}` : '—',
+    doctor: cleanDoctorName(t.doctorName),
     type: t.service,
     amount: Number(t.amount),
     currency: t.currency || 'INR',
@@ -92,7 +98,7 @@ function PatientBilling() {
     const doc = doctorById.get(next.doctorId);
     return {
       appointmentId: next.id,
-      doctor: `Dr. ${next.doctorName}`,
+      doctor: cleanDoctorName(next.doctorName),
       date: next.date,
       amount: Number(next.patient_payable_amount || next.fee) > 0
         ? Number(next.patient_payable_amount || next.fee)

@@ -247,14 +247,17 @@ function BookingModal({ selectedDoc, onClose, onSuccess }) {
         },
       });
       markLeadCaptured();
+      const cleanDocName = selectedDoctor?.full_name
+        ? (/^(Dr\.|Dt\.|Doctor)\s+/i.test(selectedDoctor.full_name) ? selectedDoctor.full_name : `Dr. ${selectedDoctor.full_name}`)
+        : 'your doctor';
       trackEvent(AnalyticsEvents.BOOKING_SUCCESS, {
-        doctor: selectedDoctor?.full_name ? `Dr. ${selectedDoctor.full_name}` : 'your doctor',
+        doctor: cleanDocName,
         concern: formData.concern,
         currency: currentCountry.currency,
         fee: currentCountry.defaultPatientFee
       });
       onSuccess({
-        doctor: selectedDoctor?.full_name ? `Dr. ${selectedDoctor.full_name}` : 'your doctor',
+        doctor: cleanDocName,
         slot: `${formattedDate} at ${formData.time}`,
         name: formData.name,
         email: formData.email,
