@@ -399,6 +399,31 @@ export class RecordsService implements OnModuleInit {
     return updated;
   }
 
+  async deletePrescription(user: AuthUser, groupId: string) {
+    this.requireVerifiedDoctor(user);
+    const { data: existing } = await this.supabase.admin
+      .from('prescriptions')
+      .select()
+      .is('deleted_at', null)
+      .eq('group_id', groupId);
+
+    if (!existing || existing.length === 0) throw new NotFoundException(ERROR_MESSAGES.PRESCRIPTION_NOT_FOUND);
+    if (existing[0].doctor_id && existing[0].doctor_id !== user.id) {
+      throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+    }
+
+    const { data: updated } = await this.supabase.admin
+      .from('prescriptions')
+      .update({
+        deleted_at: new Date().toISOString(),
+        status: 'Cancelled',
+      })
+      .eq('group_id', groupId)
+      .select();
+
+    return updated;
+  }
+
   private async notifyPatientOfPrescription(user: AuthUser, patient: any, body: CreatePrescriptionDto, groupId: string) {
     let isHolisticPlan = false;
     let isDietOnly = false;
@@ -919,6 +944,50 @@ export class RecordsService implements OnModuleInit {
       .select()
       .maybeSingle();
     return data;
+  }
+
+  async updateClinicalNote(user: AuthUser, id: string, note: string) {
+    this.requireVerifiedDoctor(user);
+    const { data: existing } = await this.supabase.admin
+      .from('clinical_notes')
+      .select()
+      .is('deleted_at', null)
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!existing) throw new NotFoundException('Clinical note not found');
+    if (existing.doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+
+    const { data: updated } = await this.supabase.admin
+      .from('clinical_notes')
+      .update({ note: (note || '').trim() })
+      .eq('id', id)
+      .select()
+      .maybeSingle();
+
+    return updated;
+  }
+
+  async deleteClinicalNote(user: AuthUser, id: string) {
+    this.requireVerifiedDoctor(user);
+    const { data: existing } = await this.supabase.admin
+      .from('clinical_notes')
+      .select()
+      .is('deleted_at', null)
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!existing) throw new NotFoundException('Clinical note not found');
+    if (existing.doctor_id !== user.id) throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
+
+    const { data: updated } = await this.supabase.admin
+      .from('clinical_notes')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .maybeSingle();
+
+    return updated;
   }
 
   async reviewLabReport(user: AuthUser, id: string, body: ReviewLabReportDto) {

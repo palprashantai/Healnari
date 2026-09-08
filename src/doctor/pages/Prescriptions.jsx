@@ -2229,13 +2229,45 @@ function toRxCards(patients) {
 function DoctorPrescriptions() {
   const toast = useToast();
   const { user } = useAuth();
-  const { patients, addRx, amendRx, approveRefill: approveRefillApi } = useClinicData();
+  const { patients, addRx, amendRx, approveRefill: approveRefillApi, deleteRx } = useClinicData();
   const prescriptions = useMemo(() => toRxCards(patients), [patients]);
   const [showWrite, setShowWrite] = useState(false);
   const [amendTarget, setAmendTarget] = useState(null);
   const [refillTarget, setRefillTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('All');
+
+  const handleDeleteRx = async (rx) => {
+    if (!rx) return;
+    setIsDeleting(true);
+    try {
+      await deleteRx(rx.id);
+      toast(`Prescription for ${rx.patient} deleted successfully.`, 'success');
+      setDeleteTarget(null);
+    } catch (err) {
+      toast(err.message || 'Failed to delete prescription', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) return;
+    setIsDeleting(true);
+    try {
+      await Promise.all(selectedIds.map(id => deleteRx(id)));
+      toast(`${selectedIds.length} prescription(s) deleted successfully.`, 'success');
+      setSelectedIds([]);
+      setBulkDeleteOpen(false);
+    } catch (err) {
+      toast(err.message || 'Failed to delete selected prescriptions', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const [selectedIds, setSelectedIds] = useState([]);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -2503,6 +2535,20 @@ function DoctorPrescriptions() {
                 <button onClick={() => handleBulkAction('WhatsApp Message')} className="w-full text-left px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-3 transition-colors">
                   <i className="fab fa-whatsapp text-emerald-500 w-4 text-lg"></i> WhatsApp Message
                 </button>
+                <div className="border-t border-slate-100 my-1"></div>
+                <button
+                  onClick={() => {
+                    setShowActionsMenu(false);
+                    if (selectedIds.length === 0) {
+                      toast('Please select at least one prescription first.', 'error');
+                      return;
+                    }
+                    setBulkDeleteOpen(true);
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-3 transition-colors"
+                >
+                  <i className="fas fa-trash-can text-rose-600 w-4"></i> Delete Selected {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+                </button>
               </div>
             )}
           </div>
@@ -2695,6 +2741,10 @@ function DoctorPrescriptions() {
                     <i className="fas fa-pills"></i> Approve Refill
                   </button>
                 )}
+                <button onClick={() => setDeleteTarget(rx)}
+                  className="text-xs font-bold text-rose-600 border border-rose-200 px-4 py-2 rounded-xl hover:bg-rose-50 hover:border-rose-300 transition-colors flex items-center gap-1.5 ml-auto">
+                  <i className="fas fa-trash-can"></i> Delete Rx
+                </button>
               </div>
             </div>
           </div>
@@ -2702,6 +2752,24 @@ function DoctorPrescriptions() {
       </div>
 
       {/* Modals */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => handleDeleteRx(deleteTarget)}
+        title={`Delete Prescription — ${deleteTarget?.patient}`}
+        message={`Are you sure you want to permanently delete this prescription for ${deleteTarget?.patient} (${deleteTarget?.meds?.map(m => m.name).join(', ')})? This will revoke it and remove it from active records.`}
+        confirmLabel={isDeleting ? 'Deleting...' : 'Delete Prescription'}
+        confirmStyle="danger"
+      />
+      <ConfirmModal
+        isOpen={bulkDeleteOpen}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={handleBulkDelete}
+        title={`Delete ${selectedIds.length} Prescriptions?`}
+        message={`Are you sure you want to permanently delete ${selectedIds.length} selected prescription(s)? This will revoke all selected prescriptions and remove them from active records.`}
+        confirmLabel={isDeleting ? 'Deleting...' : `Delete ${selectedIds.length} Prescriptions`}
+        confirmStyle="danger"
+      />
       <ConfirmModal
         isOpen={!!refillTarget}
         onClose={() => setRefillTarget(null)}

@@ -469,6 +469,17 @@ export function ClinicDataProvider({ children }) {
     }
   }, [refreshPatientsOnly]);
 
+  const deleteRx = useCallback(async (groupId) => {
+    try {
+      const res = await apiFetch(`/records/prescriptions/${groupId}`, { method: 'DELETE' });
+      refreshPatientsOnly();
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }, [refreshPatientsOnly]);
+
   const uploadLabReport = useCallback(async (patientId, file, meta = {}) => {
     try {
       const formData = new FormData();
@@ -528,6 +539,28 @@ export function ClinicDataProvider({ children }) {
   const addClinicalNote = useCallback(async (patientId, note) => {
     try {
       const res = await apiFetch('/records/notes', { method: 'POST', body: { patientId, note } });
+      refreshPatientsOnly();
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }, [refreshPatientsOnly]);
+
+  const updateClinicalNote = useCallback(async (id, note) => {
+    try {
+      const res = await apiFetch(`/records/notes/${id}`, { method: 'PUT', body: { note } });
+      refreshPatientsOnly();
+      return res;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  }, [refreshPatientsOnly]);
+
+  const deleteClinicalNote = useCallback(async (id) => {
+    try {
+      const res = await apiFetch(`/records/notes/${id}`, { method: 'DELETE' });
       refreshPatientsOnly();
       return res;
     } catch (err) {
@@ -881,7 +914,7 @@ export function ClinicDataProvider({ children }) {
   }, []);
 
   const value = useMemo(() => ({
-    patients, updatePatient, addPatient, addRx, amendRx, finalizeRx, cancelRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
+    patients, updatePatient, addPatient, addRx, amendRx, finalizeRx, cancelRx, deleteRx, addClinicalNote, updateClinicalNote, deleteClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
     uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, refreshPatients: fetchData, fetchData,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment, rescheduleAppointment, refreshAppointments,
     approveRequest, rejectRequest, callNextForDoctor, checkInPatient, broadcastDelay,
@@ -895,7 +928,7 @@ export function ClinicDataProvider({ children }) {
     kycVerified, kycSubmitted, verifyKyc,
     loading, loadError, retryLoad: fetchData,
   }), [
-    patients, updatePatient, addPatient, addRx, amendRx, finalizeRx, cancelRx, addClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
+    patients, updatePatient, addPatient, addRx, amendRx, finalizeRx, cancelRx, deleteRx, addClinicalNote, updateClinicalNote, deleteClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
     uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, fetchData,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment, rescheduleAppointment, refreshAppointments,
     approveRequest, rejectRequest, callNextForDoctor, checkInPatient, broadcastDelay,

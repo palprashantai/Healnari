@@ -307,51 +307,82 @@ function AdminDashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🌐</span>
-            <h1 className="text-2xl font-black text-slate-900">Global Telehealth Operations Center</h1>
-            <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-              {reportingCurrency === 'INR' ? '🇮🇳 INR Active' : '🇺🇸 USD Active'}
-            </span>
-          </div>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Cross-border clinical telemetry, physician credentialing, and multi-currency operations.
-          </p>
+      {/* ═══ ADMIN COMMAND CENTER AURORA HEADER ═══ */}
+      <div
+        className="relative rounded-3xl overflow-hidden shadow-sm"
+        style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E1B4B 40%, #312E81 75%, #4338CA 100%)' }}
+      >
+        {/* Glow orbs */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-12 -right-12 w-64 h-64 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #818CF8, transparent 70%)' }} />
+          <div className="absolute -bottom-8 -left-8 w-48 h-48 rounded-full opacity-15" style={{ background: 'radial-gradient(circle, #38BDF8, transparent 70%)' }} />
+          <div className="absolute top-1/2 left-1/3 w-32 h-32 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #C084FC, transparent 70%)' }} />
         </div>
-        <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Real-time Reporting Currency Switcher */}
-          <div className="bg-slate-100 p-1 rounded-xl border border-slate-200/90 flex items-center shadow-xs">
-            <button
-              type="button"
-              onClick={() => setReportingCurrency('INR')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                reportingCurrency === 'INR'
-                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <span>🇮🇳</span> INR (₹)
-            </button>
-            <button
-              type="button"
-              onClick={() => setReportingCurrency('USD')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                reportingCurrency === 'USD'
-                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              <span>🇺🇸</span> USD ($)
-            </button>
+
+        <div className="relative z-10 px-6 py-6 sm:px-8 sm:py-7 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+          <div className="flex items-center gap-4 sm:gap-5">
+            {/* Command Icon */}
+            <div className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-white/20 to-white/10 border-2 border-white/30 backdrop-blur-md flex items-center justify-center text-2xl sm:text-3xl shadow-xl text-white">
+              <i className="fas fa-shield-halved text-indigo-200"></i>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className="text-[10px] font-mono font-black tracking-widest text-indigo-200/90 uppercase bg-white/10 px-2.5 py-0.5 rounded-full border border-white/15">
+                  Admin Command Center
+                </span>
+                <span className="text-[10px] text-white/60 font-medium">• Live Telemetry</span>
+                <span className="text-[10px] font-bold text-emerald-300 bg-emerald-950/50 border border-emerald-400/40 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  {reportingCurrency === 'INR' ? '🇮🇳 INR Settlement Active' : '🇺🇸 USD Settlement Active'}
+                </span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight drop-shadow-sm flex items-center gap-2">
+                <span>Global Telehealth Operations</span>
+                <span className="inline-block">🌐</span>
+              </h1>
+              <p className="text-xs sm:text-sm text-indigo-100/80 mt-0.5 font-medium">
+                Cross-border clinical governance, physician credentialing &amp; multi-currency settlement.
+              </p>
+            </div>
           </div>
 
-          <button onClick={handleRefresh} disabled={refreshing}
-            className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-xs disabled:opacity-50">
-            <i className={`fas fa-rotate-right ${refreshing ? 'animate-spin' : ''}`}></i> Refresh Telemetry
-          </button>
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+            {/* Real-time Reporting Currency Switcher */}
+            <div className="bg-white/15 backdrop-blur-sm p-1 rounded-2xl border border-white/25 flex items-center shadow-xs">
+              <button
+                type="button"
+                onClick={() => setReportingCurrency('INR')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                  reportingCurrency === 'INR'
+                    ? 'bg-white text-indigo-950 shadow-md'
+                    : 'text-white/75 hover:text-white'
+                }`}
+              >
+                <span>🇮🇳</span> INR (₹)
+              </button>
+              <button
+                type="button"
+                onClick={() => setReportingCurrency('USD')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
+                  reportingCurrency === 'USD'
+                    ? 'bg-white text-indigo-950 shadow-md'
+                    : 'text-white/75 hover:text-white'
+                }`}
+              >
+                <span>🇺🇸</span> USD ($)
+              </button>
+            </div>
+
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-2 bg-white text-indigo-950 hover:bg-indigo-50 disabled:opacity-50 font-black px-4 py-2.5 rounded-xl transition-all text-xs shadow-md active:scale-95"
+            >
+              <i className={`fas fa-rotate-right text-indigo-600 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>Refresh Telemetry</span>
+            </button>
+          </div>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useToast } from '../../components/Toast.jsx';
-import { Modal } from '../../components/Modal.jsx';
+import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
@@ -479,18 +479,35 @@ function RequestReportModal({ isOpen, onClose, patients, onRequest }) {
 /* ─── Main Component ─────────────────────────── */
 function DoctorReports() {
   const toast = useToast();
-  const { patients, requestLabReport } = useClinicData();
+  const { patients, requestLabReport, deleteLabReport } = useClinicData();
   const [rawReports, setRawReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('pending');
   const [selectedLab, setSelectedLab] = useState(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const loadReports = () => apiFetch('/records/lab-reports')
     .then(setRawReports)
     .catch(err => toast(err.message || 'Failed to load lab reports', 'error'))
     .finally(() => setLoading(false));
   useEffect(() => { loadReports(); }, []);
+
+  const handleDeleteReport = async (report) => {
+    if (!report) return;
+    setIsDeleting(true);
+    try {
+      await deleteLabReport(report.id);
+      toast(`Lab report for ${report.patient} deleted successfully.`, 'success');
+      setDeleteTarget(null);
+      await loadReports();
+    } catch (err) {
+      toast(err.message || 'Failed to delete lab report', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const nameByPatientId = useMemo(() => new Map(patients.map(p => [p.id, p.name])), [patients]);
 
@@ -741,10 +758,17 @@ function DoctorReports() {
                 </div>
                 <p className="text-xs text-slate-500">{lab.lab} • Received: {lab.received}</p>
               </div>
-              <button onClick={() => setSelectedLab(lab)}
-                className={`flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm transition-colors flex-shrink-0 ${lab.urgent ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-700 border border-aubergine-200'}`}>
-                <i className="fas fa-microscope"></i> Review Report
-              </button>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button onClick={() => setSelectedLab(lab)}
+                  className={`flex items-center gap-2 font-bold px-5 py-2.5 rounded-xl text-sm transition-colors ${lab.urgent ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-aubergine-50 hover:bg-aubergine-100 text-aubergine-700 border border-aubergine-200'}`}>
+                  <i className="fas fa-microscope"></i> Review Report
+                </button>
+                <button onClick={() => setDeleteTarget(lab)}
+                  className="flex items-center gap-1.5 font-bold px-3.5 py-2.5 rounded-xl text-xs text-rose-600 border border-rose-200 hover:bg-rose-50 hover:border-rose-300 transition-colors"
+                  title="Delete report">
+                  <i className="fas fa-trash-can"></i>
+                </button>
+              </div>
             </div>
           ))}
 
@@ -771,10 +795,17 @@ function DoctorReports() {
                 <p className="text-xs text-slate-500 mb-1">{r.tests} • {r.lab} • {r.date}</p>
                 <p className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">{r.action}</p>
               </div>
-              <button onClick={() => downloadReportPdf(r)}
-                className="flex items-center gap-2 font-bold px-4 py-2.5 rounded-xl text-sm text-aubergine-600 border border-aubergine-200 hover:bg-aubergine-50 transition-colors flex-shrink-0 h-max">
-                <i className="fas fa-download"></i> Download
-              </button>
+              <div className="flex items-center gap-2 flex-shrink-0 h-max">
+                <button onClick={() => downloadReportPdf(r)}
+                  className="flex items-center gap-2 font-bold px-4 py-2.5 rounded-xl text-sm text-aubergine-600 border border-aubergine-200 hover:bg-aubergine-50 transition-colors">
+                  <i className="fas fa-download"></i> Download
+                </button>
+                <button onClick={() => setDeleteTarget(r)}
+                  className="flex items-center gap-1.5 font-bold px-3.5 py-2.5 rounded-xl text-xs text-rose-600 border border-rose-200 hover:bg-rose-50 hover:border-rose-300 transition-colors"
+                  title="Delete report">
+                  <i className="fas fa-trash-can"></i>
+                </button>
+              </div>
             </div>
           ))}
 
@@ -786,6 +817,16 @@ function DoctorReports() {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => handleDeleteReport(deleteTarget)}
+        title={`Delete Report — ${deleteTarget?.patient}`}
+        message={`Are you sure you want to permanently delete this lab report (${Array.isArray(deleteTarget?.tests) ? deleteTarget?.tests.join(', ') : deleteTarget?.tests}) for ${deleteTarget?.patient}?`}
+        confirmLabel={isDeleting ? 'Deleting...' : 'Delete Report'}
+        confirmStyle="danger"
+      />
 
       <LabReviewModal lab={selectedLab} isOpen={!!selectedLab} onClose={() => setSelectedLab(null)} onAction={handleAction} />
 

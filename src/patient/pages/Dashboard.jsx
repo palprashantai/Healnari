@@ -1818,59 +1818,141 @@ function PatientDashboard() {
     toast(`Active Mode: ${LIFE_MODES.find(m => m.id === id)?.label}`, 'info');
   };
 
+  /* User profile avatar and initials */
+  const [avatarError, setAvatarError] = useState(false);
+  const rawAvatarUrl = user?.avatarUrl || user?.avatar_url || user?.profile?.avatar_url || own?.avatarUrl || user?.photo;
+  useEffect(() => {
+    setAvatarError(false);
+  }, [rawAvatarUrl]);
+  const userAvatarUrl = !avatarError && rawAvatarUrl ? rawAvatarUrl : null;
+  const userInitials = (user?.name || own?.name || 'Priya Sharma')
+    .split(' ')
+    .filter(Boolean)
+    .map(n => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'P';
+
+  /* Time-sensitive greeting and today label */
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  })();
+  const todayLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
    return (
-    <div className="space-y-6 animate-fade-in pb-12">
-      {/* Patient Clinical Greeting Header */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-[10px] font-mono font-bold tracking-wider text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 uppercase">
-              HealNari Patient Portal
-            </span>
-            <span className="text-xs text-slate-400 font-medium">• {todayLabel}</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            {greeting}, {user?.name?.split(' ')[0] || 'there'}.
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1 font-medium">
-            Your personal health care summary and active clinical care plan.
-          </p>
+    <div className="space-y-5 animate-fade-in pb-16">
+
+      {/* ═══ HERO GREETING HEADER ══════════════════════════════════════════ */}
+      <div className="relative rounded-3xl overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #2A1647 0%, #4B1D8E 40%, #6B46C1 70%, #9B7AEA 100%)' }}>
+        {/* Aurora glow orbs */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-12 -right-12 w-64 h-64 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #C084FC, transparent 70%)' }} />
+          <div className="absolute -bottom-8 -left-8 w-48 h-48 rounded-full opacity-15" style={{ background: 'radial-gradient(circle, #818CF8, transparent 70%)' }} />
+          <div className="absolute top-1/2 left-1/3 w-32 h-32 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #F9A8D4, transparent 70%)' }} />
         </div>
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <button
-            onClick={() => setShowCarePassModal(true)}
-            className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold px-3.5 py-2.5 rounded-xl transition-all shadow-xs text-xs flex items-center gap-2"
-            title="View your Emergency Care Card & QR Pass"
-          >
-            <i className="fas fa-id-card text-aubergine-700"></i>
-            <span>My Health Pass</span>
-          </button>
-          <button
-            onClick={() => setShowQuickBook(true)}
-            className="bg-aubergine-800 hover:bg-aubergine-700 text-white font-bold px-4 py-2.5 rounded-xl transition-all shadow-xs text-xs flex items-center gap-2"
-          >
-            <i className="fas fa-calendar-plus text-xs text-aubergine-200"></i>
-            <span>Book Consultation</span>
-          </button>
+
+        <div className="relative z-10 px-6 py-6 sm:px-8 sm:py-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4 sm:gap-5">
+            {/* User Profile Avatar Ring */}
+            <div
+              onClick={() => navigate('/patient-dashboard/profile')}
+              className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-white/25 to-white/10 border-2 border-white/40 backdrop-blur-md flex items-center justify-center text-2xl shadow-xl cursor-pointer hover:scale-105 hover:border-white transition-all overflow-hidden relative group"
+              title="View & edit your health profile"
+            >
+              {userAvatarUrl ? (
+                <img
+                  src={userAvatarUrl}
+                  alt={user?.name || 'User Profile'}
+                  className="w-full h-full object-cover"
+                  onError={() => setAvatarError(true)}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-tr from-purple-600 to-pink-500 text-white font-black text-xl sm:text-2xl shadow-inner">
+                  <span>{userInitials}</span>
+                </div>
+              )}
+              {/* Camera/Edit overlay on hover */}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs">
+                <i className="fas fa-camera text-sm drop-shadow" />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className="text-[10px] font-mono font-black tracking-widest text-purple-200/90 uppercase bg-white/10 px-2.5 py-0.5 rounded-full border border-white/15">
+                  HealNari Portal
+                </span>
+                <span className="text-[10px] text-white/60 font-medium">• {todayLabel}</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight drop-shadow-sm flex items-center gap-2">
+                <span>{greeting}, {user?.name?.split(' ')[0] || own?.name?.split(' ')[0] || 'Priya'}</span>
+                <span className="inline-block">👋</span>
+              </h1>
+              <p className="text-xs sm:text-sm text-purple-100/80 mt-0.5 font-medium flex items-center gap-2 flex-wrap">
+                <span>Your personal health summary &amp; active care plan.</span>
+                <button
+                  onClick={() => navigate('/patient-dashboard/profile')}
+                  className="text-purple-200 hover:text-white underline text-xs font-semibold inline-flex items-center gap-1 transition-colors"
+                >
+                  <i className="fas fa-user-pen text-[10px]" /> Edit Profile
+                </button>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+            <button
+              onClick={() => setShowCarePassModal(true)}
+              className="flex items-center gap-2 bg-white/15 hover:bg-white/25 backdrop-blur-sm border border-white/25 text-white font-bold px-4 py-2.5 rounded-xl transition-all text-xs shadow-sm active:scale-95"
+              title="View your Emergency Care Card & QR Pass"
+            >
+              <i className="fas fa-id-card text-purple-200 text-xs" />
+              <span>My Health Pass</span>
+            </button>
+            <button
+              onClick={() => setShowQuickBook(true)}
+              className="flex items-center gap-2 bg-white text-purple-900 hover:bg-purple-50 font-black px-5 py-2.5 rounded-xl transition-all text-xs shadow-md active:scale-95"
+            >
+              <i className="fas fa-calendar-plus text-purple-600 text-xs" />
+              <span>Book Consultation</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* 1. NEXT APPOINTMENT HERO (Immediate Visibility) */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs">
+      {/* ═══ NEXT APPOINTMENT HERO ══════════════════════════════════════════ */}
+      <div className={`rounded-2xl border p-5 sm:p-6 shadow-sm transition-all ${
+        isTodayVisit
+          ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200'
+          : nextAppointment
+          ? 'bg-gradient-to-r from-aubergine-50/60 to-purple-50/40 border-aubergine-200/60'
+          : 'bg-white border-slate-200'
+      }`}>
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-aubergine-50 text-aubergine-800 border border-aubergine-200/80 flex items-center justify-center text-xl shrink-0">
-              <i className={nextAppointment?.type === 'Video Consult' ? 'fas fa-video' : 'fas fa-hospital-user'}></i>
+            <div className={`w-13 h-13 rounded-2xl flex items-center justify-center text-lg shrink-0 shadow-sm ${
+              isTodayVisit ? 'bg-emerald-500 text-white' : 'bg-aubergine-700 text-white'
+            }`}
+              style={{ width: 52, height: 52 }}>
+              <i className={nextAppointment?.type === 'Video Consult' ? 'fas fa-video' : 'fas fa-hospital-user'} />
             </div>
             <div>
-              <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-aubergine-50 text-aubergine-800 border border-aubergine-200">
+              <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                  isTodayVisit
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : 'bg-aubergine-100 text-aubergine-800 border-aubergine-300'
+                }`}>
                   {nextAppointment ? 'Upcoming Consultation' : 'Clinical Consultation'}
                 </span>
                 {isTodayVisit && (
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Happening Today
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500 text-white flex items-center gap-1 animate-pulse-slow">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                    Today
                   </span>
                 )}
               </div>
@@ -1882,30 +1964,30 @@ function PatientDashboard() {
                   </h2>
                   <p className="text-xs text-slate-600 mt-1 flex items-center gap-3 flex-wrap">
                     <span className="flex items-center gap-1.5 font-medium">
-                      <i className="fas fa-calendar text-slate-400"></i>
+                      <i className="fas fa-calendar text-aubergine-500" />
                       {nextAppointment.date ? new Date(nextAppointment.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }) : 'Today'}
                     </span>
                     <span className="text-slate-300">•</span>
                     <span className="flex items-center gap-1.5 font-medium">
-                      <i className="fas fa-clock text-slate-400"></i>
+                      <i className="fas fa-clock text-aubergine-500" />
                       {nextAppointment.time}
                     </span>
                     <span className="text-slate-300">•</span>
                     <span className="flex items-center gap-1.5 font-medium">
-                      <i className={nextAppointment.type === 'Video Consult' ? 'fas fa-video text-aubergine-600' : 'fas fa-location-dot text-slate-400'}></i>
+                      <i className={nextAppointment.type === 'Video Consult' ? 'fas fa-video text-aubergine-600' : 'fas fa-location-dot text-slate-400'} />
                       {nextAppointment.type || 'Video Consult'}
                     </span>
                   </p>
                   {isTodayVisit && queueStatus?.position && (
-                    <div className="mt-2.5 inline-flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                      <span className="font-bold">Queue Status:</span>
+                    <div className="mt-2.5 inline-flex items-center gap-2 bg-white/80 border border-emerald-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="font-bold">Queue:</span>
                       <span>
                         {queueStatus.status === 'In Progress'
-                          ? "Doctor is ready — please join the consultation"
+                          ? "Doctor is ready — join now"
                           : queueStatus.peopleAhead === 0
-                          ? "You are next in line"
-                          : `#${queueStatus.position} in line (~${queueStatus.estimatedWaitMinutes || 10} min wait)`}
+                          ? "You're next!"
+                          : `#${queueStatus.position} (~${queueStatus.estimatedWaitMinutes || 10} min)`}
                       </span>
                     </div>
                   )}
@@ -1913,9 +1995,7 @@ function PatientDashboard() {
               ) : (
                 <>
                   <h2 className="text-lg font-bold text-slate-900">No Upcoming Appointments</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Schedule a consultation with our verified specialists for personalized diagnosis and ongoing care.
-                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">Schedule a consultation with our verified specialists for personalised care.</p>
                 </>
               )}
             </div>
@@ -1927,24 +2007,20 @@ function PatientDashboard() {
                 <button
                   onClick={() => navigate(`/patient-dashboard/appointments?joinCall=${nextAppointment.id}`)}
                   disabled={nextAppointment.type !== 'Video Consult' || daysToNext !== 0}
-                  className="bg-aubergine-800 hover:bg-aubergine-700 disabled:opacity-40 disabled:hover:bg-aubergine-800 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-xs"
+                  className="bg-aubergine-800 hover:bg-aubergine-700 disabled:opacity-40 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all shadow-sm active:scale-95"
                 >
-                  <i className="fas fa-video"></i>
+                  <i className="fas fa-video" />
                   <span>{isTodayVisit ? 'Join Video Room' : 'View Appointment'}</span>
                 </button>
-                <button
-                  onClick={() => navigate('/patient-dashboard/appointments')}
-                  className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition-colors"
-                >
+                <button onClick={() => navigate('/patient-dashboard/appointments')}
+                  className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold px-4 py-2.5 rounded-xl text-sm transition-colors">
                   All Visits
                 </button>
               </>
             ) : (
-              <button
-                onClick={() => setShowQuickBook(true)}
-                className="bg-aubergine-800 hover:bg-aubergine-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs sm:text-sm flex items-center gap-2 transition-all shadow-xs"
-              >
-                <i className="fas fa-calendar-plus text-xs text-aubergine-200"></i>
+              <button onClick={() => setShowQuickBook(true)}
+                className="bg-aubergine-800 hover:bg-aubergine-700 text-white font-bold px-5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all shadow-sm active:scale-95">
+                <i className="fas fa-calendar-plus text-aubergine-200 text-xs" />
                 <span>Book Appointment</span>
               </button>
             )}
@@ -1952,251 +2028,244 @@ function PatientDashboard() {
         </div>
       </div>
 
-      {/* 2. YOUR NEXT STEPS (Task-Driven Action Center) */}
+      {/* ═══ YOUR NEXT STEPS (Action Cards) ════════════════════════════════ */}
       <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
-        <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2.5">
-          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <i className="fas fa-list-check text-aubergine-700"></i>
-            <span>Your Next Steps</span>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
+            <span className="w-7 h-7 rounded-lg bg-aubergine-600 text-white flex items-center justify-center text-xs">
+              <i className="fas fa-list-check" />
+            </span>
+            Your Next Steps
           </h2>
-          <span className="text-xs text-slate-400 font-medium">Daily health tasks</span>
+          <span className="text-[11px] text-slate-400 font-semibold bg-slate-100 px-2.5 py-1 rounded-full">Today's tasks</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {/* Action 1: Pending Payment if applicable */}
+          {/* Action 1 */}
           {pendingPaymentApt ? (
-            <div
-              onClick={() => navigate('/patient-dashboard/appointments?tab=action_required')}
-              className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/50 hover:bg-amber-50 cursor-pointer transition-all flex flex-col justify-between"
-            >
-              <div className="flex items-start gap-2.5">
-                <i className="fas fa-credit-card text-amber-600 mt-0.5 text-sm"></i>
-                <div>
-                  <p className="text-xs font-bold text-amber-900">Confirm Appointment</p>
-                  <p className="text-[11px] text-amber-700 mt-0.5">Pay consultation fee for Dr. {pendingPaymentApt.doctorName || 'Specialist'}</p>
-                </div>
+            <div onClick={() => navigate('/patient-dashboard/appointments?tab=action_required')}
+              className="group relative p-4 rounded-2xl border border-amber-200 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95 overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)' }}>
+              <div className="absolute top-0 right-0 w-16 h-16 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #F59E0B, transparent)', transform: 'translate(30%, -30%)' }} />
+              <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center mb-3">
+                <i className="fas fa-credit-card text-amber-600" />
               </div>
-              <span className="text-[10px] font-bold text-amber-800 mt-2 self-end flex items-center gap-1">
-                Pay Now <i className="fas fa-arrow-right text-[8px]"></i>
+              <p className="text-xs font-black text-amber-900 leading-tight">Confirm Appointment</p>
+              <p className="text-[11px] text-amber-700 mt-1 leading-snug">Pay fee for Dr. {pendingPaymentApt.doctorName || 'Specialist'}</p>
+              <span className="absolute bottom-3 right-3 text-[10px] font-black text-amber-700 flex items-center gap-1">
+                Pay Now <i className="fas fa-arrow-right text-[8px]" />
               </span>
             </div>
           ) : !onboardingDone ? (
-            <div
-              onClick={() => setShowOnboarding(true)}
-              className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 cursor-pointer transition-all flex flex-col justify-between"
-            >
-              <div className="flex items-start gap-2.5">
-                <i className="fas fa-user-check text-aubergine-700 mt-0.5 text-sm"></i>
-                <div>
-                  <p className="text-xs font-bold text-slate-900">Health Profile</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Complete your medical background &amp; allergies.</p>
-                </div>
+            <div onClick={() => setShowOnboarding(true)}
+              className="group relative p-4 rounded-2xl border border-purple-200 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95 overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%)' }}>
+              <div className="absolute top-0 right-0 w-16 h-16 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #9B7AEA, transparent)', transform: 'translate(30%, -30%)' }} />
+              <div className="w-9 h-9 rounded-xl bg-purple-100 border border-purple-200 flex items-center justify-center mb-3">
+                <i className="fas fa-user-check text-aubergine-700" />
               </div>
-              <span className="text-[10px] font-bold text-aubergine-800 mt-2 self-end flex items-center gap-1">
-                Complete Profile <i className="fas fa-arrow-right text-[8px]"></i>
+              <p className="text-xs font-black text-slate-900 leading-tight">Health Profile</p>
+              <p className="text-[11px] text-slate-500 mt-1 leading-snug">Complete medical background &amp; allergies.</p>
+              <span className="absolute bottom-3 right-3 text-[10px] font-black text-aubergine-700 flex items-center gap-1">
+                Complete <i className="fas fa-arrow-right text-[8px]" />
               </span>
             </div>
           ) : (
-            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/40 flex items-start gap-2.5">
-              <i className="fas fa-check-circle text-emerald-600 mt-0.5 text-sm"></i>
-              <div>
-                <p className="text-xs font-bold text-slate-900">Profile Verified</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">Medical background &amp; records up to date.</p>
+            <div className="relative p-4 rounded-2xl border border-emerald-200 overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)' }}>
+              <div className="w-9 h-9 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center mb-3">
+                <i className="fas fa-check-circle text-emerald-600" />
               </div>
+              <p className="text-xs font-black text-slate-900">Profile Verified ✓</p>
+              <p className="text-[11px] text-slate-500 mt-1">Medical records up to date.</p>
             </div>
           )}
 
-          {/* Action 2: Daily Medication */}
-          <div
-            onClick={() => navigate('/patient-dashboard/prescriptions')}
-            className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 cursor-pointer transition-all flex flex-col justify-between"
-          >
-            <div className="flex items-start gap-2.5">
-              <i className="fas fa-pills text-aubergine-700 mt-0.5 text-sm"></i>
-              <div>
-                <p className="text-xs font-bold text-slate-900">Today's Medications</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  {own?.meds?.length ? `${own.meds.length} active prescriptions scheduled.` : 'No active medications required today.'}
-                </p>
-              </div>
+          {/* Action 2: Medications */}
+          <div onClick={() => navigate('/patient-dashboard/prescriptions')}
+            className="group relative p-4 rounded-2xl border border-blue-200 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95 overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)' }}>
+            <div className="absolute top-0 right-0 w-16 h-16 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #3B82F6, transparent)', transform: 'translate(30%, -30%)' }} />
+            <div className="w-9 h-9 rounded-xl bg-blue-100 border border-blue-200 flex items-center justify-center mb-3">
+              <i className="fas fa-pills text-blue-600" />
             </div>
-            <span className="text-[10px] font-bold text-aubergine-800 mt-2 self-end flex items-center gap-1">
-              View Schedule <i className="fas fa-arrow-right text-[8px]"></i>
+            <p className="text-xs font-black text-slate-900 leading-tight">Today's Medications</p>
+            <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+              {own?.meds?.length ? `${own.meds.length} active prescriptions` : 'No medications today'}
+            </p>
+            <span className="absolute bottom-3 right-3 text-[10px] font-black text-blue-700 flex items-center gap-1">
+              View <i className="fas fa-arrow-right text-[8px]" />
             </span>
           </div>
 
-          {/* Action 3: Diagnostic Lab Results */}
-          <div
-            onClick={() => setShowLabReports(true)}
-            className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 cursor-pointer transition-all flex flex-col justify-between"
-          >
-            <div className="flex items-start gap-2.5">
-              <i className="fas fa-flask text-aubergine-700 mt-0.5 text-sm"></i>
-              <div>
-                <p className="text-xs font-bold text-slate-900">Diagnostic Reports</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  {pendingReportCount > 0 ? `${pendingReportCount} report(s) ready for review.` : 'Upload lab tests or track pending results.'}
-                </p>
-              </div>
+          {/* Action 3: Lab Reports */}
+          <div onClick={() => setShowLabReports(true)}
+            className="group relative p-4 rounded-2xl border border-rose-200 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95 overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)' }}>
+            <div className="absolute top-0 right-0 w-16 h-16 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #F43F5E, transparent)', transform: 'translate(30%, -30%)' }} />
+            <div className="w-9 h-9 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center mb-3 relative">
+              <i className="fas fa-flask text-rose-600" />
+              {pendingReportCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">{pendingReportCount}</span>
+              )}
             </div>
-            <span className="text-[10px] font-bold text-aubergine-800 mt-2 self-end flex items-center gap-1">
-              {pendingReportCount > 0 ? 'Review Results' : 'Manage Reports'} <i className="fas fa-arrow-right text-[8px]"></i>
+            <p className="text-xs font-black text-slate-900 leading-tight">Diagnostic Reports</p>
+            <p className="text-[11px] text-slate-500 mt-1 leading-snug">
+              {pendingReportCount > 0 ? `${pendingReportCount} report(s) ready` : 'Upload or track results'}
+            </p>
+            <span className="absolute bottom-3 right-3 text-[10px] font-black text-rose-700 flex items-center gap-1">
+              {pendingReportCount > 0 ? 'Review' : 'Manage'} <i className="fas fa-arrow-right text-[8px]" />
             </span>
           </div>
 
-          {/* Action 4: Symptom & Wellness Log */}
-          <div
-            onClick={() => setShowSymptomChecker(true)}
-            className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/60 hover:bg-slate-50 cursor-pointer transition-all flex flex-col justify-between"
-          >
-            <div className="flex items-start gap-2.5">
-              <i className="fas fa-clipboard-user text-aubergine-700 mt-0.5 text-sm"></i>
-              <div>
-                <p className="text-xs font-bold text-slate-900">Daily Health Log</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">Log today's symptoms, vitals, or energy.</p>
-              </div>
+          {/* Action 4: Daily Log */}
+          <div onClick={() => setShowSymptomChecker(true)}
+            className="group relative p-4 rounded-2xl border border-teal-200 cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-95 overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, #f0fdfa 0%, #ccfbf1 100%)' }}>
+            <div className="absolute top-0 right-0 w-16 h-16 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #14B8A6, transparent)', transform: 'translate(30%, -30%)' }} />
+            <div className="w-9 h-9 rounded-xl bg-teal-100 border border-teal-200 flex items-center justify-center mb-3">
+              <i className="fas fa-clipboard-user text-teal-600" />
             </div>
-            <span className="text-[10px] font-bold text-aubergine-800 mt-2 self-end flex items-center gap-1">
-              Log Today <i className="fas fa-arrow-right text-[8px]"></i>
+            <p className="text-xs font-black text-slate-900 leading-tight">Daily Health Log</p>
+            <p className="text-[11px] text-slate-500 mt-1 leading-snug">Log symptoms, vitals, or energy.</p>
+            <span className="absolute bottom-3 right-3 text-[10px] font-black text-teal-700 flex items-center gap-1">
+              Log Today <i className="fas fa-arrow-right text-[8px]" />
             </span>
           </div>
         </div>
       </div>
 
-      {/* 3. TWO-COLUMN CLINICAL OVERVIEW */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* LEFT COLUMN: Care Plan & Today's Diet */}
-        <div className="space-y-6">
-          {/* Current Care Plan */}
+      {/* ═══ TWO-COLUMN CLINICAL OVERVIEW ══════════════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* LEFT: Care Plan & Diet */}
+        <div className="space-y-5">
+          {/* Active Care Plan */}
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-4 pb-2.5 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <h3 className="font-bold text-slate-900 text-sm">Active Care Plan</h3>
-              </div>
-              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                Under Clinical Supervision
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-black text-slate-900 text-sm flex items-center gap-2">
+                <span className="w-7 h-7 rounded-lg bg-emerald-500 text-white flex items-center justify-center text-xs">
+                  <i className="fas fa-heart-pulse" />
+                </span>
+                Active Care Plan
+              </h3>
+              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                ● Under Clinical Supervision
               </span>
             </div>
 
-            <div className="space-y-3">
-              <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-900">
-                      {own?.diagnosis && own.diagnosis !== 'Pending' ? own.diagnosis : 'Comprehensive Healthcare Protocol'}
-                    </h4>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Attending: {nextAppointment?.doctorName ? `Dr. ${nextAppointment.doctorName}` : 'HealNari Clinical Team'}
-                    </p>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded">
-                    MRN #{own?.mrn || user?.id?.slice(0, 8) || 'EMR-SYNC'}
-                  </span>
+            <div className="rounded-2xl border border-slate-100 p-4 mb-3"
+              style={{ background: 'linear-gradient(135deg, #faf5ff 0%, #f5f3ff 100%)' }}>
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h4 className="text-sm font-black text-slate-900">
+                    {own?.diagnosis && own.diagnosis !== 'Pending' ? own.diagnosis : 'Comprehensive Healthcare Protocol'}
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Attending: {nextAppointment?.doctorName ? `Dr. ${nextAppointment.doctorName}` : 'HealNari Clinical Team'}
+                  </p>
                 </div>
-
-                <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-slate-200 text-center">
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Care Stage</span>
-                    <span className="text-xs font-bold text-slate-800">Active Phase</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Next Review</span>
-                    <span className="text-xs font-bold text-slate-800">{daysToNext !== null ? `in ${daysToNext}d` : 'Scheduled'}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Adherence</span>
-                    <span className="text-xs font-bold text-emerald-700">Good</span>
-                  </div>
+                <span className="text-[10px] font-mono font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-lg shadow-xs">
+                  #{own?.mrn || user?.id?.slice(0, 8) || 'EMR'}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-200/80 text-center">
+                <div className="bg-white rounded-xl p-2 shadow-xs border border-slate-100">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">Stage</span>
+                  <span className="text-xs font-black text-aubergine-700">Active</span>
+                </div>
+                <div className="bg-white rounded-xl p-2 shadow-xs border border-slate-100">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">Next Review</span>
+                  <span className="text-xs font-black text-slate-800">{daysToNext !== null ? `${daysToNext}d` : 'Sched.'}</span>
+                </div>
+                <div className="bg-white rounded-xl p-2 shadow-xs border border-slate-100">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block mb-0.5">Adherence</span>
+                  <span className="text-xs font-black text-emerald-600">Good ✓</span>
                 </div>
               </div>
+            </div>
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => navigate('/patient-dashboard/lifestyle')}
-                  className="flex-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 font-bold py-2 rounded-xl text-xs transition-colors text-center"
-                >
-                  View Care Protocol
-                </button>
-                <button
-                  onClick={() => openLifestylePlanPrintWindow({
-                    patientName: user?.name || own?.name || 'Patient',
-                    age: own?.age || 28,
-                    gender: 'Female',
-                    doctorName: nextAppointment?.doctorName || 'Dr. Sarah Mitchell',
-                    date: todayLabel,
-                    dietPlan: 'Low-glycemic anti-inflammatory nutrition protocol with balanced micro-nutrients.',
-                    exercisePlan: 'Daily 30-minute moderate walking and restorative yoga.',
-                  })}
-                  className="px-3 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-xl text-xs font-bold transition-colors"
-                  title="Print Clinical Care Plan"
-                >
-                  <i className="fas fa-print"></i>
-                </button>
-              </div>
+            <div className="flex gap-2">
+              <button onClick={() => navigate('/patient-dashboard/lifestyle')}
+                className="flex-1 bg-aubergine-700 hover:bg-aubergine-600 text-white font-bold py-2.5 rounded-xl text-xs transition-colors text-center shadow-xs active:scale-95">
+                View Care Protocol
+              </button>
+              <button
+                onClick={() => openLifestylePlanPrintWindow({
+                  patientName: user?.name || own?.name || 'Patient',
+                  age: own?.age || 28, gender: 'Female',
+                  doctorName: nextAppointment?.doctorName || 'Dr. Sarah Mitchell',
+                  date: todayLabel,
+                  dietPlan: 'Low-glycemic anti-inflammatory nutrition protocol with balanced micro-nutrients.',
+                  exercisePlan: 'Daily 30-minute moderate walking and restorative yoga.',
+                })}
+                className="px-3.5 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-xl text-xs font-bold transition-colors shadow-xs"
+                title="Print Clinical Care Plan">
+                <i className="fas fa-print" />
+              </button>
             </div>
           </div>
 
-          {/* Today's Diet Plan */}
+          {/* Today's Nutrition */}
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
-              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                <i className="fas fa-utensils text-aubergine-700"></i>
-                <span>Today's Nutrition Plan</span>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-black text-slate-900 text-sm flex items-center gap-2">
+                <span className="w-7 h-7 rounded-lg bg-orange-400 text-white flex items-center justify-center text-xs">
+                  <i className="fas fa-utensils" />
+                </span>
+                Today's Nutrition Plan
               </h3>
-              <span className="text-xs font-bold text-slate-500">2 / 4 tracked</span>
+              <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">2 / 4 tracked</span>
             </div>
 
-            <div className="space-y-2.5 text-xs">
+            <div className="space-y-2">
               {[
-                { meal: 'Breakfast', desc: 'Protein-rich oats with soaked chia & pumpkin seeds', done: true },
-                { meal: 'Lunch', desc: 'Low-GI quinoa bowl with steamed greens & tofu/paneer', done: true },
-                { meal: 'Afternoon Snack', desc: 'Herbal spearmint infusion with handful of roasted walnuts', done: false },
-                { meal: 'Dinner', desc: 'Light warm lentil soup with stir-fried seasonal vegetables', done: false },
+                { meal: 'Breakfast', desc: 'Protein oats, chia & pumpkin seeds', done: true, icon: '🌅' },
+                { meal: 'Lunch', desc: 'Low-GI quinoa bowl, greens & tofu', done: true, icon: '☀️' },
+                { meal: 'Snack', desc: 'Spearmint tea & roasted walnuts', done: false, icon: '🌿' },
+                { meal: 'Dinner', desc: 'Warm lentil soup & stir-fried veg', done: false, icon: '🌙' },
               ].map((m) => (
-                <div key={m.meal} className={`p-2.5 rounded-xl border flex items-center justify-between ${
-                  m.done ? 'bg-slate-50/60 border-slate-200 text-slate-500' : 'bg-white border-slate-200 text-slate-800'
+                <div key={m.meal} className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${
+                  m.done
+                    ? 'bg-slate-50 border-slate-200 opacity-70'
+                    : 'bg-white border-aubergine-100 shadow-xs'
                 }`}>
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] ${
-                      m.done ? 'bg-emerald-500 text-white' : 'border border-slate-300 text-transparent'
-                    }`}>
-                      <i className="fas fa-check"></i>
-                    </span>
-                    <div className="truncate">
-                      <span className="font-bold text-slate-900 mr-2">{m.meal}:</span>
-                      <span className="text-slate-600">{m.desc}</span>
-                    </div>
+                  <span className="text-base w-6 text-center shrink-0">{m.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-xs font-black text-slate-800">{m.meal}</span>
+                    <p className="text-[11px] text-slate-500 truncate">{m.desc}</p>
                   </div>
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] shrink-0 ${
+                    m.done ? 'bg-emerald-500 text-white' : 'border-2 border-slate-200'
+                  }`}>
+                    {m.done && <i className="fas fa-check" />}
+                  </span>
                 </div>
               ))}
             </div>
 
-            <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex justify-between items-center text-xs">
-              <span className="text-slate-500">Clinical macro goal: <strong>Low Glycemic</strong></span>
-              <button
-                onClick={() => navigate('/patient-dashboard/lifestyle')}
-                className="text-aubergine-800 hover:text-aubergine-900 font-bold"
-              >
-                Full Meal Chart →
+            <div className="mt-3.5 pt-3 border-t border-slate-100 flex justify-between items-center">
+              <span className="text-xs text-slate-500">Goal: <strong className="text-aubergine-700">Low Glycemic</strong></span>
+              <button onClick={() => navigate('/patient-dashboard/lifestyle')}
+                className="text-xs font-black text-aubergine-700 hover:text-aubergine-900 flex items-center gap-1">
+                Full Meal Chart <i className="fas fa-arrow-right text-[9px]" />
               </button>
             </div>
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Active Medications & Lab Results */}
-        <div className="space-y-6">
-          {/* Active Prescriptions */}
+        {/* RIGHT: Medications & Labs */}
+        <div className="space-y-5">
+          {/* Active Medications */}
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
-              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                <i className="fas fa-prescription-bottle-medical text-aubergine-700"></i>
-                <span>Active Medications</span>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-black text-slate-900 text-sm flex items-center gap-2">
+                <span className="w-7 h-7 rounded-lg bg-blue-500 text-white flex items-center justify-center text-xs">
+                  <i className="fas fa-prescription-bottle-medical" />
+                </span>
+                Active Medications
               </h3>
-              <button
-                onClick={() => navigate('/patient-dashboard/prescriptions')}
-                className="text-xs font-bold text-aubergine-800 hover:underline"
-              >
+              <button onClick={() => navigate('/patient-dashboard/prescriptions')}
+                className="text-xs font-bold text-aubergine-700 bg-aubergine-50 hover:bg-aubergine-100 px-2.5 py-1 rounded-full border border-aubergine-200 transition-colors">
                 View All ({own?.meds?.length || 0})
               </button>
             </div>
@@ -2204,12 +2273,18 @@ function PatientDashboard() {
             <div className="space-y-2.5">
               {own?.meds && own.meds.length > 0 ? (
                 own.meds.slice(0, 3).map((m) => (
-                  <div key={m.id || m.medName} className="p-3 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between gap-3 text-xs">
-                    <div>
-                      <h4 className="font-bold text-slate-900 text-sm">{m.medName}</h4>
-                      <p className="text-slate-500 text-xs mt-0.5">
-                        {m.dosage || 'Standard dose'} • {m.frequency || 'Daily'} • {m.timing || 'After food'}
-                      </p>
+                  <div key={m.id || m.medName}
+                    className="p-3.5 rounded-xl border border-slate-100 flex items-center justify-between gap-3 bg-gradient-to-r from-slate-50 to-blue-50/30 hover:shadow-xs transition-all">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 border border-blue-200 flex items-center justify-center shrink-0">
+                        <i className="fas fa-capsules text-blue-600 text-xs" />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-black text-slate-900 text-xs truncate">{m.medName}</h4>
+                        <p className="text-[11px] text-slate-500 truncate">
+                          {m.dosage || 'Standard'} · {m.frequency || 'Daily'} · {m.timing || 'After food'}
+                        </p>
+                      </div>
                     </div>
                     <button
                       onClick={() => {
@@ -2218,16 +2293,15 @@ function PatientDashboard() {
                           toast(`Refill request sent for ${m.medName}`, 'success');
                         }
                       }}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 whitespace-nowrap shadow-2xs"
-                    >
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-black border border-aubergine-200 bg-white hover:bg-aubergine-50 text-aubergine-700 whitespace-nowrap shadow-xs transition-colors active:scale-95">
                       Refill
                     </button>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  <i className="fas fa-pills text-2xl text-slate-300 mb-1 block"></i>
-                  <p className="text-xs text-slate-500 font-medium">No active medications prescribed.</p>
+                <div className="text-center py-8 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50">
+                  <i className="fas fa-pills text-3xl text-slate-200 mb-2 block" />
+                  <p className="text-xs text-slate-400 font-semibold">No active medications prescribed.</p>
                 </div>
               )}
             </div>
@@ -2235,47 +2309,74 @@ function PatientDashboard() {
 
           {/* Diagnostic Lab Results */}
           <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
-            <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100">
-              <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                <i className="fas fa-vial-virus text-aubergine-700"></i>
-                <span>Diagnostic Lab Results</span>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-black text-slate-900 text-sm flex items-center gap-2">
+                <span className="w-7 h-7 rounded-lg bg-rose-500 text-white flex items-center justify-center text-xs">
+                  <i className="fas fa-vial-virus" />
+                </span>
+                Diagnostic Lab Results
               </h3>
-              <button
-                onClick={() => setShowLabReports(true)}
-                className="text-xs font-bold text-aubergine-800 hover:underline"
-              >
+              <button onClick={() => setShowLabReports(true)}
+                className="text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 rounded-full border border-rose-200 transition-colors">
                 Manage Reports
               </button>
             </div>
 
-            <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/50 flex items-center justify-between">
+            <div className={`p-4 rounded-2xl border flex items-center justify-between gap-4 ${
+              pendingReportCount > 0
+                ? 'bg-gradient-to-r from-rose-50 to-pink-50 border-rose-200'
+                : 'bg-gradient-to-r from-slate-50 to-slate-100/50 border-slate-200'
+            }`}>
               <div>
-                <p className="text-xs font-bold text-slate-900">
-                  {pendingReportCount > 0 ? `${pendingReportCount} New Report(s) Available` : 'All Diagnostic Tests Synchronized'}
+                <p className="text-sm font-black text-slate-900">
+                  {pendingReportCount > 0 ? `${pendingReportCount} New Report(s) Ready` : 'All Results Synchronized'}
                 </p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Hormonal panel, metabolic markers, and routine blood tests.
-                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Hormonal panel, metabolic markers, blood tests.</p>
               </div>
-              <button
-                onClick={() => setShowLabReports(true)}
-                className="bg-aubergine-800 hover:bg-aubergine-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition-colors shadow-2xs"
-              >
-                {pendingReportCount > 0 ? 'Review' : 'Upload'}
+              <button onClick={() => setShowLabReports(true)}
+                className={`font-black px-4 py-2 rounded-xl text-xs transition-all shadow-xs active:scale-95 whitespace-nowrap ${
+                  pendingReportCount > 0
+                    ? 'bg-rose-600 hover:bg-rose-700 text-white'
+                    : 'bg-aubergine-800 hover:bg-aubergine-700 text-white'
+                }`}>
+                {pendingReportCount > 0 ? 'Review ↗' : 'Upload'}
               </button>
+            </div>
+
+            {/* Mini lab indicators */}
+            <div className="grid grid-cols-3 gap-2 mt-3">
+              {[
+                { label: 'Hormones', status: 'normal', icon: 'fa-circle-dot' },
+                { label: 'Metabolic', status: 'normal', icon: 'fa-droplet' },
+                { label: 'Thyroid', status: pendingReportCount > 0 ? 'pending' : 'normal', icon: 'fa-shield-virus' },
+              ].map(item => (
+                <div key={item.label} className="text-center p-2 bg-slate-50 rounded-xl border border-slate-100">
+                  <i className={`fas ${item.icon} text-xs mb-1 block ${item.status === 'pending' ? 'text-amber-500' : 'text-emerald-500'}`} />
+                  <span className="text-[10px] font-bold text-slate-600 block">{item.label}</span>
+                  <span className={`text-[9px] font-bold ${item.status === 'pending' ? 'text-amber-600' : 'text-emerald-600'}`}>
+                    {item.status === 'pending' ? 'Pending' : 'Normal'}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
 
-      {/* 4. HEALTH PROGRESS & DAILY FOUNDATIONS */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      {/* ═══ HEALTH PROGRESS & DAILY FOUNDATIONS ═══════════════════════════ */}
+      <div className="rounded-2xl border border-slate-800 p-5 sm:p-6 space-y-4"
+        style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%)' }}>
+        <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-base font-bold text-slate-900">Health Progress &amp; Adherence</h2>
-            <p className="text-xs text-slate-500">Self-monitoring and vital indicators.</p>
+            <h2 className="text-base font-black text-white flex items-center gap-2">
+              <i className="fas fa-chart-line text-purple-400" />
+              Health Progress &amp; Adherence
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">Self-monitoring and vital indicators.</p>
           </div>
-          <span className="text-xs font-bold text-slate-400">Past 7 Days</span>
+          <span className="text-xs font-bold text-purple-300 bg-purple-900/50 px-3 py-1 rounded-full border border-purple-700/50">
+            Past 7 Days
+          </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2287,11 +2388,11 @@ function PatientDashboard() {
       </div>
 
       {/* Clinical SaMD Notice */}
-      <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4 flex items-start gap-3 text-slate-500 text-xs leading-relaxed">
-        <i className="fas fa-shield-halved text-aubergine-600 mt-0.5 flex-shrink-0 text-sm"></i>
+      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex items-start gap-3 text-slate-500 text-xs leading-relaxed">
+        <i className="fas fa-shield-halved text-aubergine-600 mt-0.5 flex-shrink-0" />
         <div>
-          <span className="font-bold text-slate-700">Clinical & Regulatory Notice (SaMD Guidance): </span>
-          HealNari health scoring, cycle mapping, and life-stage insights are designed for educational self-monitoring. They do not constitute medical diagnosis, birth control, or medical treatment plans without consultation with your licensed physician.
+          <span className="font-bold text-slate-700">Clinical &amp; Regulatory Notice (SaMD): </span>
+          HealNari health scoring, cycle mapping, and life-stage insights are for educational self-monitoring only. They do not constitute medical diagnosis or treatment plans without consultation with your licensed physician.
         </div>
       </div>
 
@@ -2307,10 +2408,7 @@ function PatientDashboard() {
         appointmentId={payTarget?.id}
         amount={payTarget?.fee ?? 0}
         description={payTarget ? `Consultation — ${payTarget.doctor}` : ''}
-        onPaid={(payment) => {
-          // If we had syncPayment we could call it, but refreshing appointments works too
-          toast('Payment successful!', 'success');
-        }}
+        onPaid={() => { toast('Payment successful!', 'success'); }}
       />
     </div>
   );

@@ -258,7 +258,9 @@ export class AiEntitlementService {
     // 5. Total credit balance check (for credit-based operations)
     const creditsUsed = subscription.credits_used || 0;
     const monthlyCredits =
-      subscription.monthly_ai_credits || (plan.included_monthly_credits || (isPremium ? 500 : 10));
+      subscription.monthly_ai_credits ||
+      (plan.included_monthly_credits ||
+        (isPremium ? 500 : userRole === 'doctor' ? 25 : 15)); // align with subscription status controller defaults
     const creditsRemaining = Math.max(0, monthlyCredits - creditsUsed);
 
     // If the feature is not unlimited and credit consumption is required, verify credit balance

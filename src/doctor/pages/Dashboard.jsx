@@ -596,20 +596,20 @@ function AiDashboardCard({ navigate }) {
   const percent = Math.max(0, Math.min(100, Math.round((remaining / Math.max(1, total)) * 100)));
 
   return (
-    <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="bg-gradient-to-r from-purple-50/60 via-white to-indigo-50/40 border border-purple-200/80 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div className="flex items-center gap-3.5">
-        <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-base shrink-0 border border-purple-100">
-          <i className="fas fa-wand-magic-sparkles"></i>
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center text-lg shrink-0 shadow-md shadow-purple-500/20">
+          <i className="fas fa-robot"></i>
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h4 className="text-sm font-bold text-slate-800">AI Clinical Assistant</h4>
-            <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
-              {aiStatus?.isPremium ? 'AI Pro' : 'Standard Free'}
+            <h4 className="text-sm font-black text-slate-900">Clinical AI Copilot</h4>
+            <span className="text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+              {aiStatus?.isPremium ? 'AI Pro' : 'Free Tier'}
             </span>
           </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Work faster with AI SOAP note drafts, pre-visit summaries, and clinical safety checks.
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">
+            Generate instant SOAP notes, pre-consultation briefings, and real-time drug interaction checks.
           </p>
         </div>
       </div>
@@ -619,20 +619,21 @@ function AiDashboardCard({ navigate }) {
           <span className="text-xs font-black text-slate-800 font-mono">
             {remaining.toLocaleString()} <span className="text-slate-400 font-normal">/ {total.toLocaleString()}</span>
           </span>
-          <div className="w-28 h-1.5 rounded-full bg-slate-100 overflow-hidden mt-1">
+          <div className="w-28 h-1.5 rounded-full bg-purple-100 overflow-hidden mt-1">
             <div
-              className={`h-full rounded-full transition-all ${remaining <= 5 ? 'bg-amber-500' : 'bg-purple-600'}`}
+              className={`h-full rounded-full transition-all ${remaining <= 5 ? 'bg-amber-500' : 'bg-gradient-to-r from-purple-600 to-indigo-600'}`}
               style={{ width: `${percent}%` }}
             ></div>
           </div>
-          <span className="text-[10px] text-slate-400 block mt-0.5">tokens remaining</span>
+          <span className="text-[10px] text-slate-400 block mt-0.5 font-medium">queries remaining</span>
         </div>
 
         <button
           onClick={() => navigate('/doctor-dashboard/ai')}
-          className="px-3.5 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition-colors shadow-xs flex items-center gap-1.5 shrink-0"
+          className="px-4 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 rounded-xl transition-all shadow-md shadow-purple-500/20 flex items-center gap-1.5 shrink-0 active:scale-95"
         >
-          Explore AI →
+          <i className="fas fa-robot text-xs" />
+          <span>Open Copilot →</span>
         </button>
       </div>
     </div>
@@ -799,9 +800,24 @@ function DoctorDashboard() {
     }
   };
 
+  /* Doctor profile avatar and initials */
+  const [avatarError, setAvatarError] = useState(false);
+  const rawAvatarUrl = user?.avatarUrl || user?.avatar_url || user?.profile?.avatar_url || user?.photo;
+  useEffect(() => {
+    setAvatarError(false);
+  }, [rawAvatarUrl]);
+  const userAvatarUrl = !avatarError && rawAvatarUrl ? rawAvatarUrl : null;
+  const doctorInitials = (capabilities.displayName?.replace('Dr. ', '') || 'Doctor')
+    .split(' ')
+    .filter(Boolean)
+    .map(n => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'DR';
+
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const todayLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+  const todayLabel = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   const todayStats = [
     { 
@@ -809,31 +825,118 @@ function DoctorDashboard() {
       value: queue.length, 
       sub: `${queue.filter(q => q.status !== 'Done' && q.status !== 'No Show').length} remaining`, 
       icon: 'fa-hospital-user', 
-      accent: 'text-aubergine-800 bg-aubergine-50 border-aubergine-200', 
+      accent: 'text-indigo-600 bg-indigo-50 border-indigo-200/80', 
       onClick: () => navigate('/doctor-dashboard/appointments') 
     },
     capabilities.canReviewLabs
-      ? { label: 'Lab Reviews', value: visibleLabs.length, sub: visibleLabs.some(l => l.urgent) ? '⚡ Urgent pending' : 'All reviewed', icon: 'fa-microscope', accent: visibleLabs.some(l => l.urgent) ? 'text-rose-700 bg-rose-50 border-rose-200' : 'text-slate-700 bg-slate-50 border-slate-200', onClick: () => navigate('/doctor-dashboard/reports') }
+      ? { label: 'Lab Reviews', value: visibleLabs.length, sub: visibleLabs.some(l => l.urgent) ? '⚡ Urgent pending' : 'All reviewed', icon: 'fa-microscope', accent: visibleLabs.some(l => l.urgent) ? 'text-rose-600 bg-rose-50 border-rose-200/80' : 'text-slate-600 bg-slate-50 border-slate-200/80', onClick: () => navigate('/doctor-dashboard/reports') }
       : capabilities.canFormulateDiet
-      ? { label: 'Diet Protocols', value: 'Active', sub: 'Clinical meal charts', icon: 'fa-apple-whole', accent: 'text-amber-700 bg-amber-50 border-amber-200', onClick: () => navigate('/doctor-dashboard/diet-yoga') }
-      : { label: 'Care Protocols', value: 'Active', sub: 'Custom treatment guides', icon: 'fa-heart-circle-check', accent: 'text-amber-700 bg-amber-50 border-amber-200', onClick: () => navigate('/doctor-dashboard/diet-yoga') },
+      ? { label: 'Diet Protocols', value: 'Active', sub: 'Clinical meal charts', icon: 'fa-apple-whole', accent: 'text-amber-600 bg-amber-50 border-amber-200/80', onClick: () => navigate('/doctor-dashboard/diet-yoga') }
+      : { label: 'Care Protocols', value: 'Active', sub: 'Custom treatment guides', icon: 'fa-heart-circle-check', accent: 'text-amber-600 bg-amber-50 border-amber-200/80', onClick: () => navigate('/doctor-dashboard/diet-yoga') },
     capabilities.canManageRefills
-      ? { label: 'Refill Requests', value: refillRequests.length, sub: 'Awaiting approval', icon: 'fa-prescription-bottle-medical', accent: refillRequests.length > 0 ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-slate-700 bg-slate-50 border-slate-200', onClick: () => navigate('/doctor-dashboard/prescriptions') }
+      ? { label: 'Refill Requests', value: refillRequests.length, sub: 'Awaiting approval', icon: 'fa-prescription-bottle-medical', accent: refillRequests.length > 0 ? 'text-amber-600 bg-amber-50 border-amber-200/80' : 'text-slate-600 bg-slate-50 border-slate-200/80', onClick: () => navigate('/doctor-dashboard/prescriptions') }
       : capabilities.canFormulateYoga
-      ? { label: 'Movement Protocols', value: 'Active', sub: 'Yoga & posture therapy', icon: 'fa-person-walking', accent: 'text-teal-700 bg-teal-50 border-teal-200', onClick: () => navigate('/doctor-dashboard/diet-yoga') }
-      : { label: 'Completed Today', value: queue.filter(q => q.status === 'Done').length, sub: 'Finished consultations', icon: 'fa-clipboard-check', accent: 'text-emerald-700 bg-emerald-50 border-emerald-200', onClick: () => navigate('/doctor-dashboard/appointments') },
+      ? { label: 'Movement Protocols', value: 'Active', sub: 'Yoga & posture therapy', icon: 'fa-person-walking', accent: 'text-teal-600 bg-teal-50 border-teal-200/80', onClick: () => navigate('/doctor-dashboard/diet-yoga') }
+      : { label: 'Completed Today', value: queue.filter(q => q.status === 'Done').length, sub: 'Finished consultations', icon: 'fa-clipboard-check', accent: 'text-emerald-600 bg-emerald-50 border-emerald-200/80', onClick: () => navigate('/doctor-dashboard/appointments') },
     { 
       label: `Active ${capabilities.clientLabel}s`, 
       value: patients.filter(p => p.status === 'active').length, 
       sub: `${patients.length} total in roster`, 
       icon: 'fa-users', 
-      accent: 'text-aubergine-800 bg-aubergine-50 border-aubergine-200', 
+      accent: 'text-purple-600 bg-purple-50 border-purple-200/80', 
       onClick: () => navigate('/doctor-dashboard/patients') 
     },
   ];
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
+
+      {/* ═══ DOCTOR HERO AURORA HEADER ═══ */}
+      <div
+        className="relative rounded-3xl overflow-hidden shadow-sm"
+        style={{ background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 40%, #4338CA 75%, #6366F1 100%)' }}
+      >
+        {/* Glow orbs */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-12 -right-12 w-64 h-64 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #818CF8, transparent 70%)' }} />
+          <div className="absolute -bottom-8 -left-8 w-48 h-48 rounded-full opacity-15" style={{ background: 'radial-gradient(circle, #C084FC, transparent 70%)' }} />
+          <div className="absolute top-1/2 left-1/3 w-32 h-32 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #38BDF8, transparent 70%)' }} />
+        </div>
+
+        <div className="relative z-10 px-6 py-6 sm:px-8 sm:py-7 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+          <div className="flex items-center gap-4 sm:gap-5">
+            {/* Doctor Avatar */}
+            <div
+              onClick={() => navigate('/doctor-dashboard/profile')}
+              className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-white/20 to-white/10 border-2 border-white/30 backdrop-blur-md flex items-center justify-center text-xl sm:text-2xl shadow-xl cursor-pointer hover:scale-105 hover:border-white transition-all overflow-hidden relative group"
+              title="View & Edit Doctor Profile"
+            >
+              {userAvatarUrl ? (
+                <img
+                  src={userAvatarUrl}
+                  alt={capabilities.displayName}
+                  className="w-full h-full object-cover"
+                  onError={() => setAvatarError(true)}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-tr from-indigo-600 to-purple-500 text-white font-black">
+                  <span>{doctorInitials}</span>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs">
+                <i className="fas fa-camera text-sm drop-shadow" />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className="text-[10px] font-mono font-black tracking-widest text-indigo-200/90 uppercase bg-white/10 px-2.5 py-0.5 rounded-full border border-white/15">
+                  {capabilities.specialtyLabel || 'Specialist Physician'}
+                </span>
+                <span className="text-[10px] text-white/60 font-medium">• {todayLabel}</span>
+                <span className="text-[10px] font-bold text-emerald-300 bg-emerald-950/50 border border-emerald-400/40 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Clinic Active
+                </span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight drop-shadow-sm flex items-center gap-2">
+                <span>{greeting}, {capabilities.displayName}</span>
+                <span className="inline-block">🩺</span>
+              </h1>
+              <p className="text-xs sm:text-sm text-indigo-100/80 mt-0.5 font-medium flex items-center gap-2 flex-wrap">
+                <span>
+                  <strong className="text-white font-bold">{queue.filter(q => q.status !== 'Done' && q.status !== 'No Show').length}</strong> {capabilities.clientLabel.toLowerCase()}(s) scheduled for today
+                </span>
+                <span className="text-indigo-300/50 hidden sm:inline">•</span>
+                <button
+                  onClick={() => navigate('/doctor-dashboard/profile')}
+                  className="text-indigo-200 hover:text-white underline text-xs font-semibold inline-flex items-center gap-1 transition-colors"
+                >
+                  <i className="fas fa-user-pen text-[10px]" /> Profile &amp; Settings
+                </button>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="flex items-center gap-2 bg-white/15 hover:bg-white/25 backdrop-blur-sm border border-white/25 text-white font-bold px-4 py-2.5 rounded-xl transition-all text-xs shadow-sm active:scale-95"
+              title="Share verified appointment booking link"
+            >
+              <i className="fas fa-share-nodes text-indigo-200 text-xs" />
+              <span>Share Booking Link</span>
+            </button>
+            <button
+              onClick={callNext}
+              disabled={!nextPatient && !currentPatient}
+              className="flex items-center gap-2 bg-white text-indigo-950 hover:bg-indigo-50 disabled:opacity-40 disabled:hover:bg-white font-black px-5 py-2.5 rounded-xl transition-all text-xs shadow-md active:scale-95"
+            >
+              <i className="fas fa-bullhorn text-indigo-600 text-xs" />
+              <span>Call Next {nextPatient?.token ? `(${nextPatient.token})` : ''}</span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* 1. CLINICAL ATTENTION REQUIRED TRIAGE BAR */}
       {totalAttentionCount > 0 ? (
@@ -915,46 +1018,6 @@ function DoctorDashboard() {
           </span>
         </div>
       )}
-
-      {/* Doctor Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-aubergine-50 border border-aubergine-200 flex items-center justify-center text-aubergine-800 text-xl font-bold flex-shrink-0">
-            {capabilities.displayName?.replace('Dr. ', '')?.[0] || 'D'}
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                {greeting}, {capabilities.displayName}
-              </h1>
-              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Clinic Active
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              <span className="font-semibold text-slate-700">{capabilities.specialtyLabel}</span> · {todayLabel} · <span className="font-bold text-slate-800">{queue.filter(q => q.status !== 'Done' && q.status !== 'No Show').length}</span> {capabilities.clientLabel.toLowerCase()}(s) remaining today
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => setShowShareModal(true)}
-            className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-2xs"
-          >
-            <i className="fas fa-share-nodes text-aubergine-700"></i>
-            <span>Share Booking Link</span>
-          </button>
-          <button
-            onClick={callNext}
-            disabled={!nextPatient && !currentPatient}
-            className="bg-aubergine-800 hover:bg-aubergine-700 disabled:opacity-40 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 transition-colors shadow-2xs"
-          >
-            <i className="fas fa-bullhorn"></i>
-            <span>Call Next {nextPatient?.token ? `(${nextPatient.token})` : ''}</span>
-          </button>
-        </div>
-      </div>
 
       {/* 2. SIDE-BY-SIDE HERO: IN-SESSION & NEXT PATIENT */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

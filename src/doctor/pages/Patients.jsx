@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
-import { Modal } from '../../components/Modal.jsx';
+import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { DoseSchedule } from '../../components/DoseSchedule.jsx';
 import { RxStatusBadge } from '../../components/RxStatus.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
@@ -2355,7 +2355,9 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
     }
   };
 
-  const { finalizeRx, cancelRx } = useClinicData();
+  const { finalizeRx, cancelRx, deleteRx, updateClinicalNote, deleteClinicalNote } = useClinicData();
+  const [editingNote, setEditingNote] = useState(null);
+  const [deleteNoteTarget, setDeleteNoteTarget] = useState(null);
 
   const handleFinalizeRx = async (groupId) => {
     try {
@@ -2372,6 +2374,36 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
       toast('Prescription cancelled successfully.', 'success');
     } catch (err) {
       toast(err.message || 'Failed to cancel prescription', 'error');
+    }
+  };
+
+  const handleDeleteRx = async (groupId) => {
+    try {
+      await deleteRx(groupId);
+      toast('Prescription deleted successfully.', 'success');
+    } catch (err) {
+      toast(err.message || 'Failed to delete prescription', 'error');
+    }
+  };
+
+  const handleUpdateNote = async () => {
+    if (!editingNote || !editingNote.text?.trim()) return;
+    try {
+      await updateClinicalNote(editingNote.id, editingNote.text);
+      toast('Clinical note updated successfully.', 'success');
+      setEditingNote(null);
+    } catch (err) {
+      toast(err.message || 'Failed to update note', 'error');
+    }
+  };
+
+  const handleDeleteNote = async (id) => {
+    try {
+      await deleteClinicalNote(id);
+      toast('Clinical note deleted.', 'success');
+      setDeleteNoteTarget(null);
+    } catch (err) {
+      toast(err.message || 'Failed to delete note', 'error');
     }
   };
 
@@ -3018,7 +3050,7 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                       </p>
                     </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2">
                         {rxGroup.status === 'Draft' && (
                           <>
                             <button
@@ -3028,19 +3060,35 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                               <i className="fas fa-file-signature"></i> Sign & Finalize
                             </button>
                             <button
-                              onClick={() => handleCancelRx(rxGroup.id)}
+                              onClick={() => handleDeleteRx(rxGroup.id)}
                               className="bg-white hover:bg-rose-50 text-rose-600 font-bold px-3.5 py-2 rounded-xl border border-rose-200 text-xs transition-colors flex items-center gap-1.5 shadow-xs"
                             >
-                              <i className="fas fa-trash"></i> Discard Draft
+                              <i className="fas fa-trash-can"></i> Delete Draft
                             </button>
                           </>
                         )}
                         {rxGroup.status === 'Finalized' && (
+                          <>
+                            <button
+                              onClick={() => handleCancelRx(rxGroup.id)}
+                              className="bg-white hover:bg-amber-50 text-amber-700 font-bold px-3.5 py-2 rounded-xl border border-amber-200 text-xs transition-colors flex items-center gap-1.5 shadow-xs"
+                            >
+                              <i className="fas fa-ban"></i> Cancel Finalized
+                            </button>
+                            <button
+                              onClick={() => handleDeleteRx(rxGroup.id)}
+                              className="bg-white hover:bg-rose-50 text-rose-600 font-bold px-3.5 py-2 rounded-xl border border-rose-200 text-xs transition-colors flex items-center gap-1.5 shadow-xs"
+                            >
+                              <i className="fas fa-trash-can"></i> Delete
+                            </button>
+                          </>
+                        )}
+                        {rxGroup.status === 'Cancelled' && (
                           <button
-                            onClick={() => handleCancelRx(rxGroup.id)}
+                            onClick={() => handleDeleteRx(rxGroup.id)}
                             className="bg-white hover:bg-rose-50 text-rose-600 font-bold px-3.5 py-2 rounded-xl border border-rose-200 text-xs transition-colors flex items-center gap-1.5 shadow-xs"
                           >
-                            <i className="fas fa-ban"></i> Cancel Finalized
+                            <i className="fas fa-trash-can"></i> Delete
                           </button>
                         )}
                         {(() => {
@@ -3592,18 +3640,73 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
 
             <div className="space-y-3 text-xs">
               {patient.clinicalNotes.map((note, i) => (
-                <div key={i} className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-xs space-y-2">
-                  <p className="text-slate-800 leading-relaxed font-medium text-xs">{note.text}</p>
-                  <div className="flex justify-between items-center text-[11px] text-slate-500 pt-2 border-t border-slate-200">
-                    <span>{note.author}</span>
-                    <span>{note.date}</span>
-                  </div>
+                <div key={note.id || i} className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-xs space-y-2">
+                  {editingNote?.id === note.id ? (
+                    <div className="space-y-2">
+                      <textarea
+                        rows={3}
+                        value={editingNote.text}
+                        onChange={(e) => setEditingNote({ ...editingNote, text: e.target.value })}
+                        className="w-full border border-slate-200 rounded-xl p-3 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => setEditingNote(null)}
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 font-bold text-slate-600 hover:bg-slate-100 text-xs"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleUpdateNote}
+                          className="px-3 py-1.5 rounded-lg bg-aubergine-700 text-white font-bold hover:bg-aubergine-800 text-xs shadow-xs"
+                        >
+                          Update Note
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-slate-800 leading-relaxed font-medium text-xs whitespace-pre-wrap">{note.text}</p>
+                      <div className="flex justify-between items-center text-[11px] text-slate-500 pt-2 border-t border-slate-200">
+                        <span>{note.author} • {note.date}</span>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => setEditingNote({ id: note.id, text: note.text })}
+                            className="text-slate-500 hover:text-aubergine-700 font-bold flex items-center gap-1 transition-colors"
+                            title="Edit Note"
+                          >
+                            <i className="fas fa-pen text-[10px]"></i> Edit
+                          </button>
+                          <button
+                            onClick={() => setDeleteNoteTarget(note)}
+                            className="text-slate-400 hover:text-rose-600 font-bold flex items-center gap-1 transition-colors"
+                            title="Delete Note"
+                          >
+                            <i className="fas fa-trash-can text-[10px]"></i> Delete
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
+              {patient.clinicalNotes.length === 0 && (
+                <div className="text-slate-400 text-center py-6">No clinical notes recorded yet.</div>
+              )}
             </div>
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={!!deleteNoteTarget}
+        onClose={() => setDeleteNoteTarget(null)}
+        onConfirm={() => handleDeleteNote(deleteNoteTarget?.id)}
+        title="Delete Clinical Note?"
+        message="Are you sure you want to permanently delete this clinical progress note? This action cannot be undone."
+        confirmLabel="Delete Note"
+        confirmStyle="danger"
+      />
 
       {/* Sub Modals */}
       <DietYogaModal isOpen={showDietYogaModal} onClose={() => setShowDietYogaModal(false)} patient={patient} activePlan={activeLifestylePlan} onSavePlan={(plan) => handleAddRx(patient.id, plan)} />

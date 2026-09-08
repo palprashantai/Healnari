@@ -476,6 +476,8 @@ function DoctorLayout() {
               <span className="hidden sm:inline">Share Link</span>
             </button>
 
+
+
             {/* Doctor Avatar */}
             <div className="flex items-center gap-2 border-l border-slate-200 pl-3 cursor-pointer group" onClick={() => navigate('/doctor-dashboard/profile')}>
               <div className="w-9 h-9 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-black text-xs group-hover:ring-2 group-hover:ring-aubergine-400 transition-all overflow-hidden border border-aubergine-200/80 shrink-0 shadow-2xs">
@@ -690,7 +692,7 @@ function DoctorLayout() {
         </div>
       </nav>
 
-      <AiChatWidget context="doctor" />
+      <AiChatWidget context="doctor" activePatient={activePatient} />
 
       {/* Share Profile & Booking Modal */}
       <DoctorShareModal isOpen={shareOpen} onClose={() => setShareOpen(false)} doctor={user} />

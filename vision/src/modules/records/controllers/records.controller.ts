@@ -632,6 +632,17 @@ export class RecordsController {
     return ResponseHelper.success(rx, 'Prescription cancelled successfully');
   }
 
+  @Delete('prescriptions/:groupId')
+  @ApiOperation({ summary: 'Delete (soft-delete) a prescription group' })
+  @ApiParam({ name: 'groupId', description: 'Group ID of the prescription to delete' })
+  async deletePrescription(
+    @CurrentUser() user: AuthUser,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+  ) {
+    const rx = await this.recordsService.deletePrescription(user, groupId);
+    return ResponseHelper.success(rx, 'Prescription deleted successfully');
+  }
+
   @Post('prescriptions/:groupId/amend')
   @ApiOperation({ summary: 'Amend an existing finalized prescription with a new revision' })
   @ApiParam({ name: 'groupId', description: 'Group ID of the finalized prescription to amend' })
@@ -802,6 +813,27 @@ export class RecordsController {
   ) {
     const data = await this.recordsService.addClinicalNote(user, body);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.NOTE_SAVED);
+  }
+
+  @ApiOperation({ summary: 'Update a clinical note' })
+  @Put('notes/:id')
+  async updateClinicalNote(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('note') note: string,
+  ) {
+    const data = await this.recordsService.updateClinicalNote(user, id, note);
+    return ResponseHelper.success(data, 'Clinical note updated successfully');
+  }
+
+  @ApiOperation({ summary: 'Delete a clinical note' })
+  @Delete('notes/:id')
+  async deleteClinicalNote(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const data = await this.recordsService.deleteClinicalNote(user, id);
+    return ResponseHelper.success(data, 'Clinical note deleted successfully');
   }
 
   @ApiOperation({

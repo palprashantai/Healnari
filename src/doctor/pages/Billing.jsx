@@ -148,6 +148,12 @@ function InvoiceModal({ txn, isOpen, onClose, doctorName, toast }) {
             <span className="font-bold text-slate-700">Gross Settlement</span>
             <span className="font-black text-slate-900 text-base">{formatCurrency(txn.grossAmount || txn.amount, txn.grossCurrency || txn.currency || 'INR')}</span>
           </div>
+          {txn.feeAmount > 0 && (
+            <div className="flex justify-between text-slate-500">
+              <span className="font-medium">Platform Fee ({txn.commissionRate || 10}%)</span>
+              <span className="font-bold text-rose-600 font-mono">-{formatCurrency(txn.feeAmount, txn.currency || 'INR')}</span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="font-bold text-emerald-700">Net Doctor Payout</span>
             <span className="font-black text-emerald-700 text-base">{formatCurrency(txn.amount, txn.currency || 'INR')}</span>
@@ -193,6 +199,10 @@ function DoctorBilling() {
       const grossCurr = t.paid_currency || t.currency || userCurrency || 'INR';
       const payoutAmt = Number(t.doctor_payout_amount ?? t.provider_payout_amount ?? (t.amount ? t.amount * 0.85 : 0));
       const grossAmt = Number(t.paid_amount ?? t.amount ?? t.base_amount ?? 0);
+      const feeAmt = Number(t.platform_commission_amount ?? t.platform_fee_amount ?? Math.max(0, grossAmt - payoutAmt));
+      const commRate = t.commission_rate !== undefined && t.commission_rate !== null
+        ? Number(t.commission_rate)
+        : (grossAmt > 0 ? Math.round((feeAmt / grossAmt) * 100) : 10);
       return {
         id: t.id,
         txn_ref: t.txn_ref,
@@ -202,6 +212,8 @@ function DoctorBilling() {
         type: t.service || 'Consultation',
         amount: payoutAmt,
         grossAmount: grossAmt,
+        feeAmount: feeAmt,
+        commissionRate: commRate,
         currency: payoutCurr,
         grossCurrency: grossCurr,
         status: PAYMENT_STATUS_TO_DISPLAY[t.status] || 'pending',
@@ -495,7 +507,12 @@ function DoctorBilling() {
                   </td>
                   <td className="px-6 py-4 text-slate-500 text-xs font-medium">{t.method}</td>
                   <td className="px-6 py-4 font-black text-slate-900 font-sans">
-                    {formatCurrency(t.amount, t.currency || userCurrency)}
+                    <div>{formatCurrency(t.amount, t.currency || userCurrency)}</div>
+                    {t.feeAmount > 0 && (
+                      <div className="text-[10px] font-semibold text-slate-400 font-mono">
+                        -{formatCurrency(t.feeAmount, t.currency || userCurrency)} ({t.commissionRate}% fee)
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-slate-500 font-semibold font-sans text-xs">
                     {formatCurrency(t.grossAmount, t.grossCurrency || userCurrency)}
