@@ -228,27 +228,28 @@ function LandingPage() {
             <Reveal><Stats /></Reveal>
           )}
 
+          {/* Multi-Specialty Exploration */}
           {adminSettings?.toggles?.showConditions !== false && (
             <Conditions />
           )}
 
+          {/* Interactive Care Discovery / Guided Specialist Matching */}
+          <CareDiscovery 
+            onSelectSpecialty={() => {}}
+            onStartConsult={openBooking}
+          />
+
+          {/* Featured Council-Verified Doctors across Specialties */}
           {adminSettings?.toggles?.showFeaturedDoctors !== false && (
             <Doctors onSelectDoctor={openBooking} />
           )}
 
-          {adminSettings?.toggles?.showPcosDiagram !== false && (
-            <Reveal><PcosDiagram /></Reveal>
-          )}
-
-          {adminSettings?.toggles?.showHolisticApproach !== false && (
-            <Reveal><HolisticApproach /></Reveal>
-          )}
-
+          {/* How HealNari Care Works — 3 Simple Steps */}
           {adminSettings?.toggles?.showHowItWorks !== false && (
             <Reveal><HowItWorks /></Reveal>
           )}
 
-          {/* Dedicated AI Health Suite Showcase */}
+          {/* HealNari Health Assistant — Lab Report Translation & Visit Prep */}
           {adminSettings?.toggles?.showAiShowcase !== false && (
             <PatientAiShowcase 
               onStartConsult={() => openBooking('')} 
@@ -256,6 +257,12 @@ function LandingPage() {
             />
           )}
 
+          {/* Holistic Multidisciplinary Care Protocol */}
+          {adminSettings?.toggles?.showHolisticApproach !== false && (
+            <Reveal><HolisticApproach /></Reveal>
+          )}
+
+          {/* Clinical Outcomes & Long-Term Evidence */}
           {adminSettings?.toggles?.showOutcomes !== false && (
             <Reveal><Outcomes /></Reveal>
           )}

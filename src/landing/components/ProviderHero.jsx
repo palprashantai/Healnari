@@ -148,28 +148,35 @@ function ProviderHero({ onApply, onOpenLogin, title, subtitle }) {
             ))}
           </div>
 
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2.5 sm:gap-4 pt-2">
+          {/* Strict 2-CTA Hierarchy without visual competition */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 pt-2">
             <button
               onClick={onApply}
-              className="w-full sm:w-auto bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-6 sm:px-7 py-3.5 sm:py-4 rounded-2xl shadow-lg shadow-aubergine-200 transition-all hover:scale-[1.02] flex items-center justify-center gap-2.5 text-sm sm:text-base"
+              className="w-full sm:w-auto bg-aubergine-700 hover:bg-aubergine-800 text-white font-bold px-7 py-4 rounded-2xl shadow-lg shadow-aubergine-200 transition-all hover:scale-[1.02] flex items-center justify-center gap-2.5 text-sm sm:text-base cursor-pointer"
             >
               <i className="fas fa-stethoscope"></i>
-              <span className="sm:hidden">Apply as Specialist (3 Mins)</span>
-              <span className="hidden sm:inline">Apply as Specialist (Takes 3 Mins)</span>
+              <span>Apply as Specialist (3 Mins)</span>
             </button>
+
             <a
-              href="#ai-clinical-suite"
-              className="w-full sm:w-auto bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200 text-indigo-900 font-bold px-5 py-3.5 sm:py-4 rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
+              href="#benefits"
+              className="w-full sm:w-auto bg-white hover:bg-slate-50 border border-sand-300 text-slate-800 font-bold px-6 py-4 rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 text-sm sm:text-base cursor-pointer"
             >
-              <i className="fas fa-wand-magic-sparkles text-indigo-600" />
-              <span>Explore AI Clinical EMR</span>
+              <i className="fas fa-circle-play text-aubergine-600" />
+              <span>See How It Works</span>
             </a>
+          </div>
+
+          {/* Discreet Login Link */}
+          <div className="text-xs text-slate-500 font-medium pt-1">
+            Already verified on our medical panel?{' '}
             <button
+              type="button"
               onClick={onOpenLogin}
-              className="w-full sm:w-auto bg-white hover:bg-slate-50 border border-sand-300 text-slate-700 font-semibold px-5 py-3.5 sm:py-4 rounded-2xl shadow-xs transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
+              className="text-aubergine-700 hover:text-aubergine-900 font-bold underline cursor-pointer inline-flex items-center gap-1"
             >
-              <i className="fas fa-arrow-right-to-bracket text-aubergine-600"></i> Provider Login
+              <span>Provider Sign In</span>
+              <i className="fas fa-arrow-right text-[10px]"></i>
             </button>
           </div>
 

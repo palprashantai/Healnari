@@ -57,13 +57,13 @@ function ProviderBenefits() {
     <section id="benefits" className="py-20 md:py-28 bg-white max-w-7xl mx-auto px-5 md:px-8">
       <Reveal className="text-center max-w-3xl mx-auto mb-12 space-y-4">
         <span className="text-xs font-semibold text-aubergine-700 uppercase tracking-wider bg-aubergine-50 px-3.5 py-1 rounded-full border border-aubergine-100 shadow-xs">
-          What You Get on Day 1
+          Practitioner Experience &amp; Workflow
         </span>
         <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-slate-900 leading-tight font-display">
-          Your Full Digital Clinic — Included Free
+          Spend Less Time on Administration.
         </h2>
         <p className="text-slate-600 text-base md:text-lg leading-relaxed font-normal">
-          No software license fees. No setup costs. Every feature below is available from Day 1, included as part of your HealNari provider account at zero additional cost.
+          Manage appointments, patient history, automated SOAP clinical notes, and follow-ups from one intuitive workspace — with zero clinic rent and guaranteed weekly payouts.
         </p>
       </Reveal>
 

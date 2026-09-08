@@ -7,26 +7,25 @@ function Footer() {
   const toast = useToast();
 
   const specialties = [
-    { label: "Women's Health & Gynaecology", href: '/gynecology-womens-health' },
-    { label: "PCOS & Hormonal Health", href: '/pcos-treatment-online' },
-    { label: "Endocrinology & Thyroid", href: '/thyroid-consultation' },
-    { label: "Dermatology & Hormonal Acne", href: '/hormonal-dermatology-acne' },
-    { label: "Hair & Scalp / Trichology", href: '/hair-loss-trichology' },
-    { label: "Clinical Nutrition & Dietetics", href: '/clinical-nutrition-dietetics' },
-    { label: "Yoga & Movement Therapy", href: '/yoga-movement-therapy' },
-    { label: "Fertility & Preconception", href: '/fertility-preconception-care' },
-    { label: "Hormonal Weight Protocol", href: '/hormonal-weight-loss' },
+    { label: "General Medicine & Primary Care", href: '/conditions/pcos-treatment-online' },
+    { label: "Dermatology & Skin Health", href: '/conditions/hormonal-dermatology-acne' },
+    { label: "Endocrinology & Thyroid", href: '/conditions/thyroid-consultation' },
+    { label: "Gynaecology & Reproductive Health", href: '/conditions/gynecology-womens-health' },
+    { label: "Hair & Scalp / Trichology", href: '/conditions/hair-loss-trichology' },
+    { label: "Clinical Nutrition & Dietetics", href: '/conditions/clinical-nutrition-dietetics' },
+    { label: "Mindful Movement & Yoga", href: '/conditions/yoga-movement-therapy' },
+    { label: "Fertility & Preconception", href: '/conditions/fertility-preconception-care' },
   ];
 
   const clinicalGuides = [
-    { label: "PCOS vs PCOD Terminology", href: '/guide/pcos-vs-pcod-terminology' },
-    { label: "Evidence-Based PCOS Nutrition", href: '/guide/pcos-personalized-nutrition' },
-    { label: "Managing PCOS & Metabolism", href: '/guide/pcos-weight-loss' },
-    { label: "Hormonal Hair Loss Triggers", href: '/guide/hair-fall-triggers' },
-    { label: "Cortisol & Cycle Balance", href: '/guide/cortisol-balance' },
-    { label: "Anti-Inflammatory Nutrition", href: '/guide/anti-inflammatory-foods' },
-    { label: "Seed Cycling Clinical Guide", href: '/guide/seed-cycling-guide' },
-    { label: "Sleep Architecture & Hormones", href: '/guide/sleep-hormonal-health' },
+    { label: "PCOS vs PCOD Terminology", href: '/guides/pcos-vs-pcod-terminology' },
+    { label: "Evidence-Based PCOS Nutrition", href: '/guides/pcos-personalized-nutrition' },
+    { label: "Managing PCOS & Metabolism", href: '/guides/pcos-weight-loss' },
+    { label: "Hormonal Hair Loss Triggers", href: '/guides/hair-fall-triggers' },
+    { label: "Cortisol & Cycle Balance", href: '/guides/cortisol-balance' },
+    { label: "Anti-Inflammatory Nutrition", href: '/guides/anti-inflammatory-foods' },
+    { label: "Seed Cycling Clinical Guide", href: '/guides/seed-cycling-guide' },
+    { label: "Sleep Architecture & Hormones", href: '/guides/sleep-hormonal-health' },
   ];
 
   const diagnosticGlossary = [
