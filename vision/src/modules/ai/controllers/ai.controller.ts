@@ -34,6 +34,7 @@ import { SupabaseAuthGuard } from '@/core/guards/supabase-auth.guard';
 import { CurrentUser } from '@/core/decorators/current-user.decorator';
 import type { AuthUser } from '@/core/decorators/current-user.decorator';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
+import { Public } from '@/core/decorators/public.decorator';
 import { ResponseHelper } from '@/core/helpers/response.helper';
 import { SUCCESS_MESSAGES } from '@/core/constants/messages.constant';
 
@@ -56,6 +57,16 @@ export class GenerateSoapDto {
   @MinLength(1)
   @MaxLength(1000)
   chiefComplaint: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  specialty?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  gender?: string;
 
   @IsOptional()
   @IsArray()
@@ -333,6 +344,122 @@ export class AiController {
       {
         reply: result.reply,
         text: result.reply,
+        agentType: result.agentType,
+        toolsUsed: result.toolsExecuted,
+        creditsRemaining: result.creditsRemaining,
+        requestId: result.requestId,
+      },
+      SUCCESS_MESSAGES.DATA_RETRIEVED,
+    );
+  }
+
+  @Post('landing/chat')
+  @Public()
+  @ApiOperation({
+    summary:
+      'Public Landing Page AI Assistant (Ask HealNari) - Zero Auth / Informational & Booking Guide',
+  })
+  async landingChat(
+    @CurrentUser() user: AuthUser | null,
+    @Body() body: AiChatDto,
+  ) {
+    const result = await this.orchestrator.processChat({
+      message: body.message,
+      history: body.history,
+      user: null, // Strictly enforce unauthenticated visitor persona
+      agentType: 'LANDING',
+      preferredProvider: body.preferredProvider,
+    });
+
+    return ResponseHelper.success(
+      {
+        reply: result.reply,
+        text: result.reply,
+        agentType: result.agentType,
+        toolsUsed: result.toolsExecuted,
+        creditsRemaining: result.creditsRemaining,
+        requestId: result.requestId,
+      },
+      SUCCESS_MESSAGES.DATA_RETRIEVED,
+    );
+  }
+
+  @Post('patient/chat')
+  @ApiOperation({
+    summary:
+      'Authenticated Patient AI Health Assistant - Care Plan, Lab Explainer & Health Timeline Companion',
+  })
+  async patientChat(
+    @CurrentUser() user: AuthUser,
+    @Body() body: AiChatDto,
+  ) {
+    if (
+      user.profile.role !== ProfileRole.PATIENT &&
+      user.profile.role !== ProfileRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'Only registered patients can access the Patient Health Assistant.',
+      );
+    }
+
+    const result = await this.orchestrator.processChat({
+      message: body.message,
+      history: body.history,
+      user,
+      agentType: 'PATIENT',
+      preferredProvider: body.preferredProvider,
+    });
+
+    return ResponseHelper.success(
+      {
+        reply: result.reply,
+        text: result.reply,
+        agentType: result.agentType,
+        toolsUsed: result.toolsExecuted,
+        creditsRemaining: result.creditsRemaining,
+        requestId: result.requestId,
+      },
+      SUCCESS_MESSAGES.DATA_RETRIEVED,
+    );
+  }
+
+  @Post('doctor/chat')
+  @ApiOperation({
+    summary:
+      'Authenticated Doctor Clinical Decision Copilot - OPD Queue, Scribe & Pharmacology Shield',
+  })
+  async doctorChat(
+    @CurrentUser() user: AuthUser,
+    @Body() body: AiChatDto,
+  ) {
+    if (
+      user.profile.role !== ProfileRole.DOCTOR &&
+      user.profile.role !== ProfileRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'Only verified healthcare providers can access Doctor Copilot.',
+      );
+    }
+
+    if (user.profile.role === ProfileRole.DOCTOR && !user.profile.kyc_verified) {
+      throw new ForbiddenException(
+        'Doctor account must be verified by platform administrators to access Doctor Copilot.',
+      );
+    }
+
+    const result = await this.orchestrator.processChat({
+      message: body.message,
+      history: body.history,
+      user,
+      agentType: 'DOCTOR',
+      preferredProvider: body.preferredProvider,
+    });
+
+    return ResponseHelper.success(
+      {
+        reply: result.reply,
+        text: result.reply,
+        agentType: result.agentType,
         toolsUsed: result.toolsExecuted,
         creditsRemaining: result.creditsRemaining,
         requestId: result.requestId,
@@ -361,7 +488,11 @@ export class AiController {
     }
 
     const startTime = Date.now();
-    const data = await this.aiService.generateSoapNotes(body);
+    const effectiveSpecialty = body.specialty || user.profile?.specialty || 'General Medicine';
+    const data = await this.aiService.generateSoapNotes({
+      ...body,
+      specialty: effectiveSpecialty,
+    });
     const durationMs = Date.now() - startTime;
 
     const billing = await this.chargeCreditsIfAiGenerated(

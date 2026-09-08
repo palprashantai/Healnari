@@ -45,24 +45,59 @@ export class AiToolRegistry {
 
   /**
    * Returns all tools available to the given execution context / user role.
+   * Enforces strict schema isolation: Landing Agent NEVER sees Doctor/Patient tools.
    */
   getAvailableTools(context: AIExecutionContext): AiToolDeclaration[] {
     const available: AiToolDeclaration[] = [];
+    const agentType =
+      context.agentType ||
+      (context.role === ProfileRole.DOCTOR
+        ? 'DOCTOR'
+        : context.role === ProfileRole.PATIENT
+          ? 'PATIENT'
+          : 'LANDING');
 
     for (const tool of this.tools.values()) {
-      // 1. Role validation
+      // 1. Strict Agent Boundary Check
+      if (agentType === 'LANDING') {
+        // Landing agent can ONLY see tools that are public / allowed for LANDING
+        if (tool.requiredRole && tool.requiredRole !== 'any') {
+          continue;
+        }
+        if (tool.allowedAgents && !tool.allowedAgents.includes('LANDING')) {
+          continue;
+        }
+      } else if (agentType === 'PATIENT') {
+        // Patient agent can see patient tools and public tools, but NEVER doctor tools
+        if (tool.requiredRole === ProfileRole.DOCTOR) {
+          continue;
+        }
+        if (tool.allowedAgents && !tool.allowedAgents.includes('PATIENT')) {
+          continue;
+        }
+      } else if (agentType === 'DOCTOR') {
+        // Doctor agent can see doctor tools and public tools, but NEVER patient personal cycle tracking
+        if (tool.requiredRole === ProfileRole.PATIENT) {
+          continue;
+        }
+        if (tool.allowedAgents && !tool.allowedAgents.includes('DOCTOR')) {
+          continue;
+        }
+      }
+
+      // 2. Role validation
       if (tool.requiredRole && tool.requiredRole !== 'any') {
         if (context.role !== tool.requiredRole) {
           continue;
         }
       }
 
-      // 2. Doctor verification check
+      // 3. Doctor verification check
       if (tool.requiresDoctorVerification && !context.isDoctorVerified) {
         continue;
       }
 
-      // 3. Feature flag check
+      // 4. Feature flag check
       if (tool.requiredEntitlement) {
         if (!this.featureFlagService.isEnabled(tool.requiredEntitlement)) {
           continue;
@@ -94,6 +129,35 @@ export class AiToolRegistry {
       };
     }
 
+    const agentType =
+      context.agentType ||
+      (context.role === ProfileRole.DOCTOR
+        ? 'DOCTOR'
+        : context.role === ProfileRole.PATIENT
+          ? 'PATIENT'
+          : 'LANDING');
+
+    // Security Gate 0: Agent Boundary Enforcement
+    if (agentType === 'LANDING') {
+      if (tool.requiredRole && tool.requiredRole !== 'any') {
+        throw new ForbiddenException(
+          `Public Landing Agent is strictly forbidden from executing private tool "${name}".`,
+        );
+      }
+    } else if (agentType === 'PATIENT') {
+      if (tool.requiredRole === ProfileRole.DOCTOR) {
+        throw new ForbiddenException(
+          `Patient Agent cannot execute doctor clinical tool "${name}".`,
+        );
+      }
+    } else if (agentType === 'DOCTOR') {
+      if (tool.requiredRole === ProfileRole.PATIENT) {
+        throw new ForbiddenException(
+          `Doctor Agent cannot execute patient personal tracking tool "${name}".`,
+        );
+      }
+    }
+
     // Security Gate 1: Role check
     if (tool.requiredRole && tool.requiredRole !== 'any') {
       if (!context.user || context.role !== tool.requiredRole) {
@@ -121,8 +185,9 @@ export class AiToolRegistry {
     }
 
     try {
-      this.logger.log(`Executing AI Tool: ${name} for user: ${context.user?.id || 'visitor'}`);
-      return await tool.execute(params, context);
+      this.logger.log(`Executing AI Tool: ${name} [${agentType}] for user: ${context.user?.id || 'visitor'}`);
+      const rawResult = await tool.execute(params, context);
+      return this.sanitizeToolResult(rawResult);
     } catch (err: any) {
       this.logger.error(`Error executing AI tool "${name}": ${err.message}`, err.stack);
       return {
@@ -130,6 +195,33 @@ export class AiToolRegistry {
         action: 'DO_NOT_HALLUCINATE',
       };
     }
+  }
+
+  /**
+   * Strips internal metadata, password hashes, and sensitive PHI before returning result to LLM.
+   */
+  private sanitizeToolResult(data: any): any {
+    if (!data) return data;
+    if (Array.isArray(data)) return data.map((item) => this.sanitizeToolResult(item));
+    if (typeof data !== 'object') return data;
+
+    const sanitized = { ...data };
+    const FORBIDDEN_FIELDS = [
+      'password',
+      'password_hash',
+      'token',
+      'refresh_token',
+      'deleted_at',
+      'created_by_ip',
+      'national_id_number',
+      'bank_account_number',
+      'aadhaar_number',
+    ];
+
+    for (const field of FORBIDDEN_FIELDS) {
+      delete sanitized[field];
+    }
+    return sanitized;
   }
 
   /**
@@ -330,6 +422,53 @@ export class AiToolRegistry {
 
         if (error) throw new Error('Could not retrieve cycle history.');
         return data || [];
+      },
+    });
+
+    // Tool: get_public_specialties (Public Landing, Patient, Doctor)
+    this.registerTool({
+      name: 'get_public_specialties',
+      description:
+        'Returns the complete list of clinical specialties, scopes of care, and consultation descriptions available on HealNari.',
+      parameters: {
+        type: SchemaType.OBJECT,
+        properties: {},
+      },
+      requiredRole: 'any',
+      allowedAgents: ['LANDING', 'PATIENT', 'DOCTOR'],
+      execute: async () => {
+        return [
+          {
+            specialtyId: 'gen_med',
+            name: 'General Medicine',
+            description: 'Comprehensive primary care, seasonal illness, chronic conditions, and preventative health checks.',
+          },
+          {
+            specialtyId: 'gyn_obs',
+            name: 'Gynecology & Obstetrics',
+            description: 'Women’s reproductive wellness, PCOS / PCOD management, cycle health, fertility, and prenatal care.',
+          },
+          {
+            specialtyId: 'derm',
+            name: 'Dermatology',
+            description: 'Clinical skin therapy, acne, eczema, pigmentation, hair fall, and scalp health.',
+          },
+          {
+            specialtyId: 'endo',
+            name: 'Endocrinology',
+            description: 'Metabolic disorders, thyroid care (TSH/FT4), diabetes management, and hormonal optimization.',
+          },
+          {
+            specialtyId: 'nutri',
+            name: 'Nutrition & Dietetics',
+            description: 'Personalized evidence-based meal plans, gut health, metabolic weight management, and nutrition guidance.',
+          },
+          {
+            specialtyId: 'yoga',
+            name: 'Lifestyle & Yoga Therapy',
+            description: 'Stress resilience, Pranayama breathwork, restorative Asanas, sleep hygiene, and holistic recovery.',
+          },
+        ];
       },
     });
 

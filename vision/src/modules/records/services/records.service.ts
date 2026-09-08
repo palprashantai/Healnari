@@ -195,10 +195,18 @@ export class RecordsService implements OnModuleInit {
     const signedAt = body.isDraft ? null : (body.signedAt || nowIso);
     const attachmentUrl = body.attachmentUrl || body.handwrittenImage || null;
 
-    // Filter out empty lines while preserving valid distinct doses and tapering schedules
-    const validMedicines = (body.medicines || []).filter((m) => (m.medName || '').trim().length > 0);
+    // Filter out empty lines and deduplicate identical lines while preserving valid distinct doses or tapering schedules
+    const seenMeds = new Set<string>();
+    const validMedicines = (body.medicines || [])
+      .filter((m) => (m.medName || '').trim().length > 0)
+      .filter((m) => {
+        const key = `${m.medName.trim().toLowerCase()}_${(m.dosage || '').trim().toLowerCase()}_${(m.schedule || '').trim().toLowerCase()}`;
+        if (seenMeds.has(key)) return false;
+        seenMeds.add(key);
+        return true;
+      });
 
-    const rows = validMedicines.map((m) => ({
+    let rows = validMedicines.map((m) => ({
       patient_id: body.patientId,
       doctor_id: user.id,
       group_id: groupId,
@@ -225,6 +233,41 @@ export class RecordsService implements OnModuleInit {
       prescribed_at: prescribedAt,
       status: rxStatus,
     }));
+
+    // Support non-pharmacological, lifestyle, dietary or attached prescription consults
+    if (rows.length === 0) {
+      if (attachmentUrl || body.instructions || body.diagnosis) {
+        rows = [{
+          patient_id: body.patientId,
+          doctor_id: user.id,
+          group_id: groupId,
+          appointment_id: body.appointmentId || null,
+          diagnosis: body.diagnosis || 'Clinical Consultation',
+          med_name: attachmentUrl ? 'Handwritten / Attached Prescription' : 'Clinical Consultation & Lifestyle Protocol',
+          dosage: 'As Directed',
+          schedule: 'As Directed',
+          duration: 'Consultation Follow-up',
+          dosage_form: null,
+          route: 'Consultation',
+          food_relation: null,
+          indication: null,
+          is_sos: false,
+          quantity: null,
+          refills_authorized: 0,
+          instructions: body.instructions || 'Follow clinical guidance and consultation advice.',
+          attachment_url: attachmentUrl,
+          version: body.version || 1,
+          amended_from_id: body.amendedFromId || null,
+          amendment_reason: body.amendmentReason || null,
+          signed_at: signedAt,
+          signature_hash: body.signatureHash || null,
+          prescribed_at: prescribedAt,
+          status: rxStatus,
+        }];
+      } else {
+        throw new BadRequestException('Prescription must contain at least one medication, clinical instruction, or prescription attachment.');
+      }
+    }
 
     const { data: prescriptions, error: insertError } = await this.supabase.admin
       .from('prescriptions')

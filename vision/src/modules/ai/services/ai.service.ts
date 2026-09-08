@@ -188,6 +188,72 @@ export class AiService {
     }
   }
 
+  /**
+   * Deterministic Universal Red-Flag Emergency Screening
+   * Flags acute life-threatening presentations immediately prior to or alongside LLM execution.
+   */
+  screenEmergencyRedFlags(text: string): { isEmergency: boolean; alertMessage: string | null } {
+    if (!text || typeof text !== 'string') return { isEmergency: false, alertMessage: null };
+    const lower = text.toLowerCase();
+
+    // 1. Cardiac & Hemodynamic Collapse
+    if (
+      /(chest pain|chest tightness|pressure in chest|radiating to (my )?(left arm|jaw)|crushing chest|passed out|sudden collapse|fainted and not waking)/i.test(lower)
+    ) {
+      return {
+        isEmergency: true,
+        alertMessage:
+          'EMERGENCY WARNING: Reported symptoms indicate potential acute coronary syndrome or cardiac event. Please call emergency services (112 / 911 / 108) or go to the nearest emergency department immediately.',
+      };
+    }
+
+    // 2. Severe Respiratory Distress
+    if (
+      /(can'?t breathe|severe shortness of breath|gasping for air|turning blue|lips blue|suffocating)/i.test(lower)
+    ) {
+      return {
+        isEmergency: true,
+        alertMessage:
+          'EMERGENCY WARNING: Reported symptoms indicate acute respiratory distress. Seek immediate emergency medical care.',
+      };
+    }
+
+    // 3. Neurological / Stroke Warning
+    if (
+      /(facial droop|face drooping|arm weakness|slurred speech|sudden paralysis|loss of vision in one eye|worst headache of my life|thunderclap headache)/i.test(lower)
+    ) {
+      return {
+        isEmergency: true,
+        alertMessage:
+          'EMERGENCY WARNING: Reported signs match acute neurological or stroke criteria (FAST). Seek emergency medical evaluation immediately.',
+      };
+    }
+
+    // 4. Massive Hemorrhage
+    if (
+      /(soaking (a|one|2|two) pads? in (under an|less than an|an) hour|vomiting blood|coughing up blood|black tarry stool|massive bleeding)/i.test(lower)
+    ) {
+      return {
+        isEmergency: true,
+        alertMessage:
+          'EMERGENCY WARNING: Severe bleeding detected. Please visit an emergency department immediately for acute hemodynamic assessment.',
+      };
+    }
+
+    // 5. Acute Crisis / Self-Harm
+    if (
+      /(want to die|kill myself|suicidal|end my life|harm myself|take all my pills)/i.test(lower)
+    ) {
+      return {
+        isEmergency: true,
+        alertMessage:
+          'CRISIS SUPPORT: If you are experiencing thoughts of self-harm or suicide, please reach out right away. Help is available 24/7. Call or text 988 (USA), 112 (Europe/India), or Tele-MANAS at 14416 (India). You do not have to be alone.',
+      };
+    }
+
+    return { isEmergency: false, alertMessage: null };
+  }
+
   // --- Router ---
   async processQuery(
     message: string,
@@ -489,6 +555,8 @@ Recent lab reports: ${facts.recentLabReports.length ? facts.recentLabReports.map
   async generateSoapNotes(facts: {
     patientName: string;
     patientId?: string;
+    specialty?: string;
+    gender?: string;
     age?: number;
     chiefComplaint: string;
     symptoms?: string[];
@@ -497,11 +565,13 @@ Recent lab reports: ${facts.recentLabReports.length ? facts.recentLabReports.map
     chronicConditions?: string[];
     labResults?: string[];
   }) {
+    const specialty = facts.specialty || 'General Medicine';
+
     if (!this.genAI) {
       return {
-        subjective: `Patient ${facts.patientName} presents with ${facts.chiefComplaint}. Symptoms reported: ${(facts.symptoms || []).join(', ') || 'Standard presentation'}.`,
+        subjective: `Patient ${facts.patientName} (${facts.gender || 'Patient'}) presents for ${specialty} consultation with ${facts.chiefComplaint}. Symptoms reported: ${(facts.symptoms || []).join(', ') || 'Standard presentation'}.`,
         objective: `Teleconsultation assessment. Medical history: ${(facts.chronicConditions || []).join(', ') || 'No chronic illness reported'}.`,
-        assessment: `Clinical evaluation for ${facts.chiefComplaint}.`,
+        assessment: `Clinical evaluation for ${facts.chiefComplaint} (${specialty}).`,
         plan: `1. Continue prescribed medications.\n2. Maintain symptom diary.\n3. Follow up in 2-4 weeks if symptoms persist.`,
         patientActionPlan: [
           `Take any prescribed medications as directed.`,
@@ -524,15 +594,15 @@ Recent lab reports: ${facts.recentLabReports.length ? facts.recentLabReports.map
             ],
           },
         ],
-        systemInstruction: `You are an expert clinical documentation assistant for HealNari, a women's telemedicine network.
-Your mission is to generate structured, evidence-based SOAP notes (Subjective, Objective, Assessment, Plan) and a 3-bullet plain-language Patient Action Plan.
-When clinical guidelines or disease protocols (PCOS, thyroid, abnormal uterine bleeding, fertility) are relevant, use the searchClinicalKnowledgeBase tool to retrieve evidence-based protocols.
+        systemInstruction: `You are an expert clinical documentation assistant for HealNari, a multi-specialist healthcare network (Specialty: ${specialty}).
+Your mission is to generate structured, evidence-based SOAP notes (Subjective, Objective, Assessment, Plan) and a 3-bullet plain-language Patient Action Plan tailored to this clinical specialty.
+When clinical guidelines or disease protocols (Endocrinology, Dermatology, Gynecology, General Medicine, Nutrition, Lifestyle) are relevant, use the searchClinicalKnowledgeBase tool to retrieve evidence-based protocols.
 Always ground your assessment in medical facts.
 Return your final answer ONLY as valid JSON matching this schema:
 {
   "subjective": "Concise summary of patient symptoms, timeline, and history of presenting illness",
-  "objective": "Observations, vitals or labs discussed during the video call",
-  "assessment": "Provisional clinical assessment and differential considerations",
+  "objective": "Observations, vitals, physical exam, or labs discussed during the consultation",
+  "assessment": "Provisional clinical assessment and differential considerations tailored to specialty",
   "plan": "Numbered clinical management plan including medication recommendations, lab workups, and follow-up timeline",
   "patientActionPlan": [
     "Step 1 plain-language instruction for patient",
@@ -544,7 +614,9 @@ Return your final answer ONLY as valid JSON matching this schema:
 
       const chat = model.startChat();
       const userPrompt = `Generate a SOAP consultation note for:
+- Clinical Specialty: ${specialty}
 - Patient Name: ${facts.patientName} ${facts.patientId ? `(ID: ${facts.patientId})` : ''}
+- Gender: ${facts.gender || 'Not specified'}
 - Age: ${facts.age || 'Not specified'}
 - Chief Complaint: ${facts.chiefComplaint}
 - Symptoms: ${(facts.symptoms || []).join(', ') || 'None specified'}
@@ -655,15 +727,15 @@ Return your final answer ONLY as valid JSON matching this schema:
             ],
           },
         ],
-        systemInstruction: `You are a clinical pharmacology assistant for HealNari.
-When queried for a medication, search clinical knowledge base if needed, then output standard evidence-based prescription details for women's healthcare.
+        systemInstruction: `You are a clinical pharmacology assistant for HealNari multi-specialist healthcare network.
+When queried for a medication across any specialty (General Medicine, Endocrinology, Dermatology, Gynecology, Nutrition, Lifestyle), search clinical knowledge base if needed, then output standard evidence-based prescription details.
 Return your answer ONLY as valid JSON:
 {
   "drugName": "Standard Generic / Brand Name",
-  "dosage": "Standard dose (e.g. 500mg SR, 25mcg, 10mg)",
+  "dosage": "Standard dose (e.g. 500mg SR, 25mcg, 10mg, 1% topical)",
   "frequency": "Standard frequency (e.g. Once daily, Twice daily after meals)",
   "duration": "Typical duration (e.g. 7 Days, 30 Days, 3 Months)",
-  "instructions": "Key patient instruction (e.g. Take 30 mins before breakfast on an empty stomach)"
+  "instructions": "Key patient instruction (e.g. Take 30 mins before breakfast on empty stomach / Apply thin film to affected area)"
 }`,
       });
 
@@ -710,15 +782,15 @@ Return your answer ONLY as valid JSON:
     cyclePhase?: string,
   ) {
     const phaseContext = cyclePhase
-      ? `Patient's Reported Cycle Phase / Status: ${cyclePhase}. Use phase-specific reference ranges for reproductive hormones (FSH, LH, Estradiol, Progesterone, Beta-hCG).`
-      : 'Cycle phase not specified (use standard adult female reference limits).';
+      ? `Patient's Reported Physiological / Cycle Context: ${cyclePhase}. Use phase-specific reference ranges if evaluating reproductive hormones.`
+      : 'Standard adult physiological reference limits apply.';
 
     if (!this.genAI) {
       return {
         reportName: reportName || 'Diagnostic Lab Report',
-        cyclePhase: cyclePhase || 'Not specified',
+        cyclePhase: cyclePhase || 'General',
         criticalAlert: null,
-        summary: `Your lab report has been reviewed (${cyclePhase || 'General'}). Values appear within expected standard limits. Please consult your physician for comprehensive clinical interpretation.`,
+        summary: `Your lab report (${reportName || 'Diagnostic Panel'}) has been reviewed. Values appear within expected standard limits. Please consult your physician for comprehensive clinical interpretation.`,
         biomarkers: [
           {
             name: 'Standard Biomarker Review',
@@ -730,8 +802,8 @@ Return your answer ONLY as valid JSON:
           },
         ],
         questionsForDoctor: [
-          'Are my hormone levels within optimal range for my cycle phase?',
-          'Do I need any follow-up blood tests in the next 3 months?',
+          'Are my biomarker levels within optimal range for my health goals?',
+          'Do I need any repeat or follow-up blood tests in the next 3 months?',
         ],
         isAiGenerated: false,
       };
@@ -743,7 +815,7 @@ Return your answer ONLY as valid JSON:
         generationConfig: { responseMimeType: 'application/json' },
       });
 
-      const prompt = `You are an empathetic medical education assistant for HealNari. Analyze the following lab test report and explain it in clear, non-alarming, plain English for the patient.
+      const prompt = `You are an empathetic medical education assistant for HealNari multi-specialist healthcare network. Analyze the following lab test report and explain it in clear, non-alarming, plain English for the patient.
 
 Report Name: ${reportName || 'Blood / Diagnostic Report'}
 ${phaseContext}
@@ -753,7 +825,8 @@ ${reportText}
 
 Safety & Clinical Rules:
 - Never provide a definitive clinical diagnosis.
-- For reproductive hormones (Estradiol, Progesterone, LH, FSH, AMH, Prolactin), evaluate values taking into account the specified cycle phase (${cyclePhase || 'general'}).
+- Evaluate markers across metabolic, lipid, thyroid, liver, renal, hematologic, or hormonal panels with balanced physiological context.
+- When reproductive hormones (Estradiol, Progesterone, LH, FSH, AMH, Prolactin) are present in female patients, evaluate taking into account specified cycle phase if provided (${cyclePhase || 'general'}).
 - Explain out-of-range values calmly with physiological context.
 - CRITICAL PANIC VALUES DETECTION:
   Check for life-threatening laboratory panic values:
@@ -761,6 +834,7 @@ Safety & Clinical Rules:
   • Severe Thrombocytopenia: Platelets < 50,000 /µL.
   • Critical Glycemia: Fasting Glucose < 50 mg/dL or > 300 mg/dL.
   • Critical Potassium: < 3.0 mEq/L or > 6.0 mEq/L.
+  • Critical Creatinine: Acute elevation > 3.0 mg/dL.
   • Markedly elevated Beta-hCG with severe pain/bleeding concerns.
   If ANY panic value is present, populate 'criticalAlert' with a prominent warning message instructing immediate medical care. Otherwise set 'criticalAlert' to null.
 - Include 3 intelligent questions the patient can ask their doctor.
@@ -1065,19 +1139,24 @@ Return ONLY valid JSON matching this schema:
       ? `Clinical review synthesized for ${params.patientName}: ${params.chiefComplaint}.`
       : `Your upcoming appointment with ${params.doctorName || params.doctorSpecialty || 'your specialist'} is a great opportunity to get clarity on your health concerns.`;
 
+    // Deterministic Universal Emergency Red-Flag Screening
+    const screened = this.screenEmergencyRedFlags(
+      `${params.concerns || ''} ${params.chiefComplaint || ''} ${(params.symptoms || []).join(' ')}`,
+    );
+
     const defaultPrep = {
-      emergencyEscalation: false,
-      emergencyAlert: null as string | null,
+      emergencyEscalation: screened.isEmergency,
+      emergencyAlert: screened.alertMessage,
       summary: summaryText,
       prepNotes: summaryText,
       keyTopicsToCover: [
         `Main symptoms: ${(params.symptoms || []).join(', ') || params.chiefComplaint || params.concerns || 'General health review'}`,
-        `Hormone & cycle patterns: ${params.cycleContext || 'Standard cycle review'}`,
+        `Specialty focus: ${params.doctorSpecialty || 'Clinical evaluation and management'}`,
         `Treatment and lifestyle adjustments`,
       ],
       questionsForDoctor: [
         'What could be the primary underlying physiological cause of my symptoms?',
-        'Do you recommend any specific hormone or blood biomarker tests?',
+        'Do you recommend any specific biomarker tests or imaging workups?',
         'What evidence-based nutrition or lifestyle changes will best support my treatment?',
       ],
       checklistBeforeCall: [
@@ -1087,6 +1166,10 @@ Return ONLY valid JSON matching this schema:
       ],
       isAiGenerated: false,
     };
+
+    if (screened.isEmergency) {
+      return defaultPrep;
+    }
 
     if (!this.genAI) {
       return defaultPrep;
@@ -1098,25 +1181,21 @@ Return ONLY valid JSON matching this schema:
         generationConfig: { responseMimeType: 'application/json' },
       });
 
-      const prompt = `You are an empathetic, expert Patient Consultation Preparation Assistant for HealNari, a specialized women's health platform.
+      const prompt = `You are an empathetic, expert Patient Consultation Preparation Assistant for HealNari, a multi-specialist healthcare platform.
 Your goal is to empower the patient (${params.patientName}) to have the most productive, comprehensive conversation with their healthcare provider (${params.doctorName || params.doctorSpecialty || 'Specialist'}).
 
 Patient Context:
-- Doctor Specialty: ${params.doctorSpecialty || 'Gynecology / Women Health'}
+- Doctor Specialty: ${params.doctorSpecialty || 'General Medicine / Specialist'}
 - Doctor Name: ${params.doctorName || 'Specialist Doctor'}
-- Primary Concerns: ${params.concerns || 'Hormonal and menstrual wellness'}
+- Primary Concerns: ${params.concerns || 'Health and symptom evaluation'}
 - Reported Symptoms: ${(params.symptoms || []).join(', ') || 'None specified'}
-- Cycle Context / Phase: ${params.cycleContext || 'Not specified'}
+- Context / Health Notes: ${params.cycleContext || 'Not specified'}
 - Patient Questions: ${(params.questions || []).join(', ') || 'General evaluation'}
 
 Safety & Emergency Rules:
 - Never provide a diagnosis or prescriptive medication advice.
 - EMERGENCY RED FLAGS SCREENING:
-  Screen symptoms and concerns for acute life-threatening emergencies:
-  • Sudden, severe one-sided pelvic pain (possible ruptured ectopic pregnancy or ovarian torsion).
-  • Very heavy bleeding: soaking through ≥2 pads/tampons per hour for 2 hours, or passing large blood clots.
-  • In pregnancy: severe persistent headache, sudden visual disturbances, or severe epigastric pain (preeclampsia signs).
-  • Fainting, severe dizziness, chest pain, or suicidal thoughts.
+  Screen symptoms and concerns for acute life-threatening emergencies (chest pain, stroke signs, massive bleeding, severe respiratory distress, acute severe pain).
   If ANY red-flag emergency symptoms are present:
   Set "emergencyEscalation" to true, and "emergencyAlert" to "URGENT SAFETY ALERT: Your reported symptoms indicate a potential medical emergency. Please seek immediate medical evaluation at an emergency department or contact emergency services right away rather than waiting for a scheduled appointment."
   Otherwise, set "emergencyEscalation" to false and "emergencyAlert" to null.

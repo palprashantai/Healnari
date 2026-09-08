@@ -66,6 +66,21 @@ export class AppointmentsService {
     return `${a.scheduled_date} at ${a.scheduled_time}`;
   }
 
+  public getDoctorTimezoneDate(timezone?: string): string {
+    const tz = timezone || 'Asia/Kolkata';
+    return new Date().toLocaleDateString('en-CA', { timeZone: tz });
+  }
+
+  public getDoctorTimezoneMinutes(timezone?: string): number {
+    const tz = timezone || 'Asia/Kolkata';
+    const timeStr = new Date().toLocaleTimeString('en-US', {
+      timeZone: tz,
+      hour12: false,
+    });
+    const [h, m] = timeStr.split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  }
+
   /** Cancelling a paid appointment must actually put the money back on the
    * radar — mark the payment `Refund Pending` (not `Refunded` outright: no
    * money has actually moved yet, only admin.processRefund() actually calls
@@ -651,7 +666,8 @@ export class AppointmentsService {
     // Terminal states cannot be changed
     if (
       appointment.status === AppointmentStatus.DONE ||
-      appointment.status === AppointmentStatus.CANCELLED
+      appointment.status === AppointmentStatus.CANCELLED ||
+      appointment.status === AppointmentStatus.NO_SHOW
     ) {
       throw new BadRequestException({
         message: `Cannot change status of an appointment that is already ${appointment.status.toLowerCase()}.`,
@@ -787,6 +803,17 @@ export class AppointmentsService {
             );
           }
           updatePayload.payment_id = payment.id;
+        }
+      }
+      if (status === AppointmentStatus.DONE) {
+        if (
+          appointment.status !== AppointmentStatus.IN_PROGRESS &&
+          appointment.status !== AppointmentStatus.WAITING &&
+          appointment.status !== AppointmentStatus.UPCOMING
+        ) {
+          throw new BadRequestException(
+            `Cannot mark an appointment as Done from ${appointment.status.toLowerCase()} status.`,
+          );
         }
       }
     }
@@ -1280,8 +1307,14 @@ export class AppointmentsService {
       );
     }
 
-    const now = new Date();
-    const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const doctorTz = user.profile.timezone || 'Asia/Kolkata';
+    const localDate = this.getDoctorTimezoneDate(doctorTz);
+    const localTime = new Date().toLocaleTimeString('en-US', {
+      timeZone: doctorTz,
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
     const { data: saved } = await this.supabase.admin
       .from('appointments')
       .insert({
@@ -1290,11 +1323,7 @@ export class AppointmentsService {
         specialty: user.profile.specialty,
         type: AppointmentType.VIDEO,
         scheduled_date: localDate,
-        scheduled_time: now.toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true,
-        }),
+        scheduled_time: localTime,
         reason: 'Instant video consultation',
         status: AppointmentStatus.IN_PROGRESS,
       })
@@ -1330,9 +1359,9 @@ export class AppointmentsService {
       throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     }
 
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const doctorTz = user.profile.timezone || 'Asia/Kolkata';
+    const today = this.getDoctorTimezoneDate(doctorTz);
+    const nowMinutes = this.getDoctorTimezoneMinutes(doctorTz);
 
     // Query all today's appointments for this doctor
     const { data: rawAppointments } = await this.supabase.admin
@@ -1449,7 +1478,8 @@ export class AppointmentsService {
     }
 
     const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const doctorTz = user.profile.timezone || 'Asia/Kolkata';
+    const today = this.getDoctorTimezoneDate(doctorTz);
 
     // 1. Query today's waiting list for this doctor
     const { data: waitingRows } = await this.supabase.admin
@@ -1563,8 +1593,14 @@ export class AppointmentsService {
       throw new BadRequestException(`Cannot check in for an appointment that is already ${appointment.status.toLowerCase()}.`);
     }
 
+    const { data: doctorProfile } = await this.supabase.admin
+      .from('profiles')
+      .select('timezone')
+      .eq('id', appointment.doctor_id)
+      .maybeSingle();
+    const doctorTz = doctorProfile?.timezone || 'Asia/Kolkata';
     const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const today = this.getDoctorTimezoneDate(doctorTz);
 
     if (appointment.scheduled_date !== today) {
       throw new BadRequestException('Check-in is only permitted on the day of your scheduled consultation.');
@@ -1627,8 +1663,8 @@ export class AppointmentsService {
       throw new ForbiddenException(ERROR_MESSAGES.FORBIDDEN);
     }
 
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const doctorTz = user.profile.timezone || 'Asia/Kolkata';
+    const today = this.getDoctorTimezoneDate(doctorTz);
 
     const { data: waitingList } = await this.supabase.admin
       .from('appointments')

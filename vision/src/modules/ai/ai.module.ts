@@ -7,6 +7,7 @@ import { AiEntitlementService } from '@/modules/ai/services/ai-entitlement.servi
 import { AiPromptService } from '@/modules/ai/services/ai-prompt.service';
 import { AiAnalyticsService } from '@/modules/ai/services/ai-analytics.service';
 import { AiContextBuilderService } from '@/modules/ai/services/ai-context-builder.service';
+import { AiAgentResolverService } from '@/modules/ai/services/ai-agent-resolver.service';
 import { AiOrchestrator } from '@/modules/ai/services/ai-orchestrator.service';
 import { AiPricingService } from '@/modules/ai/services/ai-pricing.service';
 import { AiCreditLedgerService } from '@/modules/ai/services/ai-credit-ledger.service';
@@ -47,6 +48,7 @@ import { NotificationsModule } from '@/modules/notifications/notifications.modul
     AiProviderGateway,
     AiToolRegistry,
     AiContextBuilderService,
+    AiAgentResolverService,
     AiOrchestrator,
     AiPricingService,
     AiCreditLedgerService,
@@ -62,6 +64,7 @@ import { NotificationsModule } from '@/modules/notifications/notifications.modul
     ChatGateway,
   ],
   exports: [
+    AiAgentResolverService,
     AiOrchestrator,
     AiPricingService,
     AiCreditLedgerService,

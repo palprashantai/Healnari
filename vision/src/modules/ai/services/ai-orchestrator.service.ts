@@ -23,11 +23,16 @@ import {
 } from '../providers/ai-provider.interface';
 import { AiFeatureKey } from '../interfaces/ai-monetization.interface';
 import { AIExecutionContext } from '../tools/ai-tool.interface';
+import {
+  AiAgentResolverService,
+  HealNariAgentType,
+} from './ai-agent-resolver.service';
 
 export interface OrchestrateChatParams {
   message: string;
   history?: AiChatMessage[];
   user: AuthUser | null;
+  agentType?: HealNariAgentType;
   featureKey?: AiFeatureKey;
   preferredProvider?: 'gemini' | 'openai';
   onEvent?: (event: {
@@ -44,6 +49,7 @@ export interface OrchestrateChatResult {
   tokensUsed: number;
   estimatedCostUsd: number;
   creditsRemaining?: number;
+  agentType: HealNariAgentType;
   requestId: string;
 }
 
@@ -60,6 +66,7 @@ export class AiOrchestrator {
     private readonly usageService: AiUsageService,
     private readonly analyticsService: AiAnalyticsService,
     private readonly promptService: AiPromptService,
+    private readonly agentResolver: AiAgentResolverService,
   ) {}
 
   /**
@@ -70,20 +77,32 @@ export class AiOrchestrator {
     const requestId = `req_${randomUUID()}`;
     const { message, user, preferredProvider, onEvent } = params;
 
-    // 1. Role & Identity Resolution
+    // 1. Deterministic Agent & Identity Resolution (Zero client spoofing)
+    const resolvedAgent = this.agentResolver.resolveAgent(user, params.agentType);
+    const agentType = resolvedAgent.agentType;
     const role: ProfileRole | 'visitor' = user?.profile?.role || 'visitor';
-    const isDoctorVerified = user?.profile?.role === ProfileRole.DOCTOR && !!user.profile.kyc_verified;
+    const isDoctorVerified =
+      resolvedAgent.isDoctorVerified ??
+      (role === ProfileRole.DOCTOR && !!user?.profile?.kyc_verified);
+
     const executionContext: AIExecutionContext = {
       user,
       role,
+      agentType,
       isDoctorVerified,
       requestId,
     };
 
     // 2. Feature Key Resolution & Entitlement Check
-    const featureKey = params.featureKey || AiFeatureKey.PATIENT_CHAT;
+    // Public Landing Agent is strictly free / un-metered to ensure accessibility
+    const isPaidAgent = agentType === 'DOCTOR' || agentType === 'PATIENT';
+    const featureKey =
+      params.featureKey ||
+      (agentType === 'DOCTOR'
+        ? AiFeatureKey.DOCTOR_PATIENT_BRIEF
+        : AiFeatureKey.PATIENT_CHAT);
 
-    if (user) {
+    if (user && isPaidAgent) {
       const entitlement = await this.entitlementService.checkAccess(
         user,
         featureKey,
@@ -96,7 +115,7 @@ export class AiOrchestrator {
           user_id: user.id,
           role,
           feature: featureKey,
-          metadata: { reason: entitlement.reason },
+          metadata: { reason: entitlement.reason, agentType },
         });
 
         throw new PaymentRequiredException({
@@ -108,23 +127,19 @@ export class AiOrchestrator {
         });
       }
     }
-    // 2b. Pre-deduct one credit before calling the AI provider.
-    // Using the requestId as idempotency key ensures a retry of the same
-    // request cannot double-charge. If the provider fails we refund below.
-    // BUG-002 fix: credits deducted BEFORE execution, not after — a post-
-    // execution DB failure can no longer grant a free AI response.
+
+    // 2b. Pre-deduct one credit for paid agents before calling the AI provider
     let creditSub: { creditsRemaining: number } | null = null;
-    if (user) {
+    if (user && isPaidAgent) {
       try {
         creditSub = await this.subscriptionService.deductCredits(
           user,
           1,
           requestId,
           featureKey,
-          `AI Assistant: ${featureKey}`,
+          `AI ${resolvedAgent.agentName}: ${featureKey}`,
         );
       } catch (deductErr: any) {
-        // If deduction itself fails (e.g. DB unavailable), abort cleanly.
         this.logger.error(`Credit deduction failed for user ${user.id}: ${deductErr?.message}`);
         throw new ServiceUnavailableException({
           message: 'Unable to process AI request right now. Please try again.',
@@ -283,6 +298,7 @@ export class AiOrchestrator {
       tokensUsed: Math.round(totalInputTokens + totalOutputTokens),
       estimatedCostUsd,
       creditsRemaining,
+      agentType,
       requestId,
     };
   }
