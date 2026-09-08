@@ -19,6 +19,7 @@ const FloatingCTA = lazy(() => import('../../tools/FloatingCTA.jsx'));
 const Stats = lazy(() => import('../components/Stats.jsx'));
 const HowItWorks = lazy(() => import('../components/HowItWorks.jsx'));
 const Conditions = lazy(() => import('../components/Conditions.jsx'));
+const CareDiscovery = lazy(() => import('../components/CareDiscovery.jsx'));
 const PcosDiagram = lazy(() => import('../components/PcosDiagram.jsx'));
 const Doctors = lazy(() => import('../components/Doctors.jsx'));
 const Outcomes = lazy(() => import('../components/Outcomes.jsx'));

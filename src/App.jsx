@@ -169,6 +169,7 @@ function App() {
                 <Route path="/doctor/:doctorId" element={<DoctorPublicProfile />} />
                 <Route path="/conditions/:slug" element={<ConditionPage />} />
                 {/* Direct aliases for condition routes without /conditions/ prefix */}
+                <Route path="/general-medicine-primary-care" element={<Navigate to="/conditions/general-medicine-primary-care" replace />} />
                 <Route path="/pcos-treatment-online" element={<Navigate to="/conditions/pcos-treatment-online" replace />} />
                 <Route path="/gynecology-womens-health" element={<Navigate to="/conditions/gynecology-womens-health" replace />} />
                 <Route path="/thyroid-consultation" element={<Navigate to="/conditions/thyroid-consultation" replace />} />

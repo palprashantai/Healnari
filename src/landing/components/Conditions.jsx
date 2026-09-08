@@ -14,7 +14,7 @@ function Conditions() {
       icon: "fa-user-doctor",
       color: "text-blue-600 bg-blue-50 border-blue-100",
       badge: "General Physician",
-      href: "/conditions/pcos-treatment-online",
+      href: "/conditions/general-medicine-primary-care",
       actionTag: "General Medicine"
     },
     {

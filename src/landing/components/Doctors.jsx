@@ -434,8 +434,14 @@ function Doctors({ onSelectDoctor }) {
     ]).then(([docRes, spRes]) => {
       const docs = Array.isArray(docRes?.data) ? docRes.data
         : Array.isArray(docRes) ? docRes : [];
-      // Only show real registered doctors from the database
-      setDoctors(docs.length > 0 ? docs : DEMO_DOCTORS);
+      // Combine registered doctors with diverse demo specialists so all specialties are represented
+      const combined = [...docs];
+      DEMO_DOCTORS.forEach(demo => {
+        if (!combined.some(d => d.id === demo.id || d.full_name?.toLowerCase() === demo.full_name?.toLowerCase())) {
+          combined.push(demo);
+        }
+      });
+      setDoctors(combined.length > 0 ? combined : DEMO_DOCTORS);
 
       const sps = Array.isArray(spRes?.data) ? spRes.data
         : Array.isArray(spRes) ? spRes : [];
@@ -474,7 +480,7 @@ function Doctors({ onSelectDoctor }) {
           Care Led by Experienced Specialists
         </h2>
         <p className="text-slate-500 text-sm md:text-base leading-relaxed">
-          General Physicians, Dermatologists, Endocrinologists, Gynaecologists &amp; Clinical Dietitians — all NMC/Council-verified, dedicated to personalized, root-cause care.
+          General Physicians, Dermatologists, Endocrinologists, Gynaecologists &amp; Dietitians — all verified, all committed to root-cause care.
         </p>
       </Reveal>
 

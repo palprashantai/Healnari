@@ -69,23 +69,29 @@ export default function PatientAiShowcase({ onStartConsult, onOpenChecker }) {
         <div className="inline-flex items-center gap-2 bg-gradient-to-r from-aubergine-50 via-magenta-50 to-indigo-50 border border-aubergine-200/80 px-4 py-1.5 rounded-full shadow-2xs">
           <span className="w-2 h-2 rounded-full bg-magenta-500 animate-ping"></span>
           <span className="text-xs font-black uppercase tracking-wider text-aubergine-800">
-            HealNari AI Health Suite
+            HealNari Health Assistant
           </span>
           <span className="text-[10px] font-bold bg-magenta-600 text-white px-2 py-0.2 rounded-full">
-            NEW
+            INTELLIGENCE
           </span>
         </div>
 
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-slate-900 font-display leading-[1.15]">
-          Intelligent Healthcare That <br className="hidden sm:inline" />
+          Your Digital Companion to <br className="hidden sm:inline" />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-aubergine-600 via-magenta-600 to-indigo-600">
-            Listens, Explains &amp; Guides You
+            Explain, Prepare &amp; Guide You
           </span>
         </h2>
 
         <p className="text-slate-600 text-base sm:text-lg font-normal leading-relaxed max-w-2xl mx-auto">
-          No more confusing lab sheets or waiting days for simple answers. HealNari's clinical AI tools translate your blood work, prepare you for consultations, and provide compassionate 24/7 care alongside your doctor.
+          No more confusing lab sheets or medical jargon. HealNari's Health Assistant translates complex blood work, helps you prepare questions for your specialist, and guides you to the right department.
         </p>
+
+        {/* Clear Medical Disclaimer Notice */}
+        <div className="inline-flex items-center gap-2 bg-sand-100/80 border border-sand-200 text-slate-600 text-xs px-4 py-1.5 rounded-full mt-2">
+          <i className="fas fa-shield-halved text-emerald-600"></i>
+          <span>Human-Led Care: AI assists your understanding; all diagnoses and prescriptions are issued exclusively by licensed doctors.</span>
+        </div>
       </Reveal>
 
       {/* Interactive Live AI Simulator */}
@@ -338,7 +344,7 @@ export default function PatientAiShowcase({ onStartConsult, onOpenChecker }) {
 
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 pt-1">
                   <span className="flex items-center gap-1.5">
-                    <i className="fas fa-shield-halved text-emerald-500"></i> Private &amp; encrypted. Non-judgmental women's health guidance.
+                    <i className="fas fa-shield-halved text-emerald-500"></i> 100% Private, encrypted, and HIPAA-compliant patient communication.
                   </span>
                   <button
                     onClick={onOpenChecker}

@@ -510,6 +510,60 @@ export const conditionsData = {
       }
     ],
     relatedGuides: ['pcos-weight-loss', 'pcos-personalized-nutrition', 'anti-inflammatory-foods', 'cortisol-balance'],
-    featuredDoctorIds: ['demo-2', 'demo-1']
+  'general-medicine-primary-care': {
+    id: 'general-medicine-primary-care',
+    title: "Online General Physician & Primary Care Consultation",
+    subtitle: "Consult board-certified General Physicians and Internal Medicine specialists for acute illness, fever, respiratory symptoms, blood pressure, fatigue, and comprehensive health reviews.",
+    seoTitle: "Online General Physician Consultation | Internal Medicine | HealNari",
+    seoDescription: "Book video consultations with verified General Physicians and Internal Medicine doctors online. Same-day video care, digital prescriptions, and routine health checks.",
+    schemaType: "MedicalSpecialty",
+    schemaDisease: "General Medicine & Primary Care",
+    badge: "General Medicine",
+    icon: "fa-user-doctor",
+    color: "blue",
+    specialistRole: "General Physicians & Internal Medicine Specialists (MBBS / MD Medicine)",
+    keySymptoms: [
+      "Viral fever, seasonal influenza, persistent sore throat, or respiratory congestion",
+      "Chronic fatigue, unexplained physical weakness, or sleep disturbances",
+      "Blood pressure monitoring, hypertension management, or routine lab review",
+      "Acid reflux, gastritis, chronic digestive distress, or metabolic checkups"
+    ],
+    carePathway: [
+      {
+        step: "1. Intake & Vitals Documentation",
+        desc: "Document current symptoms, fever readings, existing medications, and previous health records."
+      },
+      {
+        step: "2. 45-Min Physician Video Visit",
+        desc: "Direct video consultation with an experienced physician who conducts thorough clinical triage and evaluation."
+      },
+      {
+        step: "3. Digital Prescription & Labs",
+        desc: "Instant digitally signed prescription with formulary drug checks and routine lab orders if indicated."
+      },
+      {
+        step: "4. 14-Day Recovery Support",
+        desc: "Complimentary 14-day chat follow-up directly with your physician to monitor recovery and adjust care."
+      }
+    ],
+    diagnostics: [
+      "Complete Blood Count (CBC) with ESR / CRP",
+      "Fasting Blood Glucose & Glycated Hemoglobin (HbA1c)",
+      "Comprehensive Metabolic Panel (Liver & Kidney Function)",
+      "Lipid Profile & Serum Electrolytes",
+      "Urinalysis & Routine Biomarker Screen"
+    ],
+    faqs: [
+      {
+        q: "What conditions can an online General Physician treat?",
+        a: "General Physicians evaluate and manage acute conditions (fever, flu, infections, allergies, digestive upset), chronic diseases (hypertension, mild diabetes, cholesterol), and provide preventative screening and medical second opinions."
+      },
+      {
+        q: "Will I receive a valid digital prescription?",
+        a: "Yes. All prescriptions issued on HealNari are signed by council-verified MD doctors and are compliant with national telemedicine regulations, valid at all certified pharmacies."
+      }
+    ],
+    relatedGuides: ['anti-inflammatory-foods', 'cortisol-balance', 'sleep-hormonal-health'],
+    featuredDoctorIds: ['demo-0', 'demo-2']
   }
 };
