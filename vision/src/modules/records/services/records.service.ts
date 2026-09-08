@@ -531,27 +531,44 @@ export class RecordsService implements OnModuleInit {
       });
     }
 
-    const { data: report } = await this.supabase.admin
-      .from('lab_reports')
-      .insert({
-        patient_id: body.patientId,
-        uploaded_by: user.id,
-        test_category: body.testCategory || request?.requested_tests || null,
-        test_name: testName,
-        lab_name: body.labName,
-        urgent: body.urgent ?? false,
-        status: 'Report Available',
-        results: {},
+    const insertPayload: any = {
+      patient_id: body.patientId,
+      ordered_by: user.id,
+      test_category: body.testCategory || request?.requested_tests || null,
+      test_name: testName,
+      lab_name: body.labName || null,
+      urgent: body.urgent ?? false,
+      status: 'Report Available',
+      results: {
         file_path: path,
         original_filename: file.originalname,
         file_type: file.mimetype,
         report_date: body.reportDate || null,
         notes: body.notes || null,
-        request_id: body.requestId || null,
-        appointment_id: body.appointmentId || request?.appointment_id || null,
-      })
+        uploaded_by: user.id,
+      },
+      interpretation: body.notes || null,
+      report_url: path,
+      request_id: body.requestId || null,
+      appointment_id: body.appointmentId || request?.appointment_id || null,
+    };
+
+    const { data: report, error: reportInsertError } = await this.supabase.admin
+      .from('lab_reports')
+      .insert(insertPayload)
       .select()
       .maybeSingle();
+
+    if (reportInsertError || !report) {
+      this.logger.error(
+        `Failed to insert lab_report record for patient ${body.patientId}: ${reportInsertError?.message}`,
+        reportInsertError,
+      );
+      throw new InternalServerErrorException({
+        message: 'Failed to save lab report record. Please try again.',
+        errorCode: ERROR_CODES.INTERNAL_SERVER_ERROR,
+      });
+    }
 
     if (request) {
       await this.supabase.admin
@@ -597,7 +614,14 @@ export class RecordsService implements OnModuleInit {
       }
     }
 
-    return report;
+    return {
+      ...report,
+      file_path: report.report_url || report.results?.file_path || path,
+      original_filename: report.results?.original_filename || file.originalname,
+      file_type: report.results?.file_type || file.mimetype,
+      report_date: report.results?.report_date || report.created_at,
+      notes: report.interpretation || report.results?.notes || body.notes || null,
+    };
   }
 
   async getSignedUrl(user: AuthUser, id: string) {
@@ -610,12 +634,13 @@ export class RecordsService implements OnModuleInit {
     if (!report)
       throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
     await this.guardPatientAccess(user, report.patient_id);
-    if (!report.file_path)
+    const filePath = report.report_url || report.file_path || report.results?.file_path;
+    if (!filePath)
       throw new NotFoundException(ERROR_MESSAGES.LAB_RESULT_NOT_FOUND);
 
     const { data, error } = await this.supabase.admin.storage
       .from(LAB_REPORTS_BUCKET)
-      .createSignedUrl(report.file_path, 3600);
+      .createSignedUrl(filePath, 3600);
     if (error || !data) {
       this.logger.error(
         `Failed to generate signed URL for lab report ${id}: ${error?.message}`,
@@ -628,8 +653,8 @@ export class RecordsService implements OnModuleInit {
     }
     return {
       url: data.signedUrl,
-      fileType: report.file_type,
-      originalFilename: report.original_filename,
+      fileType: report.file_type || report.results?.file_type || 'application/pdf',
+      originalFilename: report.original_filename || report.results?.original_filename || 'document.pdf',
     };
   }
 
@@ -651,10 +676,11 @@ export class RecordsService implements OnModuleInit {
     if (report.status !== 'Report Available')
       throw new ForbiddenException(ERROR_MESSAGES.LAB_REPORT_ALREADY_REVIEWED);
 
-    if (report.file_path)
+    const filePath = report.report_url || report.file_path || report.results?.file_path;
+    if (filePath)
       await this.supabase.admin.storage
         .from(LAB_REPORTS_BUCKET)
-        .remove([report.file_path]);
+        .remove([filePath]);
     await this.supabase.admin
       .from('lab_reports')
       .update({ deleted_at: new Date().toISOString() })
