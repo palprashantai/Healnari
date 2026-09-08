@@ -266,6 +266,21 @@ function PatientLayout() {
   const toast = useToast();
   const { notifications, unreadCount, markAllRead: markAllReadRemote, markRead } = useNotifications();
   const { loadError, retryLoad, patients, appointments } = useClinicData();
+  const own = patients?.[0];
+
+  const [avatarError, setAvatarError] = useState(false);
+  const rawAvatarUrl = user?.avatarUrl || user?.avatar_url || user?.profile?.avatar_url || own?.avatarUrl || user?.photo;
+  useEffect(() => {
+    setAvatarError(false);
+  }, [rawAvatarUrl]);
+  const userAvatarUrl = !avatarError && rawAvatarUrl ? rawAvatarUrl : null;
+  const userInitials = (user?.name || own?.name || 'Priya Sharma')
+    .split(' ')
+    .filter(Boolean)
+    .map(n => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'PS';
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -397,11 +412,23 @@ function PatientLayout() {
             <div
               className="flex items-center gap-2 md:gap-3 border-l border-slate-200 pl-2 md:pl-4 cursor-pointer group"
               onClick={() => navigate('/patient-dashboard/profile')}>
-              <div className="w-8 h-8 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-bold text-xs group-hover:bg-aubergine-200 transition-colors">
-                {user?.name?.split(' ').map(n => n[0]).join('').slice(0,2) || 'PS'}
+              <div className="w-9 h-9 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-bold text-xs group-hover:ring-2 group-hover:ring-aubergine-400 transition-all overflow-hidden border border-aubergine-200/80 shrink-0 shadow-2xs">
+                {userAvatarUrl ? (
+                  <img
+                    src={userAvatarUrl}
+                    alt={user?.name || 'Profile'}
+                    className="w-full h-full object-cover"
+                    style={{ imageRendering: '-webkit-optimize-contrast', transform: 'translateZ(0)' }}
+                    loading="eager"
+                    decoding="sync"
+                    onError={() => setAvatarError(true)}
+                  />
+                ) : (
+                  <span>{userInitials}</span>
+                )}
               </div>
               <div className="hidden lg:block text-xs">
-                <p className="font-bold text-slate-800 leading-tight">{user?.name || 'Priya Sharma'}</p>
+                <p className="font-bold text-slate-800 leading-tight">{user?.name || own?.name || 'Priya Sharma'}</p>
                 <p className="text-slate-500">Care Member</p>
               </div>
               <i className="fas fa-chevron-down text-[10px] text-slate-500 hidden lg:block"></i>

@@ -197,7 +197,15 @@ function PatientProfile() {
         <div className="absolute -right-8 -top-8 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
         <div className="relative">
           <div className="w-24 h-24 rounded-3xl bg-white/20 border-4 border-white/30 flex items-center justify-center text-3xl font-black text-white shrink-0 shadow-xl overflow-hidden">
-            {user?.avatarUrl ? <img src={user.avatarUrl} alt={form.name} className="w-full h-full object-cover" /> : initials}
+            {user?.avatarUrl ? (
+              <img
+                src={user.avatarUrl}
+                alt={form.name}
+                className="w-full h-full object-cover"
+                style={{ imageRendering: '-webkit-optimize-contrast', transform: 'translateZ(0)' }}
+                loading="eager"
+              />
+            ) : initials}
           </div>
           <button onClick={() => setShowPhotoModal(true)}
             className="absolute -bottom-2 -right-2 w-8 h-8 bg-white text-aubergine-700 rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform">

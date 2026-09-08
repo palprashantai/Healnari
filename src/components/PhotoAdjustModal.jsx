@@ -3,7 +3,7 @@ import { Modal } from './Modal.jsx';
 
 const VIEWPORT_SIZE = 280;
 const CROP_RADIUS = 120; // 240px diameter crop circle
-const OUTPUT_SIZE = 512; // 512x512 high-res square output
+const OUTPUT_SIZE = 1024; // 1024x1024 ultra-crisp output for Retina/4K displays
 
 export default function PhotoAdjustModal({
   isOpen,
@@ -261,7 +261,7 @@ export default function PhotoAdjustModal({
       ctx.restore();
 
       const blob = await new Promise((resolve) => {
-        exportCanvas.toBlob((b) => resolve(b), 'image/jpeg', 0.92);
+        exportCanvas.toBlob((b) => resolve(b), 'image/jpeg', 0.95);
       });
 
       if (blob) {
@@ -310,7 +310,12 @@ export default function PhotoAdjustModal({
           {/* Avatar Preview */}
           <div className="relative w-28 h-28 rounded-3xl bg-aubergine-100 text-aubergine-700 text-3xl font-black flex items-center justify-center mx-auto overflow-hidden shadow-inner border border-aubergine-200">
             {currentAvatarUrl ? (
-              <img src={currentAvatarUrl} alt={userName} className="w-full h-full object-cover" />
+              <img
+                src={currentAvatarUrl}
+                alt={userName}
+                className="w-full h-full object-cover"
+                style={{ imageRendering: '-webkit-optimize-contrast', transform: 'translateZ(0)' }}
+              />
             ) : (
               initials
             )}

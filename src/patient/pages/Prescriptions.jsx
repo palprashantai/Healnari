@@ -8,6 +8,7 @@ import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { openPrescriptionPrintWindow, openLifestylePlanPrintWindow } from '../../lib/prescriptionPrint.js';
 import { apiFetch } from '../../lib/apiClient.js';
 import { AIButton } from '../../components/AiButton.jsx';
+import { RxInstructionsDisplay } from '../../components/RxInstructionsDisplay.jsx';
 
 /* ─── AI Food & Drug Safety Modal ────────────── */
 function AiDrugSafetyModal({ rx, onClose }) {
@@ -305,11 +306,8 @@ function PrescriptionModal({ rx, labRequests, onClose, onBookFollowUp }) {
         })()}
 
         {/* Instructions */}
-        {rx.clinicalNotes && (
-          <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-            <p className="text-xs font-black text-amber-800 mb-1.5 uppercase tracking-wide flex items-center gap-1.5"><i className="fas fa-circle-info"></i> Doctor's Instructions</p>
-            <p className="text-xs text-amber-900 leading-relaxed whitespace-pre-line">{rx.clinicalNotes}</p>
-          </div>
+        {(rx.clinicalNotes || rx.instructions) && (
+          <RxInstructionsDisplay instructions={rx.clinicalNotes || rx.instructions} />
         )}
 
         {/* Recommended Next Follow-Up */}

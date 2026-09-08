@@ -11,6 +11,7 @@ import { apiFetch } from '../../lib/apiClient.js';
 import { buildPatientTimeline } from '../../lib/patientTimeline.js';
 import { openPrescriptionPrintWindow, openPatientEmrPrintWindow, openInvoicePrintWindow, openLifestylePlanPrintWindow } from '../../lib/prescriptionPrint.js';
 import { AiButton } from '../../components/AiButton.jsx';
+import { RxInstructionsDisplay } from '../../components/RxInstructionsDisplay.jsx';
 import DietAndYogaMakerPage from './DietAndYogaMakerPage.jsx';
 import { getProviderCapabilities } from '../../lib/providerCapabilities.js';
 
@@ -1615,10 +1616,9 @@ function ViewRxDocModal({ rx, patient, labRequests, isOpen, onClose }) {
         )}
 
         {/* Special Instructions */}
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs">
-          <p className="font-bold text-amber-900 mb-1"><i className="fas fa-info-circle mr-1"></i> Special Doctor Instructions:</p>
-          <p className="text-amber-800">{rx.instructions}</p>
-        </div>
+        {rx.instructions && (
+          <RxInstructionsDisplay instructions={rx.instructions} />
+        )}
 
         {/* Signature & Footer */}
         <div className="flex justify-between items-end pt-4 border-t border-slate-200">

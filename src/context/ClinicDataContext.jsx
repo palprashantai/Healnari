@@ -72,6 +72,7 @@ export function ClinicDataProvider({ children }) {
       name: profile.full_name || 'Unknown',
       phone: profile.phone || '',
       email: profile.email || '',
+      avatarUrl: profile.avatar_url || '',
       diagnosis: record?.chronic_conditions?.[0] || 'Pending',
       address: '',
       age: record?.dob ? Math.floor((new Date() - new Date(record.dob)) / 31557600000) : '—',

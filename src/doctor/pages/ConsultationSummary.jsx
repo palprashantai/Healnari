@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast.jsx';
@@ -286,7 +286,16 @@ export default function ConsultationSummary() {
                             {rx.dosage   && <Chip label={rx.dosage}   color="emerald" />}
                             {rx.duration && <Chip label={rx.duration} color="slate" />}
                           </div>
-                          {rx.instructions && <p className="text-[11px] text-slate-400 mt-1 italic">{rx.instructions}</p>}
+                          {rx.instructions && (
+                            <p className="text-[11px] text-slate-400 mt-1 italic">
+                              {(() => {
+                                if (typeof rx.instructions === 'string' && rx.instructions.trim().startsWith('{')) {
+                                  try { return JSON.parse(rx.instructions)?.clinicalNotes || ''; } catch(e) {}
+                                }
+                                return rx.instructions;
+                              })()}
+                            </p>
+                          )}
                         </div>
                         <i className="fas fa-capsules text-slate-200 text-base shrink-0 mt-0.5"></i>
                       </div>

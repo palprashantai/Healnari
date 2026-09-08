@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { openPrescriptionPrintWindow, openLifestylePlanPrintWindow } from '../../lib/prescriptionPrint.js';
 import { AiButton } from '../../components/AiButton.jsx';
+import { RxInstructionsDisplay } from '../../components/RxInstructionsDisplay.jsx';
 
 /* ─── Bulk Message Modal ──────────────────────── */
 function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
@@ -1472,8 +1473,8 @@ function WriteRxPage({ onBack, onSave, patients }) {
                 )}
 
                 {form.instructions && (
-                  <div className="text-xs text-slate-600 border-t border-slate-100 pt-3">
-                    <strong>Instructions:</strong> {form.instructions}
+                  <div className="border-t border-slate-100 pt-3">
+                    <RxInstructionsDisplay instructions={form.instructions} className="!mb-0" />
                   </div>
                 )}
 
@@ -2001,9 +2002,7 @@ function DoctorPrescriptions() {
                 ))}
               </div>
               {rx.instructions && (
-                <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 text-xs text-amber-800 mb-4">
-                  <strong>Instructions:</strong> {rx.instructions}
-                </div>
+                <RxInstructionsDisplay instructions={rx.instructions} />
               )}
               <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
                 <button onClick={() => downloadRxPdf(rx)}

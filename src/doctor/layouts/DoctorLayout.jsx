@@ -178,9 +178,22 @@ function SidebarContent({ user, onClose, onItemHover }) {
 
       {/* Doctor/Provider Badge */}
       <div className="mx-4 mt-6 mb-4 py-2 px-3 bg-white/[0.03] hover:bg-white/[0.06] transition-colors rounded-xl border border-white/5 flex items-center gap-3 cursor-pointer group">
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-aubergine-500 to-magenta-600 shadow-lg flex items-center justify-center text-white text-xs font-black shrink-0 relative">
-          {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || (capabilities.titlePrefix ? 'DR' : 'PR')}
-          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
+        <div className="relative shrink-0">
+          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-aubergine-500 to-magenta-600 shadow-md flex items-center justify-center text-white text-xs font-black overflow-hidden ring-2 ring-white/15">
+            {(user?.avatarUrl || user?.avatar_url || user?.profile?.avatar_url || user?.photo) ? (
+              <img
+                src={user?.avatarUrl || user?.avatar_url || user?.profile?.avatar_url || user?.photo}
+                alt={capabilities.displayName}
+                className="w-full h-full object-cover"
+                style={{ imageRendering: '-webkit-optimize-contrast', transform: 'translateZ(0)' }}
+                loading="eager"
+                decoding="sync"
+              />
+            ) : (
+              <span>{user?.name?.split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2) || (capabilities.titlePrefix ? 'DR' : 'PR')}</span>
+            )}
+          </div>
+          <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-aubergine-900 rounded-full shadow-xs" title="Online"></span>
         </div>
         <div className="min-w-0">
           <p className="text-slate-200 text-xs font-bold leading-tight truncate group-hover:text-white transition-colors">{capabilities.displayName}</p>
@@ -313,6 +326,11 @@ function DoctorLayout() {
     const q = val.toLowerCase();
     setSearchResults(patients.filter(p => p.name.toLowerCase().includes(q) || p.mrn.toLowerCase().includes(q)));
   };
+
+  const [docAvatarError, setDocAvatarError] = useState(false);
+  const rawDocAvatar = user?.avatarUrl || user?.avatar_url || user?.profile?.avatar_url || user?.photo;
+  useEffect(() => { setDocAvatarError(false); }, [rawDocAvatar]);
+  const docAvatarUrl = !docAvatarError && rawDocAvatar ? rawDocAvatar : null;
 
   // Active Patient context for 2-Identifier Banner — seeded from the real roster.
   const [activePatient, setActivePatient] = useState(() => toActivePatient(patients.find(p => p.name === 'Priya Sharma') || patients[0]));
@@ -460,8 +478,20 @@ function DoctorLayout() {
 
             {/* Doctor Avatar */}
             <div className="flex items-center gap-2 border-l border-slate-200 pl-3 cursor-pointer group" onClick={() => navigate('/doctor-dashboard/profile')}>
-              <div className="w-8 h-8 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-black text-xs group-hover:bg-aubergine-200 transition-colors">
-                {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2) || 'DR'}
+              <div className="w-9 h-9 rounded-full bg-aubergine-100 text-aubergine-700 flex items-center justify-center font-black text-xs group-hover:ring-2 group-hover:ring-aubergine-400 transition-all overflow-hidden border border-aubergine-200/80 shrink-0 shadow-2xs">
+                {docAvatarUrl ? (
+                  <img
+                    src={docAvatarUrl}
+                    alt={capabilities.displayName}
+                    className="w-full h-full object-cover"
+                    style={{ imageRendering: '-webkit-optimize-contrast', transform: 'translateZ(0)' }}
+                    loading="eager"
+                    decoding="sync"
+                    onError={() => setDocAvatarError(true)}
+                  />
+                ) : (
+                  <span>{user?.name?.split(' ').filter(Boolean).map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'DR'}</span>
+                )}
               </div>
               <div className="hidden lg:block text-xs">
                 <p className="font-bold text-slate-800 leading-tight">{capabilities.displayName}</p>
