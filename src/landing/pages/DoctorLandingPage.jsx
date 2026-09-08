@@ -11,6 +11,7 @@ import { apiFetch } from '../../lib/apiClient.js';
 
 // Lazy load below-the-fold components
 const ProviderBenefits = lazy(() => import('../components/ProviderBenefits.jsx'));
+const DoctorShareShowcase = lazy(() => import('../components/DoctorShareShowcase.jsx'));
 const DoctorAiShowcase = lazy(() => import('../components/DoctorAiShowcase.jsx'));
 const ProviderCalculator = lazy(() => import('../components/ProviderCalculator.jsx'));
 const ProviderComparison = lazy(() => import('../components/ProviderComparison.jsx'));
@@ -234,8 +235,13 @@ function DoctorLandingPage() {
         />
         
         <Suspense fallback={<div className="h-32 flex items-center justify-center text-slate-400 text-sm">Loading Platform Features...</div>}>
-          
-          {/* Authentic Codebase Features Grid */}
+
+          {/* Share Link & QR Print Studio Feature Highlight — FIRST */}
+          <div id="share-link" className="scroll-mt-20">
+            <DoctorShareShowcase onApply={() => setIsApplyOpen(true)} />
+          </div>
+
+          {/* What You Get on Day 1 — features grid */}
           {adminSettings?.toggles?.showProviderBenefits !== false && (
             <ProviderBenefits />
           )}
@@ -247,6 +253,7 @@ function DoctorLandingPage() {
               onOpenLogin={() => setIsAuthOpen(true)} 
             />
           )}
+
 
           {/* Interactive Earnings Calculator */}
           {adminSettings?.toggles?.showProviderCalculator !== false && (

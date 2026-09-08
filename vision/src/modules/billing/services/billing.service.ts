@@ -800,6 +800,14 @@ export class BillingService {
     if (!(amount > 0))
       throw new BadRequestException(ERROR_MESSAGES.NOTHING_TO_CHARGE);
 
+    const currency = (user.profile.currency || 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR';
+    const minPayout = currency === 'USD' ? 10 : 500;
+    if (amount < minPayout) {
+      throw new BadRequestException(
+        `Minimum payout withdrawal is ${currency === 'USD' ? '$10 USD' : '₹500 INR'}.`,
+      );
+    }
+
     // BUG-007 fix: prevent concurrent double-withdrawal by checking for an
     // existing Processing payout before reading the available balance.
     // The balance check and insert are not in a single DB transaction, so
@@ -837,7 +845,6 @@ export class BillingService {
       timestamp: new Date().toISOString(),
     };
 
-    const currency = (user.profile.currency || 'INR').toUpperCase() === 'USD' ? 'USD' : 'INR';
     const { data, error } = await this.supabase.admin
       .from('payouts')
       .insert({

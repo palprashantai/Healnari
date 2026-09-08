@@ -1,32 +1,41 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { load as loadCashfree } from '@cashfreepayments/cashfree-js';
 import { Modal } from './Modal.jsx';
-import { apiFetch } from '../lib/apiClient.js';
+import { apiFetch, API_URL } from '../lib/apiClient.js';
 import { formatCurrency } from '../lib/currency.js';
 
 const CASHFREE_MODE = import.meta.env.VITE_CASHFREE_MODE || 'sandbox';
 
 // Cashfree.js recommends loading the SDK once and reusing the instance
-// rather than re-fetching it on every checkout attempt.
 let cashfreePromise = null;
 function getCashfree() {
   if (!cashfreePromise) cashfreePromise = loadCashfree({ mode: CASHFREE_MODE });
   return cashfreePromise;
 }
 
-/** Shared real-payment flow — creates a Cashfree order for the appointment,
- * opens Cashfree's own hosted Drop-in checkout (UPI/Card/NetBanking/Wallet,
- * all real), then asks OUR backend to re-verify the order status directly
- * with Cashfree before ever showing "Payment Successful". Used anywhere a
- * patient can pay for an appointment (Billing, Appointments) so there is
- * exactly one real payment path instead of a per-page fake one. */
-export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency: initialCurrency = 'INR', description, onPaid, onSuccess, onViewAppointment }) {
+/**
+ * Shared real-payment flow — creates a Cashfree order for the appointment,
+ * opens Cashfree Drop-in checkout (UPI, Cards, NetBanking, International Cards),
+ * re-verifies order status server-side, and enables 1-click Invoice PDF download.
+ */
+export function PaymentModal({
+  isOpen,
+  onClose,
+  appointmentId,
+  amount,
+  currency: initialCurrency = 'INR',
+  description,
+  onPaid,
+  onSuccess,
+  onViewAppointment,
+}) {
   // idle -> creating-order -> checkout -> verifying -> paid | failed
   const [phase, setPhase] = useState('idle');
   const [error, setError] = useState(null);
   const [settledAmount, setSettledAmount] = useState(amount);
   const [currency, setCurrency] = useState(initialCurrency);
   const [completedResult, setCompletedResult] = useState(null);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -36,6 +45,7 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency:
       setSettledAmount(amount);
       setCurrency(initialCurrency);
       setCompletedResult(null);
+      setDownloadingInvoice(false);
       startedRef.current = false;
     }
   }, [isOpen, amount, initialCurrency]);
@@ -52,7 +62,10 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency:
     setError(null);
     setPhase('creating-order');
     try {
-      const order = await apiFetch('/billing/pay/order', { method: 'POST', body: { appointmentId } });
+      const order = await apiFetch('/billing/pay/order', {
+        method: 'POST',
+        body: { appointmentId },
+      });
 
       if (order.alreadyPaid) {
         setSettledAmount(Number(order.payment.amount));
@@ -67,22 +80,23 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency:
       setPhase('checkout');
 
       const cashfree = await getCashfree();
-      if (!cashfree) throw new Error('Could not load the payment gateway. Check your connection and try again.');
+      if (!cashfree) {
+        throw new Error(
+          'Could not load the secure payment gateway. Please check your network connection and try again.',
+        );
+      }
 
-      await cashfree.checkout({ 
-        paymentSessionId: order.paymentSessionId, 
+      await cashfree.checkout({
+        paymentSessionId: order.paymentSessionId,
         redirectTarget: '_modal',
         appearance: {
           theme: 'light',
           color: '#6B46C1', // HealNari Purple
-          fontFamily: 'Inter, system-ui, sans-serif'
-        }
+          fontFamily: 'Inter, system-ui, sans-serif',
+        },
       });
 
-      // The SDK promise resolving only means the checkout UI closed — it does
-      // NOT mean the payment succeeded (user may have cancelled, or the bank
-      // step failed after Cashfree's UI moved on). Always re-verify with our
-      // backend, which itself re-checks directly with Cashfree.
+      // SDK promise resolves when checkout closes — authoritative verify on backend
       setPhase('verifying');
       const result = await apiFetch(`/billing/pay/status/${order.orderId}`);
       if (result.status === 'Paid') {
@@ -91,7 +105,11 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency:
         setPhase('paid');
         handleSuccess(result);
       } else {
-        setError(result.status === 'Failed' ? 'The payment did not go through.' : 'Payment not completed. You can try again.');
+        setError(
+          result.status === 'Failed'
+            ? 'The payment was not approved by your bank or wallet provider.'
+            : 'Payment was not completed. You can try again safely.',
+        );
         setPhase('failed');
       }
     } catch (err) {
@@ -99,6 +117,34 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency:
       setPhase('failed');
     } finally {
       startedRef.current = false;
+    }
+  };
+
+  const handleDownloadInvoice = async () => {
+    if (!completedResult?.id) return;
+    setDownloadingInvoice(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(
+        `${API_URL}/billing/transactions/${completedResult.id}/invoice`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        },
+      );
+      if (!res.ok) throw new Error('Could not generate the official invoice PDF');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `HealNari-Invoice-${completedResult.txn_ref || String(completedResult.id).slice(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message || 'Invoice download failed.');
+    } finally {
+      setDownloadingInvoice(false);
     }
   };
 
@@ -116,30 +162,90 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency:
     setError(null);
   };
 
-  const busy = phase === 'creating-order' || phase === 'checkout' || phase === 'verifying';
+  const busy =
+    phase === 'creating-order' || phase === 'checkout' || phase === 'verifying';
   const BUSY_COPY = {
-    'creating-order': 'Setting up your payment…',
-    checkout: 'Complete your payment in the window…',
-    verifying: 'Confirming your payment…',
+    'creating-order': 'Initializing secure checkout order…',
+    checkout: 'Complete payment in the secure window…',
+    verifying: 'Confirming your transaction with Cashfree…',
   };
 
+  const displayAmount = settledAmount ?? amount ?? 0;
+
   return (
-    <Modal isOpen={isOpen} onClose={phase === 'paid' ? done : onClose} title={phase === 'paid' ? undefined : 'Make Payment'} size="sm">
-      {(phase === 'idle' || phase === 'creating-order' || phase === 'checkout' || phase === 'verifying') && (
+    <Modal
+      isOpen={isOpen}
+      onClose={phase === 'paid' ? done : onClose}
+      title={phase === 'paid' ? undefined : 'Secure Checkout'}
+      size="sm"
+    >
+      {(phase === 'idle' ||
+        phase === 'creating-order' ||
+        phase === 'checkout' ||
+        phase === 'verifying') && (
         <div className="space-y-4">
-          <div className="bg-aubergine-50 border border-aubergine-100 rounded-xl p-4 text-center">
-            <p className="text-xs text-slate-500 font-medium mb-1">{description}</p>
-            <p className="text-3xl font-black text-aubergine-800">{formatCurrency(settledAmount ?? amount, currency)}</p>
+          {/* Itemized summary */}
+          <div className="bg-gradient-to-br from-purple-50/80 to-indigo-50/50 border border-purple-200/70 rounded-2xl p-4 text-left space-y-3 shadow-2xs">
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-purple-700 bg-purple-100/70 px-2 py-0.5 rounded border border-purple-200">
+                  {currency === 'INR' ? '🇮🇳 Domestic Consult' : '🌐 International Consult'}
+                </span>
+                <p className="text-xs font-bold text-slate-900 mt-1.5 line-clamp-1">
+                  {description || 'Clinical Consultation'}
+                </p>
+              </div>
+              <span className="text-[10px] font-mono font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                {currency}
+              </span>
+            </div>
+
+            <div className="space-y-1.5 pt-2 border-t border-purple-100 text-xs">
+              <div className="flex justify-between text-slate-600">
+                <span>Specialist Consultation Fee</span>
+                <span className="font-semibold text-slate-800">{formatCurrency(displayAmount, currency)}</span>
+              </div>
+              <div className="flex justify-between text-slate-500 text-[11px]">
+                <span>Platform Governance &amp; Follow-up</span>
+                <span className="font-bold text-emerald-600">Included Free</span>
+              </div>
+              <div className="flex justify-between text-slate-900 font-extrabold text-sm pt-2 border-t border-purple-200">
+                <span>Total Payable Amount</span>
+                <span className="text-base text-purple-900">{formatCurrency(displayAmount, currency)}</span>
+              </div>
+            </div>
           </div>
-          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs text-slate-600 flex items-center gap-2">
-            <i className="fas fa-shield-halved text-emerald-500"></i> {currency === 'INR' ? 'Secured by Cashfree / Razorpay — UPI, Card, Net Banking & Wallets' : 'Secured by Stripe Global Checkout — Apple Pay, Google Pay, Visa & Mastercard'}
+
+          {/* Payment rails badge */}
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200/80 text-xs text-slate-600 flex items-center gap-2.5">
+            <i className="fas fa-shield-halved text-emerald-500 text-sm shrink-0" />
+            <span className="leading-tight">
+              {currency === 'INR'
+                ? 'Secured by Cashfree Payments — UPI, Credit/Debit Cards, Net Banking & Wallets.'
+                : 'Secured Multi-Currency Gateway — Visa, Mastercard, AMEX & International Cards.'}
+            </span>
           </div>
-          <button onClick={startCheckout} disabled={busy}
-            className="crm-btn-primary w-full disabled:opacity-60 font-bold">
-            {busy ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div> {BUSY_COPY[phase] || 'Processing…'}</> : <><i className="fas fa-lock mr-2"></i> Pay Securely {formatCurrency(settledAmount ?? amount, currency)}</>}
+
+          <button
+            onClick={startCheckout}
+            disabled={busy}
+            className="crm-btn-primary w-full disabled:opacity-60 font-bold py-3 text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all"
+          >
+            {busy ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span>{BUSY_COPY[phase] || 'Processing…'}</span>
+              </>
+            ) : (
+              <>
+                <i className="fas fa-lock text-xs" />
+                <span>Pay Securely {formatCurrency(displayAmount, currency)}</span>
+              </>
+            )}
           </button>
         </div>
       )}
+
       {phase === 'failed' && (
         <div className="space-y-4">
           <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl p-4 text-center space-y-2">
@@ -153,16 +259,21 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency:
                 <i className="fas fa-shield-check"></i> <strong>No amount was charged.</strong>
               </p>
               <p className="text-slate-500">
-                If your bank placed a temporary hold, it will be automatically reversed in 24–48 hours. Your slot remains held for 5 minutes.
+                If your bank placed a temporary hold, it will automatically reverse in 24–48 hours. Your consultation slot remains reserved.
               </p>
             </div>
           </div>
           <div className="flex gap-2.5">
-            <button onClick={onClose} className="crm-btn-secondary flex-1 font-semibold text-xs py-3">Cancel</button>
-            <button onClick={retry} className="crm-btn-primary flex-1 font-bold text-xs py-3">Try Another Method</button>
+            <button onClick={onClose} className="crm-btn-secondary flex-1 font-semibold text-xs py-3">
+              Cancel
+            </button>
+            <button onClick={retry} className="crm-btn-primary flex-1 font-bold text-xs py-3">
+              Try Another Payment Method
+            </button>
           </div>
         </div>
       )}
+
       {phase === 'paid' && (
         <div className="text-center space-y-4 py-3">
           <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 text-3xl flex items-center justify-center mx-auto border-4 border-emerald-200 shadow-sm animate-bounce-subtle">
@@ -170,14 +281,34 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency:
           </div>
           <div>
             <h3 className="font-extrabold text-slate-800 text-xl font-display">Consultation Confirmed!</h3>
-            <p className="text-sm font-bold text-emerald-700 mt-1">{formatCurrency(settledAmount ?? amount, currency)} paid securely</p>
+            <p className="text-sm font-bold text-emerald-700 mt-1">
+              {formatCurrency(settledAmount ?? amount, currency)} paid securely
+            </p>
             <p className="text-xs text-slate-500 mt-1 leading-relaxed">
               Your appointment is locked in. Digital prescription access and free 14-day follow-up chat are now active.
             </p>
           </div>
-          <button onClick={done} className="crm-btn-primary w-full py-3 text-sm font-bold">
-            View My Appointment Details →
-          </button>
+
+          <div className="space-y-2 pt-1">
+            {completedResult?.id && (
+              <button
+                type="button"
+                onClick={handleDownloadInvoice}
+                disabled={downloadingInvoice}
+                className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors shadow-2xs"
+              >
+                <i className={`fas ${downloadingInvoice ? 'fa-spinner fa-spin' : 'fa-file-invoice text-purple-600'}`} />
+                <span>{downloadingInvoice ? 'Generating PDF…' : 'Download Official Invoice PDF'}</span>
+              </button>
+            )}
+
+            <button
+              onClick={done}
+              className="crm-btn-primary w-full py-3 text-sm font-bold shadow-md"
+            >
+              View Appointment Details →
+            </button>
+          </div>
         </div>
       )}
     </Modal>
@@ -185,3 +316,4 @@ export function PaymentModal({ isOpen, onClose, appointmentId, amount, currency:
 }
 
 export default PaymentModal;
+
