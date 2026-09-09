@@ -6,7 +6,7 @@ export function setupPWA() {
     onNeedRefresh() {
       // Create an iOS/Android style frosted glass PWA update banner
       const toast = document.createElement('div');
-      toast.className = 'fixed top-4 sm:top-auto sm:bottom-6 left-1/2 -translate-x-1/2 z-[9999] w-[92vw] sm:w-auto max-w-md bg-white/95 backdrop-blur-xl rounded-3xl p-4 shadow-[0_20px_50px_rgba(42,22,71,0.25)] border border-aubergine-100 flex items-center gap-3.5 animate-slide-up safe-area-pt sm:safe-area-pt-0';
+      toast.className = 'fixed top-4 sm:top-auto sm:bottom-6 inset-x-0 mx-auto z-[9999] w-[92vw] sm:w-fit max-w-md bg-white/95 backdrop-blur-xl rounded-3xl p-4 shadow-[0_20px_50px_rgba(42,22,71,0.25)] border border-aubergine-100 flex items-center gap-3.5 animate-slide-up safe-area-pt sm:safe-area-pt-0';
       
       toast.innerHTML = `
         <div class="relative w-11 h-11 rounded-2xl bg-gradient-to-tr from-aubergine-600 to-magenta-600 flex items-center justify-center flex-shrink-0 text-white shadow-md shadow-aubergine-500/20">
