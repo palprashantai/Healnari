@@ -577,6 +577,57 @@ function ActiveCallUI({ session, onEnd, onCancel, onDeclined, autoJoin = false }
   const [typedPadText, setTypedPadText] = useState('');
   const [diagnosis, setDiagnosis] = useState(session.type || 'General Consultation');
 
+  // ── Structured Diet & Yoga Plan State ──────────────────────────────────
+  // Holds STRUCTURED data for the diet/yoga builder. On call end, serialized
+  // into the healnari-holistic-v1 JSON alongside plain-text fields so the
+  // patient portal can render rich timetable/asana cards instead of raw text.
+  const [structuredDiet, setStructuredDiet] = useState({
+    dietType: '',
+    macros: { calories: '', protein: '', carbs: '', fats: '', fiber: '' },
+    meals: [],
+    dos: [],
+    donts: [],
+  });
+  const [structuredYoga, setStructuredYoga] = useState({
+    phase: '',
+    frequency: '',
+    asanas: [],
+    pranayama: [],
+    cardio: '',
+    precautions: '',
+  });
+  const [dosInput, setDosInput] = useState('');
+  const [dontsInput, setDontsInput] = useState('');
+
+  // Structured diet helpers
+  const sdMealAdd = () => setStructuredDiet(d => ({
+    ...d, meals: [...d.meals, { id: `m${Date.now()}`, time: '', meal: '', foods: '', portion: '', notes: '' }]
+  }));
+  const sdMealUpdate = (idx, field, val) => setStructuredDiet(d => ({
+    ...d, meals: d.meals.map((m, i) => i === idx ? { ...m, [field]: val } : m)
+  }));
+  const sdMealRemove = (idx) => setStructuredDiet(d => ({ ...d, meals: d.meals.filter((_, i) => i !== idx) }));
+  const sdAddDo = (text) => { if (text.trim()) { setStructuredDiet(d => ({ ...d, dos: [...d.dos, text.trim()] })); setDosInput(''); } };
+  const sdRemoveDo = (idx) => setStructuredDiet(d => ({ ...d, dos: d.dos.filter((_, i) => i !== idx) }));
+  const sdAddDont = (text) => { if (text.trim()) { setStructuredDiet(d => ({ ...d, donts: [...d.donts, text.trim()] })); setDontsInput(''); } };
+  const sdRemoveDont = (idx) => setStructuredDiet(d => ({ ...d, donts: d.donts.filter((_, i) => i !== idx) }));
+
+  // Structured yoga helpers
+  const syAsanaAdd = () => setStructuredYoga(y => ({
+    ...y, asanas: [...y.asanas, { id: `y${Date.now()}`, name: '', duration: '', benefit: '', cues: '' }]
+  }));
+  const syAsanaUpdate = (idx, field, val) => setStructuredYoga(y => ({
+    ...y, asanas: y.asanas.map((a, i) => i === idx ? { ...a, [field]: val } : a)
+  }));
+  const syAsanaRemove = (idx) => setStructuredYoga(y => ({ ...y, asanas: y.asanas.filter((_, i) => i !== idx) }));
+  const syPranAdd = () => setStructuredYoga(y => ({
+    ...y, pranayama: [...y.pranayama, { name: '', duration: '', benefit: '' }]
+  }));
+  const syPranUpdate = (idx, field, val) => setStructuredYoga(y => ({
+    ...y, pranayama: y.pranayama.map((p, i) => i === idx ? { ...p, [field]: val } : p)
+  }));
+  const syPranRemove = (idx) => setStructuredYoga(y => ({ ...y, pranayama: y.pranayama.filter((_, i) => i !== idx) }));
+
   // Smart Med Form State
   const [medSearch, setMedSearch] = useState('');
   const [medDosage, setMedDosage] = useState('500mg');
@@ -740,7 +791,7 @@ function ActiveCallUI({ session, onEnd, onCancel, onDeclined, autoJoin = false }
 
   // ── Debounced Draft Auto-Save (Local + Server) ──
   useEffect(() => {
-    if (!clinicalNotes && draftMeds.length === 0 && !dietPlan && !exercisePlan && !freehandRx && !typedPadText && (!handwritingStrokes || handwritingStrokes.length === 0)) return;
+    if (!clinicalNotes && draftMeds.length === 0 && !dietPlan && !exercisePlan && !freehandRx && !typedPadText && (!handwritingStrokes || handwritingStrokes.length === 0) && structuredDiet.meals.length === 0 && structuredYoga.asanas.length === 0) return;
     const timer = setTimeout(() => {
       const payload = {
         clinicalNotes,
@@ -750,6 +801,8 @@ function ActiveCallUI({ session, onEnd, onCancel, onDeclined, autoJoin = false }
         followUpAdvice,
         dietPlan,
         exercisePlan,
+        structuredDiet,
+        structuredYoga,
         freehandRx,
         typedPadText,
         handwritingStrokes,
@@ -765,7 +818,7 @@ function ActiveCallUI({ session, onEnd, onCancel, onDeclined, autoJoin = false }
       }).catch(() => {});
     }, 1500);
     return () => clearTimeout(timer);
-  }, [clinicalNotes, draftMeds, draftLabs, diagnosis, followUpAdvice, dietPlan, exercisePlan, freehandRx, typedPadText, handwritingStrokes, session.id, draftKey]);
+  }, [clinicalNotes, draftMeds, draftLabs, diagnosis, followUpAdvice, dietPlan, exercisePlan, structuredDiet, structuredYoga, freehandRx, typedPadText, handwritingStrokes, session.id, draftKey]);
 
   // Restore draft on mount (Checks local cache and remote server draft)
   useEffect(() => {
@@ -783,6 +836,8 @@ function ActiveCallUI({ session, onEnd, onCancel, onDeclined, autoJoin = false }
           if (parsed.followUpAdvice) setFollowUpAdvice(parsed.followUpAdvice);
           if (parsed.dietPlan) setDietPlan(parsed.dietPlan);
           if (parsed.exercisePlan) setExercisePlan(parsed.exercisePlan);
+          if (parsed.structuredDiet) setStructuredDiet(parsed.structuredDiet);
+          if (parsed.structuredYoga) setStructuredYoga(parsed.structuredYoga);
           if (parsed.freehandRx) setFreehandRx(parsed.freehandRx);
           if (parsed.typedPadText) setTypedPadText(parsed.typedPadText);
           if (Array.isArray(parsed.handwritingStrokes) && parsed.handwritingStrokes.length) {
@@ -803,6 +858,8 @@ function ActiveCallUI({ session, onEnd, onCancel, onDeclined, autoJoin = false }
           if (remoteDraft.followUpAdvice) setFollowUpAdvice(remoteDraft.followUpAdvice);
           if (remoteDraft.dietPlan) setDietPlan(remoteDraft.dietPlan);
           if (remoteDraft.exercisePlan) setExercisePlan(remoteDraft.exercisePlan);
+          if (remoteDraft.structuredDiet) setStructuredDiet(remoteDraft.structuredDiet);
+          if (remoteDraft.structuredYoga) setStructuredYoga(remoteDraft.structuredYoga);
           if (remoteDraft.freehandRx) setFreehandRx(remoteDraft.freehandRx);
           if (remoteDraft.typedPadText) setTypedPadText(remoteDraft.typedPadText);
           if (Array.isArray(remoteDraft.handwritingStrokes) && remoteDraft.handwritingStrokes.length) {
@@ -870,23 +927,41 @@ function ActiveCallUI({ session, onEnd, onCancel, onDeclined, autoJoin = false }
   };
 
   // 1-Click Evidence-Based Diet & Yoga Template Importer
+  // Also populates the structuredDiet and structuredYoga state so the
+  // builder shows rich meal cards and asana cards instead of just text.
   const handleApplyLifestyleTemplate = (templateKey) => {
     const tmpl = CLINICAL_TEMPLATES[templateKey];
     if (!tmpl) return;
     setSelectedLifestyleTemplate(templateKey);
-    const dText = formatClinicalDietText(tmpl);
-    const yText = formatClinicalYogaText(tmpl);
-    setDietPlan(dText);
-    setExercisePlan(yText);
+    // Plain-text fallback (for print/PDF compatibility)
+    setDietPlan(formatClinicalDietText(tmpl));
+    setExercisePlan(formatClinicalYogaText(tmpl));
+    // Populate structured diet state from template
+    setStructuredDiet({
+      dietType: tmpl.dietType || '',
+      macros: tmpl.macros || { calories: '', protein: '', carbs: '', fats: '', fiber: '' },
+      meals: (tmpl.meals || []).map((m, i) => ({ ...m, id: m.id || `m${i}` })),
+      dos: tmpl.dos || [],
+      donts: tmpl.donts || [],
+    });
+    // Populate structured yoga state from template
+    if (tmpl.yoga) {
+      setStructuredYoga({
+        phase: tmpl.yoga.phase || '',
+        frequency: tmpl.yoga.frequency || '',
+        asanas: (tmpl.yoga.asanas || []).map((a, i) => ({ ...a, id: a.id || `y${i}` })),
+        pranayama: tmpl.yoga.pranayama || [],
+        cardio: tmpl.yoga.cardio || '',
+        precautions: tmpl.yoga.precautions || '',
+      });
+    }
     if (!diagnosis || diagnosis === 'General Consultation' || diagnosis === session.type) {
       setDiagnosis(tmpl.name);
     }
     if (tmpl.notes && (!clinicalNotes || clinicalNotes.trim() === '')) {
       setClinicalNotes(tmpl.notes);
     }
-    if (tmpl.followUp) {
-      setFollowUpAdvice(tmpl.followUp);
-    }
+    if (tmpl.followUp) setFollowUpAdvice(tmpl.followUp);
     toast(`Loaded ${tmpl.name}`, 'success');
   };
 
@@ -1149,7 +1224,9 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
     });
   };
 
-  // Finalize consultation
+  // Finalize consultation — serialises the full structured diet/yoga plan
+  // alongside the plain-text fallback fields so the patient portal can render
+  // rich meal timetables and asana cards rather than raw text blocks.
   const finalizeConsult = () => {
     call.hangUp();
     let finalMeds = [...draftMeds];
@@ -1173,19 +1250,40 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
         rawText: typedPadText.trim(),
       });
     }
+    // Generate plain-text from structured data (for print/PDF); fall back to
+    // the textarea text if the doctor used free-text entry instead.
+    const finalDietText = structuredDiet.meals.length > 0
+      ? formatClinicalDietText(structuredDiet)
+      : dietPlan;
+    const finalYogaText = structuredYoga.asanas.length > 0
+      ? formatClinicalYogaText({ yoga: structuredYoga })
+      : exercisePlan;
     const structuredNotes = JSON.stringify({
       type: 'healnari-holistic-v1',
       clinicalNotes,
-      dietPlan,
-      exercisePlan,
-      followUpAdvice
+      dietPlan: finalDietText || dietPlan,
+      exercisePlan: finalYogaText || exercisePlan,
+      followUpAdvice,
+      // Rich structured fields — patient portal Lifestyle.jsx uses these to
+      // render meal timetables, asana cards, pranayama lists, etc.
+      dietSchedule: structuredDiet.meals,
+      macroTargets: structuredDiet.macros,
+      dietType: structuredDiet.dietType,
+      dos: structuredDiet.dos,
+      donts: structuredDiet.donts,
+      yogaAsanas: structuredYoga.asanas,
+      pranayama: structuredYoga.pranayama,
+      yogaPhase: structuredYoga.phase,
+      yogaFrequency: structuredYoga.frequency,
+      cardio: structuredYoga.cardio,
+      precautions: structuredYoga.precautions,
     });
     onEnd(structuredNotes, finalMeds, draftLabs, {
       diagnosis,
       freehandRx,
       clinicalNotes,
-      dietPlan,
-      exercisePlan,
+      dietPlan: finalDietText || dietPlan,
+      exercisePlan: finalYogaText || exercisePlan,
       followUpAdvice
     });
   };
@@ -1730,28 +1828,25 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
             {/* ── Scrollable Tab Content ── */}
             <div className="flex-1 p-4 md:p-5 overflow-y-auto custom-scrollbar min-h-0 space-y-5">
               
-              {/* ─── TAB: Diet & Yoga Studio ─── */}
+              {/* ─── TAB: Diet & Yoga Structured Builder ─── */}
               {activeTab === 'diet_yoga' && (
-                <div className="space-y-4 animate-fade-in">
-                  {/* Clinical Templates Bar */}
-                  <div className="bg-slate-950/80 rounded-2xl p-3.5 border border-slate-800 space-y-2.5 shadow-inner">
+                <div className="space-y-3 animate-fade-in">
+
+                  {/* Protocol Templates */}
+                  <div className="bg-slate-950/80 rounded-2xl p-3 border border-slate-800 space-y-2.5">
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
-                          <i className="fas fa-wand-magic-sparkles"></i> 1-Click Evidence-Based Protocols:
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {(dietPlan || exercisePlan) && (
+                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+                        <i className="fas fa-wand-magic-sparkles"></i> Evidence-Based Protocols
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {(structuredDiet.meals.length > 0 || structuredYoga.asanas.length > 0 || dietPlan || exercisePlan) && (
                           <button
                             type="button"
                             onClick={() => {
-                              if (window.confirm('Clear current diet and yoga drafts?')) {
-                                setDietPlan('');
-                                setExercisePlan('');
-                                setSelectedLifestyleTemplate('');
-                                toast('Cleared lifestyle drafts', 'info');
-                              }
+                              setStructuredDiet({ dietType: '', macros: { calories: '', protein: '', carbs: '', fats: '', fiber: '' }, meals: [], dos: [], donts: [] });
+                              setStructuredYoga({ phase: '', frequency: '', asanas: [], pranayama: [], cardio: '', precautions: '' });
+                              setDietPlan(''); setExercisePlan(''); setSelectedLifestyleTemplate('');
+                              toast('Lifestyle plan cleared', 'info');
                             }}
                             className="text-[10px] text-slate-400 hover:text-rose-400 font-bold transition-colors"
                           >
@@ -1761,34 +1856,30 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                         <button
                           type="button"
                           onClick={handlePrintLifestylePlan}
-                          disabled={!dietPlan && !exercisePlan}
-                          className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 bg-emerald-950/60 hover:bg-emerald-900/60 border border-emerald-800/60 px-2.5 py-1 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                          disabled={!dietPlan && !exercisePlan && structuredDiet.meals.length === 0}
+                          className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 bg-emerald-950/60 border border-emerald-800/60 px-2.5 py-1 rounded-lg transition-all disabled:opacity-40 shadow-sm"
                         >
-                          <i className="fas fa-print"></i> Preview / Print Plan
+                          <i className="fas fa-print"></i> Preview PDF
                         </button>
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                       {[
-                        { key: 'pcos', name: '🌸 PCOS Regimen', sub: 'Low-GI & Pelvic Asanas' },
-                        { key: 'fertility', name: '🌿 Fertility Protocol', sub: 'Folate & Luteal Yoga' },
-                        { key: 'weight', name: '⚡ Metabolic Reset', sub: 'High-Protein 1450 kcal' },
-                        { key: 'endo', name: '🛡️ Endo Pain Relief', sub: 'Anti-Inflammatory & Yin' },
+                        { key: 'pcos', name: '🌸 PCOS', sub: 'Low-GI + Pelvic Asanas' },
+                        { key: 'fertility', name: '🌿 Fertility', sub: 'Folate + Luteal Yoga' },
+                        { key: 'weight', name: '⚡ Metabolic', sub: '1450 kcal Hi-Pro' },
+                        { key: 'endo', name: '🛡️ Endo', sub: 'Anti-Inflam + Yin' },
                       ].map(item => {
-                        const isSelected = selectedLifestyleTemplate === item.key;
+                        const isSel = selectedLifestyleTemplate === item.key;
                         return (
                           <button
-                            key={item.key}
-                            type="button"
+                            key={item.key} type="button"
                             onClick={() => handleApplyLifestyleTemplate(item.key)}
-                            className={`p-2.5 rounded-xl border text-left transition-all ${
-                              isSelected
-                                ? 'bg-emerald-950/70 border-emerald-500/80 text-white shadow-sm ring-1 ring-emerald-500/50'
-                                : 'bg-slate-900/90 border-slate-800 text-slate-300 hover:border-emerald-500/40 hover:text-white'
+                            className={`p-2 rounded-xl border text-left transition-all ${
+                              isSel ? 'bg-emerald-950/70 border-emerald-500/80 text-white ring-1 ring-emerald-500/50' : 'bg-slate-900/90 border-slate-800 text-slate-300 hover:border-emerald-500/40 hover:text-white'
                             }`}
                           >
-                            <div className="text-xs font-bold truncate">{item.name}</div>
+                            <div className="text-xs font-bold">{item.name}</div>
                             <div className="text-[10px] text-slate-400 truncate mt-0.5">{item.sub}</div>
                           </button>
                         );
@@ -1796,177 +1887,387 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                     </div>
                   </div>
 
-                  {/* Sub-view Switcher: Both, Diet Only, Yoga Only */}
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                    <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
-                      <button
-                        type="button"
-                        onClick={() => setLifestyleSubTab('both')}
-                        className={`px-3 py-1 rounded-lg font-bold transition-all ${lifestyleSubTab === 'both' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                  {/* Sub-Tab: Diet | Yoga */}
+                  <div className="flex items-center justify-between border-b border-slate-800">
+                    <div className="flex">
+                      <button type="button" onClick={() => setLifestyleSubTab('diet')}
+                        className={`pb-2.5 px-3 text-[11px] font-bold flex items-center gap-1.5 border-b-2 transition-all ${
+                          lifestyleSubTab !== 'yoga' ? 'border-emerald-400 text-emerald-300' : 'border-transparent text-slate-400 hover:text-slate-200'
+                        }`}
                       >
-                        Full Protocol
+                        <i className="fas fa-seedling"></i> Diet & Nutrition
+                        {structuredDiet.meals.length > 0 && (
+                          <span className="bg-emerald-900/70 text-emerald-300 text-[9px] px-1.5 py-0.5 rounded-full font-black">{structuredDiet.meals.length}m</span>
+                        )}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setLifestyleSubTab('diet')}
-                        className={`px-3 py-1 rounded-lg font-bold transition-all ${lifestyleSubTab === 'diet' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                      <button type="button" onClick={() => setLifestyleSubTab('yoga')}
+                        className={`pb-2.5 px-3 text-[11px] font-bold flex items-center gap-1.5 border-b-2 transition-all ${
+                          lifestyleSubTab === 'yoga' ? 'border-amber-400 text-amber-300' : 'border-transparent text-slate-400 hover:text-slate-200'
+                        }`}
                       >
-                        Diet Only {dietPlan && <span className="text-[9px] bg-emerald-950 px-1.5 py-0.2 rounded-full ml-1">✓</span>}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setLifestyleSubTab('yoga')}
-                        className={`px-3 py-1 rounded-lg font-bold transition-all ${lifestyleSubTab === 'yoga' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-                      >
-                        Yoga Only {exercisePlan && <span className="text-[9px] bg-emerald-950 px-1.5 py-0.2 rounded-full ml-1">✓</span>}
+                        <i className="fas fa-om"></i> Yoga & Movement
+                        {structuredYoga.asanas.length > 0 && (
+                          <span className="bg-amber-900/70 text-amber-300 text-[9px] px-1.5 py-0.5 rounded-full font-black">{structuredYoga.asanas.length}a</span>
+                        )}
                       </button>
                     </div>
-
-                    <span className="text-[11px] text-slate-400 font-medium">
-                      Auto-saved to patient portal
-                    </span>
+                    <span className="text-[10px] text-slate-500 font-medium pb-2">Auto-saved to patient portal</span>
                   </div>
 
-                  {/* 🥗 DIET & NUTRITION SECTION */}
-                  {(lifestyleSubTab === 'both' || lifestyleSubTab === 'diet') && (
-                    <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[11px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-2">
-                          <i className="fas fa-seedling text-emerald-400"></i> Clinical Diet & Nutrition Regimen
-                        </label>
-                        <span className="text-[10px] bg-emerald-950/70 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-800/50 font-bold">
-                          Certified Meal Schedule
-                        </span>
-                      </div>
-
-                      <textarea
-                        rows={lifestyleSubTab === 'diet' ? 12 : 7}
-                        value={dietPlan}
-                        onChange={(e) => setDietPlan(e.target.value)}
-                        placeholder="Enter detailed meal-by-meal timetable (Awakening drink, Breakfast, Lunch, Snacks, Dinner), macro breakdown, foods to eat, and foods to avoid..."
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-400/80 focus:ring-1 focus:ring-emerald-400/50 resize-y leading-relaxed"
-                      />
-
-                      {/* Quick Add Meal & Macro Chips */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
-                          <span className="text-slate-500 font-bold text-[10px] uppercase">Add Meal Slot:</span>
+                  {/* ═══ DIET & NUTRITION SECTION ═══ */}
+                  {lifestyleSubTab !== 'yoga' && (
+                    <div className="space-y-2.5">
+                      {/* Diet Type + Macro Targets */}
+                      <div className="bg-slate-950/80 rounded-xl p-3 border border-slate-800 space-y-2">
+                        <div className="flex items-center gap-1.5">
+                          <i className="fas fa-seedling text-emerald-400 text-[10px]"></i>
+                          <label className="text-[10px] font-black text-emerald-400 uppercase tracking-wider">Diet Type & Macro Targets</label>
+                        </div>
+                        <input
+                          type="text"
+                          value={structuredDiet.dietType}
+                          onChange={e => setStructuredDiet(d => ({ ...d, dietType: e.target.value }))}
+                          placeholder="e.g. Low-GI Mediterranean / Indian Vegetarian Protocol"
+                          className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/60"
+                        />
+                        <div className="grid grid-cols-5 gap-1.5">
                           {[
-                            { label: '+ Awakening Elixir', text: '\n• [06:30 AM] Awakening Elixir: Warm water with soaked methi seeds & 5 soaked almonds' },
-                            { label: '+ Balanced Breakfast', text: '\n• [08:30 AM] High-Protein Breakfast: 2 Besan vegetable chillas with grated paneer + mint chutney (25g protein)' },
-                            { label: '+ Mid-Morning Tea', text: '\n• [11:00 AM] Mid-Morning: 1 cup spearmint tea + 1 small apple with pinch of cinnamon' },
-                            { label: '+ Low-GI Lunch', text: '\n• [01:30 PM] Low-GI Lunch: Fresh fiber salad + 2 millet rotis + thick dal + probiotic curd' },
-                            { label: '+ Evening Satiety', text: '\n• [05:00 PM] Evening Snack: Roasted makhana / boiled sprouted moong chaat' },
-                            { label: '+ Light Dinner', text: '\n• [07:30 PM] Nourishing Dinner: Clear ginger vegetable soup + stir-fried paneer/tofu with broccoli (finish 3h before sleep)' },
-                            { label: '+ Bedtime Golden Milk', text: '\n• [09:30 PM] Restorative Bedtime: Warm almond or A2 milk with pinch of nutmeg & organic turmeric' },
-                          ].map((slot, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => setDietPlan(p => (p ? `${p}${slot.text}` : slot.text.trim()))}
-                              className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors"
-                            >
-                              {slot.label}
-                            </button>
+                            { k: 'calories', label: 'Calories', ph: '1550 kcal' },
+                            { k: 'protein',  label: 'Protein',  ph: '80g' },
+                            { k: 'carbs',    label: 'Carbs',    ph: '35% Low-GI' },
+                            { k: 'fats',     label: 'Fats',     ph: '30% Omega-3' },
+                            { k: 'fiber',    label: 'Fiber',    ph: '32g+' },
+                          ].map(m => (
+                            <div key={m.k}>
+                              <div className="text-[9px] font-black text-slate-500 uppercase mb-0.5">{m.label}</div>
+                              <input
+                                type="text"
+                                value={structuredDiet.macros[m.k] || ''}
+                                onChange={e => setStructuredDiet(d => ({ ...d, macros: { ...d.macros, [m.k]: e.target.value } }))}
+                                placeholder={m.ph}
+                                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-[10px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50"
+                              />
+                            </div>
                           ))}
                         </div>
+                      </div>
 
-                        <div className="flex items-center gap-1.5 flex-wrap text-[11px] pt-1">
-                          <span className="text-slate-500 font-bold text-[10px] uppercase">Clinical Rules:</span>
-                          {[
-                            'Personalized Low-GI Plate',
-                            'Protein Target: 25-30g/meal',
-                            'Dietary Fiber: 30g+ daily',
-                            'Omega-3 & Polyphenols',
-                            'Seed Cycling (Flax/Pumpkin)',
-                            '14-Hour Overnight Fast (8pm-10am)',
-                            'Eliminate Refined Sugars & Maida',
-                          ].map(tag => (
-                            <button
-                              key={tag}
-                              type="button"
-                              onClick={() => setDietPlan(p => (p ? `${p}\n✓ ${tag}` : `✓ ${tag}`))}
-                              className="bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-800/40 text-emerald-300 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors"
-                            >
-                              + {tag}
+                      {/* Meal-by-Meal Timetable Builder */}
+                      <div className="bg-slate-950/80 rounded-xl border border-slate-800 overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800 bg-slate-900/60">
+                          <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i className="fas fa-clock"></i> Meal-by-Meal Timetable
+                          </span>
+                          <button type="button" onClick={sdMealAdd}
+                            className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 hover:bg-emerald-900/60 border border-emerald-800/60 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all">
+                            <i className="fas fa-plus text-[8px]"></i> Add Row
+                          </button>
+                        </div>
+                        {structuredDiet.meals.length === 0 ? (
+                          <div className="px-3 py-4 text-center space-y-2">
+                            <p className="text-[11px] text-slate-500 font-medium">Apply a protocol or add meals manually</p>
+                            <div className="flex flex-wrap justify-center gap-1.5">
+                              {[
+                                { label: '+ Awakening (06:30)', time: '06:30 AM', meal: 'Awakening Metabolic Elixir', foods: 'Warm water with soaked methi seeds, 5 almonds + 2 walnuts', portion: '1 glass + handful' },
+                                { label: '+ Breakfast (08:30)', time: '08:30 AM', meal: 'High-Protein Breakfast', foods: '2 Besan vegetable chillas with grated paneer + green chutney', portion: '2 chillas ~200g' },
+                                { label: '+ Lunch (01:30 PM)', time: '01:30 PM', meal: 'Low-GI Anti-Inflammatory Lunch', foods: 'Fiber salad + 2 millet rotis + thick dal + probiotic curd', portion: 'Standard plate' },
+                                { label: '+ Dinner (07:30 PM)', time: '07:30 PM', meal: 'Light Nourishing Dinner', foods: 'Clear ginger soup + paneer/tofu stir-fry with broccoli', portion: 'Light, finish 3h before sleep' },
+                              ].map((slot, idx) => (
+                                <button key={idx} type="button"
+                                  onClick={() => setStructuredDiet(d => ({ ...d, meals: [...d.meals, { id: `m${Date.now()}${idx}`, notes: '', ...slot }] }))}
+                                  className="text-[10px] bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white px-2 py-0.5 rounded-lg font-bold transition-colors">
+                                  {slot.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="max-h-56 overflow-y-auto custom-scrollbar">
+                            {structuredDiet.meals.map((meal, idx) => (
+                              <div key={meal.id || idx} className="grid grid-cols-[68px_1fr_1fr_24px] gap-1 p-2 border-b border-slate-800/50 items-center hover:bg-slate-900/30">
+                                <input type="text" value={meal.time}
+                                  onChange={e => sdMealUpdate(idx, 'time', e.target.value)}
+                                  placeholder="06:30 AM"
+                                  className="bg-slate-900 border border-slate-800 rounded-lg px-1.5 py-1 text-[10px] font-mono text-emerald-300 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 w-full"
+                                />
+                                <input type="text" value={meal.meal}
+                                  onChange={e => sdMealUpdate(idx, 'meal', e.target.value)}
+                                  placeholder="Meal name..."
+                                  className="bg-slate-900 border border-slate-800 rounded-lg px-1.5 py-1 text-[10px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 w-full"
+                                />
+                                <input type="text" value={meal.foods}
+                                  onChange={e => sdMealUpdate(idx, 'foods', e.target.value)}
+                                  placeholder="Foods & portion..."
+                                  className="bg-slate-900 border border-slate-800 rounded-lg px-1.5 py-1 text-[10px] text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 w-full"
+                                />
+                                <button type="button" onClick={() => sdMealRemove(idx)}
+                                  className="w-5 h-5 rounded-md bg-rose-950/60 hover:bg-rose-900/80 text-rose-400 flex items-center justify-center text-[9px] transition-colors shrink-0">
+                                  <i className="fas fa-xmark"></i>
+                                </button>
+                              </div>
+                            ))}
+                            <div className="px-3 py-1.5 border-t border-slate-800/40">
+                              <button type="button" onClick={sdMealAdd}
+                                className="text-[10px] text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 transition-colors">
+                                <i className="fas fa-plus text-[8px]"></i> Add meal slot
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Dos & Donts Chip Editors */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* ✓ Foods to Include */}
+                        <div className="bg-emerald-950/30 rounded-xl p-2.5 border border-emerald-900/50 space-y-1.5">
+                          <div className="text-[10px] font-black text-emerald-400 uppercase tracking-wider">✓ Include</div>
+                          <div className="flex flex-wrap gap-1 min-h-[20px]">
+                            {structuredDiet.dos.map((d, i) => (
+                              <span key={i} className="inline-flex items-center gap-1 bg-emerald-900/60 border border-emerald-700/40 text-emerald-200 text-[10px] px-2 py-0.5 rounded-full">
+                                {d}
+                                <button type="button" onClick={() => sdRemoveDo(i)} className="text-emerald-500/60 hover:text-rose-400 transition-colors"><i className="fas fa-xmark text-[7px]"></i></button>
+                              </span>
+                            ))}
+                          </div>
+                          <div className="flex gap-1">
+                            <input type="text" value={dosInput} onChange={e => setDosInput(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); sdAddDo(dosInput); } }}
+                              placeholder="Add, press Enter"
+                              className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-[10px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50"
+                            />
+                            <button type="button" onClick={() => sdAddDo(dosInput)}
+                              className="text-[10px] bg-emerald-950/80 border border-emerald-800/60 text-emerald-300 px-2 py-1 rounded-lg font-bold transition-colors shrink-0">
+                              <i className="fas fa-plus text-[8px]"></i>
                             </button>
-                          ))}
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {['Spearmint tea', 'Omega-3 seeds', 'A2 ghee', 'Probiotic curd', 'Millets', 'Cruciferous greens', 'Pomegranate'].map(s => (
+                              <button key={s} type="button"
+                                onClick={() => setStructuredDiet(d => ({ ...d, dos: [...d.dos, s] }))}
+                                className="text-[9px] bg-slate-900 hover:bg-emerald-950/60 border border-slate-800 text-slate-500 hover:text-emerald-300 px-1.5 py-0.5 rounded-md font-bold transition-colors">
+                                +{s}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* ✗ Foods to Avoid */}
+                        <div className="bg-rose-950/30 rounded-xl p-2.5 border border-rose-900/50 space-y-1.5">
+                          <div className="text-[10px] font-black text-rose-400 uppercase tracking-wider">✗ Avoid</div>
+                          <div className="flex flex-wrap gap-1 min-h-[20px]">
+                            {structuredDiet.donts.map((d, i) => (
+                              <span key={i} className="inline-flex items-center gap-1 bg-rose-900/60 border border-rose-700/40 text-rose-200 text-[10px] px-2 py-0.5 rounded-full">
+                                {d}
+                                <button type="button" onClick={() => sdRemoveDont(i)} className="text-rose-500/60 hover:text-rose-300 transition-colors"><i className="fas fa-xmark text-[7px]"></i></button>
+                              </span>
+                            ))}
+                          </div>
+                          <div className="flex gap-1">
+                            <input type="text" value={dontsInput} onChange={e => setDontsInput(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); sdAddDont(dontsInput); } }}
+                              placeholder="Add, press Enter"
+                              className="flex-1 min-w-0 bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-[10px] text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-rose-500/50"
+                            />
+                            <button type="button" onClick={() => sdAddDont(dontsInput)}
+                              className="text-[10px] bg-rose-950/80 border border-rose-800/60 text-rose-300 px-2 py-1 rounded-lg font-bold transition-colors shrink-0">
+                              <i className="fas fa-plus text-[8px]"></i>
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {['Refined sugar', 'Maida & bakery', 'Refined oils', 'Late-night eating', 'Processed foods', 'Alcohol', 'Cold beverages'].map(s => (
+                              <button key={s} type="button"
+                                onClick={() => setStructuredDiet(d => ({ ...d, donts: [...d.donts, s] }))}
+                                className="text-[9px] bg-slate-900 hover:bg-rose-950/60 border border-slate-800 text-slate-500 hover:text-rose-300 px-1.5 py-0.5 rounded-md font-bold transition-colors">
+                                +{s}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* 🧘 YOGA & MOVEMENT SECTION */}
-                  {(lifestyleSubTab === 'both' || lifestyleSubTab === 'yoga') && (
-                    <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[11px] font-black text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                          <i className="fas fa-om text-amber-400"></i> Yoga &amp; Mindful Movement Protocol
-                        </label>
-                        <span className="text-[10px] bg-amber-950/70 text-amber-300 px-2 py-0.5 rounded-full border border-amber-800/50 font-bold">
-                          Therapeutic Movement
-                        </span>
+                  {/* ═══ YOGA & MOVEMENT SECTION ═══ */}
+                  {lifestyleSubTab === 'yoga' && (
+                    <div className="space-y-2.5">
+                      {/* Phase + Frequency */}
+                      <div className="bg-slate-950/80 rounded-xl p-3 border border-slate-800 grid grid-cols-2 gap-2">
+                        <div>
+                          <div className="text-[9px] font-black text-amber-400 uppercase tracking-wider mb-1">Yoga Phase / Program</div>
+                          <input type="text" value={structuredYoga.phase}
+                            onChange={e => setStructuredYoga(y => ({ ...y, phase: e.target.value }))}
+                            placeholder="e.g. Pelvic & Hormonal Phase"
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50"
+                          />
+                        </div>
+                        <div>
+                          <div className="text-[9px] font-black text-amber-400 uppercase tracking-wider mb-1">Frequency</div>
+                          <input type="text" value={structuredYoga.frequency}
+                            onChange={e => setStructuredYoga(y => ({ ...y, frequency: e.target.value }))}
+                            placeholder="e.g. 5–6 Days / Week, 35 min"
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50"
+                          />
+                        </div>
                       </div>
 
-                      <textarea
-                        rows={lifestyleSubTab === 'yoga' ? 12 : 7}
-                        value={exercisePlan}
-                        onChange={(e) => setExercisePlan(e.target.value)}
-                        placeholder="Enter prescribed hormonal asanas (with duration and cues), pranayama sequences, daily step counts, and cycle-specific precautions..."
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-amber-400/80 focus:ring-1 focus:ring-amber-400/50 resize-y leading-relaxed"
-                      />
-
-                      {/* Quick Add Asana & Breathwork Chips */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
-                          <span className="text-slate-500 font-bold text-[10px] uppercase">Add Asanas:</span>
-                          {[
-                            { label: '+ Baddha Konasana', text: '\n• Baddha Konasana (Butterfly - 5 mins): Increases pelvic blood flow to ovaries and uterus' },
-                            { label: '+ Supta Baddha Konasana', text: '\n• Supta Baddha Konasana (Reclined Butterfly - 8 mins with bolster): Downregulates sympathetic cortisol' },
-                            { label: '+ Marjaryasana (Cat-Cow)', text: '\n• Cat-Cow Flow (3 mins / 10 breaths): Mobilizes spine and stimulates pelvic organs' },
-                            { label: '+ Malasana Squat', text: '\n• Malasana (Deep Garland Squat - 3 mins): Tones pelvic floor & releases hip tension' },
-                            { label: '+ Viparita Karani', text: '\n• Viparita Karani (Legs-up-the-wall - 10 mins nightly): Lymphatic drainage & hypothalamic reset' },
-                            { label: '+ Setu Bandhasana', text: '\n• Setu Bandhasana (Supported Bridge - 4 mins with block): Stimulates thyroid and posterior chain' },
-                            { label: '+ Surya Namaskar', text: '\n• Surya Namaskar (6-8 slow mindful rounds): Metabolic enhancement and insulin sensitization' },
-                          ].map((asana, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => setExercisePlan(p => (p ? `${p}${asana.text}` : asana.text.trim()))}
-                              className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors"
-                            >
-                              {asana.label}
-                            </button>
-                          ))}
+                      {/* Asana List Builder */}
+                      <div className="bg-slate-950/80 rounded-xl border border-slate-800 overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800 bg-slate-900/60">
+                          <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i className="fas fa-om"></i> Prescribed Asanas
+                          </span>
+                          <button type="button" onClick={syAsanaAdd}
+                            className="text-[10px] font-bold text-amber-400 bg-amber-950/60 hover:bg-amber-900/60 border border-amber-800/60 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all">
+                            <i className="fas fa-plus text-[8px]"></i> Add Asana
+                          </button>
                         </div>
+                        {structuredYoga.asanas.length === 0 ? (
+                          <div className="px-3 py-3 space-y-2">
+                            <p className="text-[11px] text-slate-500 font-medium text-center">Apply a protocol or add asanas manually</p>
+                            <div className="flex flex-wrap gap-1.5 justify-center">
+                              {[
+                                { name: 'Baddha Konasana (Butterfly)', duration: '5 mins', benefit: 'Increases pelvic blood flow to ovaries and uterus', cues: 'Soles together, flutter gently without jerking knees' },
+                                { name: 'Supta Baddha Konasana', duration: '8 mins (Restorative)', benefit: 'Down-regulates cortisol and relieves ovarian congestion', cues: 'Use bolster along spine, blocks under outer thighs' },
+                                { name: 'Viparita Karani (Legs-up-Wall)', duration: '10 mins nightly', benefit: 'Lymphatic drainage and cortisol reset', cues: 'Hips snug against wall, arms opened in cactus' },
+                                { name: 'Malasana (Garland Squat)', duration: '3 mins', benefit: 'Tones pelvic floor and opens hip adductors', cues: 'Heels flat or supported on folded blanket' },
+                                { name: 'Setu Bandhasana (Bridge)', duration: '4 mins with block', benefit: 'Thyroid stimulation and posterior chain strength', cues: 'Block under sacrum at medium height' },
+                                { name: 'Balasana (Child Pose)', duration: '5 mins', benefit: 'Deep pelvic grounding, soothes nervous system', cues: 'Knees wide, chest resting on bolster' },
+                              ].map((a, idx) => (
+                                <button key={idx} type="button"
+                                  onClick={() => setStructuredYoga(y => ({ ...y, asanas: [...y.asanas, { id: `y${Date.now()}${idx}`, ...a }] }))}
+                                  className="text-[10px] bg-slate-900 hover:bg-amber-950/60 border border-slate-700 hover:border-amber-800/60 text-slate-300 hover:text-amber-200 px-2 py-0.5 rounded-lg font-bold transition-colors">
+                                  + {a.name.split('(')[0].trim()}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="max-h-60 overflow-y-auto custom-scrollbar divide-y divide-slate-800/50">
+                            {structuredYoga.asanas.map((asana, idx) => (
+                              <div key={asana.id || idx} className="p-2.5 hover:bg-slate-900/30 space-y-1">
+                                <div className="grid grid-cols-[1fr_80px_24px] gap-1 items-center">
+                                  <input type="text" value={asana.name}
+                                    onChange={e => syAsanaUpdate(idx, 'name', e.target.value)}
+                                    placeholder="Asana name (Sanskrit + English)"
+                                    className="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-[10px] font-bold text-amber-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50 w-full"
+                                  />
+                                  <input type="text" value={asana.duration}
+                                    onChange={e => syAsanaUpdate(idx, 'duration', e.target.value)}
+                                    placeholder="5 mins"
+                                    className="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-[10px] text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50"
+                                  />
+                                  <button type="button" onClick={() => syAsanaRemove(idx)}
+                                    className="w-5 h-5 rounded-md bg-rose-950/60 hover:bg-rose-900/80 text-rose-400 flex items-center justify-center text-[9px] transition-colors">
+                                    <i className="fas fa-xmark"></i>
+                                  </button>
+                                </div>
+                                <input type="text" value={asana.benefit}
+                                  onChange={e => syAsanaUpdate(idx, 'benefit', e.target.value)}
+                                  placeholder="Therapeutic benefit for patient..."
+                                  className="w-full bg-slate-900/50 border border-slate-800/50 rounded-lg px-2 py-0.5 text-[10px] text-slate-400 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/40"
+                                />
+                                <input type="text" value={asana.cues || ''}
+                                  onChange={e => syAsanaUpdate(idx, 'cues', e.target.value)}
+                                  placeholder="Alignment cues & props..."
+                                  className="w-full bg-slate-900/50 border border-slate-800/50 rounded-lg px-2 py-0.5 text-[10px] text-slate-500 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/40 italic"
+                                />
+                              </div>
+                            ))}
+                            <div className="px-3 py-1.5">
+                              <button type="button" onClick={syAsanaAdd}
+                                className="text-[10px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1 transition-colors">
+                                <i className="fas fa-plus text-[8px]"></i> Add asana
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
 
-                        <div className="flex items-center gap-1.5 flex-wrap text-[11px] pt-1">
-                          <span className="text-slate-500 font-bold text-[10px] uppercase">Pranayama & Cardio:</span>
-                          {[
-                            'Anulom Vilom (10m morning)',
-                            'Bhramari Humming Breath (5m evening)',
-                            '4-4-4-4 Box Breathing (5m vagus activation)',
-                            'Diaphragmatic Belly Breathing',
-                            'Daily 8,500 – 10,000 steps',
-                            'Mandatory 15m post-meal stroll',
-                            'No hot yoga or intense inversions during active flow',
-                          ].map(tag => (
-                            <button
-                              key={tag}
-                              type="button"
-                              onClick={() => setExercisePlan(p => (p ? `${p}\n• ${tag}` : `• ${tag}`))}
-                              className="bg-amber-950/40 hover:bg-amber-900/60 border border-amber-800/40 text-amber-300 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-colors"
-                            >
-                              + {tag}
-                            </button>
-                          ))}
+                      {/* Pranayama & Breathwork */}
+                      <div className="bg-slate-950/80 rounded-xl border border-slate-800 overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800 bg-slate-900/60">
+                          <span className="text-[10px] font-black text-purple-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i className="fas fa-wind"></i> Pranayama & Breathwork
+                          </span>
+                          <button type="button" onClick={syPranAdd}
+                            className="text-[10px] font-bold text-purple-400 bg-purple-950/60 hover:bg-purple-900/60 border border-purple-800/60 px-2 py-1 rounded-lg flex items-center gap-1 transition-all">
+                            <i className="fas fa-plus text-[8px]"></i> Add
+                          </button>
+                        </div>
+                        {structuredYoga.pranayama.length === 0 ? (
+                          <div className="px-3 py-2.5 flex flex-wrap gap-1.5">
+                            {[
+                              { name: 'Anulom Vilom', duration: '10 Mins (Morning)', benefit: 'Balances ANS & reduces endocrine stress markers' },
+                              { name: 'Bhramari Humming Breath', duration: '5 Mins (Evening)', benefit: 'Nitric oxide production & amygdala calming' },
+                              { name: '4-4-4-4 Box Breathing', duration: '5 Mins (Post-stress)', benefit: 'Activates vagus nerve, improves digestion' },
+                              { name: 'Kapalabhati (Gentle)', duration: '3 rounds of 30', benefit: 'Metabolic agni & abdominal circulation' },
+                              { name: 'Diaphragmatic Breathing', duration: '10 Mins (AM + PM)', benefit: 'Drops intra-abdominal pressure, calms pelvic pain' },
+                            ].map((p, idx) => (
+                              <button key={idx} type="button"
+                                onClick={() => setStructuredYoga(y => ({ ...y, pranayama: [...y.pranayama, p] }))}
+                                className="text-[10px] bg-slate-900 hover:bg-purple-950/60 border border-slate-700 text-slate-300 hover:text-purple-200 px-2 py-0.5 rounded-lg font-bold transition-colors">
+                                + {p.name}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-slate-800/50">
+                            {structuredYoga.pranayama.map((p, idx) => (
+                              <div key={idx} className="grid grid-cols-[1fr_72px_24px] gap-1 p-2 hover:bg-slate-900/30 items-center">
+                                <input type="text" value={p.name}
+                                  onChange={e => syPranUpdate(idx, 'name', e.target.value)}
+                                  placeholder="Pranayama name"
+                                  className="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-[10px] text-purple-200 placeholder:text-slate-600 focus:outline-none focus:border-purple-500/50 w-full"
+                                />
+                                <input type="text" value={p.duration}
+                                  onChange={e => syPranUpdate(idx, 'duration', e.target.value)}
+                                  placeholder="5 mins"
+                                  className="bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-[10px] text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-purple-500/50"
+                                />
+                                <button type="button" onClick={() => syPranRemove(idx)}
+                                  className="w-5 h-5 rounded-md bg-rose-950/60 hover:bg-rose-900/80 text-rose-400 flex items-center justify-center text-[9px] transition-colors">
+                                  <i className="fas fa-xmark"></i>
+                                </button>
+                              </div>
+                            ))}
+                            <div className="px-3 py-1.5">
+                              <button type="button" onClick={syPranAdd}
+                                className="text-[10px] text-purple-400 font-bold flex items-center gap-1 transition-colors">
+                                <i className="fas fa-plus text-[8px]"></i> Add pranayama
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Cardio & Precautions */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-slate-950/80 rounded-xl p-2.5 border border-slate-800 space-y-1.5">
+                          <div className="text-[9px] font-black text-blue-400 uppercase tracking-wider flex items-center gap-1">
+                            <i className="fas fa-person-running"></i> Daily Cardio & Steps
+                          </div>
+                          <textarea rows={2} value={structuredYoga.cardio}
+                            onChange={e => setStructuredYoga(y => ({ ...y, cardio: e.target.value }))}
+                            placeholder="e.g. Daily 8,500 – 10,000 steps. Mandatory 15-min gentle stroll after lunch & dinner..."
+                            className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1.5 text-[10px] text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 resize-none leading-relaxed"
+                          />
+                        </div>
+                        <div className="bg-slate-950/80 rounded-xl p-2.5 border border-amber-900/30 space-y-1.5">
+                          <div className="text-[9px] font-black text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                            <i className="fas fa-triangle-exclamation"></i> Clinical Precautions
+                          </div>
+                          <textarea rows={2} value={structuredYoga.precautions}
+                            onChange={e => setStructuredYoga(y => ({ ...y, precautions: e.target.value }))}
+                            placeholder="e.g. Avoid intense hot yoga during active menstrual days. No extreme Kumbhaka breath-holding..."
+                            className="w-full bg-slate-900 border border-amber-900/30 rounded-lg px-2 py-1.5 text-[10px] text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50 resize-none leading-relaxed"
+                          />
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Follow-up Note in Diet & Yoga Tab */}
-                  <div className="bg-slate-950/80 rounded-2xl p-3.5 border border-slate-800 flex items-center justify-between flex-wrap gap-2 text-xs">
+                  {/* Follow-up Row (always visible) */}
+                  <div className="bg-slate-950/80 rounded-xl p-3 border border-slate-800 flex items-center justify-between flex-wrap gap-2 text-xs">
                     <div className="flex items-center gap-2">
                       <i className="fas fa-calendar-check text-emerald-400"></i>
                       <span className="text-slate-400 font-medium">Follow-up:</span>
@@ -1974,12 +2275,8 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                     </div>
                     <div className="flex items-center gap-1.5">
                       {['Review in 2 weeks', 'Review in 4 weeks', 'Review in 6 weeks'].map(opt => (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() => setFollowUpAdvice(opt)}
-                          className="text-[10px] font-bold bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white px-2 py-1 rounded-lg border border-slate-700 transition-colors"
-                        >
+                        <button key={opt} type="button" onClick={() => setFollowUpAdvice(opt)}
+                          className="text-[10px] font-bold bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white px-2 py-1 rounded-lg border border-slate-700 transition-colors">
                           {opt}
                         </button>
                       ))}
