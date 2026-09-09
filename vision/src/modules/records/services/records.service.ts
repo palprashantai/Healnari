@@ -123,19 +123,32 @@ export class RecordsService implements OnModuleInit {
   }
 
   async getPrescriptions(user: AuthUser) {
-    const query = this.supabase.admin
+    // NOTE: Supabase query builder is immutable — each filter method returns a
+    // NEW instance. The previous pattern discarded the return value of .eq(),
+    // so no patient/doctor filter was ever applied and every row in the table
+    // was returned regardless of who was logged in.  Fixed by chaining the
+    // role-specific filter before the query is awaited.
+    let query = this.supabase.admin
       .from('prescriptions')
-      .select()
+      .select('*, profiles!prescriptions_doctor_id_fkey(full_name)')
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
+
     if (user.profile.role === ProfileRole.DOCTOR) {
       this.requireVerifiedDoctor(user);
-      query.eq('doctor_id', user.id);
+      query = query.eq('doctor_id', user.id);
     } else {
-      query.eq('patient_id', user.id);
+      query = query.eq('patient_id', user.id);
     }
+
     const { data } = await query;
-    return data || [];
+    // Flatten the joined doctor name into a top-level field so the patient
+    // portal (Lifestyle.jsx / Prescriptions.jsx) can use rx.doctor_name directly.
+    return (data || []).map((row: any) => ({
+      ...row,
+      doctor_name: row.doctor_name || row.profiles?.full_name || null,
+      profiles: undefined,
+    }));
   }
 
   /** Every medicine line from one "Write Prescription" submission is saved
