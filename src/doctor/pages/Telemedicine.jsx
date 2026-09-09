@@ -1099,7 +1099,14 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
       exercisePlan,
       followUpAdvice
     });
-    onEnd(structuredNotes, finalMeds, draftLabs);
+    onEnd(structuredNotes, finalMeds, draftLabs, {
+      diagnosis,
+      freehandRx,
+      clinicalNotes,
+      dietPlan,
+      exercisePlan,
+      followUpAdvice
+    });
   };
 
   const STATUS_COPY = {
@@ -3508,31 +3515,39 @@ function DoctorTelemedicine() {
     }
   };
 
-  const endCall = async (notes, draftMeds, draftLabs) => {
+  const endCall = async (notes, draftMeds, draftLabs, meta = {}) => {
     try {
-      if (notes) await apiFetch(`/telemedicine/${activeCall.id}/notes`, { method: 'POST', body: { note: notes } });
+      if (notes) {
+        await apiFetch(`/telemedicine/${activeCall.id}/notes`, { method: 'POST', body: { note: notes } }).catch(err => {
+          console.warn('Could not save separate note record:', err);
+        });
+      }
       
       const effectiveMeds = (draftMeds && draftMeds.length > 0)
         ? draftMeds
         : (notes ? [{
-            name: 'Clinical Consultation & Follow-Up Protocol',
+            name: (meta?.dietPlan || meta?.exercisePlan) ? 'Personalized Lifestyle & Nutrition Protocol' : 'Clinical Consultation & Follow-Up Protocol',
             dosage: 'Standard',
             frequency: 'Daily regimen',
             duration: 'Course until follow-up',
+            instructions: meta?.followUpAdvice ? `Follow-up: ${meta.followUpAdvice}` : 'Follow doctor consultation advice',
           }] : []);
 
       if (effectiveMeds.length > 0) {
+        const imageAttachment = meta?.freehandRx || effectiveMeds.find(m => m.imageAttachment)?.imageAttachment || null;
         await addRx(activeCall.patientId, {
           appointmentId: activeCall.id,
-          diagnosis: activeCall.type || 'Teleconsultation',
+          diagnosis: meta?.diagnosis || activeCall.diagnosis || activeCall.type || 'Teleconsultation',
           instructions: notes || '',
           isDraft: false,
-          idempotencyKey: `rx_${activeCall.id}`,
+          handwrittenImage: imageAttachment || undefined,
+          attachmentUrl: imageAttachment || undefined,
           medicines: effectiveMeds.map(m => ({
             name: m.name || m.rawText || 'Medication',
             dosage: m.dosage || 'Standard',
             frequency: m.frequency || m.schedule || '1-0-1',
             duration: m.duration || '30 Days',
+            instructions: m.instructions || m.timing || '',
           })),
         });
       }
@@ -3541,6 +3556,8 @@ function DoctorTelemedicine() {
         await requestLabReport(activeCall.patientId, { 
           requestedTests: draftLabs.join(', '),
           appointmentId: activeCall.id,
+        }).catch(err => {
+          console.warn('Could not request lab report:', err);
         });
         await apiFetch('/communications/broadcasts', {
           method: 'POST',
@@ -3599,12 +3616,13 @@ function DoctorTelemedicine() {
       try { localStorage.removeItem(`healnari_rx_draft_${activeCall.id}`); } catch (_) {}
       await loadQueue();
       toast('Consultation ended. Prescription sent to patient!', 'success');
+      setActiveCall(null);
+      setSkipPreJoin(false);
     } catch (err) {
+      console.error('Failed to finalize consultation:', err);
       toast(err.message || 'Failed to finalize consultation', 'error');
     } finally {
       sessionStorage.removeItem('healnari_active_consultation_id');
-      setActiveCall(null);
-      setSkipPreJoin(false);
     }
   };
 

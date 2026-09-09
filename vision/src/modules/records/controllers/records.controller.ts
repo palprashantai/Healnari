@@ -135,7 +135,8 @@ export class CreatePrescriptionDto {
 
   @ApiProperty({ required: false })
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MaxLength(200)
   idempotencyKey?: string;
 
   @ApiProperty({

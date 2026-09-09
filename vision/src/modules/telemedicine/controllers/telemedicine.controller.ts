@@ -18,7 +18,7 @@ export class AddNoteDto {
   @ApiProperty()
   @IsString()
   @MinLength(1)
-  @MaxLength(5000)
+  @MaxLength(50000)
   note: string;
 }
 

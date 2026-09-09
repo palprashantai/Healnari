@@ -169,13 +169,18 @@ export class RecordsService implements OnModuleInit {
       }
     }
 
+    const isUuid =
+      typeof body.idempotencyKey === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.idempotencyKey);
+    const validGroupId = isUuid ? body.idempotencyKey : null;
+
     // If updating an existing draft, delete old rows first
-    if (body.idempotencyKey) {
+    if (validGroupId) {
       const { data: existing } = await this.supabase.admin
         .from('prescriptions')
         .select('status')
         .is('deleted_at', null)
-        .eq('group_id', body.idempotencyKey);
+        .eq('group_id', validGroupId);
       
       if (existing && existing.length > 0) {
         if (existing.some(r => r.status === 'Finalized')) {
@@ -184,11 +189,11 @@ export class RecordsService implements OnModuleInit {
         await this.supabase.admin
           .from('prescriptions')
           .delete()
-          .eq('group_id', body.idempotencyKey);
+          .eq('group_id', validGroupId);
       }
     }
 
-    const groupId = body.idempotencyKey || randomUUID();
+    const groupId = validGroupId || randomUUID();
     const prescribedAt = new Date().toISOString().slice(0, 10);
     const rxStatus = body.isDraft ? 'Draft' : 'Finalized';
     const nowIso = new Date().toISOString();

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { formatCurrency, getCurrencySymbol } from '../../lib/currency.js';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useToast } from '../../components/Toast.jsx';
 import { useClinicData } from '../../context/ClinicDataContext.jsx';
 import { Modal, ConfirmModal } from '../../components/Modal.jsx';
@@ -2317,8 +2317,23 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
         }
       } catch(e) {}
     });
+    // Fallback: check patient.clinicalNotes for any recorded holistic diet & yoga plans
+    if (patient?.clinicalNotes?.length) {
+      patient.clinicalNotes.forEach(cn => {
+        try {
+          if (cn.text && cn.text.startsWith('{')) {
+            const parsed = JSON.parse(cn.text);
+            if (parsed.type === 'healnari-holistic-v1' && (parsed.dietPlan || parsed.exercisePlan)) {
+              if (!list.some(p => p.date === cn.date)) {
+                list.push({ ...parsed, rxId: cn.id, date: cn.date, prescribedBy: cn.author || capabilities.displayName });
+              }
+            }
+          }
+        } catch(e) {}
+      });
+    }
     return list;
-  }, [groupedRx]);
+  }, [groupedRx, patient, capabilities]);
 
   const activeLifestylePlan = holisticPlans[0] || null;
 
@@ -3789,16 +3804,24 @@ function AddPatientModal({ isOpen, onClose, onAdd }) {
 function DoctorPatients() {
   const toast = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const { patients, updatePatient, addPatient } = useClinicData();
   const [search, setSearch] = useState('');
   const [callingPatientId, setCallingPatientId] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
-  const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const [selectedPatientId, setSelectedPatientId] = useState(location.state?.selectedPatientId || null);
   const [showAddPatient, setShowAddPatient] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [bulkModalParams, setBulkModalParams] = useState({ isOpen: false, channel: '' });
   const actionsMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (location.state?.selectedPatientId) {
+      setSelectedPatientId(location.state.selectedPatientId);
+    }
+  }, [location.state?.selectedPatientId]);
+
   const selectedPatient = patients.find((p) => p.id === selectedPatientId) || null;
 
   // Hooks must run unconditionally on every render, so the outside-click listener is
