@@ -124,21 +124,33 @@ function filterAndRankCatalog(catalog = [], query = '') {
  */
 export function parseHolisticNotes(raw) {
   if (!raw) return { clinicalNotes: '', dietPlan: '', exercisePlan: '', followUpAdvice: '' };
+  
   if (typeof raw === 'object' && raw !== null) {
     return {
-      clinicalNotes: raw.clinicalNotes || raw.notes || '',
+      clinicalNotes: (raw.clinicalNotes || raw.notes || '').replace(/<!--[\s\S]*?-->/g, '').trim(),
       dietPlan: raw.dietPlan || '',
       exercisePlan: raw.exercisePlan || '',
       followUpAdvice: raw.followUpAdvice || '',
     };
   }
-  const str = String(raw).trim();
-  if (str.startsWith('{')) {
+
+  // Strip backend metadata HTML comments to prevent UI leaks (e.g., <!-- HN_PRICING_LOCK:... -->)
+  let str = String(raw).trim();
+  const cleanStr = str.replace(/<!--[\s\S]*?-->/g, '').trim();
+
+  if (str.startsWith('{') || cleanStr.startsWith('{')) {
     try {
-      const parsed = JSON.parse(str);
+      // First try parsing raw string, if that fails, try parsing the cleaned string
+      let parsed;
+      try {
+        parsed = JSON.parse(str);
+      } catch (e) {
+        parsed = JSON.parse(cleanStr);
+      }
+      
       if (parsed.type === 'healnari-holistic-v1' || parsed.dietPlan || parsed.exercisePlan) {
         return {
-          clinicalNotes: parsed.clinicalNotes || '',
+          clinicalNotes: (parsed.clinicalNotes || '').replace(/<!--[\s\S]*?-->/g, '').trim(),
           dietPlan: parsed.dietPlan || '',
           exercisePlan: parsed.exercisePlan || '',
           followUpAdvice: parsed.followUpAdvice || '',
@@ -146,8 +158,9 @@ export function parseHolisticNotes(raw) {
       }
     } catch (_) {}
   }
+
   return {
-    clinicalNotes: str,
+    clinicalNotes: cleanStr,
     dietPlan: '',
     exercisePlan: '',
     followUpAdvice: '',
@@ -3644,16 +3657,31 @@ function DoctorTelemedicine() {
         }
       }
 
-      
-      const effectiveMeds = (draftMeds && draftMeds.length > 0)
-        ? draftMeds
-        : (notes ? [{
-            name: (meta?.dietPlan || meta?.exercisePlan) ? 'Personalized Lifestyle & Nutrition Protocol' : 'Clinical Consultation & Follow-Up Protocol',
-            dosage: 'Standard',
-            frequency: 'Daily regimen',
-            duration: 'Course until follow-up',
-            instructions: meta?.followUpAdvice ? `Follow-up: ${meta.followUpAdvice}` : 'Follow doctor consultation advice',
-          }] : []);
+      let effectiveMeds = [];
+      if (draftMeds && draftMeds.length > 0) {
+        effectiveMeds = [...draftMeds];
+      }
+
+      let hasLifestylePlan = false;
+      try {
+        if (notes && notes.startsWith('{')) {
+          const parsed = JSON.parse(notes);
+          if (parsed.type === 'healnari-holistic-v1' && (parsed.dietPlan || parsed.exercisePlan)) {
+            hasLifestylePlan = true;
+          }
+        }
+      } catch (e) {}
+
+      // Critical Fix: Always add a dedicated item for Lifestyle Plan so it isn't overwritten by medication timing logic
+      if (hasLifestylePlan || (notes && effectiveMeds.length === 0)) {
+        effectiveMeds.push({
+          name: hasLifestylePlan ? 'Personalized Lifestyle & Nutrition Protocol' : 'Clinical Consultation & Follow-Up Protocol',
+          dosage: 'Standard',
+          frequency: 'Daily regimen',
+          duration: 'Course until follow-up',
+          instructions: notes || (meta?.followUpAdvice ? `Follow-up: ${meta.followUpAdvice}` : 'Follow doctor consultation advice'),
+        });
+      }
 
       if (effectiveMeds.length > 0 && patientId) {
         const imageAttachment = meta?.freehandRx || effectiveMeds.find(m => m.imageAttachment)?.imageAttachment || null;
@@ -3669,11 +3697,10 @@ function DoctorTelemedicine() {
             dosage: m.dosage || 'Standard',
             frequency: m.frequency || m.schedule || '1-0-1',
             duration: m.duration || '30 Days',
-            instructions: m.instructions || m.timing || '',
+            instructions: m.instructions || m.timing || 'As prescribed', // 'As prescribed' prevents backend overriding it with full notes
           })),
         });
       }
-      
       if (draftLabs && draftLabs.length > 0 && patientId) {
         await requestLabReport(patientId, { 
           requestedTests: draftLabs.join(', '),

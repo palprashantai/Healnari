@@ -3682,15 +3682,25 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                   ) : (
                     <>
                       {(() => {
-                        let displayText = note.text;
+                        let displayText = note.text || '';
+                        let cleanText = displayText.replace(/<!--[\s\S]*?-->/g, '').trim();
                         try {
-                          if (displayText && displayText.startsWith('{')) {
-                            const parsed = JSON.parse(displayText);
+                          if (displayText.startsWith('{') || cleanText.startsWith('{')) {
+                            let parsed;
+                            try {
+                              parsed = JSON.parse(displayText);
+                            } catch(e) {
+                              parsed = JSON.parse(cleanText);
+                            }
                             if (parsed.type === 'healnari-holistic-v1') {
                               displayText = parsed.clinicalNotes || 'Holistic lifestyle protocol attached to prescription.';
                             }
                           }
                         } catch (e) {}
+                        
+                        // Final safety strip to remove trailing comments from extracted or plain text
+                        displayText = displayText.replace(/<!--[\s\S]*?-->/g, '').trim();
+
                         return (
                           <p className="text-slate-800 leading-relaxed font-medium text-xs whitespace-pre-wrap">{displayText}</p>
                         );
