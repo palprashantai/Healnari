@@ -3681,7 +3681,20 @@ function PatientEMRFullPage({ patient, onBack, toast, onUpdatePatient }) {
                     </div>
                   ) : (
                     <>
-                      <p className="text-slate-800 leading-relaxed font-medium text-xs whitespace-pre-wrap">{note.text}</p>
+                      {(() => {
+                        let displayText = note.text;
+                        try {
+                          if (displayText && displayText.startsWith('{')) {
+                            const parsed = JSON.parse(displayText);
+                            if (parsed.type === 'healnari-holistic-v1') {
+                              displayText = parsed.clinicalNotes || 'Holistic lifestyle protocol attached to prescription.';
+                            }
+                          }
+                        } catch (e) {}
+                        return (
+                          <p className="text-slate-800 leading-relaxed font-medium text-xs whitespace-pre-wrap">{displayText}</p>
+                        );
+                      })()}
                       <div className="flex justify-between items-center text-[11px] text-slate-500 pt-2 border-t border-slate-200">
                         <span>{note.author} • {note.date}</span>
                         <div className="flex items-center gap-3">
@@ -3851,8 +3864,8 @@ function DoctorPatients() {
         state: {
           instantCallSession: {
             id: appt.id,
-            patientId: appt.patient_id,
-            patient: appt.patientName,
+            patientId: appt.patient_id || appt.patientId || patient.id,
+            patient: appt.patientName || patient.name,
             age: patient.age ? `${patient.age}F` : '—',
             type: 'Instant Video Consultation',
             time: appt.scheduled_time,

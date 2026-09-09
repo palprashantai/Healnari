@@ -118,6 +118,42 @@ function filterAndRankCatalog(catalog = [], query = '') {
   return [...exactPrefix, ...wordPrefix, ...otherContains];
 }
 
+/**
+ * Universal parser for clinical consultation notes and holistic protocols
+ * Unpacks JSON payloads of type 'healnari-holistic-v1' or falls back to raw string.
+ */
+export function parseHolisticNotes(raw) {
+  if (!raw) return { clinicalNotes: '', dietPlan: '', exercisePlan: '', followUpAdvice: '' };
+  if (typeof raw === 'object' && raw !== null) {
+    return {
+      clinicalNotes: raw.clinicalNotes || raw.notes || '',
+      dietPlan: raw.dietPlan || '',
+      exercisePlan: raw.exercisePlan || '',
+      followUpAdvice: raw.followUpAdvice || '',
+    };
+  }
+  const str = String(raw).trim();
+  if (str.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(str);
+      if (parsed.type === 'healnari-holistic-v1' || parsed.dietPlan || parsed.exercisePlan) {
+        return {
+          clinicalNotes: parsed.clinicalNotes || '',
+          dietPlan: parsed.dietPlan || '',
+          exercisePlan: parsed.exercisePlan || '',
+          followUpAdvice: parsed.followUpAdvice || '',
+        };
+      }
+    } catch (_) {}
+  }
+  return {
+    clinicalNotes: str,
+    dietPlan: '',
+    exercisePlan: '',
+    followUpAdvice: '',
+  };
+}
+
 const CLINICAL_PROTOCOLS = [
   {
     id: 'pcos',
@@ -215,16 +251,32 @@ function StylusHandwritingCanvas({ strokes = [], setStrokes, onExport, className
     ctx.restore();
   };
 
-  // Sync canvas size on mount
+  // Sync canvas size on mount & observe element resizing dynamically
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    redraw(strokes);
-  }, []);
+    const updateSize = () => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      if (rect.width > 0 && rect.height > 0) {
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        redraw(strokes);
+      }
+    };
+    updateSize();
+
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => updateSize());
+      resizeObserver.observe(canvas);
+    }
+    window.addEventListener('resize', updateSize);
+    return () => {
+      if (resizeObserver) resizeObserver.disconnect();
+      window.removeEventListener('resize', updateSize);
+    };
+  }, [strokes]);
 
   // Redraw when strokes change externally
   useEffect(() => {
@@ -440,6 +492,7 @@ function StylusHandwritingCanvas({ strokes = [], setStrokes, onExport, className
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
+          onPointerCancel={handlePointerUp}
           className="absolute inset-0 w-full h-full z-10"
         />
       </div>
@@ -470,18 +523,13 @@ function ActiveCallUI({ session, onEnd, onCancel, onDeclined, autoJoin = false }
   // Retrieve patient history, vitals, allergies & reports
   const patientRecord = patients?.find(p => p.id === session.patientId || p.name === session.patient) || {
     name: session.patient,
-    allergies: ['Penicillin (mild rash)'], // fallback demonstration
-    weight: '58 kg',
-    bp: '118/76',
-    bloodSugar: '92 mg/dL',
-    bmi: '22.4',
-    reports: [
-      { id: 'rep-1', testName: 'Pelvic Ultrasound (TVS)', date: '12 Jan 2026', status: 'Completed', results: 'Polycystic morphology (>12 follicles/ovary). Normal endometrial thickness (7mm).' },
-      { id: 'rep-2', testName: 'Serum AMH & Thyroid Profile', date: '15 Jan 2026', status: 'Completed', results: 'AMH: 6.8 ng/mL (Elevated). TSH: 2.1 mIU/L (Normal).' },
-    ],
-    meds: [
-      { name: 'Myo-Inositol', dosage: '2g daily', duration: 'Ongoing' }
-    ]
+    allergies: session.allergies || session.patientRecord?.allergies || [],
+    weight: session.weight || session.patientRecord?.weight || '—',
+    bp: session.bp || session.patientRecord?.bp || '—',
+    bloodSugar: session.bloodSugar || session.patientRecord?.bloodSugar || '—',
+    bmi: session.bmi || session.patientRecord?.bmi || '—',
+    reports: session.reports || session.patientRecord?.reports || [],
+    meds: session.meds || session.patientRecord?.meds || []
   };
 
   // Layout View Mode: 'split' (side-by-side) | 'video-focus' (cinema video + mini pad) | 'pad-focus' (large pad + floating video)
@@ -679,7 +727,7 @@ function ActiveCallUI({ session, onEnd, onCancel, onDeclined, autoJoin = false }
 
   // ── Debounced Draft Auto-Save (Local + Server) ──
   useEffect(() => {
-    if (!clinicalNotes && draftMeds.length === 0) return;
+    if (!clinicalNotes && draftMeds.length === 0 && !dietPlan && !exercisePlan && !freehandRx && !typedPadText && (!handwritingStrokes || handwritingStrokes.length === 0)) return;
     const timer = setTimeout(() => {
       const payload = {
         clinicalNotes,
@@ -687,6 +735,11 @@ function ActiveCallUI({ session, onEnd, onCancel, onDeclined, autoJoin = false }
         draftLabs,
         diagnosis,
         followUpAdvice,
+        dietPlan,
+        exercisePlan,
+        freehandRx,
+        typedPadText,
+        handwritingStrokes,
         savedAt: new Date().toISOString(),
       };
       try {
@@ -699,7 +752,7 @@ function ActiveCallUI({ session, onEnd, onCancel, onDeclined, autoJoin = false }
       }).catch(() => {});
     }, 1500);
     return () => clearTimeout(timer);
-  }, [clinicalNotes, draftMeds, draftLabs, diagnosis, followUpAdvice, session.id]);
+  }, [clinicalNotes, draftMeds, draftLabs, diagnosis, followUpAdvice, dietPlan, exercisePlan, freehandRx, typedPadText, handwritingStrokes, session.id, draftKey]);
 
   // Restore draft on mount (Checks local cache and remote server draft)
   useEffect(() => {
@@ -715,6 +768,13 @@ function ActiveCallUI({ session, onEnd, onCancel, onDeclined, autoJoin = false }
           if (parsed.draftLabs?.length) setDraftLabs(parsed.draftLabs);
           if (parsed.diagnosis) setDiagnosis(parsed.diagnosis);
           if (parsed.followUpAdvice) setFollowUpAdvice(parsed.followUpAdvice);
+          if (parsed.dietPlan) setDietPlan(parsed.dietPlan);
+          if (parsed.exercisePlan) setExercisePlan(parsed.exercisePlan);
+          if (parsed.freehandRx) setFreehandRx(parsed.freehandRx);
+          if (parsed.typedPadText) setTypedPadText(parsed.typedPadText);
+          if (Array.isArray(parsed.handwritingStrokes) && parsed.handwritingStrokes.length) {
+            setHandwritingStrokes(parsed.handwritingStrokes);
+          }
           restored = true;
         }
       } catch (_) {}
@@ -728,6 +788,13 @@ function ActiveCallUI({ session, onEnd, onCancel, onDeclined, autoJoin = false }
           if (remoteDraft.draftLabs?.length) setDraftLabs(remoteDraft.draftLabs);
           if (remoteDraft.diagnosis) setDiagnosis(remoteDraft.diagnosis);
           if (remoteDraft.followUpAdvice) setFollowUpAdvice(remoteDraft.followUpAdvice);
+          if (remoteDraft.dietPlan) setDietPlan(remoteDraft.dietPlan);
+          if (remoteDraft.exercisePlan) setExercisePlan(remoteDraft.exercisePlan);
+          if (remoteDraft.freehandRx) setFreehandRx(remoteDraft.freehandRx);
+          if (remoteDraft.typedPadText) setTypedPadText(remoteDraft.typedPadText);
+          if (Array.isArray(remoteDraft.handwritingStrokes) && remoteDraft.handwritingStrokes.length) {
+            setHandwritingStrokes(remoteDraft.handwritingStrokes);
+          }
           restored = true;
         }
       } catch (_) {}
@@ -1050,18 +1117,19 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
 
   // Trigger Print / PDF Download for Lifestyle Protocol
   const handlePrintLifestylePlan = () => {
+    const caps = getProviderCapabilities(user);
     openLifestylePlanPrintWindow({
       rxId: `HN-${session.id?.slice(0, 6).toUpperCase() || 'TELE'}`,
       date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
       doctor: {
-        name: user?.name || 'Dr. Consultant Gynecologist',
-        specialty: 'Obstetrics & Gynecology',
-        regNo: 'HN-88421',
+        name: caps.displayName || user?.name || 'Dr. Consultant Specialist',
+        specialty: caps.specialtyLabel || 'Obstetrics, Gynecology & Lifestyle Care',
+        regNo: user?.profile?.registration_no || user?.registrationNo || 'HN-VERIFIED',
       },
       patient: {
         name: session.patient,
-        age: session.age || '28',
-        gender: 'Female',
+        age: session.age || '—',
+        gender: session.gender || session.patientRecord?.gender || 'Female',
       },
       dietPlan,
       exercisePlan
@@ -1230,44 +1298,29 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
               </button>
 
               {/* View Layout Controls (Desktop only) */}
-              <div className="hidden lg:flex items-center bg-slate-800/90 rounded-xl p-1 border border-slate-700 text-xs">
+              <div className="hidden lg:flex items-center bg-black/40 backdrop-blur-md rounded-full p-1 border border-white/10 shadow-inner">
                 <button
                   onClick={() => setViewLayout('split')}
                   title="Split Studio View"
-                  className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${viewLayout === 'split' ? 'bg-[#6B46C1] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                  className={`px-4 py-1.5 rounded-full font-bold transition-all duration-300 text-[11px] uppercase tracking-wider flex items-center gap-1.5 ${viewLayout === 'split' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
                 >
                   <i className="fas fa-columns"></i> Split
                 </button>
                 <button
                   onClick={() => setViewLayout('video-focus')}
                   title="Focus on Patient Video"
-                  className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${viewLayout === 'video-focus' ? 'bg-[#6B46C1] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                  className={`px-4 py-1.5 rounded-full font-bold transition-all duration-300 text-[11px] uppercase tracking-wider flex items-center gap-1.5 ${viewLayout === 'video-focus' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
                 >
                   <i className="fas fa-video"></i> Video
                 </button>
                 <button
                   onClick={() => setViewLayout('pad-focus')}
                   title="Focus on Prescription Pad"
-                  className={`px-3 py-1.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${viewLayout === 'pad-focus' ? 'bg-[#6B46C1] text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                  className={`px-4 py-1.5 rounded-full font-bold transition-all duration-300 text-[11px] uppercase tracking-wider flex items-center gap-1.5 ${viewLayout === 'pad-focus' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
                 >
                   <i className="fas fa-file-prescription"></i> Pad
                 </button>
               </div>
-
-              {/* Review & Finalize Button */}
-              <button
-                onClick={() => setShowSignModal(true)}
-                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl text-[11px] sm:text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all shrink-0"
-              >
-                <i className="fas fa-file-signature text-xs"></i>
-                <span className="hidden xs:inline">{isNutritionOrYogaProvider ? 'Review & Issue Plan' : 'Review & Sign'}</span>
-                <span className="xs:hidden">{isNutritionOrYogaProvider ? 'Plan' : 'Sign'}</span>
-                {(draftMeds.length > 0 || draftLabs.length > 0 || freehandRx || dietPlan || exercisePlan) && (
-                  <span className="bg-emerald-950/60 text-emerald-200 px-1.5 py-0.2 rounded-full text-[9px] font-black">
-                    {freehandRx ? '🖊️' : (dietPlan || exercisePlan ? '🥗' : `${draftMeds.length + draftLabs.length}`)}
-                  </span>
-                )}
-              </button>
             </div>
           </div>
 
@@ -1443,10 +1496,12 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
               </div>
 
               {/* Self Doctor PiP (Picture in Picture) */}
-              <div className="absolute bottom-20 right-4 w-32 h-44 bg-slate-950 rounded-2xl overflow-hidden border-2 border-slate-700 shadow-2xl z-20 hover:scale-105 transition-transform origin-bottom-right">
+              <div className={`absolute bottom-24 right-4 w-36 h-48 bg-slate-900/80 backdrop-blur-xl rounded-2xl overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.5)] z-20 transition-all duration-300 origin-bottom-right group-hover:scale-105 ${!call.isMuted && call.localStream ? 'ring-2 ring-emerald-500/80 ring-offset-2 ring-offset-slate-900' : 'border border-white/10'}`}>
                 {call.isVideoOff || !call.localStream ? (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 bg-slate-900 text-xs font-bold gap-1">
-                    <i className="fas fa-video-slash text-base"></i>
+                  <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-black/40 backdrop-blur-md text-xs font-bold gap-2">
+                    <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+                      <i className="fas fa-video-slash text-xl opacity-80"></i>
+                    </div>
                     <span>Camera Off</span>
                   </div>
                 ) : (
@@ -1455,12 +1510,12 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
               </div>
 
               {/* Floating In-Call Control Toolbar */}
-              <div className="absolute bottom-[max(1rem,env(safe-area-inset-bottom,1rem))] left-1/2 -translate-x-1/2 flex items-center gap-2.5 bg-slate-900/90 backdrop-blur-xl px-4 py-2 rounded-full border border-slate-700 shadow-2xl z-30 max-w-[95vw]">
+              <div className="absolute bottom-[max(1.5rem,env(safe-area-inset-bottom,1.5rem))] left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/40 backdrop-blur-2xl px-5 py-3 rounded-full border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] z-30 max-w-[95vw]">
                 <button
                   onClick={call.toggleMute}
                   disabled={!call.localStream}
                   title={call.isMuted ? 'Unmute microphone' : 'Mute microphone'}
-                  className={`w-11 h-11 rounded-full flex items-center justify-center text-base transition-all ${call.isMuted ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/40' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'}`}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all ${call.isMuted ? 'bg-rose-500/90 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)]' : 'bg-white/10 text-white hover:bg-white/20'}`}
                 >
                   <i className={`fas ${call.isMuted ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
                 </button>
@@ -1469,7 +1524,7 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                   onClick={call.toggleVideo}
                   disabled={!call.localStream}
                   title={call.isVideoOff ? 'Turn on video' : 'Turn off video'}
-                  className={`w-11 h-11 rounded-full flex items-center justify-center text-base transition-all ${call.isVideoOff ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/40' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'}`}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all ${call.isVideoOff ? 'bg-rose-500/90 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)]' : 'bg-white/10 text-white hover:bg-white/20'}`}
                 >
                   <i className={`fas ${call.isVideoOff ? 'fa-video-slash' : 'fa-video'}`}></i>
                 </button>
@@ -1478,10 +1533,12 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                   onClick={call.toggleScreenShare}
                   disabled={call.connectionState !== 'connected'}
                   title="Share Screen"
-                  className={`w-11 h-11 rounded-full flex items-center justify-center text-base transition-all ${call.isScreenSharing ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'}`}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all ${call.isScreenSharing ? 'bg-emerald-500/90 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-white/10 text-white hover:bg-white/20'}`}
                 >
                   <i className="fas fa-desktop"></i>
                 </button>
+
+                <div className="w-px h-8 bg-white/10 mx-1"></div>
 
                 {/* Mobile Drawer Trigger for Telemed Rx/Pad */}
                 <button
@@ -1490,27 +1547,33 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                     setMobileDrawerOpen(prev => !prev);
                   }}
                   title={mobileDrawerOpen ? 'Minimize Prescription Drawer' : 'Open Mobile Prescription Drawer'}
-                  className={`lg:hidden w-11 h-11 rounded-full flex items-center justify-center text-base transition-all ${
+                  className={`lg:hidden w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all ${
                     mobileDrawerOpen
-                      ? 'bg-gradient-to-r from-magenta-500 to-aubergine-600 text-white shadow-lg ring-2 ring-white/30'
-                      : 'bg-slate-800 text-slate-200 hover:bg-slate-700 border border-slate-700'
+                      ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg ring-2 ring-white/30'
+                      : 'bg-white/10 text-white hover:bg-white/20'
                   }`}
                 >
                   <i className="fas fa-file-prescription"></i>
                   {(draftMeds.length > 0 || draftLabs.length > 0) && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-slate-900">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-slate-900 shadow-sm">
                       {draftMeds.length + draftLabs.length}
                     </span>
                   )}
                 </button>
 
-                {/* End Call Button */}
+                {/* Consolidated End Call & Sign Button */}
                 <button
                   onClick={() => setShowSignModal(true)}
-                  title="End Call & Send Prescription"
-                  className="w-11 h-11 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center text-base transition-all shadow-lg shadow-rose-600/30 hover:scale-105 active:scale-95"
+                  title="Complete Consultation & Sign Prescription"
+                  className="h-12 px-6 rounded-full bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-400 hover:to-rose-500 text-white flex items-center justify-center text-sm font-black transition-all shadow-[0_0_20px_rgba(244,63,94,0.3)] hover:shadow-[0_0_30px_rgba(244,63,94,0.5)] active:scale-95 gap-2.5 whitespace-nowrap"
                 >
-                  <i className="fas fa-phone-slash"></i>
+                  <i className="fas fa-phone-slash text-base"></i>
+                  <span className="hidden sm:inline tracking-wide">{isNutritionOrYogaProvider ? 'Issue Plan & End' : 'Sign & End Consult'}</span>
+                  {(draftMeds.length > 0 || draftLabs.length > 0 || freehandRx || dietPlan || exercisePlan) && (
+                    <span className="bg-black/20 px-1.5 py-0.5 rounded-full text-[10px] ml-1 flex items-center justify-center min-w-[20px]">
+                      {freehandRx ? '🖊️' : (dietPlan || exercisePlan ? '🥗' : `${draftMeds.length + draftLabs.length}`)}
+                    </span>
+                  )}
                 </button>
               </div>
             </div>
@@ -2939,8 +3002,8 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-0.5">Women's Specialized Telehealth Clinic</p>
               </div>
               <div className="text-right text-xs">
-                <p className="font-bold text-slate-900">{user?.name || 'Dr. Consultant Gynecologist'}</p>
-                <p className="text-slate-500 text-[11px]">MBBS, MS (OB-GYN) • Reg #HN-88421</p>
+                <p className="font-bold text-slate-900">{caps.displayName || user?.name || 'Dr. Consultant Specialist'}</p>
+                <p className="text-slate-500 text-[11px]">{caps.specialtyLabel || 'Obstetrics & Gynecology'} • Reg #{user?.profile?.registration_no || user?.registrationNo || 'HN-VERIFIED'}</p>
                 <p className="text-slate-400 font-mono text-[10px] mt-1">{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
               </div>
             </div>
@@ -3255,7 +3318,7 @@ function DoctorTelemedicine() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
-  const { updateAppointmentStatus, addRx, requestLabReport } = useClinicData();
+  const { updateAppointmentStatus, addRx, addClinicalNote, requestLabReport } = useClinicData();
   const [activeCall, setActiveCall] = useState(null);
   // Calls arrived at via an already-answered ring screen (instant call, or
   // "Accept" on the incoming-call overlay) skip the device pre-check below —
@@ -3371,10 +3434,13 @@ function DoctorTelemedicine() {
   const filteredHistory = historySessions.filter(item => {
     if (!historySearch.trim()) return true;
     const query = historySearch.toLowerCase();
+    const parsed = parseHolisticNotes(item.notes);
     return (
       item.patient.toLowerCase().includes(query) ||
       (item.diagnosis && item.diagnosis.toLowerCase().includes(query)) ||
-      (item.notes && item.notes.toLowerCase().includes(query))
+      (parsed.clinicalNotes && parsed.clinicalNotes.toLowerCase().includes(query)) ||
+      (parsed.dietPlan && parsed.dietPlan.toLowerCase().includes(query)) ||
+      (parsed.exercisePlan && parsed.exercisePlan.toLowerCase().includes(query))
     );
   });
 
@@ -3383,11 +3449,12 @@ function DoctorTelemedicine() {
 
   const handlePrintHistoryPrescription = (histItem) => {
     const caps = getProviderCapabilities(user);
+    const parsed = parseHolisticNotes(histItem.notes);
     openPrescriptionPrintWindow({
       rxId: `HN-${String(histItem.id || '').replace(/^hist-/, '').slice(0, 6).toUpperCase() || 'TELE'}`,
       date: histItem.date === 'Today' ? new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : (histItem.rawDate || histItem.date),
       doctor: {
-        name: caps.displayName,
+        name: caps.displayName || user?.name,
         specialty: caps.specialtyLabel,
         regNo: user?.profile?.registration_no || user?.registrationNo || 'NMC-VERIFIED',
       },
@@ -3406,7 +3473,32 @@ function DoctorTelemedicine() {
         instructions: m.instructions || 'Take as directed.',
       })),
       labTests: histItem.labs || [],
-      instructions: histItem.notes || 'Follow balanced nutrition, hydration, and sleep hygiene as discussed during consultation.',
+      instructions: parsed.clinicalNotes || 'Follow balanced nutrition, hydration, and sleep hygiene as discussed during consultation.',
+      dietPlan: parsed.dietPlan,
+      exercisePlan: parsed.exercisePlan,
+      followUpAdvice: parsed.followUpAdvice,
+      followUp: parsed.followUpAdvice,
+    });
+  };
+
+  const handlePrintHistoryLifestylePlan = (histItem) => {
+    const caps = getProviderCapabilities(user);
+    const parsed = parseHolisticNotes(histItem.notes);
+    openLifestylePlanPrintWindow({
+      rxId: `HN-${String(histItem.id || '').replace(/^hist-/, '').slice(0, 6).toUpperCase() || 'TELE'}`,
+      date: histItem.date === 'Today' ? new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : (histItem.rawDate || histItem.date),
+      doctor: {
+        name: caps.displayName || user?.name || 'Dr. Consultant Specialist',
+        specialty: caps.specialtyLabel || 'Obstetrics, Gynecology & Lifestyle Care',
+        regNo: user?.profile?.registration_no || user?.registrationNo || 'HN-VERIFIED',
+      },
+      patient: {
+        name: histItem.patient,
+        age: String(histItem.age || '—').replace(/[^0-9]/g, '') || '—',
+        gender: histItem.gender || 'Female',
+      },
+      dietPlan: parsed.dietPlan,
+      exercisePlan: parsed.exercisePlan,
     });
   };
 
@@ -3422,8 +3514,17 @@ function DoctorTelemedicine() {
       let session = sessions.find(s => s.id === startCallId);
       if (!session) {
         const fresh = await apiFetch('/telemedicine/queue').catch(() => []);
-        const raw = fresh.find(s => s.id === startCallId);
-        session = raw ? toSession(raw) : null;
+        const raw = (Array.isArray(fresh) ? fresh : (fresh?.data || [])).find(s => s.id === startCallId);
+        if (raw) {
+          session = toSession(raw);
+        } else {
+          // Secondary fallback to appointments endpoint so calls initiated from any tab resolve
+          const appts = await apiFetch('/appointments').catch(() => []);
+          const apptRaw = (Array.isArray(appts) ? appts : (appts?.data || [])).find(s => s.id === startCallId);
+          if (apptRaw) {
+            session = toSession(apptRaw);
+          }
+        }
       }
       if (cancelled) return;
       setSearchParams(prev => {
@@ -3517,11 +3618,32 @@ function DoctorTelemedicine() {
 
   const endCall = async (notes, draftMeds, draftLabs, meta = {}) => {
     try {
+      const patientId = activeCall.patientId || activeCall.patient_id || activeCall.patientObj?.id;
+
       if (notes) {
         await apiFetch(`/telemedicine/${activeCall.id}/notes`, { method: 'POST', body: { note: notes } }).catch(err => {
           console.warn('Could not save separate note record:', err);
         });
+
+        if (patientId && addClinicalNote) {
+          let plainClinicalNote = notes;
+          try {
+            if (notes.startsWith('{')) {
+              const parsed = JSON.parse(notes);
+              if (parsed.type === 'healnari-holistic-v1') {
+                plainClinicalNote = parsed.clinicalNotes || '';
+              }
+            }
+          } catch (e) {}
+
+          if (plainClinicalNote.trim()) {
+            await addClinicalNote(patientId, plainClinicalNote).catch(err => {
+              console.warn('Could not save clinical note directly to EMR:', err);
+            });
+          }
+        }
       }
+
       
       const effectiveMeds = (draftMeds && draftMeds.length > 0)
         ? draftMeds
@@ -3533,9 +3655,9 @@ function DoctorTelemedicine() {
             instructions: meta?.followUpAdvice ? `Follow-up: ${meta.followUpAdvice}` : 'Follow doctor consultation advice',
           }] : []);
 
-      if (effectiveMeds.length > 0) {
+      if (effectiveMeds.length > 0 && patientId) {
         const imageAttachment = meta?.freehandRx || effectiveMeds.find(m => m.imageAttachment)?.imageAttachment || null;
-        await addRx(activeCall.patientId, {
+        await addRx(patientId, {
           appointmentId: activeCall.id,
           diagnosis: meta?.diagnosis || activeCall.diagnosis || activeCall.type || 'Teleconsultation',
           instructions: notes || '',
@@ -3552,8 +3674,8 @@ function DoctorTelemedicine() {
         });
       }
       
-      if (draftLabs && draftLabs.length > 0) {
-        await requestLabReport(activeCall.patientId, { 
+      if (draftLabs && draftLabs.length > 0 && patientId) {
+        await requestLabReport(patientId, { 
           requestedTests: draftLabs.join(', '),
           appointmentId: activeCall.id,
         }).catch(err => {
@@ -3566,7 +3688,7 @@ function DoctorTelemedicine() {
             body: `Dear ${activeCall.patient},\n\nDr. ${user?.name || 'your doctor'} has requested lab tests: ${draftLabs.join(', ')}.\n\nPlease upload the results to your portal once completed:\nhttps://app.healnari.com/patient-dashboard/records`,
             channels: ['Push Notification', 'Email'],
             scheduleType: 'immediate',
-            patientIds: [activeCall.patientId],
+            patientIds: [patientId],
           },
         }).catch(() => {});
       }
@@ -4041,12 +4163,40 @@ function DoctorTelemedicine() {
                             </span>
                           </div>
 
-                          {item.notes && (
-                            <p className="text-xs text-slate-500 mt-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100 line-clamp-2">
-                              <span className="font-bold text-slate-700">Clinical Notes: </span>
-                              {item.notes}
-                            </p>
-                          )}
+                          {(() => {
+                            const parsed = parseHolisticNotes(item.notes);
+                            const hasDiet = !!parsed.dietPlan;
+                            const hasYoga = !!parsed.exercisePlan;
+                            return (
+                              <div className="mt-2 space-y-1.5">
+                                {parsed.clinicalNotes ? (
+                                  <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 line-clamp-2 leading-relaxed">
+                                    <span className="font-bold text-slate-700">Clinical Notes: </span>
+                                    {parsed.clinicalNotes}
+                                  </p>
+                                ) : null}
+                                {(hasDiet || hasYoga || parsed.followUpAdvice) && (
+                                  <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+                                    {hasDiet && (
+                                      <span className="bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
+                                        <i className="fas fa-seedling text-[9px]"></i> Diet Regimen Attached
+                                      </span>
+                                    )}
+                                    {hasYoga && (
+                                      <span className="bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded-md border border-amber-200 flex items-center gap-1">
+                                        <i className="fas fa-om text-[9px]"></i> Yoga Protocol Attached
+                                      </span>
+                                    )}
+                                    {parsed.followUpAdvice && (
+                                      <span className="bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded-md border border-indigo-100 flex items-center gap-1">
+                                        <i className="fas fa-calendar-check text-[9px]"></i> Follow-up: {parsed.followUpAdvice}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
 
@@ -4068,6 +4218,16 @@ function DoctorTelemedicine() {
                         >
                           <i className="fas fa-print text-slate-500"></i> Print Rx
                         </button>
+
+                        {Boolean(parseHolisticNotes(item.notes).dietPlan || parseHolisticNotes(item.notes).exercisePlan) && (
+                          <button
+                            onClick={() => handlePrintHistoryLifestylePlan(item)}
+                            className="px-3 py-2 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all flex items-center gap-1.5 shadow-sm"
+                            title="Print Lifestyle & Nutrition Plan"
+                          >
+                            <i className="fas fa-seedling text-emerald-600"></i> Lifestyle Plan
+                          </button>
+                        )}
 
                         <button
                           onClick={() => {
@@ -4251,7 +4411,10 @@ function DoctorTelemedicine() {
         title={`Teleconsultation Record — ${selectedHistoryItem?.patient || ''}`}
         size="lg"
       >
-        {selectedHistoryItem && (
+        {selectedHistoryItem && (() => {
+          const parsedNotes = parseHolisticNotes(selectedHistoryItem.notes);
+          const hasLifestyle = Boolean(parsedNotes.dietPlan || parsedNotes.exercisePlan);
+          return (
           <div className="space-y-5">
             {/* Patient Header Summary */}
             <div className="bg-gradient-to-r from-aubergine-50 to-slate-50 border border-aubergine-100 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -4297,9 +4460,51 @@ function DoctorTelemedicine() {
                 </span>
               </div>
               <div className="bg-white border border-slate-200 rounded-2xl p-4 text-xs text-slate-700 leading-relaxed space-y-2 whitespace-pre-line shadow-inner bg-slate-50/40">
-                {selectedHistoryItem.notes || 'No detailed clinical notes attached for this consultation.'}
+                {parsedNotes.clinicalNotes || (hasLifestyle ? 'Holistic consultation completed with attached dietary and yoga regimen.' : 'No detailed clinical notes attached for this consultation.')}
               </div>
             </div>
+
+            {/* Prescribed Dietary Regimen */}
+            {parsedNotes.dietPlan && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <i className="fas fa-seedling text-emerald-600"></i> Prescribed Clinical Dietary Regimen
+                  </h4>
+                  <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                    Meal Schedule &amp; Nutrition
+                  </span>
+                </div>
+                <div className="bg-emerald-50/40 border border-emerald-200/80 rounded-2xl p-4 text-xs text-slate-700 leading-relaxed whitespace-pre-line font-mono text-[11px] shadow-inner">
+                  {parsedNotes.dietPlan}
+                </div>
+              </div>
+            )}
+
+            {/* Prescribed Yoga & Movement Protocol */}
+            {parsedNotes.exercisePlan && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <i className="fas fa-om text-amber-600"></i> Mindful Movement &amp; Therapeutic Yoga Protocol
+                  </h4>
+                  <span className="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                    Targeted Asanas &amp; Breathwork
+                  </span>
+                </div>
+                <div className="bg-amber-50/40 border border-amber-200/80 rounded-2xl p-4 text-xs text-slate-700 leading-relaxed whitespace-pre-line font-mono text-[11px] shadow-inner">
+                  {parsedNotes.exercisePlan}
+                </div>
+              </div>
+            )}
+
+            {/* Follow-Up Advice */}
+            {parsedNotes.followUpAdvice && (
+              <div className="bg-indigo-50/60 border border-indigo-200 rounded-xl p-3 flex items-center gap-2 text-xs font-bold text-indigo-900">
+                <i className="fas fa-calendar-check text-indigo-600"></i>
+                <span>Next Follow-up Review: {parsedNotes.followUpAdvice}</span>
+              </div>
+            )}
 
             {/* Prescribed Medications */}
             {selectedHistoryItem.meds && selectedHistoryItem.meds.length > 0 && (
@@ -4346,7 +4551,7 @@ function DoctorTelemedicine() {
             )}
 
             {/* Actions Footer */}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 flex-wrap gap-2">
               <button
                 onClick={() => {
                   navigate('/doctor-dashboard/patients', { state: { selectedPatientId: selectedHistoryItem.patientId } });
@@ -4357,7 +4562,7 @@ function DoctorTelemedicine() {
                 <i className="fas fa-folder-open"></i> Open Patient EMR
               </button>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={() => {
                     setShowHistoryModal(false);
@@ -4367,6 +4572,15 @@ function DoctorTelemedicine() {
                 >
                   Close
                 </button>
+                {hasLifestyle && (
+                  <button
+                    onClick={() => handlePrintHistoryLifestylePlan(selectedHistoryItem)}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shadow-emerald-600/20"
+                    title="Print Lifestyle Plan"
+                  >
+                    <i className="fas fa-seedling"></i> Print Lifestyle Plan
+                  </button>
+                )}
                 <button
                   onClick={() => handlePrintHistoryPrescription(selectedHistoryItem)}
                   className="px-4 py-2 rounded-xl bg-aubergine-600 hover:bg-aubergine-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm shadow-aubergine-600/20"
@@ -4376,7 +4590,8 @@ function DoctorTelemedicine() {
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
       </Modal>
     </div>
   );
