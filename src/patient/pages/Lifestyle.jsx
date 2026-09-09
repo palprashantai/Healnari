@@ -17,26 +17,50 @@ export default function PatientLifestyle() {
 
   // Load patient prescriptions with holistic lifestyle protocols
   useEffect(() => {
-    apiFetch('/records/prescriptions?limit=30')
+    apiFetch('/records/prescriptions?limit=50')
       .then(res => {
         const list = Array.isArray(res) ? res : (res?.data || []);
-        const holistic = [];
+        
+        // Group rows by group_id — each group is one "prescription"
+        const byGroup = new Map();
         for (const rx of list) {
-          try {
-            if (rx.instructions && rx.instructions.startsWith('{')) {
-              const parsed = JSON.parse(rx.instructions);
+          const gid = rx.group_id || rx.id;
+          if (!byGroup.has(gid)) byGroup.set(gid, []);
+          byGroup.get(gid).push(rx);
+        }
+
+        const holistic = [];
+        const seenGroups = new Set();
+
+        for (const [groupId, rows] of byGroup.entries()) {
+          if (seenGroups.has(groupId)) continue;
+
+          // Find any row in the group that has the holistic JSON in instructions
+          for (const rx of rows) {
+            try {
+              // Strip any backend metadata comments before parsing
+              const rawInstr = (rx.instructions || '').replace(/<!--[\s\S]*?-->/g, '').trim();
+              if (!rawInstr.startsWith('{')) continue;
+              const parsed = JSON.parse(rawInstr);
               if (parsed.type === 'healnari-holistic-v1' && (parsed.dietPlan || parsed.exercisePlan)) {
+                seenGroups.add(groupId);
                 holistic.push({
                   ...parsed,
-                  rxId: rx.id,
-                  date: rx.date || rx.prescribedOn || 'Recent',
-                  doctor: rx.doctor || rx.prescribedBy || 'Dr. Sarah Mitchell',
+                  rxId: groupId,
+                  // DB columns: prescribed_at, doctor_name
+                  date: rx.prescribed_at
+                    ? new Date(rx.prescribed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : (rx.prescribedOn || 'Recent'),
+                  doctor: rx.doctor_name || rx.doctor || rx.prescribedBy || 'Your Doctor',
                 });
+                break; // One holistic plan per group is enough
               }
-            }
-          } catch (e) {}
+            } catch (e) {}
+          }
         }
-        setPlans(holistic);
+
+        // Sort newest first
+        setPlans(holistic.sort((a, b) => new Date(b.date) - new Date(a.date)));
       })
       .catch(() => {})
       .finally(() => setLoading(false));

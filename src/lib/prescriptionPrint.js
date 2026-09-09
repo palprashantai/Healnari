@@ -2874,7 +2874,18 @@ export function generatePatientEmrHtml({ patient, doctor, groupedRx, origin = ''
           line-height: 1.45;
         }
         .clinical-note-item:last-child { margin-bottom: 0; }
-        .note-meta { font-size: 9px; color: #64748b; font-weight: 700; margin-bottom: 2px; }
+        .note-meta { font-size: 9px; color: #64748b; font-weight: 700; margin-bottom: 3px; }
+        .note-text { font-size: 11px; color: #1e293b; line-height: 1.5; margin-bottom: 5px; }
+        .holistic-note { border-left-color: #059669; background: #f0fdf4; }
+        .note-section { margin-top: 6px; padding-top: 5px; border-top: 1px dashed #e2e8f0; font-size: 10.5px; }
+        .note-section-label { font-weight: 800; font-size: 10px; display: block; margin-bottom: 2px; }
+        .note-section-body { white-space: pre-wrap; line-height: 1.5; color: #374151; padding-left: 8px; border-left: 2px solid currentColor; }
+        .diet-section .note-section-label { color: #059669; }
+        .diet-section .note-section-body { border-color: #059669; }
+        .yoga-section .note-section-label { color: #7c3aed; }
+        .yoga-section .note-section-body { border-color: #7c3aed; }
+        .followup-section { color: #92400e; font-size: 10px; }
+        .followup-section .note-section-label { color: #92400e; display: inline; }
 
         /* Footer & Signature Block */
         .prescription-footer {
@@ -3154,12 +3165,35 @@ export function generatePatientEmrHtml({ patient, doctor, groupedRx, origin = ''
                 <svg width="13" height="13" fill="currentColor" viewBox="0 0 16 16"><path d="M2.5 1A1.5 1.5 0 0 0 1 2.5v11A1.5 1.5 0 0 0 2.5 15h6.086a1.5 1.5 0 0 0 1.06-.44l4.915-4.914A1.5 1.5 0 0 0 15 8.586V2.5A1.5 1.5 0 0 0 13.5 1h-11zM2 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 .5.5V8H9.5A1.5 1.5 0 0 0 8 9.5V14H2.5a.5.5 0 0 1-.5-.5v-11zm7 7V14l4-4H9.5a.5.5 0 0 1-.5-.5z"/></svg>
                 Physician Clinical Notes (${clinicalNotes.length})
               </div>
-              ${clinicalNotes.length > 0 ? clinicalNotes.slice(0, 3).map(n => `
-                <div class="clinical-note-item">
-                  <div class="note-meta">${escapeHtml(n.date || printDate)} • ${escapeHtml(n.doctor || doctorName)}</div>
-                  <div>${escapeHtml(n.text || n.note || '')}</div>
-                </div>
-              `).join('') : `
+              ${clinicalNotes.length > 0 ? clinicalNotes.slice(0, 5).map(n => {
+                const rawText = (n.text || n.note || '').replace(/<!--[\s\S]*?-->/g, '').trim();
+                let noteDisplay = rawText;
+                let dietDisplay = '';
+                let yogaDisplay = '';
+                let followUpDisplay = '';
+                let isHolistic = false;
+                try {
+                  if (rawText.startsWith('{')) {
+                    const parsed = JSON.parse(rawText);
+                    if (parsed.type === 'healnari-holistic-v1') {
+                      isHolistic = true;
+                      noteDisplay = (parsed.clinicalNotes || '').replace(/<!--[\s\S]*?-->/g, '').trim();
+                      dietDisplay = parsed.dietPlan || '';
+                      yogaDisplay = parsed.exercisePlan || '';
+                      followUpDisplay = parsed.followUpAdvice || '';
+                    }
+                  }
+                } catch(e) {}
+                return `
+                  <div class="clinical-note-item ${isHolistic ? 'holistic-note' : ''}">
+                    <div class="note-meta">${escapeHtml(n.date || printDate)} &bull; ${escapeHtml(n.doctor || doctorName)}</div>
+                    ${noteDisplay ? `<div class="note-text">${escapeHtml(noteDisplay)}</div>` : ''}
+                    ${dietDisplay ? `<div class="note-section diet-section"><span class="note-section-label">🥗 Diet Plan:</span><div class="note-section-body">${escapeHtml(dietDisplay)}</div></div>` : ''}
+                    ${yogaDisplay ? `<div class="note-section yoga-section"><span class="note-section-label">🧘 Yoga & Movement:</span><div class="note-section-body">${escapeHtml(yogaDisplay)}</div></div>` : ''}
+                    ${followUpDisplay ? `<div class="note-section followup-section"><span class="note-section-label">📅 Follow-up:</span> ${escapeHtml(followUpDisplay)}</div>` : ''}
+                  </div>
+                `;
+              }).join('') : `
                 <p style="color: #94a3b8; font-style: italic; font-size: 11.5px; padding: 6px 0;">No physician progress notes logged.</p>
               `}
             </div>
