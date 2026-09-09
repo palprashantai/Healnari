@@ -849,6 +849,257 @@ const STATUS_LABEL = {
   'No Show': 'Cancelled',
 };
 
+/* ─── Doctor History Detail Modal ────────────────────────────── */
+function DoctorHistoryModal({ doctor, allAppointments, onClose, onBook }) {
+  const [prescriptions, setPrescriptions] = React.useState([]);
+  const [billing, setBilling] = React.useState([]);
+  const [loadingRx, setLoadingRx] = React.useState(true);
+
+  const doctorApts = React.useMemo(() =>
+    allAppointments
+      .filter(a => a.doctorId === doctor?.doctorId)
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '')),
+    [allAppointments, doctor]
+  );
+
+  React.useEffect(() => {
+    if (!doctor) return;
+    setLoadingRx(true);
+    Promise.all([
+      apiFetch('/records/prescriptions?limit=50').catch(() => []),
+      apiFetch('/billing/transactions').catch(() => []),
+    ]).then(([rxList, txList]) => {
+      const rawList = Array.isArray(rxList) ? rxList : (rxList?.data || []);
+      // Group by group_id, filter by this doctor's appointments
+      const doctorAptIds = new Set(doctorApts.map(a => a.id));
+      const byGroup = new Map();
+      for (const rx of rawList) {
+        if (!doctorAptIds.has(rx.appointment_id) && rawList.filter(r => r.doctor_id === rx.doctor_id).length > 0) {
+          // also include any rx from this doctor regardless of apt match
+          if (rx.doctor_id !== doctor.doctorId) continue;
+        }
+        const gid = rx.group_id || rx.id;
+        if (!byGroup.has(gid)) byGroup.set(gid, []);
+        byGroup.get(gid).push(rx);
+      }
+      const groups = [];
+      for (const [gid, rows] of byGroup.entries()) {
+        // Filter to only this doctor's rows
+        const doctorRows = rows.filter(r => r.doctor_id === doctor.doctorId);
+        if (doctorRows.length === 0) continue;
+        const first = doctorRows[0];
+        // Parse holistic notes
+        let clinicalNotes = '', dietPlan = '', exercisePlan = '', followUp = '';
+        for (const r of doctorRows) {
+          const raw = (r.instructions || '').replace(/<!--[\s\S]*?-->/g, '').trim();
+          if (raw.startsWith('{')) {
+            try {
+              const p = JSON.parse(raw);
+              if (p.type === 'healnari-holistic-v1') {
+                clinicalNotes = p.clinicalNotes || clinicalNotes;
+                dietPlan = p.dietPlan || dietPlan;
+                exercisePlan = p.exercisePlan || exercisePlan;
+                followUp = p.followUpAdvice || followUp;
+              }
+            } catch(e) {}
+          } else if (raw && !clinicalNotes) {
+            clinicalNotes = raw;
+          }
+        }
+        groups.push({
+          id: gid,
+          diagnosis: first.diagnosis || 'Consultation',
+          date: first.prescribed_at ? new Date(first.prescribed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+          status: first.status || 'Active',
+          medicines: doctorRows.filter(r => r.med_name).map(r => ({
+            name: r.med_name,
+            dosage: r.dosage,
+            duration: r.duration,
+            schedule: r.schedule,
+          })),
+          clinicalNotes, dietPlan, exercisePlan, followUp,
+          hasLifestyle: !!(dietPlan || exercisePlan),
+        });
+      }
+      setPrescriptions(groups.sort((a, b) => (b.date || '').localeCompare(a.date || '')));
+      // Filter billing for this doctor's appointments
+      const txArr = Array.isArray(txList) ? txList : (txList?.data || []);
+      const doctorBilling = txArr.filter(t => doctorAptIds.has(t.appointment_id || t.appointmentId));
+      setBilling(doctorBilling);
+    }).finally(() => setLoadingRx(false));
+  }, [doctor, doctorApts]);
+
+  if (!doctor) return null;
+  const totalBilled = billing.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const currency = billing[0]?.currency || 'INR';
+
+  return (
+    <Modal isOpen={!!doctor} onClose={onClose} title="" size="xl" className="bg-transparent border-none shadow-none p-0">
+      <div className="bg-white rounded-2xl overflow-hidden shadow-2xl">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-slate-900 via-purple-950 to-indigo-950 p-5 text-white relative overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="flex items-center gap-4 relative z-10">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-400 to-indigo-600 flex items-center justify-center text-white font-black text-xl shadow-xl border-2 border-white/20 shrink-0">
+              {doctor.doctor?.replace(/^Dr\.?\s*/i, '').trim().charAt(0) || 'D'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-black text-white truncate">{doctor.doctor}</h2>
+              <p className="text-purple-200 text-xs font-bold">{doctor.specialty}</p>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-[10px] font-bold bg-white/10 text-white px-2 py-0.5 rounded-full border border-white/10">
+                  {doctorApts.length} Consultations
+                </span>
+                <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-200 px-2 py-0.5 rounded-full border border-emerald-400/20">
+                  {prescriptions.length} Prescriptions
+                </span>
+                <span className="text-[10px] font-bold bg-amber-500/20 text-amber-200 px-2 py-0.5 rounded-full border border-amber-400/20">
+                  {currency === 'USD' ? '$' : '₹'}{totalBilled.toLocaleString()} Billed
+                </span>
+              </div>
+            </div>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shrink-0">
+              <i className="fas fa-times text-xs"></i>
+            </button>
+          </div>
+        </div>
+
+        <div className="p-5 max-h-[70vh] overflow-y-auto space-y-5">
+          {/* Appointment History */}
+          <div>
+            <h3 className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Consultation History</h3>
+            {doctorApts.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">No past consultations found.</p>
+            ) : (
+              <div className="space-y-2">
+                {doctorApts.map(a => (
+                  <div key={a.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full shrink-0 ${a.rawStatus === 'Done' ? 'bg-emerald-500' : a.rawStatus === 'Cancelled' ? 'bg-rose-400' : 'bg-slate-300'}`}></div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-800">{a.dateLabel} • {a.time}</p>
+                        <p className="text-[11px] text-slate-500">{a.type}</p>
+                      </div>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${a.rawStatus === 'Done' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
+                      {a.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Prescriptions */}
+          <div>
+            <h3 className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Prescriptions & Plans</h3>
+            {loadingRx ? (
+              <div className="py-6 flex items-center justify-center"><i className="fas fa-spinner fa-spin text-purple-500 text-xl"></i></div>
+            ) : prescriptions.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">No prescriptions found for this doctor.</p>
+            ) : (
+              <div className="space-y-3">
+                {prescriptions.map(rx => (
+                  <div key={rx.id} className={`rounded-xl border overflow-hidden ${rx.hasLifestyle ? 'border-emerald-200 bg-emerald-50/50' : 'border-slate-200 bg-white'}`}>
+                    <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <i className={`fas ${rx.hasLifestyle ? 'fa-leaf text-emerald-600' : 'fa-pills text-purple-600'} text-xs`}></i>
+                        <span className="text-xs font-black text-slate-800">{rx.diagnosis}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-slate-400">{rx.date}</span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${rx.status === 'Finalized' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{rx.status}</span>
+                      </div>
+                    </div>
+                    <div className="px-4 py-3 space-y-2.5 text-xs">
+                      {rx.medicines.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Medications</p>
+                          <div className="space-y-1">
+                            {rx.medicines.map((m, i) => (
+                              <div key={i} className="flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 shrink-0"></span>
+                                <span className="font-bold text-slate-700">{m.name}</span>
+                                {m.dosage && <span className="text-slate-400">• {m.dosage}</span>}
+                                {m.duration && <span className="text-slate-400">• {m.duration}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {rx.clinicalNotes && (
+                        <div className="p-2 bg-amber-50 border border-amber-100 rounded-lg">
+                          <p className="text-[10px] font-black text-amber-700 mb-0.5">Clinical Notes</p>
+                          <p className="text-amber-900 leading-relaxed">{rx.clinicalNotes}</p>
+                        </div>
+                      )}
+                      {rx.dietPlan && (
+                        <div className="p-2 bg-emerald-50 border border-emerald-100 rounded-lg">
+                          <p className="text-[10px] font-black text-emerald-700 mb-0.5">🥗 Diet Plan</p>
+                          <p className="text-emerald-900 whitespace-pre-wrap leading-relaxed">{rx.dietPlan}</p>
+                        </div>
+                      )}
+                      {rx.exercisePlan && (
+                        <div className="p-2 bg-purple-50 border border-purple-100 rounded-lg">
+                          <p className="text-[10px] font-black text-purple-700 mb-0.5">🧘 Yoga & Movement Plan</p>
+                          <p className="text-purple-900 whitespace-pre-wrap leading-relaxed">{rx.exercisePlan}</p>
+                        </div>
+                      )}
+                      {rx.followUp && (
+                        <div className="flex items-center gap-1.5 text-[11px] text-amber-800 font-bold">
+                          <i className="fas fa-calendar-check text-amber-600"></i> Follow-up: {rx.followUp}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Billing */}
+          {billing.length > 0 && (
+            <div>
+              <h3 className="text-xs font-black text-slate-500 uppercase tracking-wider mb-2">Billing & Payments</h3>
+              <div className="space-y-2">
+                {billing.map((t, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">{t.service || 'Consultation Fee'}</p>
+                      <p className="text-[11px] text-slate-500">{t.date ? new Date(t.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'} • {t.method || '—'}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-slate-800">{currency === 'USD' ? '$' : '₹'}{Number(t.amount || 0).toLocaleString()}</p>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${t.status === 'success' || t.status === 'Paid' || t.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                        {t.status === 'success' || t.status === 'COMPLETED' ? 'Paid' : t.status || 'Pending'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex justify-between items-center px-3 py-2 bg-slate-900 rounded-xl">
+                  <span className="text-xs font-black text-slate-300">Total Billed</span>
+                  <span className="text-sm font-black text-white">{currency === 'USD' ? '$' : '₹'}{totalBilled.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex gap-3">
+          <button onClick={onClose} className="crm-btn-secondary flex-1">Close</button>
+          <button
+            onClick={() => { onClose(); onBook(doctor.doctorId, true); }}
+            className="flex-1 crm-btn-primary flex items-center justify-center gap-2"
+          >
+            <i className="fas fa-calendar-plus"></i> Book Follow-up
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 function PatientAppointments() {
   const toast = useToast();
   const navigate = useNavigate();
@@ -970,6 +1221,7 @@ function PatientAppointments() {
   const [referDoctor, setReferDoctor] = useState(null);
   const [autoJoinTarget, setAutoJoinTarget] = useState(false);
   const [successApt, setSuccessApt] = useState(null);
+  const [doctorHistory, setDoctorHistory] = useState(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('All Types');
   const [statusFilter, setStatusFilter] = useState('All Status');
@@ -1418,7 +1670,14 @@ function PatientAppointments() {
                 )}
 
                 {tab === 'past' && (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      onClick={() => setDoctorHistory(apt)}
+                      className="crm-btn-secondary text-xs py-2 px-3 text-indigo-700 hover:text-indigo-950 hover:bg-indigo-50 border-indigo-200 flex items-center justify-center gap-1 font-bold"
+                      title="View full history with this doctor"
+                    >
+                      <i className="fas fa-clock-rotate-left text-indigo-500"></i> History
+                    </button>
                     <button
                       onClick={() => {
                         setRatingDoctor({
@@ -1432,21 +1691,6 @@ function PatientAppointments() {
                       title="Rate your doctor & share feedback"
                     >
                       <i className="fas fa-star text-amber-500"></i> Rate
-                    </button>
-                    <button
-                      onClick={() => {
-                        setReferDoctor({
-                          id: apt.doctorId,
-                          name: apt.doctor,
-                          full_name: apt.doctor,
-                          specialty: apt.specialty,
-                          avatar_url: apt.doctorAvatar,
-                        });
-                      }}
-                      className="crm-btn-secondary text-xs py-2 px-3 text-purple-700 hover:text-purple-950 hover:bg-purple-50 border-purple-200 flex items-center justify-center gap-1 font-bold"
-                      title="Refer this doctor to friends & family"
-                    >
-                      <i className="fas fa-share-nodes text-purple-600"></i> Refer
                     </button>
                     <button onClick={() => { setBookPrefill({ doctorId: apt.doctorId, followUp: true }); setShowBook(true); }}
                       className="flex-1 crm-btn-primary text-xs py-2 flex items-center justify-center gap-1.5 touch-target">
