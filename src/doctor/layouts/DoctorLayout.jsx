@@ -640,7 +640,7 @@ function DoctorLayout() {
         )}
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full p-4 md:p-6 pb-28 md:pb-6">
+        <main className="flex-1 overflow-y-auto min-w-0 w-full max-w-full p-4 md:p-6 pb-28 md:pb-6">
           {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
           <PageTransition />
         </main>

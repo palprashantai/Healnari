@@ -4,9 +4,13 @@ export function setupPWA() {
   const updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
-      // Create an iOS/Android style frosted glass PWA update banner
+      // Create a wrapper to guarantee perfect centering without transform conflicts
+      const wrapper = document.createElement('div');
+      wrapper.className = 'fixed inset-x-0 top-4 sm:top-auto sm:bottom-6 z-[9999] flex justify-center pointer-events-none px-4 safe-area-pt sm:safe-area-pt-0';
+      wrapper.id = 'pwa-update-wrapper';
+
       const toast = document.createElement('div');
-      toast.className = 'fixed top-4 sm:top-auto sm:bottom-6 inset-x-0 mx-auto z-[9999] w-[92vw] sm:w-fit max-w-md bg-white/95 backdrop-blur-xl rounded-3xl p-4 shadow-[0_20px_50px_rgba(42,22,71,0.25)] border border-aubergine-100 flex items-center gap-3.5 animate-slide-up safe-area-pt sm:safe-area-pt-0';
+      toast.className = 'w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl p-4 shadow-[0_20px_50px_rgba(42,22,71,0.25)] border border-aubergine-100 flex items-center gap-3.5 animate-slide-up pointer-events-auto';
       
       toast.innerHTML = `
         <div class="relative w-11 h-11 rounded-2xl bg-gradient-to-tr from-aubergine-600 to-magenta-600 flex items-center justify-center flex-shrink-0 text-white shadow-md shadow-aubergine-500/20">
@@ -33,14 +37,15 @@ export function setupPWA() {
         </div>
       `;
       
-      document.body.appendChild(toast);
+      wrapper.appendChild(toast);
+      document.body.appendChild(wrapper);
       
       document.getElementById('pwa-refresh-btn').addEventListener('click', () => {
         updateSW(true);
       });
       
       document.getElementById('pwa-dismiss-btn').addEventListener('click', () => {
-        toast.remove();
+        wrapper.remove();
       });
     },
     onOfflineReady() {

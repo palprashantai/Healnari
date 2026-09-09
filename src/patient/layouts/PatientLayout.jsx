@@ -437,7 +437,7 @@ function PatientLayout() {
         </header>
 
         {/* Dynamic Content */}
-        <main className={`flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full p-3.5 sm:p-5 md:p-6 pb-28 md:pb-6 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}>
+        <main className={`flex-1 overflow-y-auto min-w-0 w-full max-w-full p-3.5 sm:p-5 md:p-6 pb-28 md:pb-6 transition-all duration-100 ${discreet ? 'discreet-blur' : ''}`}>
           {loadError && <DataErrorBanner message={loadError} onRetry={retryLoad} />}
           <PageTransition />
         </main>

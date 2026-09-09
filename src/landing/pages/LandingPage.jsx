@@ -200,7 +200,7 @@ function LandingPage() {
   const dynamicPricing = adminSettings?.pricingAmount || 799;
 
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-brand-100 selection:text-brand-900 overflow-x-hidden w-full max-w-[100vw]">
+    <div className="min-h-screen flex flex-col font-sans selection:bg-brand-100 selection:text-brand-900 min-w-0 w-full max-w-[100vw]">
       <ScrollProgressBar />
 
       {adminSettings?.toggles?.showEmergencyBanner && (

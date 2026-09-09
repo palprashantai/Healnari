@@ -212,7 +212,7 @@ export function DoctorCopilotPanel({ isOpen, onClose, activePatient }) {
       />
 
       {/* Panel */}
-      <div className="ai-copilot-panel fixed right-0 top-0 bottom-0 w-[400px] max-w-[95vw] bg-white border-l border-slate-200 shadow-2xl z-[60] flex flex-col">
+      <div className="ai-copilot-panel fixed right-0 top-0 bottom-0 w-[100vw] sm:w-[400px] max-w-[100vw] bg-white border-l border-slate-200 shadow-2xl z-[60] flex flex-col">
 
         {/* ── Header ── */}
         <div className="h-14 flex items-center justify-between px-4 border-b border-slate-100 bg-gradient-to-r from-slate-900 to-aubergine-900 shrink-0">

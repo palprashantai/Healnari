@@ -333,7 +333,7 @@ function AdminLayoutInner() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden w-full max-w-full p-3.5 sm:p-5 md:p-8 pb-28 md:pb-8">
+        <main className="flex-1 overflow-y-auto min-w-0 w-full max-w-full p-3.5 sm:p-5 md:p-8 pb-28 md:pb-8">
           <PageTransition />
         </main>
       </div>

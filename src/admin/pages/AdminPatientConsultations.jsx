@@ -154,7 +154,8 @@ function AdminPatientConsultations() {
           </div>
 
           {/* Table */}
-          <table className="w-full text-left mb-8 relative z-10 border-collapse">
+          <div className="overflow-x-auto min-w-0">
+            <table className="w-full min-w-[600px] text-left mb-8 relative z-10 border-collapse">
             <thead>
               <tr className="bg-[#6B46C1] text-white">
                 <th className="py-3 px-4 text-xs font-bold uppercase tracking-widest rounded-tl">Description / Service</th>
@@ -173,7 +174,8 @@ function AdminPatientConsultations() {
                 <td className="py-4 px-4 text-right font-medium text-slate-800">₹{selectedInvoice?.cost?.toLocaleString()}</td>
               </tr>
             </tbody>
-          </table>
+            </table>
+          </div>
 
           {/* Totals */}
           <div className="flex justify-end mb-16 relative z-10">

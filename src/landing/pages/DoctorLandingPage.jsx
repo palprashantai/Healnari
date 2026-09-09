@@ -208,7 +208,7 @@ function DoctorLandingPage() {
   })).filter(f => f.q && f.a);
 
   return (
-    <div className="min-h-screen flex flex-col font-sans selection:bg-aubergine-100 selection:text-aubergine-900 overflow-x-hidden w-full max-w-[100vw] bg-[#FDFBF7]">
+    <div className="min-h-screen flex flex-col font-sans selection:bg-aubergine-100 selection:text-aubergine-900 min-w-0 w-full max-w-[100vw] bg-[#FDFBF7]">
       <ScrollProgressBar />
 
       {adminSettings?.toggles?.showEmergencyBanner && (

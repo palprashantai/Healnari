@@ -79,7 +79,7 @@
     font-size: 14px;
     line-height: 1.5;
     letter-spacing: -0.01em;
-    @apply antialiased overflow-x-hidden;
+    @apply antialiased;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;

@@ -223,7 +223,7 @@ function ConditionPage() {
     .filter(Boolean);
 
   return (
-    <div className="bg-[#FDFBF7] min-h-screen font-sans selection:bg-brand-100 selection:text-brand-900 overflow-x-hidden">
+    <div className="bg-[#FDFBF7] min-h-screen font-sans selection:bg-brand-100 selection:text-brand-900 min-w-0">
       <ScrollProgressBar />
 
       <Header 
