@@ -434,14 +434,8 @@ function Doctors({ onSelectDoctor }) {
     ]).then(([docRes, spRes]) => {
       const docs = Array.isArray(docRes?.data) ? docRes.data
         : Array.isArray(docRes) ? docRes : [];
-      // Combine registered doctors with diverse demo specialists so all specialties are represented
-      const combined = [...docs];
-      DEMO_DOCTORS.forEach(demo => {
-        if (!combined.some(d => d.id === demo.id || d.full_name?.toLowerCase() === demo.full_name?.toLowerCase())) {
-          combined.push(demo);
-        }
-      });
-      setDoctors(combined.length > 0 ? combined : DEMO_DOCTORS);
+      // Use DB doctors. If none exist in DB, fallback to demo doctors.
+      setDoctors(docs.length > 0 ? docs : DEMO_DOCTORS);
 
       const sps = Array.isArray(spRes?.data) ? spRes.data
         : Array.isArray(spRes) ? spRes : [];
