@@ -55,8 +55,8 @@ function LandingPage() {
 
     // Dynamic SEO, OpenGraph & Structured Data Schema Injection
     const originalTitle = document.title;
-    const docTitle = "Consult Gynecologists, PCOS Specialists & Women's Health Doctors Online | HealNari";
-    const docDesc = "Book 45-min video consultations with verified Gynecologists, PCOS Specialists, Endocrinologists, Dermatologists & Dietitians. Personalized root-cause care, lab roadmap, custom diet/yoga & 14-day free chat follow-up.";
+    const docTitle = "Online Doctor Consultations | Multi-Specialty Telemedicine | HealNari";
+    const docDesc = "Book 45-min video consultations with verified specialists. Multi-specialty telemedicine including Gynaecology, Endocrinology, Dermatology, Trichology, Clinical Nutrition, General Physician, and Yoga therapy. Personalized root-cause care with lab roadmap and 14-day free chat follow-up.";
     const docUrl = "https://healnari.care";
 
     document.title = docTitle;
@@ -84,12 +84,14 @@ function LandingPage() {
       "name": "HealNari",
       "url": "https://healnari.care",
       "logo": "https://healnari.care/brand/logo-full.jpg",
-      "description": "Multi-specialty digital healthcare platform connecting patients with qualified specialists in Gynaecology, PCOS, Endocrinology, Dermatology, Hair & Scalp (Trichology), Clinical Nutrition, and Yoga.",
+      "description": "Multi-specialty digital healthcare platform connecting patients with qualified specialists across Gynaecology, Endocrinology, Dermatology, Trichology, Clinical Nutrition, General Physician, and Yoga therapy.",
       "medicalSpecialty": [
         "https://schema.org/Gynecologic",
         "https://schema.org/Endocrine",
         "https://schema.org/Dermatology",
-        "https://schema.org/DietNutrition"
+        "https://schema.org/DietNutrition",
+        "https://schema.org/PrimaryCarePhysician",
+        "https://schema.org/PlasticSurgery"
       ],
       "availableService": [
         {
@@ -100,9 +102,42 @@ function LandingPage() {
           "@type": "MedicalConsultation",
           "name": "Multi-Specialty Telemedicine Video Consultation"
         }
+      ],
+      "sameAs": [
+        "https://www.instagram.com/healnarii/"
       ]
     });
     document.head.appendChild(schemaScript);
+
+    // WebSite + BreadcrumbList schema for improved navigation and search presence
+    const websiteSchema = document.createElement('script');
+    websiteSchema.type = 'application/ld+json';
+    websiteSchema.id = 'healnari-website-schema';
+    websiteSchema.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "HealNari",
+      "url": "https://healnari.care/",
+      "inLanguage": "en"
+    });
+    document.head.appendChild(websiteSchema);
+
+    const breadcrumbSchema = document.createElement('script');
+    breadcrumbSchema.type = 'application/ld+json';
+    breadcrumbSchema.id = 'healnari-breadcrumb-schema';
+    breadcrumbSchema.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://healnari.care/"
+        }
+      ]
+    });
+    document.head.appendChild(breadcrumbSchema);
 
     const handleScroll = () => {
       setShowMobileBar(window.scrollY > 450);
@@ -128,9 +163,13 @@ function LandingPage() {
       if (prevOgDesc.el && prevOgDesc.original) prevOgDesc.el.setAttribute('content', prevOgDesc.original);
       if (prevOgUrl.el && prevOgUrl.original) prevOgUrl.el.setAttribute('content', prevOgUrl.original);
       if (prevCanonical.el && prevCanonical.original) prevCanonical.el.setAttribute('href', prevCanonical.original);
-      window.removeEventListener('scroll', handleScroll);
+       window.removeEventListener('scroll', handleScroll);
       const existingSchema = document.getElementById('healnari-patient-schema');
       if (existingSchema) existingSchema.remove();
+      const existingWebsite = document.getElementById('healnari-website-schema');
+      if (existingWebsite) existingWebsite.remove();
+      const existingBreadcrumb = document.getElementById('healnari-breadcrumb-schema');
+      if (existingBreadcrumb) existingBreadcrumb.remove();
     };
   }, []);
 

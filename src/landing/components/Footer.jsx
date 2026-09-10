@@ -7,14 +7,16 @@ function Footer() {
   const toast = useToast();
 
   const specialties = [
-    { label: "General Medicine & Primary Care", href: '/conditions/pcos-treatment-online' },
+    { label: "General Medicine & Primary Care", href: '/conditions/general-medicine-primary-care' },
+    { label: "Gynaecology & Women's Health", href: '/conditions/gynecology-womens-health' },
     { label: "Dermatology & Skin Health", href: '/conditions/hormonal-dermatology-acne' },
     { label: "Endocrinology & Thyroid", href: '/conditions/thyroid-consultation' },
-    { label: "Gynaecology & Reproductive Health", href: '/conditions/gynecology-womens-health' },
     { label: "Hair & Scalp / Trichology", href: '/conditions/hair-loss-trichology' },
     { label: "Clinical Nutrition & Dietetics", href: '/conditions/clinical-nutrition-dietetics' },
     { label: "Mindful Movement & Yoga", href: '/conditions/yoga-movement-therapy' },
     { label: "Fertility & Preconception", href: '/conditions/fertility-preconception-care' },
+    { label: "Hormonal Weight Management", href: '/conditions/hormonal-weight-loss' },
+    { label: "PCOS & Hormonal Health", href: '/conditions/pcos-treatment-online' },
   ];
 
   const clinicalGuides = [

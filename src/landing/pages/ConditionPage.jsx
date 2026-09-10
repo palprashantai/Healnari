@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import Header from '../components/Header.jsx';
 import { conditionsData } from '../data/conditions.js';
+import { glossaryData } from '../data/glossary.js';
 import { guidesData } from '../../data/guidesData.js';
 import BookingModal from '../../tools/BookingModal.jsx';
 import SuccessModal from '../../tools/SuccessModal.jsx';
@@ -91,7 +92,7 @@ function ConditionPage() {
       return { el, original };
     };
 
-    const canonicalUrl = `https://healnari.care/${conditionId}`;
+    const canonicalUrl = `https://healnari.care/conditions/${condition.slug || targetId}`;
     const prevDesc = updateMeta('meta[name="description"]', condition.seoDescription);
     const prevOgTitle = updateMeta('meta[property="og:title"]', condition.seoTitle);
     const prevOgDesc = updateMeta('meta[property="og:description"]', condition.seoDescription);
@@ -132,7 +133,13 @@ function ConditionPage() {
                 "name": "Personalized Nutrition & Lifestyle Protocol"
               }
             ]
-          }
+          },
+          "professionallyReviewedBy": {
+            "@type": "MedicalOrganization",
+            "name": "HealNari Clinical Advisory Board",
+            "url": "https://healnari.care"
+          },
+          "specialty": condition.specialistRole || "Medical Specialists"
         },
         {
           "@type": "BreadcrumbList",
@@ -220,6 +227,20 @@ function ConditionPage() {
   // Get related guides
   const relatedArticles = (condition.relatedGuides || [])
     .map(slug => guidesData.find(g => g.id === slug || g.slug === slug))
+    .filter(Boolean);
+
+  // Get related glossary articles for interlinking
+  const glossaryMap = {
+    'pcos-treatment-online': ['what-is-high-testosterone-in-women', 'insulin-resistance-symptoms', 'normal-lh-fsh-ratio'],
+    'gynecology-womens-health': ['insulin-resistance-symptoms'],
+    'hormonal-dermatology-acne': ['what-is-high-testosterone-in-women'],
+    'hair-loss-trichology': ['insulin-resistance-symptoms'],
+    'clinical-nutrition-dietetics': ['insulin-resistance-symptoms'],
+    'fertility-preconception-care': ['normal-lh-fsh-ratio'],
+    'hormonal-weight-loss': ['insulin-resistance-symptoms'],
+  };
+  const relatedGlossary = (glossaryMap[condition.id] || [])
+    .map(slug => glossaryData[slug])
     .filter(Boolean);
 
   return (

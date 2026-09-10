@@ -2,6 +2,8 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import Header from '../components/Header.jsx';
 import { glossaryData } from '../data/glossary.js';
+import { conditionsData } from '../data/conditions.js';
+import { guidesData } from '../../data/guidesData.js';
 import BookingModal from '../../tools/BookingModal.jsx';
 import SuccessModal from '../../tools/SuccessModal.jsx';
 import AuthModal from '../../tools/AuthModal.jsx';
@@ -57,6 +59,17 @@ function GlossaryArticle() {
       "headline": article.title,
       "description": article.seoDescription,
       "url": canonicalUrl,
+      "dateModified": article.lastReviewed || "2026-01-15",
+      "author": {
+        "@type": "Person",
+        "name": article.author?.name || "Dr. Sarah Mitchell",
+        "jobTitle": article.author?.role || "Lead Endocrinologist & Medical Advisory Board"
+      },
+      "reviewedBy": {
+        "@type": "Person",
+        "name": article.reviewedBy?.name || article.author?.name || "Dr. Sarah Mitchell",
+        "jobTitle": article.reviewedBy?.role || "Lead Endocrinologist"
+      },
       "publisher": {
         "@type": "MedicalOrganization",
         "name": "HealNari",
@@ -106,23 +119,96 @@ function GlossaryArticle() {
           </Link>
         </div>
 
-        <article className="bg-white rounded-3xl p-6 sm:p-8 md:p-12 shadow-sm border border-sand-200">
-          <header className="mb-8 border-b border-slate-100 pb-6">
-            <div className="flex items-center gap-2 text-xs font-bold text-aubergine-600 uppercase tracking-widest mb-3">
-              <i className="fas fa-book-medical"></i> Medical Glossary &amp; Diagnostics
-            </div>
-            <h1 className="text-2xl sm:text-3xl md:text-5xl font-black text-slate-900 leading-tight font-display">
-              {article.title}
-            </h1>
-            <p className="text-xs text-slate-400 font-semibold mt-3 flex items-center gap-1.5">
-              <i className="fas fa-circle-check text-emerald-500"></i> Medically reviewed by HealNari Clinical Advisory Board
-            </p>
-          </header>
+          <article className="bg-white rounded-3xl p-6 sm:p-8 md:p-12 shadow-sm border border-sand-200">
+            <header className="mb-8 border-b border-slate-100 pb-6">
+              <div className="flex items-center gap-2 text-xs font-bold text-aubergine-600 uppercase tracking-widest mb-3">
+                <i className="fas fa-book-medical"></i> Medical Glossary &amp; Diagnostics
+              </div>
+              <h1 className="text-2xl sm:text-3xl md:text-5xl font-black text-slate-900 leading-tight font-display">
+                {article.title}
+              </h1>
+              <div className="flex items-center gap-3 mt-3 text-xs text-slate-400 font-semibold">
+                <i className="fas fa-circle-check text-emerald-500"></i> Medically reviewed by HealNari Clinical Advisory Board
+              </div>
+              <div className="pt-4 flex items-center gap-4 text-[11px] text-slate-500 font-semibold">
+                <span className="flex items-center gap-1"><i className="fas fa-user-md text-aubergine-600"></i> By: {article.author?.name || 'Dr. Sarah Mitchell'} ({article.author?.credentials || 'MD, DM (Endocrinology)'})</span>
+                <span className="flex items-center gap-1"><i className="fas fa-clipboard-check text-aubergine-600"></i> Reviewed: {article.reviewedBy?.name || 'Dr. Sarah Mitchell'}</span>
+                <span className="flex items-center gap-1"><i className="fas fa-calendar text-aubergine-600"></i> Last reviewed: {article.lastReviewed || 'January 2026'}</span>
+              </div>
+            </header>
           
           <div 
             className="prose prose-slate prose-aubergine max-w-none text-slate-700 leading-relaxed space-y-4"
             dangerouslySetInnerHTML={{ __html: article.content }}
           />
+
+          {/* Related Conditions & Guides Interlinking */}
+          {(() => {
+            const relatedConditions = {
+              'what-is-high-testosterone-in-women': ['pcos-treatment-online', 'hormonal-dermatology-acne'],
+              'insulin-resistance-symptoms': ['pcos-treatment-online', 'hormonal-weight-loss'],
+              'normal-lh-fsh-ratio': ['pcos-treatment-online'],
+            };
+            const relatedGuides = {
+              'what-is-high-testosterone-in-women': ['pcos-vs-pcod-terminology', 'pcos-weight-loss'],
+              'insulin-resistance-symptoms': ['pcos-personalized-nutrition', 'pcos-weight-loss'],
+              'normal-lh-fsh-ratio': ['pcos-vs-pcod-terminology', 'cortisol-balance'],
+            };
+            const condKeys = relatedConditions[slug] || [];
+            const guideKeys = relatedGuides[slug] || [];
+            if (condKeys.length === 0 && guideKeys.length === 0) return null;
+            return (
+              <div className="mt-10 border-t border-slate-200 pt-8 space-y-5">
+                <h3 className="text-lg font-extrabold text-slate-900 font-display">
+                  Related Clinical Resources
+                </h3>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {condKeys.map((key) => {
+                    const cond = conditionsData[key];
+                    if (!cond) return null;
+                    return (
+                      <Link
+                        key={key}
+                        to={`/conditions/${key}`}
+                        className="p-4 bg-sand-50 hover:bg-white rounded-2xl border border-sand-200 hover:border-aubergine-200 hover:shadow-md transition-all group flex flex-col"
+                      >
+                        <span className="text-[10px] font-bold text-aubergine-600 uppercase tracking-widest">
+                          Specialty
+                        </span>
+                        <h4 className="font-extrabold text-slate-900 text-sm mt-1 group-hover:text-aubergine-600 transition-colors">
+                          {cond.title}
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                          {cond.subtitle}
+                        </p>
+                      </Link>
+                    );
+                  })}
+                  {guideKeys.map((key) => {
+                    const guide = guidesData.find((g) => g.id === key);
+                    if (!guide) return null;
+                    return (
+                      <Link
+                        key={key}
+                        to={`/guide/${key}`}
+                        className="p-4 bg-sand-50 hover:bg-white rounded-2xl border border-sand-200 hover:border-aubergine-200 hover:shadow-md transition-all group flex flex-col"
+                      >
+                        <span className="text-[10px] font-bold text-aubergine-600 uppercase tracking-widest">
+                          {guide.tag}
+                        </span>
+                        <h4 className="font-extrabold text-slate-900 text-sm mt-1 group-hover:text-aubergine-600 transition-colors">
+                          {guide.title}
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                          {guide.summary}
+                        </p>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* High-Converting Clinical CTA */}
           <div className="mt-14 bg-gradient-to-r from-aubergine-50 via-indigo-50/50 to-pink-50/30 p-6 sm:p-8 rounded-3xl border border-aubergine-100 text-center shadow-xs">

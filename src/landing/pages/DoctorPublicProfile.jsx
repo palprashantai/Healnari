@@ -28,6 +28,7 @@ const FALLBACK_DOCTORS = {
     rating: '4.98',
     reviewsCount: 214,
     consultFee: 899,
+    isDemo: true,
   },
   'demo-2': {
     id: 'demo-2',
@@ -45,6 +46,7 @@ const FALLBACK_DOCTORS = {
     rating: '4.95',
     reviewsCount: 168,
     consultFee: 799,
+    isDemo: true,
   },
   'demo-3': {
     id: 'demo-3',
@@ -62,6 +64,7 @@ const FALLBACK_DOCTORS = {
     rating: '4.96',
     reviewsCount: 142,
     consultFee: 799,
+    isDemo: true,
   },
 };
 
@@ -139,8 +142,9 @@ function DoctorPublicProfile() {
 
     const docName = doctor.full_name || doctor.name || 'Specialist Doctor';
     const originalTitle = document.title;
-    const pageTitle = `${docName} - ${doctor.specialty} | Book Consultation | HealNari`;
-    const pageDesc = `Book a 45-minute video consultation with ${docName}, ${doctor.specialty}. Credentials: ${doctor.qualification}. Reg: ${doctor.regNo || 'NMC Verified'}. Root-cause care for PCOS, thyroid & hormonal health.`;
+    const locationSuffix = doctor.isDemo ? ' India' : '';
+    const pageTitle = `${docName} - ${doctor.specialty}${locationSuffix} | Book Consultation | HealNari`;
+    const pageDesc = `Book a 45-minute video consultation with ${docName}, ${doctor.specialty}${locationSuffix}. Credentials: ${doctor.qualification}. Reg: ${doctor.regNo || 'NMC Verified'}. Root-cause care for PCOS, thyroid & hormonal health.`;
     const canonicalUrl = `https://healnari.care/dr/${doctor.id || doctorId}`;
 
     document.title = pageTitle;
@@ -159,6 +163,23 @@ function DoctorPublicProfile() {
     const prevCanonical = updateMeta('link[rel="canonical"]', canonicalUrl, 'href');
     const prevTwTitle = updateMeta('meta[name="twitter:title"]', pageTitle);
     const prevTwDesc = updateMeta('meta[name="twitter:description"]', pageDesc);
+
+    if (doctor.isDemo) {
+      const prevRobots = updateMeta('meta[name="robots"]', 'noindex, nofollow');
+      return () => {
+        document.title = originalTitle;
+        if (prevDesc?.el && prevDesc?.original) prevDesc.el.setAttribute('content', prevDesc.original);
+        if (prevOgTitle?.el && prevOgTitle?.original) prevOgTitle.el.setAttribute('content', prevOgTitle.original);
+        if (prevOgDesc?.el && prevOgDesc?.original) prevOgDesc.el.setAttribute('content', prevOgDesc.original);
+        if (prevOgUrl?.el && prevOgUrl?.original) prevOgUrl.el.setAttribute('content', prevOgUrl.original);
+        if (prevCanonical?.el && prevCanonical?.original) prevCanonical.el.setAttribute('href', prevCanonical.original);
+        if (prevTwTitle?.el && prevTwTitle?.original) prevTwTitle.el.setAttribute('content', prevTwTitle.original);
+        if (prevTwDesc?.el && prevTwDesc?.original) prevTwDesc.el.setAttribute('content', prevTwDesc.original);
+        if (prevRobots?.el && prevRobots?.original) prevRobots.el.setAttribute('content', prevRobots.original);
+        const existing = document.getElementById('healnari-physician-schema');
+        if (existing) existing.remove();
+      };
+    }
 
     // JSON-LD Structured Data Schema for Physician
     const schemaScript = document.createElement('script');

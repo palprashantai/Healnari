@@ -16,7 +16,7 @@ const policies = {
         <h3 className="text-xl font-bold text-slate-900 mt-8 border-b pb-2">1. Medical Disclaimer (Not for Emergencies)</h3>
         <p><strong>CRITICAL:</strong> HealNari provides digital health consultations and structured wellness protocols. The content on this platform is for informational purposes only. Our services are <strong>NOT</strong> a substitute for emergency care or local emergency medical services. If you are experiencing acute pain, severe bleeding, or any medical emergency, please visit your nearest hospital immediately.</p>
         
-        <h3 className="text-xl font-bold text-slate-900 mt-8 border-b pb-2">2. Telemedicine Services & Consent to Treat</h3>
+        <h3 className="text-xl font-bold text-slate-900 mt-8 border-b pb-2">2. Telemedicine Services &Consent to Treat</h3>
         <p>Consultations are provided by licensed medical professionals. By booking a consultation, you explicitly consent to receive medical care via telehealth technologies (video, audio, and secure messaging). You understand that telemedicine has limitations compared to in-person physical examinations.</p>
         
         <h3 className="text-xl font-bold text-slate-900 mt-8 border-b pb-2">3. User Responsibilities & Account Security</h3>
@@ -160,10 +160,31 @@ function LegalPage() {
     const prevDesc = updateMeta('meta[name="description"]', policy.seoDescription || policy.title);
     const prevCanonical = updateMeta('link[rel="canonical"]', canonicalUrl, 'href');
 
+    // Structured Data for WebPage
+    const schemaScript = document.createElement('script');
+    schemaScript.type = 'application/ld+json';
+    schemaScript.id = 'healnari-legal-schema';
+    schemaScript.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": policy.title,
+      "description": policy.seoDescription || policy.title,
+      "url": canonicalUrl,
+      "publisher": {
+        "@type": "MedicalOrganization",
+        "name": "HealNari",
+        "url": "https://healnari.care"
+      },
+      "dateModified": policy.updated || "2026-08-18"
+    });
+    document.head.appendChild(schemaScript);
+
     return () => {
       document.title = originalTitle;
       if (prevDesc?.el && prevDesc?.original) prevDesc.el.setAttribute('content', prevDesc.original);
       if (prevCanonical?.el && prevCanonical?.original) prevCanonical.el.setAttribute('href', prevCanonical.original);
+      const script = document.getElementById('healnari-legal-schema');
+      if (script) document.head.removeChild(script);
     };
   }, [docParam, policy]);
 

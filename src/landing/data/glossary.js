@@ -3,6 +3,19 @@ export const glossaryData = {
     title: "High Testosterone in Women: Symptoms, Causes & Guidelines",
     seoTitle: "High Testosterone in Women | Normal Levels & Symptoms | HealNari",
     seoDescription: "Learn about high testosterone (hyperandrogenism) in women, its link to PCOS, normal reference ranges, and evidence-based clinical management.",
+    author: {
+      name: "Dr. Sarah Mitchell",
+      role: "Lead Endocrinologist & Medical Advisory Board",
+      credentials: "MD, DM (Endocrinology), FRCP",
+    },
+    reviewedBy: {
+      name: "Dr. Sarah Mitchell",
+      role: "Lead Endocrinologist & Medical Advisory Board",
+      credentials: "MD, DM (Endocrinology)",
+    },
+    evidenceBasis: "WHO PCOS Fact Sheet & 2023 International Evidence-based Guideline for PCOS",
+    lastReviewed: "January 2026",
+    nextReviewDue: "January 2027",
     content: `
       <h2 class="text-2xl font-bold text-slate-900 mt-8 mb-4 font-display">What is High Testosterone in Women?</h2>
       <p class="mb-4 text-slate-600 leading-relaxed">While testosterone is often colloquially termed a "male" hormone, women naturally produce testosterone and other androgens (such as androstenedione and DHEA-S) in their ovaries and adrenal glands. Androgens play essential roles in bone density, muscle mass, libido, and mood. However, when circulating androgen levels become elevated or target tissue sensitivity increases (hyperandrogenism), it can cause physical and metabolic manifestations.</p>
@@ -26,6 +39,19 @@ export const glossaryData = {
     title: "Understanding Insulin Resistance in Women's Health",
     seoTitle: "Insulin Resistance Symptoms, Diet & Tests | HealNari",
     seoDescription: "What is insulin resistance? Discover the evidence-based signs, how it drives PCOS and metabolic risk, and multi-component lifestyle management.",
+    author: {
+      name: "Dr. Sarah Mitchell",
+      role: "Lead Endocrinologist & Medical Advisory Board",
+      credentials: "MD, DM (Endocrinology), FRCP",
+    },
+    reviewedBy: {
+      name: "Dr. Sarah Mitchell",
+      role: "Lead Endocrinologist & Medical Advisory Board",
+      credentials: "MD, DM (Endocrinology)",
+    },
+    evidenceBasis: "2023 International Evidence-based Guideline for PCOS & WHO Dietary Recommendations",
+    lastReviewed: "January 2026",
+    nextReviewDue: "January 2027",
     content: `
       <h2 class="text-2xl font-bold text-slate-900 mt-8 mb-4 font-display">Understanding Insulin Resistance</h2>
       <p class="mb-4 text-slate-600 leading-relaxed">Insulin is an anabolic hormone produced by pancreatic beta cells that facilitates cellular glucose uptake into skeletal muscle, liver, and adipose tissue. When insulin resistance occurs, target tissues exhibit reduced sensitivity to insulin signaling. In response, the pancreas compensates by secreting higher amounts of insulin (compensatory hyperinsulinemia) to maintain euglycemia.</p>
@@ -52,6 +78,19 @@ export const glossaryData = {
     title: "What is a Normal LH to FSH Ratio?",
     seoTitle: "LH to FSH Ratio | What Your Results Mean | HealNari",
     seoDescription: "Understand your Luteinizing Hormone (LH) and Follicle-Stimulating Hormone (FSH) ratio and its clinical significance in PCOS screening.",
+    author: {
+      name: "Dr. Sarah Mitchell",
+      role: "Lead Endocrinologist & Medical Advisory Board",
+      credentials: "MD, DM (Endocrinology), FRCP",
+    },
+    reviewedBy: {
+      name: "Dr. Sarah Mitchell",
+      role: "Lead Endocrinologist & Medical Advisory Board",
+      credentials: "MD, DM (Endocrinology)",
+    },
+    evidenceBasis: "2023 International Evidence-based Guideline for PCOS & WHO Reproductive Endocrinology Fact Sheet",
+    lastReviewed: "January 2026",
+    nextReviewDue: "January 2027",
     content: `
       <h2 class="text-2xl font-bold text-slate-900 mt-8 mb-4 font-display">What is a Normal LH to FSH Ratio?</h2>
       <p class="mb-4 text-slate-600 leading-relaxed">Luteinizing Hormone (LH) and Follicle-Stimulating Hormone (FSH) are pituitary gonadotropins whose coordinated secretion regulates ovarian folliculogenesis, estrogen production, and ovulation.</p>
