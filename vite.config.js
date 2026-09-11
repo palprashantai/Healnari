@@ -144,6 +144,11 @@ export default defineConfig(({ command, mode }) => {
           target: 'http://127.0.0.1:5000',
           changeOrigin: true,
         },
+        '/sitemap.xml': {
+          target: 'http://127.0.0.1:5000',
+          changeOrigin: true,
+          rewrite: () => '/api/public/sitemap.xml',
+        },
         '/socket.io': {
           target: 'http://127.0.0.1:5000',
           ws: true,

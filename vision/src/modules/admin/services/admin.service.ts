@@ -8,6 +8,7 @@ import {
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from '@/core/supabase/supabase.service';
 import { ProfileRole } from '@/shared/interfaces/profile.interface';
 import { AppointmentStatus } from '@/shared/interfaces/appointment.interface';
@@ -2838,6 +2839,80 @@ export class AdminService {
     }
   }
 
+  async generateSitemapXml(): Promise<string> {
+    try {
+      const frontendUrl = process.env.FRONTEND_URL || 'https://healnari.com';
+      
+      const { data: articles } = await this.supabase.admin
+        .from('cms_articles')
+        .select('slug, updated_at, published_at')
+        .eq('status', 'Published')
+        .order('published_at', { ascending: false });
+
+      const staticUrls = [
+        '/',
+        '/for-doctors',
+        '/login',
+        '/conditions/general-medicine-primary-care',
+        '/conditions/pcos-treatment-online',
+        '/conditions/gynecology-womens-health',
+        '/conditions/thyroid-consultation',
+        '/conditions/hormonal-dermatology-acne',
+        '/conditions/hair-loss-trichology',
+        '/conditions/clinical-nutrition-dietetics',
+        '/conditions/yoga-movement-therapy',
+        '/conditions/fertility-preconception-care'
+      ];
+
+      const now = new Date().toISOString();
+
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+      for (const url of staticUrls) {
+        xml += `  <url>\n    <loc>${frontendUrl}${url}</loc>\n    <lastmod>${now}</lastmod>\n  </url>\n`;
+      }
+
+      if (articles && articles.length > 0) {
+        for (const article of articles) {
+          if (!article.slug) continue;
+          const lastmod = article.updated_at || article.published_at || now;
+          xml += `  <url>\n    <loc>${frontendUrl}/learn/${article.slug}</loc>\n    <lastmod>${new Date(lastmod).toISOString()}</lastmod>\n  </url>\n`;
+        }
+      }
+
+      xml += `</urlset>`;
+      return xml;
+    } catch (error) {
+      this.logger.error('Error generating sitemap', error);
+      return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>`;
+    }
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async publishScheduledArticles() {
+    try {
+      const now = new Date().toISOString();
+      const { data: scheduled } = await this.supabase.admin
+        .from('cms_articles')
+        .select('id, scheduled_at')
+        .eq('status', 'Scheduled')
+        .lte('scheduled_at', now);
+
+      if (scheduled && scheduled.length > 0) {
+        for (const article of scheduled) {
+          await this.supabase.admin
+            .from('cms_articles')
+            .update({ status: 'Published', published_at: now })
+            .eq('id', article.id);
+          this.logger.log(`Published scheduled article: ${article.id}`);
+        }
+      }
+    } catch (error) {
+      this.logger.error('Failed to publish scheduled articles', error);
+    }
+  }
+
   async createCmsArticle(body: any) {
     try {
       const displayId = `C-${Math.floor(Math.random() * 9000) + 100}`;
@@ -2854,7 +2929,28 @@ export class AdminService {
         slug,
         read_time: body.readTime || body.read_time || '5 min read',
         tags: Array.isArray(body.tags) ? body.tags : (body.tags ? [body.tags] : []),
+        seo_title: body.seo_title,
+        meta_description: body.meta_description,
+        canonical_url: body.canonical_url,
+        robots: body.robots || 'INDEX, FOLLOW',
+        primary_keyword: body.primary_keyword,
+        search_intent: body.search_intent,
+        featured_image: body.featured_image,
+        image_alt: body.image_alt,
+        medical_reviewer: body.medical_reviewer,
+        medical_reviewer_credentials: body.medical_reviewer_credentials,
+        references_json: body.references_json || [],
+        topic_cluster: body.topic_cluster,
+        related_conditions: body.related_conditions || [],
+        related_specialties: body.related_specialties || [],
       };
+
+      if (payload.status === 'Published') {
+        payload.published_at = new Date().toISOString();
+      }
+      if (payload.status === 'Scheduled' && body.scheduled_at) {
+        payload.scheduled_at = body.scheduled_at;
+      }
 
       let res = await this.supabase.admin
         .from('cms_articles')
@@ -2914,9 +3010,49 @@ export class AdminService {
         slug,
         read_time: body.readTime || body.read_time,
         tags: Array.isArray(body.tags) ? body.tags : (body.tags ? [body.tags] : undefined),
+        seo_title: body.seo_title,
+        meta_description: body.meta_description,
+        canonical_url: body.canonical_url,
+        robots: body.robots,
+        primary_keyword: body.primary_keyword,
+        search_intent: body.search_intent,
+        featured_image: body.featured_image,
+        image_alt: body.image_alt,
+        medical_reviewer: body.medical_reviewer,
+        medical_reviewer_credentials: body.medical_reviewer_credentials,
+        references_json: body.references_json,
+        topic_cluster: body.topic_cluster,
+        related_conditions: body.related_conditions,
+        related_specialties: body.related_specialties,
       };
 
+      if (body.status === 'Published' && !body.published_at) {
+        payload.published_at = new Date().toISOString();
+      }
+      if (body.status === 'Scheduled' && body.scheduled_at) {
+        payload.scheduled_at = body.scheduled_at;
+      }
+
       Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+
+      // Simple version history logging
+      if (body.status && body.title && body.content) {
+        // Best effort async version history creation
+        this.supabase.admin.from('cms_content_versions').insert({
+          article_id: id,
+          version_number: Date.now(), // Simplified version number logic
+          title: body.title,
+          content: body.content,
+          seo_metadata: {
+             seo_title: body.seo_title,
+             meta_description: body.meta_description,
+             canonical_url: body.canonical_url,
+          },
+          changed_by: 'Admin'
+        }).then((res) => {
+          if (res.error) this.logger.error('Failed to save version history', res.error);
+        });
+      }
 
       let res = await this.supabase.admin
         .from('cms_articles')

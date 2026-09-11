@@ -95,11 +95,21 @@ function AdminCMS() {
       slug: '',
       category: 'Health Guide',
       author: 'HealNari Clinical Team',
-      status: 'Published',
+      status: 'Draft',
       summary: '',
       content: '',
       read_time: '4 min read',
       tags: "Women's Health, Hormonal Balance",
+      seo_title: '',
+      meta_description: '',
+      canonical_url: '',
+      robots: 'INDEX, FOLLOW',
+      primary_keyword: '',
+      search_intent: 'Informational',
+      featured_image: '',
+      medical_reviewer: '',
+      medical_reviewer_credentials: '',
+      topic_cluster: '',
     });
     setEditModalTab('edit');
     setEditModalOpen(true);
@@ -112,6 +122,8 @@ function AdminCMS() {
       ...art,
       read_time: art.read_time || art.readTime || '4 min read',
       tags: formattedTags,
+      robots: art.robots || 'INDEX, FOLLOW',
+      search_intent: art.search_intent || 'Informational',
     });
     setEditModalTab('edit');
     setEditModalOpen(true);
@@ -124,32 +136,46 @@ function AdminCMS() {
     }
     setSavingEdit(true);
     try {
-      const { id, title, category, summary, content, status, author, slug, tags, read_time } = editingArticle;
+      const { id, title, category, summary, content, status, author, slug, tags, read_time,
+        seo_title, meta_description, canonical_url, robots, primary_keyword, search_intent,
+        featured_image, medical_reviewer, medical_reviewer_credentials, topic_cluster } = editingArticle;
+      
       const computedSlug = slug?.trim() || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       const parsedTags = typeof tags === 'string'
         ? tags.split(',').map(t => t.trim()).filter(Boolean)
         : (Array.isArray(tags) ? tags : []);
       const cleanReadTime = read_time?.trim() || '4 min read';
 
+      const basePayload = {
+        title,
+        category,
+        summary,
+        content,
+        status: status || 'Draft',
+        author: author || 'HealNari Clinical Team',
+        slug: computedSlug,
+        tags: parsedTags,
+        readTime: cleanReadTime,
+        read_time: cleanReadTime,
+        seo_title,
+        meta_description,
+        canonical_url,
+        robots,
+        primary_keyword,
+        search_intent,
+        featured_image,
+        medical_reviewer,
+        medical_reviewer_credentials,
+        topic_cluster,
+      };
+
       if (id === 'new') {
-        const payload = {
-          title,
-          category,
-          summary,
-          content,
-          status: status || 'Published',
-          author: author || 'HealNari Clinical Team',
-          slug: computedSlug,
-          tags: parsedTags,
-          readTime: cleanReadTime,
-          read_time: cleanReadTime,
-        };
         const created = await apiFetch('/admin/cms', {
           method: 'POST',
-          body: payload,
+          body: basePayload,
         });
         const newArt = created || {
-          ...payload,
+          ...basePayload,
           id: `art-${Date.now()}`,
           views: 0,
           date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
@@ -157,23 +183,11 @@ function AdminCMS() {
         setArticles(prev => [newArt, ...prev]);
         toast('New article created successfully!', 'success');
       } else {
-        const payload = {
-          title,
-          category,
-          summary,
-          content,
-          status,
-          author,
-          slug: computedSlug,
-          tags: parsedTags,
-          readTime: cleanReadTime,
-          read_time: cleanReadTime,
-        };
         await apiFetch(`/admin/cms/${id}`, {
           method: 'PUT',
-          body: payload,
+          body: basePayload,
         });
-        setArticles(prev => prev.map(a => a.id === id ? { ...a, ...payload } : a));
+        setArticles(prev => prev.map(a => a.id === id ? { ...a, ...basePayload } : a));
         toast('Article updated successfully', 'success');
       }
       setEditModalOpen(false);
@@ -475,28 +489,61 @@ function AdminCMS() {
         {editingArticle && (
           <div className="space-y-4">
             {/* Modal Tabs: Edit vs Live Preview */}
-            <div className="flex border-b border-slate-200">
+            <div className="flex border-b border-slate-200 overflow-x-auto custom-scrollbar">
               <button
                 type="button"
                 onClick={() => setEditModalTab('edit')}
-                className={`px-4 py-2 text-xs font-bold border-b-2 transition-colors ${
+                className={`px-4 py-2 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${
                   editModalTab === 'edit'
                     ? 'border-brand-600 text-brand-700'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <i className="fas fa-pen-to-square mr-1.5"></i> Editor
+                <i className="fas fa-pen-to-square mr-1.5"></i> Content
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditModalTab('seo')}
+                className={`px-4 py-2 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${
+                  editModalTab === 'seo'
+                    ? 'border-brand-600 text-brand-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <i className="fas fa-search mr-1.5"></i> SEO
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditModalTab('medical')}
+                className={`px-4 py-2 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${
+                  editModalTab === 'medical'
+                    ? 'border-brand-600 text-brand-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <i className="fas fa-stethoscope mr-1.5"></i> Medical
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditModalTab('publishing')}
+                className={`px-4 py-2 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${
+                  editModalTab === 'publishing'
+                    ? 'border-brand-600 text-brand-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <i className="fas fa-upload mr-1.5"></i> Publishing
               </button>
               <button
                 type="button"
                 onClick={() => setEditModalTab('preview')}
-                className={`px-4 py-2 text-xs font-bold border-b-2 transition-colors ${
+                className={`px-4 py-2 text-xs font-bold border-b-2 transition-colors whitespace-nowrap ${
                   editModalTab === 'preview'
                     ? 'border-brand-600 text-brand-700'
                     : 'border-transparent text-slate-500 hover:text-slate-800'
                 }`}
               >
-                <i className="fas fa-eye mr-1.5"></i> Live HTML Preview
+                <i className="fas fa-eye mr-1.5"></i> Preview
               </button>
             </div>
 
@@ -591,32 +638,173 @@ function AdminCMS() {
                     className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 font-mono"
                   />
                 </div>
-
+              </div>
+            ) : editModalTab === 'seo' ? (
+              <div className="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
+                <div className="p-3 bg-brand-50 border border-brand-100 rounded-xl text-brand-800 text-xs font-medium flex gap-2">
+                  <i className="fas fa-info-circle mt-0.5"></i>
+                  <p>These fields control how the article appears on Google Search and social media. Leave blank to auto-generate from Content.</p>
+                </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-600 mb-1 block">Publication Status</label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
-                      <input 
-                        type="radio" 
-                        name="article_status" 
-                        value="Published" 
-                        checked={editingArticle.status === 'Published'} 
-                        onChange={() => setEditingArticle({ ...editingArticle, status: 'Published' })} 
-                      />
-                      <span>Published (Live to Public)</span>
-                    </label>
-                    <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
-                      <input 
-                        type="radio" 
-                        name="article_status" 
-                        value="Draft" 
-                        checked={editingArticle.status === 'Draft'} 
-                        onChange={() => setEditingArticle({ ...editingArticle, status: 'Draft' })} 
-                      />
-                      <span>Draft (Hidden from Public)</span>
-                    </label>
+                  <label className="text-xs font-bold text-slate-600 mb-1 flex justify-between">
+                    <span>SEO Title</span>
+                    <span className={editingArticle.seo_title?.length > 60 ? 'text-amber-500' : 'text-slate-400'}>{editingArticle.seo_title?.length || 0}/60</span>
+                  </label>
+                  <input 
+                    value={editingArticle.seo_title || ''}
+                    onChange={e => setEditingArticle({ ...editingArticle, seo_title: e.target.value })}
+                    placeholder={editingArticle.title || 'e.g. Managing PCOS Insulin Resistance | HealNari'}
+                    className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 flex justify-between">
+                    <span>Meta Description</span>
+                    <span className={editingArticle.meta_description?.length > 160 ? 'text-amber-500' : 'text-slate-400'}>{editingArticle.meta_description?.length || 0}/160</span>
+                  </label>
+                  <textarea 
+                    value={editingArticle.meta_description || ''}
+                    onChange={e => setEditingArticle({ ...editingArticle, meta_description: e.target.value })}
+                    rows="2"
+                    placeholder={editingArticle.summary || 'A concise description for search engines...'}
+                    className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">Primary Keyword</label>
+                    <input 
+                      value={editingArticle.primary_keyword || ''}
+                      onChange={e => setEditingArticle({ ...editingArticle, primary_keyword: e.target.value })}
+                      placeholder="e.g. high testosterone in women"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">Search Intent</label>
+                    <select 
+                      value={editingArticle.search_intent || 'Informational'} 
+                      onChange={e => setEditingArticle({ ...editingArticle, search_intent: e.target.value })}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    >
+                      <option value="Informational">Informational (Learn)</option>
+                      <option value="Navigational">Navigational (Find)</option>
+                      <option value="Commercial">Commercial (Compare)</option>
+                      <option value="Transactional">Transactional (Book)</option>
+                    </select>
                   </div>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">Canonical URL</label>
+                    <input 
+                      value={editingArticle.canonical_url || ''}
+                      onChange={e => setEditingArticle({ ...editingArticle, canonical_url: e.target.value })}
+                      placeholder="Leave blank for self-referencing"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">Robots</label>
+                    <select 
+                      value={editingArticle.robots || 'INDEX, FOLLOW'} 
+                      onChange={e => setEditingArticle({ ...editingArticle, robots: e.target.value })}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    >
+                      <option value="INDEX, FOLLOW">Index, Follow (Public)</option>
+                      <option value="NOINDEX, FOLLOW">Noindex, Follow</option>
+                      <option value="NOINDEX, NOFOLLOW">Noindex, Nofollow (Hidden)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ) : editModalTab === 'medical' ? (
+              <div className="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
+                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-800 text-xs font-medium flex gap-2">
+                  <i className="fas fa-user-md mt-0.5"></i>
+                  <p>YMYL (Your Money Your Life) Content: Ensure medical claims are cited and reviewed by verified clinical staff to maintain E-E-A-T.</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">Medical Reviewer</label>
+                    <input 
+                      value={editingArticle.medical_reviewer || ''}
+                      onChange={e => setEditingArticle({ ...editingArticle, medical_reviewer: e.target.value })}
+                      placeholder="e.g. Dr. John Smith"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">Reviewer Credentials</label>
+                    <input 
+                      value={editingArticle.medical_reviewer_credentials || ''}
+                      onChange={e => setEditingArticle({ ...editingArticle, medical_reviewer_credentials: e.target.value })}
+                      placeholder="e.g. MD, Endocrinology"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Topic Cluster (Internal Silo)</label>
+                  <select 
+                    value={editingArticle.topic_cluster || ''} 
+                    onChange={e => setEditingArticle({ ...editingArticle, topic_cluster: e.target.value })}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  >
+                    <option value="">Select a Cluster</option>
+                    <option value="Hormonal Health">Hormonal Health</option>
+                    <option value="Women's Health">Women's Health</option>
+                    <option value="PCOS">PCOS</option>
+                    <option value="Hair Loss">Hair Loss</option>
+                    <option value="Thyroid">Thyroid</option>
+                  </select>
+                </div>
+              </div>
+            ) : editModalTab === 'publishing' ? (
+              <div className="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-2 block">Lifecycle Status</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {['Draft', 'In Review', 'Medical Review', 'Approved', 'Scheduled', 'Published', 'Archived'].map(st => (
+                      <label key={st} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${editingArticle.status === st ? 'border-brand-500 bg-brand-50 shadow-sm' : 'border-slate-200 hover:bg-slate-50'}`}>
+                        <input 
+                          type="radio" 
+                          name="article_status" 
+                          value={st} 
+                          checked={editingArticle.status === st} 
+                          onChange={() => setEditingArticle({ ...editingArticle, status: st })} 
+                          className="w-4 h-4 text-brand-600 focus:ring-brand-500"
+                        />
+                        <span className="text-sm font-bold text-slate-700">{st}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                
+                {editingArticle.status === 'Scheduled' && (
+                  <div className="p-4 border border-brand-200 bg-brand-50 rounded-xl">
+                     <label className="text-xs font-bold text-brand-800 mb-1 block">Scheduled Date & Time (UTC)</label>
+                     <input 
+                       type="datetime-local"
+                       value={editingArticle.scheduled_at ? editingArticle.scheduled_at.slice(0, 16) : ''}
+                       onChange={e => setEditingArticle({...editingArticle, scheduled_at: new Date(e.target.value).toISOString()})}
+                       className="w-full border border-brand-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white"
+                     />
+                  </div>
+                )}
+                
+                {editingArticle.status === 'Published' && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <p className="text-xs font-bold text-emerald-800 flex items-center gap-2">
+                      <i className="fas fa-check-circle"></i>
+                      Ready to Publish
+                    </p>
+                    <ul className="mt-2 space-y-1 text-xs text-emerald-700 list-disc list-inside">
+                      <li>Sitemap will be updated</li>
+                      <li>URL: <code>/learn/{editingArticle.slug || 'slug'}</code></li>
+                    </ul>
+                  </div>
+                )}
               </div>
             ) : (
               /* Live Preview Mode */

@@ -11,6 +11,7 @@ import {
   Query,
   ParseUUIDPipe,
   ParseIntPipe,
+  Header,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -924,6 +925,14 @@ export class AdminController {
   async getPublicCmsArticleBySlugOrId(@Param('slugOrId') slugOrId: string) {
     const data = await this.adminService.getPublicCmsArticleBySlugOrId(slugOrId);
     return ResponseHelper.success(data, SUCCESS_MESSAGES.DATA_RETRIEVED);
+  }
+
+  @Public()
+  @Get('public/sitemap.xml')
+  @Header('Content-Type', 'application/xml')
+  @ApiOperation({ summary: 'Generate XML Sitemap' })
+  async getSitemap() {
+    return this.adminService.generateSitemapXml();
   }
 
   // ─── Message Templates ────────────────────────────────────────────
