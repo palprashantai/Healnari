@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
 import Header from '../components/Header.jsx';
 import { glossaryData } from '../data/glossary.js';
@@ -19,6 +19,7 @@ function GlossaryArticle() {
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [activeHeadingId, setActiveHeadingId] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -48,6 +49,40 @@ function GlossaryArticle() {
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [confirmedDetails, setConfirmedDetails] = useState(null);
+
+  // Extract H2 headings and inject IDs for seamless Table of Contents navigation
+  const { processedContent, headings } = useMemo(() => {
+    if (!article?.content) return { processedContent: '', headings: [] };
+    const foundHeadings = [];
+    let counter = 0;
+    const replaced = article.content.replace(/<h2([^>]*)>(.*?)<\/h2>/gi, (match, attrs, innerText) => {
+      const cleanText = innerText.replace(/<[^>]*>/g, '').trim();
+      const id = `section-${counter++}`;
+      foundHeadings.push({ id, text: cleanText });
+      return `<h2 id="${id}" ${attrs}>${innerText}</h2>`;
+    });
+    return { processedContent: replaced, headings: foundHeadings };
+  }, [article?.content]);
+
+  // Active section observer on scroll
+  useEffect(() => {
+    if (headings.length === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveHeadingId(entry.target.id);
+          }
+        });
+      },
+      { rootMargin: '-70px 0% -65% 0%' }
+    );
+    headings.forEach((h) => {
+      const el = document.getElementById(h.id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, [headings]);
 
   useEffect(() => {
     if (!article) return;
@@ -134,9 +169,19 @@ function GlossaryArticle() {
     }
   };
 
+  const scrollToSection = (id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      const yOffset = -90;
+      const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+      setActiveHeadingId(id);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FDFBF7]">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8F6FC]">
         <div className="w-16 h-16 rounded-2xl bg-aubergine-100 flex items-center justify-center text-aubergine-600 text-2xl shadow-soft animate-pulse">
           <i className="fas fa-dna fa-spin"></i>
         </div>
@@ -156,7 +201,7 @@ function GlossaryArticle() {
   };
 
   return (
-    <div className="bg-[#FAF8F5] min-h-screen font-sans flex flex-col selection:bg-aubergine-100 selection:text-aubergine-900 relative">
+    <div className="bg-[#F8F6FC] min-h-screen font-sans flex flex-col selection:bg-aubergine-100 selection:text-aubergine-900 relative">
       <ScrollProgressBar />
 
       <Header 
@@ -165,8 +210,8 @@ function GlossaryArticle() {
       />
 
       {/* ── Sub Navigation Breadcrumb Bar ── */}
-      <div className="bg-white/90 backdrop-blur-md border-b border-sand-200/80 sticky top-0 z-30 px-4 sm:px-8 py-2.5 transition-all">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+      <div className="bg-white/90 backdrop-blur-md border-b border-sand-200/80 sticky top-0 z-30 px-4 sm:px-8 py-2.5 transition-all shadow-2xs">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <nav className="flex items-center gap-2 text-xs font-semibold text-slate-500 overflow-x-auto hide-scrollbar py-0.5">
             <Link to="/" className="hover:text-aubergine-600 transition-colors flex items-center gap-1 shrink-0">
               <i className="fas fa-house text-[11px]"></i> Home
@@ -205,11 +250,11 @@ function GlossaryArticle() {
       </div>
       
       {/* ── Main Two-Column Container ── */}
-      <main className="flex-grow max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 w-full">
+      <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 w-full">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* ── Left Column: Article Content (8 cols) ── */}
-          <article className="lg:col-span-8 bg-white rounded-3xl p-6 sm:p-10 shadow-card border border-sand-200/90 relative">
+          <article className="lg:col-span-8 bg-white rounded-3xl p-6 sm:p-10 md:p-12 shadow-card border border-sand-200/90 relative">
             
             {/* Header / Meta Block */}
             <header className="mb-8 border-b border-sand-200 pb-7">
@@ -260,21 +305,25 @@ function GlossaryArticle() {
               </div>
             </header>
           
-            {/* HTML Article Content */}
+            {/* HTML Article Content with Enhanced Medical Prose Styling */}
             <div 
-              className="prose prose-slate max-w-none text-slate-700 leading-relaxed text-base font-normal space-y-5
-                [&>h2]:text-2xl [&>h2]:sm:text-3xl [&>h2]:font-black [&>h2]:font-display [&>h2]:text-slate-900 [&>h2]:mt-10 [&>h2]:mb-4 [&>h2]:pt-6 [&>h2]:border-t [&>h2]:border-sand-200
-                [&>h3]:text-lg [&>h3]:sm:text-xl [&>h3]:font-black [&>h3]:text-slate-900 [&>h3]:mt-6 [&>h3]:mb-2
+              className="prose prose-slate max-w-none text-slate-700 leading-relaxed text-base font-normal space-y-6
+                [&>h2]:text-2xl [&>h2]:sm:text-3xl [&>h2]:font-black [&>h2]:font-display [&>h2]:text-slate-900 [&>h2]:mt-10 [&>h2]:mb-4 [&>h2]:pt-6 [&>h2]:border-t [&>h2]:border-sand-200 [&>h2]:scroll-mt-24
+                [&>h3]:text-lg [&>h3]:sm:text-xl [&>h3]:font-black [&>h3]:text-slate-900 [&>h3]:mt-6 [&>h3]:mb-2 [&>h3]:scroll-mt-24
                 [&>p]:text-slate-700 [&>p]:leading-relaxed [&>p]:text-[15px] sm:[&>p]:text-base
-                [&>ul]:space-y-2 [&>ul]:my-4 [&>ul]:list-disc [&>ul]:pl-5
-                [&>ol]:space-y-2 [&>ol]:my-4 [&>ol]:list-decimal [&>ol]:pl-5
-                [&>li]:text-slate-700 [&>li]:leading-relaxed
+                [&>ul]:space-y-3 [&>ul]:my-5 [&>ul]:pl-0 [&>ul]:list-none
+                [&>ul>li]:relative [&>ul>li]:pl-7 [&>ul>li]:text-slate-700 [&>ul>li]:leading-relaxed [&>ul>li]:text-[15px] sm:[&>ul>li]:text-base
+                [&>ul>li]:before:content-[''] [&>ul>li]:before:absolute [&>ul>li]:before:left-1.5 [&>ul>li]:before:top-2.5 [&>ul>li]:before:w-2 [&>ul>li]:before:h-2 [&>ul>li]:before:rounded-full [&>ul>li]:before:bg-aubergine-500
+                [&>ul>li>strong]:text-slate-900 [&>ul>li>strong]:font-extrabold
+                [&>ol]:space-y-3 [&>ol]:my-5 [&>ol]:pl-5 [&>ol]:list-decimal
+                [&>ol>li]:text-slate-700 [&>ol>li]:leading-relaxed
                 [&>table]:w-full [&>table]:my-6 [&>table]:border-collapse [&>table]:border [&>table]:border-sand-200 [&>table]:rounded-2xl [&>table]:overflow-hidden
                 [&>table_th]:bg-aubergine-50 [&>table_th]:text-aubergine-900 [&>table_th]:p-3.5 [&>table_th]:font-extrabold [&>table_th]:text-xs [&>table_th]:uppercase [&>table_th]:tracking-wider [&>table_th]:border-b [&>table_th]:border-sand-200
                 [&>table_td]:p-3.5 [&>table_td]:text-xs sm:[&>table_td]:text-sm [&>table_td]:border-b [&>table_td]:border-sand-150 [&>table_td]:text-slate-700
                 [&>table_tr:nth-child(even)]:bg-sand-50/50
-                [&>blockquote]:border-l-4 [&>blockquote]:border-aubergine-500 [&>blockquote]:bg-aubergine-50/50 [&>blockquote]:p-4 [&>blockquote]:rounded-r-2xl [&>blockquote]:italic [&>blockquote]:text-slate-700 [&>blockquote]:my-6"
-              dangerouslySetInnerHTML={{ __html: article.content }}
+                [&>blockquote]:border-l-4 [&>blockquote]:border-aubergine-500 [&>blockquote]:bg-aubergine-50/50 [&>blockquote]:p-4 [&>blockquote]:rounded-r-2xl [&>blockquote]:italic [&>blockquote]:text-slate-700 [&>blockquote]:my-6
+                [&>.bg-amber-50]:border [&>.bg-amber-50]:border-amber-200 [&>.bg-amber-50]:rounded-2xl [&>.bg-amber-50]:p-5 [&>.bg-amber-50]:my-6"
+              dangerouslySetInnerHTML={{ __html: processedContent }}
             />
 
             {/* Clinician Quality Stamp */}
@@ -282,7 +331,7 @@ function GlossaryArticle() {
               <div className="flex items-center gap-3">
                 <i className="fas fa-shield-heart text-2xl text-emerald-600"></i>
                 <div className="text-xs text-slate-600">
-                  <strong className="text-slate-900 block">HealNari Clinical Editorial Standard</strong>
+                  <strong className="text-slate-900 block font-bold">HealNari Clinical Editorial Standard</strong>
                   This article conforms to international clinical guidelines (ACOG, Endocrine Society, WHO).
                 </div>
               </div>
@@ -422,9 +471,40 @@ function GlossaryArticle() {
 
           </article>
 
-          {/* ── Right Column: Sticky Clinician & Diagnostic Sidebar (4 cols) ── */}
+          {/* ── Right Column: Persistent Sticky Navigation & Specialist Rail (4 cols) ── */}
           <aside className="lg:col-span-4 space-y-6 lg:sticky lg:top-20">
             
+            {/* Table of Contents ("On This Page") */}
+            {headings.length > 0 && (
+              <div className="bg-white rounded-3xl p-6 shadow-card border border-sand-200/90">
+                <div className="flex items-center justify-between mb-3 border-b border-sand-200 pb-3">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-2 font-display">
+                    <i className="fas fa-list-ul text-aubergine-600"></i> On This Page
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-bold">{headings.length} Sections</span>
+                </div>
+                <nav className="space-y-1 max-h-[380px] overflow-y-auto pr-1">
+                  {headings.map((h) => {
+                    const isActive = activeHeadingId === h.id;
+                    return (
+                      <button
+                        key={h.id}
+                        onClick={() => scrollToSection(h.id)}
+                        className={`w-full text-left py-1.5 px-2.5 rounded-xl text-xs transition-all flex items-start gap-2 ${
+                          isActive 
+                            ? 'bg-aubergine-50 text-aubergine-900 font-extrabold border-l-2 border-aubergine-600' 
+                            : 'text-slate-600 hover:text-aubergine-700 hover:bg-sand-50/80 font-medium'
+                        }`}
+                      >
+                        <i className={`fas fa-chevron-right text-[8px] mt-1 shrink-0 ${isActive ? 'text-aubergine-600' : 'text-slate-300'}`}></i>
+                        <span className="line-clamp-1 leading-snug">{h.text}</span>
+                      </button>
+                    );
+                  })}
+                </nav>
+              </div>
+            )}
+
             {/* Quick Consult Booking Card */}
             <div className="bg-white rounded-3xl p-6 shadow-card border border-sand-200/90 relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-aubergine-500 via-magenta-500 to-indigo-600"></div>
@@ -434,17 +514,17 @@ function GlossaryArticle() {
                   <i className="fas fa-stethoscope"></i>
                 </div>
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-wider text-aubergine-700 bg-aubergine-50 px-2 py-0.5 rounded-md border border-aubergine-100">
-                    Clinical Telemedicine
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 font-bold">
+                    ● Doctors Available Now
                   </span>
-                  <h4 className="font-extrabold text-slate-900 text-base leading-tight font-display mt-0.5">
-                    Speak with a Specialist
+                  <h4 className="font-extrabold text-slate-900 text-base leading-tight font-display mt-1">
+                    Speak with an Endocrinologist
                   </h4>
                 </div>
               </div>
 
               <p className="text-xs text-slate-600 leading-relaxed mb-4">
-                Get an individualized diagnostic assessment and prescription for your hormonal symptoms without leaving home.
+                Have your androgen &amp; hormone labs interpreted by a specialist in a 45-minute video call.
               </p>
 
               <div className="bg-sand-50 rounded-2xl p-4 border border-sand-200 mb-4 space-y-2 text-xs">
@@ -551,3 +631,4 @@ function GlossaryArticle() {
 }
 
 export default GlossaryArticle;
+
