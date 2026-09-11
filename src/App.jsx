@@ -194,6 +194,7 @@ function App() {
                 <Route path="/clinical-nutrition-dietetics" element={<Navigate to="/conditions/clinical-nutrition-dietetics" replace />} />
                 <Route path="/yoga-movement-therapy" element={<Navigate to="/conditions/yoga-movement-therapy" replace />} />
                 <Route path="/fertility-preconception-care" element={<Navigate to="/conditions/fertility-preconception-care" replace />} />
+                <Route path="/learn/:slug" element={<GlossaryArticle />} />
                 <Route path="/glossary/:slug" element={<GlossaryArticle />} />
                 <Route path="/guides/:slug" element={<GuidePage />} />
                 <Route path="/guide/:slug" element={<GuidePage />} />

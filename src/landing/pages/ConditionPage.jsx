@@ -92,7 +92,7 @@ function ConditionPage() {
       return { el, original };
     };
 
-    const canonicalUrl = `https://healnari.care/conditions/${condition.slug || targetId}`;
+    const canonicalUrl = `https://healnari.vercel.app/conditions/${condition.slug || targetId}`;
     const prevDesc = updateMeta('meta[name="description"]', condition.seoDescription);
     const prevOgTitle = updateMeta('meta[property="og:title"]', condition.seoTitle);
     const prevOgDesc = updateMeta('meta[property="og:description"]', condition.seoDescription);
@@ -116,9 +116,9 @@ function ConditionPage() {
           "description": condition.seoDescription,
           "isPartOf": {
             "@type": "WebSite",
-            "@id": "https://healnari.care/#website",
+            "@id": "https://healnari.vercel.app/#website",
             "name": "HealNari",
-            "url": "https://healnari.care"
+            "url": "https://healnari.vercel.app"
           },
           "about": {
             "@type": condition.schemaType || "MedicalCondition",
@@ -137,7 +137,7 @@ function ConditionPage() {
           "professionallyReviewedBy": {
             "@type": "MedicalOrganization",
             "name": "HealNari Clinical Advisory Board",
-            "url": "https://healnari.care"
+            "url": "https://healnari.vercel.app"
           },
           "specialty": condition.specialistRole || "Medical Specialists"
         },
@@ -148,13 +148,13 @@ function ConditionPage() {
               "@type": "ListItem",
               "position": 1,
               "name": "Home",
-              "item": "https://healnari.care"
+              "item": "https://healnari.vercel.app"
             },
             {
               "@type": "ListItem",
               "position": 2,
               "name": "Specialties",
-              "item": "https://healnari.care/#conditions"
+              "item": "https://healnari.vercel.app/#conditions"
             },
             {
               "@type": "ListItem",

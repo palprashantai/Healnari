@@ -28,7 +28,7 @@ const PRINT_TEMPLATES = [
 function RealQrGraphic({ size = 112 }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
-  const qrUrl = generateQrUrl(`https://healnari.care/dr/${MOCK_DOCTOR.slug}`, 300);
+  const qrUrl = generateQrUrl(`https://healnari.vercel.app/dr/${MOCK_DOCTOR.slug}`, 300);
 
   return (
     <div className="relative flex items-center justify-center bg-white rounded-xl overflow-hidden p-1 shadow-xs" style={{ width: size, height: size }}>

@@ -1,6 +1,12 @@
 User-agent: *
 Allow: /
 Allow: /for-doctors
+Allow: /conditions/
+Allow: /learn/
+Allow: /guide/
+Allow: /legal/
+
+# Legacy short-URL aliases (redirect to /conditions/ equivalents — canonicals handled by ConditionPage.jsx)
 Allow: /pcos-treatment-online
 Allow: /gynecology-womens-health
 Allow: /thyroid-consultation
@@ -10,16 +16,13 @@ Allow: /clinical-nutrition-dietetics
 Allow: /yoga-movement-therapy
 Allow: /fertility-preconception-care
 Allow: /hormonal-weight-loss
-Allow: /dr/
-Allow: /doctor/
-Allow: /guide/
-Allow: /learn/
-Allow: /legal/
+Allow: /general-medicine-primary-care
 
 # Disallow Private Portals and API Endpoints
 Disallow: /patient-dashboard/
 Disallow: /doctor-dashboard/
 Disallow: /admin-dashboard/
 Disallow: /api/
+Disallow: /glossary/
 
-Sitemap: https://healnari.care/sitemap.xml
+Sitemap: https://healnari.vercel.app/sitemap.xml

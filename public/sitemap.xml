@@ -3,75 +3,76 @@
   <!-- Core Landing & Marketplace Pages -->
   <url>
     <loc>https://healnari.vercel.app/</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://healnari.vercel.app/for-doctors</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
 
   <!-- High-Intent Specialty & Condition Landing Pages -->
+  <!-- Note: /slug routes redirect to /conditions/slug; canonical is /conditions/slug per ConditionPage.jsx -->
   <url>
-    <loc>https://healnari.vercel.app/pcos-treatment-online</loc>
-    <lastmod>2026-09-10</lastmod>
+    <loc>https://healnari.vercel.app/conditions/pcos-treatment-online</loc>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://healnari.vercel.app/gynecology-womens-health</loc>
-    <lastmod>2026-09-10</lastmod>
+    <loc>https://healnari.vercel.app/conditions/gynecology-womens-health</loc>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://healnari.vercel.app/thyroid-consultation</loc>
-    <lastmod>2026-09-10</lastmod>
+    <loc>https://healnari.vercel.app/conditions/thyroid-consultation</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://healnari.vercel.app/conditions/hormonal-dermatology-acne</loc>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
-    <loc>https://healnari.vercel.app/hormonal-dermatology-acne</loc>
-    <lastmod>2026-09-10</lastmod>
+    <loc>https://healnari.vercel.app/conditions/hair-loss-trichology</loc>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
-    <loc>https://healnari.vercel.app/hair-loss-trichology</loc>
-    <lastmod>2026-09-10</lastmod>
+    <loc>https://healnari.vercel.app/conditions/clinical-nutrition-dietetics</loc>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
-    <loc>https://healnari.vercel.app/clinical-nutrition-dietetics</loc>
-    <lastmod>2026-09-10</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.85</priority>
-  </url>
-  <url>
-    <loc>https://healnari.vercel.app/yoga-movement-therapy</loc>
-    <lastmod>2026-09-10</lastmod>
+    <loc>https://healnari.vercel.app/conditions/yoga-movement-therapy</loc>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://healnari.vercel.app/fertility-preconception-care</loc>
-    <lastmod>2026-09-10</lastmod>
+    <loc>https://healnari.vercel.app/conditions/fertility-preconception-care</loc>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
-    <loc>https://healnari.vercel.app/hormonal-weight-loss</loc>
-    <lastmod>2026-09-10</lastmod>
+    <loc>https://healnari.vercel.app/conditions/hormonal-weight-loss</loc>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
-    <loc>https://healnari.vercel.app/general-medicine-primary-care</loc>
-    <lastmod>2026-09-10</lastmod>
+    <loc>https://healnari.vercel.app/conditions/general-medicine-primary-care</loc>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -82,69 +83,75 @@
   <!-- Clinical Guides & Pillar Articles -->
   <url>
     <loc>https://healnari.vercel.app/guide/pcos-vs-pcod-terminology</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
   </url>
   <url>
     <loc>https://healnari.vercel.app/guide/pcos-personalized-nutrition</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
   </url>
   <url>
     <loc>https://healnari.vercel.app/guide/pcos-weight-loss</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
   </url>
   <url>
     <loc>https://healnari.vercel.app/guide/hair-fall-triggers</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
   </url>
   <url>
     <loc>https://healnari.vercel.app/guide/cortisol-balance</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
   </url>
   <url>
     <loc>https://healnari.vercel.app/guide/anti-inflammatory-foods</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
   </url>
   <url>
     <loc>https://healnari.vercel.app/guide/seed-cycling-guide</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://healnari.vercel.app/guide/sleep-hormonal-health</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
 
-  <!-- Medical Glossary & Diagnostic Articles -->
+  <!-- Medical Glossary & Diagnostic Articles (/learn/ is canonical per GlossaryArticle.jsx) -->
   <url>
     <loc>https://healnari.vercel.app/learn/what-is-high-testosterone-in-women</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://healnari.vercel.app/learn/insulin-resistance-symptoms</loc>
-    <lastmod>2026-09-10</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://healnari.vercel.app/learn/normal-lh-fsh-ratio</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://healnari.vercel.app/learn/prolactin-and-hair-loss</loc>
+    <lastmod>2026-09-11</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://healnari.vercel.app/learn/insulin-resistance-symptoms</loc>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -152,25 +159,25 @@
   <!-- Legal & Clinical Governance Pages -->
   <url>
     <loc>https://healnari.vercel.app/legal/terms</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://healnari.vercel.app/legal/privacy</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://healnari.vercel.app/legal/refund</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://healnari.vercel.app/legal/compliance</loc>
-    <lastmod>2026-09-10</lastmod>
+    <lastmod>2026-09-11</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>

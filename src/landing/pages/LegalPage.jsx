@@ -156,7 +156,7 @@ function LegalPage() {
       return { el, original };
     };
 
-    const canonicalUrl = `https://healnari.care/legal/${docParam}`;
+    const canonicalUrl = `https://healnari.vercel.app/legal/${docParam}`;
     const prevDesc = updateMeta('meta[name="description"]', policy.seoDescription || policy.title);
     const prevCanonical = updateMeta('link[rel="canonical"]', canonicalUrl, 'href');
 
@@ -173,7 +173,7 @@ function LegalPage() {
       "publisher": {
         "@type": "MedicalOrganization",
         "name": "HealNari",
-        "url": "https://healnari.care"
+        "url": "https://healnari.vercel.app"
       },
       "dateModified": policy.updated || "2026-08-18"
     });

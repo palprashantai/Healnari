@@ -50,7 +50,7 @@ export function DoctorShareModal({ isOpen, onClose, doctor, mode = 'auto' }) {
     }
   }, [doc, isPatientView]);
 
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://healnari.care';
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://healnari.vercel.app';
   const publicProfileUrl = `${origin}/dr/${docId}`;
   const qrImageUrl = generateQrUrl(publicProfileUrl, 450);
 

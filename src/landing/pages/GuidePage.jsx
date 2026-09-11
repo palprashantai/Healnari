@@ -84,7 +84,7 @@ function GuidePage() {
       const originalTitle = document.title;
       const pageTitle = `${guide.title} | HealNari Clinical Guide`;
       const pageDesc = guide.summary;
-      const canonicalUrl = `https://healnari.care/guide/${guide.id}`;
+      const canonicalUrl = `https://healnari.vercel.app/guide/${guide.id}`;
 
       document.title = pageTitle;
 
@@ -128,7 +128,7 @@ function GuidePage() {
           "name": "HealNari",
           "logo": {
             "@type": "ImageObject",
-            "url": "https://healnari.care/brand/logo-full.jpg"
+            "url": "https://healnari.vercel.app/brand/logo-full.jpg"
           }
         }
       });

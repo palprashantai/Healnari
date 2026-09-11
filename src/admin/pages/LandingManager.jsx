@@ -180,7 +180,7 @@ function AdminLandingManager() {
       keywords: "gynaecologist online, PCOS doctor, hormonal acne, telemedicine India",
       ogTitle: "HealNari — Women's Health & Hormonal Care Platform",
       ogDescription: "Integrated medical and lifestyle care for women.",
-      canonicalUrl: "https://healnari.care",
+      canonicalUrl: "https://healnari.vercel.app",
     },
     provider: {
       metaTitle: "Join HealNari as a Doctor | Telemedicine Platform for Women's Health Specialists",
@@ -188,7 +188,7 @@ function AdminLandingManager() {
       keywords: "doctor onboarding, gynaecologist practice, telemedicine partner",
       ogTitle: "Practice with HealNari — Elevate Your Clinical Reach",
       ogDescription: "Join verified physicians delivering high-impact hormonal care.",
-      canonicalUrl: "https://healnari.care/for-doctors",
+      canonicalUrl: "https://healnari.vercel.app/for-doctors",
     },
   });
 

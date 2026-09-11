@@ -121,9 +121,9 @@ export const conditionsData = {
   'thyroid-consultation': {
     id: 'thyroid-consultation',
     title: "Online Thyroid Specialist Consultation & Endocrine Care",
-    subtitle: "Comprehensive diagnosis and management for Hypothyroidism, Hashimoto's, Hyperthyroidism, and subclinical thyroid imbalances affecting energy, weight, and fertility.",
-    seoTitle: "Online Thyroid Consultation | Endocrinologists for Thyroid Care | HealNari",
-    seoDescription: "Consult senior endocrinologists online for thyroid disorders. Holistic management plans for hypothyroidism, Hashimoto's, unexplained fatigue, and weight gain.",
+    subtitle: "Comprehensive evaluation and management for Hypothyroidism, Hashimoto's thyroiditis, Hyperthyroidism, Graves' disease, and subclinical thyroid imbalances affecting energy, weight, hair, and fertility — from the comfort of home.",
+    seoTitle: "Online Thyroid Consultation | Book a Thyroid Doctor Online | HealNari",
+    seoDescription: "Book an online thyroid doctor consultation with senior endocrinologists. Holistic management for hypothyroidism, Hashimoto's, Graves' disease, unexplained fatigue, weight gain, hair loss, and cycle irregularity.",
     schemaType: "MedicalCondition",
     schemaDisease: "Thyroid Disorder & Hypothyroidism",
     badge: "Endocrinology",
@@ -163,12 +163,28 @@ export const conditionsData = {
     ],
     faqs: [
       {
-        q: "Why is my TSH 'normal' on lab tests but I still feel exhausted?",
-        a: "Standard reference ranges for TSH are broad. Many women experience subclinical thyroid symptoms when Free T3 is suboptimal or thyroid autoantibodies (Anti-TPO) are elevated. Our endocrinologists evaluate your full symptom picture alongside optimal functional reference ranges."
+        q: "What is an online thyroid consultation?",
+        a: "An online thyroid consultation is a private 45-minute video call with a qualified endocrinologist or thyroid specialist, conducted securely from your home. During the consultation, the doctor reviews your symptoms, existing lab results (such as TSH, Free T3, Free T4, and thyroid antibodies), discusses your medical history, and builds a personalised management plan. A digitally signed prescription can be issued at the end of the consultation where clinically appropriate."
       },
       {
-        q: "How does thyroid health impact menstrual regularity?",
-        a: "Thyroid hormone interacts directly with ovarian follicular receptors and modulates Sex Hormone-Binding Globulin (SHBG). Hypothyroidism can disrupt ovulation, leading to luteal phase defect or anovulatory bleeding."
+        q: "Who should book an online thyroid doctor consultation?",
+        a: "You may benefit from a thyroid consultation if you experience persistent unexplained fatigue, weight gain or loss without diet changes, hair thinning or shedding, cold or heat intolerance, brain fog, palpitations, swelling in the neck, menstrual irregularity, or fertility difficulties — particularly if a previous TSH test was borderline or flagged by your general physician. Existing thyroid patients seeking a second opinion, medication review, or ongoing specialist monitoring are also well suited to an online consultation."
+      },
+      {
+        q: "What lab reports should I bring to my thyroid consultation?",
+        a: "Upload any available thyroid test results before your consultation: TSH, Free T3, Free T4, Anti-TPO antibodies, Anti-Thyroglobulin (Anti-TG), Thyroid ultrasound report, and any previous treatment prescriptions. If you do not have recent tests, do not worry — the endocrinologist will advise which investigations to order based on your symptoms."
+      },
+      {
+        q: "Can an endocrinologist manage my thyroid condition completely online?",
+        a: "For the majority of thyroid conditions — including hypothyroidism, Hashimoto's thyroiditis, subclinical hypothyroidism, mild Graves' disease, and medication optimisation — online specialist management is effective and evidence-supported. The endocrinologist can review biomarker trends, adjust Levothyroxine or other medication doses, order follow-up labs, and monitor your progress via regular check-in consultations. When in-person procedures such as fine needle aspiration (FNA) biopsy of a nodule are required, the doctor will provide a clear referral pathway."
+      },
+      {
+        q: "Why is my TSH 'normal' on lab tests but I still feel exhausted?",
+        a: "Standard laboratory reference ranges for TSH are broad (often 0.4–4.0 or 0.5–5.0 mIU/L depending on the laboratory). Many individuals experience persistent thyroid-related symptoms when Free T3 is suboptimal or when thyroid peroxidase antibodies (Anti-TPO) are elevated — even if TSH appears 'within range'. Our endocrinologists evaluate your complete symptom picture alongside your full thyroid panel and discuss optimal functional targets rather than relying solely on TSH alone."
+      },
+      {
+        q: "How does thyroid health impact menstrual regularity and hair loss?",
+        a: "Thyroid hormone receptors are present throughout the body — including in ovarian follicles, hair follicles, and the liver. Hypothyroidism can disrupt LH/FSH secretion patterns, impair folliculogenesis, and lead to anovulatory cycles, heavier periods, or cycle irregularity. It can also lower SHBG (increasing free androgen fractions), trigger diffuse hair shedding (telogen effluvium), and reduce hair shaft quality. In addition, hypothyroidism is one of the most common causes of mildly elevated prolactin, which can further compound menstrual and hair-related symptoms."
       }
     ],
     relatedGuides: ['cortisol-balance', 'hair-fall-triggers', 'anti-inflammatory-foods'],

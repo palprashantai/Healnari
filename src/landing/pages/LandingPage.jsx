@@ -57,7 +57,7 @@ function LandingPage() {
     const originalTitle = document.title;
     const docTitle = "Online Doctor Consultations | Multi-Specialty Telemedicine | HealNari";
     const docDesc = "Book 45-min video consultations with verified specialists. Multi-specialty telemedicine including Gynaecology, Endocrinology, Dermatology, Trichology, Clinical Nutrition, General Physician, and Yoga therapy. Personalized root-cause care with lab roadmap and 14-day free chat follow-up.";
-    const docUrl = "https://healnari.care";
+    const docUrl = "https://healnari.vercel.app";
 
     document.title = docTitle;
 
@@ -82,8 +82,8 @@ function LandingPage() {
       "@context": "https://schema.org",
       "@type": "MedicalClinic",
       "name": "HealNari",
-      "url": "https://healnari.care",
-      "logo": "https://healnari.care/brand/logo-full.jpg",
+      "url": "https://healnari.vercel.app",
+      "logo": "https://healnari.vercel.app/brand/logo-full.jpg",
       "description": "Multi-specialty digital healthcare platform connecting patients with qualified specialists across Gynaecology, Endocrinology, Dermatology, Trichology, Clinical Nutrition, General Physician, and Yoga therapy.",
       "medicalSpecialty": [
         "https://schema.org/Gynecologic",
@@ -117,7 +117,7 @@ function LandingPage() {
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "HealNari",
-      "url": "https://healnari.care/",
+      "url": "https://healnari.vercel.app/",
       "inLanguage": "en"
     });
     document.head.appendChild(websiteSchema);
@@ -133,7 +133,7 @@ function LandingPage() {
           "@type": "ListItem",
           "position": 1,
           "name": "Home",
-          "item": "https://healnari.care/"
+          "item": "https://healnari.vercel.app/"
         }
       ]
     });

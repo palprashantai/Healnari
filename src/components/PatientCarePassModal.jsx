@@ -18,7 +18,7 @@ export function PatientCarePassModal({ isOpen, onClose, patient, doctorName }) {
   const emergencyContact = p.emergencyContact || p.phone || '+91 98765 43210';
   const primaryDoctor = doctorName || 'Dr. Sarah Mitchell';
 
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://healnari.care';
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://healnari.vercel.app';
   // Secure health summary URL (viewable by emergency caregivers or clinical staff)
   const healthCardUrl = `${origin}/patient-dashboard?view=care-pass&mrn=${mrn}`;
   const qrImageUrl = generateQrUrl(`HEALNARI EMERGENCY CARE PASS\nPatient: ${patientName}\nMRN: ${mrn}\nBlood: ${bloodGroup}\nAllergies: ${allergies}\nEmergency: ${emergencyContact}\nDoctor: ${primaryDoctor}`, 350);

@@ -145,7 +145,7 @@ function DoctorPublicProfile() {
     const locationSuffix = doctor.isDemo ? ' India' : '';
     const pageTitle = `${docName} - ${doctor.specialty}${locationSuffix} | Book Consultation | HealNari`;
     const pageDesc = `Book a 45-minute video consultation with ${docName}, ${doctor.specialty}${locationSuffix}. Credentials: ${doctor.qualification}. Reg: ${doctor.regNo || 'NMC Verified'}. Root-cause care for PCOS, thyroid & hormonal health.`;
-    const canonicalUrl = `https://healnari.care/dr/${doctor.id || doctorId}`;
+    const canonicalUrl = `https://healnari.vercel.app/dr/${doctor.id || doctorId}`;
 
     document.title = pageTitle;
 
@@ -195,7 +195,7 @@ function DoctorPublicProfile() {
           "description": doctor.bio || pageDesc,
           "medicalSpecialty": doctor.specialty,
           "url": canonicalUrl,
-          "image": doctor.avatar_url ? `https://healnari.care${doctor.avatar_url}` : undefined,
+          "image": doctor.avatar_url ? `https://healnari.vercel.app${doctor.avatar_url}` : undefined,
           "priceRange": formatCurrency(doctor.consultFee || 799, doctor.currency || 'INR'),
           "currenciesAccepted": "INR",
           "availableService": {
@@ -210,7 +210,7 @@ function DoctorPublicProfile() {
           "worksFor": {
             "@type": "MedicalOrganization",
             "name": "HealNari Telemedicine",
-            "url": "https://healnari.care"
+            "url": "https://healnari.vercel.app"
           }
         },
         {
@@ -220,13 +220,13 @@ function DoctorPublicProfile() {
               "@type": "ListItem",
               "position": 1,
               "name": "Home",
-              "item": "https://healnari.care"
+              "item": "https://healnari.vercel.app"
             },
             {
               "@type": "ListItem",
               "position": 2,
               "name": "Doctors",
-              "item": "https://healnari.care/#doctors"
+              "item": "https://healnari.vercel.app/#doctors"
             },
             {
               "@type": "ListItem",

@@ -42,7 +42,7 @@ function DoctorLandingPage() {
     const originalTitle = document.title;
     const docTitle = "Telemedicine Platform for Multi-Specialty Doctors & Clinicians | Direct Net Payouts + AI EMR | HealNari";
     const docDesc = "Grow your clinical practice with zero clinic overhead. HealNari connects verified General Physicians, Dermatologists, Endocrinologists, Gynecologists, Dietitians & Mental Health professionals with high-intent patients. Built-in AI EMR, digital Rx & weekly direct payouts.";
-    const docUrl = "https://healnari.care/for-doctors";
+    const docUrl = "https://healnari.vercel.app/for-doctors";
 
     document.title = docTitle;
 
@@ -83,10 +83,10 @@ function DoctorLandingPage() {
       "@graph": [
         {
           "@type": "MedicalOrganization",
-          "@id": "https://healnari.care/for-doctors#organization",
+          "@id": "https://healnari.vercel.app/for-doctors#organization",
           "name": "HealNari Provider Network",
-          "url": "https://healnari.care/for-doctors",
-          "logo": "https://healnari.care/brand/logo-full.jpg",
+          "url": "https://healnari.vercel.app/for-doctors",
+          "logo": "https://healnari.vercel.app/brand/logo-full.jpg",
           "medicalSpecialty": [
             "https://schema.org/PrimaryCare",
             "https://schema.org/Gynecologic",

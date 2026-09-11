@@ -42,7 +42,7 @@ function GlossaryArticle() {
       return { el, original };
     };
 
-    const canonicalUrl = `https://healnari.care/learn/${slug}`;
+    const canonicalUrl = `https://healnari.vercel.app/learn/${slug}`;
     const prevDesc = updateMeta('meta[name="description"]', article.seoDescription);
     const prevOgTitle = updateMeta('meta[property="og:title"]', article.seoTitle);
     const prevOgDesc = updateMeta('meta[property="og:description"]', article.seoDescription);
@@ -75,7 +75,7 @@ function GlossaryArticle() {
         "name": "HealNari",
         "logo": {
           "@type": "ImageObject",
-          "url": "https://healnari.care/brand/logo-full.jpg"
+          "url": "https://healnari.vercel.app/brand/logo-full.jpg"
         }
       }
     });
@@ -144,18 +144,22 @@ function GlossaryArticle() {
 
           {/* Related Conditions & Guides Interlinking */}
           {(() => {
-            const relatedConditions = {
-              'what-is-high-testosterone-in-women': ['pcos-treatment-online', 'hormonal-dermatology-acne'],
-              'insulin-resistance-symptoms': ['pcos-treatment-online', 'hormonal-weight-loss'],
-              'normal-lh-fsh-ratio': ['pcos-treatment-online'],
+            // Prefer data-driven links from the article object (relatedConditions / relatedGuideKeys),
+            // fall back to the legacy slug-based map for articles that haven't been migrated yet.
+            const legacyConditions = {
+              'what-is-high-testosterone-in-women': ['pcos-treatment-online', 'gynecology-womens-health', 'hormonal-dermatology-acne', 'hair-loss-trichology', 'thyroid-consultation'],
+              'insulin-resistance-symptoms': ['pcos-treatment-online', 'hormonal-weight-loss', 'clinical-nutrition-dietetics'],
+              'normal-lh-fsh-ratio': ['pcos-treatment-online', 'gynecology-womens-health', 'fertility-preconception-care'],
+              'prolactin-and-hair-loss': ['hair-loss-trichology', 'hormonal-dermatology-acne', 'thyroid-consultation'],
             };
-            const relatedGuides = {
+            const legacyGuides = {
               'what-is-high-testosterone-in-women': ['pcos-vs-pcod-terminology', 'pcos-weight-loss'],
               'insulin-resistance-symptoms': ['pcos-personalized-nutrition', 'pcos-weight-loss'],
               'normal-lh-fsh-ratio': ['pcos-vs-pcod-terminology', 'cortisol-balance'],
+              'prolactin-and-hair-loss': ['hair-fall-triggers', 'cortisol-balance'],
             };
-            const condKeys = relatedConditions[slug] || [];
-            const guideKeys = relatedGuides[slug] || [];
+            const condKeys = article.relatedConditions || legacyConditions[slug] || [];
+            const guideKeys = article.relatedGuideKeys || legacyGuides[slug] || [];
             if (condKeys.length === 0 && guideKeys.length === 0) return null;
             return (
               <div className="mt-10 border-t border-slate-200 pt-8 space-y-5">
