@@ -107,7 +107,7 @@ export class BillingController {
     private readonly billingService: BillingService,
     private readonly aiSubscriptionService: AiSubscriptionService,
     private readonly cashfreeService: CashfreeService,
-  ) {}
+  ) { }
 
   @ApiOperation({
     summary:
@@ -197,11 +197,11 @@ export class BillingController {
       if (orderId.startsWith('ai_sub_') || orderId.startsWith('ai_topup_')) {
         await this.aiSubscriptionService
           .reconcileSubscriptionOrder(orderId)
-          .catch(() => {});
+          .catch(() => { });
       } else {
         await this.billingService
           .reconcileCashfreeOrder(orderId)
-          .catch(() => {});
+          .catch(() => { });
       }
     }
     return { ok: true };

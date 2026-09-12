@@ -789,10 +789,14 @@ export class BillingService {
         .maybeSingle();
 
       if (existing) {
-        this.logger.log(
-          `Idempotent payout hit for doctor ${user.id}, returning existing payout ${existing.id}`,
-        );
-        return existing;
+        // Expire idempotency keys after 24 hours to prevent collisions with old reused keys
+        const ageMs = Date.now() - new Date(existing.requested_at).getTime();
+        if (ageMs < 24 * 60 * 60 * 1000) {
+          this.logger.log(
+            `Idempotent payout hit for doctor ${user.id}, returning existing payout ${existing.id}`,
+          );
+          return existing;
+        }
       }
     }
 

@@ -181,6 +181,13 @@ export class CashfreeService {
     if (!this.secretKey) return process.env.NODE_ENV === 'development';
     if (!signature || !timestamp) return false;
     try {
+      // Replay attack protection: reject if timestamp is older than 5 minutes
+      const timestampMs = parseInt(timestamp, 10);
+      if (isNaN(timestampMs) || Math.abs(Date.now() - timestampMs) > 5 * 60 * 1000) {
+        this.logger.warn(`Webhook rejected: timestamp ${timestamp} is outside the acceptable 5-minute window.`);
+        return false;
+      }
+
       const crypto = require('crypto');
       const payload = `${timestamp}${rawBody}`;
       const expected = crypto
