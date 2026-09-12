@@ -317,6 +317,10 @@ export class UpdateMeDto {
   @IsOptional()
   @IsBoolean()
   smsNotifications?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  payoutDetails?: any;
 }
 
 export class UpdatePasswordDto {

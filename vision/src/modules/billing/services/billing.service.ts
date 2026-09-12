@@ -837,7 +837,9 @@ export class BillingService {
         : 'Bank Account';
 
     const idempotencyKey = body.idempotencyKey || `hn-po-${randomUUID()}`;
+    const profilePayoutDetails = (user.profile as any).payout_details || {};
     const destinationDetails = body.destinationDetails || {
+      ...profilePayoutDetails,
       method,
       account_holder: user.profile.full_name || 'Doctor',
       phone: user.profile.phone || null,

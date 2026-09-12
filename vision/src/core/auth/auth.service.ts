@@ -267,6 +267,8 @@ export class AuthService {
       patch.registration_no = body.registrationNo;
     if (body.medicalCouncil !== undefined)
       patch.medical_council = body.medicalCouncil;
+    if (body.payoutDetails !== undefined)
+      (patch as any).payout_details = body.payoutDetails;
 
     // Persist dob: sync to patient_records table
     if (body.dob !== undefined && body.dob) {

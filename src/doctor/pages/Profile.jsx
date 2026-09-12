@@ -47,7 +47,8 @@ function DoctorProfile() {
     age: doc.age || '',
     consultFee: String(doc.consultationFee || doc.consultFee || doc.profile?.consultation_fee || 799),
     videoFee: String(doc.consultationFee || doc.consultFee || doc.profile?.consultation_fee || 799),
-    clinicFee: '999',
+    clinicFee: String(doc.clinicConsultationFee || doc.profile?.user_metadata?.clinicConsultationFee || 999),
+    payoutDetails: doc.profile?.payout_details || {},
   });
 
   React.useEffect(() => {
@@ -64,6 +65,8 @@ function DoctorProfile() {
         age: user.age || prev.age,
         consultFee: String(user.consultationFee || user.consultFee || user.profile?.consultation_fee || prev.consultFee || 799),
         videoFee: String(user.consultationFee || user.consultFee || user.profile?.consultation_fee || prev.videoFee || 799),
+        clinicFee: String(user.clinicConsultationFee || user.profile?.user_metadata?.clinicConsultationFee || prev.clinicFee || 999),
+        payoutDetails: user.profile?.payout_details || prev.payoutDetails,
       }));
     }
   }, [user]);
@@ -153,8 +156,10 @@ function DoctorProfile() {
         consultationFee: Number(form.videoFee || form.consultFee || 799),
         consultFee: Number(form.videoFee || form.consultFee || 799),
         videoFee: Number(form.videoFee || form.consultFee || 799),
+        clinicConsultationFee: Number(form.clinicFee || 999),
         emailNotifications: emailNotif,
         smsNotifications: smsNotif,
+        payoutDetails: form.payoutDetails,
       });
       setSaved(true);
       toast('Profile updated successfully!', 'success');
@@ -197,12 +202,14 @@ function DoctorProfile() {
     setSavingFees(true);
     try {
       const fee = Number(form.videoFee || form.consultFee || 799);
+      const cFee = Number(form.clinicFee || 999);
       await updateUser?.({
         consultationFee: fee,
         consultFee: fee,
         videoFee: fee,
+        clinicConsultationFee: cFee,
       });
-      setForm(p => ({ ...p, consultFee: String(fee), videoFee: String(fee) }));
+      setForm(p => ({ ...p, consultFee: String(fee), videoFee: String(fee), clinicFee: String(cFee) }));
       toast('Fee structure saved and updated on your public profile!', 'success');
     } catch (err) {
       toast(err.message || 'Failed to update fee structure', 'error');
@@ -295,6 +302,7 @@ function DoctorProfile() {
               if (code === 'USD') return 'fa-dollar-sign';
               return 'fa-indian-rupee-sign';
             })()],
+            ['payout', 'Payout & Bank Details', 'fa-building-columns'],
             ['notifications', 'Notifications & Alerts', 'fa-bell'],
             ['security', 'Security', 'fa-shield-halved'],
           ].map(([key, label, icon]) => (
@@ -618,6 +626,44 @@ function DoctorProfile() {
               >
                 <i className={`fas ${savingFees ? 'fa-spinner fa-spin' : 'fa-floppy-disk'}`}></i>
                 {savingFees ? 'Saving Fees...' : 'Save Fee Structure'}
+              </button>
+            </div>
+          )}
+
+          {/* ── PAYOUT & BANK DETAILS ── */}
+          {tab === 'payout' && (
+            <div className="space-y-6 max-w-2xl animate-fade-in">
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-1">
+                  <i className="fas fa-building-columns text-aubergine-600"></i> Payout Destination
+                </h3>
+                <p className="text-sm text-slate-500 mb-5">
+                  Securely add your bank account or UPI details for your weekly earnings payout.
+                </p>
+
+                <div className="grid md:grid-cols-2 gap-5">
+                  {(doc?.profile?.country === 'US' ? [
+                    { id: 'routing', label: 'Routing Number', placeholder: '123456789' },
+                    { id: 'accountNo', label: 'Account Number', placeholder: '987654321' },
+                  ] : [
+                    { id: 'ifsc', label: 'IFSC Code', placeholder: 'HDFC0001234' },
+                    { id: 'accountNo', label: 'Bank Account Number', placeholder: '50100234567890' },
+                    { id: 'upi', label: 'UPI ID (Optional)', placeholder: 'doctor@upi' },
+                  ]).map(field => (
+                    <div key={field.id} className={field.id === 'upi' ? 'md:col-span-2' : ''}>
+                      <label className="text-xs font-bold text-slate-500 mb-1.5 block">{field.label}</label>
+                      <input type="text" placeholder={field.placeholder}
+                        value={form.payoutDetails?.[field.id] || ''}
+                        onChange={e => setForm(p => ({ ...p, payoutDetails: { ...p.payoutDetails, [field.id]: e.target.value } }))}
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-aubergine-300 bg-white" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button onClick={handleSaveProfile} disabled={saved}
+                className="bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-50 text-white font-bold px-8 py-3 rounded-xl text-sm transition-all shadow-md flex items-center gap-2">
+                {saved ? <><i className="fas fa-check"></i> Saved successfully</> : <><i className="fas fa-floppy-disk"></i> Save Payout Details</>}
               </button>
             </div>
           )}

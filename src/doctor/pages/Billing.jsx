@@ -31,6 +31,8 @@ const PAYMENT_STATUS_TO_DISPLAY = {
 
 /* ─── Payout Modal ───────────────────────────── */
 function PayoutModal({ isOpen, onClose, onRequest, available, currency = 'INR', toast }) {
+  const { user } = useAuth();
+  const payoutDetails = user?.profile?.payout_details || {};
   const [method, setMethod] = useState('Bank Account');
   const [amount, setAmount] = useState('');
   const [step, setStep] = useState(1);
@@ -38,6 +40,15 @@ function PayoutModal({ isOpen, onClose, onRequest, available, currency = 'INR', 
   useEffect(() => { if (isOpen) setAmount(String(available || 0)); }, [isOpen, available]);
 
   const submit = async () => {
+    if (method === 'Bank Account' && !payoutDetails.accountNo) {
+      toast('Please configure your Bank Account details in Profile Settings first.', 'error');
+      return;
+    }
+    if (method === 'UPI' && !payoutDetails.upi) {
+      toast('Please configure your UPI ID in Profile Settings first.', 'error');
+      return;
+    }
+    
     setStep(2);
     try {
       await onRequest(method, amount);
@@ -45,6 +56,12 @@ function PayoutModal({ isOpen, onClose, onRequest, available, currency = 'INR', 
       onClose();
       setStep(1);
     }
+  };
+
+  const getDestinationText = (mId) => {
+    if (mId === 'Bank Account' && payoutDetails.accountNo) return `Ending in ${payoutDetails.accountNo.slice(-4)}`;
+    if (mId === 'UPI' && payoutDetails.upi) return payoutDetails.upi;
+    return <span className="text-rose-500">Not configured</span>;
   };
 
   return (
@@ -75,17 +92,20 @@ function PayoutModal({ isOpen, onClose, onRequest, available, currency = 'INR', 
             <label className="text-xs font-extrabold text-slate-700 mb-1.5 block">Disbursement Rail</label>
             <div className="space-y-2">
               {[
-                { id: 'Bank Account', label: 'Bank Account (IMPS / NEFT / Wire)', icon: 'fa-building-columns' },
-                { id: 'UPI', label: 'UPI Direct Transfer (VPA / QR)', icon: 'fa-mobile-screen' },
-                { id: 'Wallet', label: 'Digital Healthcare Wallet', icon: 'fa-wallet' },
+                { id: 'Bank Account', label: 'Bank Account', icon: 'fa-building-columns' },
+                { id: 'UPI', label: 'UPI Direct Transfer', icon: 'fa-mobile-screen' },
               ].map(m => (
                 <label key={m.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${method === m.id ? 'border-aubergine-500 bg-aubergine-50/50' : 'border-slate-200 hover:border-slate-300'}`}>
                   <input type="radio" name="payout" checked={method === m.id} onChange={() => setMethod(m.id)} className="accent-aubergine-600" />
                   <i className={`fas ${m.icon} text-aubergine-700 text-xs w-4`}></i>
-                  <span className="text-xs font-bold text-slate-800">{m.label}</span>
+                  <div className="flex-1 flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-800">{m.label}</span>
+                    <span className="text-[10px] text-slate-500 bg-white px-2 py-0.5 rounded-full border">{getDestinationText(m.id)}</span>
+                  </div>
                 </label>
               ))}
             </div>
+            <p className="text-[10px] text-slate-400 text-center mt-2">Manage bank details in your Profile Settings.</p>
           </div>
 
           <button 

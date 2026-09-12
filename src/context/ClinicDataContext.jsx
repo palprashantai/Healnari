@@ -47,7 +47,7 @@ export function ClinicDataProvider({ children }) {
     // map backend meds to frontend expected shape
     const meds = prescriptions.map(p => ({
       id: p.id,
-      groupId: p.group_id || p.id, // legacy rows with no group_id are their own single-medicine group
+      groupId: p.group_id || p.groupId || (p.created_at ? `${p.created_at.slice(0,10)}_${p.doctor_id}` : p.id), // fallback for legacy rows without group_id
       diagnosis: p.diagnosis || '',
       name: p.med_name,
       dosage: p.dosage,
