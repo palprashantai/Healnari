@@ -661,7 +661,7 @@ function DoctorProfile() {
                 </div>
               </div>
 
-              <button onClick={handleSaveProfile} disabled={saved}
+              <button onClick={handleSave} disabled={saved}
                 className="bg-aubergine-600 hover:bg-aubergine-700 disabled:opacity-50 text-white font-bold px-8 py-3 rounded-xl text-sm transition-all shadow-md flex items-center gap-2">
                 {saved ? <><i className="fas fa-check"></i> Saved successfully</> : <><i className="fas fa-floppy-disk"></i> Save Payout Details</>}
               </button>
