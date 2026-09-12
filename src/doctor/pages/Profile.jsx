@@ -645,12 +645,16 @@ function DoctorProfile() {
                   {(doc?.profile?.country === 'US' ? [
                     { id: 'routing', label: 'Routing Number', placeholder: '123456789' },
                     { id: 'accountNo', label: 'Account Number', placeholder: '987654321' },
-                  ] : [
+                  ] : doc?.profile?.country === 'IN' ? [
                     { id: 'ifsc', label: 'IFSC Code', placeholder: 'HDFC0001234' },
                     { id: 'accountNo', label: 'Bank Account Number', placeholder: '50100234567890' },
                     { id: 'upi', label: 'UPI ID (Optional)', placeholder: 'doctor@upi' },
+                  ] : [
+                    { id: 'bankName', label: 'Bank Name', placeholder: 'Global Bank' },
+                    { id: 'swift', label: 'SWIFT / BIC Code', placeholder: 'BANKXX33' },
+                    { id: 'iban', label: 'IBAN / Account Number', placeholder: 'AE000000000000000000000' },
                   ]).map(field => (
-                    <div key={field.id} className={field.id === 'upi' ? 'md:col-span-2' : ''}>
+                    <div key={field.id} className={(field.id === 'upi' || field.id === 'iban') ? 'md:col-span-2' : ''}>
                       <label className="text-xs font-bold text-slate-500 mb-1.5 block">{field.label}</label>
                       <input type="text" placeholder={field.placeholder}
                         value={form.payoutDetails?.[field.id] || ''}
