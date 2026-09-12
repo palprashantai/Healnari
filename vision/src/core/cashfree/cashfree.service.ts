@@ -5,6 +5,7 @@ import {
   ServiceUnavailableException,
   BadRequestException,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { ERROR_MESSAGES, ERROR_CODES } from '@/core/constants/errors.constant';
 
 export interface CreateCashfreeOrderParams {
@@ -182,13 +183,15 @@ export class CashfreeService {
     if (!signature || !timestamp) return false;
     try {
       // Replay attack protection: reject if timestamp is older than 5 minutes
-      const timestampMs = parseInt(timestamp, 10);
+      let timestampMs = parseInt(timestamp, 10);
+      if (timestampMs < 20000000000) {
+        timestampMs *= 1000;
+      }
       if (isNaN(timestampMs) || Math.abs(Date.now() - timestampMs) > 5 * 60 * 1000) {
         this.logger.warn(`Webhook rejected: timestamp ${timestamp} is outside the acceptable 5-minute window.`);
         return false;
       }
 
-      const crypto = require('crypto');
       const payload = `${timestamp}${rawBody}`;
       const expected = crypto
         .createHmac('sha256', this.secretKey)

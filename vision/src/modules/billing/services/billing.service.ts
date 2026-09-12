@@ -93,7 +93,8 @@ export class BillingService {
       .from('payments')
       .select()
       .eq(col, user.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(500);
     return this.withNames(data || []);
   }
 
@@ -710,6 +711,9 @@ export class BillingService {
     if (!patient) throw new NotFoundException(ERROR_MESSAGES.PATIENT_NOT_FOUND);
 
     const amount = Number(body.amount);
+    if (amount <= 0) {
+      throw new BadRequestException('Charge amount must be greater than zero.');
+    }
     const currency = (user.profile.currency || 'INR').toUpperCase();
 
     // ── Centralized dynamic global commission (single source of truth from DB) ──
@@ -767,7 +771,8 @@ export class BillingService {
       .from('payouts')
       .select()
       .eq('doctor_id', user.id)
-      .order('requested_at', { ascending: false });
+      .order('requested_at', { ascending: false })
+      .limit(500);
     return data || [];
   }
 

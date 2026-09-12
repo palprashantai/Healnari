@@ -12,7 +12,8 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
+import { diskStorage } from 'multer';
+import * as os from 'os';
 import {
   ApiTags,
   ApiOperation,
@@ -428,7 +429,7 @@ export class AuthController {
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: memoryStorage(),
+      storage: diskStorage({ destination: os.tmpdir() }),
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )

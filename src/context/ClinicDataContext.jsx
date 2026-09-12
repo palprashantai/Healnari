@@ -303,7 +303,11 @@ export function ClinicDataProvider({ children }) {
   /* ── Patients ──────────────────────────────────────────────── */
   const updatePatient = useCallback(async (updated) => {
     // Optimistic
-    setPatients(prev => prev.map(p => (p.id === updated.id ? updated : p)));
+    let prevPatientsSnapshot = [];
+    setPatients(prev => {
+      prevPatientsSnapshot = prev;
+      return prev.map(p => (p.id === updated.id ? updated : p));
+    });
     try {
       const payload = {};
       if (updated.name && typeof updated.name === 'string') payload.name = updated.name.trim();
@@ -345,10 +349,10 @@ export function ClinicDataProvider({ children }) {
       setPatients(prev => prev.map(p => (p.id === updated.id ? { ...adaptPatient(res), bp: updated.bp || p.bp, pulse: updated.pulse || p.pulse, spo2: updated.spo2 || p.spo2, bloodSugar: updated.bloodSugar || p.bloodSugar } : p)));
     } catch (err) {
       console.error(err);
-      fetchData(); // rollback on error
+      setPatients(prevPatientsSnapshot); // rollback on error
       throw err;
     }
-  }, [fetchData]);
+  }, []);
 
   const addPatient = useCallback(async ({ name, phone = '', email = '', blood = '—' }) => {
     try {
@@ -593,17 +597,21 @@ export function ClinicDataProvider({ children }) {
 
   const handleRefillAction = useCallback(async (patientId, medId, action) => {
     // Optimistic update
-    setPatients(prev => prev.map(p => {
-      if (p.id !== patientId) return p;
-      return {
-        ...p,
-        meds: p.meds.map(m => {
-          if (m.id !== medId) return m;
-          if (action === 'approve') return { ...m, refillRequested: false, refillsLeft: m.refillsLeft + 1 };
-          return { ...m, refillRequested: false };
-        }),
-      };
-    }));
+    let prevPatientsSnapshot = [];
+    setPatients(prev => {
+      prevPatientsSnapshot = prev;
+      return prev.map(p => {
+        if (p.id !== patientId) return p;
+        return {
+          ...p,
+          meds: p.meds.map(m => {
+            if (m.id !== medId) return m;
+            if (action === 'approve') return { ...m, refillRequested: false, refillsLeft: m.refillsLeft + 1 };
+            return { ...m, refillRequested: false };
+          }),
+        };
+      });
+    });
 
     try {
       await apiFetch(`/records/prescriptions/${medId}/refill`, {
@@ -626,27 +634,31 @@ export function ClinicDataProvider({ children }) {
       
     } catch (err) {
       console.error(err);
-      fetchData(); // Rollback on error
+      setPatients(prevPatientsSnapshot); // Rollback on error
       throw err;
     }
-  }, [fetchData]);
+  }, []);
 
   const approveRefill = useCallback((patientId, medId) => handleRefillAction(patientId, medId, 'approve'), [handleRefillAction]);
   const rejectRefill = useCallback((patientId, medId) => handleRefillAction(patientId, medId, 'reject'), [handleRefillAction]);
 
   /** Patient-initiated: flags their own prescription line as needing a refill. */
   const requestRefill = useCallback(async (medId) => {
-    setPatients(prev => prev.map(p => ({
-      ...p,
-      meds: p.meds.map(m => (m.id === medId ? { ...m, refillRequested: true } : m)),
-    })));
+    let prevPatientsSnapshot = [];
+    setPatients(prev => {
+      prevPatientsSnapshot = prev;
+      return prev.map(p => ({
+        ...p,
+        meds: p.meds.map(m => (m.id === medId ? { ...m, refillRequested: true } : m)),
+      }));
+    });
     try {
       await apiFetch(`/records/prescriptions/${medId}/request-refill`, { method: 'PUT' });
     } catch (err) {
       console.error(err);
-      fetchData(); // rollback
+      setPatients(prevPatientsSnapshot); // rollback
     }
-  }, [fetchData]);
+  }, []);
 
   const refillRequests = useMemo(() => {
     const out = [];
