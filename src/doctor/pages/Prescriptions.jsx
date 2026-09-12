@@ -2239,6 +2239,11 @@ function DoctorPrescriptions() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('All');
+  const [expandedIds, setExpandedIds] = useState([]);
+
+  const toggleExpand = (id) => {
+    setExpandedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
 
   const handleDeleteRx = async (rx) => {
     if (!rx) return;
@@ -2619,7 +2624,10 @@ function DoctorPrescriptions() {
         )}
         {filtered.map(rx => (
           <div key={rx.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow ${selectedIds.includes(rx.id) ? 'border-aubergine-300 ring-1 ring-aubergine-200' : 'border-slate-200'}`}>
-            <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+            <div 
+              className="p-5 border-b border-slate-100 flex justify-between items-center cursor-pointer hover:bg-slate-50 transition-colors"
+              onClick={() => toggleExpand(rx.id)}
+            >
               <div className="flex items-center gap-3">
                 <label className="cursor-pointer group flex-shrink-0" onClick={e => e.stopPropagation()}>
                   <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedIds.includes(rx.id) ? 'bg-aubergine-600 border-aubergine-600 text-white' : 'bg-white border-slate-300 group-hover:border-aubergine-400'}`}>
@@ -2657,10 +2665,14 @@ function DoctorPrescriptions() {
               <div className="flex items-center gap-3">
                 <span className="font-mono text-[10px] text-slate-500 border border-slate-200 px-2 py-0.5 rounded">{rx.id}</span>
                 <RxStatusBadge rx={rx} />
+                <button className="text-slate-400 hover:text-aubergine-600 transition-colors focus:outline-none ml-2">
+                  <i className={`fas fa-chevron-down transition-transform duration-300 ${expandedIds.includes(rx.id) ? 'rotate-180' : ''}`}></i>
+                </button>
               </div>
             </div>
 
-            <div className="p-5">
+            {expandedIds.includes(rx.id) && (
+            <div className="p-5 animate-fade-in">
               <div className="grid md:grid-cols-2 gap-3 mb-4">
                 {rx.meds.map((m, i) => (
                   <div key={i} className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs">
@@ -2747,6 +2759,7 @@ function DoctorPrescriptions() {
                 </button>
               </div>
             </div>
+            )}
           </div>
         ))}
       </div>
