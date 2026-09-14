@@ -348,49 +348,21 @@ export function generatePrescriptionHtml({
   const parsedDiet = parseDietProtocolText(dietPlan);
 
   const medicinesRowsHtml = parsedMedicines.map((m, idx) => `
-    <tr class="med-item-row">
-      <td class="col-num font-mono">${String(idx + 1).padStart(2, '0')}</td>
-      <td class="col-med">
-        <div class="med-name-line">
-          <span class="med-prefix">${escapeHtml(m.formulation)}</span>
-          <span class="med-main-name">${escapeHtml(m.name)}</span>
-          ${m.strength ? `<span class="med-strength-tag">${escapeHtml(m.strength)}</span>` : ''}
-          ${m.route ? `<span class="med-route-tag">${escapeHtml(m.route)}</span>` : ''}
-          ${m.isSos ? `<span class="med-sos-tag">SOS / PRN</span>` : ''}
+    <tr class="med-item-row" style="border-bottom: 1px solid #e2e8f0;">
+      <td class="col-num" style="padding: 10px 8px; vertical-align: top; font-size: 11px;">${idx + 1})</td>
+      <td class="col-med" style="padding: 10px 8px; vertical-align: top; font-size: 11px;">
+        <div style="font-weight: 700; color: #1e293b;">
+          ${escapeHtml(m.formulation ? m.formulation.toUpperCase() + ' ' : '')}${escapeHtml(m.name)} ${m.strength ? escapeHtml(m.strength) : ''} *
         </div>
-        ${m.indication ? `<div class="med-indication-note"><span class="note-label">For:</span> ${escapeHtml(m.indication)}</div>` : ''}
-        ${m.notes ? `<div class="med-special-note"><span class="note-bullet">▸</span> ${escapeHtml(m.notes)}</div>` : ''}
+        ${m.notes ? `<div style="font-size: 10px; color: #475569; margin-top: 4px;">Notes : ${escapeHtml(m.notes)}</div>` : ''}
       </td>
-      <td class="col-matrix">
-        <div class="matrix-pill-group">
-          <div class="matrix-cell ${m.morning !== '0' && m.morning !== '–' ? 'active-morning' : 'inactive'}">
-            <span class="cell-label">M</span>
-            <span class="cell-val">${escapeHtml(m.morning)}</span>
-          </div>
-          <div class="matrix-cell ${m.afternoon !== '0' && m.afternoon !== '–' ? 'active-afternoon' : 'inactive'}">
-            <span class="cell-label">A</span>
-            <span class="cell-val">${escapeHtml(m.afternoon)}</span>
-          </div>
-          <div class="matrix-cell ${m.night !== '0' && m.night !== '–' ? 'active-night' : 'inactive'}">
-            <span class="cell-label">N</span>
-            <span class="cell-val">${escapeHtml(m.night)}</span>
-          </div>
-        </div>
-        <div class="matrix-sub-schedule">${escapeHtml(m.schedule)}</div>
+      <td class="col-dosage" style="padding: 10px 8px; vertical-align: top; text-align: center; font-size: 11px; font-weight: 600;">
+        ${m.schedule && !/weekly|fortnight|variable/i.test(m.schedule) ? escapeHtml(m.schedule.replace(/-/g, ' - ')) : ''}
       </td>
-      <td class="col-timing">
-        <span class="food-badge ${
-          m.foodTiming.toLowerCase().includes('after') ? 'food-after' :
-          m.foodTiming.toLowerCase().includes('before') ? 'food-before' :
-          m.foodTiming.toLowerCase().includes('bed') ? 'food-bed' : 'food-general'
-        }">
-          ${escapeHtml(m.foodTiming)}
-        </span>
+      <td class="col-timing" style="padding: 10px 8px; vertical-align: top; font-size: 11px; text-align: center;">
+        ${escapeHtml(m.foodTiming)} - ${escapeHtml(m.schedule)} - ${escapeHtml(m.duration)}
       </td>
-      <td class="col-dur">
-        <span class="duration-pill">${escapeHtml(m.duration)}</span>
-      </td>
-      <td class="col-qty font-mono">
+      <td class="col-qty" style="padding: 10px 8px; vertical-align: top; text-align: center; font-size: 11px;">
         ${escapeHtml(m.totalQty || '—')}
       </td>
     </tr>
@@ -996,60 +968,82 @@ export function generatePrescriptionHtml({
           <button onclick="window.close()" class="btn-toolbar-close">Close</button>
         </div>
       </div>
-      <div class="page-container">
-        <header class="clinic-header">
-          <div class="header-top-row">
-            <div class="brand-block">
-              <img src="${logoSvgUrl}" alt="HealNari Logo" class="clinic-brand-logo" onerror="this.onerror=null;this.src='/brand/logo.svg';" />
-              <div class="clinic-sub-details">
-                <div class="clinic-type">Digital Health Clinic</div>
-                <div class="clinic-address">123 Wellness Avenue, Health City</div>
-                <div class="clinic-contacts">support@healnari.app | +1 (800) 000-0000 | care@healnari.com</div>
-              </div>
-            </div>
-            <div class="header-doc-info">
-              <div class="doc-main-title">PRESCRIPTION</div>
-              <div class="doc-meta-table">
-                <div class="doc-meta-row"><span class="meta-field-label">Prescription No:</span><span class="meta-field-val font-mono">${escapeHtml(displayRxId)}</span></div>
-                <div class="doc-meta-row"><span class="meta-field-label">Version:</span><span class="meta-field-val font-mono">v${escapeHtml(String(version))} ${isSuperseded ? '(Superseded)' : isAmended ? '(Amended)' : '(Active)'}</span></div>
-                <div class="doc-meta-row"><span class="meta-field-label">Date:</span><span class="meta-field-val">${escapeHtml(consultationDate)}</span></div>
-                <div class="doc-meta-row"><span class="meta-field-label">Valid Till:</span><span class="meta-field-val">${escapeHtml(validUntilDate)}</span></div>
-              </div>
+      <div class="page-container" style="background: #fff; padding: 30px; border-radius: 0; border: none; box-shadow: none;">
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #cbd5e1; padding-bottom: 15px; margin-bottom: 15px;">
+          <div style="display: flex; gap: 15px; align-items: center;">
+            <img src="${logoSvgUrl}" alt="Clinic Logo" style="height: 50px; max-width: 150px; object-fit: contain;" onerror="this.onerror=null;this.src='/brand/logo.svg';" />
+            <div>
+              <div style="font-size: 24px; font-weight: 800; color: #1e1b4b; letter-spacing: 0.5px;">${escapeHtml(safeOrigin.replace(/^https?:\/\//, '').split('.')[0].toUpperCase() || 'HEALNARI CLINIC')}</div>
+              <div style="font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase;">Multispecialty Care</div>
             </div>
           </div>
-        </header>
-        <div class="body-content">
-          ${isSuperseded ? `<div class="status-banner superseded-banner"><div class="banner-title">⚠️ SUPERSEDED CLINICAL PRESCRIPTION</div><div>This prescription has been amended and replaced.</div></div>` : ''}
-          ${isAmended ? `<div class="status-banner amendment-banner"><div class="banner-title">📋 AMENDED CLINICAL PRESCRIPTION — VERSION ${escapeHtml(String(version))}</div><div><strong>Justification:</strong> ${escapeHtml(amendmentReason || 'Clinical regimen revision')}</div></div>` : ''}
-          <div class="profiles-grid">
-            <div class="profile-card"><div class="profile-card-header">Patient Demographics</div><div class="profile-card-body"><div class="profile-name">${escapeHtml(patientName)}</div><div class="profile-details-row"><span><strong>Age:</strong> ${escapeHtml(patientAge)}</span><span>•</span><span><strong>Gender:</strong> ${escapeHtml(patientGender)}</span></div><div class="diagnosis-box"><span class="diag-label">Clinical Indication / Diagnosis</span><span class="diag-text">${escapeHtml(diagnosis || 'General Clinical Consultation')}</span></div></div></div>
-            <div class="profile-card"><div class="profile-card-header">Prescribing Practitioner</div><div class="profile-card-body"><div class="profile-name">${escapeHtml(doctorName)}</div><div class="doctor-sub-details"><p class="qual">${escapeHtml(doctorQualifications)}</p><p class="spec">${escapeHtml(doctorSpecialty)}</p><p class="reg">Reg No: ${escapeHtml(doctorRegNo)}</p></div></div></div>
+          <div style="text-align: right; color: #334155;">
+            <div style="font-size: 18px; font-weight: 800; color: #1e293b;">${escapeHtml(doctorName)}</div>
+            <div style="font-size: 10px; font-weight: 600;">${escapeHtml(doctorQualifications)}</div>
+            <div style="font-size: 10px; font-weight: 600;">${escapeHtml(doctorSpecialty)}</div>
+            <div style="font-size: 11px; margin-top: 6px; font-weight: 700;">Mob.: +91-9219884868</div>
           </div>
-          <div class="rx-section-header"><div class="rx-title-left"><span class="rx-symbol-inline">℞</span><span class="rx-section-title">Prescribed Medication Regimen</span></div><span class="rx-item-count">${parsedMedicines.length} Medication(s)</span></div>
-          <div class="meds-table-container">
-            <table class="meds-table">
-              <thead><tr><th class="col-num">#</th><th class="col-med">Medication Name, Route & Strength</th><th class="col-matrix">Dosing Matrix (M-A-N)</th><th class="col-timing">When to Take</th><th class="col-dur">Duration</th><th class="col-qty">Quantity</th></tr></thead>
-              <tbody>${medicinesRowsHtml}</tbody>
-            </table>
-          </div>
-          ${parsedDiet && parsedDiet.meals.length > 0 ? `
-            <div class="callout-box diet-callout">
-              <div class="callout-title">Clinical Diet & Nutrition Protocol ${parsedDiet.regimen ? `— ${escapeHtml(parsedDiet.regimen)}` : ''}</div>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 6px;">
-                ${parsedDiet.meals.map(m => `<div style="background: white; border-radius: 4px; padding: 4px 8px; border: 1px solid #d1fae5;"><div style="font-weight:700; font-size:10px;">${escapeHtml(m.time)} — ${escapeHtml(m.meal)}</div><div style="font-size:10px;">${escapeHtml(m.foods)}</div></div>`).join('')}
-              </div>
-            </div>` : dietPlan ? `<div class="callout-box diet-callout"><div class="callout-title">Dietary Advice</div><div>${escapeHtml(dietPlan)}</div></div>` : ''}
-          ${displayInstructions ? `<div class="callout-box notes-callout"><div class="callout-title">Clinical Notes</div><div>${escapeHtml(displayInstructions)}</div></div>` : ''}
-          ${followUpAdvice ? `<div class="callout-box notes-callout"><div class="callout-title">Follow-up Advice</div><div>${escapeHtml(followUpAdvice)}</div></div>` : ''}
-          <div class="callout-box sos-callout"><div class="callout-title">Emergency Advisory</div><div>In case of acute severe symptoms, immediately contact care support (+91 80 4567 8900) or visit an emergency facility.</div></div>
-          <footer class="prescription-footer">
-            <div class="legal-notice-box">
-              <p><strong>Statutory Compliance:</strong> This digital prescription is issued pursuant to the National Telemedicine Practice Guidelines (2020).</p>
-              <div class="security-badge-row"><div class="security-qr-mock">${qrSvg}</div><div><p><strong>Security Hash:</strong> <span class="font-mono" style="font-size: 8px;">SHA256:${escapeHtml(effectiveSigHash.slice(0, 32))}</span></p><p style="font-size: 8px;">Signed: ${escapeHtml(signedAt ? new Date(signedAt).toLocaleString('en-IN') : consultationDate)}</p></div></div>
-            </div>
-            <div class="signature-box"><div class="signature-cursive">${escapeHtml(doctorName)}</div><div class="signature-line">${escapeHtml(doctorName)}</div><div class="signature-verified-pill">Digitally Authenticated</div></div>
-          </footer>
         </div>
+
+        <!-- Patient Info -->
+        <div style="border: 1px solid #cbd5e1; padding: 6px 12px; margin-bottom: 15px; font-size: 10px; font-weight: 700; color: #334155; display: flex; justify-content: space-between;">
+          <span>${escapeHtml(patientMrn)}: ${escapeHtml(patientName).toUpperCase()} (${escapeHtml(patientAge)}, ${escapeHtml(patientGender)}) - ${escapeHtml(patientPhone || '')}</span>
+          <span>Date & Time : ${escapeHtml(consultationDate)} ${escapeHtml(consultationTime)}</span>
+        </div>
+
+        <!-- Vitals & Complaints -->
+        <div style="font-size: 11px; color: #334155; margin-bottom: 15px; line-height: 1.6;">
+          ${(patient?.vitals?.bp || patient?.vitals?.weight) ? `
+          <div style="display: flex; gap: 20px; font-weight: 700;">
+            ${patient?.vitals?.bp ? `<span>BP ${escapeHtml(patient.vitals.bp)}</span>` : ''}
+            ${patient?.vitals?.bp && patient?.vitals?.weight ? `<span>|</span>` : ''}
+            ${patient?.vitals?.weight ? `<span>Weight ${escapeHtml(patient.vitals.weight)}</span>` : ''}
+          </div>
+          ` : ''}
+          ${patient?.complaints ? `<div style="display: flex; gap: 5px; margin-top: 4px;"><strong>Complaints:</strong> <span>${escapeHtml(patient.complaints)}</span></div>` : ''}
+          <div style="display: flex; gap: 5px; margin-top: 4px;"><strong>Diagnosis:</strong> <span>${escapeHtml(diagnosis || 'General')}</span></div>
+          ${displayInstructions && displayInstructions.includes('Tests Prescribed:') ? `<div style="display: flex; gap: 5px; margin-top: 6px;"><strong>Tests Prescribed:</strong> <span style="background: #dcfce7; padding: 1px 6px; font-weight: 700;">${escapeHtml(displayInstructions.split('Tests Prescribed:')[1].trim())}</span></div>` : ''}
+        </div>
+
+        <div style="font-size: 18px; font-family: serif; font-weight: 800; margin-bottom: 8px; color: #334155;">℞</div>
+
+        <!-- Medicines Table -->
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
+          <thead>
+            <tr style="border-top: 1px solid #94a3b8; border-bottom: 1px solid #94a3b8;">
+              <th style="padding: 6px 8px; text-align: left; font-size: 11px; font-weight: 700; color: #334155; width: 45%;" colspan="2">Medicine</th>
+              <th style="padding: 6px 8px; text-align: center; font-size: 11px; font-weight: 700; color: #334155; width: 15%;">Dosage</th>
+              <th style="padding: 6px 8px; text-align: center; font-size: 11px; font-weight: 700; color: #334155; width: 30%;">Timing - Freq. - Duration</th>
+              <th style="padding: 6px 8px; text-align: center; font-size: 11px; font-weight: 700; color: #334155; width: 10%;">Qty</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${medicinesRowsHtml}
+          </tbody>
+        </table>
+
+        <!-- Other Info -->
+        ${parsedDiet && parsedDiet.meals.length > 0 ? `
+          <div style="margin-bottom: 15px;">
+            <strong style="font-size:11px; color:#334155;">Diet Protocol:</strong>
+            <div style="font-size:10px; color:#475569; display: flex; gap: 10px; flex-wrap: wrap;">
+              ${parsedDiet.meals.map(m => `<span><strong>${escapeHtml(m.time)}:</strong> ${escapeHtml(m.foods)}</span>`).join(' | ')}
+            </div>
+          </div>` : ''}
+        
+        ${displayInstructions && !displayInstructions.includes('Tests Prescribed:') ? `<div style="font-size:11px; margin-bottom: 10px;"><strong>Notes:</strong> ${escapeHtml(displayInstructions)}</div>` : ''}
+        
+        <footer style="margin-top: 40px; border-top: 1px solid #cbd5e1; padding-top: 15px; display: flex; justify-content: space-between; align-items: flex-end;">
+          <div style="font-size: 9px; color: #64748b; width: 60%;">
+            Powered by HealNari EMR.<br/>
+            Security Hash: SHA256:${escapeHtml(effectiveSigHash.slice(0, 32))}
+          </div>
+          <div style="text-align: right; width: 35%;">
+            <div style="font-family: Georgia, serif; font-size: 18px; color: #1e293b; font-style: italic; margin-bottom: 5px;">${escapeHtml(doctorName)}</div>
+            <div style="font-size: 10px; font-weight: 700; color: #334155; border-top: 1px solid #334155; padding-top: 3px;">${escapeHtml(doctorName)}</div>
+          </div>
+        </footer>
       </div>
     </body>
     </html>

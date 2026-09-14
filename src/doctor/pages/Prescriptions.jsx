@@ -56,7 +56,7 @@ function BulkMessageModal({ isOpen, onClose, channel, selectedCount, onSend }) {
   );
 }
 
-const SCHEDULE_PRESETS = ['1-0-1', '1-1-1', '1-0-0', '0-0-1', '0-1-0', 'SOS'];
+const SCHEDULE_PRESETS = ['1-0-1', '1-1-1', '1-0-0', '0-0-1', '0-1-0', 'SOS', 'Weekly', 'Twice a week', 'Fortnightly', 'Alternate days', 'Variable'];
 
 const STATUS_TABS = ['All', 'Active', 'Expiring Soon', 'Refill Requested', 'Expired'];
 
@@ -645,9 +645,11 @@ function WriteRxPage({ onBack, onSave, patients, amendTarget = null }) {
           quantity: m.quantity || '',
           refills: m.refillsAuthorized || m.refillsLeft || 0,
           indication: m.indication || '',
+          instructions: m.instructions || '',
           isSos: !!m.isSos,
         })),
         instructions: amendTarget.instructions || '',
+        testsPrescribed: '',
         dietPlan: amendTarget.dietPlan || '',
         exercisePlan: amendTarget.exercisePlan || '',
         followUpAdvice: amendTarget.followUpAdvice || '',
@@ -673,9 +675,11 @@ function WriteRxPage({ onBack, onSave, patients, amendTarget = null }) {
         quantity: '', 
         refills: 0, 
         indication: '', 
+        instructions: '',
         isSos: false 
       }], 
       instructions: '',
+      testsPrescribed: '',
       dietPlan: '',
       exercisePlan: '',
       followUpAdvice: '',
@@ -968,8 +972,15 @@ function WriteRxPage({ onBack, onSave, patients, amendTarget = null }) {
   const executeSave = async (justification = '') => {
     setSubmitting(true);
     try {
+      let finalInstructions = form.instructions || '';
+      if (form.testsPrescribed && form.testsPrescribed.trim()) {
+         finalInstructions = finalInstructions 
+           ? `${finalInstructions}\n\nTests Prescribed: ${form.testsPrescribed.trim()}` 
+           : `Tests Prescribed: ${form.testsPrescribed.trim()}`;
+      }
       await onSave({
         ...form,
+        instructions: finalInstructions,
         mode: rxMode,
         handwrittenImage: form.handwrittenImage,
         uploadedFile,
@@ -1596,6 +1607,18 @@ function WriteRxPage({ onBack, onSave, patients, amendTarget = null }) {
                         </div>
                       </div>
 
+                      {/* Row 4: Custom Instructions / Variable Dosage */}
+                      <div className="pt-2 text-xs">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Medication Instructions (Variable Dosage / Notes)</label>
+                        <input
+                          type="text"
+                          value={med.instructions || ''}
+                          onChange={e => updateMed(i, 'instructions', e.target.value)}
+                          placeholder="e.g. 1/2 tablet daily for 1 month, then 1/2 tablet on alternate days"
+                          className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-aubergine-300"
+                        />
+                      </div>
+
                       {/* Dynamic Real-time Allergy Alert per medication */}
                       {medConflict && (
                         <div className="px-3 py-1.5 bg-rose-100 border border-rose-300 text-rose-900 text-[11px] rounded-lg font-bold flex items-center gap-2 shadow-xs">
@@ -1734,6 +1757,18 @@ function WriteRxPage({ onBack, onSave, patients, amendTarget = null }) {
                   ))}
                 </div>
               )}
+
+              {/* Custom / Additional Tests Prescribed */}
+              <div className="pt-2 border-t border-slate-100">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Additional / Custom Tests Prescribed</label>
+                <textarea
+                  rows={2}
+                  value={form.testsPrescribed}
+                  onChange={e => setForm(p => ({ ...p, testsPrescribed: e.target.value }))}
+                  placeholder="e.g. CBC, ESR, SGOT, SGPT, CREATININE"
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-aubergine-300 resize-y"
+                />
+              </div>
             </div>
 
             {/* ── 🌿 Diet & Clinical Nutrition Plan (Doctor / Nutritionist) ── */}
