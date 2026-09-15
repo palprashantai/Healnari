@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import ProviderHeader from '../components/ProviderHeader.jsx';
 import ProviderHero from '../components/ProviderHero.jsx';
 import ProviderApplyModal from '../components/ProviderApplyModal.jsx';
@@ -39,31 +40,6 @@ function DoctorLandingPage() {
       trackEvent(AnalyticsEvents.DOCTOR_LANDING_VIEWED, { funnel: 'provider' });
     });
 
-    const originalTitle = document.title;
-    const docTitle = "Telemedicine Platform for Multi-Specialty Doctors & Clinicians | Direct Net Payouts + AI EMR | HealNari";
-    const docDesc = "Grow your clinical practice with zero clinic overhead. HealNari connects verified General Physicians, Dermatologists, Endocrinologists, Gynecologists, Dietitians & Mental Health professionals with high-intent patients. Built-in AI EMR, digital Rx & weekly direct payouts.";
-    const docUrl = "https://healnari.vercel.app/for-doctors";
-
-    document.title = docTitle;
-
-    // Helper to update meta tag content
-    const updateMeta = (selector, content, attr = 'content') => {
-      let el = document.querySelector(selector);
-      const original = el ? el.getAttribute(attr) : null;
-      if (el) {
-        el.setAttribute(attr, content);
-      }
-      return { el, original };
-    };
-
-    const prevDesc = updateMeta('meta[name="description"]', docDesc);
-    const prevOgTitle = updateMeta('meta[property="og:title"]', docTitle);
-    const prevOgDesc = updateMeta('meta[property="og:description"]', docDesc);
-    const prevOgUrl = updateMeta('meta[property="og:url"]', docUrl);
-    const prevCanonical = updateMeta('link[rel="canonical"]', docUrl, 'href');
-    const prevTwTitle = updateMeta('meta[name="twitter:title"]', docTitle);
-    const prevTwDesc = updateMeta('meta[name="twitter:description"]', docDesc);
-
     // Scroll listener for mobile sticky CTA
     const handleScroll = () => {
       if (window.scrollY > 400) {
@@ -74,62 +50,8 @@ function DoctorLandingPage() {
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
 
-    // JSON-LD Structured Data Schema for Provider Network & EMR Application
-    const schemaScript = document.createElement('script');
-    schemaScript.type = 'application/ld+json';
-    schemaScript.id = 'healnari-doctor-schema';
-    schemaScript.text = JSON.stringify({
-      "@context": "https://schema.org",
-      "@graph": [
-        {
-          "@type": "MedicalOrganization",
-          "@id": "https://healnari.vercel.app/for-doctors#organization",
-          "name": "HealNari Provider Network",
-          "url": "https://healnari.vercel.app/for-doctors",
-          "logo": "https://healnari.vercel.app/brand/logo-full.jpg",
-          "medicalSpecialty": [
-            "https://schema.org/PrimaryCare",
-            "https://schema.org/Gynecologic",
-            "https://schema.org/Endocrine",
-            "https://schema.org/Dermatology",
-            "https://schema.org/DietNutrition"
-          ],
-          "description": "Multi-specialty digital clinic platform enabling licensed General Physicians, Gynaecologists, Endocrinologists, Dermatologists, Trichologists, Dietitians, and Mental Health Professionals to deliver evidence-based care with integrated AI-assisted EMR.",
-          "knowsAbout": ["General Medicine", "Primary Care", "Women's Health", "PCOS", "Endocrine Disorders", "Trichology", "Dermatology", "Clinical Nutrition", "Telemedicine"],
-          "aggregateRating": {
-            "@type": "AggregateRating",
-            "ratingValue": "4.96",
-            "reviewCount": "184"
-          }
-        },
-        {
-          "@type": "SoftwareApplication",
-          "name": "HealNari Doctor Clinical EMR & Telehealth Suite",
-          "applicationCategory": "HealthApplication",
-          "operatingSystem": "Web, iOS, Android, PWA",
-          "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "INR",
-            "description": "Zero upfront setup fees and zero monthly software subscriptions."
-          }
-        }
-      ]
-    });
-    document.head.appendChild(schemaScript);
-
     return () => {
-      document.title = originalTitle;
-      if (prevDesc.el && prevDesc.original) prevDesc.el.setAttribute('content', prevDesc.original);
-      if (prevOgTitle.el && prevOgTitle.original) prevOgTitle.el.setAttribute('content', prevOgTitle.original);
-      if (prevOgDesc.el && prevOgDesc.original) prevOgDesc.el.setAttribute('content', prevOgDesc.original);
-      if (prevOgUrl.el && prevOgUrl.original) prevOgUrl.el.setAttribute('content', prevOgUrl.original);
-      if (prevCanonical.el && prevCanonical.original) prevCanonical.el.setAttribute('href', prevCanonical.original);
-      if (prevTwTitle.el && prevTwTitle.original) prevTwTitle.el.setAttribute('content', prevTwTitle.original);
-      if (prevTwDesc.el && prevTwDesc.original) prevTwDesc.el.setAttribute('content', prevTwDesc.original);
       window.removeEventListener('scroll', handleScroll);
-      const existingSchema = document.getElementById('healnari-doctor-schema');
-      if (existingSchema) existingSchema.remove();
     };
   }, []);
 
@@ -140,22 +62,7 @@ function DoctorLandingPage() {
       .catch(console.error);
   }, []);
 
-  // Update SEO dynamically if configured in admin landing manager
-  useEffect(() => {
-    if (!adminSettings) return;
-    const seo = adminSettings?.seoMetadata?.provider;
-    if (seo?.metaTitle) {
-      document.title = seo.metaTitle;
-      const ogTitle = document.querySelector('meta[property="og:title"]');
-      if (ogTitle) ogTitle.setAttribute('content', seo.metaTitle);
-    }
-    if (seo?.metaDesc) {
-      const desc = document.querySelector('meta[name="description"]');
-      if (desc) desc.setAttribute('content', seo.metaDesc);
-      const ogDesc = document.querySelector('meta[property="og:description"]');
-      if (ogDesc) ogDesc.setAttribute('content', seo.metaDesc);
-    }
-  }, [adminSettings]);
+  // Using Helmet now, we don't need the manual document.title effect anymore.
 
   const toggleFaq = (idx) => {
     setActiveFaq(prev => (prev === idx ? null : idx));
@@ -209,6 +116,43 @@ function DoctorLandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col font-sans selection:bg-aubergine-100 selection:text-aubergine-900 min-w-0 w-full max-w-[100vw] bg-[#FDFBF7]">
+      <Helmet>
+        <title>{adminSettings?.seoMetadata?.provider?.metaTitle || "Start Your Online Clinic & Digital Practice | HealNari For Doctors"}</title>
+        <meta name="description" content={adminSettings?.seoMetadata?.provider?.metaDesc || "Launch your online clinic and digital practice with zero overhead. HealNari connects verified doctors with high-intent patients. Built-in AI EMR & direct payouts."} />
+        <meta name="keywords" content="online clinic, online practice, digital clinic, telemedicine platform for doctors, online doctor consultation platform" />
+        <meta property="og:title" content="Start Your Online Clinic & Digital Practice | HealNari For Doctors" />
+        <meta property="og:description" content="Launch your online clinic and digital practice with zero overhead. HealNari connects verified doctors with high-intent patients." />
+        <meta property="og:url" content="https://healnari.vercel.app/for-doctors" />
+        <link rel="canonical" href="https://healnari.vercel.app/for-doctors" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@graph": [
+              {
+                "@type": "MedicalOrganization",
+                "@id": "https://healnari.vercel.app/for-doctors#organization",
+                "name": "HealNari Provider Network",
+                "url": "https://healnari.vercel.app/for-doctors",
+                "logo": "https://healnari.vercel.app/brand/logo-full.jpg",
+                "medicalSpecialty": [
+                  "https://schema.org/PrimaryCare",
+                  "https://schema.org/Gynecologic",
+                  "https://schema.org/Endocrine",
+                  "https://schema.org/Dermatology",
+                  "https://schema.org/DietNutrition"
+                ],
+                "description": "Multi-specialty online clinic platform enabling doctors to launch their digital practice and deliver telemedicine with integrated AI-assisted EMR.",
+                "knowsAbout": ["Online Clinic", "Digital Practice", "Telemedicine", "Virtual Care"],
+                "aggregateRating": {
+                  "@type": "AggregateRating",
+                  "ratingValue": "4.96",
+                  "reviewCount": "184"
+                }
+              }
+            ]
+          })}
+        </script>
+      </Helmet>
       <ScrollProgressBar />
 
       {adminSettings?.toggles?.showEmergencyBanner && (

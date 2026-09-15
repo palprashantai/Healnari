@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import { useParams, Navigate, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import Header from '../components/Header.jsx';
 import { glossaryData } from '../data/glossary.js';
 import { conditionsData } from '../data/conditions.js';
@@ -92,68 +93,9 @@ function GlossaryArticle() {
       slug,
       title: article.title,
     });
-    
-    // Dynamic SEO, Canonical & Meta
-    const originalTitle = document.title;
-    document.title = article.seoTitle;
-
-    const updateMeta = (selector, content, attr = 'content') => {
-      let el = document.querySelector(selector);
-      const original = el ? el.getAttribute(attr) : null;
-      if (el) el.setAttribute(attr, content);
-      return { el, original };
-    };
-
-    const canonicalUrl = `https://healnari.vercel.app/learn/${slug}`;
-    const prevDesc = updateMeta('meta[name="description"]', article.seoDescription);
-    const prevOgTitle = updateMeta('meta[property="og:title"]', article.seoTitle);
-    const prevOgDesc = updateMeta('meta[property="og:description"]', article.seoDescription);
-    const prevOgUrl = updateMeta('meta[property="og:url"]', canonicalUrl);
-    const prevCanonical = updateMeta('link[rel="canonical"]', canonicalUrl, 'href');
-
-    // Schema
-    const schemaScript = document.createElement('script');
-    schemaScript.type = 'application/ld+json';
-    schemaScript.id = 'healnari-article-schema';
-    schemaScript.text = JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "MedicalWebPage",
-      "headline": article.title,
-      "description": article.seoDescription,
-      "url": canonicalUrl,
-      "dateModified": article.lastReviewed || "2026-01-15",
-      "author": {
-        "@type": "Person",
-        "name": article.author?.name || "Dr. Sarah Mitchell",
-        "jobTitle": article.author?.role || "Lead Endocrinologist & Medical Advisory Board"
-      },
-      "reviewedBy": {
-        "@type": "Person",
-        "name": article.reviewedBy?.name || article.author?.name || "Dr. Sarah Mitchell",
-        "jobTitle": article.reviewedBy?.role || "Lead Endocrinologist"
-      },
-      "publisher": {
-        "@type": "MedicalOrganization",
-        "name": "HealNari",
-        "logo": {
-          "@type": "ImageObject",
-          "url": "https://healnari.vercel.app/brand/logo-full.jpg"
-        }
-      }
-    });
-    document.head.appendChild(schemaScript);
-
-    return () => {
-      document.title = originalTitle;
-      if (prevDesc?.el && prevDesc?.original) prevDesc.el.setAttribute('content', prevDesc.original);
-      if (prevOgTitle?.el && prevOgTitle?.original) prevOgTitle.el.setAttribute('content', prevOgTitle.original);
-      if (prevOgDesc?.el && prevOgDesc?.original) prevOgDesc.el.setAttribute('content', prevOgDesc.original);
-      if (prevOgUrl?.el && prevOgUrl?.original) prevOgUrl.el.setAttribute('content', prevOgUrl.original);
-      if (prevCanonical?.el && prevCanonical?.original) prevCanonical.el.setAttribute('href', prevCanonical.original);
-      const script = document.getElementById('healnari-article-schema');
-      if (script) document.head.removeChild(script);
-    };
   }, [article, slug]);
+
+  const canonicalUrl = `https://healnari.vercel.app/learn/${slug}`;
 
   const handleShare = () => {
     if (navigator.share) {
@@ -202,6 +144,42 @@ function GlossaryArticle() {
 
   return (
     <div className="bg-[#F8F6FC] min-h-screen font-sans flex flex-col selection:bg-aubergine-100 selection:text-aubergine-900 relative">
+      <Helmet>
+        <title>{article.seoTitle}</title>
+        <meta name="description" content={article.seoDescription} />
+        <meta property="og:title" content={article.seoTitle} />
+        <meta property="og:description" content={article.seoDescription} />
+        <meta property="og:url" content={canonicalUrl} />
+        <link rel="canonical" href={canonicalUrl} />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "MedicalWebPage",
+            "headline": article.title,
+            "description": article.seoDescription,
+            "url": canonicalUrl,
+            "dateModified": article.lastReviewed || "2026-01-15",
+            "author": {
+              "@type": "Person",
+              "name": article.author?.name || "Dr. Sarah Mitchell",
+              "jobTitle": article.author?.role || "Lead Endocrinologist & Medical Advisory Board"
+            },
+            "reviewedBy": {
+              "@type": "Person",
+              "name": article.reviewedBy?.name || article.author?.name || "Dr. Sarah Mitchell",
+              "jobTitle": article.reviewedBy?.role || "Lead Endocrinologist"
+            },
+            "publisher": {
+              "@type": "MedicalOrganization",
+              "name": "HealNari",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "https://healnari.vercel.app/brand/logo-full.jpg"
+              }
+            }
+          })}
+        </script>
+      </Helmet>
       <ScrollProgressBar />
 
       <Header 
