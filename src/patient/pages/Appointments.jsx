@@ -22,7 +22,12 @@ import { DoctorShareModal } from '../../components/DoctorShareModal.jsx';
 function VideoTile({ stream, muted = false, mirrored = false, className = '' }) {
   const ref = useRef(null);
   useEffect(() => {
-    if (ref.current) ref.current.srcObject = stream || null;
+    if (ref.current) {
+      ref.current.srcObject = stream || null;
+      if (stream) {
+        ref.current.play().catch(() => {});
+      }
+    }
   }, [stream]);
   if (!stream) return null;
   return (
@@ -597,6 +602,8 @@ function fmtDuration(s) {
 }
 
 function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoin = false }) {
+  const navigate = useNavigate();
+  const { refreshAppointments, refreshPatientsOnly } = useClinicData();
   const [joined, setJoined] = useState(false);
   const call = useWebRTCCall({ appointmentId, active: joined });
   const { callDeclinedId, clearCallDeclined } = useNotifications() || {};
@@ -624,8 +631,21 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
     call.hangUp();
     setJoined(false);
     onClose();
+    window.dispatchEvent(new CustomEvent('healnari_appointments_updated'));
+    window.dispatchEvent(new CustomEvent('healnari_prescription_updated'));
+    refreshAppointments?.();
+    refreshPatientsOnly?.();
     toast('Call ended.', 'info');
   };
+
+  useEffect(() => {
+    if (call.isDoctorEnded) {
+      window.dispatchEvent(new CustomEvent('healnari_appointments_updated'));
+      window.dispatchEvent(new CustomEvent('healnari_prescription_updated'));
+      refreshAppointments?.();
+      refreshPatientsOnly?.();
+    }
+  }, [call.isDoctorEnded, refreshAppointments, refreshPatientsOnly]);
 
   // The doctor declined this call (they were rung by our join()) — hang up
   // on our side too, like a real phone call, instead of leaving this modal
@@ -773,14 +793,26 @@ function VideoCallModal({ isOpen, onClose, doctor, appointmentId, toast, autoJoi
             </div>
             <h3 className="font-black text-xl text-white">Consultation Concluded</h3>
             <p className="text-slate-400 text-sm mt-2 max-w-sm">
-              Your doctor has concluded this consultation. Your prescription and consultation notes are being generated and will appear in your portal shortly.
+              Your doctor has concluded this consultation. Your official prescription and consultation notes are ready and available in your portal.
             </p>
-            <button
-              onClick={end}
-              className="mt-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3 rounded-xl text-sm transition-all shadow-lg"
-            >
-              Close & View Prescriptions
-            </button>
+            <div className="flex flex-col sm:flex-row items-center gap-3 mt-6">
+              <button
+                onClick={() => {
+                  end();
+                  navigate('/patient-dashboard/prescriptions');
+                }}
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold px-6 py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2"
+              >
+                <i className="fas fa-file-prescription text-base"></i>
+                <span>View & Download Prescription</span>
+              </button>
+              <button
+                onClick={end}
+                className="bg-white/10 hover:bg-white/20 text-white font-medium px-5 py-3.5 rounded-xl text-sm transition-all"
+              >
+                Close
+              </button>
+            </div>
           </div>
         )}
 
@@ -1192,14 +1224,16 @@ function PatientAppointments() {
     };
   };
 
+  const isPaidOrFree = (a) => paidAppointmentIds.has(a.id) || !!a.paymentId || a.fee === 0 || a.patient_payable_amount === 0;
+
   const pendingRequests = useMemo(() => appointments
-    .filter(a => ['Requested', 'Approved', 'HOLD'].includes(a.status) || (!a.paymentId && !paidAppointmentIds.has(a.id) && !['Done', 'Cancelled', 'No Show'].includes(a.status)))
+    .filter(a => ['Requested', 'Approved', 'HOLD'].includes(a.status) || (!isPaidOrFree(a) && !['Done', 'Cancelled', 'No Show', 'Waiting', 'In Progress'].includes(a.status)))
     .map(toRow)
     .sort((a, b) => (a.date || '').localeCompare(b.date || '')),
     [appointments, doctorById, paidAppointmentIds]);
 
   const upcoming = useMemo(() => appointments
-    .filter(a => ['Upcoming', 'Waiting', 'In Progress'].includes(a.status) && (a.paymentId || paidAppointmentIds.has(a.id)))
+    .filter(a => ['Upcoming', 'Waiting', 'In Progress'].includes(a.status) && (isPaidOrFree(a) || ['Waiting', 'In Progress'].includes(a.status)))
     .map(toRow)
     .sort((a, b) => (a.date || '').localeCompare(b.date || '')),
     [appointments, doctorById, paidAppointmentIds]);
@@ -1415,8 +1449,8 @@ function PatientAppointments() {
         hours = parseInt(parts[0] || '0', 10);
         minutes = parseInt(parts[1] || '0', 10);
       }
-      const aptTime = new Date(apt.date);
-      aptTime.setHours(hours, minutes, 0, 0);
+      const [y, mon, d] = apt.date.split('-').map(Number);
+      const aptTime = new Date(y, (mon || 1) - 1, d || 1, hours, minutes, 0, 0);
       const diffMs = aptTime.getTime() - nowTime.getTime();
       // Joinable from 15 minutes before slot up to 90 minutes after
       return diffMs <= 15 * 60 * 1000 && diffMs >= -90 * 60 * 1000;

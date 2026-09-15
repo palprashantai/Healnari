@@ -2,8 +2,22 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { getTokens, apiFetch } from '../lib/apiClient.js';
 
-const RAW_API_URL = import.meta.env.VITE_API_URL;
-const SOCKET_URL = RAW_API_URL ? RAW_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:5000';
+function resolveSocketUrl() {
+  const raw = import.meta.env.VITE_API_URL;
+  if (raw) {
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      return raw.replace(/\/api\/?$/, '');
+    }
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      return window.location.origin;
+    }
+  }
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return 'http://localhost:5000';
+}
+const SOCKET_URL = resolveSocketUrl();
 
 // Fallback if the backend's /telemedicine/ice-servers call fails outright —
 // public STUN only, enough for most home/office networks. The backend
@@ -61,6 +75,30 @@ export function useWebRTCCall({ appointmentId, active }) {
   const makingOfferRef = useRef(false);
   const ignoreOfferRef = useRef(false);
   const elapsedRef = useRef(0);
+
+  const cleanupMediaAndPeer = useCallback(() => {
+    clearInterval(qualityIntervalRef.current);
+    clearInterval(heartbeatIntervalRef.current);
+    clearInterval(countdownIntervalRef.current);
+    qualityIntervalRef.current = null;
+    heartbeatIntervalRef.current = null;
+    countdownIntervalRef.current = null;
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((t) => {
+        try { t.stop(); } catch {}
+      });
+      localStreamRef.current = null;
+    }
+    cameraTrackRef.current = null;
+    setLocalStream(null);
+    setRemoteStream(null);
+
+    if (pcRef.current) {
+      try { pcRef.current.close(); } catch {}
+      pcRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (!active || !appointmentId) return undefined;
@@ -165,7 +203,8 @@ export function useWebRTCCall({ appointmentId, active }) {
 
         pc.ontrack = (e) => {
           log('Remote track received:', e.track.kind);
-          setRemoteStream(e.streams[0]);
+          const stream = (e.streams && e.streams[0]) ? e.streams[0] : new MediaStream([e.track]);
+          setRemoteStream(new MediaStream(stream.getTracks()));
         };
 
         pc.oniceconnectionstatechange = () => {
@@ -275,6 +314,7 @@ export function useWebRTCCall({ appointmentId, active }) {
           log('Duplicate session notification received:', message);
           setError(message || 'Consultation was opened in another window or device.');
           setDuplicateSession(true);
+          cleanupMediaAndPeer();
           setConnectionState('failed');
         });
 
@@ -380,7 +420,7 @@ export function useWebRTCCall({ appointmentId, active }) {
 
         socket.on('call:ended', () => {
           log('call:ended received (consultation completed)');
-          clearInterval(countdownIntervalRef.current);
+          cleanupMediaAndPeer();
           setConnectionState('ended');
           setIsDoctorEnded(true);
         });
@@ -406,20 +446,8 @@ export function useWebRTCCall({ appointmentId, active }) {
       socketRef.current?.emit('call:leave', { appointmentId });
       socketRef.current?.disconnect();
       socketRef.current = null;
-      pcRef.current?.close();
-      pcRef.current = null;
-      localStreamRef.current?.getTracks().forEach((t) => t.stop());
-      localStreamRef.current = null;
-      cameraTrackRef.current = null;
+      cleanupMediaAndPeer();
       pendingCandidatesRef.current = [];
-      clearInterval(qualityIntervalRef.current);
-      clearInterval(heartbeatIntervalRef.current);
-      clearInterval(countdownIntervalRef.current);
-      qualityIntervalRef.current = null;
-      heartbeatIntervalRef.current = null;
-      countdownIntervalRef.current = null;
-      setLocalStream(null);
-      setRemoteStream(null);
       setConnectionState('idle');
       setConnectionQuality(null);
       setIsMuted(false);
@@ -431,7 +459,7 @@ export function useWebRTCCall({ appointmentId, active }) {
       setReconnecting(false);
       setReconnectCountdown(null);
     };
-  }, [active, appointmentId]);
+  }, [active, appointmentId, cleanupMediaAndPeer]);
 
   const toggleMute = useCallback(() => {
     if (!localStreamRef.current) return;
@@ -502,14 +530,17 @@ export function useWebRTCCall({ appointmentId, active }) {
 
   const hangUp = useCallback(() => {
     socketRef.current?.emit('call:leave', { appointmentId });
+    cleanupMediaAndPeer();
     setConnectionState('ended');
-  }, [appointmentId]);
+  }, [appointmentId, cleanupMediaAndPeer]);
 
   /** Doctor explicitly concludes consultation */
   const endConsultation = useCallback(() => {
     socketRef.current?.emit('call:end', { appointmentId });
+    cleanupMediaAndPeer();
     setConnectionState('ended');
-  }, [appointmentId]);
+    setIsDoctorEnded(true);
+  }, [appointmentId, cleanupMediaAndPeer]);
 
   return {
     localStream, remoteStream, connectionState, connectionQuality, error,

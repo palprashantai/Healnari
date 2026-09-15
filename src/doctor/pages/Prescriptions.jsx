@@ -2215,8 +2215,8 @@ function WriteRxPage({ onBack, onSave, patients, amendTarget = null }) {
  * gets three cards, each with that visit's own medicines and diagnosis. */
 function toRxCards(patients) {
   const cards = [];
-  patients.forEach(p => {
-    if (!p.meds.length) return;
+  (patients || []).forEach(p => {
+    if (!p.meds || !p.meds.length) return;
     const byGroup = new Map();
     p.meds.forEach(m => {
       if (!byGroup.has(m.groupId)) byGroup.set(m.groupId, []);
@@ -2228,6 +2228,7 @@ function toRxCards(patients) {
         patientId: p.id,
         patient: p.name,
         date: meds[0]?.prescribedOn || '',
+        dateRaw: meds[0]?.prescribedOnRaw || meds[0]?.created_at || '',
         diagnosis: meds.find(m => m.diagnosis)?.diagnosis || (p.diagnosis && p.diagnosis !== 'Pending' ? p.diagnosis : 'General'),
         status: meds[0]?.status || (meds.some(m => m.refillsLeft > 0) ? 'Active' : 'Expired'),
         validTill: meds.reduce((latest, m) => (!latest || (m.validTill && m.validTill > latest)) ? m.validTill : latest, ''),
@@ -2258,7 +2259,7 @@ function toRxCards(patients) {
       });
     });
   });
-  return cards.sort((a, b) => new Date(b.date) - new Date(a.date));
+  return cards.sort((a, b) => (new Date(b.dateRaw || b.date) - new Date(a.dateRaw || a.date)) || 0);
 }
 
 function DoctorPrescriptions() {
@@ -2386,9 +2387,13 @@ function DoctorPrescriptions() {
 
     const patient = patients.find(p => p.id === rx.patientId);
     openPrescriptionPrintWindow({
-      rxId: `RX-${rx.id.slice(0, 8).toUpperCase()}`,
+      rxId: `RX-${String(rx.id).slice(0, 8).toUpperCase()}`,
       date: rx.date,
-      doctor: { name: user?.name, specialty: user?.specialty, regNo: user?.regNo },
+      doctor: {
+        name: user?.name || user?.full_name || user?.profile?.full_name,
+        specialty: user?.specialty || user?.profile?.specialty,
+        regNo: user?.regNo || user?.registrationNo || user?.profile?.registration_no,
+      },
       patient: {
         name: rx.patient,
         age: patient?.age !== '—' ? patient?.age : null,

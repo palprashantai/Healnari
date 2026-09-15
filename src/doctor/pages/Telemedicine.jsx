@@ -22,7 +22,12 @@ import { triggerHaptic } from '../../lib/haptics.js';
 function VideoTile({ stream, muted = false, mirrored = false, className = '' }) {
   const ref = useRef(null);
   useEffect(() => {
-    if (ref.current) ref.current.srcObject = stream || null;
+    if (ref.current) {
+      ref.current.srcObject = stream || null;
+      if (stream) {
+        ref.current.play().catch(() => {});
+      }
+    }
   }, [stream]);
   if (!stream) return null;
   return (
@@ -771,6 +776,7 @@ function ActiveCallUI({ session, onEnd, onCancel, onDeclined, autoJoin = false }
   // Modals
   const [showSignModal, setShowSignModal] = useState(false);
   const [previewReportModal, setPreviewReportModal] = useState(null);
+  const [isFinalizing, setIsFinalizing] = useState(false);
 
   useEffect(() => {
     if (callDeclinedId !== session.id) return;
@@ -1227,8 +1233,9 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
   // Finalize consultation — serialises the full structured diet/yoga plan
   // alongside the plain-text fallback fields so the patient portal can render
   // rich meal timetables and asana cards rather than raw text blocks.
-  const finalizeConsult = () => {
-    call.hangUp();
+  const finalizeConsult = async () => {
+    if (isFinalizing) return;
+    setIsFinalizing(true);
     let finalMeds = [...draftMeds];
     if (freehandRx && freehandRx.startsWith('data:image')) {
       finalMeds.push({
@@ -1278,14 +1285,21 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
       cardio: structuredYoga.cardio,
       precautions: structuredYoga.precautions,
     });
-    onEnd(structuredNotes, finalMeds, draftLabs, {
-      diagnosis,
-      freehandRx,
-      clinicalNotes,
-      dietPlan: finalDietText || dietPlan,
-      exercisePlan: finalYogaText || exercisePlan,
-      followUpAdvice
-    });
+
+    try {
+      await onEnd(structuredNotes, finalMeds, draftLabs, {
+        diagnosis,
+        freehandRx,
+        clinicalNotes,
+        dietPlan: finalDietText || dietPlan,
+        exercisePlan: finalYogaText || exercisePlan,
+        followUpAdvice
+      });
+      setShowSignModal(false);
+    } finally {
+      call.endConsultation();
+      setIsFinalizing(false);
+    }
   };
 
   const STATUS_COPY = {
@@ -3516,13 +3530,21 @@ ${(data.patientActionPlan || []).map((step, i) => `• ${step}`).join('\n')}`;
             </div>
 
             <button
-              onClick={() => {
-                setShowSignModal(false);
-                finalizeConsult();
-              }}
-              className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black py-3.5 px-6 rounded-2xl transition-all shadow-xl shadow-emerald-500/25 hover:shadow-2xl hover:-translate-y-0.5 flex items-center justify-center gap-2 text-sm ml-auto"
+              disabled={isFinalizing}
+              onClick={finalizeConsult}
+              className={`flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black py-3.5 px-6 rounded-2xl transition-all shadow-xl shadow-emerald-500/25 hover:shadow-2xl hover:-translate-y-0.5 flex items-center justify-center gap-2 text-sm ml-auto ${isFinalizing ? 'opacity-70 cursor-wait' : ''}`}
             >
-              <i className="fas fa-paper-plane"></i> {isNutritionOrYogaProvider ? 'Issue & Send Plan to Patient Portal' : 'Sign & Send to Patient Portal'}
+              {isFinalizing ? (
+                <>
+                  <i className="fas fa-circle-notch fa-spin"></i>
+                  <span>Issuing & Sending to Patient...</span>
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-paper-plane"></i>
+                  <span>{isNutritionOrYogaProvider ? 'Issue & Send Plan to Patient Portal' : 'Sign & Send to Patient Portal'}</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -3628,7 +3650,7 @@ function DoctorTelemedicine() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
-  const { updateAppointmentStatus, addRx, addClinicalNote, requestLabReport } = useClinicData();
+  const { updateAppointmentStatus, addRx, finalizeRx, addClinicalNote, requestLabReport, patients, appointments, refreshPatientsOnly } = useClinicData();
   const [activeCall, setActiveCall] = useState(null);
   // Calls arrived at via an already-answered ring screen (instant call, or
   // "Accept" on the incoming-call overlay) skip the device pre-check below —
@@ -3715,15 +3737,15 @@ function DoctorTelemedicine() {
     }
     return {
       id: s.id,
-      patientId: s.patient_id || s.patientId,
-      patient: s.patientName || s.patient || 'Patient',
+      patientId: s.patient_id || s.patientId || s.patient?.id || null,
+      patient: s.patientName || s.patient_name || s.patient?.full_name || s.patient?.name || (typeof s.patient === 'string' ? s.patient : 'Patient'),
       age: s.patientAge != null ? `${s.patientAge}F` : (s.age || '—'),
       blood: s.blood || 'B+',
       type: s.reason || s.type || 'Video Consultation',
       time: s.scheduled_time || s.time || '10:30 AM',
       date: isToday ? 'Today' : displayDate,
       rawDate: rawDate,
-      phone: s.patientPhone || s.phone || '—',
+      phone: s.patientPhone || s.phone || s.patient_phone || s.patient?.phone || '—',
       waiting: s.status === 'Waiting' || s.status === 'In Progress',
       accepted: s.status !== 'Requested',
       status: s.status || 'Upcoming',
@@ -3732,7 +3754,7 @@ function DoctorTelemedicine() {
       diagnosis: s.diagnosis || s.reason || 'Clinical Consultation',
       meds: s.meds || s.prescriptions || [],
       labs: s.labs || [],
-      patientObj: s.patientObj || null,
+      patientObj: s.patientObj || s.patient || null,
     };
   };
 
@@ -3928,7 +3950,13 @@ function DoctorTelemedicine() {
 
   const endCall = async (notes, draftMeds, draftLabs, meta = {}) => {
     try {
-      const patientId = activeCall.patientId || activeCall.patient_id || activeCall.patientObj?.id;
+      const patientId = activeCall?.patientId || 
+                        activeCall?.patient_id || 
+                        activeCall?.patientObj?.id || 
+                        activeCall?.patient?.id || 
+                        activeCall?.patient_user_id ||
+                        appointments?.find(a => a.id === activeCall?.id)?.patientId ||
+                        patients?.find(p => p.name?.toLowerCase() === (activeCall?.patient || activeCall?.patientName)?.toLowerCase())?.id;
 
       if (notes) {
         await apiFetch(`/telemedicine/${activeCall.id}/notes`, { method: 'POST', body: { note: notes } }).catch(err => {
@@ -3969,7 +3997,7 @@ function DoctorTelemedicine() {
         }
       } catch (e) {}
 
-      // Critical Fix: Always add a dedicated item for Lifestyle Plan so it isn't overwritten by medication timing logic
+      // Always ensure a prescription item is created for the consultation
       if (hasLifestylePlan || (notes && effectiveMeds.length === 0)) {
         effectiveMeds.push({
           name: hasLifestylePlan ? 'Personalized Lifestyle & Nutrition Protocol' : 'Clinical Consultation & Follow-Up Protocol',
@@ -3978,9 +4006,17 @@ function DoctorTelemedicine() {
           duration: 'Course until follow-up',
           instructions: notes || (meta?.followUpAdvice ? `Follow-up: ${meta.followUpAdvice}` : 'Follow doctor consultation advice'),
         });
+      } else if (effectiveMeds.length === 0) {
+        effectiveMeds.push({
+          name: 'Teleconsultation Summary & Advice',
+          dosage: 'Standard',
+          frequency: 'As advised',
+          duration: 'Course until follow-up',
+          instructions: meta?.followUpAdvice || notes || 'Consultation completed as advised by doctor during the call.',
+        });
       }
 
-      if (effectiveMeds.length > 0 && patientId) {
+      if (patientId) {
         const imageAttachment = meta?.freehandRx || effectiveMeds.find(m => m.imageAttachment)?.imageAttachment || null;
         await addRx(patientId, {
           appointmentId: activeCall.id,
@@ -3994,10 +4030,13 @@ function DoctorTelemedicine() {
             dosage: m.dosage || 'Standard',
             frequency: m.frequency || m.schedule || '1-0-1',
             duration: m.duration || '30 Days',
-            instructions: m.instructions || m.timing || 'As prescribed', // 'As prescribed' prevents backend overriding it with full notes
+            instructions: m.instructions || m.timing || 'As prescribed',
           })),
+        }).catch(err => {
+          console.warn('Could not save prescription directly:', err);
         });
       }
+
       if (draftLabs && draftLabs.length > 0 && patientId) {
         await requestLabReport(patientId, { 
           requestedTests: draftLabs.join(', '),
@@ -4017,7 +4056,7 @@ function DoctorTelemedicine() {
         }).catch(() => {});
       }
 
-      if (notes || (draftMeds && draftMeds.length > 0) || (draftLabs && draftLabs.length > 0)) {
+      if (notes || (draftMeds && draftMeds.length > 0) || (draftLabs && draftLabs.length > 0) || effectiveMeds.length > 0) {
         let hasLifestylePlan = false;
         try {
           if (notes && notes.startsWith('{')) {
@@ -4034,33 +4073,42 @@ function DoctorTelemedicine() {
             body: {
               subject: '🥗 Your Lifestyle Plan is Ready — HealNari',
               body: `Dear ${activeCall.patient},\n\nDr. ${user?.name || 'your doctor'} has prescribed a personalised Diet & Yoga Protocol for you.\n\nLog in to view and download your Lifestyle Plan:\nhttps://app.healnari.com/patient-dashboard/prescriptions`,
-              audience: `Patient ${activeCall.patientId}`,
+              audience: `Patient ${patientId || activeCall.patientId}`,
               channels: ['Push Notification', 'Email'],
               scheduleType: 'immediate',
-              patientIds: [activeCall.patientId],
+              patientIds: [patientId || activeCall.patientId],
             },
           }).catch(() => {});
         } 
         
-        if (!hasLifestylePlan || (draftMeds && draftMeds.length > 0) || (draftLabs && draftLabs.length > 0)) {
-          await apiFetch('/communications/broadcasts', {
-            method: 'POST',
-            body: {
-              subject: 'Prescription Ready',
-              body: `Dear ${activeCall.patient}, your prescription and consultation notes from today's teleconsultation are now available in your portal.\n\nView here: https://app.healnari.com/patient-dashboard/prescriptions`,
-              audience: `Patient ${activeCall.patientId}`,
-              channels: ['Push Notification', 'Email'],
-              scheduleType: 'immediate',
-              patientIds: [activeCall.patientId],
-            },
-          }).catch(() => {});
-        }
+        await apiFetch('/communications/broadcasts', {
+          method: 'POST',
+          body: {
+            subject: 'Prescription Ready',
+            body: `Dear ${activeCall.patient}, your prescription and consultation notes from today's teleconsultation are now available in your portal.\n\nView here: https://app.healnari.com/patient-dashboard/prescriptions`,
+            audience: `Patient ${patientId || activeCall.patientId}`,
+            channels: ['Push Notification', 'Email'],
+            scheduleType: 'immediate',
+            patientIds: [patientId || activeCall.patientId],
+          },
+        }).catch(() => {});
       }
 
       await updateAppointmentStatus(activeCall.id, 'Done');
       sessionStorage.removeItem('healnari_active_consultation_id');
       try { localStorage.removeItem(`healnari_rx_draft_${activeCall.id}`); } catch (_) {}
       await loadQueue();
+      if (refreshPatientsOnly) refreshPatientsOnly();
+
+      // Dispatch cross-tab and real-time events
+      window.dispatchEvent(new CustomEvent('healnari_appointments_updated'));
+      window.dispatchEvent(new CustomEvent('healnari_prescription_updated', { detail: { patientId, appointmentId: activeCall.id } }));
+      try {
+        const ch = new BroadcastChannel('healnari-rx-sync');
+        ch.postMessage({ type: 'prescription_created', patientId, appointmentId: activeCall.id });
+        ch.close();
+      } catch (_) {}
+
       toast('Consultation ended. Prescription sent to patient!', 'success');
       setActiveCall(null);
       setSkipPreJoin(false);

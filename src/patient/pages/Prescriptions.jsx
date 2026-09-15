@@ -199,7 +199,7 @@ function parseRxInstructions(rawInstructions) {
 function toRxCards(myPatient) {
   if (!myPatient) return [];
   const byGroup = new Map();
-  myPatient.meds
+  (myPatient.meds || [])
     .filter(m => m.status !== 'Draft' && m.status !== 'Cancelled')
     .forEach(m => {
       if (!byGroup.has(m.groupId)) byGroup.set(m.groupId, []);
@@ -215,8 +215,9 @@ function toRxCards(myPatient) {
       doctorSpecialty: meds[0]?.doctorSpecialty || '',
       doctorRegNo: meds[0]?.doctorRegNo || '',
       date: meds[0]?.prescribedOn,
+      dateRaw: meds[0]?.prescribedOnRaw || meds[0]?.created_at || '',
       diagnosis: meds.find(m => m.diagnosis)?.diagnosis || (myPatient.diagnosis && myPatient.diagnosis !== 'Pending' ? myPatient.diagnosis : 'General'),
-      status: meds.some(m => m.refillsLeft > 0) ? 'Active' : 'Expired',
+      status: meds[0]?.status || (meds.some(m => m.refillsLeft > 0) ? 'Active' : 'Expired') || 'Active',
       validTill: meds.reduce((latest, m) => (!latest || (m.validTill && m.validTill > latest)) ? m.validTill : latest, ''),
       version: meds[0]?.version || 1,
       amendedFromId: meds[0]?.amendedFromId || null,
@@ -246,7 +247,7 @@ function toRxCards(myPatient) {
       refillRequested: meds.some(m => m.refillRequested),
       handwrittenImage: meds[0]?.attachmentUrl || meds[0]?.handwrittenImage || meds[0]?.file_url || null,
     };
-  }).sort((a, b) => new Date(b.date) - new Date(a.date));
+  }).sort((a, b) => (new Date(b.dateRaw || b.date) - new Date(a.dateRaw || a.date)) || 0);
 }
 
 const DOSE_SLOT_DEFS = [
@@ -452,7 +453,7 @@ function RefillModal({ rx, onClose, onSubmit, submitting }) {
 function PatientPrescriptions() {
   const navigate = useNavigate();
   const toast = useToast();
-  const { patients, requestRefill, lifestyleLogs } = useClinicData();
+  const { patients, requestRefill, lifestyleLogs, refreshPatientsOnly } = useClinicData();
   const prescriptions = useMemo(() => toRxCards(patients[0]), [patients]);
   const [detailRx, setDetailRx] = useState(null);
   const [refillRx, setRefillRx] = useState(null);
@@ -468,6 +469,18 @@ function PatientPrescriptions() {
       listLabReportRequests(patients[0].id).then(r => setLabRequests(r)).catch(() => {});
     }
   }, [patients, listLabReportRequests]);
+
+  React.useEffect(() => {
+    const handleUpdate = () => {
+      if (refreshPatientsOnly) refreshPatientsOnly();
+    };
+    window.addEventListener('healnari_appointments_updated', handleUpdate);
+    window.addEventListener('healnari_prescription_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('healnari_appointments_updated', handleUpdate);
+      window.removeEventListener('healnari_prescription_updated', handleUpdate);
+    };
+  }, [refreshPatientsOnly]);
 
   const tabFiltered = prescriptions
     .filter(rx => tab === 'All' || resolveRxStatus(rx) === tab)
@@ -511,7 +524,7 @@ function PatientPrescriptions() {
       (r.created_at ? new Date(r.created_at).toLocaleDateString() : '') === rx.date
     );
     openPrescriptionPrintWindow({
-      rxId: `RX-${rx.id.slice(0, 8).toUpperCase()}`,
+      rxId: `RX-${String(rx.id).slice(0, 8).toUpperCase()}`,
       date: rx.date,
       doctor: { name: rx.doctor, specialty: rx.doctorSpecialty, regNo: rx.doctorRegNo },
       patient: {

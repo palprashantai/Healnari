@@ -206,12 +206,13 @@ function parseTimeToMinutes(timeStr) {
   if (!timeStr) return 0;
   const cleaned = String(timeStr).trim();
   const isPM = cleaned.toLowerCase().includes('pm');
+  const isAM = cleaned.toLowerCase().includes('am');
   const match = cleaned.match(/(\d+):(\d+)/);
   if (!match) return 0;
   let hours = parseInt(match[1], 10);
   const minutes = parseInt(match[2], 10);
   if (isPM && hours < 12) hours += 12;
-  if (!isPM && hours === 12) hours = 0;
+  if (isAM && hours === 12) hours = 0;
   return hours * 60 + minutes;
 }
 
@@ -245,7 +246,9 @@ function DoctorAppointments() {
   const formatDate = (iso) => {
     if (!iso) return '—';
     if (iso === todayStr) return 'Today';
-    return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+    if (!y || !m || !d) return iso;
+    return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   const toRow = (a) => ({

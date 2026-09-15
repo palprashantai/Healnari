@@ -275,15 +275,16 @@ export function generatePrescriptionHtml({
   }
 
   // Doctor Details
-  const doctorName = doctor?.name
-    ? (/^(Dr\.|Dt\.)/i.test(doctor.name) ? doctor.name : `Dr. ${doctor.name}`)
+  const rawDoctorName = typeof doctor === 'string' ? doctor : (doctor?.name || doctor?.full_name || '');
+  const doctorName = rawDoctorName
+    ? (/^(Dr\.|Dt\.)/i.test(rawDoctorName) ? rawDoctorName : `Dr. ${rawDoctorName}`)
     : 'Attending Practitioner';
   const doctorSpecialty = doctor?.specialty || 'General Practitioner';
   const doctorQualifications = doctor?.qualifications || doctor?.education || 'Medical Practitioner';
-  const doctorRegNo = doctor?.regNo || doctor?.registrationNo || 'REG-PENDING';
+  const doctorRegNo = doctor?.regNo || doctor?.registrationNo || doctor?.registration_no || 'REG-PENDING';
 
   // Patient Details
-  const patientName = patient?.name || 'Patient';
+  const patientName = typeof patient === 'string' ? patient : (patient?.name || patient?.full_name || 'Patient');
   const patientAge = patient?.age && patient.age !== '—' ? `${patient.age} Yrs` : 'Adult';
   const patientGender = patient?.gender || 'Not specified';
   const patientBlood = patient?.blood && patient.blood !== '—' ? patient.blood : '—';
@@ -1058,7 +1059,10 @@ export function generatePrescriptionHtml({
  */
 export function openPrescriptionPrintWindow(params) {
   const win = window.open('', '_blank', 'width=940,height=1050');
-  if (!win) return;
+  if (!win) {
+    alert('Please allow popups for this site to print or preview the prescription.');
+    return;
+  }
 
   const origin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : '';
   const html = generatePrescriptionHtml({ ...params, origin });
@@ -1225,7 +1229,10 @@ function parseYogaProtocolText(raw) {
 
 export function openLifestylePlanPrintWindow({ rxId, date, doctor, patient, dietPlan, exercisePlan, diagnosis, structuredData, origin: customOrigin }) {
   const win = window.open('', '_blank', 'width=900,height=980');
-  if (!win) return;
+  if (!win) {
+    alert('Please allow popups for this site to print or preview the lifestyle plan.');
+    return;
+  }
 
   const origin = customOrigin || ((typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : '');
   const logoSvgUrl = `${origin}/brand/logo.svg`;
@@ -1234,11 +1241,12 @@ export function openLifestylePlanPrintWindow({ rxId, date, doctor, patient, diet
   const planDate = date || now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   const displayPlanId = rxId ? String(rxId).toUpperCase() : `LS-HN-${Math.floor(100000 + Math.random() * 900000)}`;
 
-  const doctorName = doctor?.name ? (/^(Dr\.|Dt\.)/i.test(doctor.name) ? doctor.name : `Dr. ${doctor.name}`) : 'Clinical Specialist';
+  const rawDoctorName = typeof doctor === 'string' ? doctor : (doctor?.name || doctor?.full_name || '');
+  const doctorName = rawDoctorName ? (/^(Dr\.|Dt\.)/i.test(rawDoctorName) ? rawDoctorName : `Dr. ${rawDoctorName}`) : 'Clinical Specialist';
   const doctorSpecialty = doctor?.specialty || 'Holistic Health & Lifestyle Specialist';
-  const doctorReg = doctor?.regNo || doctor?.registrationNo || 'REG-VERIFIED';
+  const doctorReg = doctor?.regNo || doctor?.registrationNo || doctor?.registration_no || 'REG-VERIFIED';
 
-  const patientName = patient?.name || 'Patient';
+  const patientName = typeof patient === 'string' ? patient : (patient?.name || patient?.full_name || 'Patient');
   const patientAge = patient?.age && patient.age !== '—' ? `${patient.age} Yrs` : 'Adult';
   const patientGender = patient?.gender || 'Not specified';
   const patientBlood = patient?.blood && patient.blood !== '—' ? patient.blood : '—';

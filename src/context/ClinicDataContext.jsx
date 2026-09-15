@@ -49,20 +49,20 @@ export function ClinicDataProvider({ children }) {
       id: p.id,
       groupId: p.group_id || p.groupId || (p.created_at ? `${p.created_at.slice(0,10)}_${p.doctor_id}` : p.id), // fallback for legacy rows without group_id
       diagnosis: p.diagnosis || '',
-      name: p.med_name,
-      dosage: p.dosage,
-      frequency: p.schedule,
-      duration: p.duration,
-      instructions: p.instructions,
-      doctor: p.doctor_name || 'Your Doctor',
-      doctorId: p.doctor_id || null,
+      name: p.med_name || p.name || 'Medication',
+      dosage: p.dosage || '',
+      frequency: p.schedule || p.frequency || '',
+      duration: p.duration || '',
+      instructions: p.instructions || '',
+      doctor: p.doctor_name || p.doctor || 'Your Doctor',
+      doctorId: p.doctor_id || p.doctorId || null,
       doctorSpecialty: p.doctor_specialty || '',
       doctorRegNo: p.doctor_registration_no || '',
-      prescribedOn: p.created_at ? new Date(p.created_at).toLocaleDateString() : '',
-      prescribedOnRaw: p.created_at || '',
-      refillsLeft: p.refills_left || 0,
-      refillsAuthorized: p.refills_authorized !== undefined ? p.refills_authorized : (p.refills_left || 0),
-      validTill: p.valid_till || '',
+      prescribedOn: (p.created_at || p.prescribed_at) ? new Date(p.created_at || p.prescribed_at).toLocaleDateString() : '',
+      prescribedOnRaw: p.created_at || p.prescribed_at || '',
+      refillsLeft: p.refills_left !== undefined ? p.refills_left : (p.refillsLeft !== undefined ? p.refillsLeft : 0),
+      refillsAuthorized: p.refills_authorized !== undefined ? p.refills_authorized : (p.refills_left || p.refillsLeft || 0),
+      validTill: p.valid_till || p.validTill || '',
       refillRequested: p.refill_requested || false,
       status: p.status || 'Active',
       appointmentId: p.appointment_id || null,
@@ -160,20 +160,26 @@ export function ClinicDataProvider({ children }) {
 
   const adaptAppointment = (a) => ({
     id: a.id,
-    patientName: a.patientName || 'Unknown',
-    doctorName: a.doctorName || 'Unknown',
-    patientId: a.patient_id,
-    doctorId: a.doctor_id,
-    type: a.type === 'video' ? 'Video Consult' : 'Clinic Visit',
-    specialty: a.specialty || '',
+    patientName: a.patientName || a.patient_name || a.patient?.full_name || a.patient?.name || (typeof a.patient === 'string' ? a.patient : 'Unknown'),
+    doctorName: a.doctorName || a.doctor_name || a.doctor?.full_name || a.doctor?.name || (typeof a.doctor === 'string' ? a.doctor : 'Unknown'),
+    patientId: a.patient_id || a.patientId || a.patient?.id || null,
+    doctorId: a.doctor_id || a.doctorId || a.doctor?.id || null,
+    type: a.type === 'video' || a.type === 'Video Consult' ? 'Video Consult' : 'Clinic Visit',
+    specialty: a.specialty || a.doctor?.specialty || '',
     country: a.country || 'US',
-    currency: a.currency || 'INR',
-    fee: a.fee || null,
-    paymentId: a.payment_id || null,
-    date: a.scheduled_date,
-    time: a.scheduled_time,
+    currency: a.currency || a.patient_payable_currency || 'INR',
+    fee: a.fee !== undefined && a.fee !== null ? Number(a.fee) : (a.patient_payable_amount !== undefined && a.patient_payable_amount !== null ? Number(a.patient_payable_amount) : null),
+    paymentId: a.payment_id || a.paymentId || null,
+    date: a.scheduled_date || a.date || a.scheduledDate,
+    time: a.scheduled_time || a.time || a.scheduledTime,
     status: a.status, // Requested, Approved, HOLD, Upcoming, Waiting, In Progress, Done, Cancelled, No Show
     reason: a.reason || 'Follow-up',
+    queue_token: a.queue_token || a.token || null,
+    queue_priority: a.queue_priority !== undefined ? a.queue_priority : (a.priority || 0),
+    started_at: a.started_at || a.startedAt || null,
+    ended_at: a.ended_at || a.endedAt || null,
+    consultation_duration_seconds: a.consultation_duration_seconds !== undefined ? a.consultation_duration_seconds : (a.durationSeconds || null),
+    checked_in_at: a.checked_in_at || a.checkedInAt || null,
     rescheduledAt: a.rescheduled_at || null,
     rescheduledFromDate: a.rescheduled_from_date || null,
     rescheduledFromTime: a.rescheduled_from_time || null,
@@ -206,18 +212,23 @@ export function ClinicDataProvider({ children }) {
         const pts = await apiFetch('/patients').catch(() => []);
         setPatients(Array.isArray(pts) ? pts.map(adaptPatient).filter(Boolean) : []);
       } else if (user.role === 'patient') {
-        const [me, logs, vitalsData, lifestyle, connections, favs, wait, txns] = await Promise.all([
-          apiFetch('/patients/me'),
-          apiFetch('/patients/me/cycle-logs'),
-          apiFetch('/patients/me/vitals'),
-          apiFetch('/patients/me/lifestyle-logs'),
-          apiFetch('/patients/me/care-connections'),
-          apiFetch('/patients/me/favorites'),
-          apiFetch('/patients/me/waitlist'),
-          apiFetch('/billing/transactions'),
+        const [me, rxRes, logs, vitalsData, lifestyle, connections, favs, wait, txns] = await Promise.all([
+          apiFetch('/patients/me').catch(() => null),
+          apiFetch('/records/prescriptions?limit=100').catch(() => []),
+          apiFetch('/patients/me/cycle-logs').catch(() => []),
+          apiFetch('/patients/me/vitals').catch(() => ({})),
+          apiFetch('/patients/me/lifestyle-logs').catch(() => []),
+          apiFetch('/patients/me/care-connections').catch(() => []),
+          apiFetch('/patients/me/favorites').catch(() => []),
+          apiFetch('/patients/me/waitlist').catch(() => []),
+          apiFetch('/billing/transactions').catch(() => []),
         ]);
 
-        if (me) setPatients([adaptPatient(me)]);
+        if (me) {
+          const rxList = Array.isArray(rxRes) ? rxRes : (rxRes?.data || []);
+          const mergedMeds = rxList.length > 0 ? rxList : (me.prescriptions || []);
+          setPatients([adaptPatient({ ...me, prescriptions: mergedMeds })]);
+        }
 
         const logMap = {};
         logs.forEach(l => {
@@ -276,14 +287,15 @@ export function ClinicDataProvider({ children }) {
     }
   }, [user]);
 
-  // Real-time reactive sync: automatically reload appointments when socket notifications arrive
+  // Real-time reactive sync: automatically reload appointments and patient records when updates occur
   useEffect(() => {
     const handleUpdate = () => {
       refreshAppointments();
+      refreshPatientsOnly();
     };
     window.addEventListener('healnari_appointments_updated', handleUpdate);
     return () => window.removeEventListener('healnari_appointments_updated', handleUpdate);
-  }, [refreshAppointments]);
+  }, [refreshAppointments, refreshPatientsOnly]);
 
   const refreshPatientsOnly = useCallback(async () => {
     if (!user) return;
@@ -292,8 +304,15 @@ export function ClinicDataProvider({ children }) {
         const pts = await apiFetch('/patients');
         setPatients(pts.map(adaptPatient).filter(Boolean));
       } else if (user.role === 'patient') {
-        const me = await apiFetch('/patients/me');
-        if (me) setPatients([adaptPatient(me)]);
+        const [me, rxRes] = await Promise.all([
+          apiFetch('/patients/me').catch(() => null),
+          apiFetch('/records/prescriptions?limit=100').catch(() => []),
+        ]);
+        if (me) {
+          const rxList = Array.isArray(rxRes) ? rxRes : (rxRes?.data || []);
+          const mergedMeds = rxList.length > 0 ? rxList : (me.prescriptions || []);
+          setPatients([adaptPatient({ ...me, prescriptions: mergedMeds })]);
+        }
       }
     } catch (err) {
       console.warn('Failed to refresh patients:', err);
@@ -606,7 +625,7 @@ export function ClinicDataProvider({ children }) {
           ...p,
           meds: p.meds.map(m => {
             if (m.id !== medId) return m;
-            if (action === 'approve') return { ...m, refillRequested: false, refillsLeft: m.refillsLeft + 1 };
+            if (action === 'approve') return { ...m, refillRequested: false, refillsLeft: (m.refillsLeft || 0) + 1, status: 'Active' };
             return { ...m, refillRequested: false };
           }),
         };
@@ -674,16 +693,19 @@ export function ClinicDataProvider({ children }) {
   const addAppointment = useCallback(async (partial) => {
     try {
       const aptParams = {
-        doctorId: partial.doctorId || user.id,
-        type: partial.type === 'Video Consult' ? 'video' : 'clinic',
-        scheduledDate: partial.date,
-        scheduledTime: partial.time,
-        reason: partial.reason || ''
+        doctorId: partial.doctorId || user?.id,
+        patientId: partial.patientId || (user?.role === 'patient' ? user?.id : undefined),
+        type: partial.type === 'Video Consult' || partial.type === 'video' ? 'video' : 'clinic',
+        scheduledDate: partial.date || partial.scheduledDate,
+        scheduledTime: partial.time || partial.scheduledTime,
+        reason: partial.reason || '',
+        fee: partial.fee,
+        currency: partial.currency,
       };
       const res = await apiFetch('/appointments', { method: 'POST', body: aptParams });
       const newApt = adaptAppointment(res);
       setAppointments(prev => [...prev, newApt]);
-
+      window.dispatchEvent(new CustomEvent('healnari_appointments_updated'));
       return newApt;
     } catch (err) {
       console.error(err);
@@ -698,6 +720,7 @@ export function ClinicDataProvider({ children }) {
       const res = await apiFetch(`/appointments/${id}/status`, { method: 'PUT', body: { status } });
       const newApt = adaptAppointment(res);
       setAppointments(cur => cur.map(a => (a.id === id ? newApt : a)));
+      window.dispatchEvent(new CustomEvent('healnari_appointments_updated'));
       return newApt;
     } catch (err) {
       console.error(err);
@@ -729,6 +752,7 @@ export function ClinicDataProvider({ children }) {
       });
       const newApt = adaptAppointment(res);
       setAppointments(cur => cur.map(a => (a.id === id ? newApt : a)));
+      window.dispatchEvent(new CustomEvent('healnari_appointments_updated'));
       return newApt;
     } catch (err) {
       console.error(err);
@@ -744,6 +768,7 @@ export function ClinicDataProvider({ children }) {
       });
       const newApt = adaptAppointment(res);
       setAppointments(cur => cur.map(a => (a.id === id ? newApt : a)));
+      window.dispatchEvent(new CustomEvent('healnari_appointments_updated'));
       return newApt;
     } catch (err) {
       console.error(err);
@@ -927,7 +952,7 @@ export function ClinicDataProvider({ children }) {
 
   const value = useMemo(() => ({
     patients, updatePatient, addPatient, addRx, amendRx, finalizeRx, cancelRx, deleteRx, addClinicalNote, updateClinicalNote, deleteClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
-    uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, refreshPatients: fetchData, fetchData,
+    uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, refreshPatients: fetchData, refreshPatientsOnly, fetchData,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment, rescheduleAppointment, refreshAppointments,
     approveRequest, rejectRequest, callNextForDoctor, checkInPatient, broadcastDelay,
     transactions, syncPayment,
@@ -941,7 +966,7 @@ export function ClinicDataProvider({ children }) {
     loading, loadError, retryLoad: fetchData,
   }), [
     patients, updatePatient, addPatient, addRx, amendRx, finalizeRx, cancelRx, deleteRx, addClinicalNote, updateClinicalNote, deleteClinicalNote, recordCharge, approveRefill, rejectRefill, requestRefill, refillRequests,
-    uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, fetchData,
+    uploadLabReport, deleteLabReport, getLabReportUrl, requestLabReport, listLabReportRequests, cancelLabReportRequest, refreshPatientsOnly, fetchData,
     appointments, addAppointment, updateAppointmentStatus, cancelAppointment, rescheduleAppointment, refreshAppointments,
     approveRequest, rejectRequest, callNextForDoctor, checkInPatient, broadcastDelay,
     transactions, syncPayment,
