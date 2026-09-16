@@ -287,16 +287,6 @@ export function ClinicDataProvider({ children }) {
     }
   }, [user]);
 
-  // Real-time reactive sync: automatically reload appointments and patient records when updates occur
-  useEffect(() => {
-    const handleUpdate = () => {
-      refreshAppointments();
-      refreshPatientsOnly();
-    };
-    window.addEventListener('healnari_appointments_updated', handleUpdate);
-    return () => window.removeEventListener('healnari_appointments_updated', handleUpdate);
-  }, [refreshAppointments, refreshPatientsOnly]);
-
   const refreshPatientsOnly = useCallback(async () => {
     if (!user) return;
     try {
@@ -318,6 +308,16 @@ export function ClinicDataProvider({ children }) {
       console.warn('Failed to refresh patients:', err);
     }
   }, [user]);
+
+  // Real-time reactive sync: automatically reload appointments and patient records when updates occur
+  useEffect(() => {
+    const handleUpdate = () => {
+      refreshAppointments();
+      refreshPatientsOnly();
+    };
+    window.addEventListener('healnari_appointments_updated', handleUpdate);
+    return () => window.removeEventListener('healnari_appointments_updated', handleUpdate);
+  }, [refreshAppointments, refreshPatientsOnly]);
 
   /* ── Patients ──────────────────────────────────────────────── */
   const updatePatient = useCallback(async (updated) => {
