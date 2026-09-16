@@ -1,7 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { useLocation } from 'react-router-dom';
-import { ArrowUp, ChevronDown, Lock } from 'lucide-react';
+import {
+  ArrowUp,
+  ChevronDown,
+  Lock,
+  FileUp,
+  FileText,
+  Upload,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  Copy,
+  Check,
+} from 'lucide-react';
 import { getTokens, apiFetch } from '../lib/apiClient.js';
 import { triggerHaptic } from '../lib/haptics.js';
 import { AIUsageUpgradeModal } from '../components/ai/AIUsageUpgradeModal.jsx';
@@ -10,6 +23,40 @@ import { AIUsageUpgradeModal } from '../components/ai/AIUsageUpgradeModal.jsx';
 // separate ws proxy) — see vision/src/modules/ai/gateways/chat.gateway.ts.
 const RAW_API_URL = import.meta.env.VITE_API_URL;
 const SOCKET_URL = RAW_API_URL ? RAW_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:5000';
+
+/**
+ * 1-Click Sample Lab Reports for Instant Demonstration & Testing
+ */
+export const SAMPLE_REPORTS = [
+  {
+    id: 'thyroid',
+    label: '🦋 Thyroid (TSH & T4)',
+    name: 'Comprehensive Thyroid Panel (TSH / T3 / T4)',
+    cyclePhase: 'general',
+    text: `Test: Thyroid Profile (CLIA)\n• TSH (Thyroid Stimulating Hormone): 6.85 µIU/mL (Ref: 0.40 - 4.20 µIU/mL) [ELEVATED]\n• Free T4 (Thyroxine): 0.88 ng/dL (Ref: 0.93 - 1.70 ng/dL) [BORDERLINE LOW]\n• Free T3 (Triiodothyronine): 2.4 pg/mL (Ref: 2.0 - 4.4 pg/mL) [NORMAL]\n• Anti-TPO Antibodies: 142 IU/mL (Ref: < 34 IU/mL) [ELEVATED - Hashimoto marker]\nClinical Symptoms: Persistent fatigue, mild weight gain, sensitivity to cold.`,
+  },
+  {
+    id: 'pcos',
+    label: '🌸 PCOS Hormone Panel',
+    name: 'PCOS & Reproductive Hormone Panel',
+    cyclePhase: 'follicular',
+    text: `Test: Female Reproductive Endocrine Panel (Day 3 of cycle)\n• LH (Luteinizing Hormone): 14.8 mIU/mL (Ref: 2.4 - 12.6 mIU/mL) [HIGH]\n• FSH (Follicle Stimulating Hormone): 4.9 mIU/mL (Ref: 3.5 - 12.5 mIU/mL) [NORMAL]\n• LH : FSH Ratio: 3.02 : 1 (Normal ratio ~ 1:1; >2.0 indicates PCOS hormonal pattern)\n• Total Testosterone: 68 ng/dL (Ref: 15 - 70 ng/dL) [UPPER BORDERLINE]\n• AMH (Anti-Müllerian Hormone): 8.6 ng/mL (Ref: 1.0 - 4.0 ng/mL) [HIGH - typical of polycystic ovaries]\n• Fasting Insulin: 19.4 µIU/mL (Ref: < 10 µIU/mL) [ELEVATED - Insulin Resistance]`,
+  },
+  {
+    id: 'cbc',
+    label: '🩸 CBC & Iron Deficiency',
+    name: 'Complete Blood Count & Ferritin',
+    cyclePhase: 'general',
+    text: `Test: Complete Hemogram & Iron Profile\n• Hemoglobin (Hb): 9.6 g/dL (Ref: 12.0 - 15.5 g/dL) [LOW - Moderate Microcytic Anemia]\n• RBC Count: 3.7 million/µL (Ref: 4.2 - 5.4) [LOW]\n• MCV: 72 fL (Ref: 80 - 100 fL) [LOW]\n• Serum Ferritin: 9.8 ng/mL (Ref: 20 - 200 ng/mL) [SEVERELY LOW - depleted iron stores]\n• Total Iron Binding Capacity (TIBC): 440 µg/dL (Ref: 250 - 400 µg/dL) [HIGH]\nClinical Symptoms: Dizziness on standing, heavy periods, cold extremities.`,
+  },
+  {
+    id: 'metabolic',
+    label: '🩺 Metabolic & Blood Sugar',
+    name: 'HbA1c & Fasting Lipids',
+    cyclePhase: 'general',
+    text: `Test: Glycemic & Lipid Evaluation\n• Fasting Blood Sugar (FBS): 116 mg/dL (Ref: 70 - 99 mg/dL) [IMPAIRED FASTING GLUCOSE]\n• HbA1c (Glycated Hemoglobin): 6.3% (Ref: < 5.7% Normal; 5.7 - 6.4% Prediabetes) [PREDIABETIC RANGE]\n• Total Cholesterol: 224 mg/dL (Ref: < 200 mg/dL) [HIGH]\n• Triglycerides: 198 mg/dL (Ref: < 150 mg/dL) [ELEVATED]\n• HDL (Good Cholesterol): 39 mg/dL (Ref: > 50 mg/dL for females) [LOW]\n• LDL (Bad Cholesterol): 145 mg/dL (Ref: < 100 mg/dL) [ELEVATED]`,
+  },
+];
 
 /**
  * Design direction: "vitals monitor" — a single motif (the ECG/pulse line)
@@ -27,6 +74,7 @@ const THEMES = {
     label: 'HealNari Care Assistant',
     greeting: "Hi! I'm HealNari AI — ask me about specialists, conditions, PCOS, hormone health, or how the platform works.",
     discoveryChips: [
+      '📄 Upload & Analyze Report',
       '🔍 Find a PCOS specialist',
       '💊 Hormone health basics',
       '🩺 How does HealNari work?',
@@ -65,9 +113,9 @@ const DOCTOR_QUICK_ACTIONS = {
     { label: 'Adherence Tips',      icon: 'fa-clock-rotate-left',   prompt: 'Draft patient-friendly adherence instructions for the current medications.' },
   ],
   '/doctor-dashboard/reports': [
+    { label: 'Upload & Interpret',  icon: 'fa-file-arrow-up',       isReportTool: true },
     { label: 'Interpret Results',   icon: 'fa-flask',               prompt: 'Interpret the active patient latest lab results and flag any values outside the reference range.' },
     { label: 'Flag Critical Values',icon: 'fa-triangle-exclamation',prompt: 'Identify any critical or panic-level values in the active patient recent lab reports.' },
-    { label: 'Trend Analysis',      icon: 'fa-chart-line',          prompt: 'Analyze trends in the active patient lab values over time and identify clinically meaningful changes.' },
     { label: 'Next Steps',          icon: 'fa-list-check',          prompt: 'Suggest appropriate next diagnostic steps or specialist referrals based on the lab results.' },
   ],
   '/doctor-dashboard/appointments': [
@@ -104,9 +152,9 @@ function getPageLabel(pathname) {
 /* ─── Patient contextual quick actions per route ─────── */
 const PATIENT_QUICK_ACTIONS = {
   '/patient-dashboard/records': [
+    { label: 'Upload & Decode Report', icon: 'fa-file-arrow-up',    isReportTool: true },
     { label: 'Explain My Results', icon: 'fa-flask',               prompt: 'Help me understand my latest lab results in simple language. What do the values mean?' },
     { label: 'What Tests Do I Need?', icon: 'fa-vial-circle-check',  prompt: 'Based on my health history and symptoms, what diagnostic tests should I ask my doctor about?' },
-    { label: 'Normal Ranges',      icon: 'fa-ruler',               prompt: 'Explain normal reference ranges for common blood tests like CBC, thyroid, iron, and hormones.' },
     { label: 'Ask My Doctor',      icon: 'fa-comment-medical',     prompt: 'Help me prepare a list of questions to ask my doctor about my recent medical records.' },
   ],
   '/patient-dashboard/prescriptions': [
@@ -266,6 +314,9 @@ export default function AiChatWidget({ context = 'landing', activePatient = null
       if (e?.detail?.prompt) {
         setInput(e.detail.prompt);
       }
+      if (e?.detail?.openReportTool) {
+        setReportModalOpen(true);
+      }
     };
     window.addEventListener('open-healnari-ai-chat', handleOpen);
     return () => window.removeEventListener('open-healnari-ai-chat', handleOpen);
@@ -279,6 +330,136 @@ export default function AiChatWidget({ context = 'landing', activePatient = null
   const [subData, setSubData] = useState(null);
   const [remainingUses, setRemainingUses] = useState(null);
   const socketRef = useRef(null);
+
+  /* Report Analyzer Tool State */
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportFile, setReportFile] = useState(null); // { name, size, type, previewUrl }
+  const [reportName, setReportName] = useState('');
+  const [reportText, setReportText] = useState('');
+  const [reportCyclePhase, setReportCyclePhase] = useState('general');
+  const [isReadingFile, setIsReadingFile] = useState(false);
+  const [fileError, setFileError] = useState(null);
+  const [copiedMsgId, setCopiedMsgId] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileError(null);
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/plain'];
+    if (!validTypes.includes(file.type) && !file.name.endsWith('.txt')) {
+      setFileError('Please upload a PDF, PNG, JPG, or TXT file.');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setFileError('File size should be under 10 MB.');
+      return;
+    }
+
+    setIsReadingFile(true);
+
+    if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target?.result || '';
+        setReportFile({ name: file.name, size: (file.size / 1024).toFixed(1) + ' KB', type: 'text' });
+        setReportText(text);
+        if (!reportName) {
+          setReportName(file.name.replace(/\.[^/.]+$/, ''));
+        }
+        setIsReadingFile(false);
+      };
+      reader.onerror = () => {
+        setFileError('Failed to read text file.');
+        setIsReadingFile(false);
+      };
+      reader.readAsText(file);
+    } else if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result;
+        setReportFile({
+          name: file.name,
+          size: (file.size / 1024).toFixed(1) + ' KB',
+          type: 'image',
+          previewUrl: dataUrl,
+        });
+        if (!reportName) {
+          setReportName(file.name.replace(/\.[^/.]+$/, ''));
+        }
+        setIsReadingFile(false);
+      };
+      reader.onerror = () => {
+        setFileError('Failed to load image preview.');
+        setIsReadingFile(false);
+      };
+      reader.readAsDataURL(file);
+    } else if (file.type === 'application/pdf') {
+      setReportFile({
+        name: file.name,
+        size: (file.size / 1024).toFixed(1) + ' KB',
+        type: 'pdf',
+      });
+      if (!reportName) {
+        setReportName(file.name.replace(/\.[^/.]+$/, ''));
+      }
+      setIsReadingFile(false);
+    }
+  };
+
+  const handleAnalyzeReportSubmit = (e) => {
+    e?.preventDefault();
+    if (!reportText.trim() && !reportFile) {
+      setFileError('Please provide report details or upload a report file.');
+      return;
+    }
+
+    const title = reportName.trim() || reportFile?.name || 'Diagnostic Lab Report';
+    const phaseLabel = {
+      general: 'General / Standard Reference Range',
+      follicular: 'Follicular Phase (Days 1–14)',
+      ovulation: 'Ovulation Window (Mid-cycle)',
+      luteal: 'Luteal Phase (Days 15–28)',
+      menstrual: 'Menstrual Phase (Bleeding days)',
+      menopause: 'Perimenopause / Menopause',
+    }[reportCyclePhase] || reportCyclePhase;
+
+    let compiledPrompt = `[REPORT ANALYZER REQUEST]\n📋 Report Name: ${title}\n🩸 Hormonal / Cycle Context: ${phaseLabel}\n`;
+    if (reportFile) {
+      compiledPrompt += `📎 Attached File: ${reportFile.name} (${reportFile.size})\n`;
+    }
+    if (reportText.trim()) {
+      compiledPrompt += `\n📊 Report Findings & Biomarkers:\n${reportText.trim()}\n`;
+    } else if (reportFile) {
+      compiledPrompt += `\n(User uploaded diagnostic document: ${reportFile.name} for medical evaluation)\n`;
+    }
+
+    compiledPrompt += `\n❓ CLINICAL GUIDANCE REQUEST:
+Please evaluate this diagnostic report thoroughly and explain in clear, structured, reassuring language:
+1. 📋 Biomarker Status: Which markers are Normal, High, or Low with brief plain-English physiological meaning.
+2. 🎯 ACTIONABLE STEPS — "What Can Be Done Based on This Report" ("Is report me kya kya kar sakte hai"):
+   - 🥗 Diet & Nutrition: Specific foods to prioritize and foods to avoid based on the abnormal biomarkers.
+   - 🏃‍♀️ Lifestyle & Exercise: Tailored physical movement, sleep, and stress management habits.
+   - 👩‍⚕️ Which Doctor to Consult: Advise specifically which specialist department to visit (e.g. Gynaecologist, Endocrinologist, General Physician) and suggested urgency.
+   - 🧪 Follow-up & Retesting: Recommended timeline to retest and companion tests to consider.
+   - 💬 Smart Questions for Your Doctor: 3-4 precise questions prepared for the consultation.
+   - ⚠️ Red Flags / Warning Signs: Symptoms that warrant prompt medical evaluation.`;
+
+    setReportModalOpen(false);
+    sendQuery(compiledPrompt, {
+      isReport: true,
+      reportTitle: title,
+      reportAttachment: reportFile?.name,
+    });
+
+    setReportFile(null);
+    setReportText('');
+    setReportName('');
+    setFileError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const [messages, setMessages] = useState([
     {
@@ -429,7 +610,7 @@ export default function AiChatWidget({ context = 'landing', activePatient = null
   const isQuotaExhausted = typeof remainingUses === 'number' && remainingUses <= 0;
   const isHighestTier = currentPlanId === 'doctor_plan_3' || currentPlanId === 'patient_plan_3';
 
-  const sendQuery = (text) => {
+  const sendQuery = (text, meta = {}) => {
     if (!text.trim() || isLoading) return;
     const userMessage = text.trim();
     setInput('');
@@ -446,6 +627,9 @@ export default function AiChatWidget({ context = 'landing', activePatient = null
         id: `user-${Date.now()}`,
         role: 'user',
         text: userMessage,
+        isReport: meta.isReport || false,
+        reportTitle: meta.reportTitle || null,
+        reportAttachment: meta.reportAttachment || null,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       },
     ]);
@@ -656,6 +840,21 @@ export default function AiChatWidget({ context = 'landing', activePatient = null
                           : 'bg-white border border-slate-200 text-slate-800 rounded-bl-xs font-normal'
                     }`}
                   >
+                    {/* User Report Attachment Badge */}
+                    {msg.isReport && (
+                      <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/20 text-[11px] font-bold text-white">
+                        <div className="w-5 h-5 rounded-md bg-white/20 flex items-center justify-center">
+                          <i className="fas fa-file-waveform text-[10px]" />
+                        </div>
+                        <span className="truncate flex-1">{msg.reportTitle || 'Diagnostic Lab Report'}</span>
+                        {msg.reportAttachment && (
+                          <span className="bg-white/20 text-[9px] px-1.5 py-0.5 rounded-full font-mono shrink-0">
+                            {msg.reportAttachment}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     {msg.role === 'assistant' && (
                       <div className="space-y-1.5 mb-2">
                         <div className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider ${
@@ -676,15 +875,16 @@ export default function AiChatWidget({ context = 'landing', activePatient = null
                     <p className="whitespace-pre-line text-inherit leading-relaxed">{cleanText}</p>
                   </div>
 
-                  {/* Doctor: Save to Note chip on AI messages */}
-                  {isDoctor && msg.role === 'assistant' && msg.id !== 'welcome' && (
-                    <div className="flex items-center gap-1.5 mt-1.5 px-1">
-                      {isSaved ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                  {/* Actions & Timestamp row */}
+                  <div className="flex items-center gap-1.5 mt-1 px-1">
+                    {/* Doctor: Save to Note chip on AI messages */}
+                    {isDoctor && msg.role === 'assistant' && msg.id !== 'welcome' && (
+                      isSaved ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
                           <i className="fas fa-circle-check text-emerald-500" /> Saved to notes
                         </span>
                       ) : isConfirming ? (
-                        <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">
+                        <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5">
                           <i className="fas fa-triangle-exclamation text-amber-500 text-[10px]" />
                           <span className="text-[10px] font-bold text-amber-800">Confirm?</span>
                           <button onClick={() => { setSavedNotes(p => new Set(p).add(msgIdx)); setSaveConfirm(null); }}
@@ -694,21 +894,39 @@ export default function AiChatWidget({ context = 'landing', activePatient = null
                         </div>
                       ) : (
                         <button onClick={() => setSaveConfirm(msgIdx)}
-                          className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-indigo-700 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 px-2.5 py-1 rounded-full transition-all">
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-indigo-700 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 px-2.5 py-0.5 rounded-full transition-all">
                           <i className="fas fa-file-medical text-[9px]" /> Save to Note
                         </button>
-                      )}
-                      <button onClick={() => navigator.clipboard?.writeText(cleanText)}
-                        className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-slate-600 bg-white border border-slate-200 hover:border-slate-300 px-2.5 py-1 rounded-full transition-all">
-                        <i className="fas fa-copy text-[9px]" /> Copy
-                      </button>
-                      <span className="text-[9px] text-slate-400 font-medium ml-1">{msg.timestamp}</span>
-                    </div>
-                  )}
+                      )
+                    )}
 
-                  {(!isDoctor || msg.role === 'user') && (
-                    <span className="text-[9px] text-slate-400 mt-1 px-1 font-medium">{msg.timestamp}</span>
-                  )}
+                    {msg.role === 'assistant' && msg.id !== 'welcome' && (
+                      <button
+                        onClick={() => {
+                          triggerHaptic('light');
+                          navigator.clipboard?.writeText(cleanText);
+                          setCopiedMsgId(msg.id);
+                          setTimeout(() => setCopiedMsgId(null), 2000);
+                        }}
+                        className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-purple-700 bg-white border border-slate-200 hover:border-purple-300 px-2 py-0.5 rounded-full transition-all"
+                        title="Copy response"
+                      >
+                        {copiedMsgId === msg.id ? (
+                          <>
+                            <Check size={10} className="text-emerald-600" />
+                            <span className="text-emerald-600">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={10} />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+
+                    <span className="text-[9px] text-slate-400 font-medium ml-auto">{msg.timestamp}</span>
+                  </div>
                 </div>
               );
             })}
@@ -749,10 +967,17 @@ export default function AiChatWidget({ context = 'landing', activePatient = null
                 {(theme.discoveryChips || []).map(chip => (
                   <button
                     key={chip}
-                    onClick={() => { triggerHaptic('light'); sendQuery(chip); }}
-                    className="bg-white hover:bg-purple-50 border border-purple-200 hover:border-purple-400 text-slate-700 hover:text-purple-800 text-[11px] font-bold px-3 py-1.5 rounded-full transition-colors shadow-2xs active:scale-95"
+                    onClick={() => {
+                      triggerHaptic('light');
+                      if (chip.includes('Report')) {
+                        setReportModalOpen(true);
+                      } else {
+                        sendQuery(chip);
+                      }
+                    }}
+                    className="bg-white hover:bg-purple-50 border border-purple-200 hover:border-purple-400 text-slate-700 hover:text-purple-800 text-[11px] font-bold px-3 py-1.5 rounded-full transition-colors shadow-2xs active:scale-95 flex items-center gap-1.5"
                   >
-                    {chip}
+                    <span>{chip}</span>
                   </button>
                 ))}
               </div>
@@ -770,7 +995,14 @@ export default function AiChatWidget({ context = 'landing', activePatient = null
                 {docActions.map((action, i) => (
                   <button
                     key={i}
-                    onClick={() => { triggerHaptic('light'); sendQuery(action.prompt); }}
+                    onClick={() => {
+                      triggerHaptic('light');
+                      if (action.isReportTool) {
+                        setReportModalOpen(true);
+                      } else {
+                        sendQuery(action.prompt);
+                      }
+                    }}
                     style={{ animationDelay: `${i * 50}ms` }}
                     className="ai-intent-card text-left p-2.5 rounded-xl border border-slate-200 hover:border-purple-300 hover:bg-purple-50/60 transition-all active:scale-95 group bg-white"
                   >
@@ -793,7 +1025,14 @@ export default function AiChatWidget({ context = 'landing', activePatient = null
                 {patActions.map((action, i) => (
                   <button
                     key={i}
-                    onClick={() => { triggerHaptic('light'); sendQuery(action.prompt); }}
+                    onClick={() => {
+                      triggerHaptic('light');
+                      if (action.isReportTool) {
+                        setReportModalOpen(true);
+                      } else {
+                        sendQuery(action.prompt);
+                      }
+                    }}
                     style={{ animationDelay: `${i * 50}ms` }}
                     className="text-left p-2.5 rounded-xl border border-aubergine-200/60 hover:border-aubergine-400 hover:bg-aubergine-50 transition-all active:scale-95 group bg-white"
                   >
@@ -838,11 +1077,34 @@ export default function AiChatWidget({ context = 'landing', activePatient = null
           )}
 
           {/* INPUT FORM */}
-          <div className="p-3 bg-white border-t border-slate-100 shrink-0">
+          <div className="p-2.5 sm:p-3 bg-white border-t border-slate-100 shrink-0">
+            {/* Quick tool pill bar above input */}
+            <div className="flex items-center gap-1.5 mb-2 overflow-x-auto no-scrollbar py-0.5">
+              <button
+                type="button"
+                onClick={() => { triggerHaptic('light'); setReportModalOpen(true); }}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10.5px] font-bold bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-800 border border-purple-200 transition-all shrink-0 active:scale-95 shadow-2xs group"
+              >
+                <FileText size={12} className="text-purple-600 group-hover:scale-110 transition-transform" />
+                <span>Upload Report &amp; Next Steps</span>
+                <span className="text-[8.5px] bg-purple-200 text-purple-900 px-1 py-0.2 rounded font-black tracking-wider">TOOL</span>
+              </button>
+            </div>
+
             <form
               onSubmit={handleSend}
-              className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-4 py-2 focus-within:ring-2 focus-within:ring-aubergine-500/20 focus-within:border-aubergine-600 transition-all"
+              className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full pl-2 pr-3 py-1.5 focus-within:ring-2 focus-within:ring-aubergine-500/20 focus-within:border-aubergine-600 transition-all"
             >
+              <button
+                type="button"
+                onClick={() => { triggerHaptic('light'); setReportModalOpen(true); }}
+                title="Upload &amp; Analyze Lab Report"
+                aria-label="Upload and analyze lab report"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-purple-600 hover:text-purple-800 hover:bg-purple-100/60 transition-all active:scale-95 shrink-0"
+              >
+                <FileUp size={15} />
+              </button>
+
               <input
                 type="text"
                 value={input}
@@ -852,7 +1114,7 @@ export default function AiChatWidget({ context = 'landing', activePatient = null
                     ? `Monthly limit reached (${currentPlanName}). Upgrade to continue...`
                     : isDoctor
                     ? "Ask clinical question or analyze patient case..."
-                    : "Ask anything about PCOS, symptoms, reports..."
+                    : "Ask about symptoms, reports, diet..."
                 }
                 className="hn-body flex-1 bg-transparent border-none text-[13px] text-slate-800 placeholder-slate-400 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                 disabled={isLoading || isQuotaExhausted}
@@ -881,6 +1143,217 @@ export default function AiChatWidget({ context = 'landing', activePatient = null
               </div>
             )}
           </div>
+
+          {/* REPORT ACTION ANALYZER TOOL DRAWER / MODAL */}
+          {reportModalOpen && (
+            <div className="absolute inset-0 z-30 bg-white flex flex-col rounded-[2rem] overflow-hidden animate-fade-in shadow-2xl">
+              {/* Header */}
+              <div className="px-4 py-3 bg-gradient-to-r from-purple-700 via-aubergine-700 to-indigo-800 text-white shrink-0 flex items-center justify-between shadow-md">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center border border-white/30 backdrop-blur-xs">
+                    <FileText size={16} className="text-white" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="font-bold text-[13px] tracking-tight text-white leading-none">Report Action Analyzer</h4>
+                      <span className="text-[9px] bg-emerald-400/30 text-emerald-100 border border-emerald-300/40 px-1.5 py-0.2 rounded-full font-bold">AI Tool</span>
+                    </div>
+                    <p className="text-[10.5px] text-purple-200 mt-0.5">Biomarker Decoder &amp; "Kya Karein" Action Guide</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { triggerHaptic('light'); setReportModalOpen(false); }}
+                  className="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors"
+                  aria-label="Close report tool"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="flex-1 p-3.5 overflow-y-auto space-y-3 bg-slate-50/60 text-xs">
+                {/* Introduction banner */}
+                <div className="p-2.5 rounded-xl bg-purple-50/80 border border-purple-200/80 text-purple-950 text-[11px] leading-relaxed flex items-start gap-2">
+                  <Sparkles size={14} className="text-purple-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Discover what your report means and what to do next:</span>
+                    <p className="text-purple-800 text-[10.5px] mt-0.5">
+                      Get personalized diet modifications, daily lifestyle habits, recommended specialist, follow-up tests, and questions for your doctor.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 1-Click Sample Presets */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10.5px] font-black uppercase tracking-wider text-slate-500">
+                      Quick Sample Reports:
+                    </span>
+                    <span className="text-[9.5px] text-purple-600 font-bold">1-click test</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {SAMPLE_REPORTS.map(preset => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => {
+                          triggerHaptic('light');
+                          setReportName(preset.name);
+                          setReportText(preset.text);
+                          setReportCyclePhase(preset.cyclePhase || 'general');
+                          setReportFile(null);
+                          setFileError(null);
+                        }}
+                        className="text-left p-2 rounded-xl bg-white border border-slate-200 hover:border-purple-300 hover:bg-purple-50/40 transition-all text-[11px] font-bold text-slate-700 active:scale-95 shadow-2xs group"
+                      >
+                        <span className="block truncate group-hover:text-purple-800">{preset.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* File Upload Box */}
+                <div>
+                  <label className="block text-[10.5px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                    Upload File (PDF / Image / TXT)
+                  </label>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,.txt"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+
+                  {!reportFile ? (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="border-2 border-dashed border-purple-200 hover:border-purple-400 bg-white hover:bg-purple-50/40 rounded-xl p-3 text-center cursor-pointer transition-all group"
+                    >
+                      <Upload size={18} className="mx-auto text-purple-500 group-hover:scale-110 transition-transform mb-1" />
+                      <p className="text-[11px] font-bold text-slate-700">Click to upload or drag &amp; drop</p>
+                      <p className="text-[9.5px] text-slate-400 mt-0.5">PDF, PNG, JPG, or TXT (Max 10MB)</p>
+                    </div>
+                  ) : (
+                    <div className="bg-white border border-purple-200 rounded-xl p-2.5 flex items-center justify-between gap-2 shadow-2xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {reportFile.previewUrl ? (
+                          <img src={reportFile.previewUrl} alt="Report preview" className="w-10 h-10 object-cover rounded-lg border border-slate-200" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                            <FileText size={16} />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-bold text-slate-800 truncate">{reportFile.name}</p>
+                          <div className="flex items-center gap-1.5 text-[9.5px] text-slate-500">
+                            <span>{reportFile.size}</span>
+                            <span>•</span>
+                            <span className="text-emerald-600 font-bold flex items-center gap-0.5">
+                              <CheckCircle2 size={10} /> Attached
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReportFile(null);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                        className="w-6 h-6 rounded-md hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-rose-600 transition-colors shrink-0"
+                        title="Remove file"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+
+                  {isReadingFile && (
+                    <p className="text-[10px] text-purple-600 font-bold mt-1 flex items-center gap-1 animate-pulse">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-ping" /> Reading report content...
+                    </p>
+                  )}
+                  {fileError && (
+                    <p className="text-[10px] text-rose-600 font-bold mt-1 flex items-center gap-1">
+                      <AlertCircle size={11} /> {fileError}
+                    </p>
+                  )}
+                </div>
+
+                {/* Report Name */}
+                <div>
+                  <label className="block text-[10.5px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                    Report Name / Test Type
+                  </label>
+                  <input
+                    type="text"
+                    value={reportName}
+                    onChange={(e) => setReportName(e.target.value)}
+                    placeholder="e.g., Complete Blood Count, Thyroid Panel, Ultrasound Pelvis..."
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-[12px] text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+                  />
+                </div>
+
+                {/* Cycle Phase / Context Selector */}
+                <div>
+                  <label className="block text-[10.5px] font-black uppercase tracking-wider text-slate-500 mb-1">
+                    Cycle / Life Stage (Optional - For Hormone Calibration)
+                  </label>
+                  <select
+                    value={reportCyclePhase}
+                    onChange={(e) => setReportCyclePhase(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-[12px] text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+                  >
+                    <option value="general">Standard / General Adult Range</option>
+                    <option value="follicular">Follicular Phase (Days 1–14)</option>
+                    <option value="ovulation">Ovulation Window (Mid-cycle)</option>
+                    <option value="luteal">Luteal Phase (Days 15–28)</option>
+                    <option value="menstrual">Menstrual Phase (Bleeding days)</option>
+                    <option value="menopause">Perimenopause / Menopause</option>
+                  </select>
+                </div>
+
+                {/* Report Text or Observations */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[10.5px] font-black uppercase tracking-wider text-slate-500">
+                      Report Values / Observations
+                    </label>
+                    <span className="text-[9.5px] text-slate-400">Type or paste results</span>
+                  </div>
+                  <textarea
+                    rows={4}
+                    value={reportText}
+                    onChange={(e) => setReportText(e.target.value)}
+                    placeholder="Paste report text or enter biomarker readings here...&#10;e.g., TSH: 6.8 µIU/mL, HbA1c: 6.2%, Fasting Glucose: 115 mg/dL, Vitamin D: 14 ng/mL"
+                    className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-[11.5px] font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 leading-relaxed"
+                  />
+                </div>
+              </div>
+
+              {/* Footer action button */}
+              <div className="p-3 bg-white border-t border-slate-100 shrink-0 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => { triggerHaptic('light'); setReportModalOpen(false); }}
+                  className="px-3 py-2 rounded-xl text-slate-500 hover:bg-slate-100 font-bold text-xs transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={(!reportText.trim() && !reportFile) || isReadingFile}
+                  onClick={handleAnalyzeReportSubmit}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white font-bold text-xs shadow-md shadow-purple-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all active:scale-98"
+                >
+                  <Sparkles size={14} />
+                  <span>Analyze Report &amp; Next Steps</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
