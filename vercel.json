@@ -14,6 +14,8 @@
     }
   ],
   "redirects": [
+    { "source": "/conditions/conditions/:slug*", "destination": "/conditions/:slug*", "permanent": true },
+    { "source": "/conditions", "destination": "/#conditions", "permanent": true },
     { "source": "/pcos-treatment-online", "destination": "/conditions/pcos-treatment-online", "permanent": true },
     { "source": "/gynecology-womens-health", "destination": "/conditions/gynecology-womens-health", "permanent": true },
     { "source": "/thyroid-consultation", "destination": "/conditions/thyroid-consultation", "permanent": true },

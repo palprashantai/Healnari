@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import AIUsageUpgradePage from './components/ai/AIUsageUpgradePage.jsx';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
@@ -153,6 +153,11 @@ import PWASplashScreen from './components/PWASplashScreen.jsx';
 import { NetworkStatusIndicator } from './components/NetworkStatusIndicator.jsx';
 import { GlobalNotificationPrompt } from './components/GlobalNotificationPrompt.jsx';
 
+function DoubleConditionsRedirect() {
+  const { slug } = useParams();
+  return <Navigate to={`/conditions/${slug || ''}`} replace />;
+}
+
 function App() {
   React.useEffect(() => {
     // Remove the LCP shell to reveal the hydrated React app.
@@ -189,6 +194,8 @@ function App() {
                 <Route path="/book/:doctorId" element={<DoctorPublicProfile />} />
                 <Route path="/doctor/:doctorId" element={<DoctorPublicProfile />} />
                 <Route path="/conditions/:slug" element={<ConditionPage />} />
+                <Route path="/conditions" element={<Navigate to="/#conditions" replace />} />
+                <Route path="/conditions/conditions/:slug" element={<DoubleConditionsRedirect />} />
                 {/* Direct aliases for condition routes without /conditions/ prefix */}
                 <Route path="/general-medicine-primary-care" element={<Navigate to="/conditions/general-medicine-primary-care" replace />} />
                 <Route path="/pcos-treatment-online" element={<Navigate to="/conditions/pcos-treatment-online" replace />} />
@@ -199,6 +206,7 @@ function App() {
                 <Route path="/clinical-nutrition-dietetics" element={<Navigate to="/conditions/clinical-nutrition-dietetics" replace />} />
                 <Route path="/yoga-movement-therapy" element={<Navigate to="/conditions/yoga-movement-therapy" replace />} />
                 <Route path="/fertility-preconception-care" element={<Navigate to="/conditions/fertility-preconception-care" replace />} />
+                <Route path="/hormonal-weight-loss" element={<Navigate to="/conditions/hormonal-weight-loss" replace />} />
                 <Route path="/learn/:slug" element={<GlossaryArticle />} />
                 <Route path="/glossary/:slug" element={<GlossaryArticle />} />
                 <Route path="/guides/:slug" element={<GuidePage />} />
