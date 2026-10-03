@@ -4,9 +4,11 @@ import { Modal, ConfirmModal } from '../../components/Modal.jsx';
 import { Tilt3D } from '../../components/Tilt3D.jsx';
 import { apiFetch } from '../../lib/apiClient.js';
 import { AiButton } from '../../components/AiButton.jsx';
+import { ClinicalContentManager } from '../components/ClinicalContentManager.jsx';
 
 function AdminCMS() {
   const toast = useToast();
+  const [mainTab, setMainTab] = useState('articles'); // 'articles' | 'conditions'
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -266,26 +268,64 @@ function AdminCMS() {
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 font-display">Content Management System</h1>
           <p className="text-sm text-slate-500 mt-0.5">Author, publish, and manage evidence-based clinical guides and public health content.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={openCreateModal}
-            className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-sm flex items-center gap-2"
-          >
-            <i className="fas fa-plus text-xs"></i>
-            <span>New Article</span>
-          </button>
-          <AiButton
-            variant="gradient"
-            size="md"
-            icon="fa-wand-magic-sparkles"
-            badge="Gemini AI"
-            onClick={() => { setAiModalOpen(true); setAiGeneratedArticle(null); }}
-          >
-            Draft with AI
-          </AiButton>
-        </div>
+        {mainTab === 'articles' && (
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={openCreateModal}
+              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm rounded-xl transition-all shadow-sm flex items-center gap-2"
+            >
+              <i className="fas fa-plus text-xs"></i>
+              <span>New Article</span>
+            </button>
+            <AiButton
+              variant="gradient"
+              size="md"
+              icon="fa-wand-magic-sparkles"
+              badge="Gemini AI"
+              onClick={() => { setAiModalOpen(true); setAiGeneratedArticle(null); }}
+            >
+              Draft with AI
+            </AiButton>
+          </div>
+        )}
       </div>
 
+      {/* Tab Switcher: Articles vs Clinical Conditions & Protocols */}
+      <div className="flex border-b border-slate-200 gap-4">
+        <button
+          type="button"
+          onClick={() => setMainTab('articles')}
+          className={`pb-3 text-sm font-extrabold transition-all border-b-2 flex items-center gap-2 ${
+            mainTab === 'articles'
+              ? 'border-aubergine-600 text-aubergine-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <i className="fas fa-newspaper text-xs" />
+          <span>Articles &amp; Health Guides</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMainTab('conditions')}
+          className={`pb-3 text-sm font-extrabold transition-all border-b-2 flex items-center gap-2 ${
+            mainTab === 'conditions'
+              ? 'border-aubergine-600 text-aubergine-700'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <i className="fas fa-stethoscope text-xs" />
+          <span>Clinical Conditions &amp; Protocols (Check Symptoms)</span>
+          <span className="bg-aubergine-100 text-aubergine-800 text-[10px] font-black px-2 py-0.5 rounded-full">
+            Taxonomy
+          </span>
+        </button>
+      </div>
+
+      {mainTab === 'conditions' ? (
+        <ClinicalContentManager />
+      ) : (
+        <>
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
@@ -478,6 +518,8 @@ function AdminCMS() {
           )}
         </div>
       </div>
+      </>
+      )}
 
       {/* ── Edit / Create Article Modal ── */}
       <Modal 

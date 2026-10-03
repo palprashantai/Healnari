@@ -29,6 +29,7 @@ import LandingPage from './landing/pages/LandingPage.jsx';
 const DoctorLandingPage = lazy(() => import('./landing/pages/DoctorLandingPage.jsx'));
 const DoctorPublicProfile = lazy(() => import('./landing/pages/DoctorPublicProfile.jsx'));
 const ConditionPage = lazy(() => import('./landing/pages/ConditionPage.jsx'));
+const CheckSymptomsPage = lazy(() => import('./landing/pages/CheckSymptomsPage.jsx'));
 const GlossaryArticle = lazy(() => import('./landing/pages/GlossaryArticle.jsx'));
 const GuidePage = lazy(() => import('./landing/pages/GuidePage.jsx'));
 const LegalPage = lazy(() => import('./landing/pages/LegalPage.jsx'));
@@ -177,6 +178,8 @@ function App() {
             }>
               <Routes>
                 <Route path="/" element={<RootRoute />} />
+                <Route path="/check-symptoms" element={<CheckSymptomsPage />} />
+                <Route path="/symptoms" element={<Navigate to="/check-symptoms" replace />} />
                 <Route path="/for-doctors" element={<DoctorLandingPage />} />
                 <Route path="/login" element={<Navigate to="/?auth=login" replace />} />
                 <Route path="/admin" element={<Navigate to="/admin-dashboard" replace />} />

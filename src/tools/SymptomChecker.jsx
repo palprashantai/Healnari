@@ -331,6 +331,27 @@ function SymptomChecker({ onClose, onBook, onOpenBooking }) {
           {/* STEP 1: CONCERN SELECT */}
           {step === 1 && (
             <div className="space-y-4">
+              <a
+                href="/check-symptoms"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onClose?.();
+                  window.location.href = '/check-symptoms';
+                }}
+                className="bg-gradient-to-r from-aubergine-50 via-magenta-50/60 to-indigo-50 border border-aubergine-200/90 rounded-2xl p-3.5 flex items-center justify-between text-xs font-bold text-aubergine-900 hover:border-aubergine-400 transition-all shadow-2xs group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="w-6 h-6 rounded-lg bg-aubergine-600 text-white flex items-center justify-center text-[11px] shrink-0">
+                    <i className="fas fa-notes-medical" />
+                  </span>
+                  <div>
+                    <span className="block font-extrabold text-aubergine-900">Multi-Symptom Assessment &amp; Movement Guide</span>
+                    <span className="text-[11px] text-slate-500 font-medium">Select multiple concerns across skin, hair, cycles &amp; lifestyle</span>
+                  </div>
+                </div>
+                <i className="fas fa-chevron-right text-xs text-aubergine-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
+              </a>
+
               <div className="text-center">
                 <h4 className="font-extrabold text-lg text-slate-800 font-display">What would you like help with?</h4>
                 <p className="text-slate-500 text-xs font-semibold mt-1">Select your primary area of focus to start your guided roadmap.</p>

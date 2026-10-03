@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { triggerHaptic } from '../../lib/haptics.js';
 import { apiFetch } from '../../lib/apiClient.js';
+import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
 
 // Multi-Specialty Clinical Specialties Ribbon
 const SPECIALTIES_RIBBON = [
@@ -140,8 +141,20 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
             ))}
           </div>
 
-          {/* Strict 2-CTA Hierarchy (Prompt Section 5) */}
+          {/* Primary CTA Pair: Check My Symptoms & Find a Specialist */}
           <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-xl">
+            <NavLink
+              to="/check-symptoms"
+              onClick={() => {
+                triggerHaptic('medium');
+                trackEvent(AnalyticsEvents.CHECK_SYMPTOMS_CLICKED, { source: 'hero_primary' });
+              }}
+              className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-extrabold px-6 py-3.5 rounded-xl shadow-lg shadow-aubergine-200 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2.5 text-base"
+            >
+              <i className="fas fa-notes-medical text-sm" aria-hidden="true" />
+              <span>Check My Symptoms</span>
+            </NavLink>
+
             <button
               type="button"
               onClick={() => {
@@ -153,12 +166,14 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
                   onStartConsult('');
                 }
               }}
-              className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-extrabold px-7 py-3.5 rounded-xl shadow-lg shadow-aubergine-200 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2.5 text-base"
+              className="bg-white hover:bg-slate-50 text-slate-700 font-bold px-6 py-3.5 rounded-xl border border-sand-300 shadow-xs transition-all hover:border-aubergine-300 flex items-center justify-center gap-2 text-base"
             >
-              <i className="fas fa-stethoscope text-sm" aria-hidden="true" />
+              <i className="fas fa-stethoscope text-sm text-aubergine-600" aria-hidden="true" />
               <span>Find a Specialist</span>
             </button>
+          </div>
 
+          <div className="pt-0.5 flex items-center justify-center lg:justify-start">
             <a
               href="#how-it-works"
               onClick={(e) => {
@@ -166,10 +181,10 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
                 const el = document.getElementById('how-it-works');
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }}
-              className="bg-white hover:bg-slate-50 text-slate-700 font-bold px-6 py-3.5 rounded-xl border border-sand-300 shadow-xs transition-all hover:border-aubergine-300 flex items-center justify-center gap-2 text-base"
+              className="text-xs font-semibold text-slate-500 hover:text-aubergine-700 transition-colors inline-flex items-center gap-1.5"
             >
-              <span>How HealNari Works</span>
-              <i className="fas fa-arrow-down text-xs text-slate-400" aria-hidden="true" />
+              <span>Learn how HealNari works</span>
+              <i className="fas fa-arrow-down text-[10px] text-slate-400" aria-hidden="true" />
             </a>
           </div>
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import Reveal from '../../components/Reveal.jsx';
 import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
 import { triggerHaptic } from '../../lib/haptics.js';
@@ -243,8 +244,23 @@ export default function CareDiscovery({ onSelectSpecialty, onStartConsult }) {
 
             </div>
 
+            {/* Secondary Symptom Assessment Discovery */}
+            <div className="mt-5 pt-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+              <span className="text-slate-600 font-medium">
+                Unsure which specialist matches your combination of concerns?
+              </span>
+              <NavLink
+                to="/check-symptoms"
+                className="text-aubergine-700 hover:text-aubergine-800 font-extrabold inline-flex items-center gap-1.5 shrink-0"
+              >
+                <i className="fas fa-notes-medical text-aubergine-600 text-xs" />
+                <span>Check My Symptoms Free</span>
+                <i className="fas fa-arrow-right text-[10px]" />
+              </NavLink>
+            </div>
+
             {/* Non-Diagnostic Disclaimer */}
-            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center gap-2 text-[11px] text-slate-400">
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2 text-[11px] text-slate-400">
               <i className="fas fa-shield-halved text-slate-400 shrink-0"></i>
               <span>
                 <strong>HealNari Clinical Care Protocol:</strong> This tool assists with navigating clinical departments and does not provide an automated medical diagnosis. All treatment plans are determined by licensed medical doctors.

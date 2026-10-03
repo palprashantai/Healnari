@@ -213,6 +213,19 @@ function Header({ onStartConsult, onOpenAuth }) {
             </a>
           ))}
           <NavLink
+            to="/check-symptoms"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="text-base font-bold text-aubergine-700 hover:text-aubergine-800 transition-colors py-2 px-1 flex items-center justify-between border-b border-slate-50"
+          >
+            <span className="flex items-center gap-2">
+              <i className="fas fa-notes-medical text-aubergine-600 text-xs"></i>
+              <span>Check My Symptoms</span>
+            </span>
+            <span className="text-[10px] font-black uppercase tracking-wider bg-aubergine-100 text-aubergine-800 px-2 py-0.5 rounded-full">
+              FREE
+            </span>
+          </NavLink>
+          <NavLink
             to="/for-doctors"
             onClick={() => setIsMobileMenuOpen(false)}
             className="text-base font-semibold text-aubergine-700 hover:text-aubergine-800 transition-colors py-2 px-1 flex items-center gap-2 border-b border-slate-50"

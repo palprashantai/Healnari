@@ -52,6 +52,16 @@ export const AnalyticsEvents = {
   SPECIALIST_PROFILE_VIEWED: 'specialist_profile_viewed',
   SYMPTOM_CHECKER_OPENED: 'symptom_checker_opened',
   SYMPTOM_CHECKER_COMPLETED: 'symptom_checker_completed',
+  CHECK_SYMPTOMS_CLICKED: 'check_symptoms_clicked',
+  ASSESSMENT_STARTED: 'assessment_started',
+  SYMPTOM_SELECTED: 'symptom_selected',
+  ASSESSMENT_QUESTION_COMPLETED: 'assessment_question_completed',
+  ASSESSMENT_COMPLETED: 'assessment_completed',
+  HEALTH_INSIGHT_VIEWED: 'health_insight_viewed',
+  SPECIALIST_RECOMMENDATION_VIEWED: 'specialist_recommendation_viewed',
+  EXERCISE_PLAN_VIEWED: 'exercise_plan_viewed',
+  EXERCISE_STARTED: 'exercise_started',
+  SPECIALIST_CLICKED: 'specialist_clicked',
   
   // Booking & Transaction Funnel
   BOOKING_MODAL_OPENED: 'booking_modal_opened',

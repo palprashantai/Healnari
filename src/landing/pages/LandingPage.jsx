@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header.jsx';
 import Hero from '../components/Hero.jsx';
 import Reveal from '../../components/Reveal.jsx';
@@ -36,6 +37,7 @@ const PatientAiShowcase = lazy(() => import('../components/PatientAiShowcase.jsx
 const AiChatWidget = lazy(() => import('../../tools/AiChatWidget.jsx'));
 
 function LandingPage() {
+  const navigate = useNavigate();
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState('');
   const [isSymptomOpen, setIsSymptomOpen] = useState(false);
@@ -257,7 +259,7 @@ function LandingPage() {
       <main className="flex-grow">
         <Hero 
           onStartConsult={() => openBooking('')} 
-          onOpenChecker={() => setIsSymptomOpen(true)} 
+          onOpenChecker={() => navigate('/check-symptoms')} 
           title={adminSettings?.heroTitle}
           subtitle={adminSettings?.heroSubtitle}
         />
@@ -292,7 +294,7 @@ function LandingPage() {
           {adminSettings?.toggles?.showAiShowcase !== false && (
             <PatientAiShowcase 
               onStartConsult={() => openBooking('')} 
-              onOpenChecker={() => setIsSymptomOpen(true)} 
+              onOpenChecker={() => navigate('/check-symptoms')} 
             />
           )}
 

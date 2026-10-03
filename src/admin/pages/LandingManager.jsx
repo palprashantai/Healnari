@@ -135,6 +135,7 @@ function AdminLandingManager() {
     showFaq: true,
     showNewsletter: true,
     showFloatingCTA: true,
+    showSymptomAssessmentEntry: true,
 
     // Provider Landing Sections
     showProviderHero: true,
@@ -414,6 +415,7 @@ function AdminLandingManager() {
     { key: 'showFaq', label: 'Frequently Asked Questions (FAQ)', desc: 'Accordion with medical & booking questions' },
     { key: 'showNewsletter', label: 'Hormonal Health Newsletter', desc: 'Email subscription box' },
     { key: 'showFloatingCTA', label: 'Floating Mobile Sticky Bar', desc: 'Thumb-friendly booking bar at bottom of mobile screen' },
+    { key: 'showSymptomAssessmentEntry', label: 'Check My Symptoms CTA', desc: 'Prominent symptom assessment entry button in hero and care discovery' },
   ];
 
   const providerSections = [
