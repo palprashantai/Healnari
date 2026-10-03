@@ -9,24 +9,24 @@ function Conditions() {
 
   const specialties = [
     {
-      name: "General Medicine & Primary Care",
-      desc: "Fever, acute infections, blood pressure, fatigue, routine health checks & preventative medicine.",
-      icon: "fa-user-doctor",
-      color: "text-blue-600 bg-blue-50 border-blue-100",
-      badge: "General Physician",
-      href: "/conditions/general-medicine-primary-care",
-      actionTag: "General Medicine",
-      symptoms: ["Fever & Flu", "Low Energy", "Headache", "Health Check"]
+      name: "PCOS & Hormonal Health",
+      desc: "Root-cause care for irregular cycles, stubborn weight, hirsutism, insulin resistance & hormonal acne.",
+      icon: "fa-venus-double",
+      color: "text-pink-600 bg-pink-50 border-pink-100",
+      badge: "PCOS Specialist",
+      href: "/conditions/pcos-treatment-online",
+      actionTag: "PCOS Specialist",
+      symptoms: ["Irregular Cycles", "Insulin Resistance", "Facial Hair", "AMH / Cysts"]
     },
     {
-      name: "Dermatology & Skin Care",
-      desc: "Hormonal acne, adult breakouts, eczema, melasma, hyperpigmentation & barrier repair.",
-      icon: "fa-wand-magic-sparkles",
-      color: "text-amber-600 bg-amber-50 border-amber-100",
-      badge: "Dermatologist",
-      href: "/conditions/hormonal-dermatology-acne",
-      actionTag: "Dermatology",
-      symptoms: ["Acne & Pimples", "Skin Redness", "Dark Spots", "Barrier Repair"]
+      name: "Gynaecology & Reproductive Health",
+      desc: "Irregular cycles, painful periods (dysmenorrhea), heavy bleeding, pelvic care & comprehensive fertility.",
+      icon: "fa-venus",
+      color: "text-rose-600 bg-rose-50 border-rose-100",
+      badge: "Gynaecologist",
+      href: "/conditions/gynecology-womens-health",
+      actionTag: "Gynaecologist",
+      symptoms: ["Irregular Periods", "Period Pain", "Heavy Bleeding", "PCOS"]
     },
     {
       name: "Endocrinology & Thyroid",
@@ -39,14 +39,14 @@ function Conditions() {
       symptoms: ["Thyroid Issues", "Weight Changes", "Hormones", "Metabolism"]
     },
     {
-      name: "Gynaecology & Reproductive Health",
-      desc: "Irregular cycles, painful periods (dysmenorrhea), heavy bleeding, pelvic care & PCOS.",
-      icon: "fa-venus",
-      color: "text-rose-600 bg-rose-50 border-rose-100",
-      badge: "Gynaecologist",
-      href: "/conditions/gynecology-womens-health",
-      actionTag: "Gynaecologist",
-      symptoms: ["Irregular Periods", "Period Pain", "Heavy Bleeding", "PCOS"]
+      name: "Dermatology & Skin Care",
+      desc: "Hormonal acne, adult breakouts, eczema, melasma, hyperpigmentation & barrier repair.",
+      icon: "fa-wand-magic-sparkles",
+      color: "text-amber-600 bg-amber-50 border-amber-100",
+      badge: "Dermatologist",
+      href: "/conditions/hormonal-dermatology-acne",
+      actionTag: "Dermatology",
+      symptoms: ["Acne & Pimples", "Skin Redness", "Dark Spots", "Barrier Repair"]
     },
     {
       name: "Hair & Scalp / Trichology",
@@ -69,14 +69,14 @@ function Conditions() {
       symptoms: ["Weight Management", "Gut & Bloating", "Diet Protocol", "Stamina"]
     },
     {
-      name: "Mindful Movement & Yoga",
-      desc: "Somatic stress release, pelvic floor conditioning, restorative breathwork & therapeutic movement.",
-      icon: "fa-person-praying",
-      color: "text-purple-600 bg-purple-50 border-purple-100",
-      badge: "Movement Coach",
-      href: "/conditions/yoga-movement-therapy",
-      actionTag: "Yoga & Movement",
-      symptoms: ["High Stress", "Poor Sleep", "Pelvic Floor", "Stiffness"]
+      name: "Hormonal Weight Management",
+      desc: "Targeted metabolic strategies for thyroid resistance, leptin sensitivity, cortisol & sluggish metabolism.",
+      icon: "fa-weight-scale",
+      color: "text-orange-600 bg-orange-50 border-orange-100",
+      badge: "Metabolic Specialist",
+      href: "/conditions/hormonal-weight-loss",
+      actionTag: "Metabolic Health",
+      symptoms: ["Stubborn Fat", "Metabolism", "Cortisol / Stress", "Post-Meal Crash"]
     },
     {
       name: "Fertility & Preconception",
@@ -87,6 +87,26 @@ function Conditions() {
       href: "/conditions/fertility-preconception-care",
       actionTag: "Fertility Specialist",
       symptoms: ["Conception Timing", "Ovulation", "Cycle Tracking", "Pre-Pregnancy"]
+    },
+    {
+      name: "General Medicine & Primary Care",
+      desc: "Fever, acute infections, blood pressure, fatigue, routine health checks & preventative medicine.",
+      icon: "fa-user-doctor",
+      color: "text-blue-600 bg-blue-50 border-blue-100",
+      badge: "General Physician",
+      href: "/conditions/general-medicine-primary-care",
+      actionTag: "General Medicine",
+      symptoms: ["Fever & Flu", "Low Energy", "Headache", "Health Check"]
+    },
+    {
+      name: "Mindful Movement & Yoga",
+      desc: "Somatic stress release, pelvic floor conditioning, restorative breathwork & therapeutic movement.",
+      icon: "fa-person-praying",
+      color: "text-purple-600 bg-purple-50 border-purple-100",
+      badge: "Movement Coach",
+      href: "/conditions/yoga-movement-therapy",
+      actionTag: "Yoga & Movement",
+      symptoms: ["High Stress", "Poor Sleep", "Pelvic Floor", "Stiffness"]
     }
   ];
 
@@ -177,7 +197,7 @@ function Conditions() {
       {/* Responsive Grid / Horizontal Scroll */}
       <div 
         ref={scrollRef}
-        className="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-5 overflow-x-auto snap-x snap-mandatory pb-6 px-5 md:px-8 sm:overflow-visible hide-scrollbar"
+        className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5 overflow-x-auto snap-x snap-mandatory pb-6 px-5 md:px-8 sm:overflow-visible hide-scrollbar"
       >
         {specialties.map((spec, idx) => (
           <Reveal key={idx} delay={(idx % 4) * 60} className="w-[85vw] max-w-[18rem] sm:w-auto sm:max-w-none flex-shrink-0 snap-start sm:flex-shrink-1">

@@ -13,8 +13,19 @@
       ]
     }
   ],
+  "redirects": [
+    { "source": "/pcos-treatment-online", "destination": "/conditions/pcos-treatment-online", "permanent": true },
+    { "source": "/gynecology-womens-health", "destination": "/conditions/gynecology-womens-health", "permanent": true },
+    { "source": "/thyroid-consultation", "destination": "/conditions/thyroid-consultation", "permanent": true },
+    { "source": "/hormonal-dermatology-acne", "destination": "/conditions/hormonal-dermatology-acne", "permanent": true },
+    { "source": "/hair-loss-trichology", "destination": "/conditions/hair-loss-trichology", "permanent": true },
+    { "source": "/clinical-nutrition-dietetics", "destination": "/conditions/clinical-nutrition-dietetics", "permanent": true },
+    { "source": "/yoga-movement-therapy", "destination": "/conditions/yoga-movement-therapy", "permanent": true },
+    { "source": "/fertility-preconception-care", "destination": "/conditions/fertility-preconception-care", "permanent": true },
+    { "source": "/hormonal-weight-loss", "destination": "/conditions/hormonal-weight-loss", "permanent": true },
+    { "source": "/general-medicine-primary-care", "destination": "/conditions/general-medicine-primary-care", "permanent": true }
+  ],
   "rewrites": [
-    { "source": "/sitemap.xml", "destination": "https://healnari.onrender.com/api/public/sitemap.xml" },
     { "source": "/((?!assets/|brand/|generated/|.*\\.[\\w]+$).*)", "destination": "/index.html" }
   ]
 }
