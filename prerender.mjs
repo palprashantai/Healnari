@@ -82,7 +82,7 @@ function renderConditionShell(condition, canonicalUrl) {
     ? `
       <section style="margin-top:40px;background:#fff;border:1px solid #E2E8F0;border-radius:20px;padding:28px 24px;box-shadow:0 4px 16px rgba(0,0,0,0.04);">
         <h2 style="font-size:1.3rem;font-weight:800;color:#0F172A;margin:0 0 16px;font-family:Georgia,serif;">
-          Key Symptoms & Concerns Evaluated
+          Key Symptoms &amp; Concerns Evaluated
         </h2>
         <ul style="margin:0;padding-left:20px;color:#475569;line-height:1.8;font-size:0.95rem;">
           ${condition.keySymptoms.map(s => `<li>${escapeHtml(s)}</li>`).join('')}
@@ -352,6 +352,157 @@ function renderGlossaryShell(term, canonicalUrl) {
   `;
 }
 
+function renderCheckSymptomsShell(canonicalUrl) {
+  return `
+    <div id="lcp-shell" style="position:absolute;top:0;left:0;width:100%;min-height:100vh;background-color:#FDFBF7;z-index:9999;">
+      <header style="position:sticky;top:0;z-index:50;padding:14px 0;background-color:rgba(253,251,247,0.98);backdrop-filter:blur(12px);border-bottom:1px solid rgba(0,0,0,0.06);">
+        <div style="max-width:1280px;margin:0 auto;padding:0 20px;display:flex;align-items:center;justify-content:space-between;">
+          <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:1.4rem;font-weight:900;color:#6B46C1;font-family:Georgia,serif;">Heal<span style="color:#E23E8C;">Nari</span></span>
+          </a>
+          <a href="/" style="color:#6B46C1;font-weight:700;font-size:0.85rem;text-decoration:none;">Home</a>
+        </div>
+      </header>
+
+      <main style="padding:32px 16px 80px;max-width:860px;margin:0 auto;">
+        <nav aria-label="Breadcrumb" style="font-size:0.8rem;color:#94A3B8;margin-bottom:18px;">
+          <a href="/" style="color:#6B46C1;text-decoration:none;">Home</a> &gt; 
+          <span style="color:#64748B;">Check Symptoms</span>
+        </nav>
+
+        <div style="background:#fff;border:1px solid #E2E8F0;border-radius:24px;padding:36px 28px;box-shadow:0 4px 20px rgba(0,0,0,0.03);">
+          <span style="background:#FDF2F8;border:1px solid #FBCFE8;color:#BE185D;font-size:0.75rem;font-weight:800;padding:4px 10px;border-radius:999px;">
+            Free Clinical Triage • 2 Minutes
+          </span>
+
+          <h1 style="font-size:2rem;line-height:1.25;font-weight:800;color:#0F172A;font-family:Georgia,serif;margin:14px 0 16px;">
+            Check Your Symptoms — Guided Clinical Navigation
+          </h1>
+
+          <p style="color:#475569;font-size:1.05rem;line-height:1.7;margin:0 0 24px;">
+            Select the symptoms you are experiencing to receive evidence-based insights into possible hormonal, metabolic, or physical patterns, and connect directly with verified medical specialists.
+          </p>
+
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:28px;">
+            <span style="background:#F5F3FF;border:1px solid #DDD6FE;color:#6D28D9;font-size:0.8rem;font-weight:700;padding:6px 14px;border-radius:999px;">Irregular Periods</span>
+            <span style="background:#F5F3FF;border:1px solid #DDD6FE;color:#6D28D9;font-size:0.8rem;font-weight:700;padding:6px 14px;border-radius:999px;">Period Pain &amp; Cramps</span>
+            <span style="background:#F5F3FF;border:1px solid #DDD6FE;color:#6D28D9;font-size:0.8rem;font-weight:700;padding:6px 14px;border-radius:999px;">Hormonal Acne</span>
+            <span style="background:#F5F3FF;border:1px solid #DDD6FE;color:#6D28D9;font-size:0.8rem;font-weight:700;padding:6px 14px;border-radius:999px;">Hair Fall &amp; Thinning</span>
+            <span style="background:#F5F3FF;border:1px solid #DDD6FE;color:#6D28D9;font-size:0.8rem;font-weight:700;padding:6px 14px;border-radius:999px;">Thyroid &amp; Fatigue</span>
+            <span style="background:#F5F3FF;border:1px solid #DDD6FE;color:#6D28D9;font-size:0.8rem;font-weight:700;padding:6px 14px;border-radius:999px;">Stubborn Weight</span>
+          </div>
+
+          <div style="background:#FAF8F5;border-radius:16px;padding:20px;margin-bottom:24px;border:1px solid #E2E8F0;">
+            <strong style="color:#1E293B;font-size:0.9rem;display:block;margin-bottom:8px;">How HealNari Clinical Triage Works:</strong>
+            <ol style="margin:0;padding-left:20px;color:#475569;line-height:1.7;font-size:0.85rem;">
+              <li>Select your primary concerns and timeline.</li>
+              <li>Answer 2-3 focused clinical context questions.</li>
+              <li>Review possible root-cause patterns (hormonal, nutritional, lifestyle).</li>
+              <li>Match with council-registered doctors for a private video consultation.</li>
+            </ol>
+          </div>
+
+          <div style="padding:14px;background:#F8FAFC;border-radius:12px;font-size:0.75rem;color:#94A3B8;text-align:center;">
+            <strong>HealNari Clinical Care Notice:</strong> This assessment tool provides educational health navigation and is not an automated medical diagnosis. All treatment decisions are made by licensed medical doctors.
+          </div>
+        </div>
+      </main>
+    </div>
+  `;
+}
+
+function renderForDoctorsShell(canonicalUrl) {
+  return `
+    <div id="lcp-shell" style="position:absolute;top:0;left:0;width:100%;min-height:100vh;background-color:#FDFBF7;z-index:9999;">
+      <header style="position:sticky;top:0;z-index:50;padding:14px 0;background-color:rgba(253,251,247,0.98);backdrop-filter:blur(12px);border-bottom:1px solid rgba(0,0,0,0.06);">
+        <div style="max-width:1280px;margin:0 auto;padding:0 20px;display:flex;align-items:center;justify-content:space-between;">
+          <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:1.4rem;font-weight:900;color:#6B46C1;font-family:Georgia,serif;">Heal<span style="color:#E23E8C;">Nari</span></span>
+          </a>
+          <a href="#apply" style="background:#6B46C1;color:#fff;font-weight:700;padding:8px 18px;border-radius:12px;font-size:0.75rem;text-decoration:none;">Apply as Doctor</a>
+        </div>
+      </header>
+
+      <main style="padding:32px 16px 80px;max-width:960px;margin:0 auto;">
+        <nav aria-label="Breadcrumb" style="font-size:0.8rem;color:#94A3B8;margin-bottom:18px;">
+          <a href="/" style="color:#6B46C1;text-decoration:none;">Home</a> &gt; 
+          <span style="color:#64748B;">For Doctors</span>
+        </nav>
+
+        <div style="background:#fff;border:1px solid #E2E8F0;border-radius:24px;padding:36px 28px;box-shadow:0 4px 20px rgba(0,0,0,0.03);">
+          <span style="background:#F5F3FF;border:1px solid #DDD6FE;color:#6D28D9;font-size:0.75rem;font-weight:800;padding:4px 10px;border-radius:999px;">
+            Healthcare Provider Network
+          </span>
+
+          <h1 style="font-size:2rem;line-height:1.25;font-weight:800;color:#0F172A;font-family:Georgia,serif;margin:14px 0 16px;">
+            Join HealNari as a Specialist Doctor — Telemedicine &amp; Practice Suite
+          </h1>
+
+          <p style="color:#475569;font-size:1.05rem;line-height:1.7;margin:0 0 24px;">
+            Connect with patients seeking dedicated root-cause care across Gynaecology, Endocrinology, PCOS, Dermatology, Trichology, and Clinical Nutrition. Built with integrated EMR, digital Rx vault, and fast weekly payouts.
+          </p>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:28px;">
+            <div style="background:#FAF8F5;border:1px solid #E2E8F0;border-radius:14px;padding:16px;">
+              <strong style="color:#1E293B;font-size:0.9rem;display:block;margin-bottom:6px;">High-Intent Patients</strong>
+              <p style="margin:0;font-size:0.85rem;color:#64748B;line-height:1.5;">Pre-triaged patient histories, symptom patterns, and lab roadmaps ready before the video call.</p>
+            </div>
+            <div style="background:#FAF8F5;border:1px solid #E2E8F0;border-radius:14px;padding:16px;">
+              <strong style="color:#1E293B;font-size:0.9rem;display:block;margin-bottom:6px;">Practice Anywhere</strong>
+              <p style="margin:0;font-size:0.85rem;color:#64748B;line-height:1.5;">Set your own consultation schedule and availability with high-definition secure WebRTC video.</p>
+            </div>
+            <div style="background:#FAF8F5;border:1px solid #E2E8F0;border-radius:14px;padding:16px;">
+              <strong style="color:#1E293B;font-size:0.9rem;display:block;margin-bottom:6px;">Zero Hidden Fees</strong>
+              <p style="margin:0;font-size:0.85rem;color:#64748B;line-height:1.5;">Transparent remuneration with verified direct bank deposits within 24-48 business hours.</p>
+            </div>
+          </div>
+
+          <div style="text-align:center;">
+            <a href="#apply" style="display:inline-block;background:linear-gradient(to right,#7C3AED,#DB2777);color:#fff;font-weight:800;padding:14px 32px;border-radius:12px;font-size:0.9rem;text-decoration:none;">
+              Apply to Join the Medical Panel
+            </a>
+          </div>
+        </div>
+      </main>
+    </div>
+  `;
+}
+
+function renderLegalShell(title, canonicalUrl) {
+  return `
+    <div id="lcp-shell" style="position:absolute;top:0;left:0;width:100%;min-height:100vh;background-color:#FDFBF7;z-index:9999;">
+      <header style="position:sticky;top:0;z-index:50;padding:14px 0;background-color:rgba(253,251,247,0.98);backdrop-filter:blur(12px);border-bottom:1px solid rgba(0,0,0,0.06);">
+        <div style="max-width:1280px;margin:0 auto;padding:0 20px;display:flex;align-items:center;justify-content:space-between;">
+          <a href="/" style="text-decoration:none;display:flex;align-items:center;gap:8px;">
+            <span style="font-size:1.4rem;font-weight:900;color:#6B46C1;font-family:Georgia,serif;">Heal<span style="color:#E23E8C;">Nari</span></span>
+          </a>
+          <a href="/" style="color:#6B46C1;font-weight:700;font-size:0.85rem;text-decoration:none;">Home</a>
+        </div>
+      </header>
+
+      <main style="padding:32px 16px 80px;max-width:820px;margin:0 auto;">
+        <nav aria-label="Breadcrumb" style="font-size:0.8rem;color:#94A3B8;margin-bottom:18px;">
+          <a href="/" style="color:#6B46C1;text-decoration:none;">Home</a> &gt; 
+          <span style="color:#64748B;">Legal &amp; Clinical Governance</span> &gt; 
+          <span style="color:#475569;">${escapeHtml(title)}</span>
+        </nav>
+
+        <article style="background:#fff;border:1px solid #E2E8F0;border-radius:24px;padding:36px 28px;box-shadow:0 4px 20px rgba(0,0,0,0.03);">
+          <h1 style="font-size:2rem;line-height:1.25;font-weight:800;color:#0F172A;font-family:Georgia,serif;margin:0 0 16px;">
+            ${escapeHtml(title)}
+          </h1>
+          <p style="color:#64748B;font-size:0.85rem;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #F1F5F9;">
+            HealNari Clinical Care Platform • Telemedicine &amp; Healthcare Compliance Standard
+          </p>
+          <p style="color:#475569;line-height:1.8;font-size:0.95rem;">
+            Loading official clinical governance policy and terms...
+          </p>
+        </article>
+      </main>
+    </div>
+  `;
+}
+
 function writeHtmlFile(targetDir, htmlContent) {
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
@@ -447,7 +598,6 @@ export function prerender() {
       schemaJson: schema
     });
 
-    // Replace default body lcp-shell with custom condition shell
     const shellHtml = renderConditionShell(condition, canonicalUrl);
     pageHtml = pageHtml.replace(/<div id="lcp-shell".*?<\/div>\s*<script>/s, `${shellHtml}\n    <script>`);
 
@@ -558,6 +708,135 @@ export function prerender() {
     writeHtmlFile(path.join(DIST_DIR, 'learn', slug), pageHtml);
     count++;
     console.log(`  [OK] /learn/${slug}`);
+  }
+
+  // 4. Pre-render /check-symptoms
+  {
+    const canonicalUrl = `${BASE_URL}/check-symptoms`;
+    const title = 'Free Online Symptom Checker & Specialist Triage | HealNari';
+    const description = 'Check your symptoms online in 2 minutes. Free clinical triage for irregular periods, hormonal acne, hair loss, thyroid, and fatigue with specialist care recommendations.';
+
+    const schema = {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "MedicalWebPage",
+          "@id": `${canonicalUrl}#webpage`,
+          "url": canonicalUrl,
+          "name": title,
+          "description": description,
+          "isPartOf": {
+            "@type": "WebSite",
+            "@id": `${BASE_URL}/#website`,
+            "name": "HealNari",
+            "url": BASE_URL
+          },
+          "about": {
+            "@type": "MedicalSpecialty",
+            "name": "Clinical Symptom Assessment & Telemedicine Triage"
+          },
+          "professionallyReviewedBy": {
+            "@type": "MedicalOrganization",
+            "name": "HealNari Clinical Advisory Board",
+            "url": BASE_URL
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": BASE_URL },
+            { "@type": "ListItem", "position": 2, "name": "Check Symptoms", "item": canonicalUrl }
+          ]
+        }
+      ]
+    };
+
+    let pageHtml = updateHeadMeta(baseHtml, {
+      title,
+      description,
+      canonicalUrl,
+      schemaJson: schema
+    });
+
+    const shellHtml = renderCheckSymptomsShell(canonicalUrl);
+    pageHtml = pageHtml.replace(/<div id="lcp-shell".*?<\/div>\s*<script>/s, `${shellHtml}\n    <script>`);
+
+    writeHtmlFile(path.join(DIST_DIR, 'check-symptoms'), pageHtml);
+    count++;
+    console.log('  [OK] /check-symptoms');
+  }
+
+  // 5. Pre-render /for-doctors
+  {
+    const canonicalUrl = `${BASE_URL}/for-doctors`;
+    const title = 'Join as a Specialist Doctor | Telemedicine Practice Suite | HealNari';
+    const description = 'Join HealNari medical panel. Deliver 45-min video consultations across Gynaecology, Endocrinology, Dermatology, and Nutrition with integrated EMR, digital Rx vault, and fast payouts.';
+
+    const schema = {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebPage",
+          "@id": `${canonicalUrl}#webpage`,
+          "url": canonicalUrl,
+          "name": title,
+          "description": description,
+          "isPartOf": {
+            "@type": "WebSite",
+            "@id": `${BASE_URL}/#website`,
+            "name": "HealNari",
+            "url": BASE_URL
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": BASE_URL },
+            { "@type": "ListItem", "position": 2, "name": "For Doctors", "item": canonicalUrl }
+          ]
+        }
+      ]
+    };
+
+    let pageHtml = updateHeadMeta(baseHtml, {
+      title,
+      description,
+      canonicalUrl,
+      schemaJson: schema
+    });
+
+    const shellHtml = renderForDoctorsShell(canonicalUrl);
+    pageHtml = pageHtml.replace(/<div id="lcp-shell".*?<\/div>\s*<script>/s, `${shellHtml}\n    <script>`);
+
+    writeHtmlFile(path.join(DIST_DIR, 'for-doctors'), pageHtml);
+    count++;
+    console.log('  [OK] /for-doctors');
+  }
+
+  // 6. Pre-render 4 Legal Pages
+  const legalPages = [
+    { slug: 'terms', title: 'Terms of Service & Telemedicine Consultation Agreement | HealNari' },
+    { slug: 'privacy', title: 'Privacy Policy & Clinical Data Protection | HealNari' },
+    { slug: 'refund', title: 'Refund & Cancellation Policy | HealNari' },
+    { slug: 'compliance', title: 'Global Healthcare Compliance & Telemedicine Standards | HealNari' }
+  ];
+
+  for (const page of legalPages) {
+    const canonicalUrl = `${BASE_URL}/legal/${page.slug}`;
+    const description = `${page.title} — HealNari Patient & Provider Clinical Governance Policy.`;
+
+    let pageHtml = updateHeadMeta(baseHtml, {
+      title: page.title,
+      description,
+      canonicalUrl
+    });
+
+    const shellHtml = renderLegalShell(page.title, canonicalUrl);
+    pageHtml = pageHtml.replace(/<div id="lcp-shell".*?<\/div>\s*<script>/s, `${shellHtml}\n    <script>`);
+
+    writeHtmlFile(path.join(DIST_DIR, 'legal', page.slug), pageHtml);
+    count++;
+    console.log(`  [OK] /legal/${page.slug}`);
   }
 
   console.log(`[Prerender] Successfully generated ${count} static HTML pages for SEO & crawlers!`);

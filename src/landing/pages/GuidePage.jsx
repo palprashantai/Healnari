@@ -11,6 +11,17 @@ import ScrollProgressBar from '../../components/ScrollProgressBar.jsx';
 import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
 import { apiFetch } from '../../lib/apiClient.js';
 
+const GUIDE_CONDITION_MAP = {
+  'pcos-vs-pcod-terminology': { label: 'PCOS & Hormonal Health Clinic', slug: 'pcos-treatment-online', desc: 'Consult specialized gynaecologists and endocrinologists for comprehensive PCOS care.' },
+  'pcos-personalized-nutrition': { label: 'Clinical Nutrition & Dietetics', slug: 'clinical-nutrition-dietetics', desc: 'Get personalized anti-inflammatory meal planning and metabolic support.' },
+  'pcos-weight-loss': { label: 'Hormonal Weight Management', slug: 'hormonal-weight-loss', desc: 'Address underlying insulin resistance, thyroid health, and metabolic balance.' },
+  'hair-fall-triggers': { label: 'Hair & Scalp / Trichology Clinic', slug: 'hair-loss-trichology', desc: 'Consult certified trichologists for root-cause hair restoration and scalp care.' },
+  'cortisol-balance': { label: 'Endocrinology & Thyroid Clinic', slug: 'thyroid-consultation', desc: 'Comprehensive hormonal evaluation with certified endocrinologists.' },
+  'anti-inflammatory-foods': { label: 'Clinical Nutrition & Dietetics', slug: 'clinical-nutrition-dietetics', desc: 'Evidence-based nutritional therapy for hormone and gut optimization.' },
+  'seed-cycling-guide': { label: 'Gynaecology & Reproductive Health', slug: 'gynecology-womens-health', desc: 'Expert medical care for irregular cycles, period pain, and fertility prep.' },
+  'sleep-hormonal-health': { label: 'Mindful Movement & Yoga Therapy', slug: 'yoga-movement-therapy', desc: 'Restorative somatic movement and sleep regulation protocols.' },
+};
+
 function GuidePage() {
   const { guideId, slug } = useParams();
   const effectiveId = slug || guideId;
@@ -535,6 +546,28 @@ function GuidePage() {
                 </li>
               </ul>
             </div>
+
+            {/* Matching Clinical Care Department Contextual Link */}
+            {GUIDE_CONDITION_MAP[guide.slug || guide.id] && (
+              <div className="bg-sand-50/90 rounded-3xl p-6 border border-sand-200/90 space-y-2.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-aubergine-700 bg-white px-2.5 py-1 rounded-md border border-sand-200 inline-block">
+                  Specialized Clinical Department
+                </span>
+                <h4 className="font-extrabold text-slate-900 text-sm font-display leading-snug">
+                  {GUIDE_CONDITION_MAP[guide.slug || guide.id].label}
+                </h4>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {GUIDE_CONDITION_MAP[guide.slug || guide.id].desc}
+                </p>
+                <Link
+                  to={`/conditions/${GUIDE_CONDITION_MAP[guide.slug || guide.id].slug}`}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-aubergine-700 hover:text-aubergine-900 group pt-1"
+                >
+                  <span>Explore Department Care Protocol</span>
+                  <i className="fas fa-arrow-right text-[10px] group-hover:translate-x-1 transition-transform"></i>
+                </Link>
+              </div>
+            )}
 
           </aside>
 

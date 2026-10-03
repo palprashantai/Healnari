@@ -109,10 +109,67 @@ export default function CheckSymptomsPage() {
     }
   }, [searchParams]);
 
-  // SEO & Analytics on mount
+  // SEO, Canonical, OpenGraph & Analytics on mount
   useEffect(() => {
     const originalTitle = document.title;
-    document.title = "Check Symptoms | Problem-First Care Navigation | HealNari";
+    const pageTitle = "Free Online Symptom Checker & Specialist Triage | HealNari";
+    const pageDesc = "Check your symptoms online in 2 minutes. Free clinical triage for irregular periods, hormonal acne, hair loss, thyroid, and fatigue with specialist care recommendations.";
+    const canonicalUrl = "https://healnari.vercel.app/check-symptoms";
+
+    document.title = pageTitle;
+
+    const updateMeta = (selector, content, attr = 'content') => {
+      let el = document.querySelector(selector);
+      const original = el ? el.getAttribute(attr) : null;
+      if (el) el.setAttribute(attr, content);
+      return { el, original };
+    };
+
+    const prevDesc = updateMeta('meta[name="description"]', pageDesc);
+    const prevOgTitle = updateMeta('meta[property="og:title"]', pageTitle);
+    const prevOgDesc = updateMeta('meta[property="og:description"]', pageDesc);
+    const prevOgUrl = updateMeta('meta[property="og:url"]', canonicalUrl);
+    const prevCanonical = updateMeta('link[rel="canonical"]', canonicalUrl, 'href');
+
+    // JSON-LD Schema: MedicalWebPage + BreadcrumbList
+    const schemaScript = document.createElement('script');
+    schemaScript.type = 'application/ld+json';
+    schemaScript.id = 'healnari-symptom-checker-schema';
+    schemaScript.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "MedicalWebPage",
+          "@id": `${canonicalUrl}#webpage`,
+          "url": canonicalUrl,
+          "name": pageTitle,
+          "description": pageDesc,
+          "isPartOf": {
+            "@type": "WebSite",
+            "@id": "https://healnari.vercel.app/#website",
+            "name": "HealNari",
+            "url": "https://healnari.vercel.app"
+          },
+          "about": {
+            "@type": "MedicalSpecialty",
+            "name": "Clinical Symptom Assessment & Telemedicine Triage"
+          },
+          "professionallyReviewedBy": {
+            "@type": "MedicalOrganization",
+            "name": "HealNari Clinical Advisory Board",
+            "url": "https://healnari.vercel.app"
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://healnari.vercel.app" },
+            { "@type": "ListItem", "position": 2, "name": "Check Symptoms", "item": canonicalUrl }
+          ]
+        }
+      ]
+    });
+    document.head.appendChild(schemaScript);
 
     trackEvent(AnalyticsEvents.ASSESSMENT_STARTED, {
       source: 'check_symptoms_page',
@@ -121,6 +178,13 @@ export default function CheckSymptomsPage() {
 
     return () => {
       document.title = originalTitle;
+      if (prevDesc?.el && prevDesc?.original) prevDesc.el.setAttribute('content', prevDesc.original);
+      if (prevOgTitle?.el && prevOgTitle?.original) prevOgTitle.el.setAttribute('content', prevOgTitle.original);
+      if (prevOgDesc?.el && prevOgDesc?.original) prevOgDesc.el.setAttribute('content', prevOgDesc.original);
+      if (prevOgUrl?.el && prevOgUrl?.original) prevOgUrl.el.setAttribute('content', prevOgUrl.original);
+      if (prevCanonical?.el && prevCanonical?.original) prevCanonical.el.setAttribute('href', prevCanonical.original);
+      const s = document.getElementById('healnari-symptom-checker-schema');
+      if (s) document.head.removeChild(s);
     };
   }, [user]);
 
