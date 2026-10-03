@@ -61,25 +61,25 @@ export function PersonalizedExercise({
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-sand-200 shadow-sm overflow-hidden text-left">
+    <div className="bg-white rounded-3xl border border-purple-100/80 shadow-sm overflow-hidden text-left">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-emerald-50 via-teal-50/70 to-sand-50 p-6 sm:p-8 border-b border-sand-200">
+      <div className="bg-gradient-to-r from-emerald-50/80 via-teal-50/40 to-purple-50/40 p-6 sm:p-8 border-b border-purple-100/70">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-300/80 mb-2">
               <i className="fas fa-person-walking text-emerald-600 text-xs" />
-              <span>Wellness &amp; Movement</span>
+              <span>Supportive Movement &amp; Vitality</span>
             </div>
             <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-display">
-              Wellness &amp; Movement
+              Supportive Movement &amp; Gentle Mobility
             </h3>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl leading-relaxed">
-              Supportive gentle practices including walking, yoga, mobility, strength, breathing, and stretching to encourage circulation, restful sleep, and nervous system ease.
+              Gentle practices including diaphragmatic breathing, pelvic mobility, walking, and restorative stretching to support pelvic circulation, down-regulate cortisol, and ease discomfort.
             </p>
           </div>
 
-          <div className="shrink-0 bg-white/90 backdrop-blur-sm border border-sand-200 px-3.5 py-2.5 rounded-2xl shadow-2xs text-left sm:text-right">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Care Label</span>
+          <div className="shrink-0 bg-white/95 backdrop-blur-sm border border-purple-100 px-3.5 py-2.5 rounded-2xl shadow-xs text-left sm:text-right">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Care Label</span>
             <span className="text-xs font-extrabold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md inline-block mt-0.5">
               General wellness guidance — not a treatment or diagnosis
             </span>
@@ -102,7 +102,7 @@ export function PersonalizedExercise({
                 className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
                   isActive
                     ? 'bg-slate-900 text-white shadow-md'
-                    : 'bg-white/80 hover:bg-white text-slate-700 border border-sand-200 shadow-2xs'
+                    : 'bg-white/90 hover:bg-white text-slate-700 border border-slate-200/80 shadow-2xs hover:border-purple-200'
                 }`}
               >
                 <i className={`fas ${ex.icon} ${isActive ? 'text-emerald-400' : 'text-slate-400'} text-xs`} />
@@ -121,16 +121,16 @@ export function PersonalizedExercise({
       {/* Active Exercise Detail Card */}
       <div className="p-6 sm:p-8 space-y-6">
         {/* Title and metadata row */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-sand-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sand-100 text-slate-700">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700">
                 {currentExercise.category}
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                 {currentExercise.difficulty}
               </span>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-aubergine-50 text-aubergine-800 border border-aubergine-200">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-50 text-purple-800 border border-purple-200">
                 <i className="fas fa-clock text-[10px] mr-1" /> {currentExercise.duration}
               </span>
             </div>
@@ -145,7 +145,7 @@ export function PersonalizedExercise({
             className={`px-6 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shrink-0 shadow-md ${
               startedExercises[currentExercise.id]
                 ? 'bg-emerald-600 text-white shadow-emerald-200 hover:bg-emerald-700'
-                : 'bg-aubergine-600 hover:bg-aubergine-700 text-white shadow-aubergine-100 hover:scale-[1.02] active:scale-[0.98]'
+                : 'bg-healnari-purple hover:bg-aubergine-600 text-white shadow-purple-200 hover:scale-[1.02] active:scale-[0.98]'
             }`}
           >
             <i className={`fas ${startedExercises[currentExercise.id] ? 'fa-check-circle' : 'fa-play'} text-xs`} />
@@ -156,14 +156,14 @@ export function PersonalizedExercise({
         </div>
 
         {/* Benefits Box */}
-        <div className="bg-sand-50/70 rounded-2xl p-4 sm:p-5 border border-sand-200/80">
-          <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 block mb-1">
-            General Wellness Support
+        <div className="bg-purple-50/40 rounded-2xl p-4 sm:p-5 border border-purple-100/80">
+          <span className="text-[11px] font-extrabold uppercase tracking-wider text-purple-900/70 block mb-1">
+            Supportive Clinical Context
           </span>
           <p className="text-sm font-medium text-slate-800 leading-relaxed">
             {currentExercise.benefits}
           </p>
-          <div className="mt-2.5 flex items-center gap-2 text-xs text-slate-500 font-semibold">
+          <div className="mt-2.5 flex items-center gap-2 text-xs text-slate-600 font-semibold">
             <i className="fas fa-calendar-check text-emerald-600" />
             <span>Suggested Frequency: <strong>{currentExercise.frequency}</strong></span>
           </div>
@@ -172,13 +172,13 @@ export function PersonalizedExercise({
         {/* Step-by-Step Instructions */}
         <div>
           <h5 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <i className="fas fa-list-check text-aubergine-600 text-xs" />
-            <span>Guided Steps</span>
+            <i className="fas fa-list-check text-healnari-purple text-xs" />
+            <span>Step-by-Step Instructions</span>
           </h5>
           <ol className="space-y-3">
             {currentExercise.instructions.map((step, idx) => (
-              <li key={idx} className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 leading-relaxed bg-slate-50/80 p-3 sm:p-3.5 rounded-xl border border-slate-100">
-                <span className="w-5 h-5 rounded-full bg-aubergine-100 text-aubergine-800 text-xs font-black flex items-center justify-center shrink-0 mt-0.5">
+              <li key={idx} className="flex items-start gap-3 text-xs sm:text-sm text-slate-700 leading-relaxed bg-slate-50/70 p-3 sm:p-3.5 rounded-xl border border-slate-100">
+                <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-800 text-xs font-black flex items-center justify-center shrink-0 mt-0.5">
                   {idx + 1}
                 </span>
                 <span>{step}</span>
@@ -187,8 +187,8 @@ export function PersonalizedExercise({
           </ol>
         </div>
 
-        {/* Safety Notes & Non-Curative Medical Disclaimer (Strict Compliance) */}
-        <div className="bg-amber-50/80 border border-amber-300 rounded-2xl p-4 sm:p-5 text-xs text-amber-950 flex items-start gap-3.5">
+        {/* Safety Notes & Non-Curative Medical Disclaimer */}
+        <div className="bg-amber-50/80 border border-amber-300/80 rounded-2xl p-4 sm:p-5 text-xs text-amber-950 flex items-start gap-3.5">
           <i className="fas fa-shield-halved text-amber-700 text-base mt-0.5 shrink-0" />
           <div className="space-y-1.5">
             <p className="font-bold text-slate-900">
