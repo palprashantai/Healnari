@@ -50,8 +50,97 @@ function DoctorLandingPage() {
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
 
+    // Dynamic SEO, Canonical & OpenGraph injection
+    const originalTitle = document.title;
+    const docTitle = "HealNari for Doctors | Digital Practice & Telemedicine Platform for Specialists";
+    const docDesc = "Join India's premier multi-specialty telemedicine platform. Zero clinic rent, automated scheduling, AI-powered clinical notes, and guaranteed weekly payouts for verified doctors and healthcare specialists.";
+    const docUrl = "https://healnari.vercel.app/for-doctors";
+
+    document.title = docTitle;
+
+    const updateMeta = (selector, content, attr = 'content') => {
+      let el = document.querySelector(selector);
+      const original = el ? el.getAttribute(attr) : null;
+      if (el) el.setAttribute(attr, content);
+      return { el, original };
+    };
+
+    const prevDesc = updateMeta('meta[name="description"]', docDesc);
+    const prevOgTitle = updateMeta('meta[property="og:title"]', docTitle);
+    const prevOgDesc = updateMeta('meta[property="og:description"]', docDesc);
+    const prevOgUrl = updateMeta('meta[property="og:url"]', docUrl);
+    const prevCanonical = updateMeta('link[rel="canonical"]', docUrl, 'href');
+
+    const schemaScript = document.createElement('script');
+    schemaScript.type = 'application/ld+json';
+    schemaScript.id = 'healnari-doctor-landing-schema';
+    schemaScript.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebPage",
+          "@id": "https://healnari.vercel.app/for-doctors#webpage",
+          "url": "https://healnari.vercel.app/for-doctors",
+          "name": docTitle,
+          "description": docDesc,
+          "isPartOf": {
+            "@type": "WebSite",
+            "@id": "https://healnari.vercel.app/#website",
+            "name": "HealNari",
+            "url": "https://healnari.vercel.app"
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://healnari.vercel.app" },
+            { "@type": "ListItem", "position": 2, "name": "For Doctors & Specialists", "item": "https://healnari.vercel.app/for-doctors" }
+          ]
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://healnari.vercel.app/for-doctors#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What exactly is HealNari and which specialists can join?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "HealNari is a modern multi-specialty digital healthcare and telemedicine platform. We actively onboard licensed General Physicians, Dermatologists, Endocrinologists, Gynecologists, Clinical Dietitians, Mental Health Professionals, and Specialists across all clinical disciplines."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How much can I earn and how does the payout model work?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "You set your own consultation fee (starting ₹799). You retain your net earnings from every completed consultation. Earnings are tracked in real-time in your dashboard and paid directly to your registered bank account every Monday."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Are there any upfront fees, monthly subscriptions, or lock-in contracts?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Zero. No setup fees, no monthly software subscription, no annual contract. You simply apply, get verified, and start practicing."
+              }
+            }
+          ]
+        }
+      ]
+    });
+    document.head.appendChild(schemaScript);
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
+      document.title = originalTitle;
+      if (prevDesc?.el && prevDesc?.original) prevDesc.el.setAttribute('content', prevDesc.original);
+      if (prevOgTitle?.el && prevOgTitle?.original) prevOgTitle.el.setAttribute('content', prevOgTitle.original);
+      if (prevOgDesc?.el && prevOgDesc?.original) prevOgDesc.el.setAttribute('content', prevOgDesc.original);
+      if (prevOgUrl?.el && prevOgUrl?.original) prevOgUrl.el.setAttribute('content', prevOgUrl.original);
+      if (prevCanonical?.el && prevCanonical?.original) prevCanonical.el.setAttribute('href', prevCanonical.original);
+      const script = document.getElementById('healnari-doctor-landing-schema');
+      if (script) script.remove();
     };
   }, []);
 
@@ -61,8 +150,6 @@ function DoctorLandingPage() {
       .then(d => setAdminSettings(d))
       .catch(console.error);
   }, []);
-
-  // Using Helmet now, we don't need the manual document.title effect anymore.
 
   const toggleFaq = (idx) => {
     setActiveFaq(prev => (prev === idx ? null : idx));

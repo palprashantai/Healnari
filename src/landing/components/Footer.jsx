@@ -20,17 +20,18 @@ function Footer() {
   ];
 
   const clinicalGuides = [
-    { label: "PCOS vs PCOD Terminology", href: '/guides/pcos-vs-pcod-terminology' },
-    { label: "Evidence-Based PCOS Nutrition", href: '/guides/pcos-personalized-nutrition' },
-    { label: "Managing PCOS & Metabolism", href: '/guides/pcos-weight-loss' },
-    { label: "Hormonal Hair Loss Triggers", href: '/guides/hair-fall-triggers' },
-    { label: "Cortisol & Cycle Balance", href: '/guides/cortisol-balance' },
-    { label: "Anti-Inflammatory Nutrition", href: '/guides/anti-inflammatory-foods' },
-    { label: "Seed Cycling Clinical Guide", href: '/guides/seed-cycling-guide' },
-    { label: "Sleep Architecture & Hormones", href: '/guides/sleep-hormonal-health' },
+    { label: "PCOS vs PCOD Terminology", href: '/guide/pcos-vs-pcod-terminology' },
+    { label: "Evidence-Based PCOS Nutrition", href: '/guide/pcos-personalized-nutrition' },
+    { label: "Managing PCOS & Metabolism", href: '/guide/pcos-weight-loss' },
+    { label: "Hormonal Hair Loss Triggers", href: '/guide/hair-fall-triggers' },
+    { label: "Cortisol & Cycle Balance", href: '/guide/cortisol-balance' },
+    { label: "Anti-Inflammatory Nutrition", href: '/guide/anti-inflammatory-foods' },
+    { label: "Seed Cycling Clinical Guide", href: '/guide/seed-cycling-guide' },
+    { label: "Sleep Architecture & Hormones", href: '/guide/sleep-hormonal-health' },
   ];
 
   const diagnosticGlossary = [
+    { label: "Online Symptom Assessment", href: '/check-symptoms' },
     { label: "High Testosterone in Women", href: '/learn/what-is-high-testosterone-in-women' },
     { label: "Insulin Resistance Symptoms", href: '/learn/insulin-resistance-symptoms' },
     { label: "Normal LH to FSH Ratio", href: '/learn/normal-lh-fsh-ratio' },

@@ -68,6 +68,7 @@ function ConditionPage() {
   const [confirmedDetails, setConfirmedDetails] = useState(null);
   const [activeFaq, setActiveFaq] = useState(null);
   const [doctorsList, setDoctorsList] = useState([]);
+  const [showMobileBar, setShowMobileBar] = useState(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -177,7 +178,13 @@ function ConditionPage() {
       })
       .catch(() => {});
 
+    const handleScroll = () => {
+      setShowMobileBar(window.scrollY > 400);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
     return () => {
+      window.removeEventListener('scroll', handleScroll);
       document.title = originalTitle;
       if (prevDesc?.el && prevDesc?.original) prevDesc.el.setAttribute('content', prevDesc.original);
       if (prevOgTitle?.el && prevOgTitle?.original) prevOgTitle.el.setAttribute('content', prevOgTitle.original);
@@ -775,6 +782,24 @@ function ConditionPage() {
 
       {/* Floating CTA */}
       <FloatingCTA onBook={openBooking} />
+
+      {/* Floating Bottom Sticky Bar on Mobile (Natural Thumb Zone for Patients) */}
+      {showMobileBar && (
+        <div className="md:hidden fixed bottom-4 inset-x-4 z-40 animate-slide-up">
+          <div className="bg-slate-900/95 backdrop-blur-lg border border-sand-200/40 rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-3 text-white">
+            <div className="min-w-0 pl-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-rose-400 block">Next Slot: Today</span>
+              <p className="text-xs font-bold text-slate-200 truncate">{condition.specialistRole || "Specialist Video Consult"}</p>
+            </div>
+            <button
+              onClick={() => openBooking('')}
+              className="bg-gradient-to-r from-aubergine-500 to-magenta-600 hover:from-aubergine-600 hover:to-magenta-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105 shrink-0 flex items-center gap-1.5"
+            >
+              <i className="fas fa-stethoscope text-[10px]"></i> Book ₹{condition.consultFee || 799}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Booking Form Overlay */}
       {isBookingOpen && (

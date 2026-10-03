@@ -51,6 +51,7 @@ function Header({ onStartConsult, onOpenAuth }) {
     { label: 'Find Care', href: '#care-discovery' },
     { label: 'Specialties', href: '#conditions' },
     { label: 'Our Doctors', href: '#doctors' },
+    { label: 'Symptom Checker', href: '/check-symptoms', isRoute: true },
     { label: 'How It Works', href: '#how-it-works' },
     { label: 'AI Health Assistant', href: '#ai-features', isAi: true },
     { label: 'FAQ', href: '#faq' },
@@ -96,26 +97,40 @@ function Header({ onStartConsult, onOpenAuth }) {
 
           {/* Desktop Navigation */}
           <nav className="hidden xl:flex items-center gap-2 xl:gap-2.5 2xl:gap-3.5">
-            {navLinks.map((link) => (
-              <a 
-                key={link.label}
-                href={link.href} 
-                onClick={(e) => handleNavClick(e, link.href)}
-                className={`text-xs 2xl:text-[13px] font-semibold transition-colors relative py-1 px-1 whitespace-nowrap shrink-0 after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:transition-all hover:after:w-full flex items-center gap-1 ${
-                  link.isAi
-                    ? 'text-magenta-600 hover:text-magenta-700 font-bold after:bg-magenta-500'
-                    : 'text-slate-600 hover:text-aubergine-600 after:bg-aubergine-500'
-                }`}
-              >
-                {link.isAi && <i className="fas fa-wand-magic-sparkles text-[10px] text-magenta-500 animate-pulse"></i>}
-                <span>{link.label}</span>
-                {link.isAi && (
-                  <span className="text-[9px] font-black uppercase tracking-wider bg-magenta-100 text-magenta-700 px-1.5 py-0.2 rounded-full">
-                    AI
-                  </span>
-                )}
-              </a>
-            ))}
+            {navLinks.map((link) => {
+              if (link.isRoute) {
+                return (
+                  <NavLink
+                    key={link.label}
+                    to={link.href}
+                    className="text-xs 2xl:text-[13px] font-semibold text-slate-600 hover:text-aubergine-600 transition-colors relative py-1 px-1 whitespace-nowrap shrink-0 flex items-center gap-1"
+                  >
+                    <i className="fas fa-notes-medical text-[11px] text-aubergine-600"></i>
+                    <span>{link.label}</span>
+                  </NavLink>
+                );
+              }
+              return (
+                <a 
+                  key={link.label}
+                  href={link.href} 
+                  onClick={(e) => handleNavClick(e, link.href)}
+                  className={`text-xs 2xl:text-[13px] font-semibold transition-colors relative py-1 px-1 whitespace-nowrap shrink-0 after:absolute after:bottom-0 after:left-0 after:w-0 after:h-0.5 after:transition-all hover:after:w-full flex items-center gap-1 ${
+                    link.isAi
+                      ? 'text-magenta-600 hover:text-magenta-700 font-bold after:bg-magenta-500'
+                      : 'text-slate-600 hover:text-aubergine-600 after:bg-aubergine-500'
+                  }`}
+                >
+                  {link.isAi && <i className="fas fa-wand-magic-sparkles text-[10px] text-magenta-500 animate-pulse"></i>}
+                  <span>{link.label}</span>
+                  {link.isAi && (
+                    <span className="text-[9px] font-black uppercase tracking-wider bg-magenta-100 text-magenta-700 px-1.5 py-0.2 rounded-full">
+                      AI
+                    </span>
+                  )}
+                </a>
+              );
+            })}
           </nav>
         </div>
 
@@ -191,7 +206,7 @@ function Header({ onStartConsult, onOpenAuth }) {
         }`}
       >
         <div className="px-5 py-6 space-y-3 flex flex-col safe-area-pb">
-          {navLinks.map((link) => (
+          {navLinks.filter(l => !l.isRoute).map((link) => (
             <a 
               key={link.label}
               href={link.href} 

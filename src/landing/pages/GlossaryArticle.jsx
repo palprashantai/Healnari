@@ -21,6 +21,7 @@ function GlossaryArticle() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [activeHeadingId, setActiveHeadingId] = useState('');
+  const [showMobileBar, setShowMobileBar] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -84,6 +85,14 @@ function GlossaryArticle() {
     });
     return () => observer.disconnect();
   }, [headings]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowMobileBar(window.scrollY > 450);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     if (!article) return;
@@ -578,6 +587,24 @@ function GlossaryArticle() {
 
       {/* Floating CTA */}
       <FloatingCTA onBook={() => setIsBookingOpen(true)} />
+
+      {/* Floating Bottom Sticky Bar on Mobile (Natural Thumb Zone for Patients) */}
+      {showMobileBar && (
+        <div className="md:hidden fixed bottom-4 inset-x-4 z-40 animate-slide-up">
+          <div className="bg-slate-900/95 backdrop-blur-lg border border-sand-200/40 rounded-2xl p-3 shadow-2xl flex items-center justify-between gap-3 text-white">
+            <div className="min-w-0 pl-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-rose-400 block">Biomarker Review</span>
+              <p className="text-xs font-bold text-slate-200 truncate">Consult Specialist Doctor</p>
+            </div>
+            <button
+              onClick={() => setIsBookingOpen(true)}
+              className="bg-gradient-to-r from-aubergine-500 to-magenta-600 hover:from-aubergine-600 hover:to-magenta-700 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md transition-transform hover:scale-105 shrink-0 flex items-center gap-1.5"
+            >
+              <i className="fas fa-calendar-plus text-[10px]"></i> Book ₹799
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       {isBookingOpen && (
