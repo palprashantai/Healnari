@@ -151,9 +151,9 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
                     triggerHaptic('light');
                     trackEvent(AnalyticsEvents.SYMPTOM_SELECTED, { source: 'hero_problem_chip', problem_id: p.id });
                   }}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-95 cursor-pointer ${p.color}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-700 border border-slate-200/90 shadow-2xs hover:border-aubergine-300 hover:text-aubergine-700 hover:bg-slate-50/80 hover:-translate-y-0.5 hover:shadow-xs active:scale-95 transition-all duration-200 cursor-pointer"
                 >
-                  <span className="text-sm select-none">{p.emoji}</span>
+                  <i className={`fas ${p.icon} ${p.iconColor} text-[11px]`} />
                   <span>{p.label}</span>
                 </NavLink>
               ))}

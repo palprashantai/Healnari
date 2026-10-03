@@ -937,7 +937,7 @@ Reported Symptoms: ${selectedSymptoms.map(id => ALL_SYMPTOMS_MAP[id]?.label || i
                                 }`}>
                                   {sym.label}
                                 </h3>
-                                <p className="text-xs sm:text-sm text-slate-500 italic mt-1 leading-relaxed">
+                                <p className="text-xs sm:text-sm text-slate-500 font-normal mt-1 leading-relaxed">
                                   {sym.subtitle}
                                 </p>
                                 
