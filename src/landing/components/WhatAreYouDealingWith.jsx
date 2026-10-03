@@ -4,209 +4,190 @@ import Reveal from '../../components/Reveal.jsx';
 import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
 import { triggerHaptic } from '../../lib/haptics.js';
 
-// The comprehensive patient problems specified in the UX requirement
+// Curated high-end clinical problems with modern vector iconography & bespoke palettes
 const ALL_PROBLEMS = [
   {
     id: 'irregular_periods',
     label: 'Irregular Periods',
     category: 'periods',
-    emoji: '🩸',
-    icon: 'fa-calendar-xmark',
-    question: 'Are your periods coming earlier, later, or sometimes not at all?',
-    gradient: 'from-rose-500/10 via-pink-500/5 to-white',
-    badgeColor: 'bg-rose-50 text-rose-700 border-rose-200'
+    domainLabel: 'Cycle Health',
+    icon: 'fa-calendar-days',
+    iconColor: 'text-rose-600 bg-rose-50/90 border-rose-200/80',
+    question: 'Cycles arriving too early, unpredictable delays, or missed months altogether.',
   },
   {
     id: 'painful_periods',
-    label: 'Period Pain',
+    label: 'Period Pain & Cramps',
     category: 'periods',
-    emoji: '😣',
-    icon: 'fa-circle-exclamation',
-    question: 'Pain or severe cramps that make daily activities difficult?',
-    gradient: 'from-rose-500/10 via-amber-500/5 to-white',
-    badgeColor: 'bg-rose-50 text-rose-700 border-rose-200'
+    domainLabel: 'Menstrual Care',
+    icon: 'fa-bolt-lightning',
+    iconColor: 'text-amber-600 bg-amber-50/90 border-amber-200/80',
+    question: 'Severe abdominal cramps, lower back pain, or nausea that disrupts your day.',
   },
   {
     id: 'heavy_periods',
-    label: 'Very Heavy Periods',
+    label: 'Very Heavy Bleeding',
     category: 'periods',
-    emoji: '🩸',
+    domainLabel: 'Cycle Health',
     icon: 'fa-droplet',
-    question: 'Excessive bleeding, large clots, or periods lasting >7 days?',
-    gradient: 'from-red-500/10 via-rose-500/5 to-white',
-    badgeColor: 'bg-red-50 text-red-700 border-red-200'
+    iconColor: 'text-red-600 bg-red-50/90 border-red-200/80',
+    question: 'Soaking through protection rapidly, passing clots, or bleeding over 7 days.',
   },
   {
     id: 'hair_fall',
-    label: 'Hair Fall',
+    label: 'Hair Fall & Shedding',
     category: 'hair',
-    emoji: '💇',
+    domainLabel: 'Hair & Scalp',
     icon: 'fa-wind',
-    question: 'Losing more hair than usual while washing, brushing, or waking up?',
-    gradient: 'from-teal-500/10 via-emerald-500/5 to-white',
-    badgeColor: 'bg-teal-50 text-teal-700 border-teal-200'
+    iconColor: 'text-teal-600 bg-teal-50/90 border-teal-200/80',
+    question: 'Excessive hair strands on pillow, while washing, brushing, or sudden shedding.',
   },
   {
     id: 'hair_thinning',
-    label: 'Hair Thinning',
+    label: 'Hair Thinning & Density',
     category: 'hair',
-    emoji: '👩‍🦱',
+    domainLabel: 'Trichology',
     icon: 'fa-scissors',
-    question: 'Noticeable widening of the partition line, thinning crown, or low volume?',
-    gradient: 'from-emerald-500/10 via-teal-500/5 to-white',
-    badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    iconColor: 'text-emerald-600 bg-emerald-50/90 border-emerald-200/80',
+    question: 'Noticeable widening of the partition line, thinning crown, or low volume.',
   },
   {
     id: 'acne',
-    label: 'Acne & Pimples',
+    label: 'Acne & Breakouts',
     category: 'skin',
-    emoji: '😣',
-    icon: 'fa-spa',
-    question: 'New, frequent, or stubborn pimples on chin, cheeks, jawline, or back?',
-    gradient: 'from-amber-500/10 via-orange-500/5 to-white',
-    badgeColor: 'bg-amber-50 text-amber-700 border-amber-200'
+    domainLabel: 'Dermatology',
+    icon: 'fa-wand-magic-sparkles',
+    iconColor: 'text-orange-600 bg-orange-50/90 border-orange-200/80',
+    question: 'Stubborn, cystic, or hormonal pimples along the jawline, chin, or cheeks.',
   },
   {
     id: 'vaginal_itching',
-    label: 'Vaginal Itching',
+    label: 'Vaginal Itching & Redness',
     category: 'vaginal',
-    emoji: '🩷',
-    icon: 'fa-hand-dots',
-    question: 'Itching, burning, redness, or irritation in your intimate area?',
-    gradient: 'from-pink-500/10 via-rose-500/5 to-white',
-    badgeColor: 'bg-pink-50 text-pink-700 border-pink-200'
+    domainLabel: 'Intimate Care',
+    icon: 'fa-shield-heart',
+    iconColor: 'text-pink-600 bg-pink-50/90 border-pink-200/80',
+    question: 'Persistent itching, soreness, redness, or burning in intimate areas.',
   },
   {
     id: 'abnormal_discharge',
-    label: 'Unusual Vaginal Discharge',
+    label: 'Unusual Discharge',
     category: 'vaginal',
-    emoji: '💧',
+    domainLabel: 'Intimate Care',
     icon: 'fa-water',
-    question: 'Noticeable change in discharge color (yellow/green/grey), smell, or texture?',
-    gradient: 'from-sky-500/10 via-blue-500/5 to-white',
-    badgeColor: 'bg-sky-50 text-sky-700 border-sky-200'
+    iconColor: 'text-sky-600 bg-sky-50/90 border-sky-200/80',
+    question: 'Noticeable shift in discharge color, consistency, thickness, or odor.',
   },
   {
     id: 'vaginal_burning',
     label: 'Burning or Irritation',
     category: 'vaginal',
-    emoji: '🔥',
-    icon: 'fa-fire-flame-simple',
-    question: 'Stinging sensation during urination, post-intercourse, or intimate soreness?',
-    gradient: 'from-orange-500/10 via-amber-500/5 to-white',
-    badgeColor: 'bg-orange-50 text-orange-700 border-orange-200'
+    domainLabel: 'Intimate Care',
+    icon: 'fa-fire',
+    iconColor: 'text-rose-600 bg-rose-50/90 border-rose-200/80',
+    question: 'Stinging sensation during urination, post-intercourse, or friction soreness.',
   },
   {
     id: 'weight_gain',
-    label: 'Weight Gain',
+    label: 'Unexplained Weight Gain',
     category: 'weight',
-    emoji: '⚖️',
-    icon: 'fa-scale-unbalanced',
-    question: 'Unexpected weight gain or stubborn fat that is difficult to lose?',
-    gradient: 'from-emerald-500/10 via-teal-500/5 to-white',
-    badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    domainLabel: 'Metabolic Care',
+    icon: 'fa-weight-scale',
+    iconColor: 'text-emerald-600 bg-emerald-50/90 border-emerald-200/80',
+    question: 'Rapid weight increase, stubborn visceral fat, or inability to lose weight.',
   },
   {
     id: 'fatigue',
-    label: 'Feeling Tired',
+    label: 'Constant Exhaustion',
     category: 'weight',
-    emoji: '😴',
-    icon: 'fa-battery-quarter',
-    question: 'Persistent exhaustion, brain fog, or low stamina despite resting?',
-    gradient: 'from-violet-500/10 via-indigo-500/5 to-white',
-    badgeColor: 'bg-violet-50 text-violet-700 border-violet-200'
+    domainLabel: 'Energy & Health',
+    icon: 'fa-battery-half',
+    iconColor: 'text-indigo-600 bg-indigo-50/90 border-indigo-200/80',
+    question: 'Persistent low energy, sluggishness, morning fatigue, or mental brain fog.',
   },
   {
     id: 'pcos_concerns',
     label: 'PCOS Concerns',
     category: 'periods',
-    emoji: '🧬',
+    domainLabel: 'Hormone Care',
     icon: 'fa-dna',
-    question: 'Questions about cycles, hormones, facial hair, stubborn acne, or fertility?',
-    gradient: 'from-fuchsia-500/10 via-purple-500/5 to-white',
-    badgeColor: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200'
+    iconColor: 'text-purple-600 bg-purple-50/90 border-purple-200/80',
+    question: 'Irregular cycles paired with acne, facial hair, weight resistance, or cysts.',
   },
   {
     id: 'hormonal_imbalance',
-    label: 'Hormone Changes',
+    label: 'Hormone Fluctuations',
     category: 'periods',
-    emoji: '🔄',
-    icon: 'fa-rotate',
-    question: 'Shifts in cycle regularity, skin changes, mood fluctuations, or hot flashes?',
-    gradient: 'from-purple-500/10 via-pink-500/5 to-white',
-    badgeColor: 'bg-purple-50 text-purple-700 border-purple-200'
+    domainLabel: 'Endocrinology',
+    icon: 'fa-repeat',
+    iconColor: 'text-fuchsia-600 bg-fuchsia-50/90 border-fuchsia-200/80',
+    question: 'Shifts in skin, sudden hot flashes, irregular cycle timing, or mood swings.',
   },
   {
     id: 'mood_swings',
-    label: 'Mood Changes',
+    label: 'Mood & Emotional Changes',
     category: 'mind',
-    emoji: '😔',
-    icon: 'fa-cloud-rain',
-    question: 'Feeling emotionally low, sudden mood swings, anxiety, or irritability?',
-    gradient: 'from-indigo-500/10 via-blue-500/5 to-white',
-    badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200'
+    domainLabel: 'Mental Wellbeing',
+    icon: 'fa-heart-pulse',
+    iconColor: 'text-blue-600 bg-blue-50/90 border-blue-200/80',
+    question: 'Emotional lows, heightened anxiety, premenstrual irritability, or mood shifts.',
   },
   {
     id: 'stress',
-    label: 'Stress & Overwhelm',
+    label: 'Chronic Stress & Burnout',
     category: 'mind',
-    emoji: '😰',
+    domainLabel: 'Mental Wellbeing',
     icon: 'fa-brain',
-    question: 'High stress, racing thoughts, muscle tension, or emotional burnout?',
-    gradient: 'from-purple-500/10 via-indigo-500/5 to-white',
-    badgeColor: 'bg-purple-50 text-purple-700 border-purple-200'
+    iconColor: 'text-violet-600 bg-violet-50/90 border-violet-200/80',
+    question: 'Overwhelming mental pressure, physical tension, restlessness, or exhaustion.',
   },
   {
     id: 'poor_sleep',
-    label: 'Poor Sleep',
+    label: 'Sleep Disturbances',
     category: 'mind',
-    emoji: '🌙',
+    domainLabel: 'Lifestyle Care',
     icon: 'fa-moon',
-    question: 'Trouble falling asleep, frequent waking, or waking up unrefreshed?',
-    gradient: 'from-blue-500/10 via-indigo-500/5 to-white',
-    badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'
+    iconColor: 'text-slate-700 bg-slate-100 border-slate-200/80',
+    question: 'Trouble falling asleep, frequent nighttime awakenings, or unrefreshing rest.',
   },
   {
     id: 'difficulty_conceiving',
-    label: 'Fertility Concerns',
+    label: 'Fertility & Conception',
     category: 'fertility',
-    emoji: '🤰',
-    icon: 'fa-seedling',
-    question: 'Trying to conceive, irregular ovulation, or pre-pregnancy health questions?',
-    gradient: 'from-rose-500/10 via-purple-500/5 to-white',
-    badgeColor: 'bg-rose-50 text-rose-700 border-rose-200'
+    domainLabel: 'Preconception',
+    icon: 'fa-baby-carriage',
+    iconColor: 'text-rose-600 bg-rose-50/90 border-rose-200/80',
+    question: 'Questions about ovulation timing, cycle irregular fertility, or conceiving.',
   },
   {
     id: 'pelvic_pain',
-    label: 'Pelvic Pain',
+    label: 'Pelvic Discomfort',
     category: 'periods',
-    emoji: '🫃',
-    icon: 'fa-heart-crack',
-    question: 'Dull ache, heaviness, or sharp pain in your lower pelvis or abdomen?',
-    gradient: 'from-rose-500/10 via-amber-500/5 to-white',
-    badgeColor: 'bg-rose-50 text-rose-700 border-rose-200'
+    domainLabel: 'Reproductive Care',
+    icon: 'fa-shield-halved',
+    iconColor: 'text-amber-600 bg-amber-50/90 border-amber-200/80',
+    question: 'Dull ache, heavy pressure, or recurring discomfort in the lower pelvis.',
   },
   {
     id: 'something_else',
     label: 'Something Else',
     category: 'other',
-    emoji: '🩺',
+    domainLabel: 'Guided Care',
     icon: 'fa-stethoscope',
-    question: "Can't find your problem? Tell us what's bothering you in your own words.",
-    gradient: 'from-aubergine-500/10 via-purple-500/5 to-white',
-    badgeColor: 'bg-aubergine-50 text-aubergine-700 border-aubergine-200'
+    iconColor: 'text-aubergine-600 bg-aubergine-50/90 border-aubergine-200/80',
+    question: 'Describe your symptoms in your own words. Our clinical AI will guide you.',
   }
 ];
 
 const CATEGORIES = [
-  { id: 'all', label: 'All Concerns', emoji: '✨' },
-  { id: 'periods', label: 'Periods & Hormones', emoji: '🩸' },
-  { id: 'hair', label: 'Hair & Scalp', emoji: '💇' },
-  { id: 'skin', label: 'Skin & Acne', emoji: '😣' },
-  { id: 'vaginal', label: 'Vaginal Health', emoji: '🩷' },
-  { id: 'weight', label: 'Weight & Energy', emoji: '⚖️' },
-  { id: 'mind', label: 'Mind & Sleep', emoji: '🌙' },
-  { id: 'fertility', label: 'Fertility', emoji: '🤰' }
+  { id: 'all', label: 'All Concerns', icon: 'fa-border-all' },
+  { id: 'periods', label: 'Periods & Hormones', icon: 'fa-calendar-days' },
+  { id: 'hair', label: 'Hair & Scalp', icon: 'fa-wind' },
+  { id: 'skin', label: 'Skin & Acne', icon: 'fa-wand-magic-sparkles' },
+  { id: 'vaginal', label: 'Intimate Health', icon: 'fa-shield-heart' },
+  { id: 'weight', label: 'Weight & Energy', icon: 'fa-battery-half' },
+  { id: 'mind', label: 'Mind & Sleep', icon: 'fa-moon' },
+  { id: 'fertility', label: 'Fertility', icon: 'fa-baby-carriage' }
 ];
 
 export default function WhatAreYouDealingWith() {
@@ -242,46 +223,47 @@ export default function WhatAreYouDealingWith() {
   };
 
   return (
-    <section id="what-are-you-dealing-with" className="py-12 sm:py-16 lg:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative overflow-hidden">
-      {/* Ambient background glows */}
+    <section id="what-are-you-dealing-with" className="py-14 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative overflow-hidden font-sans">
+      {/* Soft, premium ambient illumination */}
       <div 
         aria-hidden="true" 
-        className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-gradient-to-r from-purple-200/40 via-pink-100/30 to-indigo-100/40 blur-3xl rounded-full pointer-events-none -z-10" 
+        className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-gradient-to-r from-aubergine-100/30 via-magenta-50/20 to-indigo-50/30 blur-3xl rounded-full pointer-events-none -z-10" 
       />
 
       <Reveal>
+        {/* Header Block */}
         <div className="max-w-3xl mx-auto space-y-3.5">
-          {/* Eye-catching Problem-First badge */}
-          <div className="inline-flex items-center gap-2 bg-aubergine-50 border border-aubergine-200/80 px-4 py-1.5 rounded-full text-xs font-bold text-aubergine-900 shadow-2xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>START WITH YOUR SYMPTOM • NO SPECIALTY GUESSWORK</span>
+          <div className="inline-flex items-center gap-2 bg-aubergine-50/90 border border-aubergine-200/70 px-3.5 py-1.5 rounded-full text-xs font-semibold text-aubergine-800 shadow-2xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="tracking-wide">CLINICAL TRIAGE &amp; CARE NAVIGATION</span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-tight font-display">
-            What are you dealing with?
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+            What are you experiencing?
           </h2>
 
-          <p className="text-base sm:text-lg text-slate-600 font-medium max-w-2xl mx-auto leading-relaxed">
-            Select what you are experiencing. You don't need to know medical specialties before starting — HealNari guides you through what could be related and who can help.
+          <p className="text-base sm:text-lg text-slate-600 font-normal max-w-2xl mx-auto leading-relaxed">
+            Select your symptom to explore possible root causes and connect with specialized doctors. No medical specialty knowledge needed.
           </p>
         </div>
 
-        {/* Search & Filter Bar */}
-        <div className="mt-8 max-w-2xl mx-auto flex flex-col sm:flex-row gap-3 items-center">
-          <div className="relative w-full">
-            <i className="fas fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
+        {/* Search Bar — Apple/Stripe-level Minimalist Pill */}
+        <div className="mt-8 max-w-xl mx-auto">
+          <div className="relative group">
+            <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-aubergine-600 transition-colors text-sm" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search your symptom (e.g. hair fall, late period, severe pain, acne, itching)..."
-              className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white border border-slate-200 shadow-sm text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-aubergine-500 focus:border-transparent transition-all"
+              className="w-full pl-11 pr-10 py-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-[0_2px_12px_-2px_rgba(0,0,0,0.04)] text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-aubergine-500/20 focus:border-aubergine-400 transition-all"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 text-xs"
+                aria-label="Clear search"
               >
                 <i className="fas fa-xmark" />
               </button>
@@ -289,127 +271,144 @@ export default function WhatAreYouDealingWith() {
           </div>
         </div>
 
-        {/* Category Pills */}
-        <div className="mt-5 flex items-center justify-start sm:justify-center gap-2 overflow-x-auto pb-2 px-2 hide-scrollbar">
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => {
-                triggerHaptic('light');
-                setActiveCategory(cat.id);
-              }}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all duration-200 flex items-center gap-1.5 ${
-                activeCategory === cat.id
-                  ? 'bg-aubergine-600 text-white shadow-md shadow-aubergine-600/20 scale-105'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <span>{cat.emoji}</span>
-              <span>{cat.label}</span>
-            </button>
-          ))}
+        {/* Clean Segmented Category Tabs */}
+        <div className="mt-6 flex items-center justify-start sm:justify-center gap-1.5 overflow-x-auto pb-2 px-2 hide-scrollbar">
+          {CATEGORIES.map(cat => {
+            const isActive = activeCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => {
+                  triggerHaptic('light');
+                  setActiveCategory(cat.id);
+                }}
+                className={`shrink-0 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 ${
+                  isActive
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <i className={`fas ${cat.icon} text-[10px] ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                <span>{cat.label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Problem Cards Grid — HIGH VISUAL PROMINENCE */}
+        {/* Premium Healthcare Problem Cards Grid */}
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 text-left">
           {filteredProblems.map((problem) => (
             <div
               key={problem.id}
               onClick={() => handleProblemClick(problem.id)}
-              className={`group relative bg-gradient-to-b ${problem.gradient} bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs hover:shadow-xl hover:border-aubergine-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between`}
+              className="group relative bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.03)] hover:shadow-[0_16px_36px_-8px_rgba(42,22,71,0.10)] hover:border-aubergine-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between"
             >
               <div>
-                {/* Header: Emoji & Icon */}
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-3xl select-none group-hover:scale-110 transition-transform duration-200">
-                    {problem.emoji}
-                  </span>
-                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${problem.badgeColor}`}>
-                    <i className={`fas ${problem.icon} mr-1`} />
-                    Symptom
-                  </span>
+                {/* Card Top: Sleek Icon Squircle + Action Arrow */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-base border shadow-2xs transition-transform duration-300 group-hover:scale-105 ${problem.iconColor}`}>
+                    <i className={`fas ${problem.icon}`} />
+                  </div>
+                  
+                  <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-150 flex items-center justify-center text-slate-400 group-hover:bg-aubergine-600 group-hover:text-white group-hover:border-aubergine-600 group-hover:translate-x-0.5 transition-all duration-200 shadow-2xs">
+                    <i className="fas fa-arrow-right text-[11px]" />
+                  </div>
                 </div>
 
-                {/* PROBLEM NAME — Large & Dominant */}
-                <h3 className="text-lg font-black text-slate-900 group-hover:text-aubergine-600 transition-colors tracking-tight font-display mb-1.5">
+                {/* Problem Title — Modern Clean Sans */}
+                <h3 className="font-sans font-bold text-slate-900 text-base sm:text-[17px] group-hover:text-aubergine-600 transition-colors tracking-tight leading-snug mb-1.5">
                   {problem.label}
                 </h3>
 
-                {/* Short relatable question */}
-                <p className="text-xs text-slate-500 font-medium leading-relaxed italic mb-4">
+                {/* Relatable Conversational Text — Clean Sans Body */}
+                <p className="font-sans text-xs sm:text-[13px] text-slate-500 font-normal leading-relaxed mb-4">
                   {problem.question}
                 </p>
               </div>
 
-              {/* Action Link Footer */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-aubergine-600 group-hover:text-aubergine-800">
-                <span className="group-hover:underline">Check this problem</span>
-                <i className="fas fa-arrow-right text-[11px] group-hover:translate-x-1 transition-transform" />
+              {/* Card Footer: Clinical Domain Pill + Hover Prompt */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-slate-500 bg-slate-50 px-2.5 py-0.5 rounded-md border border-slate-150">
+                  {problem.domainLabel}
+                </span>
+                
+                <span className="text-xs font-semibold text-aubergine-600 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <span>Explore</span>
+                  <i className="fas fa-chevron-right text-[9px]" />
+                </span>
               </div>
             </div>
           ))}
         </div>
 
-        {/* 3-Step Mental Model Ribbon */}
-        <div className="mt-12 bg-white/80 backdrop-blur-md border border-purple-100 rounded-3xl p-6 sm:p-8 max-w-4xl mx-auto shadow-sm">
-          <div className="text-xs font-bold text-aubergine-600 uppercase tracking-wider mb-2">
-            The HealNari Care Pathway
+        {/* Empty Search Fallback */}
+        {filteredProblems.length === 0 && (
+          <div className="mt-8 bg-white rounded-2xl p-8 border border-slate-200 text-center max-w-md mx-auto">
+            <i className="fas fa-search text-slate-300 text-2xl mb-2" />
+            <h4 className="text-sm font-bold text-slate-800">No matching symptoms found</h4>
+            <p className="text-xs text-slate-500 mt-1">Try another search term or click "Something Else" to describe your concern directly.</p>
+            <button
+              type="button"
+              onClick={() => handleProblemClick('something_else')}
+              className="mt-3 text-xs font-bold text-aubergine-600 hover:underline"
+            >
+              Describe custom concern →
+            </button>
           </div>
-          <h4 className="text-lg sm:text-xl font-black text-slate-900 font-display mb-4">
-            How we help you solve your problem safely
+        )}
+
+        {/* 4-Step Clinical Care Roadmap Banner */}
+        <div className="mt-12 bg-gradient-to-b from-slate-50/90 to-purple-50/40 border border-slate-200/80 rounded-2xl p-6 sm:p-8 max-w-4xl mx-auto shadow-2xs">
+          <div className="text-[11px] font-bold text-aubergine-700 tracking-wider uppercase mb-1">
+            The HealNari Mental Model
+          </div>
+          <h4 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight mb-5">
+            How we guide you from symptom to solution
           </h4>
 
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-left">
-            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60">
-              <div className="text-xs font-bold text-slate-400 mb-1">STEP 1</div>
-              <div className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
-                <span>🩸</span> Your Concern
-              </div>
-              <p className="text-[11px] text-slate-500 mt-1">Select the symptoms you are actually experiencing.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-left">
+            <div className="bg-white p-4 rounded-xl border border-slate-200/70 shadow-2xs">
+              <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">STEP 01</div>
+              <div className="text-sm font-bold text-slate-900">Your Concern</div>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">Select the symptom you are experiencing.</p>
             </div>
 
-            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60">
-              <div className="text-xs font-bold text-slate-400 mb-1">STEP 2</div>
-              <div className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
-                <span>💬</span> Tell Us More
-              </div>
-              <p className="text-[11px] text-slate-500 mt-1">Answer only relevant questions about timeline & context.</p>
+            <div className="bg-white p-4 rounded-xl border border-slate-200/70 shadow-2xs">
+              <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">STEP 02</div>
+              <div className="text-sm font-bold text-slate-900">Tell Us More</div>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">Answer concise questions on timing &amp; pattern.</p>
             </div>
 
-            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/60">
-              <div className="text-xs font-bold text-slate-400 mb-1">STEP 3</div>
-              <div className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
-                <span>🧬</span> Possible Reasons
-              </div>
-              <p className="text-[11px] text-slate-500 mt-1">Understand health areas like hormones, thyroid, or nutrition.</p>
+            <div className="bg-white p-4 rounded-xl border border-slate-200/70 shadow-2xs">
+              <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">STEP 03</div>
+              <div className="text-sm font-bold text-slate-900">Possible Reasons</div>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">Learn about hormones, nutrition, thyroid, or stress.</p>
             </div>
 
-            <div className="bg-purple-50 p-3.5 rounded-2xl border border-purple-200/80">
-              <div className="text-xs font-bold text-purple-700 mb-1">STEP 4</div>
-              <div className="text-sm font-extrabold text-purple-900 flex items-center gap-1.5">
-                <span>🩺</span> Who Can Help
-              </div>
-              <p className="text-[11px] text-purple-700 mt-1">Connect with verified doctors who specialize in your problem.</p>
+            <div className="bg-aubergine-600 text-white p-4 rounded-xl shadow-xs">
+              <div className="text-[10px] font-extrabold text-purple-200 uppercase tracking-wider mb-1">STEP 04</div>
+              <div className="text-sm font-bold text-white">Who Can Help</div>
+              <p className="text-xs text-purple-100 mt-1 leading-relaxed">Direct connection to verified specialists.</p>
             </div>
           </div>
         </div>
 
         {/* Primary CTA */}
-        <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             type="button"
             onClick={handleGeneralCheckClick}
-            className="w-full sm:w-auto bg-gradient-to-r from-purple-700 via-healnari-purple to-magenta-600 hover:from-purple-800 hover:to-magenta-700 text-white font-extrabold text-base px-8 py-4 rounded-2xl shadow-xl shadow-purple-500/25 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3"
+            className="w-full sm:w-auto bg-gradient-to-r from-aubergine-700 via-healnari-purple to-magenta-600 hover:from-aubergine-800 hover:to-magenta-700 text-white font-bold text-sm sm:text-base px-8 py-3.5 sm:py-4 rounded-xl shadow-lg shadow-purple-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2.5"
           >
-            <i className="fas fa-stethoscope text-base" />
-            <span>Check My Symptoms (Free &amp; Confidential)</span>
+            <i className="fas fa-stethoscope text-sm" />
+            <span>Check My Symptoms — Free 2-Min Triage</span>
             <i className="fas fa-arrow-right text-xs" />
           </button>
         </div>
 
         <p className="mt-3 text-xs text-slate-400">
-          Takes ~2 minutes • Plain language • No self-diagnosis, safe doctor triage
+          Takes ~2 minutes • 100% Confidential • Non-diagnostic clinical navigation
         </p>
       </Reveal>
     </section>

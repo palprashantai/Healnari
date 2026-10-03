@@ -6,15 +6,15 @@ import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
 
 // Patient-First Symptoms Ribbon (Problem-first triage navigation)
 const TOP_PATIENT_PROBLEMS = [
-  { id: 'irregular_periods', label: 'Irregular Periods', emoji: '🩸', color: 'text-rose-700 bg-rose-50/90 border-rose-200 hover:bg-rose-100 hover:border-rose-300' },
-  { id: 'hair_fall', label: 'Hair Fall', emoji: '💇', color: 'text-teal-700 bg-teal-50/90 border-teal-200 hover:bg-teal-100 hover:border-teal-300' },
-  { id: 'acne', label: 'Acne & Pimples', emoji: '😣', color: 'text-amber-700 bg-amber-50/90 border-amber-200 hover:bg-amber-100 hover:border-amber-300' },
-  { id: 'painful_periods', label: 'Period Pain', emoji: '😣', color: 'text-rose-700 bg-rose-50/90 border-rose-200 hover:bg-rose-100 hover:border-rose-300' },
-  { id: 'vaginal_itching', label: 'Vaginal Health', emoji: '🩷', color: 'text-pink-700 bg-pink-50/90 border-pink-200 hover:bg-pink-100 hover:border-pink-300' },
-  { id: 'weight_gain', label: 'Weight Changes', emoji: '⚖️', color: 'text-emerald-700 bg-emerald-50/90 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300' },
-  { id: 'fatigue', label: 'Feeling Tired', emoji: '😴', color: 'text-indigo-700 bg-indigo-50/90 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300' },
-  { id: 'pcos_concerns', label: 'PCOS Concerns', emoji: '🧬', color: 'text-purple-700 bg-purple-50/90 border-purple-200 hover:bg-purple-100 hover:border-purple-300' },
-  { id: 'something_else', label: 'Something Else', emoji: '🩺', color: 'text-aubergine-700 bg-aubergine-50/90 border-aubergine-200 hover:bg-aubergine-100 hover:border-aubergine-300' },
+  { id: 'irregular_periods', label: 'Irregular Periods', icon: 'fa-calendar-days', iconColor: 'text-rose-500' },
+  { id: 'hair_fall', label: 'Hair Fall', icon: 'fa-wind', iconColor: 'text-teal-500' },
+  { id: 'acne', label: 'Acne & Breakouts', icon: 'fa-wand-magic-sparkles', iconColor: 'text-amber-500' },
+  { id: 'painful_periods', label: 'Period Pain', icon: 'fa-bolt-lightning', iconColor: 'text-rose-500' },
+  { id: 'vaginal_itching', label: 'Vaginal Health', icon: 'fa-shield-heart', iconColor: 'text-pink-500' },
+  { id: 'weight_gain', label: 'Weight Changes', icon: 'fa-weight-scale', iconColor: 'text-emerald-500' },
+  { id: 'fatigue', label: 'Constant Fatigue', icon: 'fa-battery-half', iconColor: 'text-indigo-500' },
+  { id: 'pcos_concerns', label: 'PCOS Concerns', icon: 'fa-dna', iconColor: 'text-purple-500' },
+  { id: 'something_else', label: 'Something Else', icon: 'fa-stethoscope', iconColor: 'text-aubergine-500' },
 ];
 
 const DEFAULT_SPECIALTIES_DROPDOWN = [
