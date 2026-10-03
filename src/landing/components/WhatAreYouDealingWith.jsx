@@ -223,46 +223,46 @@ export default function WhatAreYouDealingWith() {
   };
 
   return (
-    <section id="what-are-you-dealing-with" className="py-14 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative overflow-hidden font-sans">
+    <section id="what-are-you-dealing-with" className="py-10 sm:py-16 lg:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative overflow-hidden font-sans">
       {/* Soft, premium ambient illumination */}
       <div 
         aria-hidden="true" 
-        className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-gradient-to-r from-aubergine-100/30 via-magenta-50/20 to-indigo-50/30 blur-3xl rounded-full pointer-events-none -z-10" 
+        className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] sm:w-[600px] lg:w-[700px] h-[300px] sm:h-[350px] bg-gradient-to-r from-aubergine-100/30 via-magenta-50/20 to-indigo-50/30 blur-3xl rounded-full pointer-events-none -z-10" 
       />
 
       <Reveal>
         {/* Header Block */}
-        <div className="max-w-3xl mx-auto space-y-3.5">
-          <div className="inline-flex items-center gap-2 bg-aubergine-50/90 border border-aubergine-200/70 px-3.5 py-1.5 rounded-full text-xs font-semibold text-aubergine-800 shadow-2xs">
+        <div className="max-w-3xl mx-auto space-y-2.5 sm:space-y-3.5">
+          <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-aubergine-50/90 border border-aubergine-200/70 px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-semibold text-aubergine-800 shadow-2xs">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="tracking-wide">CLINICAL TRIAGE &amp; CARE NAVIGATION</span>
+            <span className="tracking-wide uppercase">Clinical Triage &amp; Navigation</span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight px-1">
             What are you experiencing?
           </h2>
 
-          <p className="text-base sm:text-lg text-slate-600 font-normal max-w-2xl mx-auto leading-relaxed">
+          <p className="text-sm sm:text-base lg:text-lg text-slate-600 font-normal max-w-2xl mx-auto leading-relaxed px-2">
             Select your symptom to explore possible root causes and connect with specialized doctors. No medical specialty knowledge needed.
           </p>
         </div>
 
-        {/* Search Bar — Apple/Stripe-level Minimalist Pill */}
-        <div className="mt-8 max-w-xl mx-auto">
+        {/* Search Bar — Apple/Stripe-level Minimalist Pill (Prevents iOS Safari auto-zoom) */}
+        <div className="mt-6 sm:mt-8 max-w-xl mx-auto px-1 sm:px-0">
           <div className="relative group">
             <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-aubergine-600 transition-colors text-sm" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search your symptom (e.g. hair fall, late period, severe pain, acne, itching)..."
-              className="w-full pl-11 pr-10 py-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-[0_2px_12px_-2px_rgba(0,0,0,0.04)] text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-aubergine-500/20 focus:border-aubergine-400 transition-all"
+              placeholder="Search symptom (e.g. hair fall, late period, cramps, acne)..."
+              className="w-full pl-11 pr-10 py-3 sm:py-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-[0_2px_12px_-2px_rgba(0,0,0,0.04)] text-base sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-aubergine-500/20 focus:border-aubergine-400 transition-all"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 text-xs"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 w-7 h-7 flex items-center justify-center text-xs"
                 aria-label="Clear search"
               >
                 <i className="fas fa-xmark" />
@@ -271,69 +271,71 @@ export default function WhatAreYouDealingWith() {
           </div>
         </div>
 
-        {/* Clean Segmented Category Tabs */}
-        <div className="mt-6 flex items-center justify-start sm:justify-center gap-1.5 overflow-x-auto pb-2 px-2 hide-scrollbar">
-          {CATEGORIES.map(cat => {
-            const isActive = activeCategory === cat.id;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => {
-                  triggerHaptic('light');
-                  setActiveCategory(cat.id);
-                }}
-                className={`shrink-0 px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 ${
-                  isActive
-                    ? 'bg-slate-900 text-white shadow-sm'
-                    : 'bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <i className={`fas ${cat.icon} text-[10px] ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                <span>{cat.label}</span>
-              </button>
-            );
-          })}
+        {/* Clean Segmented Category Tabs with Smooth Touch Scrolling */}
+        <div className="mt-5 sm:mt-6 relative max-w-full">
+          <div className="flex items-center justify-start sm:justify-center gap-1.5 overflow-x-auto pb-2 px-1 sm:px-2 hide-scrollbar touch-pan-x">
+            {CATEGORIES.map(cat => {
+              const isActive = activeCategory === cat.id;
+              return (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => {
+                    triggerHaptic('light');
+                    setActiveCategory(cat.id);
+                  }}
+                  className={`shrink-0 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 active:scale-95 touch-manipulation ${
+                    isActive
+                      ? 'bg-slate-900 text-white shadow-sm'
+                      : 'bg-white text-slate-600 border border-slate-200/80 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  <i className={`fas ${cat.icon} text-[10px] ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                  <span>{cat.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Premium Healthcare Problem Cards Grid */}
-        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 text-left">
+        {/* Premium Healthcare Problem Cards Grid — Responsive on Mobile & Touch */}
+        <div className="mt-6 sm:mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 text-left">
           {filteredProblems.map((problem) => (
             <div
               key={problem.id}
               onClick={() => handleProblemClick(problem.id)}
-              className="group relative bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.03)] hover:shadow-[0_16px_36px_-8px_rgba(42,22,71,0.10)] hover:border-aubergine-300 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between"
+              className="group relative bg-white rounded-2xl p-4 sm:p-5 lg:p-6 border border-slate-200/80 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.03)] hover:shadow-[0_16px_36px_-8px_rgba(42,22,71,0.10)] hover:border-aubergine-300 hover:-translate-y-1 active:scale-[0.99] transition-all duration-200 cursor-pointer flex flex-col justify-between touch-manipulation"
             >
               <div>
                 {/* Card Top: Sleek Icon Squircle + Action Arrow */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-base border shadow-2xs transition-transform duration-300 group-hover:scale-105 ${problem.iconColor}`}>
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-sm sm:text-base border shadow-2xs transition-transform duration-200 group-hover:scale-105 ${problem.iconColor}`}>
                     <i className={`fas ${problem.icon}`} />
                   </div>
                   
-                  <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-150 flex items-center justify-center text-slate-400 group-hover:bg-aubergine-600 group-hover:text-white group-hover:border-aubergine-600 group-hover:translate-x-0.5 transition-all duration-200 shadow-2xs">
-                    <i className="fas fa-arrow-right text-[11px]" />
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-50 border border-slate-150 flex items-center justify-center text-slate-400 group-hover:bg-aubergine-600 group-hover:text-white group-hover:border-aubergine-600 group-hover:translate-x-0.5 transition-all duration-200 shadow-2xs">
+                    <i className="fas fa-arrow-right text-[10px] sm:text-[11px]" />
                   </div>
                 </div>
 
                 {/* Problem Title — Modern Clean Sans */}
-                <h3 className="font-sans font-bold text-slate-900 text-base sm:text-[17px] group-hover:text-aubergine-600 transition-colors tracking-tight leading-snug mb-1.5">
+                <h3 className="font-sans font-bold text-slate-900 text-base sm:text-[17px] group-hover:text-aubergine-600 transition-colors tracking-tight leading-snug mb-1 sm:mb-1.5">
                   {problem.label}
                 </h3>
 
                 {/* Relatable Conversational Text — Clean Sans Body */}
-                <p className="font-sans text-xs sm:text-[13px] text-slate-500 font-normal leading-relaxed mb-4">
+                <p className="font-sans text-xs sm:text-[13px] text-slate-500 font-normal leading-relaxed mb-3 sm:mb-4">
                   {problem.question}
                 </p>
               </div>
 
-              {/* Card Footer: Clinical Domain Pill + Hover Prompt */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-slate-500 bg-slate-50 px-2.5 py-0.5 rounded-md border border-slate-150">
+              {/* Card Footer: Clinical Domain Pill + Action Prompt (Visible on mobile touch screens) */}
+              <div className="pt-2.5 sm:pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 bg-slate-50 px-2 sm:px-2.5 py-0.5 rounded-md border border-slate-150">
                   {problem.domainLabel}
                 </span>
                 
-                <span className="text-xs font-semibold text-aubergine-600 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <span className="text-xs font-semibold text-aubergine-600 flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
                   <span>Explore</span>
                   <i className="fas fa-chevron-right text-[9px]" />
                 </span>
@@ -344,7 +346,7 @@ export default function WhatAreYouDealingWith() {
 
         {/* Empty Search Fallback */}
         {filteredProblems.length === 0 && (
-          <div className="mt-8 bg-white rounded-2xl p-8 border border-slate-200 text-center max-w-md mx-auto">
+          <div className="mt-8 bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 text-center max-w-md mx-auto">
             <i className="fas fa-search text-slate-300 text-2xl mb-2" />
             <h4 className="text-sm font-bold text-slate-800">No matching symptoms found</h4>
             <p className="text-xs text-slate-500 mt-1">Try another search term or click "Something Else" to describe your concern directly.</p>
@@ -358,48 +360,48 @@ export default function WhatAreYouDealingWith() {
           </div>
         )}
 
-        {/* 4-Step Clinical Care Roadmap Banner */}
-        <div className="mt-12 bg-gradient-to-b from-slate-50/90 to-purple-50/40 border border-slate-200/80 rounded-2xl p-6 sm:p-8 max-w-4xl mx-auto shadow-2xs">
-          <div className="text-[11px] font-bold text-aubergine-700 tracking-wider uppercase mb-1">
+        {/* 4-Step Clinical Care Roadmap Banner — Responsive Grid on Mobile */}
+        <div className="mt-10 sm:mt-12 bg-gradient-to-b from-slate-50/90 to-purple-50/40 border border-slate-200/80 rounded-2xl p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto shadow-2xs">
+          <div className="text-[10px] sm:text-[11px] font-bold text-aubergine-700 tracking-wider uppercase mb-1">
             The HealNari Mental Model
           </div>
-          <h4 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight mb-5">
+          <h4 className="text-base sm:text-xl font-bold text-slate-900 tracking-tight mb-4 sm:mb-5">
             How we guide you from symptom to solution
           </h4>
 
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-left">
-            <div className="bg-white p-4 rounded-xl border border-slate-200/70 shadow-2xs">
-              <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">STEP 01</div>
-              <div className="text-sm font-bold text-slate-900">Your Concern</div>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">Select the symptom you are experiencing.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-left">
+            <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200/70 shadow-2xs">
+              <div className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5 sm:mb-1">STEP 01</div>
+              <div className="text-xs sm:text-sm font-bold text-slate-900">Your Concern</div>
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 leading-relaxed">Select the symptom you are experiencing.</p>
             </div>
 
-            <div className="bg-white p-4 rounded-xl border border-slate-200/70 shadow-2xs">
-              <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">STEP 02</div>
-              <div className="text-sm font-bold text-slate-900">Tell Us More</div>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">Answer concise questions on timing &amp; pattern.</p>
+            <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200/70 shadow-2xs">
+              <div className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5 sm:mb-1">STEP 02</div>
+              <div className="text-xs sm:text-sm font-bold text-slate-900">Tell Us More</div>
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 leading-relaxed">Answer concise questions on timing &amp; pattern.</p>
             </div>
 
-            <div className="bg-white p-4 rounded-xl border border-slate-200/70 shadow-2xs">
-              <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">STEP 03</div>
-              <div className="text-sm font-bold text-slate-900">Possible Reasons</div>
-              <p className="text-xs text-slate-500 mt-1 leading-relaxed">Learn about hormones, nutrition, thyroid, or stress.</p>
+            <div className="bg-white p-3 sm:p-4 rounded-xl border border-slate-200/70 shadow-2xs">
+              <div className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-0.5 sm:mb-1">STEP 03</div>
+              <div className="text-xs sm:text-sm font-bold text-slate-900">Possible Reasons</div>
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 sm:mt-1 leading-relaxed">Learn about hormones, nutrition, or stress.</p>
             </div>
 
-            <div className="bg-aubergine-600 text-white p-4 rounded-xl shadow-xs">
-              <div className="text-[10px] font-extrabold text-purple-200 uppercase tracking-wider mb-1">STEP 04</div>
-              <div className="text-sm font-bold text-white">Who Can Help</div>
-              <p className="text-xs text-purple-100 mt-1 leading-relaxed">Direct connection to verified specialists.</p>
+            <div className="bg-aubergine-600 text-white p-3 sm:p-4 rounded-xl shadow-xs">
+              <div className="text-[9px] sm:text-[10px] font-extrabold text-purple-200 uppercase tracking-wider mb-0.5 sm:mb-1">STEP 04</div>
+              <div className="text-xs sm:text-sm font-bold text-white">Who Can Help</div>
+              <p className="text-[11px] sm:text-xs text-purple-100 mt-0.5 sm:mt-1 leading-relaxed">Direct connection to verified specialists.</p>
             </div>
           </div>
         </div>
 
-        {/* Primary CTA */}
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+        {/* Primary CTA — Mobile Full-Width Touch Friendly */}
+        <div className="mt-7 sm:mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 px-2 sm:px-0">
           <button
             type="button"
             onClick={handleGeneralCheckClick}
-            className="w-full sm:w-auto bg-gradient-to-r from-aubergine-700 via-healnari-purple to-magenta-600 hover:from-aubergine-800 hover:to-magenta-700 text-white font-bold text-sm sm:text-base px-8 py-3.5 sm:py-4 rounded-xl shadow-lg shadow-purple-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2.5"
+            className="w-full sm:w-auto bg-gradient-to-r from-aubergine-700 via-healnari-purple to-magenta-600 hover:from-aubergine-800 hover:to-magenta-700 text-white font-bold text-sm sm:text-base px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl shadow-lg shadow-purple-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2.5 touch-manipulation"
           >
             <i className="fas fa-stethoscope text-sm" />
             <span>Check My Symptoms — Free 2-Min Triage</span>
@@ -407,7 +409,7 @@ export default function WhatAreYouDealingWith() {
           </button>
         </div>
 
-        <p className="mt-3 text-xs text-slate-400">
+        <p className="mt-3 text-xs text-slate-400 px-4">
           Takes ~2 minutes • 100% Confidential • Non-diagnostic clinical navigation
         </p>
       </Reveal>
