@@ -17,7 +17,7 @@ import {
 } from '../../data/symptomAssessmentData.js';
 import { PersonalizedExercise } from '../components/PersonalizedExercise.jsx';
 
-// Lazy load modals for maximum initial load performance
+// Lazy load modals for peak initial load performance
 const BookingModal = lazy(() => import('../../tools/BookingModal.jsx'));
 const AuthModal = lazy(() => import('../../tools/AuthModal.jsx'));
 const SuccessModal = lazy(() => import('../../tools/SuccessModal.jsx'));
@@ -39,7 +39,7 @@ export default function CheckSymptomsPage() {
   const navigate = useNavigate();
   const searchInputRef = useRef(null);
 
-  // Wizard state: Step 1 (Symptoms), Step 2 (Context Intake), Step 3 (Medical Snapshot / Care Plan)
+  // Wizard state: Step 1 (Concerns), Step 2 (Clinical Context), Step 3 (Care Snapshot)
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
   const [followUpAnswers, setFollowUpAnswers] = useState({
@@ -72,30 +72,12 @@ export default function CheckSymptomsPage() {
 
   // UI Micro-interaction states
   const [copiedSummary, setCopiedSummary] = useState(false);
+  const [copiedQuestions, setCopiedQuestions] = useState(false);
   const [checkedDoctorQuestions, setCheckedDoctorQuestions] = useState({});
   const [draftRestored, setDraftRestored] = useState(false);
 
-  // Category Dropdown State (Practo App style)
-  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
-  const categoryDropdownRef = useRef(null);
-
   // Red Flag Alert Banner State
   const [hasImmediateRedFlag, setHasImmediateRedFlag] = useState(false);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
-        setIsCategoryDropdownOpen(false);
-      }
-    };
-    if (isCategoryDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isCategoryDropdownOpen]);
 
   // SEO & Analytics on mount
   useEffect(() => {
@@ -358,6 +340,21 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
     });
   };
 
+  // Copy doctor questions to clipboard
+  const handleCopyDoctorQuestions = () => {
+    triggerHaptic('light');
+    const questions = assessmentResult.clinicalEvaluationOverview?.questionsToAskDoctor || [];
+    const questionsText = `HealNari - Questions to Ask My Doctor at Consultation:
+${questions.map((q, idx) => `${idx + 1}. ${q} ${checkedDoctorQuestions[idx] ? '[PRIORITY]' : ''}`).join('\n')}
+
+Reported Symptoms: ${selectedSymptoms.map(id => ALL_SYMPTOMS_MAP[id]?.label || id).join(', ')}`;
+
+    navigator.clipboard.writeText(questionsText).then(() => {
+      setCopiedQuestions(true);
+      setTimeout(() => setCopiedQuestions(false), 3000);
+    });
+  };
+
   const toggleDoctorQuestion = (idx) => {
     setCheckedDoctorQuestions(prev => ({
       ...prev,
@@ -395,49 +392,23 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
     return filteredCategories.reduce((acc, cat) => acc + cat.symptoms.length, 0);
   }, [filteredCategories]);
 
-  // Active Category details for Practo dropdown selector
-  const activeCategory = useMemo(() => {
-    if (activeCategoryFilter === 'all') {
-      return {
-        id: 'all',
-        label: 'All Health Areas',
-        icon: 'fa-layer-group',
-        color: 'text-purple-700 bg-purple-50/90 border-purple-200',
-        description: 'Viewing all 95 clinical concerns across all 13 specialized departments',
-        symptomsCount: totalSymptomsCount
-      };
-    }
-    const cat = SYMPTOM_CATEGORIES.find(c => c.id === activeCategoryFilter);
-    return cat ? {
-      ...cat,
-      symptomsCount: cat.symptoms.length
-    } : {
-      id: 'all',
-      label: 'All Health Areas',
-      icon: 'fa-layer-group',
-      color: 'text-purple-700 bg-purple-50/90 border-purple-200',
-      description: 'Viewing all clinical concerns',
-      symptomsCount: totalSymptomsCount
-    };
-  }, [activeCategoryFilter, totalSymptomsCount]);
-
   return (
-    <div className="min-h-screen bg-[#F8F6FF] text-slate-800 flex flex-col font-sans selection:bg-purple-100 selection:text-healnari-purple relative overflow-x-clip">
+    <div className="min-h-screen bg-[#FAF9FD] text-slate-800 flex flex-col font-sans selection:bg-purple-100 selection:text-healnari-purple relative overflow-x-clip">
       
-      {/* ── Ambient Background Lighting (Subtle Glows) ── */}
+      {/* ── Soft Ambient Healthcare Glows ── */}
       <div 
         aria-hidden="true" 
-        className="fixed top-0 right-1/4 w-[480px] h-[480px] bg-purple-200/25 rounded-full blur-3xl pointer-events-none -z-10" 
+        className="fixed -top-24 right-1/4 w-[550px] h-[550px] bg-gradient-to-br from-purple-200/35 via-pink-200/20 to-transparent rounded-full blur-3xl pointer-events-none -z-10" 
       />
       <div 
         aria-hidden="true" 
-        className="fixed top-96 left-10 w-[400px] h-[400px] bg-pink-200/20 rounded-full blur-3xl pointer-events-none -z-10" 
+        className="fixed top-80 -left-20 w-[450px] h-[450px] bg-gradient-to-tr from-indigo-200/25 via-purple-100/30 to-transparent rounded-full blur-3xl pointer-events-none -z-10" 
       />
 
       {/* ── PRINT-SPECIFIC CSS ── */}
       <style>{`
         @media print {
-          header, .no-print, button, .mobile-dock {
+          header, .no-print, button, .mobile-dock, .smart-dock {
             display: none !important;
           }
           main {
@@ -462,73 +433,79 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
         }
       `}</style>
 
-      {/* ── TOP APP BAR / HEADER ────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-purple-100/80 px-4 sm:px-6 py-3 transition-all shadow-xs">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+      {/* ── TOP APP BAR / HEADER (Refined High-End Healthcare Navbar) ──── */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-xl border-b border-purple-100/90 transition-all shadow-[0_2px_15px_rgba(107,70,193,0.04)]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4">
           
-          {/* Left Brand & Back Navigation */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Left: Back Button & Logo */}
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={handleBack}
-              className="w-9 h-9 rounded-xl border border-slate-200 hover:border-purple-300 hover:bg-purple-50/50 text-slate-600 hover:text-healnari-purple flex items-center justify-center transition-all active:scale-95"
+              className="w-9 h-9 rounded-full bg-slate-50 hover:bg-purple-50 border border-slate-200/80 hover:border-purple-300 text-slate-600 hover:text-healnari-purple flex items-center justify-center transition-all active:scale-95 shadow-2xs group"
               aria-label="Go back"
               title="Return to previous screen"
             >
-              <i className="fas fa-arrow-left text-xs" />
+              <i className="fas fa-arrow-left text-xs transition-transform group-hover:-translate-x-0.5" />
             </button>
 
-            <NavLink to="/" className="shrink-0 flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-healnari-purple rounded-lg">
+            <NavLink to="/" className="shrink-0 flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-healnari-purple rounded-lg group">
               <HealNariLogo size="sm" />
+              <span className="hidden md:inline-flex items-center gap-1.5 ml-1 pl-2.5 border-l border-slate-200 text-[11px] font-bold tracking-wider uppercase text-purple-900/60">
+                <span>Care Navigator</span>
+              </span>
             </NavLink>
           </div>
 
-          {/* Stepper Progress Badges */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {[
-              { num: 1, label: 'Concerns', step: 1 },
-              { num: 2, label: 'Context', step: 2 },
-              { num: 3, label: 'Care Plan', step: 3 }
-            ].map(st => {
-              const isCurrent = currentStep === st.step;
-              const isPast = currentStep > st.step;
-              return (
-                <div
-                  key={st.step}
-                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                    isCurrent
-                      ? 'bg-purple-100 text-purple-900 border border-purple-300 shadow-2xs ring-1 ring-purple-300/50'
-                      : isPast
-                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                        : 'bg-slate-100/70 text-slate-400 border border-transparent hidden sm:flex'
-                  }`}
-                >
-                  <span className={`w-4 h-4 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${
-                    isCurrent
-                      ? 'bg-healnari-purple text-white'
-                      : isPast
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-slate-300 text-slate-600'
-                  }`}>
-                    {isPast ? '✓' : st.num}
-                  </span>
-                  <span className="hidden xs:inline">{st.label}</span>
-                </div>
-              );
-            })}
+          {/* Center: Integrated Stepper Capsule */}
+          <div className="flex items-center gap-2">
+            <div className="bg-slate-100/80 p-1 rounded-full border border-slate-200/70 flex items-center gap-1 shadow-inner">
+              {[
+                { num: 1, label: 'Concerns', step: 1, icon: 'fa-list-check' },
+                { num: 2, label: 'Context', step: 2, icon: 'fa-sliders' },
+                { num: 3, label: 'Care Plan', step: 3, icon: 'fa-clipboard-medical' }
+              ].map(st => {
+                const isCurrent = currentStep === st.step;
+                const isPast = currentStep > st.step;
+                return (
+                  <div
+                    key={st.step}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold transition-all duration-300 ${
+                      isCurrent
+                        ? 'bg-gradient-to-r from-purple-700 to-indigo-700 text-white shadow-sm ring-1 ring-purple-500/30'
+                        : isPast
+                          ? 'bg-emerald-100/90 text-emerald-800'
+                          : 'text-slate-400 hidden sm:flex'
+                    }`}
+                  >
+                    <span className={`w-4 h-4 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${
+                      isCurrent
+                        ? 'bg-white/20 text-white'
+                        : isPast
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      {isPast ? '✓' : st.num}
+                    </span>
+                    <span className="text-[11px]">{st.label}</span>
+                  </div>
+                );
+              })}
+            </div>
 
-            <span className="hidden md:inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-purple-50/80 px-2 py-0.5 rounded-full ml-1 border border-purple-100">
-              <i className="far fa-clock text-healnari-purple text-[10px]" /> ~2 min
-            </span>
+            <div className="hidden lg:flex items-center gap-1 text-[11px] font-bold text-purple-900 bg-purple-50/90 px-2.5 py-1 rounded-full border border-purple-200/80 shadow-2xs">
+              <i className="far fa-clock text-healnari-purple text-[10px]" />
+              <span>~2 min</span>
+            </div>
           </div>
 
-          {/* Right Action / Auth Button */}
+          {/* Right: Actions & Auth */}
           <div className="flex items-center gap-2">
             {currentStep > 1 && (
               <button
                 type="button"
                 onClick={handleResetAssessment}
-                className="text-xs font-bold text-slate-500 hover:text-rose-600 px-2 py-1.5 rounded-lg transition-colors hidden sm:flex items-center gap-1"
+                className="text-xs font-bold text-slate-500 hover:text-rose-600 px-2.5 py-1.5 rounded-full transition-colors hidden sm:flex items-center gap-1.5 hover:bg-rose-50"
                 title="Restart assessment"
               >
                 <i className="fas fa-rotate-left text-[11px]" />
@@ -540,15 +517,15 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
               <button
                 type="button"
                 onClick={() => setIsAuthOpen(true)}
-                className="text-xs font-bold text-healnari-purple bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-xl transition-all shadow-2xs"
+                className="text-xs font-bold text-healnari-purple bg-purple-50/90 hover:bg-purple-100 border border-purple-200/90 px-3.5 py-1.5 rounded-full transition-all shadow-2xs flex items-center gap-1.5"
               >
-                <i className="fas fa-user-circle mr-1" />
+                <i className="fas fa-user-circle text-xs" />
                 <span className="hidden sm:inline">Log In</span>
               </button>
             ) : (
               <NavLink
                 to="/patient-dashboard"
-                className="text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl transition-all flex items-center gap-1"
+                className="text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3.5 py-1.5 rounded-full transition-all flex items-center gap-1.5 shadow-2xs"
               >
                 <i className="fas fa-columns text-[10px]" />
                 <span className="hidden sm:inline">Dashboard</span>
@@ -556,21 +533,21 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
             )}
           </div>
         </div>
-      </header>
 
-      {/* ── STEP PROGRESS BAR (Multi-Stop Gradient) ─────────────────────── */}
-      <div className="w-full bg-purple-100/60 h-1 relative overflow-hidden">
-        <div 
-          className="bg-gradient-to-r from-healnari-purple via-healnari-magenta to-indigo-600 h-1 transition-all duration-500 ease-out shadow-[0_0_8px_rgba(107,70,193,0.5)]"
-          style={{ width: `${(currentStep / 3) * 100}%` }}
-        />
-      </div>
+        {/* Silky 2px Progress Accent Line */}
+        <div className="w-full bg-slate-100 h-[2.5px] relative overflow-hidden">
+          <div 
+            className="bg-gradient-to-r from-healnari-purple via-healnari-magenta to-indigo-600 h-[2.5px] transition-all duration-500 ease-out shadow-[0_0_8px_rgba(226,62,140,0.5)]"
+            style={{ width: `${(currentStep / 3) * 100}%` }}
+          />
+        </div>
+      </header>
 
       {/* Draft Restored Toast Notification */}
       {draftRestored && (
-        <div className="fixed top-16 right-4 z-50 bg-white border border-purple-200 shadow-xl rounded-2xl px-4 py-2.5 text-xs text-slate-800 flex items-center gap-2.5 animate-slide-up">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Restored your in-progress concerns</span>
+        <div className="fixed top-16 right-4 z-50 bg-white/95 backdrop-blur-md border border-purple-200 shadow-xl rounded-2xl px-4 py-2.5 text-xs text-slate-800 flex items-center gap-2.5 animate-slide-up">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="font-semibold">Restored your in-progress concerns</span>
           <button
             type="button"
             onClick={() => setDraftRestored(false)}
@@ -588,7 +565,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
       </div>
 
       {/* ── MAIN CONTENT CONTAINER ────────────────────────────────────── */}
-      <main className="flex-grow max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-9 pb-32 md:pb-16">
+      <main className="flex-grow max-w-5xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-9 pb-36 md:pb-32">
         
         {/* ════════════════════════════════════════════════════════════════════
             STEP 1: HEALTH CONCERN TAXONOMY & SYMPTOM SELECTION
@@ -596,41 +573,44 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
         {currentStep === 1 && (
           <div className="space-y-6 sm:space-y-7 animate-fade-in text-left">
             
-            {/* Header intro & Reassurance */}
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-200/80 shadow-2xs mb-2.5">
-                <i className="fas fa-stethoscope text-[11px] text-healnari-purple" />
-                <span>Care Navigation &amp; Guided Clinical Intake</span>
-              </div>
-              <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 font-display tracking-tight leading-tight">
-                What are you experiencing?
-              </h1>
-              <p className="text-slate-600 text-sm sm:text-base mt-2 max-w-2xl leading-relaxed">
-                Select your symptoms across reproductive, hormonal, metabolic, and general health areas. HealNari analyzes multi-symptom patterns to guide you toward safe, verified medical care.
-              </p>
-            </div>
+            {/* ── Hero Presentation Banner ── */}
+            <div className="relative rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-white via-purple-50/50 to-pink-50/30 border border-purple-100/90 shadow-[0_4px_25px_rgba(107,70,193,0.05)] overflow-hidden">
+              <div 
+                aria-hidden="true" 
+                className="absolute right-0 top-0 w-72 h-72 bg-purple-200/30 rounded-full blur-3xl pointer-events-none" 
+              />
+              
+              <div className="relative z-10 max-w-3xl">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-extrabold bg-white/90 text-purple-900 border border-purple-200/80 shadow-2xs mb-3">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <i className="fas fa-stethoscope text-[11px] text-healnari-purple" />
+                  <span>Clinical Care Navigation • Multi-Domain Intake</span>
+                </div>
 
-            {/* Non-Diagnostic Clinical Safety Callout */}
-            <div className="bg-white/95 border border-purple-100/90 rounded-2xl p-4 sm:p-4.5 shadow-2xs flex items-start gap-3.5 text-xs text-slate-700">
-              <div className="w-8 h-8 rounded-xl bg-purple-50 text-healnari-purple border border-purple-100 flex items-center justify-center shrink-0 mt-0.5">
-                <i className="fas fa-shield-halved text-sm" />
-              </div>
-              <div>
-                <strong className="text-slate-900 font-bold block mb-0.5">
-                  A Care Navigation Tool, Not a Diagnostic Engine:
-                </strong>
-                <span className="text-slate-600 leading-relaxed">
-                  HealNari does not provide definitive medical diagnoses (such as "You have PCOS" or "You have a vaginal infection"). Instead, we help you understand what your symptoms may be related to, which specialist can evaluate you, and what clinical tests may be helpful.
-                </span>
+                <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 font-display tracking-tight leading-tight">
+                  What are you <span className="bg-gradient-to-r from-purple-700 via-healnari-magenta to-indigo-600 bg-clip-text text-transparent">experiencing?</span>
+                </h1>
+                
+                <p className="text-slate-600 text-sm sm:text-base mt-2.5 leading-relaxed">
+                  Select your symptoms across reproductive, hormonal, metabolic, and general health areas. HealNari analyzes interconnected multi-symptom patterns to map your recommended clinical starting point.
+                </p>
+
+                {/* Micro Clinical Reassurance */}
+                <div className="mt-4 pt-3.5 border-t border-purple-100/80 flex items-center gap-2 text-xs text-slate-600">
+                  <i className="fas fa-shield-halved text-healnari-purple text-sm shrink-0" />
+                  <span className="leading-normal">
+                    <strong>Medical Care Navigation:</strong> HealNari does not provide automated diagnoses. We analyze symptoms to suggest relevant clinical evaluation pathways and specialist consultations.
+                  </span>
+                </div>
               </div>
             </div>
 
             {/* PCOD Clarification Banner (If searching for PCOD/PCOS) */}
             {isPcodSearch && (
-              <div className="bg-fuchsia-50/90 border border-fuchsia-200 rounded-2xl p-4 text-xs text-fuchsia-950 animate-slide-up flex items-start gap-3">
-                <i className="fas fa-circle-info text-fuchsia-600 text-base mt-0.5 shrink-0" />
+              <div className="bg-fuchsia-50/90 border border-fuchsia-200 rounded-3xl p-5 text-xs text-fuchsia-950 animate-slide-up flex items-start gap-3.5 shadow-sm">
+                <i className="fas fa-circle-info text-fuchsia-600 text-lg mt-0.5 shrink-0" />
                 <div className="space-y-1">
-                  <strong className="font-bold text-fuchsia-900 block">
+                  <strong className="font-extrabold text-fuchsia-900 text-sm block">
                     PCOD vs. PCOS: Clarifying the Terminology
                   </strong>
                   <p className="leading-relaxed text-fuchsia-900/90">
@@ -640,24 +620,24 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
               </div>
             )}
 
-            {/* Enhanced Search Input & Live Counter */}
-            <div className="bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 shadow-xs focus-within:border-healnari-purple focus-within:ring-2 focus-within:ring-purple-200 transition-all">
+            {/* Search Console & Popular Pills */}
+            <div className="bg-white p-4 sm:p-5 rounded-3xl border border-purple-100/90 shadow-[0_8px_30px_rgba(107,70,193,0.06)] focus-within:border-healnari-purple focus-within:ring-4 focus-within:ring-purple-200/50 transition-all">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="relative flex-grow">
-                  <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+                  <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-purple-400 text-sm" />
                   <input
                     ref={searchInputRef}
                     type="text"
                     value={searchFilter}
                     onChange={(e) => setSearchFilter(e.target.value)}
-                    placeholder="Search symptoms (e.g. vaginal itching, irregular periods, acne, hair fall, fatigue)..."
-                    className="w-full bg-slate-50/70 border border-slate-200/80 rounded-xl pl-9 pr-8 py-2.5 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-purple-300 transition-all"
+                    placeholder="Search symptoms (e.g. irregular periods, itching, acne, hair fall, fatigue, pelvic pain)..."
+                    className="w-full bg-slate-50/80 border border-slate-200/80 rounded-2xl pl-11 pr-9 py-3 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-purple-300 transition-all"
                   />
                   {searchFilter && (
                     <button
                       type="button"
                       onClick={() => setSearchFilter('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs p-1"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs p-1"
                       aria-label="Clear search"
                     >
                       ✕
@@ -666,14 +646,14 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                 </div>
 
                 <div className="flex items-center justify-between sm:justify-end gap-3 px-1">
-                  <span className="text-xs font-bold text-slate-600 whitespace-nowrap">
+                  <span className="text-xs font-bold text-slate-600 whitespace-nowrap bg-purple-50/60 px-3 py-1.5 rounded-xl border border-purple-100/80">
                     Selected: <strong className="text-healnari-purple font-black">{selectedSymptoms.length}</strong> concerns
                   </span>
                   {selectedSymptoms.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setSelectedSymptoms([])}
-                      className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:underline px-1 py-0.5"
+                      className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:underline px-2 py-1"
                     >
                       Clear All
                     </button>
@@ -682,9 +662,10 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
               </div>
 
               {/* Fast Quick-Filter Suggestions */}
-              <div className="pt-2.5 mt-2.5 border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
-                  Popular:
+              <div className="pt-3.5 mt-3.5 border-t border-slate-100 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider shrink-0 mr-1 flex items-center gap-1">
+                  <i className="fas fa-bolt text-amber-500 text-[10px]" />
+                  <span>Popular:</span>
                 </span>
                 {POPULAR_CONCERNS.map(item => {
                   const isSelected = selectedSymptoms.includes(item.id);
@@ -693,29 +674,28 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                       key={item.id}
                       type="button"
                       onClick={() => toggleSymptom(item.id)}
-                      className={`text-[11px] font-bold px-2.5 py-1 rounded-lg shrink-0 transition-all flex items-center gap-1.5 ${
+                      className={`text-xs font-bold px-3 py-1.5 rounded-full shrink-0 transition-all flex items-center gap-1.5 ${
                         isSelected
-                          ? 'bg-purple-600 text-white shadow-2xs'
-                          : 'bg-slate-100/80 hover:bg-purple-50 text-slate-600 hover:text-healnari-purple'
+                          ? 'bg-gradient-to-r from-purple-700 to-indigo-700 text-white shadow-sm ring-2 ring-purple-400/40'
+                          : 'bg-slate-100/80 hover:bg-purple-50 text-slate-700 hover:text-healnari-purple border border-slate-200/60 hover:-translate-y-0.5'
                       }`}
                     >
-                      <i className={`fas ${item.icon} text-[9px]`} />
+                      <i className={`fas ${item.icon} text-[10px]`} />
                       <span>{item.label}</span>
-                      {isSelected && <span className="text-[9px]">✓</span>}
+                      {isSelected && <span className="text-[10px]">✓</span>}
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* ── Practo App-Style Category Dropdown Selector ── */}
-            <div className="relative z-20" ref={categoryDropdownRef}>
-              <div className="flex items-center justify-between gap-2 mb-1.5 px-0.5">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <i className="fas fa-stethoscope text-healnari-purple text-xs" />
-                  <span>Department / Health Area</span>
+            {/* ── Modern Clinical Department Segmented Tab Bar ── */}
+            <div className="bg-white rounded-3xl p-3 sm:p-4 border border-purple-100/90 shadow-[0_4px_20px_rgba(107,70,193,0.04)]">
+              <div className="flex items-center justify-between gap-2 px-1 mb-2.5">
+                <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <i className="fas fa-layer-group text-healnari-purple text-xs" />
+                  <span>Filter by Clinical Department</span>
                 </span>
-                
                 {activeCategoryFilter !== 'all' && (
                   <button
                     type="button"
@@ -723,185 +703,60 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                       setActiveCategoryFilter('all');
                       triggerHaptic('light');
                     }}
-                    className="text-[11px] font-bold text-healnari-purple hover:underline flex items-center gap-1"
+                    className="text-xs font-bold text-healnari-purple hover:underline flex items-center gap-1"
                   >
-                    <span>Reset to All</span>
-                    <span className="text-[10px]">✕</span>
+                    <span>View All (95)</span>
+                    <i className="fas fa-arrow-rotate-left text-[10px]" />
                   </button>
                 )}
               </div>
 
-              {/* Main Practo Dropdown Trigger Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic('light');
-                  setIsCategoryDropdownOpen(prev => !prev);
-                }}
-                aria-expanded={isCategoryDropdownOpen}
-                className={`w-full bg-white border rounded-2xl p-3 sm:p-3.5 text-left transition-all duration-200 flex items-center justify-between gap-3 shadow-xs hover:shadow-sm ${
-                  isCategoryDropdownOpen
-                    ? 'border-healnari-purple ring-2 ring-purple-300/40 shadow-md'
-                    : 'border-slate-200/90 hover:border-purple-300'
-                }`}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
-                    activeCategory.id === 'all'
-                      ? 'bg-purple-100 text-purple-800 border-purple-200'
-                      : activeCategory.color || 'bg-purple-100 text-purple-800 border-purple-200'
+              {/* Scrollable Horizontal Pill Strip */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 scrollbar-thin">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveCategoryFilter('all');
+                    triggerHaptic('light');
+                  }}
+                  className={`px-4 py-2 rounded-2xl text-xs font-extrabold shrink-0 transition-all flex items-center gap-2 ${
+                    activeCategoryFilter === 'all'
+                      ? 'bg-gradient-to-r from-purple-700 to-indigo-700 text-white shadow-md ring-2 ring-purple-400/40'
+                      : 'bg-slate-100/80 hover:bg-purple-50 text-slate-700 hover:text-healnari-purple border border-slate-200/60'
+                  }`}
+                >
+                  <i className="fas fa-asterisk text-[10px]" />
+                  <span>All Health Areas</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                    activeCategoryFilter === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200/90 text-slate-600'
                   }`}>
-                    <i className={`fas ${activeCategory.icon || 'fa-layer-group'} text-xs`} />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-extrabold text-slate-900 truncate">
-                        {activeCategory.label}
-                      </span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-healnari-purple border border-purple-200 shrink-0">
-                        {activeCategory.symptomsCount || totalSymptomsCount} concerns
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                      {activeCategory.description}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs font-bold text-healnari-purple hidden sm:inline">
-                    {isCategoryDropdownOpen ? 'Close' : 'Select'}
+                    {totalSymptomsCount}
                   </span>
-                  <div className={`w-7 h-7 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 transition-transform duration-200 ${
-                    isCategoryDropdownOpen ? 'rotate-180 bg-purple-100 text-healnari-purple' : ''
-                  }`}>
-                    <i className="fas fa-chevron-down text-xs" />
-                  </div>
-                </div>
-              </button>
+                </button>
 
-              {/* Practo Floating Dropdown Popover */}
-              {isCategoryDropdownOpen && (
-                <div className="absolute left-0 right-0 top-full mt-2 z-50 bg-white rounded-3xl border border-purple-200 shadow-2xl p-2.5 sm:p-3 animate-slide-up max-h-[380px] overflow-y-auto">
-                  <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between border-b border-slate-100 mb-1">
-                    <span>Select Health Department</span>
-                    <span>13 Specialty Areas</span>
-                  </div>
-
-                  {/* Option: All Health Areas */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveCategoryFilter('all');
-                      setIsCategoryDropdownOpen(false);
-                      triggerHaptic('light');
-                    }}
-                    className={`w-full p-2.5 sm:p-3 rounded-2xl text-left transition-all flex items-center justify-between gap-3 ${
-                      activeCategoryFilter === 'all'
-                        ? 'bg-purple-50 text-purple-900 font-extrabold border border-purple-200 shadow-2xs'
-                        : 'hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-xl bg-purple-100 text-healnari-purple flex items-center justify-center shrink-0 border border-purple-200 text-xs">
-                        <i className="fas fa-layer-group" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-bold truncate">All Health Areas</span>
-                          <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.2 rounded-full">
-                            {totalSymptomsCount}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                          Explore all 95 clinical concerns across all areas
-                        </p>
-                      </div>
-                    </div>
-                    {activeCategoryFilter === 'all' && (
-                      <span className="w-5 h-5 rounded-full bg-healnari-purple text-white text-[10px] flex items-center justify-center font-bold shrink-0">
-                        ✓
-                      </span>
-                    )}
-                  </button>
-
-                  <div className="my-1.5 border-t border-slate-100" />
-
-                  {/* Individual Categories */}
-                  <div className="space-y-1">
-                    {SYMPTOM_CATEGORIES.map(cat => {
-                      const isSelected = activeCategoryFilter === cat.id;
-                      return (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          onClick={() => {
-                            setActiveCategoryFilter(cat.id);
-                            setIsCategoryDropdownOpen(false);
-                            triggerHaptic('light');
-                          }}
-                          className={`w-full p-2.5 sm:p-3 rounded-2xl text-left transition-all flex items-center justify-between gap-3 ${
-                            isSelected
-                              ? 'bg-purple-50 text-purple-900 font-extrabold border border-purple-200 shadow-2xs'
-                              : 'hover:bg-slate-50 text-slate-700'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs border ${cat.color}`}>
-                              <i className={`fas ${cat.icon}`} />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold truncate">{cat.label}</span>
-                                <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.2 rounded-full shrink-0">
-                                  {cat.symptoms.length}
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                                {cat.description}
-                              </p>
-                            </div>
-                          </div>
-                          {isSelected && (
-                            <span className="w-5 h-5 rounded-full bg-healnari-purple text-white text-[10px] flex items-center justify-center font-bold shrink-0">
-                              ✓
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Fast 1-Tap Quick Pills for the Most Popular Categories */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pt-2.5 pb-0.5 scrollbar-thin">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
-                  Quick:
-                </span>
-                {[
-                  { id: 'all', label: 'All (95)' },
-                  { id: 'vaginal_vulvar', label: 'Vaginal & Vulvar (13)' },
-                  { id: 'pcos_ovulatory', label: 'PCOS / PCOD (13)' },
-                  { id: 'hormonal_health', label: 'Hormonal (6)' },
-                  { id: 'menstrual_health', label: 'Menstrual (9)' }
-                ].map(chip => {
-                  const isSelected = activeCategoryFilter === chip.id;
+                {SYMPTOM_CATEGORIES.map(cat => {
+                  const isSelected = activeCategoryFilter === cat.id;
                   return (
                     <button
-                      key={chip.id}
+                      key={cat.id}
                       type="button"
                       onClick={() => {
-                        setActiveCategoryFilter(chip.id);
+                        setActiveCategoryFilter(cat.id);
                         triggerHaptic('light');
                       }}
-                      className={`text-[11px] font-bold px-2.5 py-1 rounded-xl shrink-0 transition-all ${
+                      className={`px-3.5 py-2 rounded-2xl text-xs font-bold shrink-0 transition-all flex items-center gap-2 ${
                         isSelected
-                          ? 'bg-healnari-purple text-white shadow-2xs'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:bg-purple-50/50'
+                          ? 'bg-gradient-to-r from-purple-700 to-indigo-700 text-white shadow-md ring-2 ring-purple-400/40'
+                          : 'bg-slate-100/80 hover:bg-purple-50 text-slate-700 hover:text-healnari-purple border border-slate-200/60'
                       }`}
                     >
-                      {chip.label}
+                      <i className={`fas ${cat.icon} text-[10px]`} />
+                      <span>{cat.label}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                        isSelected ? 'bg-white/20 text-white' : 'bg-slate-200/90 text-slate-600'
+                      }`}>
+                        {cat.symptoms.length}
+                      </span>
                     </button>
                   );
                 })}
@@ -910,16 +765,17 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
 
             {/* Selected Symptoms Chips Bar (Quick Review Drawer) */}
             {selectedSymptoms.length > 0 && (
-              <div className="bg-purple-50/80 border border-purple-200 rounded-2xl p-3.5 sm:p-4 animate-slide-up shadow-2xs">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="text-[10px] font-bold text-healnari-purple uppercase tracking-wider">
-                    Selected Concerns ({selectedSymptoms.length}):
+              <div className="bg-gradient-to-r from-purple-50 via-white to-pink-50 border border-purple-200/90 rounded-3xl p-4 sm:p-5 animate-slide-up shadow-card">
+                <div className="flex items-center justify-between gap-2 mb-2.5">
+                  <span className="text-[11px] font-extrabold text-healnari-purple uppercase tracking-wider flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Selected Concerns ({selectedSymptoms.length}):</span>
                   </span>
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-xs text-slate-500">
                     Click any chip to remove
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                <div className="flex flex-wrap gap-2">
                   {selectedSymptoms.map(id => {
                     const info = ALL_SYMPTOMS_MAP[id] || { label: id };
                     return (
@@ -927,11 +783,11 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                         key={id}
                         type="button"
                         onClick={() => toggleSymptom(id)}
-                        className="inline-flex items-center gap-1.5 bg-white text-slate-800 border border-purple-200 px-3 py-1 rounded-full text-xs font-bold shadow-2xs hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 transition-all active:scale-95"
+                        className="inline-flex items-center gap-1.5 bg-white text-slate-800 border border-purple-200 px-3.5 py-1.5 rounded-full text-xs font-extrabold shadow-sm hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 transition-all active:scale-95 group"
                         title="Click to remove"
                       >
                         <span>{info.label}</span>
-                        <i className="fas fa-times text-[10px] text-slate-400 hover:text-rose-600 ml-0.5" />
+                        <i className="fas fa-times text-[10px] text-slate-400 group-hover:text-rose-600 ml-0.5" />
                       </button>
                     );
                   })}
@@ -941,20 +797,20 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
 
             {/* Empty Search State */}
             {searchFilter && filteredCategories.length === 0 && (
-              <div className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200/80 text-center space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-purple-50 text-healnari-purple flex items-center justify-center mx-auto text-xl">
+              <div className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200/90 text-center space-y-3 shadow-card">
+                <div className="w-12 h-12 rounded-2xl bg-purple-50 text-healnari-purple flex items-center justify-center mx-auto text-xl shadow-sm">
                   <i className="fas fa-magnifying-glass" />
                 </div>
                 <h3 className="text-base font-extrabold text-slate-900">
                   No symptoms matching "{searchFilter}"
                 </h3>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Try checking the spelling, browsing by health area, or selecting from popular symptoms above.
+                  Try checking the spelling, browsing by department above, or selecting from popular concerns.
                 </p>
                 <button
                   type="button"
                   onClick={() => setSearchFilter('')}
-                  className="bg-purple-50 hover:bg-purple-100 text-healnari-purple font-bold text-xs px-4 py-2 rounded-xl transition-all inline-block mt-2"
+                  className="bg-purple-50 hover:bg-purple-100 text-healnari-purple font-bold text-xs px-4 py-2 rounded-xl transition-all inline-block mt-2 shadow-sm"
                 >
                   Clear Search Filter
                 </button>
@@ -964,15 +820,15 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
             {/* Categorized Symptom Chips Grid */}
             <div className="space-y-6">
               {filteredCategories.map(cat => (
-                <div key={cat.id} className="bg-white rounded-3xl p-5 sm:p-6 border border-purple-100/80 shadow-2xs text-left transition-all">
+                <div key={cat.id} className="bg-white rounded-3xl p-5 sm:p-7 border border-purple-100/90 shadow-card text-left transition-all">
                   
                   {/* Category Header */}
                   <div className="flex items-center gap-3 mb-4 pb-3 border-b border-slate-100">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm border shadow-2xs ${cat.color}`}>
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-sm border shadow-sm ${cat.color}`}>
                       <i className={`fas ${cat.icon}`} aria-hidden="true" />
                     </div>
                     <div>
-                      <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                      <h2 className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
                         <span>{cat.label}</span>
                         <span className="text-xs font-semibold text-slate-400">({cat.symptoms.length})</span>
                       </h2>
@@ -983,7 +839,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                   </div>
 
                   {/* Symptom Cards Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {cat.symptoms.map(sym => {
                       const isSelected = selectedSymptoms.includes(sym.id);
                       return (
@@ -992,10 +848,10 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                           type="button"
                           onClick={() => toggleSymptom(sym.id)}
                           aria-pressed={isSelected}
-                          className={`p-3.5 rounded-2xl border text-left transition-all duration-150 flex items-start justify-between gap-3 group active:scale-[0.98] ${
+                          className={`p-4 rounded-2xl border text-left transition-all duration-200 flex items-start justify-between gap-3 group active:scale-[0.98] ${
                             isSelected
-                              ? 'bg-purple-50/90 border-healnari-purple shadow-sm ring-1 ring-healnari-purple'
-                              : 'bg-slate-50/60 hover:bg-purple-50/30 border-slate-200/80 hover:border-purple-200'
+                              ? 'bg-gradient-to-br from-purple-50/95 to-fuchsia-50/40 border-healnari-purple ring-2 ring-purple-400/40 shadow-[0_4px_16px_rgba(107,70,193,0.12)]'
+                              : 'bg-white hover:bg-purple-50/20 border-slate-200/80 hover:border-purple-300 shadow-sm hover:shadow-card-hover hover:-translate-y-0.5'
                           }`}
                         >
                           <div className="min-w-0">
@@ -1004,14 +860,14 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                             }`}>
                               {sym.label}
                             </p>
-                            <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">
+                            <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
                               {sym.subtitle}
                             </p>
                           </div>
 
                           <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 transition-all ${
                             isSelected
-                              ? 'bg-healnari-purple border-healnari-purple text-white shadow-2xs'
+                              ? 'bg-healnari-purple border-healnari-purple text-white shadow-sm scale-110'
                               : 'border-slate-300 group-hover:border-purple-400 bg-white'
                           }`}>
                             {isSelected && <i className="fas fa-check text-[10px]" />}
@@ -1024,24 +880,6 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
               ))}
             </div>
 
-            {/* Desktop Continue Action Banner */}
-            <div className="hidden md:flex items-center justify-between pt-4 pb-2 border-t border-purple-100">
-              <span className="text-xs text-slate-500 font-medium">
-                {selectedSymptoms.length > 0 
-                  ? `${selectedSymptoms.length} health concerns selected for review` 
-                  : 'Select one or more concerns above to proceed'}
-              </span>
-
-              <button
-                type="button"
-                disabled={selectedSymptoms.length === 0}
-                onClick={handleProceedToStep2}
-                className="bg-healnari-purple disabled:opacity-40 hover:bg-aubergine-600 text-white font-extrabold px-8 py-3.5 rounded-xl shadow-lg shadow-purple-200 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2 text-sm"
-              >
-                <span>Continue to Step 2 (Clinical Context)</span>
-                <i className="fas fa-arrow-right text-xs" />
-              </button>
-            </div>
           </div>
         )}
 
@@ -1051,7 +889,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
         {currentStep === 2 && (
           <div className="space-y-7 sm:space-y-8 animate-fade-in text-left">
             <div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-900 border border-purple-200/80 mb-2.5">
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-extrabold bg-purple-100 text-purple-900 border border-purple-200/80 mb-2.5 shadow-sm">
                 <i className="fas fa-sliders text-[11px] text-healnari-purple" />
                 Step 2 of 3: Clinical Context &amp; Safety Triage
               </span>
@@ -1063,10 +901,32 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
               </p>
             </div>
 
+            {/* Context Questions Progress Meter */}
+            <div className="bg-white p-4 sm:p-5 rounded-3xl border border-purple-100/90 shadow-card flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-100 text-healnari-purple flex items-center justify-center font-bold text-sm shadow-sm">
+                  <i className="fas fa-clipboard-check" />
+                </div>
+                <div>
+                  <span className="text-sm font-extrabold text-slate-900 block">
+                    {contextualQuestions.length} Contextual Questions
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    Tailored specifically to your selected symptom pattern
+                  </span>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-xs font-bold text-healnari-purple bg-purple-50 px-3 py-1.5 rounded-full border border-purple-200/80">
+                  {selectedSymptoms.length} Concerns Under Review
+                </span>
+              </div>
+            </div>
+
             {/* Dynamic Questions List */}
             <div className="space-y-6">
               {contextualQuestions.map((q, idx) => (
-                <div key={q.id} className="bg-white rounded-3xl p-5 sm:p-7 border border-purple-100/80 shadow-2xs text-left">
+                <div key={q.id} className="bg-white rounded-3xl p-5 sm:p-7 border border-purple-100/90 shadow-card text-left">
                   <div className="mb-4">
                     <span className="text-[10px] font-black text-healnari-purple uppercase tracking-wider block mb-1">
                       Question {idx + 1} of {contextualQuestions.length}
@@ -1083,15 +943,15 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
 
                   {/* Single Choice Options */}
                   {q.type === 'single_choice' && (
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       {q.options.map(opt => {
                         const isChecked = followUpAnswers[q.id] === opt.value;
                         return (
                           <label
                             key={opt.value}
-                            className={`p-3.5 rounded-2xl border flex items-start gap-3 cursor-pointer transition-all ${
+                            className={`p-4 rounded-2xl border flex items-start gap-3.5 cursor-pointer transition-all ${
                               isChecked
-                                ? 'bg-purple-50/90 border-healnari-purple shadow-sm ring-1 ring-healnari-purple'
+                                ? 'bg-gradient-to-r from-purple-50/95 to-indigo-50/40 border-healnari-purple shadow-sm ring-2 ring-purple-300/40'
                                 : 'bg-slate-50/50 hover:bg-purple-50/20 border-slate-200/80'
                             }`}
                           >
@@ -1104,7 +964,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                               className="mt-1 text-healnari-purple focus:ring-healnari-purple"
                             />
                             <div>
-                              <p className={`text-xs sm:text-sm font-bold ${isChecked ? 'text-purple-900' : 'text-slate-800'}`}>
+                              <p className={`text-xs sm:text-sm font-extrabold ${isChecked ? 'text-purple-900' : 'text-slate-800'}`}>
                                 {opt.label}
                               </p>
                               {opt.desc && (
@@ -1121,17 +981,17 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
 
                   {/* Multiple Choice Options (Safety Screen) */}
                   {q.type === 'multiple_choice' && (
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       {q.options.map(opt => {
                         const isChecked = (followUpAnswers[q.id] || []).includes(opt.value);
                         return (
                           <label
                             key={opt.value}
-                            className={`p-3.5 rounded-2xl border flex items-start gap-3 cursor-pointer transition-all ${
+                            className={`p-4 rounded-2xl border flex items-start gap-3.5 cursor-pointer transition-all ${
                               isChecked
                                 ? opt.isRedFlag
-                                  ? 'bg-rose-50 border-rose-400 ring-1 ring-rose-400'
-                                  : 'bg-purple-50/90 border-healnari-purple ring-1 ring-healnari-purple'
+                                  ? 'bg-rose-50 border-rose-400 ring-2 ring-rose-300/40'
+                                  : 'bg-purple-50/90 border-healnari-purple ring-2 ring-purple-300/40'
                                 : 'bg-slate-50/50 hover:bg-white border-slate-200/80'
                             }`}
                           >
@@ -1144,7 +1004,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                               className="mt-1 text-healnari-purple focus:ring-healnari-purple rounded"
                             />
                             <div>
-                              <p className={`text-xs sm:text-sm font-bold ${
+                              <p className={`text-xs sm:text-sm font-extrabold ${
                                 isChecked ? (opt.isRedFlag ? 'text-rose-900' : 'text-purple-900') : 'text-slate-800'
                               }`}>
                                 {opt.isRedFlag && <i className="fas fa-triangle-exclamation text-rose-500 mr-1.5" />}
@@ -1160,42 +1020,21 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
               ))}
 
               {/* Optional Additional Notes Card */}
-              <div className="bg-white rounded-3xl p-5 sm:p-7 border border-purple-100/80 shadow-2xs text-left">
+              <div className="bg-white rounded-3xl p-5 sm:p-7 border border-purple-100/90 shadow-card text-left">
                 <h3 className="text-base font-extrabold text-slate-900 mb-1">
                   Anything else you'd like to share? (Optional)
                 </h3>
                 <p className="text-xs text-slate-500 mb-3">
-                  Share previous lab values, previous doctor advice, or specific questions you have for the clinician.
+                  Share previous lab values, doctor advice, cycle dates, or specific questions you have for the clinician.
                 </p>
                 <textarea
                   rows={3}
                   value={followUpAnswers.additional_notes || ''}
                   onChange={(e) => handleAnswerChange('additional_notes', e.target.value)}
                   placeholder="e.g. My symptoms seem to peak during week 3 of my cycle, previous ultrasound was normal..."
-                  className="w-full bg-slate-50/70 border border-slate-200/80 rounded-2xl p-3.5 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-healnari-purple focus:bg-white transition-all resize-none"
+                  className="w-full bg-slate-50/80 border border-slate-200/90 rounded-2xl p-4 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-healnari-purple focus:bg-white transition-all resize-none"
                 />
               </div>
-            </div>
-
-            {/* Desktop Actions Row */}
-            <div className="hidden md:flex items-center justify-between pt-4 border-t border-purple-100">
-              <button
-                type="button"
-                onClick={handleBack}
-                className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80 font-bold px-6 py-3.5 rounded-xl transition-all text-sm flex items-center gap-2"
-              >
-                <i className="fas fa-arrow-left text-xs" />
-                <span>Back to Symptoms</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleProceedToStep3}
-                className="bg-healnari-purple hover:bg-aubergine-600 text-white font-extrabold px-8 py-3.5 rounded-xl shadow-lg shadow-purple-200 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2 text-sm"
-              >
-                <span>View My Health Snapshot</span>
-                <i className="fas fa-arrow-right text-xs" />
-              </button>
             </div>
           </div>
         )}
@@ -1229,7 +1068,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                 </div>
 
                 {/* Emergency Directives */}
-                <div className="bg-white rounded-3xl p-6 sm:p-8 border border-rose-200 shadow-sm space-y-4">
+                <div className="bg-white rounded-3xl p-6 sm:p-8 border border-rose-200 shadow-card space-y-4">
                   <h3 className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
                     <i className="fas fa-list-check text-rose-600" />
                     <span>Immediate Actions to Take Right Now:</span>
@@ -1267,60 +1106,97 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
               /* ── STANDARD MEDICAL CARE SNAPSHOT ───────────────────────────── */
               <div className="space-y-8">
                 
-                {/* Snapshot Hero Title & Educational Banner */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                        <i className="fas fa-check-circle text-emerald-600 text-[11px]" />
-                        Assessment Completed
-                      </span>
-                      {savedToProfile && (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-200">
-                          <i className="fas fa-cloud-arrow-up text-[10px]" />
-                          Saved to Your Profile
+                {/* ── High-Impact Executive Care Route Hero Card ── */}
+                <div className="bg-gradient-to-br from-white via-purple-50/40 to-fuchsia-50/30 rounded-3xl p-6 sm:p-8 border border-purple-200/90 shadow-card relative overflow-hidden">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2 mb-2.5">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-gradient-to-r from-purple-700 to-indigo-700 text-white shadow-sm">
+                          <i className="fas fa-star text-[10px]" />
+                          Primary Recommended Specialist
                         </span>
-                      )}
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <i className="fas fa-check-circle text-[10px]" />
+                          Assessment Complete
+                        </span>
+                        {savedToProfile && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                            <i className="fas fa-cloud text-[10px]" />
+                            Saved to Profile
+                          </span>
+                        )}
+                      </div>
+
+                      <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 font-display tracking-tight leading-tight">
+                        Your Care Navigation Snapshot
+                      </h1>
+                      
+                      <p className="text-slate-600 text-sm sm:text-base mt-2 max-w-2xl leading-relaxed">
+                        Based on your {selectedSymptoms.length} reported symptoms, your recommended starting point for medical evaluation is a{' '}
+                        <strong className="text-purple-900 font-extrabold">
+                          {assessmentResult.primarySpecialist?.name || 'Gynaecologist'}
+                        </strong>.
+                      </p>
+
+                      <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold text-slate-700">
+                        <span className="bg-white/80 border border-purple-100 px-3 py-1.5 rounded-xl shadow-sm flex items-center gap-1.5">
+                          <i className="fas fa-heart-pulse text-healnari-purple" />
+                          <span>{selectedSymptoms.length} Reported Concerns</span>
+                        </span>
+                        <span className="bg-white/80 border border-purple-100 px-3 py-1.5 rounded-xl shadow-sm flex items-center gap-1.5">
+                          <i className="fas fa-dna text-healnari-magenta" />
+                          <span>{assessmentResult.relevantHealthAreaLabels?.length || 2} Connected Areas</span>
+                        </span>
+                        <span className="bg-white/80 border border-purple-100 px-3 py-1.5 rounded-xl shadow-sm flex items-center gap-1.5">
+                          <i className="fas fa-user-doctor text-indigo-600" />
+                          <span>{assessmentResult.recommendedSpecialists?.length || 1} Mapped Specialists</span>
+                        </span>
+                      </div>
                     </div>
-                    <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 font-display tracking-tight leading-tight">
-                      Your Health Snapshot
-                    </h1>
-                    <p className="text-slate-600 text-sm sm:text-base mt-2 max-w-2xl leading-relaxed">
-                      A medically comprehensive care-navigation summary: understanding interconnected health areas, educational conditions to discuss with your doctor, specialist mapping, clinical evaluation steps, and safe movement.
-                    </p>
-                  </div>
 
-                  {/* Top Action Pills (Print & Copy) */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={handlePrintSummary}
-                      className="bg-white hover:bg-purple-50 text-slate-700 hover:text-healnari-purple border border-slate-200/90 font-bold px-4 py-2.5 rounded-xl text-xs transition-all shadow-2xs flex items-center gap-1.5"
-                      title="Print or save as PDF"
-                    >
-                      <i className="fas fa-print text-xs" />
-                      <span>Print Summary</span>
-                    </button>
+                    {/* Quick CTA Actions */}
+                    <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleBookSpecialist(assessmentResult.primarySpecialist || { name: 'Specialist' })}
+                        className="bg-gradient-to-r from-purple-700 via-healnari-purple to-magenta-600 hover:from-purple-800 hover:to-magenta-700 text-white font-extrabold px-6 py-3.5 rounded-xl shadow-md transition-all hover:scale-105 active:scale-95 text-xs sm:text-sm flex items-center justify-center gap-2"
+                      >
+                        <i className="fas fa-calendar-check text-xs" />
+                        <span>Book Starting Specialist</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      onClick={handleCopySummary}
-                      className={`font-bold px-4 py-2.5 rounded-xl text-xs transition-all shadow-2xs flex items-center gap-1.5 ${
-                        copiedSummary
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-white hover:bg-purple-50 text-slate-700 hover:text-healnari-purple border border-slate-200/90'
-                      }`}
-                      title="Copy summary text"
-                    >
-                      <i className={`fas ${copiedSummary ? 'fa-check' : 'fa-copy'} text-xs`} />
-                      <span>{copiedSummary ? 'Copied!' : 'Copy Summary'}</span>
-                    </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handlePrintSummary}
+                          className="bg-white hover:bg-purple-50 text-slate-700 hover:text-healnari-purple border border-slate-200/90 font-bold px-3.5 py-2.5 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center gap-1.5 flex-1"
+                          title="Print or save as PDF"
+                        >
+                          <i className="fas fa-print text-xs" />
+                          <span>Print PDF</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleCopySummary}
+                          className={`font-bold px-3.5 py-2.5 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center gap-1.5 flex-1 ${
+                            copiedSummary
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-white hover:bg-purple-50 text-slate-700 hover:text-healnari-purple border border-slate-200/90'
+                          }`}
+                          title="Copy summary text"
+                        >
+                          <i className={`fas ${copiedSummary ? 'fa-check' : 'fa-copy'} text-xs`} />
+                          <span>{copiedSummary ? 'Copied!' : 'Copy'}</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 {/* Non-Diagnostic Clinical Disclaimer Banner */}
-                <div className="bg-white/95 border border-purple-100/90 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 text-xs text-slate-700 shadow-2xs">
-                  <div className="w-8 h-8 rounded-xl bg-purple-50 text-healnari-purple border border-purple-100 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="bg-white/95 border border-purple-100/90 rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 text-xs text-slate-700 shadow-card">
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 text-healnari-purple border border-purple-100 flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
                     <i className="fas fa-shield-halved text-sm" />
                   </div>
                   <div>
@@ -1334,7 +1210,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                 </div>
 
                 {/* 1. SECTION: WHAT YOU TOLD US */}
-                <section className="bg-white rounded-3xl p-5 sm:p-7 border border-purple-100/80 shadow-2xs space-y-4">
+                <section className="bg-white rounded-3xl p-5 sm:p-7 border border-purple-100/90 shadow-card space-y-4">
                   <div className="flex items-center justify-between gap-4 pb-3 border-b border-slate-100">
                     <h2 className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
                       <i className="fas fa-clipboard-list text-healnari-purple text-sm" />
@@ -1359,7 +1235,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                       {assessmentResult.selectedSymptomsInfo.map(sym => (
                         <span
                           key={sym.id}
-                          className="px-3 py-1.5 rounded-full text-xs font-bold bg-purple-50 text-purple-900 border border-purple-200/80 flex items-center gap-1.5 shadow-2xs"
+                          className="px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-purple-50 text-purple-900 border border-purple-200/80 flex items-center gap-1.5 shadow-sm"
                         >
                           <span className="w-1.5 h-1.5 rounded-full bg-healnari-purple" />
                           <span>{sym.label}</span>
@@ -1405,7 +1281,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                 </section>
 
                 {/* 2. SECTION: WHAT THESE SYMPTOMS MAY BE RELATED TO */}
-                <section className="bg-white rounded-3xl p-5 sm:p-7 border border-purple-100/80 shadow-2xs space-y-3">
+                <section className="bg-white rounded-3xl p-5 sm:p-7 border border-purple-100/90 shadow-card space-y-3">
                   <span className="text-xs font-bold text-healnari-purple uppercase tracking-wider block">
                     Interconnected Physiology
                   </span>
@@ -1420,7 +1296,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                     {assessmentResult.relevantHealthAreaLabels.map((areaLabel, idx) => (
                       <span
                         key={idx}
-                        className="px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-purple-50 text-purple-900 border border-purple-200 flex items-center gap-2 shadow-2xs"
+                        className="px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-purple-50 text-purple-900 border border-purple-200 flex items-center gap-2 shadow-sm"
                       >
                         <i className="fas fa-link text-[10px] text-healnari-purple" />
                         <span>{areaLabel}</span>
@@ -1447,7 +1323,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                     {assessmentResult.conditionsToDiscuss.map(cond => (
                       <div
                         key={cond.id}
-                        className="bg-white rounded-3xl p-5 sm:p-6 border border-purple-100/80 shadow-2xs hover:shadow-md hover:border-purple-300 transition-all flex flex-col justify-between"
+                        className="bg-white rounded-3xl p-5 sm:p-6 border border-purple-100/90 shadow-card hover:shadow-card-hover hover:border-purple-300 transition-all flex flex-col justify-between"
                       >
                         <div>
                           <div className="flex items-center justify-between gap-3 mb-2.5">
@@ -1511,16 +1387,16 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                     {assessmentResult.recommendedSpecialists.map(spec => (
                       <div
                         key={spec.id}
-                        className={`bg-white rounded-3xl p-5 sm:p-6 border shadow-2xs hover:shadow-md transition-all flex flex-col justify-between text-left ${
+                        className={`bg-white rounded-3xl p-5 sm:p-6 border shadow-card hover:shadow-card-hover transition-all flex flex-col justify-between text-left ${
                           spec.isPrimaryStartingPoint
-                            ? 'border-healnari-purple ring-2 ring-purple-400/30'
-                            : 'border-purple-100/80'
+                            ? 'border-healnari-purple ring-2 ring-purple-400/40'
+                            : 'border-purple-100/90'
                         }`}
                       >
                         <div>
                           <div className="flex items-center justify-between gap-3 mb-2.5">
                             {spec.isPrimaryStartingPoint ? (
-                              <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-healnari-purple text-white shadow-xs flex items-center gap-1">
+                              <span className="px-2.5 py-1 rounded-full text-[11px] font-black bg-gradient-to-r from-purple-700 to-indigo-700 text-white shadow-sm flex items-center gap-1">
                                 <i className="fas fa-star text-[9px]" />
                                 Recommended Starting Point
                               </span>
@@ -1539,8 +1415,8 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                             {spec.title}
                           </p>
 
-                          <div className="mt-3 bg-purple-50/50 p-3 rounded-2xl border border-purple-100/80">
-                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-900/60 block mb-0.5">
+                          <div className="mt-3 bg-purple-50/60 p-3.5 rounded-2xl border border-purple-100/80">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-900/70 block mb-0.5">
                               Why this specialist is relevant:
                             </span>
                             <p className="text-xs text-slate-700 leading-relaxed">
@@ -1569,7 +1445,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                 </section>
 
                 {/* 5. SECTION: WHAT A DOCTOR MAY EVALUATE */}
-                <section className="bg-white rounded-3xl p-6 sm:p-8 border border-purple-100/80 shadow-2xs space-y-5">
+                <section className="bg-white rounded-3xl p-6 sm:p-8 border border-purple-100/90 shadow-card space-y-5">
                   <div>
                     <span className="text-xs font-bold text-healnari-purple uppercase tracking-wider block mb-1">
                       Clinical Preparation
@@ -1621,16 +1497,32 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                   </div>
 
                   {/* Interactive Questions to Ask Your Doctor */}
-                  <div className="bg-purple-50/70 border border-purple-200 rounded-2xl p-4 sm:p-5">
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
-                        <i className="fas fa-circle-question text-healnari-purple" />
-                        Questions you can ask your doctor at your consultation:
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-semibold">
-                        Check off to remember
-                      </span>
+                  <div className="bg-purple-50/80 border border-purple-200 rounded-3xl p-5 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+                      <div>
+                        <span className="text-xs font-black uppercase tracking-wider text-purple-950 flex items-center gap-1.5">
+                          <i className="fas fa-circle-question text-healnari-purple" />
+                          Questions you can ask your doctor at your consultation:
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-semibold block mt-0.5">
+                          Check off to remember or copy to take to your appointment
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleCopyDoctorQuestions}
+                        className={`text-xs font-extrabold px-3.5 py-1.5 rounded-full transition-all shadow-sm flex items-center gap-1.5 shrink-0 ${
+                          copiedQuestions
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-white hover:bg-purple-100 text-healnari-purple border border-purple-200'
+                        }`}
+                      >
+                        <i className={`fas ${copiedQuestions ? 'fa-check' : 'fa-copy'} text-[11px]`} />
+                        <span>{copiedQuestions ? 'Questions Copied!' : 'Copy Questions'}</span>
+                      </button>
                     </div>
+
                     <ul className="space-y-2">
                       {assessmentResult.clinicalEvaluationOverview.questionsToAskDoctor.map((q, idx) => {
                         const isChecked = Boolean(checkedDoctorQuestions[idx]);
@@ -1638,8 +1530,8 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                           <li
                             key={idx}
                             onClick={() => toggleDoctorQuestion(idx)}
-                            className={`flex items-start gap-2.5 p-2 rounded-xl cursor-pointer transition-all ${
-                              isChecked ? 'bg-white text-purple-900 font-semibold shadow-2xs' : 'text-slate-700 hover:bg-white/60'
+                            className={`flex items-start gap-3 p-3 rounded-2xl cursor-pointer transition-all ${
+                              isChecked ? 'bg-white text-purple-900 font-bold shadow-sm' : 'text-slate-700 hover:bg-white/60'
                             }`}
                           >
                             <span className={`w-4 h-4 rounded-md border flex items-center justify-center shrink-0 mt-0.5 text-[9px] ${
@@ -1656,7 +1548,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                 </section>
 
                 {/* 6. SECTION: WHAT YOU CAN DO NEXT (6-STEP CARE PATHWAY) */}
-                <section className="bg-white rounded-3xl p-6 sm:p-8 border border-purple-100/80 shadow-2xs space-y-6">
+                <section className="bg-white rounded-3xl p-6 sm:p-8 border border-purple-100/90 shadow-card space-y-6">
                   <div>
                     <span className="text-xs font-bold text-healnari-purple uppercase tracking-wider block mb-1">
                       Actionable Roadmap
@@ -1704,7 +1596,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                       <button
                         type="button"
                         onClick={() => handleBookSpecialist(assessmentResult.primarySpecialist || { name: 'Specialist' })}
-                        className="bg-healnari-purple hover:bg-aubergine-600 text-white font-extrabold px-6 py-3 rounded-xl shadow-md transition-all hover:scale-105 active:scale-95 text-xs sm:text-sm flex items-center justify-center gap-2 flex-grow sm:flex-grow-0"
+                        className="bg-gradient-to-r from-purple-700 via-healnari-purple to-magenta-600 hover:from-purple-800 hover:to-magenta-700 text-white font-extrabold px-6 py-3 rounded-2xl shadow-md transition-all hover:scale-105 active:scale-95 text-xs sm:text-sm flex items-center justify-center gap-2 flex-grow sm:flex-grow-0"
                       >
                         <i className="fas fa-calendar-check" />
                         <span>Find a Specialist</span>
@@ -1719,7 +1611,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                             setSavedToProfile(true);
                           }
                         }}
-                        className="bg-purple-50 hover:bg-purple-100 text-healnari-purple font-bold px-4 py-3 rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 flex-grow sm:flex-grow-0 border border-purple-200"
+                        className="bg-purple-50 hover:bg-purple-100 text-healnari-purple font-bold px-4 py-3 rounded-2xl text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 flex-grow sm:flex-grow-0 border border-purple-200"
                       >
                         <i className="fas fa-bookmark text-healnari-purple" />
                         <span>Save My Results</span>
@@ -1728,7 +1620,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                       <button
                         type="button"
                         onClick={handlePrintSummary}
-                        className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80 font-bold px-4 py-3 rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 flex-grow sm:flex-grow-0"
+                        className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80 font-bold px-4 py-3 rounded-2xl text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 flex-grow sm:flex-grow-0"
                         title="Print or save as PDF"
                       >
                         <i className="fas fa-print" />
@@ -1755,7 +1647,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                       className="absolute right-0 top-0 w-80 h-80 bg-magenta-500/20 rounded-full blur-3xl pointer-events-none"
                     />
                     <div className="relative z-10 max-w-2xl space-y-3">
-                      <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-magenta-300 border border-white/10">
+                      <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold bg-white/10 text-magenta-300 border border-white/10">
                         <i className="fas fa-bookmark text-xs" />
                         Save Your Care Journey
                       </span>
@@ -1770,7 +1662,7 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
                         <button
                           type="button"
                           onClick={() => setIsAuthOpen(true)}
-                          className="bg-gradient-to-r from-healnari-purple to-magenta-600 hover:from-aubergine-600 hover:to-magenta-700 text-white font-extrabold px-6 py-3 rounded-xl shadow-lg transition-all hover:scale-105 active:scale-95 text-xs sm:text-sm flex items-center gap-2"
+                          className="bg-gradient-to-r from-healnari-purple to-magenta-600 hover:from-aubergine-600 hover:to-magenta-700 text-white font-extrabold px-6 py-3 rounded-2xl shadow-lg transition-all hover:scale-105 active:scale-95 text-xs sm:text-sm flex items-center gap-2"
                         >
                           <i className="fas fa-user-plus text-xs" />
                           <span>Create Free Account / Save Results</span>
@@ -1788,50 +1680,65 @@ Note: This is a non-diagnostic symptom assessment and care navigation summary pr
 
       </main>
 
-      {/* ── MOBILE STICKY BOTTOM ACTION BAR (Step 1 & Step 2) ─────────── */}
-      {currentStep === 1 && (
-        <div className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-purple-100 p-3.5 z-30 shadow-2xl animate-slide-up mobile-dock safe-area-pb">
-          <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
-            <div className="min-w-0 pl-1">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                Selected
+      {/* ── FLOATING SMART ACTION DOCK (Luxury Glass Capsule) ─────────── */}
+      {currentStep === 1 && selectedSymptoms.length > 0 && (
+        <div className="fixed bottom-5 inset-x-3 sm:inset-x-6 z-40 max-w-4xl mx-auto smart-dock animate-slide-up">
+          <div className="bg-white/95 backdrop-blur-xl border border-purple-200/90 shadow-[0_16px_50px_rgba(42,22,71,0.2)] rounded-3xl p-3 sm:p-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="w-9 h-9 rounded-2xl bg-gradient-to-r from-purple-700 to-indigo-700 text-white flex items-center justify-center shrink-0 font-black text-xs shadow-md">
+                {selectedSymptoms.length}
               </span>
-              <p className="text-xs font-extrabold text-slate-800 truncate">
-                {selectedSymptoms.length} {selectedSymptoms.length === 1 ? 'concern' : 'concerns'}
-              </p>
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-extrabold text-slate-900 truncate">
+                  {selectedSymptoms.length} {selectedSymptoms.length === 1 ? 'health concern' : 'health concerns'} selected
+                </p>
+                <p className="text-[11px] text-slate-500 hidden sm:block truncate">
+                  Ready to review clinical context and relevant health areas
+                </p>
+              </div>
             </div>
 
-            <button
-              type="button"
-              disabled={selectedSymptoms.length === 0}
-              onClick={handleProceedToStep2}
-              className="bg-healnari-purple disabled:opacity-40 hover:bg-aubergine-600 text-white font-extrabold text-xs px-6 py-3 rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 shrink-0"
-            >
-              <span>Continue</span>
-              <i className="fas fa-arrow-right text-[10px]" />
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setSelectedSymptoms([])}
+                className="text-xs font-bold text-slate-500 hover:text-rose-600 px-2.5 py-1.5 rounded-full transition-colors hidden sm:inline-block hover:bg-slate-100"
+              >
+                Clear
+              </button>
+              
+              <button
+                type="button"
+                onClick={handleProceedToStep2}
+                className="bg-gradient-to-r from-purple-700 via-healnari-purple to-magenta-600 hover:from-purple-800 hover:to-magenta-700 text-white font-extrabold text-xs sm:text-sm px-5 sm:px-7 py-2.5 sm:py-3 rounded-2xl shadow-lg shadow-purple-500/25 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+              >
+                <span>Continue to Context (Step 2)</span>
+                <i className="fas fa-arrow-right text-xs" />
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {currentStep === 2 && (
-        <div className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-purple-100 p-3.5 z-30 shadow-2xl animate-slide-up mobile-dock safe-area-pb">
-          <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
+        <div className="fixed bottom-5 inset-x-3 sm:inset-x-6 z-40 max-w-4xl mx-auto smart-dock animate-slide-up">
+          <div className="bg-white/95 backdrop-blur-xl border border-purple-200/90 shadow-[0_16px_50px_rgba(42,22,71,0.2)] rounded-3xl p-3 sm:p-4 flex items-center justify-between gap-3">
             <button
               type="button"
               onClick={handleBack}
-              className="bg-slate-100 text-slate-700 font-bold text-xs px-4 py-3 rounded-xl transition-all"
+              className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl transition-all flex items-center gap-1.5"
             >
-              Back
+              <i className="fas fa-arrow-left text-xs" />
+              <span>Back to Symptoms</span>
             </button>
 
             <button
               type="button"
               onClick={handleProceedToStep3}
-              className="bg-healnari-purple hover:bg-aubergine-600 text-white font-extrabold text-xs px-6 py-3 rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1.5 shrink-0"
+              className="bg-gradient-to-r from-purple-700 via-healnari-purple to-magenta-600 hover:from-purple-800 hover:to-magenta-700 text-white font-extrabold text-xs sm:text-sm px-6 sm:px-8 py-2.5 sm:py-3 rounded-2xl shadow-lg shadow-purple-500/25 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
             >
-              <span>View Snapshot</span>
-              <i className="fas fa-arrow-right text-[10px]" />
+              <span>View My Health Snapshot</span>
+              <i className="fas fa-arrow-right text-xs" />
             </button>
           </div>
         </div>
