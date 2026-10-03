@@ -26,17 +26,19 @@ const queryClient = new QueryClient({
 });
 
 import LandingPage from './landing/pages/LandingPage.jsx';
-const DoctorLandingPage = lazy(() => import('./landing/pages/DoctorLandingPage.jsx'));
-const DoctorPublicProfile = lazy(() => import('./landing/pages/DoctorPublicProfile.jsx'));
-const ConditionPage = lazy(() => import('./landing/pages/ConditionPage.jsx'));
-const CheckSymptomsPage = lazy(() => import('./landing/pages/CheckSymptomsPage.jsx'));
-const GlossaryArticle = lazy(() => import('./landing/pages/GlossaryArticle.jsx'));
-const GuidePage = lazy(() => import('./landing/pages/GuidePage.jsx'));
-const LegalPage = lazy(() => import('./landing/pages/LegalPage.jsx'));
-const PatientLayout = lazy(() => import('./patient/layouts/PatientLayout.jsx'));
-const DoctorLayout = lazy(() => import('./doctor/layouts/DoctorLayout.jsx'));
-const AdminLayout = lazy(() => import('./admin/layouts/AdminLayout.jsx'));
-const AuthenticatedLayout = lazy(() => import('./layouts/AuthenticatedLayout.jsx'));
+import { lazyWithRetry } from './lib/lazyWithRetry.js';
+
+const DoctorLandingPage = lazyWithRetry(() => import('./landing/pages/DoctorLandingPage.jsx'), 'DoctorLandingPage');
+const DoctorPublicProfile = lazyWithRetry(() => import('./landing/pages/DoctorPublicProfile.jsx'), 'DoctorPublicProfile');
+const ConditionPage = lazyWithRetry(() => import('./landing/pages/ConditionPage.jsx'), 'ConditionPage');
+const CheckSymptomsPage = lazyWithRetry(() => import('./landing/pages/CheckSymptomsPage.jsx'), 'CheckSymptomsPage');
+const GlossaryArticle = lazyWithRetry(() => import('./landing/pages/GlossaryArticle.jsx'), 'GlossaryArticle');
+const GuidePage = lazyWithRetry(() => import('./landing/pages/GuidePage.jsx'), 'GuidePage');
+const LegalPage = lazyWithRetry(() => import('./landing/pages/LegalPage.jsx'), 'LegalPage');
+const PatientLayout = lazyWithRetry(() => import('./patient/layouts/PatientLayout.jsx'), 'PatientLayout');
+const DoctorLayout = lazyWithRetry(() => import('./doctor/layouts/DoctorLayout.jsx'), 'DoctorLayout');
+const AdminLayout = lazyWithRetry(() => import('./admin/layouts/AdminLayout.jsx'), 'AdminLayout');
+const AuthenticatedLayout = lazyWithRetry(() => import('./layouts/AuthenticatedLayout.jsx'), 'AuthenticatedLayout');
 
 // Patient Pages
 const PatientDashboard = lazy(() => import('./patient/pages/Dashboard.jsx'));
