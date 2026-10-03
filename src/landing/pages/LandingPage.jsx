@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header.jsx';
 import Hero from '../components/Hero.jsx';
+import WhatAreYouDealingWith from '../components/WhatAreYouDealingWith.jsx';
 import Reveal from '../../components/Reveal.jsx';
 import ScrollProgressBar from '../../components/ScrollProgressBar.jsx';
 import PromoBanner from '../components/PromoBanner.jsx';
@@ -264,6 +265,9 @@ function LandingPage() {
           subtitle={adminSettings?.heroSubtitle}
         />
         
+        {/* Problem-First Care Navigation Gateway — Rendered immediately on load */}
+        <WhatAreYouDealingWith />
+
         <Suspense fallback={<div className="h-32 flex items-center justify-center text-slate-400 text-sm">Loading...</div>}>
           {adminSettings?.toggles?.showStats !== false && (
             <Reveal><Stats /></Reveal>

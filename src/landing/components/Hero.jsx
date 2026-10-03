@@ -4,15 +4,17 @@ import { triggerHaptic } from '../../lib/haptics.js';
 import { apiFetch } from '../../lib/apiClient.js';
 import { trackEvent, AnalyticsEvents } from '../../lib/analytics.js';
 
-// Multi-Specialty Clinical Specialties Ribbon
-const SPECIALTIES_RIBBON = [
-  { icon: 'fa-user-doctor', label: 'General Medicine', color: 'text-blue-700 bg-blue-50/80 border-blue-200' },
-  { icon: 'fa-wand-magic-sparkles', label: 'Dermatology & Skin', color: 'text-amber-700 bg-amber-50/80 border-amber-200' },
-  { icon: 'fa-dna', label: 'Endocrinology & Thyroid', color: 'text-indigo-700 bg-indigo-50/80 border-indigo-200' },
-  { icon: 'fa-venus', label: 'Gynaecology & PCOS', color: 'text-rose-700 bg-rose-50/80 border-rose-200' },
-  { icon: 'fa-apple-whole', label: 'Clinical Nutrition', color: 'text-teal-700 bg-teal-50/80 border-teal-200' },
-  { icon: 'fa-brain', label: 'Mental Health', color: 'text-purple-700 bg-purple-50/80 border-purple-200' },
-  { icon: 'fa-seedling', label: 'Trichology & Scalp', color: 'text-emerald-700 bg-emerald-50/80 border-emerald-200' },
+// Patient-First Symptoms Ribbon (Problem-first triage navigation)
+const TOP_PATIENT_PROBLEMS = [
+  { id: 'irregular_periods', label: 'Irregular Periods', emoji: '🩸', color: 'text-rose-700 bg-rose-50/90 border-rose-200 hover:bg-rose-100 hover:border-rose-300' },
+  { id: 'hair_fall', label: 'Hair Fall', emoji: '💇', color: 'text-teal-700 bg-teal-50/90 border-teal-200 hover:bg-teal-100 hover:border-teal-300' },
+  { id: 'acne', label: 'Acne & Pimples', emoji: '😣', color: 'text-amber-700 bg-amber-50/90 border-amber-200 hover:bg-amber-100 hover:border-amber-300' },
+  { id: 'painful_periods', label: 'Period Pain', emoji: '😣', color: 'text-rose-700 bg-rose-50/90 border-rose-200 hover:bg-rose-100 hover:border-rose-300' },
+  { id: 'vaginal_itching', label: 'Vaginal Health', emoji: '🩷', color: 'text-pink-700 bg-pink-50/90 border-pink-200 hover:bg-pink-100 hover:border-pink-300' },
+  { id: 'weight_gain', label: 'Weight Changes', emoji: '⚖️', color: 'text-emerald-700 bg-emerald-50/90 border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300' },
+  { id: 'fatigue', label: 'Feeling Tired', emoji: '😴', color: 'text-indigo-700 bg-indigo-50/90 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300' },
+  { id: 'pcos_concerns', label: 'PCOS Concerns', emoji: '🧬', color: 'text-purple-700 bg-purple-50/90 border-purple-200 hover:bg-purple-100 hover:border-purple-300' },
+  { id: 'something_else', label: 'Something Else', emoji: '🩺', color: 'text-aubergine-700 bg-aubergine-50/90 border-aubergine-200 hover:bg-aubergine-100 hover:border-aubergine-300' },
 ];
 
 const DEFAULT_SPECIALTIES_DROPDOWN = [
@@ -128,48 +130,66 @@ function Hero({ onStartConsult, onOpenChecker, title, subtitle }) {
             </p>
           </div>
 
-          {/* Specialties Ribbon */}
-          <div className="pt-1 pb-1 flex flex-wrap justify-center lg:justify-start gap-1.5 sm:gap-2 max-w-2xl">
-            {SPECIALTIES_RIBBON.map(s => (
-              <span 
-                key={s.label} 
-                className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold border shadow-2xs ${s.color}`}
-              >
-                <i className={`fas ${s.icon} text-[10px]`} aria-hidden="true" />
-                {s.label}
+          {/* Problem-First Symptoms Selector Ribbon — HIGHLIGHTING PATIENT PROBLEMS FIRST */}
+          <div className="pt-2 pb-1 space-y-2.5 max-w-2xl mx-auto lg:mx-0">
+            <div className="flex items-center justify-center lg:justify-start gap-2">
+              <span className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-aubergine-700 bg-aubergine-100/70 border border-aubergine-200/80 px-2.5 py-1 rounded-md">
+                <i className="fas fa-stethoscope text-[11px]" />
+                What are you experiencing?
               </span>
-            ))}
+              <span className="text-xs text-slate-500 font-medium hidden sm:inline">
+                Tap your symptom to explore:
+              </span>
+            </div>
+
+            <div className="flex flex-wrap justify-center lg:justify-start gap-1.5 sm:gap-2">
+              {TOP_PATIENT_PROBLEMS.map(p => (
+                <NavLink
+                  key={p.id}
+                  to={`/check-symptoms?concern=${p.id}`}
+                  onClick={() => {
+                    triggerHaptic('light');
+                    trackEvent(AnalyticsEvents.SYMPTOM_SELECTED, { source: 'hero_problem_chip', problem_id: p.id });
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border shadow-2xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-95 cursor-pointer ${p.color}`}
+                >
+                  <span className="text-sm select-none">{p.emoji}</span>
+                  <span>{p.label}</span>
+                </NavLink>
+              ))}
+            </div>
           </div>
 
-          {/* Primary CTA Pair: Check My Symptoms & Find a Specialist */}
-          <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-xl">
+          {/* Primary CTA Pair: Check My Symptoms & Explore All Concerns */}
+          <div className="pt-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3 max-w-xl">
             <NavLink
               to="/check-symptoms"
               onClick={() => {
                 triggerHaptic('medium');
                 trackEvent(AnalyticsEvents.CHECK_SYMPTOMS_CLICKED, { source: 'hero_primary' });
               }}
-              className="bg-aubergine-600 hover:bg-aubergine-700 text-white font-extrabold px-6 py-3.5 rounded-xl shadow-lg shadow-aubergine-200 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2.5 text-base"
+              className="bg-gradient-to-r from-aubergine-600 via-healnari-purple to-magenta-600 hover:from-aubergine-700 hover:to-magenta-700 text-white font-extrabold px-6 py-3.5 rounded-xl shadow-lg shadow-aubergine-500/25 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2.5 text-base"
             >
-              <i className="fas fa-notes-medical text-sm" aria-hidden="true" />
+              <i className="fas fa-notes-medical text-base" aria-hidden="true" />
               <span>Check My Symptoms</span>
+              <i className="fas fa-arrow-right text-xs ml-0.5" />
             </NavLink>
 
             <button
               type="button"
               onClick={() => {
                 triggerHaptic('medium');
-                const careSection = document.getElementById('care-discovery');
-                if (careSection) {
-                  careSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const concernSection = document.getElementById('what-are-you-dealing-with');
+                if (concernSection) {
+                  concernSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 } else if (onStartConsult) {
                   onStartConsult('');
                 }
               }}
-              className="bg-white hover:bg-slate-50 text-slate-700 font-bold px-6 py-3.5 rounded-xl border border-sand-300 shadow-xs transition-all hover:border-aubergine-300 flex items-center justify-center gap-2 text-base"
+              className="bg-white hover:bg-slate-50 text-slate-800 font-bold px-6 py-3.5 rounded-xl border border-sand-300 shadow-xs transition-all hover:border-aubergine-300 flex items-center justify-center gap-2 text-base"
             >
-              <i className="fas fa-stethoscope text-sm text-aubergine-600" aria-hidden="true" />
-              <span>Find a Specialist</span>
+              <i className="fas fa-list-check text-sm text-aubergine-600" aria-hidden="true" />
+              <span>Explore All Concerns</span>
             </button>
           </div>
 

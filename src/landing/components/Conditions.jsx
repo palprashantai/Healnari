@@ -15,7 +15,8 @@ function Conditions() {
       color: "text-blue-600 bg-blue-50 border-blue-100",
       badge: "General Physician",
       href: "/conditions/general-medicine-primary-care",
-      actionTag: "General Medicine"
+      actionTag: "General Medicine",
+      symptoms: ["Fever & Flu", "Low Energy", "Headache", "Health Check"]
     },
     {
       name: "Dermatology & Skin Care",
@@ -24,7 +25,8 @@ function Conditions() {
       color: "text-amber-600 bg-amber-50 border-amber-100",
       badge: "Dermatologist",
       href: "/conditions/hormonal-dermatology-acne",
-      actionTag: "Dermatology"
+      actionTag: "Dermatology",
+      symptoms: ["Acne & Pimples", "Skin Redness", "Dark Spots", "Barrier Repair"]
     },
     {
       name: "Endocrinology & Thyroid",
@@ -33,7 +35,8 @@ function Conditions() {
       color: "text-indigo-600 bg-indigo-50 border-indigo-100",
       badge: "Endocrinologist",
       href: "/conditions/thyroid-consultation",
-      actionTag: "Endocrinology"
+      actionTag: "Endocrinology",
+      symptoms: ["Thyroid Issues", "Weight Changes", "Hormones", "Metabolism"]
     },
     {
       name: "Gynaecology & Reproductive Health",
@@ -42,7 +45,8 @@ function Conditions() {
       color: "text-rose-600 bg-rose-50 border-rose-100",
       badge: "Gynaecologist",
       href: "/conditions/gynecology-womens-health",
-      actionTag: "Gynaecologist"
+      actionTag: "Gynaecologist",
+      symptoms: ["Irregular Periods", "Period Pain", "Heavy Bleeding", "PCOS"]
     },
     {
       name: "Hair & Scalp / Trichology",
@@ -51,7 +55,8 @@ function Conditions() {
       color: "text-emerald-600 bg-emerald-50 border-emerald-100",
       badge: "Trichologist",
       href: "/conditions/hair-loss-trichology",
-      actionTag: "Trichologist"
+      actionTag: "Trichologist",
+      symptoms: ["Hair Fall", "Hair Thinning", "Scalp Itch", "Dandruff"]
     },
     {
       name: "Clinical Nutrition & Dietetics",
@@ -60,7 +65,8 @@ function Conditions() {
       color: "text-teal-600 bg-teal-50 border-teal-100",
       badge: "Clinical Dietitian",
       href: "/conditions/clinical-nutrition-dietetics",
-      actionTag: "Nutritionist"
+      actionTag: "Nutritionist",
+      symptoms: ["Weight Management", "Gut & Bloating", "Diet Protocol", "Stamina"]
     },
     {
       name: "Mindful Movement & Yoga",
@@ -69,7 +75,8 @@ function Conditions() {
       color: "text-purple-600 bg-purple-50 border-purple-100",
       badge: "Movement Coach",
       href: "/conditions/yoga-movement-therapy",
-      actionTag: "Yoga & Movement"
+      actionTag: "Yoga & Movement",
+      symptoms: ["High Stress", "Poor Sleep", "Pelvic Floor", "Stiffness"]
     },
     {
       name: "Fertility & Preconception",
@@ -78,7 +85,8 @@ function Conditions() {
       color: "text-violet-600 bg-violet-50 border-violet-100",
       badge: "Fertility Specialist",
       href: "/conditions/fertility-preconception-care",
-      actionTag: "Fertility Specialist"
+      actionTag: "Fertility Specialist",
+      symptoms: ["Conception Timing", "Ovulation", "Cycle Tracking", "Pre-Pregnancy"]
     }
   ];
 
@@ -155,14 +163,14 @@ function Conditions() {
     <section id="conditions" className="max-w-7xl mx-auto py-16 md:py-24 scroll-mt-20 overflow-hidden">
       {/* Title Header */}
       <Reveal className="text-center max-w-3xl mx-auto mb-12 space-y-3 px-5 md:px-8">
-        <span className="text-xs font-semibold text-aubergine-700 uppercase tracking-wider bg-aubergine-50 px-3.5 py-1.5 rounded-full border border-aubergine-100">
-          Specialist Care Domains
+        <span className="text-xs font-bold text-aubergine-700 uppercase tracking-wider bg-aubergine-50 px-3.5 py-1.5 rounded-full border border-aubergine-100">
+          From Symptoms to Doctors
         </span>
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-slate-900 leading-tight font-display">
-          Trusted Care Across Multiple Medical Specialties
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 leading-tight font-display">
+          Specialist Care For Your Specific Symptoms
         </h2>
         <p className="text-slate-600 text-sm md:text-base font-normal leading-relaxed">
-          Access an interconnected clinical network across General Medicine, Dermatology, Endocrinology, Gynaecology, Clinical Nutrition, and Lifestyle Health.
+          You don't need to know medical specialties before starting. See which doctors handle your concerns across General Medicine, Dermatology, Endocrinology, Gynaecology, Nutrition, and Lifestyle Health.
         </p>
       </Reveal>
 
@@ -196,13 +204,27 @@ function Conditions() {
                     </span>
                   </div>
 
-                  <h3 className="font-bold text-slate-800 text-base sm:text-lg group-hover:text-aubergine-700 transition-colors leading-snug m-0 mb-2 font-display">
+                  <h3 className="font-bold text-slate-800 text-base sm:text-lg group-hover:text-aubergine-700 transition-colors leading-snug m-0 mb-1.5 font-display">
                     {spec.name}
                   </h3>
                   
-                  <p className="text-xs text-slate-500 leading-relaxed font-normal">
+                  <p className="text-xs text-slate-500 leading-relaxed font-normal mb-3">
                     {spec.desc}
                   </p>
+
+                  {/* Common Symptoms Handled Badge List */}
+                  {spec.symptoms && (
+                    <div className="pt-2 border-t border-slate-100 flex flex-wrap gap-1">
+                      {spec.symptoms.map((sym, sIdx) => (
+                        <span 
+                          key={sIdx}
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50/70 text-purple-900 border border-purple-200/60"
+                        >
+                          {sym}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-aubergine-600 group-hover:text-aubergine-800">

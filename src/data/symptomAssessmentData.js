@@ -12,202 +12,107 @@
  */
 
 // ── 1. HEALTH CONCERN TAXONOMY (13 STRUCTURED AREAS) ──────────────────────────
+// ── 1. PATIENT-FIRST HEALTH CONCERN TAXONOMY (8 FRIENDLY PROBLEM DOMAINS) ────
 export const SYMPTOM_CATEGORIES = [
   {
-    id: 'vaginal_vulvar',
-    label: 'Vaginal & Vulvar Health',
-    icon: 'fa-hand-holding-medical',
-    color: 'text-rose-700 bg-rose-50/90 border-rose-200',
-    description: 'Discharge shifts, itching, burning, odor, pelvic-vaginal comfort, and irritation',
-    symptoms: [
-      { id: 'vaginal_itching', label: 'Vaginal itching', subtitle: 'Persistent pruritus, tickling, or urge to scratch inside or around the vulva' },
-      { id: 'vaginal_burning', label: 'Vaginal burning', subtitle: 'Stinging, raw, or burning sensation, often exacerbated during urination or touch' },
-      { id: 'unusual_discharge', label: 'Unusual vaginal discharge', subtitle: 'Noticeable shift from baseline amount, thickness, or appearance' },
-      { id: 'discharge_color_change', label: 'Change in discharge color', subtitle: 'White thick/clumpy, yellowish-green, greyish, or brownish discharge' },
-      { id: 'discharge_consistency_change', label: 'Change in discharge consistency', subtitle: 'Cottage-cheese clumpy, watery, thin, or frothy texture' },
-      { id: 'vaginal_odor', label: 'Unusual vaginal odor', subtitle: 'Distinct fishy, foul, or chemical scent noticeably different from normal baseline' },
-      { id: 'vaginal_dryness', label: 'Vaginal dryness', subtitle: 'Friction, tightness, or lack of natural lubrication during daily life or intimacy' },
-      { id: 'vulvar_irritation', label: 'Vulvar irritation', subtitle: 'Soreness, chafing, or hypersensitivity of the external labia and skin folds' },
-      { id: 'vulvar_redness', label: 'Vulvar redness', subtitle: 'Visible erythema, swelling, or inflamed labial tissue' },
-      { id: 'pain_urination', label: 'Pain during urination', subtitle: 'Dysuria, burning or stinging when urine contacts external tissues' },
-      { id: 'pain_intercourse', label: 'Pain during intercourse', subtitle: 'Dyspareunia, superficial entrance burning or deep pelvic ache' },
-      { id: 'vaginal_discomfort', label: 'Vaginal discomfort', subtitle: 'Vague pelvic-vaginal heaviness, soreness, or throbbing sensation' },
-      { id: 'recurrent_vaginal_symptoms', label: 'Recurrent vaginal symptoms', subtitle: 'Episodes returning shortly after prior treatments or after periods' }
-    ]
-  },
-  {
-    id: 'pcos_ovulatory',
-    label: 'PCOS / PCOD & Ovulatory Health',
-    icon: 'fa-venus-double',
-    color: 'text-fuchsia-700 bg-fuchsia-50/90 border-fuchsia-200',
-    description: 'Cycle regularity, androgen signs, follicular ovulatory timing, and metabolic factors',
-    symptoms: [
-      { id: 'irregular_periods', label: 'Irregular periods', subtitle: 'Cycles varying by > 7–10 days, unpredictable onset, or cycles > 35 days' },
-      { id: 'missed_periods', label: 'Missed periods', subtitle: 'Skipping periods for 2 or more consecutive months without pregnancy' },
-      { id: 'long_cycles', label: 'Long menstrual cycles', subtitle: 'Cycles consistently lasting between 35 and 50+ days between bleeds' },
-      { id: 'infrequent_periods', label: 'Infrequent periods', subtitle: 'Fewer than 8 to 9 menstrual periods over the course of a full year' },
-      { id: 'acne', label: 'Acne', subtitle: 'Tender cysts, comedones, or nodules concentrating along jawline, chin, and back' },
-      { id: 'facial_body_hair', label: 'Increased facial / body hair', subtitle: 'Coarse terminal hair on upper lip, chin, sideburns, chest, or abdomen' },
-      { id: 'scalp_hair_thinning', label: 'Scalp hair thinning', subtitle: 'Widening of the center hair partition or crown shedding with preserved hairline' },
-      { id: 'weight_changes', label: 'Weight changes', subtitle: 'Unexplained weight gain, especially concentrated around the lower abdomen' },
-      { id: 'difficulty_losing_weight', label: 'Difficulty losing weight', subtitle: 'Weight remaining stubborn despite structured dietary adjustments and exercise' },
-      { id: 'fertility_concerns', label: 'Fertility concerns', subtitle: 'Wondering about ovulatory health, cycle predictability, or conception timing' },
-      { id: 'ovulation_concerns', label: 'Ovulation concerns', subtitle: 'Absence of fertile cervical mucus, negative ovulation tests, or anovulatory cycles' },
-      { id: 'darkened_skin_folds', label: 'Darkened skin folds', subtitle: 'Acanthosis nigricans: velvety hyperpigmented skin around neck, underarms, or groin' },
-      { id: 'metabolic_concerns', label: 'Metabolic concerns', subtitle: 'Energy crashes after meals, intense carbohydrate cravings, or reactive shakiness' }
-    ]
-  },
-  {
-    id: 'hormonal_health',
-    label: 'Hormonal Health',
-    icon: 'fa-dna',
-    color: 'text-purple-700 bg-purple-50/90 border-purple-200',
-    description: 'Endocrine equilibrium, cycle-linked mood shifts, and systemic hormone signaling',
-    symptoms: [
-      { id: 'hormonal_concerns', label: 'Hormonal concerns', subtitle: 'Overall impression that systemic hormonal signaling or balance has shifted' },
-      { id: 'mood_swings', label: 'Mood changes', subtitle: 'Emotional sensitivity, cycle-linked irritability, tearfulness, or sudden lows' },
-      { id: 'fatigue', label: 'Fatigue', subtitle: 'Persistent sluggishness or waking unrefreshed despite adequate sleep duration' },
-      { id: 'hot_flashes', label: 'Hot flashes & flushing', subtitle: 'Sudden waves of warmth spreading across chest, neck, and face' },
-      { id: 'menstrual_changes', label: 'Menstrual changes', subtitle: 'Noticeable recent changes in flow heaviness, cycle length, or cramping patterns' },
-      { id: 'libido_changes', label: 'Libido changes', subtitle: 'Noticeable drop or unexpected variation in natural sexual desire and arousal' }
-    ]
-  },
-  {
-    id: 'menstrual_health',
-    label: 'Menstrual Health',
+    id: 'periods_hormones',
+    label: 'Periods & Hormones',
     icon: 'fa-droplet',
-    color: 'text-rose-800 bg-rose-50/90 border-rose-300',
-    description: 'Flow volume, cramping intensity, spotting, cycle duration, and premenstrual patterns',
+    color: 'text-rose-700 bg-rose-50/90 border-rose-200',
+    description: 'Irregular periods, painful cramps, heavy bleeding, missed periods, PCOS concerns, and hormone changes',
     symptoms: [
-      { id: 'heavy_periods', label: 'Very heavy periods', subtitle: 'Soaking a pad/tampon every 1–2 hours, passing large blood clots, or bleeding > 7 days' },
-      { id: 'painful_periods', label: 'Painful periods', subtitle: 'Dysmenorrhea: severe cramping in lower abdomen or back disrupting daily routine' },
-      { id: 'long_periods', label: 'Long periods', subtitle: 'Bleeding persisting for more than 7 consecutive days' },
-      { id: 'short_cycles', label: 'Short cycles', subtitle: 'Cycles occurring less than 21 days apart from the start of one to the start of next' },
-      { id: 'spotting', label: 'Spotting', subtitle: 'Light brownish or pinkish staining between menstrual periods' },
-      { id: 'bleeding_between_periods', label: 'Bleeding between periods', subtitle: 'Unexpected breakthrough bleeding outside your expected period window' },
-      { id: 'bleeding_after_intercourse', label: 'Bleeding after intercourse', subtitle: 'Postcoital spotting or bleeding following intimacy' },
-      { id: 'pms_symptoms', label: 'Premenstrual Syndrome (PMS)', subtitle: 'Cyclical breast tenderness, fluid retention, bloating, and food cravings' },
-      { id: 'severe_pms_mood', label: 'Severe mood changes around periods', subtitle: 'Intense dysphoria, rage, severe anxiety, or depression during the premenstrual week' }
+      { id: 'irregular_periods', label: 'Irregular Periods', subtitle: 'Periods not coming regularly, earlier, later or skipping?', icon: 'fa-calendar-xmark' },
+      { id: 'painful_periods', label: 'Period Pain', subtitle: 'Pain or cramping that makes daily activities difficult?', icon: 'fa-circle-exclamation' },
+      { id: 'heavy_periods', label: 'Very Heavy Periods', subtitle: 'Soaking pads quickly, passing large clots, or bleeding > 7 days?', icon: 'fa-droplet' },
+      { id: 'missed_periods', label: 'Missed Periods', subtitle: 'Skipping periods or cycles stopping unexpectedly?', icon: 'fa-calendar-minus' },
+      { id: 'pcos_concerns', label: 'PCOS Concerns', subtitle: 'Questions about periods, hormones, acne, hair or fertility?', icon: 'fa-dna' },
+      { id: 'hormonal_concerns', label: 'Hormone Changes', subtitle: 'Feeling like your overall hormone balance has shifted?', icon: 'fa-arrows-rotate' },
+      { id: 'pelvic_pain', label: 'Pelvic Pain', subtitle: 'Dull ache, cramping, or pressure in lower belly?', icon: 'fa-shield-heart' },
+      { id: 'bleeding_between_periods', label: 'Bleeding Between Periods', subtitle: 'Spotting or unexpected bleeding outside your expected period?', icon: 'fa-droplet-slash' },
+      { id: 'pms_symptoms', label: 'PMS Symptoms', subtitle: 'Mood shifts, breast tenderness or bloating before periods?', icon: 'fa-cloud-moon' }
     ]
   },
   {
-    id: 'pelvic_health',
-    label: 'Pelvic Health',
-    icon: 'fa-shield-heart',
-    color: 'text-amber-800 bg-amber-50/90 border-amber-200',
-    description: 'Pelvic pain, deep tissue cramping, lower abdominal pressure, and organ comfort',
+    id: 'vaginal_health',
+    label: 'Vaginal Health',
+    icon: 'fa-hand-dots',
+    color: 'text-pink-700 bg-pink-50/90 border-pink-200',
+    description: 'Itching, unusual discharge, burning, dryness, unusual smell, and discomfort during intimacy',
     symptoms: [
-      { id: 'pelvic_pain', label: 'Pelvic pain', subtitle: 'Dull ache, sharp stabbing sensations, or persistent pressure in the lower pelvis' },
-      { id: 'lower_abdominal_pain', label: 'Lower abdominal pain', subtitle: 'Tenderness, cramping, or localized pain in the lower abdomen' },
-      { id: 'pelvic_pressure', label: 'Pelvic pressure or fullness', subtitle: 'Heaviness or bearing-down sensation in the pelvic floor or lower abdomen' },
-      { id: 'abnormal_bleeding', label: 'Abnormal bleeding', subtitle: 'Irregular, unpredictable, or post-menopausal bleeding requiring medical review' }
+      { id: 'vaginal_itching', label: 'Vaginal Itching', subtitle: 'Itching, burning, or persistent irritation inside or around vulva?', icon: 'fa-hand-dots' },
+      { id: 'unusual_discharge', label: 'Unusual Vaginal Discharge', subtitle: 'Change in discharge amount, smell, color, or texture?', icon: 'fa-water' },
+      { id: 'vaginal_burning', label: 'Burning or Irritation', subtitle: 'Stinging, raw feeling or burning sensation during urination or touch?', icon: 'fa-fire' },
+      { id: 'vaginal_dryness', label: 'Vaginal Dryness', subtitle: 'Friction, tightness or lack of natural lubrication during daily life or intimacy?', icon: 'fa-droplet-slash' },
+      { id: 'vaginal_odor', label: 'Unusual Smell', subtitle: 'Distinct fishy, foul, or chemical scent noticeably different from normal?', icon: 'fa-wind' },
+      { id: 'pain_intercourse', label: 'Pain During Sex', subtitle: 'Burning at entrance or deep pelvic discomfort during intimacy?', icon: 'fa-heart-crack' }
     ]
   },
   {
-    id: 'fertility_reproductive',
-    label: 'Fertility & Reproductive Health',
-    icon: 'fa-seedling',
-    color: 'text-emerald-800 bg-emerald-50/90 border-emerald-200',
-    description: 'Conception timeline, ovulatory tracking, reproductive planning, and preconception care',
-    symptoms: [
-      { id: 'difficulty_conceiving', label: 'Difficulty conceiving', subtitle: 'Not achieving pregnancy despite regular, timed unprotected intercourse' },
-      { id: 'recurrent_pregnancy_loss', label: 'Recurrent pregnancy loss', subtitle: 'Experience of two or more consecutive miscarriages or pregnancy losses' },
-      { id: 'fertility_planning', label: 'Fertility planning', subtitle: 'Proactive planning, ovarian reserve testing, or timeline guidance for future pregnancy' },
-      { id: 'preconception_concerns', label: 'Preconception concerns', subtitle: 'Optimizing thyroid, metabolic health, or nutritional status before conceiving' }
-    ]
-  },
-  {
-    id: 'acne_skin',
-    label: 'Acne & Skin',
-    icon: 'fa-wand-magic-sparkles',
+    id: 'skin',
+    label: 'Skin',
+    icon: 'fa-spa',
     color: 'text-amber-700 bg-amber-50/90 border-amber-200',
-    description: 'Facial breakouts, pigmentation, barrier sensitivity, adult acne, and skin texture',
+    description: 'Acne, pimples, dark spots, skin itching, and irritation',
     symptoms: [
-      { id: 'sudden_acne', label: 'Sudden acne', subtitle: 'Abrupt outbreak of inflammatory papules, pustules, or cysts within recent weeks' },
-      { id: 'adult_acne', label: 'Adult acne', subtitle: 'Persistent breakouts occurring or first emerging past the age of 25' },
-      { id: 'hormonal_acne', label: 'Hormonal-pattern acne', subtitle: 'Deep, tender nodules concentrated along the jawline, chin, and lower cheeks' },
-      { id: 'pigmentation', label: 'Pigmentation & melasma', subtitle: 'Dark patches, sun-induced hyperpigmentation, or post-inflammatory marks' },
-      { id: 'dark_spots', label: 'Dark spots', subtitle: 'Localized post-acne dark marks or blemish discoloration' },
-      { id: 'dry_skin', label: 'Dry skin', subtitle: 'Flaking, tightness, or compromised skin barrier with rough texture' },
-      { id: 'skin_itching', label: 'Skin itching', subtitle: 'Pruritus, persistent urge to scratch without an obvious bite' },
-      { id: 'skin_rash', label: 'Skin rash', subtitle: 'Visible redness, raised bumps, hives, or surface irritation' },
-      { id: 'skin_irritation', label: 'Skin irritation', subtitle: 'Burning, stinging, or redness triggered by topicals or environmental factors' },
-      { id: 'hair_related_skin', label: 'Hair-related skin concerns', subtitle: 'Folliculitis, razor bumps, or ingrown hairs around chin, bikini line, or thighs' }
+      { id: 'acne', label: 'Acne & Pimples', subtitle: 'New, frequent, tender or stubborn pimples on face or jawline?', icon: 'fa-spa' },
+      { id: 'sudden_acne', label: 'Sudden Breakouts', subtitle: 'Abrupt outbreak of inflammatory papules or cysts in recent weeks?', icon: 'fa-wand-magic-sparkles' },
+      { id: 'dark_spots', label: 'Dark Spots & Pigmentation', subtitle: 'Post-acne dark marks, sun spots, or melasma patches?', icon: 'fa-circle-dot' },
+      { id: 'skin_itching', label: 'Skin Itching & Irritation', subtitle: 'Pruritus, persistent urge to scratch, redness, or skin barrier flaring?', icon: 'fa-hand' },
+      { id: 'darkened_skin_folds', label: 'Darkened Skin Folds', subtitle: 'Velvety darker skin around neck, underarms, or groin folds?', icon: 'fa-fingerprint' }
     ]
   },
   {
     id: 'hair_scalp',
     label: 'Hair & Scalp',
-    icon: 'fa-spa',
+    icon: 'fa-wind',
     color: 'text-teal-700 bg-teal-50/90 border-teal-200',
-    description: 'Follicular shedding, scalp microenvironment, partition widening, and scalp health',
+    description: 'Hair fall, hair thinning, dandruff, itchy scalp, and extra facial/body hair',
     symptoms: [
-      { id: 'hair_fall', label: 'Hair fall', subtitle: 'Excessive shedding during washing, brushing, or found on clothing and pillow' },
-      { id: 'hair_thinning', label: 'Hair thinning', subtitle: 'Noticeable reduction in overall ponytail volume or diffuse density loss' },
-      { id: 'sudden_hair_loss', label: 'Sudden hair loss', subtitle: 'Acute shedding commencing 2–3 months following high stress, illness, or childbirth' },
-      { id: 'patchy_hair_loss', label: 'Patchy hair loss', subtitle: 'Circular coin-shaped smooth bald spots on scalp or brows (alopecia areata pattern)' },
-      { id: 'dandruff', label: 'Dandruff & flaking', subtitle: 'Persistent white or greasy yellow flakes on scalp, shoulders, and hair shafts' },
-      { id: 'itchy_scalp', label: 'Itchy scalp', subtitle: 'Persistent scalp pruritus, tightness, or discomfort' },
-      { id: 'scalp_redness', label: 'Scalp redness', subtitle: 'Visible erythema, inflammation, or tender bumps around hair follicles' }
+      { id: 'hair_fall', label: 'Hair Fall', subtitle: 'Losing more hair than usual in brush, shower, or pillow?', icon: 'fa-wind' },
+      { id: 'hair_thinning', label: 'Hair Thinning', subtitle: 'Widening partition, thinning ponytail, or diffuse loss of density?', icon: 'fa-scissors' },
+      { id: 'dandruff', label: 'Dandruff & Flaking', subtitle: 'Persistent white or greasy yellow flakes on scalp and shoulders?', icon: 'fa-snowflake' },
+      { id: 'itchy_scalp', label: 'Itchy Scalp', subtitle: 'Scalp tightness, persistent itching, or irritation around follicles?', icon: 'fa-head-side-virus' },
+      { id: 'facial_body_hair', label: 'Extra Facial or Body Hair', subtitle: 'Coarser, darker hair growing on chin, upper lip, chest or abdomen?', icon: 'fa-user-pen' }
     ]
   },
   {
-    id: 'thyroid_endocrine_metabolic',
-    label: 'Thyroid / Endocrine / Metabolic',
-    icon: 'fa-heart-pulse',
-    color: 'text-indigo-700 bg-indigo-50/90 border-indigo-200',
-    description: 'Basal metabolic rate, thyroid signaling, glucose regulation, and temperature balance',
-    symptoms: [
-      { id: 'weight_gain', label: 'Weight gain', subtitle: 'Steady, unexplained weight increase despite consistent nutritional habits' },
-      { id: 'weight_loss', label: 'Weight loss', subtitle: 'Unintentional drop in body weight without deliberate diet or exercise changes' },
-      { id: 'feeling_cold', label: 'Feeling unusually cold', subtitle: 'Intolerance to cold temperatures, constantly cold hands, feet, or shivering' },
-      { id: 'feeling_hot', label: 'Feeling unusually hot', subtitle: 'Heat intolerance, frequent sweating, or feeling overheated in mild conditions' },
-      { id: 'palpitations', label: 'Palpitations', subtitle: 'Heart racing, fluttering, or pounding sensation at rest' },
-      { id: 'constipation', label: 'Constipation', subtitle: 'Sluggish bowel motility, hard infrequent stools, or feeling incomplete' },
-      { id: 'diarrhea', label: 'Diarrhea', subtitle: 'Frequent, loose, or watery bowel movements' },
-      { id: 'increased_thirst', label: 'Increased thirst', subtitle: 'Persistent dry mouth and unquenchable thirst requiring frequent fluids' },
-      { id: 'frequent_urination', label: 'Frequent urination', subtitle: 'Voiding urine unusually often during the day or waking multiple times at night' }
-    ]
-  },
-  {
-    id: 'nutritional_health',
-    label: 'Nutritional Health',
-    icon: 'fa-carrot',
+    id: 'weight_nutrition',
+    label: 'Weight & Nutrition',
+    icon: 'fa-scale-unbalanced',
     color: 'text-emerald-700 bg-emerald-50/90 border-emerald-200',
-    description: 'Micronutrient reserves, iron/ferritin stores, dietary patterns, and absorption factors',
+    description: 'Weight gain, weight loss, difficulty losing weight, feeling tired, and nutrition concerns',
     symptoms: [
-      { id: 'weakness', label: 'Weakness', subtitle: 'Physical lack of muscle stamina or feeling easily exhausted by light activity' },
-      { id: 'poor_diet', label: 'Poor diet', subtitle: 'Irregular meals, high processed food intake, or insufficient dietary variety' },
-      { id: 'restrictive_diets', label: 'Restrictive diets', subtitle: 'Prolonged low-calorie intake, exclusion of entire food groups, or crash dieting' },
-      { id: 'digestive_concerns', label: 'Digestive concerns', subtitle: 'Poor absorption, recurrent indigestion, or persistent discomfort after meals' },
-      { id: 'suspected_deficiency', label: 'Suspected nutritional deficiency', subtitle: 'Previous low levels or symptoms associated with iron, Vitamin D, or B12' }
+      { id: 'weight_gain', label: 'Weight Gain', subtitle: 'Unexpected weight gain or weight shifting toward abdomen?', icon: 'fa-scale-unbalanced' },
+      { id: 'weight_loss', label: 'Weight Loss', subtitle: 'Unintentional drop in weight without changes in diet or exercise?', icon: 'fa-arrow-trend-down' },
+      { id: 'difficulty_losing_weight', label: 'Difficulty Losing Weight', subtitle: 'Weight remaining stubborn despite structured dietary habits and movement?', icon: 'fa-gauge-high' },
+      { id: 'fatigue', label: 'Feeling Tired', subtitle: 'Persistent sluggishness or waking unrefreshed despite sleeping?', icon: 'fa-battery-quarter' },
+      { id: 'suspected_deficiency', label: 'Nutrition Concerns', subtitle: 'Suspected low iron or vitamin levels, restrictive meals, or low physical stamina?', icon: 'fa-carrot' }
     ]
   },
   {
-    id: 'menopause_perimenopause',
-    label: 'Menopause / Perimenopause',
-    icon: 'fa-cloud-sun',
-    color: 'text-sky-800 bg-sky-50/90 border-sky-200',
-    description: 'Midlife hormonal transition, vasomotor symptoms, sleep shifts, and cycle changes',
+    id: 'fertility',
+    label: 'Fertility',
+    icon: 'fa-seedling',
+    color: 'text-violet-700 bg-violet-50/90 border-violet-200',
+    description: 'Trying to conceive, fertility questions, irregular ovulation, and pre-pregnancy health',
     symptoms: [
-      { id: 'cycle_changes_menopause', label: 'Cycle changes (40s–50s)', subtitle: 'Periods becoming closer together, farther apart, or varying drastically in flow' },
-      { id: 'night_sweats', label: 'Night sweats', subtitle: 'Waking up drenched in sweat, requiring changing nightwear or bedsheets' },
-      { id: 'sleep_changes', label: 'Sleep changes', subtitle: 'Difficulty staying asleep, waking at 3 AM, or restless sleep patterns' },
-      { id: 'body_comp_changes', label: 'Body composition changes', subtitle: 'Shift of weight distribution toward the waist, changes in skin elasticity' }
+      { id: 'difficulty_conceiving', label: 'Trying to Conceive', subtitle: 'Not achieving pregnancy after months of regular, timed unprotected intercourse?', icon: 'fa-seedling' },
+      { id: 'fertility_concerns', label: 'Fertility Questions', subtitle: 'Wondering about ovulatory health, cycle predictability, or conception timing?', icon: 'fa-circle-question' },
+      { id: 'ovulation_concerns', label: 'Irregular Ovulation', subtitle: 'Absence of fertile cues, negative ovulation tests, or irregular ovulation timing?', icon: 'fa-chart-line' },
+      { id: 'preconception_concerns', label: 'Pre-Pregnancy Health', subtitle: 'Optimizing thyroid, metabolic health, or nutrition before starting to conceive?', icon: 'fa-baby' }
     ]
   },
   {
-    id: 'sexual_health',
-    label: 'Sexual Health',
-    icon: 'fa-heart',
-    color: 'text-pink-700 bg-pink-50/90 border-pink-200',
-    description: 'Comfort during intimacy, non-judgmental sexual health, desire, and STI evaluation',
+    id: 'mind_lifestyle',
+    label: 'Mind & Lifestyle',
+    icon: 'fa-brain',
+    color: 'text-purple-700 bg-purple-50/90 border-purple-200',
+    description: 'Stress, poor sleep, low energy, and mood changes',
     symptoms: [
-      { id: 'low_libido', label: 'Low libido', subtitle: 'Persistent lack of sexual desire, arousal, or intimacy interest' },
-      { id: 'genital_itching', label: 'Genital itching', subtitle: 'Pruritus affecting external genital tissues or perianal skin folds' },
-      { id: 'genital_discharge', label: 'Genital discharge', subtitle: 'Discharge with altered scent, color, volume, or texture' },
-      { id: 'genital_lesions', label: 'Genital lesions', subtitle: 'Sores, blisters, painful bumps, or ulcerations in the genital or pelvic area' },
-      { id: 'sti_concerns', label: 'STI concerns', subtitle: 'Recent unprotected contact, partner notification, or routine sexual wellness testing' }
+      { id: 'stress', label: 'Stress', subtitle: 'High mental tension, feeling overwhelmed, or nervous system exhaustion?', icon: 'fa-brain' },
+      { id: 'poor_sleep', label: 'Poor Sleep', subtitle: 'Trouble falling asleep, restless nights, or waking frequently?', icon: 'fa-moon' },
+      { id: 'weakness', label: 'Low Energy', subtitle: 'Physical lack of muscle stamina or feeling easily exhausted by light activity?', icon: 'fa-bolt-lightning' },
+      { id: 'mood_swings', label: 'Mood Changes', subtitle: 'Feeling more anxious, low, irritable, or emotionally different?', icon: 'fa-cloud-rain' }
     ]
   },
   {
@@ -215,19 +120,18 @@ export const SYMPTOM_CATEGORIES = [
     label: 'General Health',
     icon: 'fa-notes-medical',
     color: 'text-blue-700 bg-blue-50/90 border-blue-200',
-    description: 'Baseline vitality, constitutional symptoms, headaches, sleep, and physical stamina',
+    description: 'Headache, dizziness, digestive problems, temperature sensitivity, and other concerns',
     symptoms: [
-      { id: 'headache', label: 'Headache', subtitle: 'Tension ache, throbbing migraines, or cycle-related headaches' },
-      { id: 'dizziness', label: 'Dizziness', subtitle: 'Lightheadedness, feeling faint, or unsteadiness when standing up' },
-      { id: 'fever', label: 'Fever', subtitle: 'Elevated body temperature, chills, or constitutional feeling of being unwell' },
-      { id: 'poor_sleep', label: 'Sleep problems', subtitle: 'Trouble falling asleep, restless nights, or waking frequently' },
-      { id: 'stress', label: 'Stress', subtitle: 'High mental tension, feeling overwhelmed, or physiological anxiety' },
-      { id: 'digestive_discomfort', label: 'Digestive issues', subtitle: 'Abdominal bloating, stomach cramping, or irregular bowel rhythm' }
+      { id: 'headache', label: 'Headache', subtitle: 'Tension ache, throbbing migraines, or cycle-linked headaches?', icon: 'fa-head-side-cough' },
+      { id: 'dizziness', label: 'Dizziness', subtitle: 'Lightheadedness, feeling faint, or unsteadiness when standing up?', icon: 'fa-compass' },
+      { id: 'digestive_discomfort', label: 'Digestive Problems', subtitle: 'Abdominal bloating, stomach cramping, constipation, or irregular bowel rhythm?', icon: 'fa-wheat-awn-circle-exclamation' },
+      { id: 'feeling_cold', label: 'Feeling Unusually Cold or Hot', subtitle: 'Constant cold hands/feet or heat sensitivity with temperature swings?', icon: 'fa-temperature-half' },
+      { id: 'something_else', label: 'Something Else', subtitle: 'Can\'t find your problem? Tell us what\'s bothering you in your own words.', icon: 'fa-stethoscope' }
     ]
   }
 ];
 
-// Flat lookup map of all symptoms by ID
+// Flat lookup map of all symptoms by ID + Alias mapping for backward compatibility
 export const ALL_SYMPTOMS_MAP = SYMPTOM_CATEGORIES.reduce((acc, cat) => {
   cat.symptoms.forEach(sym => {
     if (!acc[sym.id]) {
@@ -236,6 +140,60 @@ export const ALL_SYMPTOMS_MAP = SYMPTOM_CATEGORIES.reduce((acc, cat) => {
   });
   return acc;
 }, {});
+
+// Aliases for historical / alternate symptom IDs
+const SYMPTOM_ALIASES = {
+  scalp_hair_thinning: 'hair_thinning',
+  sudden_hair_loss: 'hair_fall',
+  patchy_hair_loss: 'hair_fall',
+  adult_acne: 'acne',
+  hormonal_acne: 'acne',
+  pigmentation: 'dark_spots',
+  skin_rash: 'skin_itching',
+  skin_irritation: 'skin_itching',
+  vulvar_irritation: 'vaginal_itching',
+  vulvar_redness: 'vaginal_burning',
+  discharge_color_change: 'unusual_discharge',
+  discharge_consistency_change: 'unusual_discharge',
+  pain_urination: 'vaginal_burning',
+  vaginal_discomfort: 'vaginal_itching',
+  recurrent_vaginal_symptoms: 'vaginal_itching',
+  long_cycles: 'irregular_periods',
+  infrequent_periods: 'irregular_periods',
+  long_periods: 'heavy_periods',
+  short_cycles: 'irregular_periods',
+  spotting: 'bleeding_between_periods',
+  bleeding_after_intercourse: 'bleeding_between_periods',
+  lower_abdominal_pain: 'pelvic_pain',
+  pelvic_pressure: 'pelvic_pain',
+  abnormal_bleeding: 'heavy_periods',
+  severe_pms_mood: 'mood_swings',
+  recurrent_pregnancy_loss: 'fertility_concerns',
+  fertility_planning: 'preconception_concerns',
+  palpitations: 'stress',
+  constipation: 'digestive_discomfort',
+  diarrhea: 'digestive_discomfort',
+  increased_thirst: 'feeling_cold',
+  frequent_urination: 'feeling_cold',
+  poor_diet: 'suspected_deficiency',
+  restrictive_diets: 'suspected_deficiency',
+  digestive_concerns: 'digestive_discomfort',
+  cycle_changes_menopause: 'irregular_periods',
+  night_sweats: 'feeling_cold',
+  sleep_changes: 'poor_sleep',
+  body_comp_changes: 'weight_gain',
+  low_libido: 'hormonal_concerns',
+  genital_itching: 'vaginal_itching',
+  genital_discharge: 'unusual_discharge',
+  fever: 'headache',
+  feeling_tired: 'fatigue'
+};
+
+Object.entries(SYMPTOM_ALIASES).forEach(([aliasId, targetId]) => {
+  if (!ALL_SYMPTOMS_MAP[aliasId] && ALL_SYMPTOMS_MAP[targetId]) {
+    ALL_SYMPTOMS_MAP[aliasId] = { ...ALL_SYMPTOMS_MAP[targetId], id: aliasId };
+  }
+});
 
 // ── 2. RED FLAG EMERGENCY SYMPTOMS REGISTRY ───────────────────────────────────
 export const RED_FLAG_SYMPTOMS = [
@@ -313,8 +271,8 @@ export function getContextualQuestions(selectedSymptomIds = []) {
   const hasPCOSOrPeriod = selectedSymptomIds.some(id => 
     ['irregular_periods', 'missed_periods', 'long_cycles', 'infrequent_periods', 
      'heavy_periods', 'painful_periods', 'long_periods', 'short_cycles', 'spotting', 
-     'bleeding_between_periods', 'pms_symptoms', 'severe_pms_mood', 'facial_body_hair', 
-     'scalp_hair_thinning', 'darkened_skin_folds', 'metabolic_concerns', 'hormonal_concerns'].includes(id)
+     'bleeding_between_periods', 'pms_symptoms', 'severe_pms_mood', 
+     'darkened_skin_folds', 'metabolic_concerns', 'hormonal_concerns', 'pcos_concerns', 'pelvic_pain'].includes(id)
   );
 
   const hasFertility = selectedSymptomIds.some(id => 
@@ -324,40 +282,105 @@ export function getContextualQuestions(selectedSymptomIds = []) {
 
   const hasWeightOrMetabolic = selectedSymptomIds.some(id => 
     ['weight_changes', 'weight_gain', 'weight_loss', 'difficulty_losing_weight', 
-     'increased_thirst', 'frequent_urination', 'feeling_cold', 'feeling_hot', 'fatigue'].includes(id)
+     'increased_thirst', 'frequent_urination', 'feeling_cold', 'feeling_hot'].includes(id)
   );
 
-  const hasSkinOrHair = selectedSymptomIds.some(id => 
-    ['acne', 'sudden_acne', 'adult_acne', 'hormonal_acne', 'pigmentation', 'dark_spots', 
-     'hair_fall', 'hair_thinning', 'sudden_hair_loss', 'patchy_hair_loss', 'dandruff', 'itchy_scalp'].includes(id)
+  const hasHair = selectedSymptomIds.some(id => 
+    ['hair_fall', 'hair_thinning', 'sudden_hair_loss', 'patchy_hair_loss', 
+     'dandruff', 'itchy_scalp', 'facial_body_hair', 'scalp_hair_thinning'].includes(id)
+  );
+
+  const hasSkin = selectedSymptomIds.some(id => 
+    ['acne', 'sudden_acne', 'adult_acne', 'hormonal_acne', 'pigmentation', 
+     'dark_spots', 'dry_skin', 'skin_itching', 'skin_rash', 'skin_irritation'].includes(id)
   );
 
   const questions = [
     {
       id: 'duration',
-      title: 'How long have you experienced these symptoms?',
+      title: 'When did it start?',
       subtitle: 'Understanding the timeline helps doctors differentiate acute, temporary triggers from recurring or long-standing patterns.',
       type: 'single_choice',
       required: true,
       options: [
-        { value: 'short', label: 'Less than 4 weeks', desc: 'Recent onset or newly emerging changes' },
-        { value: 'medium', label: '1 to 6 months', desc: 'Ongoing or fluctuating over several months' },
+        { value: 'short', label: 'Less than 4 weeks ago', desc: 'Recent onset or newly emerging changes' },
+        { value: 'medium', label: '1 to 6 months ago', desc: 'Ongoing or fluctuating over several months' },
         { value: 'long', label: 'More than 6 months to years', desc: 'Long-standing, chronic, or recurring pattern' }
       ]
     },
     {
       id: 'severity',
-      title: 'How severe is the impact on your everyday life?',
+      title: 'How much is this affecting your daily comfort?',
       subtitle: 'This helps gauge functional impact on your daily routine, sleep, comfort, and wellbeing.',
       type: 'single_choice',
       required: true,
       options: [
-        { value: 'mild', label: 'Mild', desc: 'Noticeable, but does not interfere with daily activities or sleep' },
-        { value: 'moderate', label: 'Moderate', desc: 'Frequently impacts my energy, comfort, skin, cycles, or confidence' },
-        { value: 'severe', label: 'Severe', desc: 'Significantly limits daily tasks, sleep, work, relationships, or quality of life' }
+        { value: 'mild', label: 'Mild impact', desc: 'Noticeable, but does not interfere with daily activities or sleep' },
+        { value: 'moderate', label: 'Moderate impact', desc: 'Frequently impacts my energy, comfort, skin, cycles, or confidence' },
+        { value: 'severe', label: 'Severe impact', desc: 'Significantly limits daily tasks, sleep, work, relationships, or quality of life' }
       ]
     }
   ];
+
+  // Hair Fall Specific Questions (Requirement 3: Hair Fall Journey)
+  if (hasHair) {
+    questions.push({
+      id: 'hair_pattern',
+      title: 'Is the hair falling from all over the scalp or one area?',
+      subtitle: 'Where hair sheds helps differentiate diffuse temporary shedding from localized or pattern thinning.',
+      type: 'single_choice',
+      required: false,
+      options: [
+        { value: 'diffuse_all_over', label: 'All over the scalp (diffuse shedding)', desc: 'High shedding in the shower, on pillow, or in your hairbrush' },
+        { value: 'scalp_center_part', label: 'Gradual thinning along center partition or crown', desc: 'Hair partition looks wider or ponytail feels noticeably thinner' },
+        { value: 'patchy_circular', label: 'Circular, smooth coin-shaped bald spot(s)', desc: 'Distinct localized patch with smooth scalp skin' },
+        { value: 'hairline_temples', label: 'Front hairline or temples receding', desc: 'Receding edges or tension along hair borders' }
+      ]
+    });
+
+    questions.push({
+      id: 'hair_onset',
+      title: 'Did the hair loss start suddenly or gradually?',
+      subtitle: 'Sudden shedding often follows a physiological trigger 2–3 months earlier.',
+      type: 'single_choice',
+      required: false,
+      options: [
+        { value: 'sudden_shedding', label: 'Started suddenly (within days to weeks)', desc: 'Sudden large clumps of hair falling out' },
+        { value: 'gradual_thinning', label: 'Progressed slowly and gradually over months/years', desc: 'Slow, steady decrease in overall hair volume' },
+        { value: 'cyclical_fluctuating', label: 'Fluctuates with periods or stress levels', desc: 'Increases at certain times of the month or year' }
+      ]
+    });
+
+    questions.push({
+      id: 'hair_triggers',
+      title: 'Any recent illness, major stress, or period/hormone changes?',
+      subtitle: 'Hair follicles are sensitive to systemic physiological shifts.',
+      type: 'single_choice',
+      required: false,
+      options: [
+        { value: 'illness_stress', label: 'Recent high fever, illness, surgery, or major emotional stress', desc: 'Classic trigger for acute telogen effluvium shedding' },
+        { value: 'period_hormone_changes', label: 'Yes, experiencing irregular periods, acne, or weight changes', desc: 'Points toward possible hormonal or ovulatory connection' },
+        { value: 'diet_low_iron', label: 'Strict diet, low iron stores, or heavy periods', desc: 'Cellular iron or protein levels may be involved' },
+        { value: 'none_apparent', label: 'None of these / no obvious trigger', desc: 'No recent illness or cycle changes noted' }
+      ]
+    });
+  }
+
+  // Skin Specific Questions
+  if (hasSkin) {
+    questions.push({
+      id: 'skin_pattern',
+      title: 'Where do you notice the skin breakouts or changes most?',
+      subtitle: 'Breakout location helps clinicians evaluate hormonal sensitivity versus topical/barrier irritation.',
+      type: 'single_choice',
+      required: false,
+      options: [
+        { value: 'jawline_chin', label: 'Jawline, chin, lower face, or neck', desc: 'Classic hormonal/androgen-sensitive breakout region' },
+        { value: 'forehead_cheeks', label: 'Forehead, cheeks, or surface skin', desc: 'Skin barrier sensitivity, surface pores, or cosmetic irritation' },
+        { value: 'chest_back', label: 'Back, chest, or shoulders', desc: 'Follicular or body breakout distribution' }
+      ]
+    });
+  }
 
   // Vaginal & Vulvar Context Question
   if (hasVaginalVulvar) {
@@ -389,13 +412,13 @@ export function getContextualQuestions(selectedSymptomIds = []) {
         { value: 'regular_normal', label: 'Regular (every 24–35 days)', desc: 'Predictable onset with 4–7 days of moderate bleeding' },
         { value: 'delayed_infrequent', label: 'Irregular or delayed (> 35 days apart)', desc: 'Unpredictable, often skipping months or occurring fewer than 8 times a year' },
         { value: 'heavy_with_clots', label: 'Very heavy flow with large clots', desc: 'Soaking through protection rapidly or feeling drained/fatigued during period' },
-        { value: 'severe_pain_cramping', label: 'Extremely painful periods (dysmenorrhea)', desc: 'Pain not relieved by simple painkillers, radiating to back or legs' },
-        { value: 'not_menstruating', label: 'Not menstruating / On hormonal birth control / Menopause', desc: 'Naturally absent, suppressed by hormonal contraception, or postmenopausal' }
+        { value: 'severe_pain_cramping', label: 'Extremely painful periods (cramping)', desc: 'Pain not relieved by simple painkillers, radiating to back or legs' },
+        { value: 'not_menstruating', label: 'Not menstruating / On birth control / Menopause', desc: 'Naturally absent, suppressed by hormonal contraception, or postmenopausal' }
       ]
     });
   }
 
-  // Fertility & Reproductive Context Question (Age & Time Context)
+  // Fertility & Reproductive Context Question
   if (hasFertility) {
     questions.push({
       id: 'fertility_time_context',
@@ -408,23 +431,6 @@ export function getContextualQuestions(selectedSymptomIds = []) {
         { value: 'less_than_6m', label: 'Trying for less than 6 months', desc: 'Recently started timed intercourse; normal conception window' },
         { value: '6_to_12m_under35', label: '6 to 12 months (under age 35)', desc: 'Standard initial window for spontaneous conception' },
         { value: 'over_12m_or_over35', label: 'Over 12 months (or > 6 months if age 35+)', desc: 'Timeline where a proactive fertility evaluation is clinically recommended' }
-      ]
-    });
-  }
-
-  // Skin & Hair Distribution
-  if (hasSkinOrHair) {
-    questions.push({
-      id: 'skin_hair_pattern',
-      title: 'Where do you notice the skin or hair changes most prominently?',
-      subtitle: 'Distribution patterns assist clinicians in evaluating androgen receptor sensitivity versus topical/scalp causes.',
-      type: 'single_choice',
-      required: false,
-      options: [
-        { value: 'jawline_chin', label: 'Jawline, chin, neck, or lower face', desc: 'Classic hormonal/androgen-sensitive breakout region' },
-        { value: 'scalp_center_part', label: 'Widening center partition or crown of scalp', desc: 'Gradual follicular thinning along the top of the head' },
-        { value: 'diffuse_all_over', label: 'High shedding all over the scalp in brush/shower', desc: 'Diffuse telogen shedding often linked with stress, iron, or thyroid' },
-        { value: 'forehead_cheeks', label: 'Forehead, cheeks, or general skin surface', desc: 'Skin barrier sensitivity, surface comedones, or contact irritation' }
       ]
     });
   }
@@ -466,7 +472,7 @@ export function getContextualQuestions(selectedSymptomIds = []) {
   questions.push({
     id: 'safety_flags',
     title: 'Safety check: Are you experiencing any urgent or emergency signs?',
-    subtitle: 'Your health and safety come first. If you have severe or acute warning signs, immediate emergency medical care is required.',
+    subtitle: 'Your health and safety come first. If you have severe or acute warning signs, prompt medical care is required.',
     type: 'multiple_choice',
     required: false,
     options: [
@@ -1154,14 +1160,14 @@ export function evaluateAssessment({ selectedSymptoms = [], answers = {} }) {
       selectedSymptomsInfo: selectedSymptoms.map(id => ALL_SYMPTOMS_MAP[id] || { id, label: id, subtitle: '' }),
       redFlagsDetected: selectedRedFlags,
       emergencyNotice: {
-        title: 'Immediate Clinical Attention Recommended (Red Flag Warning)',
-        message: 'You have reported one or more symptoms that may indicate an urgent medical situation. Standard online symptom assessment and wellness routines are not safe or appropriate when urgent warning signs are present.',
+        title: 'Please get medical help promptly',
+        message: 'Some symptoms need prompt medical attention. Please contact a healthcare professional or local emergency service if you are experiencing acute, severe, or sudden symptoms.',
         actions: [
-          'Visit the nearest hospital Emergency Department or Urgent Care Center immediately.',
+          'Contact a qualified healthcare professional or visit the nearest emergency department promptly.',
           'Call your local emergency ambulance service (e.g. 112 / 102 in India, 911 in the US).',
-          'If you are experiencing thoughts of self-harm or immediate crisis, call an emergency mental health helpline (e.g. 988 or local emergency lines).',
-          'Do NOT attempt home remedies, vigorous exercise, or unprescribed medications.',
-          'Have a family member, friend, or emergency responder accompany you.'
+          'If you are experiencing severe emotional distress or thoughts of self-harm, contact a crisis helpline immediately (e.g. 988 or local emergency lines).',
+          'Do NOT attempt vigorous exercise, self-medication, or wait for symptoms to resolve on their own.',
+          'Ask a family member or trusted friend to accompany you to the clinic or hospital.'
         ]
       },
       possibleHealthAreas: [],
@@ -1170,22 +1176,23 @@ export function evaluateAssessment({ selectedSymptoms = [], answers = {} }) {
       recommendedSpecialists: [
         {
           id: 'urgent_care',
-          name: 'Emergency Medical Services / Hospital Urgent Care',
-          title: 'Immediate Emergency Care',
+          name: 'Emergency Medical Services / Urgent Care',
+          title: 'Immediate Clinical Care',
           icon: 'fa-truck-medical',
           color: 'rose',
-          tag: 'Urgent In-Person Evaluation',
-          whyRelevant: 'Immediate physical examination, laboratory diagnostics, and urgent clinical stabilization.',
+          tag: 'Urgent Care',
+          whyRelevant: 'Immediate in-person clinical examination and medical evaluation.',
+          plainLanguageDescription: 'Emergency medical professionals who provide urgent clinical care.',
           isPrimaryStartingPoint: true
         }
       ],
       clinicalEvaluationOverview: {
-        history: 'Immediate emergency triage and vital signs assessment.',
-        physicalExam: 'Emergency physical and abdominal/pelvic examination by attending physician.',
-        tests: 'Stat laboratory testing, ECG, or emergency ultrasound/imaging.'
+        history: 'Immediate medical triage and vital signs evaluation.',
+        physicalExam: 'Prompt physical examination by an attending physician.',
+        tests: 'Emergency diagnostics, blood tests, or imaging as clinically indicated.'
       },
       wellnessExercises: [],
-      safetyDisclaimer: 'URGENT: Red flag symptoms require immediate in-person medical evaluation. Do not start any wellness or exercise routine.'
+      safetyDisclaimer: 'Please seek prompt in-person medical evaluation. Normal wellness routines and symptom assessments are paused when urgent symptoms are reported.'
     };
   }
 
@@ -1329,19 +1336,85 @@ export function evaluateAssessment({ selectedSymptoms = [], answers = {} }) {
     primarySpecialistId = 'trichologist';
   }
 
+  // Plain-Language Specialist Descriptions (Requirement 3 & 11)
+  const plainSpecialistDescriptions = {
+    dermatologist: 'A doctor who helps with skin, hair and nail problems.',
+    gynaecologist: "A doctor who helps with periods, reproductive health and many women's health concerns.",
+    endocrinologist: 'A doctor who helps with hormone and metabolism-related health problems.',
+    trichologist: 'A specialist who focuses on scalp health, hair thinning, and shedding causes.',
+    general_physician: 'A doctor who helps with overall health checks, routine blood tests, and medical evaluation.',
+    nutritionist: 'A specialist who helps with balanced nutrition, iron replenishment, and metabolic diet guidance.',
+    yoga_lifestyle: 'A specialist who helps with gentle movement, pelvic comfort, and stress regulation.'
+  };
+
   // Filter relevant specialists
   const candidateSpecialists = SPECIALISTS_CATALOG.filter(spec => {
     return spec.relevantSymptoms.some(sym => selectedSymptoms.includes(sym)) || spec.id === primarySpecialistId;
   });
 
-  // Mark the primary starting point clearly
+  // Mark the primary starting point clearly & attach plain-language explanation
   const recommendedSpecialists = (candidateSpecialists.length > 0 ? candidateSpecialists : SPECIALISTS_CATALOG.slice(0, 3)).map(spec => ({
     ...spec,
-    isPrimaryStartingPoint: spec.id === primarySpecialistId
+    isPrimaryStartingPoint: spec.id === primarySpecialistId,
+    plainLanguageDescription: plainSpecialistDescriptions[spec.id] || spec.whyRelevant
   }));
 
   // Sort so the primary starting point specialist is always first
   recommendedSpecialists.sort((a, b) => (b.isPrimaryStartingPoint ? 1 : 0) - (a.isPrimaryStartingPoint ? 1 : 0));
+
+  // Plain-Language Possible Reasons (Requirement 3 & 6: "THIS MAY BE RELATED TO")
+  const possibleReasonsMap = new Map();
+  if (has('hair_fall') || has('hair_thinning') || has('scalp_hair_thinning')) {
+    possibleReasonsMap.set('Hormone changes', 'Hormone changes (shifts in estrogen, progesterone, or androgens can alter growth cycles)');
+    possibleReasonsMap.set('Nutrition or low iron', 'Nutrition or low iron (cellular iron reserves and ferritin are vital for hair follicles)');
+    possibleReasonsMap.set('Thyroid-related problems', 'Thyroid-related problems (underactive or overactive thyroid signaling affects metabolism)');
+    possibleReasonsMap.set('Scalp conditions', 'Scalp conditions (dandruff, inflammation, or microenvironment shifts around hair roots)');
+    possibleReasonsMap.set('Stress or recent illness', 'Stress or recent illness (acute stress or fever can trigger temporary shedding 2–3 months later)');
+    possibleReasonsMap.set('Medicines', 'Medicines (certain prescription medications or contraceptive transitions)');
+    possibleReasonsMap.set('Family-related hair loss', 'Family-related hair loss (genetic sensitivity of hair follicles to natural hormone variations)');
+  }
+  if (hasVaginalSymptoms) {
+    possibleReasonsMap.set('Microbiome balance shifts', 'Microbiome balance shifts (natural fluctuations in protective Lactobacillus bacteria)');
+    possibleReasonsMap.set('Soaps or contact irritation', 'Soaps or contact irritation (reactions to synthetic washes, scented products, or detergents)');
+    possibleReasonsMap.set('Hormone changes', 'Hormone changes (estrogen variations during cycles, lactation, or perimenopause affecting tissue moisture)');
+  }
+  if (has('acne') || has('sudden_acne')) {
+    possibleReasonsMap.set('Hormone changes', 'Hormone changes (androgen sensitivity of sebaceous oil glands along jawline or chin)');
+    possibleReasonsMap.set('Skin barrier changes', 'Skin barrier changes (surface follicular congestion, cosmetic buildup, or inflammation)');
+    possibleReasonsMap.set('Metabolic factors', 'Metabolic factors (dietary carbohydrate and insulin dynamics affecting sebum)');
+  }
+  if (has('irregular_periods') || has('heavy_periods') || has('painful_periods') || has('missed_periods')) {
+    possibleReasonsMap.set('Hormone changes', 'Hormone changes (ovulatory variations affecting estrogen and progesterone balance)');
+    possibleReasonsMap.set('Thyroid-related problems', 'Thyroid-related problems (thyroid hormones directly interact with menstrual regularity)');
+    possibleReasonsMap.set('Uterine or pelvic factors', 'Uterine or pelvic factors (cramping, pelvic muscular tone, or endometrial lining shifts)');
+  }
+  if (has('weight_changes') || has('weight_gain') || has('difficulty_losing_weight')) {
+    possibleReasonsMap.set('Metabolic & insulin dynamics', 'Metabolic & insulin dynamics (how efficiently your body processes energy and carbohydrates)');
+    possibleReasonsMap.set('Thyroid-related problems', 'Thyroid-related problems (basal metabolic rate and temperature regulation)');
+  }
+  if (has('stress') || has('poor_sleep') || has('fatigue')) {
+    possibleReasonsMap.set('Stress or recent illness', 'Stress or recent illness (nervous system fatigue and elevated cortisol load)');
+    possibleReasonsMap.set('Nutrition or low iron', 'Nutrition or low iron (iron, Vitamin D, or B12 stores affecting baseline stamina)');
+  }
+
+  // Ensure standard common reasons are present
+  if (possibleReasonsMap.size === 0) {
+    possibleReasonsMap.set('Hormone changes', 'Hormone changes (natural cyclical or endocrine fluctuations)');
+    possibleReasonsMap.set('Nutrition or low iron', 'Nutrition or low iron (micronutrient reserves and dietary factors)');
+    possibleReasonsMap.set('Stress or recent illness', 'Stress or recent illness (physiological stress load or immune recovery)');
+  }
+
+  const possibleReasons = Array.from(possibleReasonsMap.values());
+
+  // Multi-Symptom Explanation (Requirement 5: Never automatically diagnose PCOS)
+  let multiSymptomExplanation = null;
+  if (selectedSymptoms.length > 1) {
+    if (has('acne') && has('irregular_periods') && (has('facial_body_hair') || has('hair_fall') || has('hair_thinning'))) {
+      multiSymptomExplanation = "These symptoms can sometimes occur together. There are several possible reasons, including hormone-related conditions, thyroid problems, nutrition issues and skin/hair conditions. PCOS is one condition that can sometimes be associated with this group of symptoms. A doctor needs to evaluate your symptoms and medical history.";
+    } else {
+      multiSymptomExplanation = "These symptoms can sometimes occur together. There are several possible reasons, including interconnected hormone-related conditions, thyroid problems, nutrition issues and lifestyle factors. A doctor needs to evaluate your symptoms and medical history.";
+    }
+  }
 
   // High-Level Clinical Evaluation Overview (Prompt Section 3 & 11)
   const clinicalEvaluationOverview = {
@@ -1389,6 +1462,8 @@ export function evaluateAssessment({ selectedSymptoms = [], answers = {} }) {
     isEmergency: false,
     selectedSymptomsInfo,
     answers,
+    possibleReasons,
+    multiSymptomExplanation,
     relevantHealthAreaLabels: Array.from(relevantHealthAreaLabels),
     conditionsToDiscuss,
     recommendedSpecialists: recommendedSpecialists.slice(0, 4),
